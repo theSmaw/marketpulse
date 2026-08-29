@@ -9,11 +9,26 @@
 
 Establish how the repository is laid out and how TypeScript, linting and formatting work across it, before any application code exists. Frontend and backend share a language and will share domain types (security identifiers, market events, investigation objects), so the layout needs to make that sharing cheap from the start.
 
-## Open decisions
+## Decisions
 
-* Repository layout — single repo with `apps/` + `packages/`, or two independent packages
-* Package manager and workspace tooling — npm workspaces / pnpm / other
-* Whether a shared `packages/shared` types package is created now or when Epic 2 first needs it
+Resolved 2026-08-29:
+
+* **Layout** — single repository, `apps/frontend` + `apps/backend` + `packages/shared`
+* **Workspace tooling** — pnpm workspaces, for faster installs and strict dependency resolution that catches undeclared imports. Costs a prerequisite: pnpm must be available, pinned via Corepack.
+* **Shared package** — created now rather than deferred to Epic 2, so cross-package imports, build ordering and typechecking are proven while the repository is trivial
+* **Cross-package builds** — TypeScript project references with built output (see Task 1.1.3 for the trade-off and fallback)
+
+```
+marketpulse/
+├── pnpm-workspace.yaml
+├── package.json
+├── tsconfig.base.json
+├── apps/
+│   ├── frontend/
+│   └── backend/
+└── packages/
+    └── shared/
+```
 
 ## Acceptance criteria
 
@@ -22,6 +37,23 @@ Establish how the repository is laid out and how TypeScript, linting and formatt
 * A shared base `tsconfig` exists and each package extends it
 * Formatting is enforced consistently and does not fight the editor
 * Script names are consistent across packages (`dev`, `build`, `test`, `lint`, `typecheck`)
+
+## Tasks
+
+Tackled in order. The story is complete when all eight are done.
+
+| # | Task |
+|---|------|
+| 1.1.1 | [Initialise the pnpm workspace root](TASK-01-initialise-pnpm-workspace.md) |
+| 1.1.2 | [Shared TypeScript configuration](TASK-02-shared-typescript-configuration.md) |
+| 1.1.3 | [Create the shared package](TASK-03-create-shared-package.md) |
+| 1.1.4 | [Create the app package skeletons](TASK-04-create-app-package-skeletons.md) |
+| 1.1.5 | [ESLint configuration](TASK-05-eslint-configuration.md) |
+| 1.1.6 | [Prettier and editor conventions](TASK-06-prettier-and-editor-conventions.md) |
+| 1.1.7 | [Root script orchestration](TASK-07-root-script-orchestration.md) |
+| 1.1.8 | [Verify from a clean checkout and document](TASK-08-verify-clean-checkout-and-document.md) |
+
+Each task builds on the previous one, so the tree stays installable and typechecking throughout rather than being broken until the end.
 
 ## Notes
 
