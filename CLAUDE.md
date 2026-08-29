@@ -10,9 +10,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 planning/
   PRODUCT_SPEC.md                  authoritative product definition
   EPICS.md                         epic roadmap and delivery sequence
-  epic-NN-<slug>/EPIC.md           one directory per epic; working notes,
-                                   designs and ADR drafts live alongside it
+  epic-NN-<slug>/
+    EPIC.md                        goal, scope, exit criteria, story index
+    story-NN-<slug>/
+      STORY.md                     description, acceptance criteria,
+                                   open decisions; tasks live alongside it
 ```
+
+Work descends epic → story → task. Read the STORY.md before starting on a story: several carry **open decisions** (framework, UI library, hosting) that are deliberately unresolved and should be settled with the user rather than assumed.
 
 We are building this in **small iterations**. Do not scaffold ahead of the current step: build the thin slice that is asked for, keep it working, then move on. Do not add infrastructure (databases, workers, WebSockets, agent plumbing) before the iteration that needs it.
 
