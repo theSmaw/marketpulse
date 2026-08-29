@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**Epic 1, Story 1.1, task 1 of 8 done.** The pnpm workspace root exists. There are no packages inside it yet and no application source.
+**Epic 1, Story 1.1, task 2 of 8 done.** The pnpm workspace root and the shared TypeScript baseline exist. There are no packages inside the workspace yet and no application source.
 
 ```
 package.json                       private workspace root; pins Node and pnpm
 pnpm-workspace.yaml                workspace globs (apps/*, packages/*) and pnpm settings
+tsconfig.base.json                 the one place shared compiler options live
 .nvmrc                             Node 24.20.0
 planning/
   PRODUCT_SPEC.md                  authoritative product definition
@@ -38,6 +39,10 @@ pnpm install
 pnpm settings live in `pnpm-workspace.yaml`, not `.npmrc` — pnpm 10+ moved them, and pnpm 11 silently ignores workspace settings left in `.npmrc`.
 
 Dependencies may not run install scripts unless named in `allowBuilds` in `pnpm-workspace.yaml`; an un-allowlisted one fails the install outright. This is deliberate. When it fires, allowlist the specific package — never disable the check.
+
+**TypeScript is held at 6.0.3 while npm's `latest` is 7.x.** TS 7 is the native compiler; `typescript-eslint` does not support it yet (peer range `<6.1.0`), and this repo relies on type-aware linting. Don't raise the pin until typescript-eslint's peer range admits TS 7 — check it, don't assume it.
+
+Every shared compiler option lives in `tsconfig.base.json` and nowhere else. Packages extend it and add only `include`, `outDir`/`rootDir`, project `references`, and the frontend's `target`/`lib`. Each option in that file carries a comment explaining why it is there — if you change one, change the comment. `lib` is intentionally unset so it follows `target`.
 
 Build/test/lint/dev commands land in Task 1.1.7 (root script orchestration); Task 1.1.8 fills in this section properly, including how to run a single test.
 

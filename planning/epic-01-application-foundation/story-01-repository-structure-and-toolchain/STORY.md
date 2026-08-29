@@ -1,6 +1,6 @@
 # Story 1.1 — Repository Structure & TypeScript Toolchain
 
-**Status:** In progress — 1 of 8 tasks complete
+**Status:** In progress — 2 of 8 tasks complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** nothing
 **Epic scope covered:** shared configuration
@@ -17,6 +17,7 @@ Resolved 2026-08-29:
 * **Workspace tooling** — pnpm workspaces, for faster installs and strict dependency resolution that catches undeclared imports. Costs a prerequisite: pnpm must be available, pinned via Corepack.
 * **Shared package** — created now rather than deferred to Epic 2, so cross-package imports, build ordering and typechecking are proven while the repository is trivial
 * **Cross-package builds** — TypeScript project references with built output (see Task 1.1.3 for the trade-off and fallback)
+* **TypeScript 6.0.3, not 7.x** — TS 7 (the native compiler) is `latest`, but no `typescript-eslint` release supports it yet, and Task 1.1.5 needs type-aware linting. 6.0.3 is the newest version inside typescript-eslint's peer range and shares TS 7's semantics. Revisit when that range widens (Task 1.1.2)
 
 ```
 marketpulse/
@@ -45,7 +46,7 @@ Tackled in order. The story is complete when all eight are done.
 | # | Task | Status |
 |---|------|--------|
 | 1.1.1 | [Initialise the pnpm workspace root](TASK-01-initialise-pnpm-workspace.md) | Complete |
-| 1.1.2 | [Shared TypeScript configuration](TASK-02-shared-typescript-configuration.md) | Not started |
+| 1.1.2 | [Shared TypeScript configuration](TASK-02-shared-typescript-configuration.md) | Complete |
 | 1.1.3 | [Create the shared package](TASK-03-create-shared-package.md) | Not started |
 | 1.1.4 | [Create the app package skeletons](TASK-04-create-app-package-skeletons.md) | Not started |
 | 1.1.5 | [ESLint configuration](TASK-05-eslint-configuration.md) | Not started |

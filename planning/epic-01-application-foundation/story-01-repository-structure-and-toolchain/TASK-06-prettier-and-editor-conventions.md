@@ -12,6 +12,7 @@ Make formatting automatic, consistent and invisible — and make sure it does no
 
 * Add Prettier with an explicit configuration file
 * Add `.prettierignore` covering build output, lockfiles and generated artefacts
+* `tsconfig.base.json` is JSONC — it carries the reasoning for each compiler option as comments. Prettier 3.9.6 infers the plain `json` parser for it (the `.base.` infix misses Prettier's JSONC filename list), but that parser preserves comments regardless; verified in Task 1.1.2. **No `overrides` entry is needed** — do not add one on the assumption that it is.
 * Ensure ESLint and Prettier do not conflict — formatting rules belong to Prettier, correctness rules to ESLint
 * Add `.editorconfig` so line endings and indentation are consistent regardless of editor
 * Add `.gitattributes` with `* text=auto eol=lf`. `.editorconfig` binds editors, not git — on its own it cannot deliver the "no spurious diffs" criterion below, because git still normalises on checkout according to its own settings. Mark `pnpm-lock.yaml` as generated here too, so it stops dominating diff review.

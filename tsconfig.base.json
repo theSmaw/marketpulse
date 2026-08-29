@@ -1,0 +1,78 @@
+{
+  // The single source of shared compiler options. Every package's tsconfig
+  // extends this and adds only what is genuinely package-specific: its own
+  // `include`, `outDir`/`rootDir`, project `references`, and — for the
+  // frontend — `target`/`lib` once Story 1.3 settles the browser baseline.
+  "compilerOptions": {
+    // --- Language and module baseline ---
+
+    // Task 1.1.1 pinned Node 24.20.0, which implements ES2024 in full, so the
+    // baseline is chosen for the runtime we actually have rather than a
+    // defensive lower bound. `lib` is deliberately left unset so it follows
+    // `target`; the frontend overrides both together (adding "dom") in Story 1.3.
+    "target": "es2024",
+
+    // `nodenext` tracks Node's current ESM/CJS interop rules, including
+    // `require(esm)`, which the pinned Node 24 supports and the fixed `node20`
+    // setting does not model. The trade-off is that it is a floating target:
+    // its meaning can shift on a TypeScript upgrade. That is acceptable while
+    // every package is ESM-only; if it starts producing surprises, `node20` is
+    // the stable fallback.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+
+    // Treat every file as a module even when it has no import or export, so a
+    // file can never silently become a global script and collide in the shared
+    // scope.
+    "moduleDetection": "force",
+
+    // --- Emit shape, for project references ---
+
+    // `composite` is what makes a package usable as a project reference; it
+    // implies `declaration` and `incremental`. `declaration` is stated anyway
+    // because it is the load-bearing half — consumers typecheck against the
+    // emitted .d.ts, not the source.
+    "composite": true,
+    "declaration": true,
+
+    // Without these, "go to definition" and stack traces from a consuming
+    // package land in generated output instead of the original source.
+    "declarationMap": true,
+    "sourceMap": true,
+
+    // --- Strictness ---
+
+    "strict": true,
+
+    // Indexing returns `T | undefined`. Worth the friction here specifically:
+    // much of this codebase indexes into arrays of bars, quotes and
+    // time-series points, where an out-of-range access is a real bug.
+    "noUncheckedIndexedAccess": true,
+
+    // Distinguishes "property absent" from "property present and undefined".
+    // Evidence and Finding records treat a missing field and an explicitly
+    // unknown one as different states, so the type system should too.
+    "exactOptionalPropertyTypes": true,
+
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // --- Single-file transpilation safety ---
+
+    // Both packages will be built by tools that transpile file-by-file with no
+    // cross-file type information (esbuild via Vite on the frontend). These
+    // two settings reject the constructs that only a whole-program compiler
+    // can resolve, so `tsc` and the bundler cannot disagree about what a file
+    // means. `verbatimModuleSyntax` also forces `import type` to be explicit,
+    // which keeps type-only imports from being emitted as runtime imports.
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    // --- Pragmatics ---
+
+    // Skips internal consistency checking of .d.ts files, including
+    // dependencies'. Our own declarations are still checked where it matters:
+    // when the package that owns them is built, and at every use site.
+    "skipLibCheck": true
+  }
+}

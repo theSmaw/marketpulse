@@ -11,6 +11,8 @@ One lint configuration for the whole workspace, with the minimum necessary per-p
 ## Work
 
 * Install ESLint with TypeScript support and configure it using flat config. Root-level devDependencies need `pnpm add -Dw` — pnpm deliberately refuses a bare `pnpm add` at a workspace root.
+* Check `typescript-eslint`'s `typescript` peer range before installing. Task 1.1.2 pinned **TypeScript 6.0.3** precisely because `typescript-eslint@8.68.0` caps at `<6.1.0`; if a newer typescript-eslint has since widened to TS 7, say so and raise the TypeScript pin as a separate change rather than silently mixing the two decisions.
+* Leave `noUnusedLocals`/`noUnusedParameters` to ESLint — Task 1.1.2 deliberately omitted them from `tsconfig.base.json` so one problem is not reported by two tools with different escape hatches.
 * Define a shared root configuration covering all packages
 * Enable type-aware linting, wired to the project references from Task 1.1.4
 * Add only the per-package variation genuinely required — browser globals and React rules for the frontend, Node globals for the backend

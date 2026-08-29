@@ -15,7 +15,7 @@ Prove the story's headline criterion — a clean checkout installs and verifies 
 * Document prerequisites and the setup commands. Specifically: **Node 24.x and `corepack enable`**. Node 23 is not merely discouraged — its bundled Corepack (0.29.4) has a stale npm signing keyset and cannot fetch the pinned pnpm at all, failing with `Cannot find matching keyid`. State the required version, not a minimum.
 * Note that pnpm settings live in `pnpm-workspace.yaml`, not `.npmrc`; pnpm 11 silently ignores workspace settings left in `.npmrc`, so a future contributor putting them there will be quietly confused.
 * Fill in the **Commands** section of `CLAUDE.md`, which is currently a placeholder
-* Record the workspace decisions as a short ADR draft — pnpm workspaces, the `apps/` + `packages/` layout, project references, strictness settings, and the install-script policy below, each with its reasoning (PRODUCT_SPEC.md §39)
+* Record the workspace decisions as a short ADR draft — pnpm workspaces, the `apps/` + `packages/` layout, project references, strictness settings, the TypeScript version ceiling below, and the install-script policy below, each with its reasoning (PRODUCT_SPEC.md §39)
 * Mark Story 1.1 complete
 
 ## Done when
@@ -24,6 +24,12 @@ Prove the story's headline criterion — a clean checkout installs and verifies 
 * No step required knowledge that exists solely in this session
 * `CLAUDE.md` documents the real commands, including how to run them for a single package
 * The ADR draft exists and explains *why*, not just *what*
+
+## TypeScript version ceiling
+
+TypeScript is pinned to **6.0.3** while npm's `latest` is 7.x, and the ADR needs to say why or the next person will "fix" it: `typescript-eslint` does not yet support the native TS 7 compiler (peer range `<6.1.0` as of 8.68.0), and this repository uses type-aware linting. The pin is a dependency constraint with a known release gate, not a preference.
+
+State the gate explicitly — *when typescript-eslint's peer range admits TS 7, raise the pin* — so the decision has a documented expiry rather than becoming folklore.
 
 ## Install-script policy
 
