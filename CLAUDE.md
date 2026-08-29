@@ -4,7 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**Pre-implementation.** The repository contains `PRODUCT_SPEC.md` and nothing else — no source, no package manifest, no git repo.
+**Pre-implementation.** The repository contains planning documents only — no source, no package manifest.
+
+```
+planning/
+  PRODUCT_SPEC.md                  authoritative product definition
+  EPICS.md                         epic roadmap and delivery sequence
+  epic-NN-<slug>/EPIC.md           one directory per epic; working notes,
+                                   designs and ADR drafts live alongside it
+```
 
 We are building this in **small iterations**. Do not scaffold ahead of the current step: build the thin slice that is asked for, keep it working, then move on. Do not add infrastructure (databases, workers, WebSockets, agent plumbing) before the iteration that needs it.
 
@@ -16,7 +24,7 @@ None yet. Add build/test/lint/dev commands here as the toolchain is established,
 
 ## What MarketPulse is
 
-An AI-assisted situational-awareness tool for US equities. It detects statistically unusual market behaviour and lets a human or an AI agent investigate it against primary-source evidence. `PRODUCT_SPEC.md` is the authoritative product definition — read the relevant section before implementing a feature.
+An AI-assisted situational-awareness tool for US equities. It detects statistically unusual market behaviour and lets a human or an AI agent investigate it against primary-source evidence. `planning/PRODUCT_SPEC.md` is the authoritative product definition — read the relevant section before implementing a feature. Each `planning/epic-NN-*/EPIC.md` states that epic's goal, scope, exit criteria and the spec sections behind it; read the current epic's file before starting work on it.
 
 It is explicitly **not** a trading system. It never predicts prices, recommends trades, or produces target prices.
 
@@ -60,7 +68,9 @@ Feature modules under `app/`: `market`, `topology`, `charts`, `anomalies`, `inve
 
 ## Delivery order
 
-Phases (spec §41): skeleton → live market → **deterministic investigation engine** → AI agent → generative workspace → replay → polish.
+Fifteen epics, delivered in sequence — see `planning/EPICS.md`. Condensed: foundation → historical data → live data → overview → anomaly detection → topology → **deterministic investigations** → evidence workspace → SEC evidence → AI investigations → generative workspace → persistence → replay → performance → portfolio release.
+
+Checkpoints: by end of Epic 8 MarketPulse is a credible non-AI product; Epic 10 makes it agentic; Epic 11 delivers the AI/frontend interaction the portfolio is built around; Epic 13 delivers its signature capability.
 
 **Do not start with the AI.** The investigation engine, its analytical tools, and its event stream must work end-to-end without an LLM first. Only once the Investigation model feels correct should a model be allowed to drive it. This ordering exists specifically to prevent the architecture collapsing into `chat box → LLM → miscellaneous API calls`.
 
