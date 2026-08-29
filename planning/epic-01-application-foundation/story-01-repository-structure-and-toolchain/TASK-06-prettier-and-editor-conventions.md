@@ -14,6 +14,7 @@ Make formatting automatic, consistent and invisible — and make sure it does no
 * Add `.prettierignore` covering build output, lockfiles and generated artefacts
 * Ensure ESLint and Prettier do not conflict — formatting rules belong to Prettier, correctness rules to ESLint
 * Add `.editorconfig` so line endings and indentation are consistent regardless of editor
+* Add `.gitattributes` with `* text=auto eol=lf`. `.editorconfig` binds editors, not git — on its own it cannot deliver the "no spurious diffs" criterion below, because git still normalises on checkout according to its own settings. Mark `pnpm-lock.yaml` as generated here too, so it stops dominating diff review.
 * Add `format` (write) and `format:check` (verify) scripts
 * Confirm WebStorm picks up the configuration without manual per-machine setup
 

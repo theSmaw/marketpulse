@@ -12,9 +12,10 @@ Prove the story's headline criterion — a clean checkout installs and verifies 
 
 * Clone or copy the repository to a fresh location and install from scratch, with no reuse of existing `node_modules` or store state
 * Run the full verification chain and confirm it passes
-* Document prerequisites (Node version, Corepack/pnpm) and the setup commands
+* Document prerequisites and the setup commands. Specifically: **Node 24.x and `corepack enable`**. Node 23 is not merely discouraged — its bundled Corepack (0.29.4) has a stale npm signing keyset and cannot fetch the pinned pnpm at all, failing with `Cannot find matching keyid`. State the required version, not a minimum.
+* Note that pnpm settings live in `pnpm-workspace.yaml`, not `.npmrc`; pnpm 11 silently ignores workspace settings left in `.npmrc`, so a future contributor putting them there will be quietly confused.
 * Fill in the **Commands** section of `CLAUDE.md`, which is currently a placeholder
-* Record the workspace decisions as a short ADR draft — pnpm workspaces, the `apps/` + `packages/` layout, project references, and strictness settings, each with its reasoning (PRODUCT_SPEC.md §39)
+* Record the workspace decisions as a short ADR draft — pnpm workspaces, the `apps/` + `packages/` layout, project references, strictness settings, and the install-script policy below, each with its reasoning (PRODUCT_SPEC.md §39)
 * Mark Story 1.1 complete
 
 ## Done when
@@ -23,6 +24,14 @@ Prove the story's headline criterion — a clean checkout installs and verifies 
 * No step required knowledge that exists solely in this session
 * `CLAUDE.md` documents the real commands, including how to run them for a single package
 * The ADR draft exists and explains *why*, not just *what*
+
+## Install-script policy
+
+pnpm 11 refuses to run any dependency's install scripts unless that dependency is named in `allowBuilds` in `pnpm-workspace.yaml`, and an un-allowlisted one is a **hard install failure (exit 1)**, not a warning — verified during Task 1.1.1. The setting replaces pnpm 10's `onlyBuiltDependencies`, which pnpm 11 accepts in config but no longer acts on.
+
+Nothing installed in this story has an install script, so there is nothing to allowlist yet and no configuration to write. The first dependency that trips it is likely esbuild, arriving via Vite in Story 1.3, where it will fail CI as readily as it fails locally.
+
+The ADR should record this as a deliberate supply-chain position — dependencies do not get to execute code at install time unless someone names them — rather than leaving the next person to discover it as an obstruction and reach for a blanket disable.
 
 ## Notes
 

@@ -1,6 +1,6 @@
 # Story 1.1 — Repository Structure & TypeScript Toolchain
 
-**Status:** Not started
+**Status:** In progress — 1 of 8 tasks complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** nothing
 **Epic scope covered:** shared configuration
@@ -42,16 +42,16 @@ marketpulse/
 
 Tackled in order. The story is complete when all eight are done.
 
-| # | Task |
-|---|------|
-| 1.1.1 | [Initialise the pnpm workspace root](TASK-01-initialise-pnpm-workspace.md) |
-| 1.1.2 | [Shared TypeScript configuration](TASK-02-shared-typescript-configuration.md) |
-| 1.1.3 | [Create the shared package](TASK-03-create-shared-package.md) |
-| 1.1.4 | [Create the app package skeletons](TASK-04-create-app-package-skeletons.md) |
-| 1.1.5 | [ESLint configuration](TASK-05-eslint-configuration.md) |
-| 1.1.6 | [Prettier and editor conventions](TASK-06-prettier-and-editor-conventions.md) |
-| 1.1.7 | [Root script orchestration](TASK-07-root-script-orchestration.md) |
-| 1.1.8 | [Verify from a clean checkout and document](TASK-08-verify-clean-checkout-and-document.md) |
+| # | Task | Status |
+|---|------|--------|
+| 1.1.1 | [Initialise the pnpm workspace root](TASK-01-initialise-pnpm-workspace.md) | Complete |
+| 1.1.2 | [Shared TypeScript configuration](TASK-02-shared-typescript-configuration.md) | Not started |
+| 1.1.3 | [Create the shared package](TASK-03-create-shared-package.md) | Not started |
+| 1.1.4 | [Create the app package skeletons](TASK-04-create-app-package-skeletons.md) | Not started |
+| 1.1.5 | [ESLint configuration](TASK-05-eslint-configuration.md) | Not started |
+| 1.1.6 | [Prettier and editor conventions](TASK-06-prettier-and-editor-conventions.md) | Not started |
+| 1.1.7 | [Root script orchestration](TASK-07-root-script-orchestration.md) | Not started |
+| 1.1.8 | [Verify from a clean checkout and document](TASK-08-verify-clean-checkout-and-document.md) | Not started |
 
 Each task builds on the previous one, so the tree stays installable and typechecking throughout rather than being broken until the end.
 

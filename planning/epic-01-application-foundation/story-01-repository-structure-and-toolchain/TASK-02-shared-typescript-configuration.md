@@ -14,7 +14,7 @@ Define the single strict TypeScript baseline that every package extends.
 * Enable `strict`, plus the checks strict does not include — `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`
 * Enable `isolatedModules` and `verbatimModuleSyntax` so the config survives bundler-based builds
 * Set `composite: true` and `declaration: true` to support project references
-* Choose and record module/target settings appropriate to Node and the browser respectively, leaving package-specific overrides to each package
+* Choose and record module/target settings appropriate to Node and the browser respectively, leaving package-specific overrides to each package — Task 1.1.1 pinned **Node 24.20.0**, so the backend can target a modern baseline rather than a defensive one, and `module`/`moduleResolution` of `nodenext` is available. The frontend's target is driven by the browser baseline, which Story 1.3 settles; keep it out of the base config.
 
 ## Done when
 

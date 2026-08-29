@@ -4,9 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**Pre-implementation.** The repository contains planning documents only — no source, no package manifest.
+**Epic 1, Story 1.1, task 1 of 8 done.** The pnpm workspace root exists. There are no packages inside it yet and no application source.
 
 ```
+package.json                       private workspace root; pins Node and pnpm
+pnpm-workspace.yaml                workspace globs (apps/*, packages/*) and pnpm settings
+.nvmrc                             Node 24.20.0
 planning/
   PRODUCT_SPEC.md                  authoritative product definition
   EPICS.md                         epic roadmap and delivery sequence
@@ -25,7 +28,18 @@ Keep this section, and the Commands section, updated as things actually land.
 
 ## Commands
 
-None yet. Add build/test/lint/dev commands here as the toolchain is established, including how to run a single test.
+```
+corepack enable    # once per machine — pnpm comes from the repo pin, not a global install
+pnpm install
+```
+
+**Node 24.x is required, not merely recommended.** `engineStrict` is on, so pnpm refuses to install under another major rather than warning. Node 23 additionally cannot bootstrap the repo at all: the Corepack it bundles (0.29.4) has a stale npm signing keyset and fails to fetch the pinned pnpm.
+
+pnpm settings live in `pnpm-workspace.yaml`, not `.npmrc` — pnpm 10+ moved them, and pnpm 11 silently ignores workspace settings left in `.npmrc`.
+
+Dependencies may not run install scripts unless named in `allowBuilds` in `pnpm-workspace.yaml`; an un-allowlisted one fails the install outright. This is deliberate. When it fires, allowlist the specific package — never disable the check.
+
+Build/test/lint/dev commands land in Task 1.1.7 (root script orchestration); Task 1.1.8 fills in this section properly, including how to run a single test.
 
 ## What MarketPulse is
 

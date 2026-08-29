@@ -10,7 +10,7 @@ One lint configuration for the whole workspace, with the minimum necessary per-p
 
 ## Work
 
-* Install ESLint with TypeScript support and configure it using flat config
+* Install ESLint with TypeScript support and configure it using flat config. Root-level devDependencies need `pnpm add -Dw` — pnpm deliberately refuses a bare `pnpm add` at a workspace root.
 * Define a shared root configuration covering all packages
 * Enable type-aware linting, wired to the project references from Task 1.1.4
 * Add only the per-package variation genuinely required — browser globals and React rules for the frontend, Node globals for the backend

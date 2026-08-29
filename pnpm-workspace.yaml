@@ -1,0 +1,8 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Refuse to install under a Node version outside the range in package.json's
+# `engines`, rather than printing a warning and carrying on. Keeps local and CI
+# on the version recorded in .nvmrc.
+engineStrict: true
