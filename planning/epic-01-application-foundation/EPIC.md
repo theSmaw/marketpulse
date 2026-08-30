@@ -1,6 +1,6 @@
 # Epic 1 — Application Foundation
 
-**Status:** In progress — Stories 1.1 and 1.2 complete (2026-08-30)
+**Status:** In progress — Stories 1.1, 1.2 and 1.3 complete (2026-08-30)
 **Sequence:** 1 of 15 — first epic, no dependencies
 **Spec references:** PRODUCT_SPEC.md §25 (frontend architecture), §29 (backend architecture), §41 Phase 0
 
@@ -53,7 +53,9 @@ A working frontend and backend can be run locally and deployed, with shared conv
 
 Stories 1.2–1.3 can proceed in parallel once 1.1 lands, as can 1.6–1.9 once both skeletons exist. Story 1.12 closes the epic by proving the foundation end to end.
 
-**Story 1.2 is complete**, so Story 1.3 is the remaining prerequisite for most of the rest of the epic. The parts of 1.6, 1.7, 1.9 and 1.11 that concern the backend now have real code to work against rather than a plan, and each of those stories has been amended with what 1.2 actually made concrete. Story 1.7 in particular is unblocked on its backend half today.
+**Stories 1.2 and 1.3 are both complete, so nothing in this epic is blocked on a missing skeleton any more.** Every remaining story's dependencies are satisfied except 1.5 (needs 1.4), 1.10 (needs 1.9), 1.11 (needs 1.6 and 1.10) and 1.12 (needs 1.5, 1.7 and 1.8). Each of 1.4 and 1.6–1.12 has been amended with what the two skeletons actually made concrete, rather than what they were expected to.
+
+Two consequences of Story 1.3 landing that are worth reading before picking the next story. **Story 1.8 is materially smaller than it is written** — its `pnpm dev` and reload criteria are met, and what is left is one genuinely outstanding item (a clean clone reaching a _running_ pair by following `README.md` alone) plus presentation. It is not deleted, because that outstanding item is one of this epic's exit criteria. And **Story 1.7's two halves are no longer equally ready**: the backend half is unblocked today, while its "contains a failure to the affected region" criterion has no regions until Story 1.5. That is a delivery-order note inside the story rather than a dependency change; the story says so.
 
 ## Conventions Story 1.1 set for the rest of this epic
 
@@ -70,6 +72,8 @@ One correction to the second bullet, found in Task 1.2.6 and not worth re-editin
 
 One thing to keep visible until Story 1.9 lands: **`pnpm test` passes because there are no tests**, not because tests pass. Story 1.10 will put that tick on every pull request.
 
+The paragraph that follows those four bullets in each story **has drifted once and was re-synced**: five stories still said both apps' `dev` scripts were placeholders after Stories 1.2 and 1.3 had made them real. All eleven now carry the same corrected wording. That is the failure mode the verbatim convention is meant to make visible in a diff, so it is worth knowing it took a deliberate sweep rather than being caught by one.
+
 ## What Story 1.2 established for the rest of this epic
 
 Story 1.2 is complete and recorded in `docs/adr/0002-backend-framework-and-server-composition.md`. Four things bind later stories:
@@ -78,3 +82,15 @@ Story 1.2 is complete and recorded in `docs/adr/0002-backend-framework-and-serve
 - **`buildServer()` returns an instance without listening**, and everything that concerns the process — environment, socket, signals — lives in `apps/backend/src/index.ts`. Stories 1.7 and 1.12 attach to the factory; Story 1.9 drives it with `app.inject()`
 - **The backend is deliberately incomplete in five named ways**, each belonging to a later story: configuration (1.6), structured logging and error shape (1.7), tests (1.9), deployment (1.11), CORS (1.12). Those gaps are documented at the code sites so they are not read as oversights
 - **A local run proves nothing about a deployed one.** Every measurement in Story 1.2 was taken against a hand-started process. Story 1.11 owns container signal delivery, host binding and the kill timeout
+
+## What Story 1.3 established for the rest of this epic
+
+Story 1.3 is complete and recorded in `docs/adr/0003-frontend-build-tooling-and-browser-baseline.md`. Five things bind later stories, and the first two are traps rather than decisions:
+
+- **Both local servers have an SPA fallback and a real static host does not.** `vite` and `vite preview` answer _any_ unmatched path with `index.html` and a 200 — a missing asset included, which reaches the browser as a MIME-type error rather than a 404. Story 1.5's "deep-linking works on page reload" therefore passes locally before anyone configures anything, and Story 1.11 inherits the question of whether the deployed host does the same
+- **The `.js` import-extension convention has exactly one enforcer in the frontend, and it is `tsc`.** Drop an extension and `tsc -b` fails with TS2835 while `vite build` emits a byte-identical bundle. `pnpm verify` catches it; the dev server and the bundler do not. This matters most in Story 1.5, which adds many small files at once
+- **The frontend's deployable unit is `dist/` alone and its configuration is build-time.** Two files, no `package.json`, no `node_modules` — the opposite shape to the backend, where the package directory is the unit. Asset paths are absolute (`base` defaults to `/`) and any environment variable is inlined at bundle time, so **a subpath deployment and a per-environment configuration are both rebuilds, not hosting settings**. Stories 1.6 and 1.11 own the two halves of that
+- **`pnpm verify` now runs a bundler, which grew both CI's runtime and its failure surface.** Root `build` is `tsc -b && pnpm --filter @marketpulse/frontend exec vite build` and hardcodes that one package name — a second frontend package would be silently missed. Story 1.10 carries the detail, including Rolldown being this repository's first platform-specific native binding
+- **The React Compiler rule set is in force and has never met real code.** `eslint-plugin-react-hooks`'s `recommended` is 17 rules, 15 at `error`, and `lint` now runs with `--max-warnings 0` so a warning fails `verify`. Stories 1.4, 1.5, 1.7 and 1.12 write the first components those rules will actually see
+
+One prediction resolved wrong and worth not re-making: `allowBuilds` was expected to fire for the first time in Story 1.3, via esbuild arriving with Vite. Vite 8 is the **Rolldown** release — there is no esbuild in this toolchain at all — and four sweeps found zero install scripts across the tree. The policy is unchanged and remains **untested**.
