@@ -61,11 +61,14 @@ finds the root config, and its `files` globs resolve relative to the config's
 own directory rather than the cwd.
 
 That matters beyond tidiness. It means the four-place dependency duplication
-recorded against Task 1.1.7 for `typescript` was **not** repeated here, and it
-suggests the premise behind that item is worth re-testing: if root `.bin` is on
-the PATH anyway, `typescript` may not need to be declared in all four places
-either. Not changed here — that is 1.1.7's call — but the assumption it rests on
-now looks weaker than when it was written.
+recorded against Task 1.1.7 for `typescript` was **not** repeated here — and on
+review it disproves that item's stated reasoning. Task 1.1.7 asserted each
+package genuinely needs its own `typescript` because pnpm's strict linking puts
+`tsc` on a package's path only if it depends on it. Tested directly with a
+throwaway workspace package declaring no `typescript` at all: `tsc` resolved
+from the root `.bin` at 6.0.3. The premise is false, so root-only is a live
+option there alongside a catalog. Not changed here — that is 1.1.7's call, and
+its bullet has been rewritten to present both.
 
 ### The rule set, and why
 
