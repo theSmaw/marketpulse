@@ -87,6 +87,17 @@ Every package exposes `dev`, `build`, `test`, `lint`, `typecheck` and `clean`.
 `lint:fix` is an extra rather than part of the convention — a local convenience
 with no root fan-out and no place in `verify`.
 
+`apps/backend` has a second extra with exactly that status, added in Task 1.2.5:
+
+```sh
+pnpm --filter @marketpulse/backend start     # node dist/index.js — needs pnpm build first
+```
+
+`start` runs the already-built output and builds nothing itself. It is not a
+seventh verb: no root fan-out, no place in `verify`, and the other two packages
+are not obliged to have one. It exists because "production build emits runnable
+output" needs a documented way to run it.
+
 ### `pnpm test` and `pnpm dev` do not yet do what their names suggest
 
 **A green `pnpm test` means "no tests exist", not "tests pass."** All three

@@ -70,9 +70,11 @@ pnpm format:check  # prettier --check .
 # Working on one package — the same six verbs, meaning the same thing:
 pnpm --filter @marketpulse/shared build       # or typecheck / lint / lint:fix / test / clean
 pnpm --filter @marketpulse/shared dev         # tsc -b --watch
+
+pnpm --filter @marketpulse/backend start      # node dist/index.js — runs the built output; build first
 ```
 
-Every package exposes `dev`, `build`, `test`, `lint`, `typecheck`, `clean` and they mean the same thing in each. `lint:fix` is an extra, not part of the convention — a local convenience with no root fan-out and no place in `verify`. `test` and the two apps' `dev` are `echo` placeholders until Stories 1.9, 1.2 and 1.3 respectively; `packages/shared`'s `dev` is really `tsc -b --watch`.
+Every package exposes `dev`, `build`, `test`, `lint`, `typecheck`, `clean` and they mean the same thing in each. `lint:fix` is an extra, not part of the convention — a local convenience with no root fan-out and no place in `verify`. **`apps/backend`'s `start` (Task 1.2.5) has exactly the same status**: an extra, not a seventh verb — no root fan-out, no place in `verify`, and the other two packages are not obliged to have one. It runs the built output and builds nothing itself, so a stale or empty `dist/` is a stale or missing server. Verified in Task 1.2.5: `pnpm run` waits for the script to finish and propagates both signals and the child's exit code, so `start` is a real process wrapper rather than a fire-and-forget one. `test` and the two apps' `dev` are `echo` placeholders until Stories 1.9, 1.2 and 1.3 respectively; `packages/shared`'s `dev` is really `tsc -b --watch`.
 
 **A green `pnpm test` means "no tests exist", not "tests pass".** All three placeholders exit 0, and Story 1.10 will put that tick in CI where it looks exactly like coverage. Don't describe it as passing tests anywhere — not in a commit message, not in a PR, not in this file. Same for `pnpm dev`: it prints two placeholder lines and then sits in shared's `tsc -b --watch`, which is correct today and looks like a hang without this sentence.
 

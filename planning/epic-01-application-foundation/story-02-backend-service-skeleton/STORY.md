@@ -1,6 +1,6 @@
 # Story 1.2 — Backend Service Skeleton
 
-**Status:** In progress — Tasks 1.2.1 to 1.2.4 complete
+**Status:** In progress — Tasks 1.2.1 to 1.2.5 complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.1
 **Epic scope covered:** TypeScript backend service
@@ -53,7 +53,7 @@ Tackled in order. The story is complete when all six are done.
 | 1.2.2 | [Development mode: watch and restart](TASK-02-development-mode-watch-and-restart.md) | Complete    |
 | 1.2.3 | [The health endpoint](TASK-03-health-endpoint.md)                                    | Complete    |
 | 1.2.4 | [Graceful shutdown](TASK-04-graceful-shutdown.md)                                    | Complete    |
-| 1.2.5 | [Production build and run](TASK-05-production-build-and-run.md)                      | Not started |
+| 1.2.5 | [Production build and run](TASK-05-production-build-and-run.md)                      | Complete    |
 | 1.2.6 | [Verify the story end to end and document](TASK-06-verify-and-document.md)           | Not started |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Story 1.1 followed. The watcher comes second rather than last on purpose: Tasks 1.2.3 to 1.2.5 are much easier to work on with a server that restarts on save.
