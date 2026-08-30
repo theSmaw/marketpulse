@@ -13,6 +13,7 @@
 
 import js from "@eslint/js";
 import globals from "globals";
+import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
@@ -94,6 +95,41 @@ export default tseslint.config(
     // reason.
     files: ["packages/shared/**/*.ts"],
     languageOptions: { globals: {} },
+  },
+
+  // --- React ---
+  //
+  // Adopted deliberately in Task 1.3.2 rather than by default, because nothing
+  // else in Epic 1 owns React lint rules and Story 1.4 is the component
+  // library, not linting. The Rules of Hooks are a correctness concern — call
+  // a hook conditionally and the component is broken at runtime, silently —
+  // which puts them on ESLint's side of the line Task 1.1.6 drew between
+  // correctness and formatting.
+  //
+  // `recommended` in v7 is much wider than the two rules that name suggests:
+  // 17 rules, most of them the React Compiler's Rules of React (`purity`,
+  // `immutability`, `set-state-in-render`) rather than hook ordering. Taken
+  // whole on purpose. They are the rules React itself already assumes are
+  // being followed, and adopting them now — with one component in the tree —
+  // costs nothing, where adopting them in Epic 2 would mean a retrofit.
+  //
+  // Take the config from `configs.flat`, not the top-level `configs`. Both
+  // export a `recommended-latest`; the top-level one is still eslintrc-shaped
+  // (`plugins: ["react-hooks"]`) and ESLint 10 rejects it outright with
+  // "Flat config requires plugins to be an object" and exit 2. Loud, at least.
+  //
+  // Three of the 17 ship as `warn` (`exhaustive-deps`, `incompatible-library`,
+  // `unsupported-syntax`). Left at their shipped severity, but note the lint
+  // scripts now pass `--max-warnings 0`: this is the first plugin in the
+  // workspace to introduce a non-error severity, and a finding that never
+  // fails `verify` is the same green-tick-that-means-nothing problem as the
+  // placeholder `test` scripts. See package.json.
+  //
+  // Scoped to `src` rather than the whole package, so vite.config.ts is not
+  // asked to answer React questions.
+  {
+    files: ["apps/frontend/src/**/*.ts", "apps/frontend/src/**/*.tsx"],
+    extends: [reactHooks.configs.flat["recommended-latest"]],
   },
 
   // --- Tooling config files ---

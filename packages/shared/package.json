@@ -15,8 +15,8 @@
     "dev": "tsc -b --watch --preserveWatchOutput",
     "build": "tsc -b",
     "test": "echo \"@marketpulse/shared: no tests yet — Story 1.9\"",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
     "typecheck": "tsc -b",
     "clean": "tsc -b --clean"
   }
