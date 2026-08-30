@@ -4,13 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**Epic 1, Story 1.1, task 2 of 8 done.** The pnpm workspace root and the shared TypeScript baseline exist. There are no packages inside the workspace yet and no application source.
+**Epic 1, Story 1.1, task 3 of 8 done.** The pnpm workspace root, the shared TypeScript baseline and the first workspace package exist. There is no application source yet.
 
 ```
 package.json                       private workspace root; pins Node and pnpm
 pnpm-workspace.yaml                workspace globs (apps/*, packages/*) and pnpm settings
 tsconfig.base.json                 the one place shared compiler options live
 .nvmrc                             Node 24.20.0
+packages/
+  shared/                          @marketpulse/shared — domain types shared by
+                                   backend and frontend; builds to dist/ and is
+                                   consumed as a TypeScript project reference
 planning/
   PRODUCT_SPEC.md                  authoritative product definition
   EPICS.md                         epic roadmap and delivery sequence
@@ -32,6 +36,9 @@ Keep this section, and the Commands section, updated as things actually land.
 ```
 corepack enable    # once per machine — pnpm comes from the repo pin, not a global install
 pnpm install
+
+pnpm --filter @marketpulse/shared build       # tsc -b, emits dist/
+pnpm --filter @marketpulse/shared typecheck
 ```
 
 **Node 24.x is required, not merely recommended.** `engineStrict` is on, so pnpm refuses to install under another major rather than warning. Node 23 additionally cannot bootstrap the repo at all: the Corepack it bundles (0.29.4) has a stale npm signing keyset and fails to fetch the pinned pnpm.
@@ -41,6 +48,10 @@ pnpm settings live in `pnpm-workspace.yaml`, not `.npmrc` — pnpm 10+ moved the
 Dependencies may not run install scripts unless named in `allowBuilds` in `pnpm-workspace.yaml`; an un-allowlisted one fails the install outright. This is deliberate. When it fires, allowlist the specific package — never disable the check.
 
 **TypeScript is held at 6.0.3 while npm's `latest` is 7.x.** TS 7 is the native compiler; `typescript-eslint` does not support it yet (peer range `<6.1.0`), and this repo relies on type-aware linting. Don't raise the pin until typescript-eslint's peer range admits TS 7 — check it, don't assume it.
+
+Packages are consumed as **TypeScript project references with built output**, not raw source. So a consumer can only be typechecked after `packages/shared/dist/*.d.ts` exists — build before you typecheck. `tsc -b` handles the ordering itself.
+
+Relative imports inside a package carry explicit `.js` extensions from `.ts` files (`./ticker.js`). It looks wrong; `nodenext` resolution requires the *emitted* filename and errors (TS2835) without it. Every package also needs `"type": "module"`.
 
 Every shared compiler option lives in `tsconfig.base.json` and nowhere else. Packages extend it and add only `include`, `outDir`/`rootDir`, project `references`, and the frontend's `target`/`lib`. Each option in that file carries a comment explaining why it is there — if you change one, change the comment. `lib` is intentionally unset so it follows `target`.
 

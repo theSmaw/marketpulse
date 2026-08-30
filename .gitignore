@@ -3,6 +3,10 @@ dist/
 build/
 coverage/
 
+# Composite projects write this next to the tsconfig, not into dist/, so the
+# rule above does not catch it.
+*.tsbuildinfo
+
 .env
 .env.*
 !.env.example
