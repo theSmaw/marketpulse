@@ -9,10 +9,11 @@
 
 A minimal TypeScript HTTP service that starts, serves a health endpoint, and shuts down cleanly. No market data, no database, no domain logic. This is the container everything in Epics 2–3 is added to.
 
-## Open decisions
+## Decisions
 
-- Server framework — PRODUCT_SPEC.md §29 leaves this at "Fastify or NestJS". Fastify suits the spec's "keep the backend relatively small" instruction; NestJS brings more structure and more ceremony.
-  **Story 1.1 added a technical input to that choice, and it is not neutral.** The toolchain is ESM-only and single-file-transpile-safe: `"type": "module"`, `module: nodenext`, `isolatedModules` and `verbatimModuleSyntax`. NestJS's decorator-and-metadata model wants `experimentalDecorators` and `emitDecoratorMetadata`, is CommonJS-oriented in much of its ecosystem, and `verbatimModuleSyntax` in particular interferes with the type-only imports its DI relies on. Choosing it means either relaxing those options for one package or accepting friction in every file. Fastify has none of that problem. That is not a decision — the choice is still open — but it should be made with the cost visible rather than discovered afterwards.
+Resolved 2026-08-30:
+
+- **Server framework — Fastify.** PRODUCT_SPEC.md §29 left this at "Fastify or NestJS", and Story 1.1 added a technical input to the choice that was not neutral. The toolchain is ESM-only and single-file-transpile-safe: `"type": "module"`, `module: nodenext`, `isolatedModules` and `verbatimModuleSyntax`. NestJS's decorator-and-metadata model wants `experimentalDecorators` and `emitDecoratorMetadata`, is CommonJS-oriented in much of its ecosystem, and `verbatimModuleSyntax` in particular interferes with the type-only imports its DI relies on — so choosing it meant either relaxing workspace-wide options for one package or accepting friction in every file. Fastify has none of that problem and suits the spec's "keep the backend relatively small" instruction. The structure NestJS would have supplied is a cost to be paid later, in Epic 7 when the investigation engine needs composition; Fastify's plugin model is the intended answer. Recorded in full in ADR 0002 (Task 1.2.6)
 
 ## Conventions from Story 1.1
 
@@ -29,7 +30,7 @@ Two more things that are true today and will not be forever. Until Story 1.9 lan
 
 - **`apps/backend`'s `dev` script is an `echo` placeholder that names this story.** Replacing it with a real watch-and-restart is part of the work; root `pnpm dev` already runs it in parallel with the others
 - `build` is `tsc -b` and already emits runnable output to `apps/backend/dist`. If the framework needs a different build, keep the verb meaning what it means in the other two packages — see the parallel note in Story 1.3
-- `@types/node` is pinned to **24.x**, tracking the runtime rather than npm's `latest`, and stays declared in this package rather than at the root: it is a type dependency of this package's code, not a tool. Fastify or NestJS itself is likewise a dependency of this package, not root tooling
+- `@types/node` is pinned to **24.x**, tracking the runtime rather than npm's `latest`, and stays declared in this package rather than at the root: it is a type dependency of this package's code, not a tool. Fastify itself is likewise a dependency of this package, not root tooling
 - Relative imports carry `.js` extensions from `.ts` files. `nodenext` requires the emitted filename and fails with TS2835 without it
 - Any JS/TS tooling file this story adds that sits outside the package's tsconfig `include` needs an `eslint.config.mjs` entry applying `tseslint.configs.disableTypeChecked`, as `eslint.config.mjs` already does for itself
 
@@ -41,6 +42,33 @@ Two more things that are true today and will not be forever. Until Story 1.9 lan
 - Production build emits runnable output
 - Process shuts down gracefully on SIGTERM/SIGINT, closing in-flight requests
 - `pnpm verify` passes from the repository root
+
+## Tasks
+
+Tackled in order. The story is complete when all six are done.
+
+| #     | Task                                                                                 | Status      |
+| ----- | ------------------------------------------------------------------------------------ | ----------- |
+| 1.2.1 | [Fastify server bootstrap](TASK-01-fastify-server-bootstrap.md)                      | Not started |
+| 1.2.2 | [Development mode: watch and restart](TASK-02-development-mode-watch-and-restart.md) | Not started |
+| 1.2.3 | [The health endpoint](TASK-03-health-endpoint.md)                                    | Not started |
+| 1.2.4 | [Graceful shutdown](TASK-04-graceful-shutdown.md)                                    | Not started |
+| 1.2.5 | [Production build and run](TASK-05-production-build-and-run.md)                      | Not started |
+| 1.2.6 | [Verify the story end to end and document](TASK-06-verify-and-document.md)           | Not started |
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Story 1.1 followed. The watcher comes second rather than last on purpose: Tasks 1.2.3 to 1.2.5 are much easier to work on with a server that restarts on save.
+
+The first five acceptance criteria above map onto tasks 1.2.1, 1.2.3, 1.2.2, 1.2.5 and 1.2.4 respectively, and the sixth — `pnpm verify` — is a "done when" on every one of them. Task 1.2.6 runs all six together from a clean build rather than trusting each task's own claim.
+
+## What this story deliberately does not do
+
+Each of these belongs to a later story, and each is a thing a backend skeleton naturally attracts:
+
+- **Configuration** (Story 1.6) — this story reads `PORT` and `HOST` inline and nothing else. No config module, no schema, no `.env`
+- **Structured logging, error shape, `unhandledRejection`** (Story 1.7) — Fastify's default logger, untouched
+- **Tests** (Story 1.9) — the `buildServer()` split exists so `app.inject()` is possible later, but no test runner is chosen here
+- **Deployment** (Story 1.11) — `apps/backend/dist` is not a self-contained artifact, and `pnpm deploy --filter` is that story's problem
+- **CORS and the frontend contract** (Story 1.12) — nothing here proves a browser on another origin can reach this endpoint
 
 ## Notes
 
