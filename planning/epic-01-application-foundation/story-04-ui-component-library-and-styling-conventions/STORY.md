@@ -58,6 +58,27 @@ Three things, now measured rather than expected.
 - At least one representative component built to demonstrate the conventions
 - Conventions documented, and the decision captured as an ADR in `docs/adr/` (PRODUCT_SPEC.md §39) **numbered with the next free number at the time — not a number fixed in advance.** This criterion said "ADR 0002" and was written before Story 1.2 took that number for the backend framework and Story 1.3 took 0003 for the frontend build; following it as written would force exactly the renumbering the convention forbids. The next free number is **0004** as of 2026-08-30, so check `docs/adr/` rather than trusting that. The convention is in `docs/adr/README.md`: numbered in the order written, never renumbered, superseded records kept with a `**Superseded by:**` line rather than deleted. Follow 0001's shape — context, decision, rejected alternatives, and consequences a future reader would otherwise discover by tripping over them. This is the ADR where "expensive to reverse once dozens of components exist" earns the record
 
+## Tasks
+
+Tackled in order. The story is complete when all six are done.
+
+| #     | Task                                                                                                                         | Status      |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1.4.1 | [Choose the styling approach and the component library](TASK-01-choose-styling-approach-and-component-library.md)            | Not started |
+| 1.4.2 | [Install the styling approach and get the first stylesheet into the build](TASK-02-styling-pipeline-and-first-stylesheet.md) | Not started |
+| 1.4.3 | [Design tokens and the dark theme](TASK-03-design-tokens-and-dark-theme.md)                                                  | Not started |
+| 1.4.4 | [Semantic market tokens](TASK-04-semantic-market-tokens.md)                                                                  | Not started |
+| 1.4.5 | [Component primitives and the representative component](TASK-05-component-primitives-and-representative-component.md)        | Not started |
+| 1.4.6 | [Verify, document the conventions and write ADR 0004](TASK-06-verify-document-and-adr.md)                                    | Not started |
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1, 1.2 and 1.3 followed.
+
+The split is **decision first, pipeline second, design third**. Task 1.4.1 installs nothing permanent and throws its spike away, because this story's two open decisions are entangled and expensive to reverse, and deciding them from a working spike costs a day where reversing them costs an epic. Task 1.4.2 then makes the pipeline real with deliberately disposable styles, so that when a token in Task 1.4.3 does not apply, "the CSS never reached the browser" is already ruled out — the same reason Story 1.3 separated rendering React from hot-reloading it.
+
+Tokens split into two tasks for a different reason: Task 1.4.3's are structural and Task 1.4.4's are the product's vocabulary. The second layer is where the accessibility constraint bites and where `packages/shared` becomes tempting and is mostly wrong, and neither question is visible while the argument is still about spacing scales.
+
+Task 1.4.5 is the only one that would plausibly split further — installing primitives and building a component are two mechanisms — but the primitive alone renders nothing worth keeping, so the checkpoint sits inside the task instead of between two of them.
+
 ## Notes
 
 Positive/negative colour choices need to survive an accessibility review — red/green alone is insufficient as the sole encoding.
