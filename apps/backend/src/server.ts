@@ -15,6 +15,15 @@
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 
+import { healthRoutes } from "./routes/health.js";
+
+// Stays synchronous, decided in Task 1.2.3 rather than left to drift.
+// `app.register()` is itself synchronous — it queues the plugin and defers
+// loading to `ready()`/`listen()`, so a caller that listens gets a fully
+// registered instance without this factory awaiting anything. The moment
+// something here needs `await app.register(...)` or an explicit
+// `await app.ready()`, this becomes `Promise<FastifyInstance>` and every caller
+// changes with it, Story 1.9's tests included. Nothing needs that yet.
 export function buildServer(): FastifyInstance {
   const app = Fastify({
     // Fastify's built-in logger at its defaults, and no further. Structured
@@ -24,9 +33,13 @@ export function buildServer(): FastifyInstance {
     logger: true,
   });
 
-  // Routes are registered here as they arrive. `GET /health` is Task 1.2.3;
-  // until then the only thing this server serves is Fastify's own 404, which
-  // is enough to prove it is serving at all.
+  // Routes are registered here as they arrive.
+  //
+  // No JSON response schema on this route yet. Fastify's response schemas are
+  // worth having, but choosing a schema approach is entangled with Story 1.6's
+  // configuration validation and Story 1.7's error shape, and picking one here
+  // would pre-empt both. A deliberate deferral rather than an oversight.
+  app.register(healthRoutes);
 
   return app;
 }
