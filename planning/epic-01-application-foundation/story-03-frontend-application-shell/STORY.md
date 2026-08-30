@@ -12,14 +12,36 @@ A React + TypeScript application that builds, runs in development with fast refr
 ## Open decisions
 
 - Build tool — Vite is the default assumption unless there is a reason to differ
+- **What `build` means for this package once a bundler exists.** Today it is `tsc -b`, identical in all three packages, and the six-verb convention from Task 1.1.7 says a verb means the same thing everywhere. Vite makes that awkward: `vite build` emits static assets but does no typechecking, and `tsc -b` typechecks but emits the wrong artefact for a browser. The usual answer is `tsc -b && vite build`, which keeps the verb honest — decide it deliberately here rather than letting the two drift apart, and keep `typecheck` as the `tsc -b` half
+
+## Conventions from Story 1.1
+
+Story 1.1 is complete, and these four bind this story. They are stated in every Epic 1 story so each one can be read on its own; the full reasoning is in `docs/adr/0001-repository-structure-and-typescript-toolchain.md`.
+
+- **`pnpm verify` is the acceptance command** — `build && lint && format:check && test`, chained with `&&` so the first failure is the exit code. This story passes it from the repository root. Prettier owns Markdown as well as code, so an unformatted planning document fails it too
+- **Six verbs, identical in every package** — `dev`, `build`, `test`, `lint`, `typecheck`, `clean`. Only `test` and `dev` fan out with `pnpm -r`; the rest run their tool once from the root, because the reference graph and ESLint's project service already cover the workspace in one pass. Changing what a verb means in one package means changing it everywhere, or saying why not
+- **Shared tooling lives at the workspace root; packages declare only what they actually import.** ESLint, Prettier and TypeScript are root-only devDependencies, and pnpm puts the root's `node_modules/.bin` on every package script's PATH. A library the code imports belongs in the package that imports it — `@types/node` in `apps/backend` is the counter-example that keeps the rule from being over-applied
+- **The module setup is ESM-only and single-file-safe** — `"type": "module"`, `module: nodenext`, `isolatedModules`, `verbatimModuleSyntax`, and relative imports carrying `.js` extensions from `.ts` files (TS2835 without one). `packages/shared` is consumed as **built output**, so it must be built before any consumer can be typechecked; `tsc -b` orders that itself, which is why `typecheck` and `build` are the same command
+
+Two more things that are true today and will not be forever. Until Story 1.9 lands, **`pnpm test` passes because there are no tests** — all three `test` scripts are `echo` placeholders that exit 0. Until Stories 1.2 and 1.3 land, both apps' `dev` scripts are placeholders too; only `packages/shared`'s (`tsc -b --watch`) is real.
+
+## What that means for this story
+
+- **`apps/frontend`'s `dev` script is an `echo` placeholder that names this story.** Replacing it is part of the work. Root `pnpm dev` is `pnpm -r --parallel run dev` and already runs it
+- **This is where the install-script policy fires.** Task 1.1.1 set `allowBuilds` in `pnpm-workspace.yaml` as an allowlist, and an un-allowlisted dependency with an install script is a **hard install failure (exit 1)**, not a warning. Nothing installed so far has one; esbuild, arriving with Vite, is the predicted first. Allowlist esbuild specifically — never disable the check. It will fail CI as readily as it fails locally
+- **Do not remove `types: []` from `apps/frontend/tsconfig.json`.** It looks redundant and is not: without it TypeScript auto-discovers every reachable `@types` package, and pnpm's linking puts `@types/node` in reach, so `process` would typecheck in browser code. Adding React's types means adding them to that array, not emptying it
+- **A `vite.config.ts` is not covered by any package's tsconfig**, so type-aware linting cannot run on it and will error if asked to. `eslint.config.mjs` already carries exactly this pattern for itself — a trailing config block applying `tseslint.configs.disableTypeChecked`. Extend that block rather than rediscovering the problem
+- The same file makes the ESLint `globals` blocks live for the first time. They are inert on today's all-TypeScript tree because `no-undef` is off for `.ts` files, and they exist precisely for the per-package JS tooling this story brings — see ADR 0001 §8
+- Relative imports carry `.js` extensions from `.ts` files (`./App.js` importing `./App.tsx`). `nodenext` resolution requires the emitted filename; Vite tolerates it, and dropping it fails `tsc` with TS2835
+- Vite is a tool, so it is declared at the workspace root under the rule settled in Task 1.1.7 — but React, React DOM and their `@types` are imported by this package's code and belong in `apps/frontend`. The rule is easy to over-apply in exactly this story
 
 ## Acceptance criteria
 
 - Development server runs with hot module replacement
 - Application renders a placeholder shell in the browser
 - Production build emits static assets
-- Typecheck and lint pass for the frontend package
-- Browser target is documented (desktop-first per PRODUCT_SPEC.md §3)
+- **`pnpm verify` passes from the repository root** — build, lint, format:check, test, in that order. The original criterion said "typecheck and lint pass for the frontend package", which is now the weaker check: `verify` is the one CI runs and the one Story 1.1 established as the single acceptance command
+- Browser target is documented (desktop-first per PRODUCT_SPEC.md §3), and `apps/frontend/tsconfig.json`'s `target`/`lib` overrides updated to match it — they are two of the four compiler options the apps are permitted to override, and were left provisional for this story
 
 ## Notes
 
