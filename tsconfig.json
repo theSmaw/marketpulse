@@ -1,0 +1,21 @@
+{
+  // The solution file. It compiles nothing itself — `files: []` is what makes
+  // that explicit — and exists purely so `tsc -b` at the root has a single
+  // entry point covering every package.
+  //
+  // It deliberately does *not* extend tsconfig.base.json. Shared compiler
+  // options belong to the packages that actually compile; inheriting them here
+  // would imply this project has sources, which it does not.
+  "files": [],
+
+  // Build order comes from the reference graph, not from this list: each app
+  // references packages/shared, so `tsc -b` builds shared first regardless of
+  // the order below. shared is listed anyway so that `tsc -b` still covers it
+  // if the apps ever stop referencing it, rather than silently dropping a
+  // package from the root build.
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "apps/backend" },
+    { "path": "apps/frontend" }
+  ]
+}
