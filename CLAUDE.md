@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**Epic 1, Story 1.1, task 4 of 8 done.** The pnpm workspace root, the shared TypeScript baseline and all three workspace packages exist. The two apps are typed skeletons that import from `@marketpulse/shared` and nothing more — there is no server and no React application yet.
+**Epic 1, Story 1.1, task 5 of 8 done.** The pnpm workspace root, the shared TypeScript baseline and all three workspace packages exist. The two apps are typed skeletons that import from `@marketpulse/shared` and nothing more — there is no server and no React application yet.
 
 ```
 package.json                       private workspace root; pins Node and pnpm
 pnpm-workspace.yaml                workspace globs (apps/*, packages/*) and pnpm settings
 tsconfig.base.json                 the one place shared compiler options live
+eslint.config.mjs                  the one lint config; ESLint is a root-only dependency
 .nvmrc                             Node 24.20.0
 apps/
   backend/                         @marketpulse/backend — skeleton until Story 1.2;
@@ -45,9 +46,11 @@ pnpm install
 pnpm --filter @marketpulse/shared build       # tsc -b, emits dist/
 pnpm --filter @marketpulse/backend build      # builds shared first, then the app
 pnpm --filter @marketpulse/frontend build
+
+pnpm --filter @marketpulse/shared lint        # eslint .; also lint:fix
 ```
 
-There is no root-level build/typecheck/lint yet — that is Task 1.1.7. Until then, drive packages with `--filter`.
+There is no root-level build/typecheck/lint yet — that is Task 1.1.7. Until then, drive packages with `--filter`. Linting the whole tree at once is `npx eslint .` from the root.
 
 **Node 24.x is required, not merely recommended.** `engineStrict` is on, so pnpm refuses to install under another major rather than warning. Node 23 additionally cannot bootstrap the repo at all: the Corepack it bundles (0.29.4) has a stale npm signing keyset and fails to fetch the pinned pnpm.
 
@@ -55,7 +58,13 @@ pnpm settings live in `pnpm-workspace.yaml`, not `.npmrc` — pnpm 10+ moved the
 
 Dependencies may not run install scripts unless named in `allowBuilds` in `pnpm-workspace.yaml`; an un-allowlisted one fails the install outright. This is deliberate. When it fires, allowlist the specific package — never disable the check.
 
-**TypeScript is held at 6.0.3 while npm's `latest` is 7.x.** TS 7 is the native compiler; `typescript-eslint` does not support it yet (peer range `<6.1.0`), and this repo relies on type-aware linting. Don't raise the pin until typescript-eslint's peer range admits TS 7 — check it, don't assume it.
+ESLint is installed **only at the workspace root** — packages do not declare it. pnpm puts the root's `node_modules/.bin` on the PATH of every workspace package script, so `eslint .` resolves from a package directory, and flat config is found by searching upward. There is one `eslint.config.mjs` and there should stay one. `.mjs` because the root `package.json` has no `"type": "module"`.
+
+Linting is **type-aware** (`strictTypeChecked` + `stylisticTypeChecked`, via typescript-eslint's project service). Two consequences: `packages/shared` must be built before lint is meaningful, same as typecheck; and `no-undef` is off for `.ts` files, so the per-package `globals` in the lint config change nothing on TypeScript today — they exist for the JS tooling files to come, and the comment there says so. Undefined-global errors in `.ts` come from tsc, not ESLint.
+
+`tsconfig.base.json` deliberately omits `noUnusedLocals`/`noUnusedParameters`: `@typescript-eslint/no-unused-vars` owns that, so one problem is not reported by two tools with different escape hatches. Don't add them back.
+
+**TypeScript is held at 6.0.3 while npm's `latest` is 7.x.** TS 7 is the native compiler; `typescript-eslint` does not support it yet (peer range `<6.1.0`), and this repo relies on type-aware linting. Don't raise the pin until typescript-eslint's peer range admits TS 7 — check it, don't assume it. Last checked 2026-08-30: still `>=4.8.4 <6.1.0` at typescript-eslint 8.68.0. Note `@eslint/js` does *not* share a version line with `eslint` (10.0.1 vs 10.9.1) — don't pin them in lockstep.
 
 Packages are consumed as **TypeScript project references with built output**, not raw source. So a consumer can only be typechecked after `packages/shared/dist/*.d.ts` exists — build before you typecheck. `tsc -b` handles the ordering itself.
 
