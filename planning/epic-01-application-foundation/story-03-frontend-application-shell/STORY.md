@@ -14,7 +14,18 @@ A React + TypeScript application that builds, runs in development with fast refr
 - Build tool — Vite is the default assumption unless there is a reason to differ
 - **What `build` means for this package once a bundler exists.** Today it is `tsc -b`, identical in all three packages, and the six-verb convention from Task 1.1.7 says a verb means the same thing everywhere. Vite makes that awkward: `vite build` emits static assets but does no typechecking, and `tsc -b` typechecks but emits the wrong artefact for a browser. The usual answer is `tsc -b && vite build`, which keeps the verb honest — decide it deliberately here rather than letting the two drift apart, and keep `typecheck` as the `tsc -b` half
 
-## What Story 1.1 hands this story, and what it will break
+## Conventions from Story 1.1
+
+Story 1.1 is complete, and these four bind this story. They are stated in every Epic 1 story so each one can be read on its own; the full reasoning is in `docs/adr/0001-repository-structure-and-typescript-toolchain.md`.
+
+- **`pnpm verify` is the acceptance command** — `build && lint && format:check && test`, chained with `&&` so the first failure is the exit code. This story passes it from the repository root. Prettier owns Markdown as well as code, so an unformatted planning document fails it too
+- **Six verbs, identical in every package** — `dev`, `build`, `test`, `lint`, `typecheck`, `clean`. Only `test` and `dev` fan out with `pnpm -r`; the rest run their tool once from the root, because the reference graph and ESLint's project service already cover the workspace in one pass. Changing what a verb means in one package means changing it everywhere, or saying why not
+- **Shared tooling lives at the workspace root; packages declare only what they actually import.** ESLint, Prettier and TypeScript are root-only devDependencies, and pnpm puts the root's `node_modules/.bin` on every package script's PATH. A library the code imports belongs in the package that imports it — `@types/node` in `apps/backend` is the counter-example that keeps the rule from being over-applied
+- **The module setup is ESM-only and single-file-safe** — `"type": "module"`, `module: nodenext`, `isolatedModules`, `verbatimModuleSyntax`, and relative imports carrying `.js` extensions from `.ts` files (TS2835 without one). `packages/shared` is consumed as **built output**, so it must be built before any consumer can be typechecked; `tsc -b` orders that itself, which is why `typecheck` and `build` are the same command
+
+Two more things that are true today and will not be forever. Until Story 1.9 lands, **`pnpm test` passes because there are no tests** — all three `test` scripts are `echo` placeholders that exit 0. Until Stories 1.2 and 1.3 land, both apps' `dev` scripts are placeholders too; only `packages/shared`'s (`tsc -b --watch`) is real.
+
+## What that means for this story
 
 - **`apps/frontend`'s `dev` script is an `echo` placeholder that names this story.** Replacing it is part of the work. Root `pnpm dev` is `pnpm -r --parallel run dev` and already runs it
 - **This is where the install-script policy fires.** Task 1.1.1 set `allowBuilds` in `pnpm-workspace.yaml` as an allowlist, and an un-allowlisted dependency with an install script is a **hard install failure (exit 1)**, not a warning. Nothing installed so far has one; esbuild, arriving with Vite, is the predicted first. Allowlist esbuild specifically — never disable the check. It will fail CI as readily as it fails locally

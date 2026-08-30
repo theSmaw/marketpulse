@@ -9,7 +9,18 @@
 
 Establish the testing stack and the conventions later epics follow. PRODUCT_SPEC.md §40 lists "testing non-deterministic systems" as something an interviewer should find a credible answer to, so the foundation needs to be deliberate rather than incidental.
 
-## What Story 1.1 already decided for this story
+## Conventions from Story 1.1
+
+Story 1.1 is complete, and these four bind this story. They are stated in every Epic 1 story so each one can be read on its own; the full reasoning is in `docs/adr/0001-repository-structure-and-typescript-toolchain.md`.
+
+- **`pnpm verify` is the acceptance command** — `build && lint && format:check && test`, chained with `&&` so the first failure is the exit code. This story passes it from the repository root. Prettier owns Markdown as well as code, so an unformatted planning document fails it too
+- **Six verbs, identical in every package** — `dev`, `build`, `test`, `lint`, `typecheck`, `clean`. Only `test` and `dev` fan out with `pnpm -r`; the rest run their tool once from the root, because the reference graph and ESLint's project service already cover the workspace in one pass. Changing what a verb means in one package means changing it everywhere, or saying why not
+- **Shared tooling lives at the workspace root; packages declare only what they actually import.** ESLint, Prettier and TypeScript are root-only devDependencies, and pnpm puts the root's `node_modules/.bin` on every package script's PATH. A library the code imports belongs in the package that imports it — `@types/node` in `apps/backend` is the counter-example that keeps the rule from being over-applied
+- **The module setup is ESM-only and single-file-safe** — `"type": "module"`, `module: nodenext`, `isolatedModules`, `verbatimModuleSyntax`, and relative imports carrying `.js` extensions from `.ts` files (TS2835 without one). `packages/shared` is consumed as **built output**, so it must be built before any consumer can be typechecked; `tsc -b` orders that itself, which is why `typecheck` and `build` are the same command
+
+Two more things that are true today and will not be forever. Until Story 1.9 lands, **`pnpm test` passes because there are no tests** — all three `test` scripts are `echo` placeholders that exit 0. Until Stories 1.2 and 1.3 land, both apps' `dev` scripts are placeholders too; only `packages/shared`'s (`tsc -b --watch`) is real.
+
+## What that means for this story
 
 - **The `test` verb exists and is wired; this story makes it real.** All three packages have a `test` script that is an `echo` placeholder exiting 0, root `test` is `pnpm -r run test` — one of only two root scripts that deliberately fan out — and `verify` already runs it last. So this story replaces three placeholders. It does not introduce a script name or a root wiring, and it should not invent a second command that means "run the tests"
 - **A green `pnpm test` currently means "no tests exist".** Story 1.10 will put that tick in CI. Removing that ambiguity is this story's real deliverable, not a side effect

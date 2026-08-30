@@ -55,7 +55,9 @@ Stories 1.2–1.3 can proceed in parallel once 1.1 lands, as can 1.6–1.9 once 
 
 ## Conventions Story 1.1 set for the rest of this epic
 
-Story 1.1 is complete, and the conventions it established bind every story after it. They are recorded in full in `docs/adr/0001-repository-structure-and-typescript-toolchain.md`; the four that come up in nearly every remaining story:
+Story 1.1 is complete, and the conventions it established bind every story after it. They are recorded in full in `docs/adr/0001-repository-structure-and-typescript-toolchain.md`, and **restated verbatim in every story from 1.2 to 1.12** under a `Conventions from Story 1.1` heading, followed there by a `What that means for this story` section spelling out the consequences for that story in particular. Each story is meant to be readable on its own without this file; the duplication is deliberate, and the wording is identical so that drift is visible in a diff. Change one and change all eleven.
+
+The four, summarised:
 
 - **`pnpm verify` is the acceptance command** — `build && lint && format:check && test`. Every story here should pass it from the root, and Story 1.10 runs it unchanged rather than re-listing the tools
 - **Six verbs, identical in every package** — `dev`, `build`, `test`, `lint`, `typecheck`, `clean`. A new package gets all six; a story that changes what a verb means in one package should change it everywhere or explain why not. Only `test` and `dev` fan out with `pnpm -r`; the rest run their tool once
