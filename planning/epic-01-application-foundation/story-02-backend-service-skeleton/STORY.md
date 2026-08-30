@@ -11,15 +11,15 @@ A minimal TypeScript HTTP service that starts, serves a health endpoint, and shu
 
 ## Open decisions
 
-* Server framework — PRODUCT_SPEC.md §29 leaves this at "Fastify or NestJS". Fastify suits the spec's "keep the backend relatively small" instruction; NestJS brings more structure and more ceremony.
+- Server framework — PRODUCT_SPEC.md §29 leaves this at "Fastify or NestJS". Fastify suits the spec's "keep the backend relatively small" instruction; NestJS brings more structure and more ceremony.
 
 ## Acceptance criteria
 
-* Server starts locally on a configurable port
-* `GET /health` returns 200 with a JSON body including status, version and uptime
-* Development mode restarts on source change
-* Production build emits runnable output
-* Process shuts down gracefully on SIGTERM/SIGINT, closing in-flight requests
+- Server starts locally on a configurable port
+- `GET /health` returns 200 with a JSON body including status, version and uptime
+- Development mode restarts on source change
+- Production build emits runnable output
+- Process shuts down gracefully on SIGTERM/SIGINT, closing in-flight requests
 
 ## Notes
 

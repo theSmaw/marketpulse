@@ -4,13 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**Epic 1, Story 1.1, task 5 of 8 done.** The pnpm workspace root, the shared TypeScript baseline and all three workspace packages exist. The two apps are typed skeletons that import from `@marketpulse/shared` and nothing more — there is no server and no React application yet.
+**Epic 1, Story 1.1, task 6 of 8 done.** The pnpm workspace root, the shared TypeScript baseline and all three workspace packages exist. The two apps are typed skeletons that import from `@marketpulse/shared` and nothing more — there is no server and no React application yet.
 
 ```
 package.json                       private workspace root; pins Node and pnpm
 pnpm-workspace.yaml                workspace globs (apps/*, packages/*) and pnpm settings
 tsconfig.base.json                 the one place shared compiler options live
 eslint.config.mjs                  the one lint config; ESLint is a root-only dependency
+prettier.config.mjs                the one format config; Prettier is root-only too
+.prettierignore                    build output, lockfile, tsbuildinfo
+.editorconfig                      charset, indentation, line endings, final newline
+.gitattributes                     `* text=auto eol=lf`; marks the lockfile generated
 .nvmrc                             Node 24.20.0
 apps/
   backend/                         @marketpulse/backend — skeleton until Story 1.2;
@@ -48,9 +52,12 @@ pnpm --filter @marketpulse/backend build      # builds shared first, then the ap
 pnpm --filter @marketpulse/frontend build
 
 pnpm --filter @marketpulse/shared lint        # eslint .; also lint:fix
+
+pnpm format                                   # prettier --write .  — the whole tree
+pnpm format:check                             # prettier --check .  — what CI runs
 ```
 
-There is no root-level build/typecheck/lint yet — that is Task 1.1.7. Until then, drive packages with `--filter`. Linting the whole tree at once is `npx eslint .` from the root.
+There is no root-level build/typecheck/lint yet — that is Task 1.1.7. Until then, drive packages with `--filter`. Linting the whole tree at once is `npx eslint .` from the root. `format`/`format:check` are the exception and already live at the root: Prettier's unit of work is the tree, not the package, so there is no per-package `format` script to fan out to and none should be added.
 
 **Node 24.x is required, not merely recommended.** `engineStrict` is on, so pnpm refuses to install under another major rather than warning. Node 23 additionally cannot bootstrap the repo at all: the Corepack it bundles (0.29.4) has a stale npm signing keyset and fails to fetch the pinned pnpm.
 
@@ -64,7 +71,7 @@ Linting is **type-aware** (`strictTypeChecked` + `stylisticTypeChecked`, via typ
 
 `tsconfig.base.json` deliberately omits `noUnusedLocals`/`noUnusedParameters`: `@typescript-eslint/no-unused-vars` owns that, so one problem is not reported by two tools with different escape hatches. Don't add them back.
 
-**TypeScript is held at 6.0.3 while npm's `latest` is 7.x.** TS 7 is the native compiler; `typescript-eslint` does not support it yet (peer range `<6.1.0`), and this repo relies on type-aware linting. Don't raise the pin until typescript-eslint's peer range admits TS 7 — check it, don't assume it. Last checked 2026-08-30: still `>=4.8.4 <6.1.0` at typescript-eslint 8.68.0. Note `@eslint/js` does *not* share a version line with `eslint` (10.0.1 vs 10.9.1) — don't pin them in lockstep.
+**TypeScript is held at 6.0.3 while npm's `latest` is 7.x.** TS 7 is the native compiler; `typescript-eslint` does not support it yet (peer range `<6.1.0`), and this repo relies on type-aware linting. Don't raise the pin until typescript-eslint's peer range admits TS 7 — check it, don't assume it. Last checked 2026-08-30: still `>=4.8.4 <6.1.0` at typescript-eslint 8.68.0. Note `@eslint/js` does _not_ share a version line with `eslint` (10.0.1 vs 10.9.1) — don't pin them in lockstep.
 
 Packages are consumed as **TypeScript project references with built output**, not raw source. So a consumer can only be typechecked after `packages/shared/dist/*.d.ts` exists — build before you typecheck. `tsc -b` handles the ordering itself.
 
@@ -72,9 +79,21 @@ Packages are consumed as **TypeScript project references with built output**, no
 
 The apps override exactly four compiler options between them, and each is load-bearing: the backend sets `types: ["node"]` (with `@types/node` pinned to the runtime major, 24.x — not npm's `latest`), and the frontend sets `types: []` plus `target`/`lib` with `"dom"`. The frontend's empty `types` array is not redundant: without it TypeScript auto-discovers every reachable `@types` package, and pnpm's linking puts `@types/node` in reach, so `process` would typecheck in browser code.
 
-Relative imports inside a package carry explicit `.js` extensions from `.ts` files (`./ticker.js`). It looks wrong; `nodenext` resolution requires the *emitted* filename and errors (TS2835) without it. Every package also needs `"type": "module"`.
+Relative imports inside a package carry explicit `.js` extensions from `.ts` files (`./ticker.js`). It looks wrong; `nodenext` resolution requires the _emitted_ filename and errors (TS2835) without it. Every package also needs `"type": "module"`.
 
 Every shared compiler option lives in `tsconfig.base.json` and nowhere else. Packages extend it and add only `include`, `outDir`/`rootDir`, project `references`, and the frontend's `target`/`lib`. Each option in that file carries a comment explaining why it is there — if you change one, change the comment. `lib` is intentionally unset so it follows `target`.
+
+Prettier is installed **only at the workspace root**, exactly like ESLint, and there is one `prettier.config.mjs`. `.mjs` rather than `.prettierrc.json` so each option carries the reason it is set. Every option in it is explicit even where it restates a Prettier default — a Prettier upgrade must not quietly restyle the tree.
+
+**Formatting is Prettier's, correctness is ESLint's, and the two do not overlap.** `eslint-config-prettier` is deliberately **not** installed: of the 138 rules the lint config enables on a `.ts` file, zero are formatting rules, and the only `eslint-config-prettier` "special rule" enabled is `no-unexpected-multiline`, which guards hand-written code rather than fighting Prettier's output. Measured with `eslint --print-config`, not assumed — re-run it rather than trusting this paragraph, and if a real conflict ever appears, `eslint-config-prettier` goes **last** in the flat config array.
+
+`tsconfig.base.json` has no Prettier `overrides` entry and does not need one. Prettier infers the plain `json` parser for it (the `.base.` infix misses Prettier's JSONC filename list), and that parser preserves comments anyway — verified. Don't add one.
+
+LF is stated in three places and all three must agree: `endOfLine: "lf"` in the Prettier config, `end_of_line = lf` in `.editorconfig`, and `* text=auto eol=lf` in `.gitattributes`. `.editorconfig` binds editors only — git still normalises on checkout by its own rules, so `.gitattributes` is what actually prevents CRLF diffs.
+
+Prettier owns the Markdown in `planning/` too, not just code — the docs were normalised in Task 1.1.6 (`*` bullets to `-`, `*emphasis*` to `_emphasis_`, padded tables). Write prose however you like and let `pnpm format` settle it; `format:check` covers those files.
+
+WebStorm needs no per-machine setup: `.idea/prettier.xml` is checked in with `AUTOMATIC` mode plus format-on-save and format-on-reformat, so WebStorm resolves the same `prettier` package and the same config file the CLI does.
 
 Build/test/lint/dev commands land in Task 1.1.7 (root script orchestration); Task 1.1.8 fills in this section properly, including how to run a single test.
 
@@ -88,7 +107,7 @@ It is explicitly **not** a trading system. It never predicts prices, recommends 
 
 These are the load-bearing decisions. They are cheap to honour up front and very expensive to retrofit — treat a change to any of them as a design discussion, not an implementation detail.
 
-**1. The LLM never calculates.** Every number a user sees comes from deterministic code (an analytical tool or service). The model chooses *what* to investigate and explains results; it must not produce figures from its own reasoning. If a feature needs a number the tool layer can't produce, add the tool — don't let the model estimate it.
+**1. The LLM never calculates.** Every number a user sees comes from deterministic code (an analytical tool or service). The model chooses _what_ to investigate and explains results; it must not produce figures from its own reasoning. If a feature needs a number the tool layer can't produce, add the tool — don't let the model estimate it.
 
 **2. The AI manipulates typed application state, never markup or code.** Agent-driven UI changes are schema-validated `WorkspaceCommand` objects (`focusSymbols`, `openPriceChart`, `compareSymbols`, `setTimeWindow`, `pinEvidence`, …) executed against trusted, pre-existing components. No LLM-generated HTML, JSX, or executable frontend code, ever. Validate → permission-check → execute → record in investigation history.
 

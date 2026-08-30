@@ -11,13 +11,13 @@ Establish the testing stack and the conventions later epics follow. PRODUCT_SPEC
 
 ## Acceptance criteria
 
-* Unit test runner configured for both packages, running from the repository root
-* Backend integration tests exercise the real HTTP layer, including `/health`
-* Frontend component tests render through the real component tree
-* Example tests of each kind exist and pass
-* Running a single test file, and a single test by name, is documented
-* Coverage reporting is available on demand
-* Test conventions documented — naming, location, what belongs at each level
+- Unit test runner configured for both packages, running from the repository root
+- Backend integration tests exercise the real HTTP layer, including `/health`
+- Frontend component tests render through the real component tree
+- Example tests of each kind exist and pass
+- Running a single test file, and a single test by name, is documented
+- Coverage reporting is available on demand
+- Test conventions documented — naming, location, what belongs at each level
 
 ## Notes
 

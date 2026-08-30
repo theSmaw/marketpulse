@@ -14,18 +14,18 @@ Users can explore securities as an interactive relationship graph.
 
 ## Scope
 
-* Graph domain model
-* Sector/industry relationships
-* Correlation relationships
-* Graph-layout generation
-* WebGL renderer
-* Node sizing
-* Node movement/anomaly encoding
-* Edge strength
-* Hover/select interactions
-* Filtering
-* Sector clustering
-* Live visual updates
+- Graph domain model
+- Sector/industry relationships
+- Correlation relationships
+- Graph-layout generation
+- WebGL renderer
+- Node sizing
+- Node movement/anomaly encoding
+- Edge strength
+- Hover/select interactions
+- Filtering
+- Sector clustering
+- Live visual updates
 
 ## Exit criteria
 

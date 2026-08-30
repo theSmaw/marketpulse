@@ -14,19 +14,19 @@ Users can investigate market behaviour conversationally without giving the model
 
 ## Scope
 
-* LLM-provider abstraction
-* Agent execution service
-* Tool-calling protocol
-* Agent event protocol
-* Investigation context
-* Streaming agent activity
-* Findings generated from tool results
-* Follow-up questions
-* Agent cancellation
-* Tool failure handling
-* Confidence language
-* Guardrails against investment recommendations
-* Logging/tracing of agent activity
+- LLM-provider abstraction
+- Agent execution service
+- Tool-calling protocol
+- Agent event protocol
+- Investigation context
+- Streaming agent activity
+- Findings generated from tool results
+- Follow-up questions
+- Agent cancellation
+- Tool failure handling
+- Confidence language
+- Guardrails against investment recommendations
+- Logging/tracing of agent activity
 
 ## Exit criteria
 

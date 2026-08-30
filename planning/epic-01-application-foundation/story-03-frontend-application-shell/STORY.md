@@ -11,16 +11,16 @@ A React + TypeScript application that builds, runs in development with fast refr
 
 ## Open decisions
 
-* Build tool — Vite is the default assumption unless there is a reason to differ
+- Build tool — Vite is the default assumption unless there is a reason to differ
 
 ## Acceptance criteria
 
-* Development server runs with hot module replacement
-* Application renders a placeholder shell in the browser
-* Production build emits static assets
-* Typecheck and lint pass for the frontend package
-* Browser target is documented (desktop-first per PRODUCT_SPEC.md §3)
+- Development server runs with hot module replacement
+- Application renders a placeholder shell in the browser
+- Production build emits static assets
+- Typecheck and lint pass for the frontend package
+- Browser target is documented (desktop-first per PRODUCT_SPEC.md §3)
 
 ## Notes
 
-Redux and RxJS are deliberately *not* introduced here. Per PRODUCT_SPEC.md §25, add them when there is state and streaming to justify them — Epics 2 and 3.
+Redux and RxJS are deliberately _not_ introduced here. Per PRODUCT_SPEC.md §25, add them when there is state and streaming to justify them — Epics 2 and 3.

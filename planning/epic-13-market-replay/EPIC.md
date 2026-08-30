@@ -14,19 +14,19 @@ Users can reconstruct a historical market session and investigate it using only 
 
 ## Scope
 
-* Replay mode
-* Global replay clock
-* Play/pause
-* Replay speed
-* Timeline scrubbing
-* Historical market-event playback
-* Historical anomaly reproduction
-* Timestamp-aware analytical tools
-* Timestamp-aware SEC queries
-* Data-layer future-information prevention
-* "Investigate at this moment"
-* Agent replay context
-* Replay-state visualization
+- Replay mode
+- Global replay clock
+- Play/pause
+- Replay speed
+- Timeline scrubbing
+- Historical market-event playback
+- Historical anomaly reproduction
+- Timestamp-aware analytical tools
+- Timestamp-aware SEC queries
+- Data-layer future-information prevention
+- "Investigate at this moment"
+- Agent replay context
+- Replay-state visualization
 
 ## Exit criteria
 

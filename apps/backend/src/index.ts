@@ -8,4 +8,6 @@ import { toTicker, type Ticker } from "@marketpulse/shared";
 
 const ticker: Ticker = toTicker("AAPL");
 
-process.stdout.write(`@marketpulse/backend skeleton — shared resolves: ${ticker}\n`);
+process.stdout.write(
+  `@marketpulse/backend skeleton — shared resolves: ${ticker}\n`,
+);

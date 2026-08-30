@@ -14,21 +14,21 @@ Someone encountering MarketPulse for the first time can understand both the prod
 
 ## Scope
 
-* Production deployment
-* Polished demo scenario
-* Seeded historical replay
-* README
-* Architecture diagrams
-* Architecture overview
-* Agent architecture documentation
-* Performance report
-* ADRs
-* Testing strategy documentation
-* Demo walkthrough
-* Screenshots/video
-* Error-state polish
-* Accessibility review
-* Final UX polish
+- Production deployment
+- Polished demo scenario
+- Seeded historical replay
+- README
+- Architecture diagrams
+- Architecture overview
+- Agent architecture documentation
+- Performance report
+- ADRs
+- Testing strategy documentation
+- Demo walkthrough
+- Screenshots/video
+- Error-state polish
+- Accessibility review
+- Final UX polish
 
 ## Exit criteria
 

@@ -14,17 +14,17 @@ MarketPulse contains measurable evidence of frontend and streaming performance.
 
 ## Scope
 
-* Synthetic-market generator
-* 5,000+ synthetic securities
-* 25,000+ graph relationships
-* High-frequency update simulation
-* Performance instrumentation
-* Frame-rate measurement
-* Main-thread task measurement
-* Streaming-latency measurement
-* Web Worker optimization where justified
-* Bottleneck analysis
-* Published benchmark results
+- Synthetic-market generator
+- 5,000+ synthetic securities
+- 25,000+ graph relationships
+- High-frequency update simulation
+- Performance instrumentation
+- Frame-rate measurement
+- Main-thread task measurement
+- Streaming-latency measurement
+- Web Worker optimization where justified
+- Bottleneck analysis
+- Published benchmark results
 
 ## Exit criteria
 

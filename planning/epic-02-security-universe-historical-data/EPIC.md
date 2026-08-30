@@ -14,17 +14,17 @@ A user can select one of the tracked securities and inspect its historical price
 
 ## Scope
 
-* Security domain model
-* Initial ~100-security universe
-* ETF/sector metadata
-* Market-data provider abstraction
-* Alpaca historical-data integration
-* Historical market-data persistence/cache
-* Security search/select
-* Basic price chart
-* Basic volume chart
-* Time-window selection
-* Market-data provenance display
+- Security domain model
+- Initial ~100-security universe
+- ETF/sector metadata
+- Market-data provider abstraction
+- Alpaca historical-data integration
+- Historical market-data persistence/cache
+- Security search/select
+- Basic price chart
+- Basic volume chart
+- Time-window selection
+- Market-data provenance display
 
 ## Exit criteria
 
