@@ -1,0 +1,11 @@
+{
+  // Everything shared lives in ../../tsconfig.base.json — including `composite`,
+  // which is what lets the apps reference this package. Only the paths belong
+  // here.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*"]
+}
