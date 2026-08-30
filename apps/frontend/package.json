@@ -9,12 +9,18 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test": "echo \"@marketpulse/frontend: no tests yet — Story 1.9\"",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
     "typecheck": "tsc -b",
     "clean": "tsc -b --clean && rm -rf dist"
   },
   "dependencies": {
-    "@marketpulse/shared": "workspace:*"
+    "@marketpulse/shared": "workspace:*",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5"
   }
 }

@@ -29,6 +29,23 @@
     // an error in older versions.
     "noEmit": true,
 
+    // The modern JSX transform (React 17+): a `.tsx` file needs no
+    // `import React` to use JSX, because the compiler emits an import of
+    // `react/jsx-runtime` itself. That matters more here than it looks —
+    // `verbatimModuleSyntax` (base config) makes imports literal, so an
+    // `import React` kept only to satisfy the classic transform would be a
+    // real, unused runtime import rather than something erased.
+    //
+    // Sixth of the per-app compiler overrides and the second in this file
+    // after `noEmit`. It belongs here and nowhere else: `packages/shared` is
+    // consumed by the backend too, and JSX has no meaning there.
+    //
+    // Note this option is what tsc *typechecks* against, not what runs. The
+    // transform that actually produces the JavaScript is the bundler's, since
+    // tsc emits nothing in this package — so a disagreement between the two
+    // shows up in the browser, not in a compile error.
+    "jsx": "react-jsx",
+
     // --- The browser baseline ---
     //
     // Desktop-first, per PRODUCT_SPEC.md §3, and evergreen: current Chrome,

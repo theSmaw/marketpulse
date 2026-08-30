@@ -10,8 +10,8 @@
     "build": "tsc -b",
     "start": "node dist/index.js",
     "test": "echo \"@marketpulse/backend: no tests yet — Story 1.9\"",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
     "typecheck": "tsc -b",
     "clean": "tsc -b --clean"
   },

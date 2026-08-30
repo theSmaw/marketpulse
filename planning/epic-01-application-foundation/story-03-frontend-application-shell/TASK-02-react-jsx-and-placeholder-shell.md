@@ -1,6 +1,6 @@
 # Task 1.3.2 — React, JSX and the placeholder shell
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.3 Frontend Application Shell](STORY.md)
 **Depends on:** Task 1.3.1
 
@@ -33,3 +33,50 @@ Make the page a React application and render the placeholder shell the story ask
 ## Notes
 
 This task and the next are deliberately separate. Rendering React and _hot-reloading_ React are different mechanisms — the first is a dependency and a transform, the second is a Vite plugin and a dev-server contract — and separating them means an HMR problem in Task 1.3.3 cannot be confused with a rendering problem here.
+
+## Outcome
+
+React 19.2.8 renders the shell. `pnpm verify` passes from a clean tree in **4.9s** (4.5s before this task). The five checks the task set as evidence rather than assertion were all run, and three of them changed something.
+
+### The `.js` → `.tsx` question, closed in both directions
+
+This was the one genuinely open question the story carried into this task, and Task 1.3.1 could not answer it — its entry file had a single bare package import. The answer is that **`main.tsx` importing `./App.js` resolves in both producers**: `tsc -b` exits 0, and `vite build` transforms 17 modules without complaint. No divergence, nothing to work around, and the convention Story 1.1 established holds one extension further than it had been tested.
+
+Worth being precise about why that is unsurprising in hindsight and was not safe to assume: the two resolvers agree here for different reasons. `tsc` maps the emitted filename back to a source under `nodenext`; Rolldown resolves it because Vite's resolver tries TypeScript source extensions for a `.js` specifier. Two mechanisms, one result — so a future Vite change could break it without `tsc` noticing, which makes this a thing to re-check on a bundler upgrade rather than a settled property of the language.
+
+### The React plugin's flat config is not where you first look
+
+`eslint-plugin-react-hooks@7.1.1` exports **two** things called `recommended-latest`. The top-level `configs["recommended-latest"]` is still eslintrc-shaped — `plugins: ["react-hooks"]`, an array — and ESLint 10 rejects it outright:
+
+```
+Flat config requires "plugins" to be an object, like this:
+    { plugins: { react-hooks: pluginObject } }
+```
+
+Exit 2, not a lint failure. The usable one is `configs.flat["recommended-latest"]`. Loud rather than silent, which is the good version of this problem, but the two names being identical is a trap worth having written down.
+
+### `eslint-plugin-react-hooks` adopted, and what that actually turned on
+
+The task asked for a deliberate decision rather than a default. **Adopted**, root-only like every other tool, scoped to `apps/frontend/src/**` so `vite.config.ts` is not asked React questions.
+
+What is easy to get wrong: `recommended` in v7 is not the two rules the plugin's name suggests. It is **17 rules**, and most of them are the React Compiler's Rules of React — `purity`, `immutability`, `set-state-in-render`, `preserve-manual-memoization` — rather than hook ordering. Taken whole, on the grounds that adopting them with one component in the tree costs nothing and adopting them in Epic 2 is a retrofit.
+
+Three of the 17 ship at `warn`: `exhaustive-deps`, `incompatible-library`, `unsupported-syntax`. That is the first non-error severity anywhere in this workspace, and it exposed something: **`eslint .` does not fail on warnings**, so `verify` would have gone green with real findings in it. That is the same green-tick-that-means-nothing problem CLAUDE.md already names for the placeholder `test` scripts. So all four `lint` scripts — root and all three packages — now pass **`--max-warnings 0`**, keeping the verb meaning the same thing everywhere. The severities stay as the plugin ships them; what changed is that a warning now costs something.
+
+### The two guards held, checked by breaking them
+
+- **`types: []` is unchanged and still works.** A `.tsx` file referencing `process` fails with `TS2591` even with `@types/react` installed, which confirms the prediction in this task: React's types arrive through `import` statements, not global auto-inclusion, so the empty array and working React types were never in tension.
+- **ESLint really does lint `.tsx` with the type-aware set.** Checked by introducing violations, not by reading the config: a probe component drew both `@typescript-eslint/no-unnecessary-condition` (which needs type information to fire at all) and `react-hooks/rules-of-hooks`. The `**/*.tsx` glob and the project service both cost exactly nothing, as expected.
+- Prettier parses `.tsx` with no configuration — verified by feeding it mangled JSX and watching it reformat, rather than by observing that already-tidy files were left alone.
+
+### Also observed
+
+- **`@types/react` does not share a version line with `react`** — 19.2.18 against 19.2.8, and `@types/react-dom` is 19.2.5 again. Same shape as `@eslint/js` vs `eslint`, which CLAUDE.md already warns about. Pin them to the React _major_, never in lockstep.
+- **React brought no install scripts either.** `allowBuilds` is still empty and still untested, one more task on from the prediction failing. A sweep does turn up `prepare` scripts (`minimatch`, `acorn`, `cookie`, `lightningcss`, …), but `prepare` does not run for registry tarballs — only `preinstall`/`install`/`postinstall` would, and there are none.
+- **The bundle went from 1.03 kB to 190.76 kB** (60.15 kB gzipped), 6 modules to 17. That is React, and it is the whole of it — worth having a number for before Story 1.4 adds anything.
+- **`StrictMode` was deliberately not added.** It is in every Vite React template, so its absence will look like an oversight. It double-invokes render and effects in development, which is exactly the signal Task 1.3.3 will be reading when it checks whether component state survived a fast refresh. Deferred to Task 1.3.3 to adopt once that measurement is taken — dated 2026-08-30, not forgotten.
+- The dev server bound 5173 this time; Task 1.3.1 got 5174. Nothing changed but what else was running, which is the point of the `strictPort` decision Task 1.3.3 owns.
+
+### For Task 1.3.5
+
+Three things beyond the list that task already carries: the `--max-warnings 0` change to all four `lint` scripts and why it happened; `eslint-plugin-react-hooks` as the workspace's first ESLint plugin beyond `typescript-eslint` (and the `configs.flat` trap); and the `StrictMode` deferral, which needs to be a dated decision in writing or it reads as a mistake.
