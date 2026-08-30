@@ -26,7 +26,7 @@ Story 1.1 is complete, and these four bind this story. They are stated in every 
 - **Shared tooling lives at the workspace root; packages declare only what they actually import.** ESLint, Prettier and TypeScript are root-only devDependencies, and pnpm puts the root's `node_modules/.bin` on every package script's PATH. A library the code imports belongs in the package that imports it — `@types/node` in `apps/backend` is the counter-example that keeps the rule from being over-applied
 - **The module setup is ESM-only and single-file-safe** — `"type": "module"`, `module: nodenext`, `isolatedModules`, `verbatimModuleSyntax`, and relative imports carrying `.js` extensions from `.ts` files (TS2835 without one). `packages/shared` is consumed as **built output**, so it must be built before any consumer can be typechecked; `tsc -b` orders that itself, which is why `typecheck` and `build` are the same command
 
-Two more things that are true today and will not be forever. Until Story 1.9 lands, **`pnpm test` passes because there are no tests** — all three `test` scripts are `echo` placeholders that exit 0. Until Stories 1.2 and 1.3 land, both apps' `dev` scripts are placeholders too; only `packages/shared`'s (`tsc -b --watch`) is real.
+Two more things that are true today and will not be forever. Until Story 1.9 lands, **`pnpm test` passes because there are no tests** — all three `test` scripts are `echo` placeholders that exit 0. ~~Until Stories 1.2 and 1.3 land, both apps' `dev` scripts are placeholders too; only `packages/shared`'s (`tsc -b --watch`) is real.~~ **No longer true as of Task 1.3.3** — all three `dev` scripts are real, and the three `test` scripts are the only placeholders left in the workspace.
 
 ## What that means for this story
 
@@ -43,7 +43,7 @@ Two more things that are true today and will not be forever. Until Story 1.9 lan
 
 ## Acceptance criteria
 
-- Development server runs with hot module replacement
+- Development server runs with hot module replacement — met in Task 1.3.3, with a warm edit-to-update baseline of ~100–140 ms. Note for anyone re-checking it: the stateful probe used to measure it was removed afterwards, and **editing a heading and watching it change does not test this** — it passes identically on a full page reload. The check needs component state
 - Application renders a placeholder shell in the browser
 - Production build emits static assets
 - **`pnpm verify` passes from the repository root** — build, lint, format:check, test, in that order. The original criterion said "typecheck and lint pass for the frontend package", which is now the weaker check: `verify` is the one CI runs and the one Story 1.1 established as the single acceptance command
