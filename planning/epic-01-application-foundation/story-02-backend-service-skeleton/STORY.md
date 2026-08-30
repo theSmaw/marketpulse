@@ -1,6 +1,6 @@
 # Story 1.2 — Backend Service Skeleton
 
-**Status:** In progress — Tasks 1.2.1 to 1.2.5 complete
+**Status:** Complete — 2026-08-30 (all six tasks)
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.1
 **Epic scope covered:** TypeScript backend service
@@ -13,7 +13,7 @@ A minimal TypeScript HTTP service that starts, serves a health endpoint, and shu
 
 Resolved 2026-08-30:
 
-- **Server framework — Fastify.** PRODUCT_SPEC.md §29 left this at "Fastify or NestJS", and Story 1.1 added a technical input to the choice that was not neutral. The toolchain is ESM-only and single-file-transpile-safe: `"type": "module"`, `module: nodenext`, `isolatedModules` and `verbatimModuleSyntax`. NestJS's decorator-and-metadata model wants `experimentalDecorators` and `emitDecoratorMetadata`, is CommonJS-oriented in much of its ecosystem, and `verbatimModuleSyntax` in particular interferes with the type-only imports its DI relies on — so choosing it meant either relaxing workspace-wide options for one package or accepting friction in every file. Fastify has none of that problem and suits the spec's "keep the backend relatively small" instruction. The structure NestJS would have supplied is a cost to be paid later, in Epic 7 when the investigation engine needs composition; Fastify's plugin model is the intended answer. Recorded in full in ADR 0002 (Task 1.2.6)
+- **Server framework — Fastify.** PRODUCT_SPEC.md §29 left this at "Fastify or NestJS", and Story 1.1 added a technical input to the choice that was not neutral. The toolchain is ESM-only and single-file-transpile-safe: `"type": "module"`, `module: nodenext`, `isolatedModules` and `verbatimModuleSyntax`. NestJS's decorator-and-metadata model wants `experimentalDecorators` and `emitDecoratorMetadata`, is CommonJS-oriented in much of its ecosystem, and `verbatimModuleSyntax` in particular interferes with the type-only imports its DI relies on — so choosing it meant either relaxing workspace-wide options for one package or accepting friction in every file. Fastify has none of that problem and suits the spec's "keep the backend relatively small" instruction. The structure NestJS would have supplied is a cost to be paid later, in Epic 7 when the investigation engine needs composition; Fastify's plugin model is the intended answer. Recorded in full in [ADR 0002](../../../docs/adr/0002-backend-framework-and-server-composition.md), written in Task 1.2.6, which also records four composition decisions this story made along the way: the `buildServer()`/entrypoint split and where signal handling lives, `buildServer()` staying synchronous, the development loop compiling rather than stripping types, and reading `version` with a JSON import rather than `createRequire`. Each carries its rejected alternative
 
 ## Conventions from Story 1.1
 
@@ -36,25 +36,27 @@ Two more things that are true today and will not be forever. Until Story 1.9 lan
 
 ## Acceptance criteria
 
-- Server starts locally on a configurable port
-- `GET /health` returns 200 with a JSON body including status, version and uptime
-- Development mode restarts on source change
-- Production build emits runnable output
-- Process shuts down gracefully on SIGTERM/SIGINT, closing in-flight requests
+All six were executed together from a clean build in Task 1.2.6, not inherited from the tasks that claimed them.
+
+- Server starts locally on a configurable port — `PORT=4321` bound and served; `PORT=nonsense` and `PORT=70000` both exit 1 naming the variable and the value
+- `GET /health` returns 200 with a JSON body including status, version and uptime — `{"status":"ok","version":"0.0.0","uptimeSeconds":0.129}`, `content-type: application/json; charset=utf-8`, `version` matching the manifest
+- Development mode restarts on source change — edit to new listener ~1.1s, new pid, no orphans and no held port on Ctrl-C
+- Production build emits runnable output — `pnpm clean` then `pnpm build` then plain `node dist/index.js`, no flags
+- Process shuts down gracefully on SIGTERM/SIGINT, closing in-flight requests — a 2s in-flight request completed with 200 and the process exited 0 after 1.7s; an 8s one hit the 5s ceiling and exited 1; a second signal mid-drain exited 1 immediately
 - `pnpm verify` passes from the repository root
 
 ## Tasks
 
 Tackled in order. The story is complete when all six are done.
 
-| #     | Task                                                                                 | Status      |
-| ----- | ------------------------------------------------------------------------------------ | ----------- |
-| 1.2.1 | [Fastify server bootstrap](TASK-01-fastify-server-bootstrap.md)                      | Complete    |
-| 1.2.2 | [Development mode: watch and restart](TASK-02-development-mode-watch-and-restart.md) | Complete    |
-| 1.2.3 | [The health endpoint](TASK-03-health-endpoint.md)                                    | Complete    |
-| 1.2.4 | [Graceful shutdown](TASK-04-graceful-shutdown.md)                                    | Complete    |
-| 1.2.5 | [Production build and run](TASK-05-production-build-and-run.md)                      | Complete    |
-| 1.2.6 | [Verify the story end to end and document](TASK-06-verify-and-document.md)           | Not started |
+| #     | Task                                                                                 | Status   |
+| ----- | ------------------------------------------------------------------------------------ | -------- |
+| 1.2.1 | [Fastify server bootstrap](TASK-01-fastify-server-bootstrap.md)                      | Complete |
+| 1.2.2 | [Development mode: watch and restart](TASK-02-development-mode-watch-and-restart.md) | Complete |
+| 1.2.3 | [The health endpoint](TASK-03-health-endpoint.md)                                    | Complete |
+| 1.2.4 | [Graceful shutdown](TASK-04-graceful-shutdown.md)                                    | Complete |
+| 1.2.5 | [Production build and run](TASK-05-production-build-and-run.md)                      | Complete |
+| 1.2.6 | [Verify the story end to end and document](TASK-06-verify-and-document.md)           | Complete |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Story 1.1 followed. The watcher comes second rather than last on purpose: Tasks 1.2.3 to 1.2.5 are much easier to work on with a server that restarts on save.
 
@@ -69,6 +71,14 @@ Each of these belongs to a later story, and each is a thing a backend skeleton n
 - **Tests** (Story 1.9) — the `buildServer()` split exists so `app.inject()` is possible later, but no test runner is chosen here
 - **Deployment** (Story 1.11) — `apps/backend/dist` is not a self-contained artifact, and `pnpm deploy --filter` is that story's problem
 - **CORS and the frontend contract** (Story 1.12) — nothing here proves a browser on another origin can reach this endpoint
+
+## What the verification could not prove
+
+Named deliberately, in the habit Task 1.1.8 established:
+
+- **Nothing here says anything about a deployed environment.** Every measurement was taken against a process started by hand on a developer machine. Signal delivery to PID 1 in a container, the host binding that a platform actually exposes, and whether the orchestrator's kill timeout is larger than the 5s ceiling are all Story 1.11's, and its `pnpm deploy` mechanism is confirmed in shape only — a package directory copied outside the workspace runs
+- **Nothing here proves the frontend can reach this endpoint across an origin boundary.** CORS was not considered by any task in this story. That is a deliberate deferral to Story 1.12, recorded so it is not mistaken for an oversight
+- **The `/health` response shape is unverified by anything but a curl.** There is no test runner (Story 1.9) and no response schema (Story 1.7), so a change that broke the contract would pass `pnpm verify`
 
 ## Notes
 

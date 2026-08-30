@@ -20,3 +20,4 @@ data layer. Write each one when the decision is actually made, not in advance.
 | #                                                             | Title                                         | Status   |
 | ------------------------------------------------------------- | --------------------------------------------- | -------- |
 | [0001](0001-repository-structure-and-typescript-toolchain.md) | Repository structure and TypeScript toolchain | Accepted |
+| [0002](0002-backend-framework-and-server-composition.md)      | Backend framework and server composition      | Accepted |

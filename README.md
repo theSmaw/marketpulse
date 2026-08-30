@@ -12,14 +12,28 @@ recommends trades, or produces target prices.
 
 ## What exists today
 
-**Epic 1, Story 1.1 — the repository and its toolchain.** There is no server
-and no React application yet: `apps/backend` and `apps/frontend` are typed
-skeletons that import from `@marketpulse/shared` and nothing more. They arrive
-in Stories 1.2 and 1.3.
+**Epic 1, Stories 1.1 and 1.2 — the repository, its toolchain, and a backend.**
 
-So the instructions below get you to a repository that installs, builds, lints,
-formats and typechecks. They do not get you to a running application. When they
-do, this section is the first thing that should change.
+`apps/backend` is a running Fastify service. It starts on a configurable port,
+serves `GET /health`, restarts on source change, and shuts down cleanly on
+`SIGTERM`/`SIGINT`:
+
+```sh
+pnpm build
+pnpm --filter @marketpulse/backend start     # or `dev` for the watch loop
+curl http://127.0.0.1:3000/health
+# {"status":"ok","version":"0.0.0","uptimeSeconds":0.129}
+```
+
+`PORT` and `HOST` configure it (defaults 3000 and 127.0.0.1). It is a skeleton
+in scope rather than in status: no market data, no database, no domain logic.
+
+`apps/frontend` is still a typed skeleton that imports from
+`@marketpulse/shared` and nothing more; the React application arrives in
+Story 1.3. So the instructions below get you to a working backend and a
+repository that installs, builds, lints, formats and typechecks — not yet to a
+running _application_. When they do, this section is the first thing that
+should change.
 
 ## Prerequisites
 
@@ -73,14 +87,15 @@ Run from the repository root:
 | `pnpm format`       | `prettier --write .` — the whole tree, prose included      |
 | `pnpm format:check` | `prettier --check .`                                       |
 | `pnpm test`         | Placeholders until Story 1.9 — see the warning below       |
-| `pnpm dev`          | Every package's `dev`, in parallel                         |
+| `pnpm dev`          | Every package's `dev`, in parallel — see below             |
 | `pnpm clean`        | `tsc -b --clean`; removes emitted output and build state   |
 
 Working on a single package uses the same six verbs, meaning the same thing:
 
 ```sh
-pnpm --filter @marketpulse/shared build      # or typecheck / lint / lint:fix / test / clean
+pnpm --filter @marketpulse/shared build      # or typecheck / lint / lint:fix / test
 pnpm --filter @marketpulse/shared dev        # tsc -b --watch
+pnpm --filter @marketpulse/shared run clean  # note the `run` — see below
 ```
 
 Every package exposes `dev`, `build`, `test`, `lint`, `typecheck` and `clean`.
@@ -96,21 +111,49 @@ pnpm --filter @marketpulse/backend start     # node dist/index.js — needs pnpm
 `start` runs the already-built output and builds nothing itself. It is not a
 seventh verb: no root fan-out, no place in `verify`, and the other two packages
 are not obliged to have one. It exists because "production build emits runnable
-output" needs a documented way to run it.
+output" needs a documented way to run it. An empty or stale `dist/` is a
+missing or stale server, so build first.
 
-### `pnpm test` and `pnpm dev` do not yet do what their names suggest
+**`clean` is the one verb that needs an explicit `run` when filtered.**
+`pnpm clean` is also a built-in pnpm 11 command (alias `purge`) that removes
+`node_modules` from every workspace project, and pnpm only prefers a `clean`
+script when the current project has one. The root does, so `pnpm clean` runs
+`tsc -b --clean` as documented — but `pnpm --filter <pkg> clean` reaches the
+built-in and fails with `[ERROR] Unknown option: 'recursive'`. It deletes
+nothing; add `run` and it works.
+
+One more thing `clean` does not do: `tsc -b --clean` removes the output of the
+sources that currently exist, so deleting a source file first orphans its
+`dist/` output permanently. Clean before deleting a file, or remove its output
+by hand afterwards.
+
+### `pnpm test` does not yet do what its name suggests
 
 **A green `pnpm test` means "no tests exist", not "tests pass."** All three
 packages' `test` scripts are `echo` placeholders that exit 0, until Story 1.9
 brings a test runner. Story 1.10 will put that green tick in CI, where it will
 look exactly like passing coverage. It is not.
 
-`dev` is the same in both apps — placeholders naming the story that makes them
-real (1.2 for the backend, 1.3 for the frontend). Only `packages/shared`'s
-`dev` is genuine: `tsc -b --watch`, which is the right dev loop for a package
-whose consumers compile against its emitted declarations. `pnpm dev` at the
-root therefore prints two lines and then sits in shared's watch, which is
-correct behaviour today and confusing without this paragraph.
+### What `pnpm dev` does at the root
+
+One placeholder line, two watchers and a server. `apps/frontend`'s `dev` is
+still an `echo` naming Story 1.3; `packages/shared` sits in
+`tsc -b --watch --preserveWatchOutput`, the right dev loop for a package whose
+consumers compile against its emitted declarations; and `apps/backend` runs
+`scripts/dev.sh`, which pairs its own `tsc -b --watch` with
+`node --watch dist/index.js`. Output is prefixed per package, so the server's
+JSON log lines arrive as `apps/backend dev: {...}`.
+
+Edit a backend source file and the server restarts in about a second — tsc
+emits, `node --watch` notices `dist/` changed, the old process drains and the
+new one listens. Ctrl-C stops everything and leaves no orphaned process and no
+held port.
+
+Two things worth knowing before they surprise you. Editing
+`apps/backend/package.json` restarts the server, because the health route
+imports it for `version` — so **adding a dependency bounces the dev server**.
+And a Ctrl-C now prints the server's own `signal received` / `shutdown
+complete` lines; silence on the way out is the symptom, not the normal case.
 
 ### `typecheck` and `build` are the same command
 
@@ -131,7 +174,7 @@ why a per-package `tsc --noEmit` is the wrong instrument here.
 
 ```
 apps/
-  backend/     @marketpulse/backend  — skeleton until Story 1.2
+  backend/     @marketpulse/backend  — Fastify service (Story 1.2)
   frontend/    @marketpulse/frontend — skeleton until Story 1.3
 packages/
   shared/      @marketpulse/shared   — domain types shared by both apps

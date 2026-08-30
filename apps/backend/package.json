@@ -2,7 +2,7 @@
   "name": "@marketpulse/backend",
   "version": "0.0.0",
   "private": true,
-  "description": "MarketPulse API server — a skeleton until Story 1.2",
+  "description": "MarketPulse API server — Fastify, TypeScript, ESM",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {

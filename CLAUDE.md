@@ -4,15 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**Epic 1, Story 1.1 complete — all 8 tasks.** The pnpm workspace root, the shared TypeScript baseline and all three workspace packages exist, and the whole thing was verified from a clean clone with an empty pnpm store (Task 1.1.8). The two apps are typed skeletons that import from `@marketpulse/shared` and nothing more — there is no server and no React application yet. Story 1.2 (backend skeleton) and Story 1.3 (frontend shell) are next and can run in parallel.
+**Epic 1, Story 1.1 complete (8 tasks) and Story 1.2 complete (6 tasks).** The pnpm workspace root, the shared TypeScript baseline and all three workspace packages exist, verified from a clean clone with an empty pnpm store (Task 1.1.8).
 
-`README.md` is the human-facing setup and command reference; `docs/adr/0001-*` records why the toolchain is shaped the way it is. Both were written in Task 1.1.8 from the facts below, so a change here usually needs a change there.
+**The two apps are no longer symmetrical.** `apps/backend` is a running Fastify server — it starts on a configurable port, serves `GET /health`, restarts on source change, and shuts down gracefully on `SIGTERM`/`SIGINT`. `apps/frontend` is still a typed skeleton that imports from `@marketpulse/shared` and nothing more; there is no React application yet. Story 1.3 (frontend shell) is next, and Stories 1.6–1.9 can proceed in parallel now that one skeleton exists.
+
+The backend is a skeleton in scope, not in status: no market data, no database, no domain logic, no tests, no configuration module, no CORS.
+
+`README.md` is the human-facing setup and command reference; `docs/adr/0001-*` records why the toolchain is shaped the way it is and `docs/adr/0002-*` why the backend is. All three were written from the facts below, so a change here usually needs a change there.
 
 ```
 README.md                          prerequisites, setup, commands — for humans
 docs/
   adr/                             architecture decision records (PRODUCT_SPEC §39)
     0001-repository-structure-and-typescript-toolchain.md
+    0002-backend-framework-and-server-composition.md
 package.json                       private workspace root; pins Node and pnpm;
                                    holds every root script and all shared tooling
 pnpm-workspace.yaml                workspace globs (apps/*, packages/*) and pnpm settings
@@ -26,8 +31,13 @@ prettier.config.mjs                the one format config; Prettier is root-only 
 .gitattributes                     `* text=auto eol=lf`; marks the lockfile generated
 .nvmrc                             Node 24.20.0
 apps/
-  backend/                         @marketpulse/backend — skeleton until Story 1.2;
-                                   Node types, no server
+  backend/                         @marketpulse/backend — Fastify server (Story 1.2)
+    scripts/dev.sh                 the development loop: two watchers. The first
+                                   file here that is neither source nor config,
+                                   and the only one no tool in `verify` checks
+    src/index.ts                   the process: env, listen, signal handlers
+    src/server.ts                  buildServer() — the app, without listening
+    src/routes/health.ts           GET /health; also exports HealthResponse
   frontend/                        @marketpulse/frontend — skeleton until Story 1.3;
                                    DOM lib, no React
 packages/
@@ -62,23 +72,37 @@ pnpm build         # tsc -b over the solution; builds shared first
 pnpm typecheck     # the same command as build, deliberately — see below
 pnpm lint          # eslint . over the whole workspace in one process; also lint:fix
 pnpm test          # placeholders until Story 1.9
-pnpm dev           # per-package, in parallel; only shared's is real today
+pnpm dev           # per-package, in parallel; the backend's is a real server
 pnpm clean         # tsc -b --clean; leaves the dist/ directories in place, empty
 pnpm format        # prettier --write .  — the whole tree
 pnpm format:check  # prettier --check .
 
 # Working on one package — the same six verbs, meaning the same thing:
-pnpm --filter @marketpulse/shared build       # or typecheck / lint / lint:fix / test / clean
+pnpm --filter @marketpulse/shared build       # or typecheck / lint / lint:fix / test
 pnpm --filter @marketpulse/shared dev         # tsc -b --watch
+pnpm --filter @marketpulse/shared run clean   # `run` is required here — see below
 
+pnpm --filter @marketpulse/backend dev        # tsc -b --watch + node --watch dist/index.js
 pnpm --filter @marketpulse/backend start      # node dist/index.js — runs the built output; build first
 ```
 
-Every package exposes `dev`, `build`, `test`, `lint`, `typecheck`, `clean` and they mean the same thing in each. `lint:fix` is an extra, not part of the convention — a local convenience with no root fan-out and no place in `verify`. **`apps/backend`'s `start` (Task 1.2.5) has exactly the same status**: an extra, not a seventh verb — no root fan-out, no place in `verify`, and the other two packages are not obliged to have one. It runs the built output and builds nothing itself, so a stale or empty `dist/` is a stale or missing server. Verified in Task 1.2.5: `pnpm run` waits for the script to finish and propagates both signals and the child's exit code, so `start` is a real process wrapper rather than a fire-and-forget one. `test` and the two apps' `dev` are `echo` placeholders until Stories 1.9, 1.2 and 1.3 respectively; `packages/shared`'s `dev` is really `tsc -b --watch`.
+Every package exposes `dev`, `build`, `test`, `lint`, `typecheck`, `clean` and they mean the same thing in each. `lint:fix` is an extra, not part of the convention — a local convenience with no root fan-out and no place in `verify`. **`apps/backend`'s `start` (Task 1.2.5) has exactly the same status**: an extra, not a seventh verb — no root fan-out, no place in `verify`, and the other two packages are not obliged to have one. It runs the built output and builds nothing itself, so a stale or empty `dist/` is a stale or missing server. Verified in Task 1.2.5 and again in 1.2.6: `pnpm run` waits for the script to finish and propagates both signals and the child's exit code, so `start` is a real process wrapper rather than a fire-and-forget one. `SIGTERM` to the pnpm process and `SIGINT` to the process group both give a clean exit 0 with the port released; a busy port gives exit 1 with the `EADDRINUSE` record intact. `test` is an `echo` placeholder in all three packages until Story 1.9, and `apps/frontend`'s `dev` is one until Story 1.3; `apps/backend`'s `dev` and `packages/shared`'s (`tsc -b --watch --preserveWatchOutput`) are real.
 
-**A green `pnpm test` means "no tests exist", not "tests pass".** All three placeholders exit 0, and Story 1.10 will put that tick in CI where it looks exactly like coverage. Don't describe it as passing tests anywhere — not in a commit message, not in a PR, not in this file. Same for `pnpm dev`: it prints two placeholder lines and then sits in shared's `tsc -b --watch`, which is correct today and looks like a hang without this sentence.
+**`clean` is the one verb that needs an explicit `run` when filtered, and this is a trap with teeth.** `pnpm clean` is a _built-in pnpm 11 command_ (alias `purge`) that removes `node_modules` from every workspace project. pnpm runs a `clean` script instead of the built-in only when the current project has one — which the root does, so root `pnpm clean` correctly runs `tsc -b --clean`. But `pnpm --filter <pkg> clean` dispatches to the built-in and fails with `[ERROR] Unknown option: 'recursive'` (exit 1), because `--filter` implies `--recursive` and the built-in takes no such flag. Verified in Task 1.2.6 for all three packages; the documented one-liner used to list `clean` alongside the other verbs and was simply wrong. **`pnpm --filter <pkg> run clean` works.** The failure is loud and deletes nothing, but do not "fix" it by dropping the root's `clean` script, which is the only thing shadowing a command that deletes `node_modules`.
 
-Every command in this section was executed from a clean clone in Task 1.1.8 and behaves as written. `README.md` carries the same set for humans; keep the two in step.
+**A green `pnpm test` means "no tests exist", not "tests pass".** All three placeholders exit 0, and Story 1.10 will put that tick in CI where it looks exactly like coverage. Don't describe it as passing tests anywhere — not in a commit message, not in a PR, not in this file.
+
+**`pnpm dev` at the root is one placeholder line and a running server.** The frontend prints its placeholder and exits; `packages/shared` sits in `tsc -b --watch --preserveWatchOutput`; `apps/backend` runs `scripts/dev.sh`, which is a second `tsc -b --watch` plus `node --watch dist/index.js`, so the server's own JSON log lines appear prefixed with `apps/backend dev:`. Ctrl-C takes all of it down and leaves no orphaned `node` or `tsc` process, and releases the port — verified in Task 1.2.6, checking the `node dist/index.js` child specifically rather than only the supervisor.
+
+`--preserveWatchOutput` is load-bearing rather than cosmetic: without it a `tsc --watch` clears the terminal on every rebuild and takes the other packages' output — including the server's log — with it.
+
+**Editing `apps/backend/package.json` bounces the dev server**, which reads as a bug during unrelated work and is not one. That file is now both a TypeScript program input and a file the running process loads, because the health route imports it for `version` — so adding a dependency triggers a `tsc` rebuild _and_ a `node --watch` restart. Both observed, not reasoned about.
+
+**Root `pnpm dev` builds `packages/shared` twice** — once in its own watcher, once through the backend's `tsc -b --watch` following the project reference. Harmless, and worth knowing because the symptom of it going wrong would be a corrupted `.tsbuildinfo` with no obvious cause.
+
+Every command in this section was executed from a clean clone in Task 1.1.8, and the backend's were re-run from a clean build in Task 1.2.6. `README.md` carries the same set for humans; keep the two in step.
+
+**The dev loop's restart timing has a baseline, so a regression is visible.** Edit to new listener is ~1.1s, of which `SIGTERM` to the new listener is ~100ms (Task 1.2.4 measured 140ms) and the rest is tsc's incremental compile. The drain itself is sub-millisecond. Seconds rather than milliseconds in the signal half means a route acquired a dependency that does not close promptly. Note also that a Ctrl-C in the dev loop now logs `signal received` / `shutdown complete` on the way out — a _silent_ Ctrl-C is the symptom, not the normal case.
 
 **Most root scripts do not fan out, and that is deliberate.** `build`/`typecheck` are a single `tsc -b` over the root solution `tsconfig.json`, because the reference graph already orders the work — `pnpm -r run build` would build `packages/shared` three times. `lint` is a single root `eslint .` because each package's `eslint .` resolves the same root config, so a fan-out starts three ESLint processes each building its own typescript-eslint project service over the same solution. Only `test` and `dev` are genuinely per-package and use `pnpm -r`. Keep the per-package scripts for working on one package; the root ones are the direct call.
 
@@ -87,6 +111,14 @@ The root `tsconfig.json` is a solution file — `files: []` plus three `referenc
 **`typecheck` and `build` are the same command on purpose.** Consumers compile against `packages/shared/dist/*.d.ts`, so typechecking this workspace _is_ building it; there is no cheaper correct pass, and a per-package `--noEmit` fan-out is exactly the thing that passes against stale declarations. Both names are kept because they can diverge later without a rename. `packages/shared`'s `typecheck` was `tsc --noEmit -p tsconfig.json` until Task 1.1.7 and is now `tsc -b` like everything else.
 
 `verify` chains with `&&`, so the first failure is the exit code, and a failing package script propagates up through `pnpm -r` (verified: a package `test` exiting 3 gives root exit 3).
+
+**`tsc -b --clean` deletes the output of the sources that currently exist, so a hand-deleted source orphans its output permanently.** Delete `src/routes/thing.ts` and `dist/routes/thing.{js,d.ts,js.map,d.ts.map}` survive every subsequent `pnpm clean` — the build state is not what drives the deletion. Measured in Task 1.2.6 after the reverse was written down as a guess; Task 1.2.5 found the residue and Task 1.2.6 found the actual mechanism. **Clean before deleting a source file, or delete its output by hand afterwards.** The symptom is stale files in `dist/` that look like a broken build and are not.
+
+**`apps/backend/dist` is not a runnable artifact on its own, for two independent reasons, and the first hides the second.** Copied elsewhere it fails at import time on `fastify`, before it ever reaches the health route's read of `../../package.json`; give it a reachable `node_modules` and it then fails on the manifest. Both are `ERR_MODULE_NOT_FOUND` before `listen`. The **package directory** — `dist` + `package.json` + `node_modules` — does run outside the workspace, verified. "Copy `dist/` to the server" is the obvious wrong move and the error message names only half the reason. Story 1.11 owns the real answer (`pnpm deploy --filter`).
+
+**`pnpm verify` no longer covers every file in the repository.** `apps/backend/scripts/dev.sh` is checked by nothing: ESLint sees only JS and TS, Prettier has no shell parser and skips it silently, and `tsc` has no view of it. It is a file that starts the development server, so a syntax error in it is a real if minor failure mode. Not worth a `shellcheck` dependency and a fifth `verify` step for one small file — a known and dated choice (2026-08-30), not something CI quietly catches. Story 1.10 carries the same note.
+
+**Fastify's startup log is not evidence of the bound interface.** It rewrites `0.0.0.0` to `127.0.0.1` in its `Server listening at` line, so `HOST=0.0.0.0` logs `http://127.0.0.1:<port>` while the socket really is `*:<port> (LISTEN)`. Confirmed with `lsof` in Tasks 1.2.1 and 1.2.6. Check the socket, not the log — this matters for Story 1.11.
 
 `.claude/worktrees/` is in both `eslint.config.mjs`'s ignores and `.prettierignore`. It holds git worktrees — whole second checkouts nested inside the repo — which root-level `eslint .`/`prettier .` otherwise walk into and report on. Anything else nesting a checkout here needs the same two entries.
 
