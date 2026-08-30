@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 // The relative import carries a `.js` extension while the file on disk is
@@ -15,4 +16,17 @@ if (container === null) {
   throw new Error("index.html is missing its #root element");
 }
 
-createRoot(container).render(<App />);
+// StrictMode was deliberately absent until Task 1.3.3, and adding it here is
+// the decision that task owed. It double-invokes render, effects and state
+// updaters in development to surface impure components — which is exactly the
+// signal used to tell a fast refresh from a full reload, so it had to go in
+// *after* that measurement rather than before. Adopting it first makes a
+// double-render and a lost-state bug look alike.
+//
+// Measured both ways: the fast-refresh reading is unchanged with it on. It
+// costs nothing in production — React strips it from the production build.
+createRoot(container).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
