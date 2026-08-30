@@ -11,12 +11,12 @@ Make frontend and backend run together with one command, and make the setup repr
 
 ## Acceptance criteria
 
-* A single documented command starts both frontend and backend in development
-* The frontend can call the backend without CORS or proxy errors
-* Both services reload on source change
-* Prerequisites (runtime versions, package manager) are documented
-* A clean clone reaches a running application by following the README only
-* Ports are configurable and conflicts produce a clear message
+- A single documented command starts both frontend and backend in development
+- The frontend can call the backend without CORS or proxy errors
+- Both services reload on source change
+- Prerequisites (runtime versions, package manager) are documented
+- A clean clone reaches a running application by following the README only
+- Ports are configurable and conflicts produce a clear message
 
 ## Notes
 

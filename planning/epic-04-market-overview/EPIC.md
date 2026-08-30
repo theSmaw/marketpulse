@@ -14,14 +14,14 @@ MarketPulse has a useful landing page rather than requiring users to start with 
 
 ## Scope
 
-* Major ETF/index proxy summary
-* Sector performance
-* Advancers / decliners
-* Market breadth
-* Top gainers / losers
-* Unusual-activity placeholder area
-* Security selection from the overview
-* Live market status indicators
+- Major ETF/index proxy summary
+- Sector performance
+- Advancers / decliners
+- Market breadth
+- Top gainers / losers
+- Unusual-activity placeholder area
+- Security selection from the overview
+- Live market status indicators
 
 ## Exit criteria
 

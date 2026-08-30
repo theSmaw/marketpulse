@@ -14,16 +14,16 @@ MarketPulse continuously assigns explainable anomaly scores to securities.
 
 ## Scope
 
-* 5-minute return calculations
-* Historical return distributions
-* Return percentile calculation
-* Intraday volume baseline
-* Volume-ratio calculation
-* Market-relative movement
-* Sector-relative movement
-* Composite anomaly score
-* Human-readable anomaly explanation
-* Unusual-activity ranking
+- 5-minute return calculations
+- Historical return distributions
+- Return percentile calculation
+- Intraday volume baseline
+- Volume-ratio calculation
+- Market-relative movement
+- Sector-relative movement
+- Composite anomaly score
+- Human-readable anomaly explanation
+- Unusual-activity ranking
 
 ## Exit criteria
 

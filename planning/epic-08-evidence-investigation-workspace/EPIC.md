@@ -14,18 +14,18 @@ Users can inspect the evidence behind an investigation rather than receiving a c
 
 ## Scope
 
-* Investigation workspace
-* Evidence domain model
-* Finding domain model
-* Evidence cards
-* Confidence/evidence-quality states
-* Comparison charts
-* Investigation timeline
-* Investigation-step status
-* Evidence provenance
-* Evidence-to-chart linking
-* Findings-to-evidence linking
-* Failed/partial investigation states
+- Investigation workspace
+- Evidence domain model
+- Finding domain model
+- Evidence cards
+- Confidence/evidence-quality states
+- Comparison charts
+- Investigation timeline
+- Investigation-step status
+- Evidence provenance
+- Evidence-to-chart linking
+- Findings-to-evidence linking
+- Failed/partial investigation states
 
 ## Exit criteria
 

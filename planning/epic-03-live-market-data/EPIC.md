@@ -14,16 +14,16 @@ Tracked securities update automatically as live market observations arrive.
 
 ## Scope
 
-* Alpaca WebSocket ingestion
-* Backend subscription management
-* Market-data normalization
-* Current market-state model
-* Backend-to-browser streaming
-* Live connection state
-* Reconnection handling
-* Stale-data detection
-* Live price updates in the UI
-* Market timestamp / LIVE indicator
+- Alpaca WebSocket ingestion
+- Backend subscription management
+- Market-data normalization
+- Current market-state model
+- Backend-to-browser streaming
+- Live connection state
+- Reconnection handling
+- Stale-data detection
+- Live price updates in the UI
+- Market timestamp / LIVE indicator
 
 ## Exit criteria
 

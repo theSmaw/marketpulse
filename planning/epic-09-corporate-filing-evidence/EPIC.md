@@ -14,16 +14,16 @@ MarketPulse can identify whether relevant SEC filings occurred near a market eve
 
 ## Scope
 
-* SEC EDGAR integration
-* CIK/security mapping
-* Recent-filing retrieval
-* Filing metadata
-* Filing timeline events
-* Selected filing types
-* Filing viewer/linking
-* Filing evidence records
-* Investigation filing-check tool
-* Filing-source provenance
+- SEC EDGAR integration
+- CIK/security mapping
+- Recent-filing retrieval
+- Filing metadata
+- Filing timeline events
+- Selected filing types
+- Filing viewer/linking
+- Filing evidence records
+- Investigation filing-check tool
+- Filing-source provenance
 
 ## Exit criteria
 

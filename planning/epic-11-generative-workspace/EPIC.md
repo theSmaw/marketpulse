@@ -14,19 +14,19 @@ Natural-language intent dynamically changes the analytical workspace.
 
 ## Scope
 
-* Typed workspace-command schema
-* Command validation
-* `focusSymbols`
-* `openChart`
-* `compareSymbols`
-* `setTimeWindow`
-* `highlightGraphNodes`
-* `setGraphEncoding`
-* `pinEvidence`
-* AI-generated workspace commands
-* Workspace-command history
-* Undo/redo
-* User-pinned components
+- Typed workspace-command schema
+- Command validation
+- `focusSymbols`
+- `openChart`
+- `compareSymbols`
+- `setTimeWindow`
+- `highlightGraphNodes`
+- `setGraphEncoding`
+- `pinEvidence`
+- AI-generated workspace commands
+- Workspace-command history
+- Undo/redo
+- User-pinned components
 
 ## Exit criteria
 
@@ -36,10 +36,10 @@ A request such as:
 
 can cause MarketPulse to:
 
-* change the graph;
-* create a comparison;
-* alter chart contents;
-* focus the relevant securities;
+- change the graph;
+- create a comparison;
+- alter chart contents;
+- focus the relevant securities;
 
 while still using only trusted frontend components.
 

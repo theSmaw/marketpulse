@@ -35,7 +35,9 @@ export function isTicker(value: string): value is Ticker {
  */
 export function toTicker(value: string): Ticker {
   if (!isTicker(value)) {
-    throw new TypeError(`Not a valid US equity ticker: ${JSON.stringify(value)}`);
+    throw new TypeError(
+      `Not a valid US equity ticker: ${JSON.stringify(value)}`,
+    );
   }
   return value;
 }

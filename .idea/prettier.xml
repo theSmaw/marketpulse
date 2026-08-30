@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <!--
+    Shared WebStorm settings for Prettier, checked in so a fresh clone formats
+    on save with no per-machine setup. AUTOMATIC mode makes WebStorm resolve the
+    `prettier` package and `prettier.config.mjs` itself, exactly as the CLI
+    does, so there is no second copy of the configuration to drift.
+  -->
+  <component name="PrettierConfiguration">
+    <option name="myConfigurationMode" value="AUTOMATIC" />
+    <option name="myRunOnSave" value="true" />
+    <option name="myRunOnReformat" value="true" />
+  </component>
+</project>

@@ -15,13 +15,13 @@ The repository currently has no remote. A hosted origin must exist before this s
 
 ## Acceptance criteria
 
-* Pipeline runs on push and on pull request
-* Pipeline installs, typechecks, lints, tests and builds both packages
-* A failure in any stage fails the pipeline visibly
-* Dependency and build caching keep runtimes reasonable
-* Status is visible from the repository
-* The pipeline runs from a clean environment, catching anything that only works locally
+- Pipeline runs on push and on pull request
+- Pipeline installs, typechecks, lints, tests and builds both packages
+- A failure in any stage fails the pipeline visibly
+- Dependency and build caching keep runtimes reasonable
+- Status is visible from the repository
+- The pipeline runs from a clean environment, catching anything that only works locally
 
 ## Open decisions
 
-* CI provider — GitHub Actions is the default assumption
+- CI provider — GitHub Actions is the default assumption

@@ -14,20 +14,20 @@ Users can launch a structured investigation into an anomalous security and see d
 
 ## Scope
 
-* Investigation domain model
-* Investigation lifecycle
-* Investigation steps
-* Analytical tool interfaces
-* Security snapshot tool
-* Return-percentile tool
-* Volume-anomaly tool
-* Peer-comparison tool
-* Market-breadth tool
-* Correlation tool
-* Investigation orchestration
-* Streaming investigation events
-* Cancellation
-* Partial failure handling
+- Investigation domain model
+- Investigation lifecycle
+- Investigation steps
+- Analytical tool interfaces
+- Security snapshot tool
+- Return-percentile tool
+- Volume-anomaly tool
+- Peer-comparison tool
+- Market-breadth tool
+- Correlation tool
+- Investigation orchestration
+- Streaming investigation events
+- Cancellation
+- Partial failure handling
 
 ## Exit criteria
 
@@ -37,11 +37,11 @@ Selecting:
 
 runs a structured workflow such as:
 
-* measure price anomaly;
-* measure volume anomaly;
-* compare peers;
-* compare market;
-* calculate breadth;
+- measure price anomaly;
+- measure volume anomaly;
+- compare peers;
+- compare market;
+- calculate breadth;
 
 and streams the results into the UI.
 

@@ -14,17 +14,17 @@ Users can leave, return to, continue, and branch previous investigations.
 
 ## Scope
 
-* Investigation persistence
-* Persisted steps
-* Persisted findings/evidence
-* Persisted workspace state
-* Investigation history
-* Resume investigation
-* Rename investigation
-* Investigation status
-* Branch from existing investigation
-* Restore workspace
-* Investigation audit trail
+- Investigation persistence
+- Persisted steps
+- Persisted findings/evidence
+- Persisted workspace state
+- Investigation history
+- Resume investigation
+- Rename investigation
+- Investigation status
+- Branch from existing investigation
+- Restore workspace
+- Investigation audit trail
 
 ## Exit criteria
 

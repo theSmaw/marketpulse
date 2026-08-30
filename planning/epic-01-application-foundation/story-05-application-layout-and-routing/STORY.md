@@ -11,16 +11,16 @@ Establish navigation and the persistent application chrome. Routes correspond to
 
 ## Acceptance criteria
 
-* Routes exist for Market Overview (landing), Investigation Workspace, Security Explorer and Market Replay
-* Each route renders an identifiable placeholder
-* Persistent application chrome — product name, market clock area, connection status area — survives navigation
-* An unknown route renders a not-found state rather than a blank screen
-* Layout uses desktop-first regions consistent with the PRODUCT_SPEC.md §9 sketch
-* Deep-linking to a route works on page reload
+- Routes exist for Market Overview (landing), Investigation Workspace, Security Explorer and Market Replay
+- Each route renders an identifiable placeholder
+- Persistent application chrome — product name, market clock area, connection status area — survives navigation
+- An unknown route renders a not-found state rather than a blank screen
+- Layout uses desktop-first regions consistent with the PRODUCT_SPEC.md §9 sketch
+- Deep-linking to a route works on page reload
 
 ## Open decisions
 
-* Router library — React Router is the default assumption
+- Router library — React Router is the default assumption
 
 ## Notes
 

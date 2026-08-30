@@ -11,12 +11,12 @@ Typed, validated configuration for both packages, with a clear boundary between 
 
 ## Acceptance criteria
 
-* Configuration is parsed and validated at startup, with a declared schema
-* The server refuses to start on missing or invalid configuration and names the offending key
-* Distinct configuration for development, test and production
-* `.env.example` documents every variable, with descriptions and safe placeholder values
-* Only explicitly whitelisted variables reach the frontend bundle; secrets cannot leak by accident
-* Real secrets are gitignored and never committed
+- Configuration is parsed and validated at startup, with a declared schema
+- The server refuses to start on missing or invalid configuration and names the offending key
+- Distinct configuration for development, test and production
+- `.env.example` documents every variable, with descriptions and safe placeholder values
+- Only explicitly whitelisted variables reach the frontend bundle; secrets cannot leak by accident
+- Real secrets are gitignored and never committed
 
 ## Notes
 

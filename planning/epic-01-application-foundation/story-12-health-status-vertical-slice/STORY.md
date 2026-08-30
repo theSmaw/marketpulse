@@ -13,12 +13,12 @@ It also establishes the connection-state pattern that Epic 3 reuses for the live
 
 ## Acceptance criteria
 
-* The frontend queries backend health and displays it in the application chrome
-* Status distinguishes healthy, degraded and unreachable
-* When the backend is unreachable the indicator reports it along with the last successful check time, and the rest of the interface remains usable
-* Recovery is automatic when the backend returns — no page reload required
-* Behaviour is verified against the deployed environment, not only locally
-* Polling is deliberate about frequency and does not spam logs
+- The frontend queries backend health and displays it in the application chrome
+- Status distinguishes healthy, degraded and unreachable
+- When the backend is unreachable the indicator reports it along with the last successful check time, and the rest of the interface remains usable
+- Recovery is automatic when the backend returns — no page reload required
+- Behaviour is verified against the deployed environment, not only locally
+- Polling is deliberate about frequency and does not spam logs
 
 ## Notes
 

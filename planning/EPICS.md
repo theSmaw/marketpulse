@@ -12,24 +12,24 @@ A working frontend and backend can be run locally and deployed, with shared conv
 
 ### Scope
 
-* React application shell
-* TypeScript backend service
-* Local development environment
-* Basic routing and application layout
-* Shared configuration
-* Environment handling
-* Logging
-* Basic error handling
-* Unit/integration test foundations
-* CI pipeline
-* Initial deployment pipeline
+- React application shell
+- TypeScript backend service
+- Local development environment
+- Basic routing and application layout
+- Shared configuration
+- Environment handling
+- Logging
+- Basic error handling
+- Unit/integration test foundations
+- CI pipeline
+- Initial deployment pipeline
 
 ### Exit criteria
 
-* Frontend and backend run together locally
-* A deployed development environment is accessible
-* Automated tests run in CI
-* Backend health/status can be viewed from the frontend
+- Frontend and backend run together locally
+- A deployed development environment is accessible
+- Automated tests run in CI
+- Backend health/status can be viewed from the frontend
 
 ---
 
@@ -45,17 +45,17 @@ A user can select one of the tracked securities and inspect its historical price
 
 ### Scope
 
-* Security domain model
-* Initial ~100-security universe
-* ETF/sector metadata
-* Market-data provider abstraction
-* Alpaca historical-data integration
-* Historical market-data persistence/cache
-* Security search/select
-* Basic price chart
-* Basic volume chart
-* Time-window selection
-* Market-data provenance display
+- Security domain model
+- Initial ~100-security universe
+- ETF/sector metadata
+- Market-data provider abstraction
+- Alpaca historical-data integration
+- Historical market-data persistence/cache
+- Security search/select
+- Basic price chart
+- Basic volume chart
+- Time-window selection
+- Market-data provenance display
 
 ### Exit criteria
 
@@ -75,16 +75,16 @@ Tracked securities update automatically as live market observations arrive.
 
 ### Scope
 
-* Alpaca WebSocket ingestion
-* Backend subscription management
-* Market-data normalization
-* Current market-state model
-* Backend-to-browser streaming
-* Live connection state
-* Reconnection handling
-* Stale-data detection
-* Live price updates in the UI
-* Market timestamp / LIVE indicator
+- Alpaca WebSocket ingestion
+- Backend subscription management
+- Market-data normalization
+- Current market-state model
+- Backend-to-browser streaming
+- Live connection state
+- Reconnection handling
+- Stale-data detection
+- Live price updates in the UI
+- Market timestamp / LIVE indicator
 
 ### Exit criteria
 
@@ -104,14 +104,14 @@ MarketPulse has a useful landing page rather than requiring users to start with 
 
 ### Scope
 
-* Major ETF/index proxy summary
-* Sector performance
-* Advancers / decliners
-* Market breadth
-* Top gainers / losers
-* Unusual-activity placeholder area
-* Security selection from the overview
-* Live market status indicators
+- Major ETF/index proxy summary
+- Sector performance
+- Advancers / decliners
+- Market breadth
+- Top gainers / losers
+- Unusual-activity placeholder area
+- Security selection from the overview
+- Live market status indicators
 
 ### Exit criteria
 
@@ -131,16 +131,16 @@ MarketPulse continuously assigns explainable anomaly scores to securities.
 
 ### Scope
 
-* 5-minute return calculations
-* Historical return distributions
-* Return percentile calculation
-* Intraday volume baseline
-* Volume-ratio calculation
-* Market-relative movement
-* Sector-relative movement
-* Composite anomaly score
-* Human-readable anomaly explanation
-* Unusual-activity ranking
+- 5-minute return calculations
+- Historical return distributions
+- Return percentile calculation
+- Intraday volume baseline
+- Volume-ratio calculation
+- Market-relative movement
+- Sector-relative movement
+- Composite anomaly score
+- Human-readable anomaly explanation
+- Unusual-activity ranking
 
 ### Exit criteria
 
@@ -167,18 +167,18 @@ Users can explore securities as an interactive relationship graph.
 
 ### Scope
 
-* Graph domain model
-* Sector/industry relationships
-* Correlation relationships
-* Graph-layout generation
-* WebGL renderer
-* Node sizing
-* Node movement/anomaly encoding
-* Edge strength
-* Hover/select interactions
-* Filtering
-* Sector clustering
-* Live visual updates
+- Graph domain model
+- Sector/industry relationships
+- Correlation relationships
+- Graph-layout generation
+- WebGL renderer
+- Node sizing
+- Node movement/anomaly encoding
+- Edge strength
+- Hover/select interactions
+- Filtering
+- Sector clustering
+- Live visual updates
 
 ### Exit criteria
 
@@ -198,20 +198,20 @@ Users can launch a structured investigation into an anomalous security and see d
 
 ### Scope
 
-* Investigation domain model
-* Investigation lifecycle
-* Investigation steps
-* Analytical tool interfaces
-* Security snapshot tool
-* Return-percentile tool
-* Volume-anomaly tool
-* Peer-comparison tool
-* Market-breadth tool
-* Correlation tool
-* Investigation orchestration
-* Streaming investigation events
-* Cancellation
-* Partial failure handling
+- Investigation domain model
+- Investigation lifecycle
+- Investigation steps
+- Analytical tool interfaces
+- Security snapshot tool
+- Return-percentile tool
+- Volume-anomaly tool
+- Peer-comparison tool
+- Market-breadth tool
+- Correlation tool
+- Investigation orchestration
+- Streaming investigation events
+- Cancellation
+- Partial failure handling
 
 ### Exit criteria
 
@@ -221,11 +221,11 @@ Selecting:
 
 runs a structured workflow such as:
 
-* measure price anomaly;
-* measure volume anomaly;
-* compare peers;
-* compare market;
-* calculate breadth;
+- measure price anomaly;
+- measure volume anomaly;
+- compare peers;
+- compare market;
+- calculate breadth;
 
 and streams the results into the UI.
 
@@ -245,18 +245,18 @@ Users can inspect the evidence behind an investigation rather than receiving a c
 
 ### Scope
 
-* Investigation workspace
-* Evidence domain model
-* Finding domain model
-* Evidence cards
-* Confidence/evidence-quality states
-* Comparison charts
-* Investigation timeline
-* Investigation-step status
-* Evidence provenance
-* Evidence-to-chart linking
-* Findings-to-evidence linking
-* Failed/partial investigation states
+- Investigation workspace
+- Evidence domain model
+- Finding domain model
+- Evidence cards
+- Confidence/evidence-quality states
+- Comparison charts
+- Investigation timeline
+- Investigation-step status
+- Evidence provenance
+- Evidence-to-chart linking
+- Findings-to-evidence linking
+- Failed/partial investigation states
 
 ### Exit criteria
 
@@ -280,16 +280,16 @@ MarketPulse can identify whether relevant SEC filings occurred near a market eve
 
 ### Scope
 
-* SEC EDGAR integration
-* CIK/security mapping
-* Recent-filing retrieval
-* Filing metadata
-* Filing timeline events
-* Selected filing types
-* Filing viewer/linking
-* Filing evidence records
-* Investigation filing-check tool
-* Filing-source provenance
+- SEC EDGAR integration
+- CIK/security mapping
+- Recent-filing retrieval
+- Filing metadata
+- Filing timeline events
+- Selected filing types
+- Filing viewer/linking
+- Filing evidence records
+- Investigation filing-check tool
+- Filing-source provenance
 
 ### Exit criteria
 
@@ -317,19 +317,19 @@ Users can investigate market behaviour conversationally without giving the model
 
 ### Scope
 
-* LLM-provider abstraction
-* Agent execution service
-* Tool-calling protocol
-* Agent event protocol
-* Investigation context
-* Streaming agent activity
-* Findings generated from tool results
-* Follow-up questions
-* Agent cancellation
-* Tool failure handling
-* Confidence language
-* Guardrails against investment recommendations
-* Logging/tracing of agent activity
+- LLM-provider abstraction
+- Agent execution service
+- Tool-calling protocol
+- Agent event protocol
+- Investigation context
+- Streaming agent activity
+- Findings generated from tool results
+- Follow-up questions
+- Agent cancellation
+- Tool failure handling
+- Confidence language
+- Guardrails against investment recommendations
+- Logging/tracing of agent activity
 
 ### Exit criteria
 
@@ -355,19 +355,19 @@ Natural-language intent dynamically changes the analytical workspace.
 
 ### Scope
 
-* Typed workspace-command schema
-* Command validation
-* `focusSymbols`
-* `openChart`
-* `compareSymbols`
-* `setTimeWindow`
-* `highlightGraphNodes`
-* `setGraphEncoding`
-* `pinEvidence`
-* AI-generated workspace commands
-* Workspace-command history
-* Undo/redo
-* User-pinned components
+- Typed workspace-command schema
+- Command validation
+- `focusSymbols`
+- `openChart`
+- `compareSymbols`
+- `setTimeWindow`
+- `highlightGraphNodes`
+- `setGraphEncoding`
+- `pinEvidence`
+- AI-generated workspace commands
+- Workspace-command history
+- Undo/redo
+- User-pinned components
 
 ### Exit criteria
 
@@ -377,10 +377,10 @@ A request such as:
 
 can cause MarketPulse to:
 
-* change the graph;
-* create a comparison;
-* alter chart contents;
-* focus the relevant securities;
+- change the graph;
+- create a comparison;
+- alter chart contents;
+- focus the relevant securities;
 
 while still using only trusted frontend components.
 
@@ -398,17 +398,17 @@ Users can leave, return to, continue, and branch previous investigations.
 
 ### Scope
 
-* Investigation persistence
-* Persisted steps
-* Persisted findings/evidence
-* Persisted workspace state
-* Investigation history
-* Resume investigation
-* Rename investigation
-* Investigation status
-* Branch from existing investigation
-* Restore workspace
-* Investigation audit trail
+- Investigation persistence
+- Persisted steps
+- Persisted findings/evidence
+- Persisted workspace state
+- Investigation history
+- Resume investigation
+- Rename investigation
+- Investigation status
+- Branch from existing investigation
+- Restore workspace
+- Investigation audit trail
 
 ### Exit criteria
 
@@ -428,19 +428,19 @@ Users can reconstruct a historical market session and investigate it using only 
 
 ### Scope
 
-* Replay mode
-* Global replay clock
-* Play/pause
-* Replay speed
-* Timeline scrubbing
-* Historical market-event playback
-* Historical anomaly reproduction
-* Timestamp-aware analytical tools
-* Timestamp-aware SEC queries
-* Data-layer future-information prevention
-* "Investigate at this moment"
-* Agent replay context
-* Replay-state visualization
+- Replay mode
+- Global replay clock
+- Play/pause
+- Replay speed
+- Timeline scrubbing
+- Historical market-event playback
+- Historical anomaly reproduction
+- Timestamp-aware analytical tools
+- Timestamp-aware SEC queries
+- Data-layer future-information prevention
+- "Investigate at this moment"
+- Agent replay context
+- Replay-state visualization
 
 ### Exit criteria
 
@@ -464,17 +464,17 @@ MarketPulse contains measurable evidence of frontend and streaming performance.
 
 ### Scope
 
-* Synthetic-market generator
-* 5,000+ synthetic securities
-* 25,000+ graph relationships
-* High-frequency update simulation
-* Performance instrumentation
-* Frame-rate measurement
-* Main-thread task measurement
-* Streaming-latency measurement
-* Web Worker optimization where justified
-* Bottleneck analysis
-* Published benchmark results
+- Synthetic-market generator
+- 5,000+ synthetic securities
+- 25,000+ graph relationships
+- High-frequency update simulation
+- Performance instrumentation
+- Frame-rate measurement
+- Main-thread task measurement
+- Streaming-latency measurement
+- Web Worker optimization where justified
+- Bottleneck analysis
+- Published benchmark results
 
 ### Exit criteria
 
@@ -494,21 +494,21 @@ Someone encountering MarketPulse for the first time can understand both the prod
 
 ### Scope
 
-* Production deployment
-* Polished demo scenario
-* Seeded historical replay
-* README
-* Architecture diagrams
-* Architecture overview
-* Agent architecture documentation
-* Performance report
-* ADRs
-* Testing strategy documentation
-* Demo walkthrough
-* Screenshots/video
-* Error-state polish
-* Accessibility review
-* Final UX polish
+- Production deployment
+- Polished demo scenario
+- Seeded historical replay
+- README
+- Architecture diagrams
+- Architecture overview
+- Agent architecture documentation
+- Performance report
+- ADRs
+- Testing strategy documentation
+- Demo walkthrough
+- Screenshots/video
+- Error-state polish
+- Accessibility review
+- Final UX polish
 
 ### Exit criteria
 

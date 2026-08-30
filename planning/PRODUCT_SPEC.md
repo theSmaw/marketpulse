@@ -26,15 +26,15 @@ The defining product characteristic is that the AI does not merely respond in a 
 
 It can:
 
-* investigate anomalies;
-* invoke deterministic analytical tools;
-* alter the visual workspace;
-* create comparisons;
-* focus visualizations;
-* surface primary-source evidence;
-* maintain a long-running investigation;
-* expose uncertainty;
-* allow the human to redirect, approve, reject, or inspect its reasoning.
+- investigate anomalies;
+- invoke deterministic analytical tools;
+- alter the visual workspace;
+- create comparisons;
+- focus visualizations;
+- surface primary-source evidence;
+- maintain a long-running investigation;
+- expose uncertainty;
+- allow the human to redirect, approve, reject, or inspect its reasoning.
 
 ---
 
@@ -80,12 +80,12 @@ The human determines:
 
 The initial persona:
 
-* follows US equity markets;
-* understands concepts such as price moves, volume, sectors, correlations and filings;
-* regularly asks why something moved;
-* needs to distinguish meaningful events from market noise;
-* wants access to source evidence;
-* works primarily on desktop with substantial screen real estate.
+- follows US equity markets;
+- understands concepts such as price moves, volume, sectors, correlations and filings;
+- regularly asks why something moved;
+- needs to distinguish meaningful events from market noise;
+- wants access to source evidence;
+- works primarily on desktop with substantial screen real estate.
 
 The product does not assume quantitative-finance expertise.
 
@@ -147,14 +147,14 @@ An AI explanation should be linked to observable evidence.
 
 Possible evidence includes:
 
-* market prices;
-* volume;
-* correlations;
-* sector behaviour;
-* market breadth;
-* SEC filings;
-* timestamps;
-* macroeconomic observations.
+- market prices;
+- volume;
+- correlations;
+- sector behaviour;
+- market breadth;
+- SEC filings;
+- timestamps;
+- macroeconomic observations.
 
 The interface should make it easier to inspect the evidence than to trust the prose.
 
@@ -198,16 +198,16 @@ Instead it produces typed workspace commands.
 
 Examples:
 
-* `focusSymbols`
-* `setTimeWindow`
-* `openPriceChart`
-* `compareSymbols`
-* `highlightGraphCluster`
-* `showVolumeProfile`
-* `pinEvidence`
-* `annotateTimeline`
-* `openFiling`
-* `setGraphEncoding`
+- `focusSymbols`
+- `setTimeWindow`
+- `openPriceChart`
+- `compareSymbols`
+- `highlightGraphCluster`
+- `showVolumeProfile`
+- `pinEvidence`
+- `annotateTimeline`
+- `openFiling`
+- `setGraphEncoding`
 
 Commands are schema validated before being executed.
 
@@ -231,11 +231,11 @@ V1 will cover approximately:
 
 plus a small number of useful ETFs such as:
 
-* SPY
-* QQQ
-* DIA
-* IWM
-* major sector ETFs
+- SPY
+- QQQ
+- DIA
+- IWM
+- major sector ETFs
 
 We should begin development with roughly 100 securities.
 
@@ -263,11 +263,11 @@ We must not imply that IEX represents every US exchange.
 
 Initial data:
 
-* trades;
-* minute bars;
-* latest prices;
-* volume;
-* historical bars.
+- trades;
+- minute bars;
+- latest prices;
+- volume;
+- historical bars.
 
 The backend should isolate Alpaca behind a market-data provider interface so another provider can be introduced later.
 
@@ -279,10 +279,10 @@ The SEC's `data.sec.gov` APIs expose company submission histories and XBRL finan
 
 Initial filing types:
 
-* 8-K;
-* 10-Q;
-* 10-K;
-* selected 6-K filings where relevant.
+- 8-K;
+- 10-Q;
+- 10-K;
+- selected 6-K filings where relevant.
 
 V1 should focus mainly on detecting that a filing occurred and allowing the user to inspect it.
 
@@ -300,12 +300,12 @@ This is **V1.1 rather than initial MVP scope**.
 
 Useful later data includes:
 
-* Treasury rates;
-* Federal Funds Rate;
-* inflation;
-* unemployment;
-* credit spreads;
-* economic releases.
+- Treasury rates;
+- Federal Funds Rate;
+- inflation;
+- unemployment;
+- credit spreads;
+- economic releases.
 
 The FRED API requires an API key.
 
@@ -323,12 +323,12 @@ Answers:
 
 Contains:
 
-* major index / ETF summary;
-* unusual activity feed;
-* market topology visualization;
-* market breadth;
-* sector/industry performance;
-* current investigations.
+- major index / ETF summary;
+- unusual activity feed;
+- market topology visualization;
+- market breadth;
+- sector/industry performance;
+- current investigations.
 
 This is the application's landing screen.
 
@@ -342,14 +342,14 @@ Answers:
 
 Contains:
 
-* AI investigation stream;
-* evidence panel;
-* dynamically generated charts;
-* event timeline;
-* security comparisons;
-* market graph;
-* filing evidence;
-* investigation history.
+- AI investigation stream;
+- evidence panel;
+- dynamically generated charts;
+- event timeline;
+- security comparisons;
+- market graph;
+- filing evidence;
+- investigation history.
 
 This is the core product.
 
@@ -363,13 +363,13 @@ Answers:
 
 Contains:
 
-* price chart;
-* volume;
-* abnormal-move indicators;
-* relative performance;
-* connected securities;
-* relevant filings;
-* historical anomaly history.
+- price chart;
+- volume;
+- abnormal-move indicators;
+- relative performance;
+- connected securities;
+- relevant filings;
+- historical anomaly history.
 
 ---
 
@@ -449,15 +449,15 @@ Edges represent meaningful relationships.
 
 Initial relationships:
 
-* common industry;
-* strong historical return correlation;
-* ETF/index relationship.
+- common industry;
+- strong historical return correlation;
+- ETF/index relationship.
 
 Later:
 
-* supply chain;
-* ownership;
-* fundamental similarity.
+- supply chain;
+- ownership;
+- fundamental similarity.
 
 To avoid an unreadable graph, the system should retain only the strongest N relationships per node.
 
@@ -498,8 +498,8 @@ Example:
 
 Compare the security against:
 
-* broad market;
-* relevant industry/sector proxy.
+- broad market;
+- relevant industry/sector proxy.
 
 Example:
 
@@ -555,10 +555,10 @@ MarketPulse creates an Investigation.
 
 The AI receives:
 
-* the triggering anomaly;
-* current application time;
-* security metadata;
-* available analytical tools.
+- the triggering anomaly;
+- current application time;
+- security metadata;
+- available analytical tools.
 
 The interface immediately shows:
 
@@ -600,11 +600,11 @@ messages[]
 
 Possible statuses:
 
-* running;
-* awaiting user;
-* completed;
-* failed;
-* cancelled.
+- running;
+- awaiting user;
+- completed;
+- failed;
+- cancelled.
 
 An investigation can remain alive independently of an individual AI response.
 
@@ -633,11 +633,11 @@ error
 
 Statuses:
 
-* queued;
-* running;
-* completed;
-* failed;
-* cancelled.
+- queued;
+- running;
+- completed;
+- failed;
+- cancelled.
 
 The user can therefore observe what the agent is doing.
 
@@ -689,23 +689,23 @@ Evidence should be a first-class domain concept.
 
 Types might include:
 
-* market observation;
-* time series;
-* calculated metric;
-* filing;
-* filing excerpt;
-* relationship;
-* anomaly;
-* external observation.
+- market observation;
+- time series;
+- calculated metric;
+- filing;
+- filing excerpt;
+- relationship;
+- anomaly;
+- external observation.
 
 Every evidence item records:
 
-* source;
-* timestamp;
-* retrieval timestamp;
-* calculation method where relevant;
-* security;
-* raw-data reference.
+- source;
+- timestamp;
+- retrieval timestamp;
+- calculation method where relevant;
+- security;
+- raw-data reference.
 
 The UI should allow the user to select:
 
@@ -827,10 +827,10 @@ Every workspace command must therefore be recorded.
 
 Users can:
 
-* undo;
-* redo;
-* return to a prior investigation state;
-* pin elements so the AI cannot remove them.
+- undo;
+- redo;
+- return to a prior investigation state;
+- pin elements so the AI cannot remove them.
 
 This gives the human explicit control over the generative interface.
 
@@ -865,10 +865,10 @@ AI finding:
 
 The agent then generates:
 
-* NVDA/AMD/AVGO/SPY comparison chart;
-* highlighted semiconductor cluster;
-* intraday timeline;
-* volume comparison.
+- NVDA/AMD/AVGO/SPY comparison chart;
+- highlighted semiconductor cluster;
+- intraday timeline;
+- volume comparison.
 
 The user asks:
 
@@ -905,11 +905,11 @@ A global simulation clock controls all information.
 
 The user can:
 
-* play;
-* pause;
-* change speed;
-* drag the clock;
-* jump to detected events.
+- play;
+- pause;
+- change speed;
+- drag the clock;
+- jump to detected events.
 
 ---
 
@@ -925,10 +925,10 @@ If replay time is:
 
 the agent may only access:
 
-* price observations ≤ 11:07;
-* volume observations ≤ 11:07;
-* filings available ≤ 11:07;
-* calculated metrics using data ≤ 11:07.
+- price observations ≤ 11:07;
+- volume observations ≤ 11:07;
+- filings available ≤ 11:07;
+- calculated metrics using data ≤ 11:07.
 
 This should be enforced at the tool/data layer rather than merely included in the LLM prompt.
 
@@ -983,10 +983,10 @@ WorkspaceCommandApplied
 
 This naturally supports:
 
-* replay;
-* debugging;
-* reproducibility;
-* auditability.
+- replay;
+- debugging;
+- reproducibility;
+- auditability.
 
 We do not need a pure event-sourced architecture for the entire system.
 
@@ -1002,12 +1002,12 @@ Recommended frontend:
 
 Reasons:
 
-* demonstrates current React expertise;
-* well suited to large structured applications;
-* strong typing;
-* mature routing/forms/testing;
-* signals work well for derived application state;
-* RxJS remains particularly appropriate for streaming external data.
+- demonstrates current React expertise;
+- well suited to large structured applications;
+- strong typing;
+- mature routing/forms/testing;
+- signals work well for derived application state;
+- RxJS remains particularly appropriate for streaming external data.
 
 Recommended approach:
 
@@ -1083,15 +1083,15 @@ A good candidate is a WebGL graph renderer such as Sigma.js, with the graph mode
 
 Target initial visualization:
 
-* 500 nodes;
-* several thousand edges;
-* live node updates.
+- 500 nodes;
+- several thousand edges;
+- live node updates.
 
 Synthetic performance mode:
 
-* 5,000+ nodes;
-* 25,000+ edges;
-* high-frequency synthetic updates.
+- 5,000+ nodes;
+- 25,000+ edges;
+- high-frequency synthetic updates.
 
 The performance benchmark exists to demonstrate architectural scalability beyond the size of the live free-data universe.
 
@@ -1187,16 +1187,16 @@ optionally using **TimescaleDB** for time-series storage.
 
 Core tables/collections:
 
-* securities;
-* market_bars;
-* anomalies;
-* relationships;
-* filings;
-* investigations;
-* investigation_steps;
-* findings;
-* evidence;
-* workspace_events.
+- securities;
+- market_bars;
+- anomalies;
+- relationships;
+- filings;
+- investigations;
+- investigation_steps;
+- findings;
+- evidence;
+- workspace_events.
 
 Do not introduce multiple databases in V1 unless measurements demonstrate a need.
 
@@ -1274,12 +1274,12 @@ The frontend renders state from these events.
 
 This makes:
 
-* streaming;
-* retries;
-* cancellations;
-* replay;
-* debugging;
-* testing
+- streaming;
+- retries;
+- cancellations;
+- replay;
+- debugging;
+- testing
 
 much easier than parsing a stream of unstructured AI text.
 
@@ -1289,16 +1289,16 @@ much easier than parsing a stream of unstructured AI text.
 
 The user must always be able to:
 
-* stop an investigation;
-* ask a follow-up;
-* reject a finding;
-* inspect evidence;
-* change the analysis window;
-* change comparison securities;
-* undo workspace changes;
-* pin charts;
-* restart an investigation;
-* branch an investigation.
+- stop an investigation;
+- ask a follow-up;
+- reject a finding;
+- inspect evidence;
+- change the analysis window;
+- change comparison securities;
+- undo workspace changes;
+- pin charts;
+- restart an investigation;
+- branch an investigation.
 
 A later version can allow the user to mark:
 
@@ -1316,13 +1316,13 @@ Those signals can become part of the investigation log.
 
 MarketPulse should not:
 
-* recommend buying or selling;
-* produce target prices;
-* present unsupported causal statements as fact;
-* hide data provenance;
-* manufacture missing observations;
-* silently use information outside replay time;
-* perform numerical analysis solely in model reasoning.
+- recommend buying or selling;
+- produce target prices;
+- present unsupported causal statements as fact;
+- hide data provenance;
+- manufacture missing observations;
+- silently use information outside replay time;
+- perform numerical analysis solely in model reasoning.
 
 Every generated conclusion should be distinguishable from an observed fact.
 
@@ -1360,41 +1360,41 @@ V1 should contain only what is necessary to demonstrate the concept convincingly
 
 ## Include
 
-* tracked equity universe;
-* live IEX market feed;
-* historical minute bars;
-* market overview;
-* WebGL topology;
-* price/volume visualizations;
-* deterministic anomaly detection;
-* manual security exploration;
-* SEC filing detection;
-* AI investigation;
-* typed agent tool calls;
-* streaming investigation state;
-* evidence-linked findings;
-* generative workspace commands;
-* investigation persistence;
-* basic historical replay;
-* temporal isolation during replay;
-* synthetic performance mode.
+- tracked equity universe;
+- live IEX market feed;
+- historical minute bars;
+- market overview;
+- WebGL topology;
+- price/volume visualizations;
+- deterministic anomaly detection;
+- manual security exploration;
+- SEC filing detection;
+- AI investigation;
+- typed agent tool calls;
+- streaming investigation state;
+- evidence-linked findings;
+- generative workspace commands;
+- investigation persistence;
+- basic historical replay;
+- temporal isolation during replay;
+- synthetic performance mode.
 
 ## Explicitly exclude
 
-* brokerage integration;
-* trade execution;
-* portfolios;
-* options;
-* crypto;
-* price predictions;
-* buy/sell recommendations;
-* social sentiment;
-* comprehensive news aggregation;
-* authentication beyond simple development/demo needs;
-* mobile UX;
-* complex fundamental valuation;
-* full tick-level replay;
-* thousands of live securities.
+- brokerage integration;
+- trade execution;
+- portfolios;
+- options;
+- crypto;
+- price predictions;
+- buy/sell recommendations;
+- social sentiment;
+- comprehensive news aggregation;
+- authentication beyond simple development/demo needs;
+- mobile UX;
+- complex fundamental valuation;
+- full tick-level replay;
+- thousands of live securities.
 
 ---
 
@@ -1496,13 +1496,13 @@ Short architecture decision records covering important choices.
 
 Possible ADRs:
 
-* Why React;
-* Why WebSocket + SSE;
-* Why deterministic calculations live outside the model;
-* Why typed generative UI commands;
-* Why event-oriented investigations;
-* Why PostgreSQL/Timescale;
-* Why replay time is enforced in the data layer.
+- Why React;
+- Why WebSocket + SSE;
+- Why deterministic calculations live outside the model;
+- Why typed generative UI commands;
+- Why event-oriented investigations;
+- Why PostgreSQL/Timescale;
+- Why replay time is enforced in the data layer.
 
 ---
 
@@ -1514,17 +1514,17 @@ MarketPulse V1 is successful when a first-time viewer can understand within appr
 
 A technical interviewer should then be able to explore deeper and find credible engineering answers to questions about:
 
-* streaming state;
-* rendering performance;
-* asynchronous agent workflows;
-* cancellation;
-* failure recovery;
-* testing non-deterministic systems;
-* human/AI boundaries;
-* provenance;
-* temporal correctness;
-* frontend architecture;
-* performance optimization.
+- streaming state;
+- rendering performance;
+- asynchronous agent workflows;
+- cancellation;
+- failure recovery;
+- testing non-deterministic systems;
+- human/AI boundaries;
+- provenance;
+- temporal correctness;
+- frontend architecture;
+- performance optimization.
 
 The project succeeds as a portfolio project even if the financial analysis itself remains intentionally simple.
 
@@ -1536,11 +1536,11 @@ The project succeeds as a portfolio project even if the financial analysis itsel
 
 Build:
 
-* React application shell;
-* backend;
-* market-data provider interface;
-* security universe;
-* historical chart.
+- React application shell;
+- backend;
+- market-data provider interface;
+- security universe;
+- historical chart.
 
 Outcome:
 
@@ -1552,11 +1552,11 @@ Outcome:
 
 Build:
 
-* Alpaca WebSocket ingestion;
-* browser streaming;
-* current market state;
-* anomaly calculations;
-* topology visualization.
+- Alpaca WebSocket ingestion;
+- browser streaming;
+- current market state;
+- anomaly calculations;
+- topology visualization.
 
 Outcome:
 
@@ -1568,11 +1568,11 @@ Outcome:
 
 Build:
 
-* Investigation domain model;
-* deterministic analytical tools;
-* investigation event stream;
-* evidence model;
-* investigation workspace.
+- Investigation domain model;
+- deterministic analytical tools;
+- investigation event stream;
+- evidence model;
+- investigation workspace.
 
 Initially run investigations without an LLM.
 
@@ -1588,12 +1588,12 @@ This is important.
 
 Add:
 
-* LLM provider;
-* tool calling;
-* streaming agent steps;
-* findings;
-* follow-up questions;
-* typed workspace commands.
+- LLM provider;
+- tool calling;
+- streaming agent steps;
+- findings;
+- follow-up questions;
+- typed workspace commands.
 
 Outcome:
 
@@ -1605,11 +1605,11 @@ Outcome:
 
 Add:
 
-* charts created by agent commands;
-* graph focusing;
-* comparisons;
-* pin/undo;
-* investigation branching.
+- charts created by agent commands;
+- graph focusing;
+- comparisons;
+- pin/undo;
+- investigation branching.
 
 Outcome:
 
@@ -1621,11 +1621,11 @@ Outcome:
 
 Add:
 
-* replay clock;
-* event playback;
-* historical anomaly reproduction;
-* time-constrained analytical tools;
-* time-constrained agent.
+- replay clock;
+- event playback;
+- historical anomaly reproduction;
+- time-constrained analytical tools;
+- time-constrained agent.
 
 Outcome:
 
@@ -1639,14 +1639,14 @@ This becomes the flagship feature.
 
 Add:
 
-* synthetic load-test mode;
-* performance telemetry;
-* architecture documentation;
-* ADRs;
-* polished demo dataset/session;
-* E2E tests;
-* deployment;
-* README walkthrough.
+- synthetic load-test mode;
+- performance telemetry;
+- architecture documentation;
+- ADRs;
+- polished demo dataset/session;
+- E2E tests;
+- deployment;
+- README walkthrough.
 
 Outcome:
 
