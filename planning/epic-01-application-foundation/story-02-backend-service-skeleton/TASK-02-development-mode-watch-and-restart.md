@@ -12,7 +12,14 @@ Replace `apps/backend`'s `echo` placeholder `dev` script with a real watch-and-r
 
 Two candidate approaches. Both are dependency-free; pick with a measurement, not a preference.
 
-**A — Node runs the TypeScript directly:** `node --watch src/index.ts`. Node 24 strips types natively, so there is no build step in the loop and one process to reason about. **Verify before committing to it** that Node resolves the repository's `./thing.js` specifiers to their `.ts` files under type stripping — this repository's import style is not optional, so an approach that cannot resolve it is disqualified on the spot. Also confirm `@marketpulse/shared` still resolves through its `exports` map to built `dist/`, which it must, because nothing about type stripping changes how a workspace dependency is resolved.
+**A — Node runs the TypeScript directly:** `node --watch src/index.ts`. Node 24 strips types natively, so there is no build step in the loop and one process to reason about. **Verify before committing to it** that Node resolves the repository's `./thing.js` specifiers to their `.ts` files under type stripping — Task 1.2.1 made this concrete: `src/index.ts` imports `./server.js`, and this repository's import style is not optional, so an approach that cannot resolve it is disqualified on the spot.
+
+Two things Task 1.2.1 added to what A has to clear:
+
+- **Type stripping only erases; it does not transform.** Choosing A makes _erasable syntax only_ a standing constraint on `apps/backend` — no `enum`, no parameter properties, no `namespace`, no non-`type` re-export forms. Today's two files satisfy it accidentally rather than by design. If A is chosen, set `erasableSyntaxOnly` in `apps/backend/tsconfig.json` so `tsc` enforces the constraint the dev loop silently depends on, and say so in the outcome; a violation otherwise surfaces as a dev server that will not start while `pnpm build` stays green
+- **`src/index.ts` uses top-level `await`** for `app.listen`. Harmless under both approaches, but it means the entrypoint is unambiguously ESM and cannot be run through anything that expects CommonJS
+
+The `@marketpulse/shared` resolution check that used to sit here **cannot be run any more**: Task 1.2.1 deleted the placeholder that was the backend's only import of it, so there is nothing in `apps/backend/src` to resolve. Do not invent an import to test it — see the note in Task 1.2.5. Nothing about type stripping changes how a workspace dependency resolves, and Epic 2 will exercise it for real.
 
 **B — Two watchers:** `tsc -b --watch` emitting to `dist/`, and `node --watch dist/index.js` restarting on the emit. Certain to work, at the cost of two processes and a helper to run them concurrently — and a concurrency helper is root tooling by the workspace rule, so B is the option that adds a dependency.
 

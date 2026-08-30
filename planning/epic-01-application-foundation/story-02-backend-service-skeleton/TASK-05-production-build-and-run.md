@@ -16,6 +16,16 @@ Prove the acceptance criterion "production build emits runnable output" against 
 - Check the dependency split is honest: `fastify` is a `dependency`, `@types/node` is a `devDependency`, and nothing the built output needs at runtime is declared as dev-only. The test is not reading `package.json` — it is running the thing
 - Confirm the emitted output is ESM, matching the package's `"type": "module"`, and that nothing in the build produced CommonJS by accident
 
+## The dependency `apps/backend` no longer imports
+
+Task 1.2.1 deleted the placeholder `src/index.ts`, which was the only file in `apps/backend` that imported `@marketpulse/shared`. The package still declares `"@marketpulse/shared": "workspace:*"` and still carries the TypeScript project reference to it, and **nothing in the toolchain notices** — `tsc -b` builds the reference regardless, and ESLint has no view on unused manifest entries.
+
+That is a live exception to the workspace rule that packages declare only what they actually import, so it needs a decision rather than a silence.
+
+**Keep it, and record why.** Story 1.12 promotes the health response type into `packages/shared`, and Epic 2 imports domain types in earnest; removing the dependency and the project reference now means putting both back within two stories, and the reference is what makes `tsc -b` order the build correctly the moment an import returns. Removing it would also be a real regression in one specific way — the stale-`dist` trap in `CLAUDE.md` depends on the backend compiling against shared's emitted declarations.
+
+What this task should do is verify the removal-free claim honestly: confirm the built output runs with the dependency present and unimported, and note in the outcome that the manifest entry is deliberate and dated rather than left over. If Story 1.12 has not restored an import, this is the note that stops someone deleting it in the meantime.
+
 ## The workspace symlink, and what it hides
 
 `@marketpulse/shared` is a `workspace:*` dependency, so at runtime it resolves through a pnpm symlink into `packages/shared/dist`. That works here and would not survive being copied to a server on its own.

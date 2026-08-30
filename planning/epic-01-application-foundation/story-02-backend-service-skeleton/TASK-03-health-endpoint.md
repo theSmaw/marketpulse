@@ -11,6 +11,7 @@
 ## Work
 
 - Register the route as a Fastify plugin in `src/routes/health.ts`, registered by `buildServer()` — not defined inline in the factory. One route does not need a directory, but the second one will, and this is where the pattern is set
+- **Decide, here, whether `buildServer()` stays synchronous.** Task 1.2.1 left it as `buildServer(): FastifyInstance`, returning before anything is registered, which is fine while there is nothing to register. This is the first task that registers a plugin. `app.register()` is itself synchronous and defers loading to `ready()`/`listen()`, so the signature can stay as it is — but if anything ever needs `await app.register(...)` or an explicit `await app.ready()`, the factory becomes `Promise<FastifyInstance>` and every caller changes with it, including Story 1.9's tests. Whichever way it goes, say why in the outcome rather than leaving the next person to re-derive it
 - Declare the response type in `apps/backend` for now, next to the route
 - The three fields:
   - **`status`** — a string literal union, not a `boolean` and not a free string. Today it only ever emits `"ok"`. Do not invent a degraded state this story cannot produce: there is no dependency to be degraded about until Epic 2 adds one, and Story 1.12's "healthy / degraded / unreachable" distinction is mostly a client-side concern — _unreachable_ is the absence of a response, which no server can report about itself
