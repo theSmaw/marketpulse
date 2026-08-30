@@ -1,6 +1,6 @@
 # Story 1.2 — Backend Service Skeleton
 
-**Status:** Not started
+**Status:** In progress — Task 1.2.1 complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.1
 **Epic scope covered:** TypeScript backend service
@@ -49,7 +49,7 @@ Tackled in order. The story is complete when all six are done.
 
 | #     | Task                                                                                 | Status      |
 | ----- | ------------------------------------------------------------------------------------ | ----------- |
-| 1.2.1 | [Fastify server bootstrap](TASK-01-fastify-server-bootstrap.md)                      | Not started |
+| 1.2.1 | [Fastify server bootstrap](TASK-01-fastify-server-bootstrap.md)                      | Complete    |
 | 1.2.2 | [Development mode: watch and restart](TASK-02-development-mode-watch-and-restart.md) | Not started |
 | 1.2.3 | [The health endpoint](TASK-03-health-endpoint.md)                                    | Not started |
 | 1.2.4 | [Graceful shutdown](TASK-04-graceful-shutdown.md)                                    | Not started |
