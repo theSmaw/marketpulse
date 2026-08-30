@@ -40,7 +40,7 @@ One thing that is true today and will not be forever: until Story 1.9 lands, **`
 
 - **Prettier is root-only and there is one `prettier.config.mjs`.** A styling choice that wants a Prettier plugin — `prettier-plugin-tailwindcss` is the obvious one — adds it there and at the root, not per package. Every option in that file is explicit on purpose, so an addition is a deliberate edit rather than a silently inherited default
 - **Formatting is Prettier's and correctness is ESLint's, and they do not overlap today** — measured at zero conflicting rules, twice, which is why `eslint-config-prettier` is not installed. A styling approach that brings its own lint rules should be checked against that with `eslint --print-config` rather than assumed compatible. If a genuine conflict appears, `eslint-config-prettier` goes last in the flat config array
-- A CSS-in-JS choice interacts with `verbatimModuleSyntax` and `isolatedModules`, both of which are on so that `tsc` and esbuild cannot disagree about what a file means. Libraries relying on whole-program type information at build time will feel that
+- A CSS-in-JS choice interacts with `verbatimModuleSyntax` and `isolatedModules`, both of which are on so that `tsc` and the bundler cannot disagree about what a file means — and the bundler is **Rolldown/oxc, not esbuild**, because Vite 8 is the Rolldown release (ADR 0003 §1). Libraries relying on whole-program type information at build time will feel that
 
 ### What Story 1.3 hands this story
 
