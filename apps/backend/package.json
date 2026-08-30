@@ -15,7 +15,8 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@marketpulse/shared": "workspace:*"
+    "@marketpulse/shared": "workspace:*",
+    "fastify": "5.12.1"
   },
   "devDependencies": {
     "@types/node": "24.13.3"
