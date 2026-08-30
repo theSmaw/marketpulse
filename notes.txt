@@ -1,4 +1,4 @@
 Do we need to amend, add or delete any tasks in
 @planning/epic-01-application-foundation/story-01-repository-structure-and-toolchain
  based on our implementation of
-@planning/epic-01-application-foundation/story-01-repository-structure-and-toolchain/TASK-02-shared-typescript-configuration.md ?
+@planning/epic-01-application-foundation/story-01-repository-structure-and-toolchain/TASK-03-create-shared-package.md ?
