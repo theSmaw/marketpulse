@@ -1,6 +1,6 @@
 # Task 1.3.4 — Production build and static assets
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.3 Frontend Application Shell](STORY.md)
 **Depends on:** Task 1.3.3
 
@@ -33,3 +33,80 @@ Make `build` emit a static bundle that a static host can serve, prove the emitte
 ## Notes
 
 There is one asymmetry worth naming for Story 1.8 and Story 1.12: the frontend's production artefact has no server in it. Whatever serves it in development is the dev server and is not part of what ships, so "it works in `pnpm dev`" and "the build works" are two claims with almost no overlap. That is why this task loads the built output in a browser rather than trusting the build's exit code.
+
+## Outcome
+
+Everything below was executed, not reasoned about. Two of this task's own premises turned out to be wrong, and both are recorded as wrong rather than quietly dropped.
+
+### The build, and what it emits
+
+Root `pnpm build` from a clean tree (`pnpm clean` first, so this is not an incremental build over yesterday's state):
+
+```
+$ tsc -b && pnpm --filter @marketpulse/frontend exec vite build
+vite v8.2.2 building client environment for production...
+✓ 17 modules transformed.
+dist/index.html                  0.56 kB │ gzip:  0.37 kB
+dist/assets/index-Dv4miNH4.js  190.80 kB │ gzip: 60.16 kB
+✓ built in 52ms
+```
+
+**190.80 kB across 17 modules — exactly the predicted figure**, so nothing has been pulled in that nobody asked for. Two builds from two separate `pnpm clean`s produced the _same content hash_ (`index-Dv4miNH4.js`), so the build is reproducible in the sense that matters for a hashed asset: a rebuild that changes nothing changes no filename.
+
+**No CSS asset, and that is correct.** Nothing in the tree has a stylesheet; Story 1.4 owns styling. Emitted `index.html` rewrites the source's `<script src="/src/main.tsx">` into `<script type="module" crossorigin src="/assets/index-Dv4miNH4.js">` and is otherwise the source file, comment included.
+
+**The asset path is absolute — `/assets/…`, not `./assets/…`.** That is Vite's `base: "/"` default and it means the artefact assumes it is served from a domain root. Serving it from a subpath is a `base` change and a rebuild, not a hosting configuration. Story 1.11 should know that before it picks a host.
+
+**The root `build` script does what it claims.** Checked the way that can fail rather than by reading it: a deliberate type error in `apps/frontend/src/App.tsx` made root `pnpm build` exit 1 at `tsc -b` with `error TS2322`, and `apps/frontend/dist` was byte-for-byte untouched — the bundler never ran. So the `&&` and its order hold at the root, and root `build` really is the command that produces the artefact rather than a typecheck that happens to be followed by one.
+
+### The accumulation premise was wrong — Vite empties `outDir`
+
+This task predicted that hashed filenames make a missed `clean` _accumulate_ rather than merely go stale. **Measured, and it does not.** Build, edit a source so the content hash changes, build again:
+
+```
+after build 1:  index-Dv4miNH4.js
+after build 2:  index-CL6U_1qt.js      <- one file, not two
+```
+
+Vite's `build.emptyOutDir` defaults to true when `outDir` is inside the project root, so every build clears the directory first. The stale-asset-beside-a-fresh-`index.html` failure mode this task went looking for cannot happen here without someone turning that default off. Worth keeping written down precisely _because_ it is the reassuring answer: the reasoning that produced the prediction was sound, and the default is what makes it moot, so a future `emptyOutDir: false` reintroduces the whole problem.
+
+`clean` was re-proved anyway, on a real build rather than 1.3.1's trivial one. Root `pnpm clean` and `pnpm --filter @marketpulse/frontend run clean` both leave `apps/frontend/dist` **absent**, no stray `*.tsbuildinfo` anywhere. Note the asymmetry between the two halves of that command, which is visible in the tree afterwards: `tsc -b --clean` empties `apps/backend/dist` and `packages/shared/dist` but leaves the directories, while `rm -rf` removes the frontend's outright. Both are correct; they just look different in a `find`.
+
+### The deployable unit — and it is the opposite of the backend's
+
+Copied `dist/` alone — **two files, 191 kB, no `package.json`, no `node_modules`** — to a directory outside the workspace and served it with `python3 -m http.server`. It loads and renders in Chrome: heading, paragraph, and `AAPL` resolved through the shared package. The bundle contains **zero** bare imports and no mention of `@marketpulse/shared`; there is nothing left to resolve at runtime.
+
+That is the exact inverse of the backend, where `dist/` alone is _not_ runnable and the package directory is (Task 1.2.6). The two halves of a deployment are genuinely different shapes: one is a directory of static files a CDN can hold, the other is a Node package that needs its dependencies present. Story 1.11 should not look for one answer.
+
+The inlining consequence, confirmed rather than assumed: changed a string in `packages/shared/src/ticker.ts`, ran `pnpm --filter @marketpulse/shared build`, and the built frontend was **untouched** — same file list, same md5, still carrying the old string. A built frontend is a snapshot taken at bundle time; the workspace symlink is not part of the artefact and rebuilding shared does not reach it. The backend's relationship is the other one, and it is still latent until Story 1.12's first real import.
+
+### `preview`
+
+`apps/frontend` gains `"preview": "vite preview"`, with **exactly the status `apps/backend`'s `start` has**: an extra, not a seventh verb, no root fan-out, no place in `verify`, no obligation on the other two packages. It serves already-built output and builds nothing, so a stale `dist/` is a stale page. Signal behaviour checked to the same standard `start` was held to: `SIGTERM` to the `pnpm preview` wrapper exits 143, releases 4173 and leaves no orphaned `vite` process.
+
+**The port question is settled by stating 4173 explicitly**, and `vite.config.ts` carries the reasoning. `preview` inherits `server.strictPort` but _not_ `server.port`, so a config that named only 5173 would read as though it covered both servers while actually leaving one at a default. `preview.strictPort` is deliberately **not** set — it is inherited, and a second copy is one more place for the two to disagree. Re-verified after the change: preview binds `[::1]:4173`, and a second `pnpm preview` exits 1 with `Error: Port 4173 is already in use`.
+
+### `vite preview` is not a static host, and the difference is a trap
+
+The one finding here that was not on the list. `vite preview` has SPA fallback on by default, and it is broader than "unknown routes get `index.html`":
+
+| request               | `vite preview` | `python3 -m http.server` |
+| --------------------- | -------------- | ------------------------ |
+| `/`                   | 200 html       | 200 html                 |
+| `/assets/<hashed>.js` | 200 js         | 200 js                   |
+| `/no-such-route`      | **200 html**   | **404**                  |
+| `/assets/nope.js`     | **200 html**   | 404                      |
+
+The last row is the one with teeth: a **missing asset is served as HTML with a 200**, which reaches the browser as a module MIME-type error rather than as a 404 naming the file. So "it works in `vite preview`" is a weaker claim than it looks — it is why this task loaded the output on a plain static server too, and why Story 1.11 must state whether the chosen host does SPA fallback rather than discovering it from a blank page once Story 1.4 adds a router.
+
+### Size budget: not yet
+
+Not worth one at this point, and the reason is that the number carries no information yet. 190.80 kB is React and nothing else — the application code is under a kilobyte of it — so a budget set today would be a budget on a dependency's size, and the first real component would blow through it for entirely legitimate reasons. **Deferred to Story 1.14 (performance)**, which is where a budget can be set against measured page behaviour rather than against a placeholder. Decided 2026-08-30; a deliberate gap with a date, not an oversight.
+
+### For Task 1.3.5
+
+- `pnpm verify` passes from the root in **4.2s** from a clean tree
+- The command table in `README.md` gains `preview` — with `start`'s status, and the third port (4173)
+- `CLAUDE.md`'s port list is now three: backend 3000, dev server 5173, preview 4173. Only the first two are anyone's decision; 4173 is Vite's default written down
+- Two predictions to record as **resolved wrong**, alongside the install-script one this story has already failed three times: the hashed-asset accumulation premise above, and — from Task 1.3.1 — nothing about `emptyOutDir` was known when the two-producer collision was resolved by removing a producer
+- The `base: "/"` absolute-path note and the `vite preview` fallback table both belong in the Story 1.11 amendment rather than in `CLAUDE.md`
