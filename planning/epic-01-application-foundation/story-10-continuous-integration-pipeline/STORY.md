@@ -30,6 +30,8 @@ More directly than for any other story in the epic: **this pipeline runs `pnpm v
 
 Everything else this story adds is around that one command: triggers, toolchain pinning, caching and visibility. The criteria below spell those out.
 
+**The exit code CI reads is the child's, not pnpm's own.** Measured in Tasks 1.2.5 and 1.2.6 rather than assumed: `pnpm run` waits for the script to finish and propagates its exit code — 7 from a probe, 1 from the real server on a busy port — printing `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL` alongside it. So a non-zero from anything `verify` runs, at any nesting depth, reaches the runner intact. That is the mechanism this whole story leans on, and it holds.
+
 ## Acceptance criteria
 
 - Pipeline runs on push and on pull request
@@ -39,6 +41,7 @@ Everything else this story adds is around that one command: triggers, toolchain 
 - A failure in any stage fails the pipeline visibly
 - Dependency and build caching keep runtimes reasonable — the pnpm **store**, not `node_modules`. Task 1.1.8 measured a cold install from an empty store at under a second once the packages are fetched, so cache the store and let pnpm link
 - Status is visible from the repository
+- **Know what `pnpm verify` does not cover, and say so rather than closing the gap here.** `apps/backend/scripts/dev.sh` is checked by nothing: ESLint sees only JS and TS, Prettier has no shell parser and skips it silently, and `tsc` has no view of it. It is the first file in the workspace outside the tooling net, and it is the file that starts the development server, so a syntax error in it is a real if minor failure mode. **Do not add `shellcheck` in this story** — one small shell file does not justify a new root dependency and a fifth step in `verify`. Record it as a known and dated choice (2026-08-30) so the gap is not something CI is quietly assumed to catch
 - The pipeline runs from a clean environment, catching anything that only works locally. Task 1.1.8 already did this by hand — clean clone, empty pnpm store, empty `COREPACK_HOME` — so a CI failure that a clean local clone does not reproduce points at the workflow, not the repository
 
 ## What CI going green will and will not mean

@@ -28,12 +28,13 @@ So this story **extends the README, it does not create one** — and two of its 
 
 ## Acceptance criteria
 
-- **`pnpm dev` is the single command, and it already exists** — `pnpm -r --parallel run dev`, one of only two root scripts that deliberately fan out. This story makes it start both services rather than introducing a new command name. Two details it inherits: `packages/shared`'s `dev` is a real `tsc -b --watch` that must keep running alongside the two servers, and the apps' `dev` scripts are `echo` placeholders until Stories 1.2 and 1.3 replace them
+- **`pnpm dev` is the single command, and it already exists** — `pnpm -r --parallel run dev`, one of only two root scripts that deliberately fan out. This story makes it start both services rather than introducing a new command name. **Half of that is now done:** Story 1.2 replaced `apps/backend`'s placeholder with a real loop (`scripts/dev.sh` — `tsc -b --watch --preserveWatchOutput` plus `node --watch dist/index.js`), so root `pnpm dev` today is one placeholder line, two watchers and a running server. Only `apps/frontend`'s `dev` is still an `echo`, and Story 1.3 replaces it. `packages/shared`'s real `tsc -b --watch` must keep running alongside both
+- **The backend's dev loop is a pattern to match rather than to redesign.** It restarts in about a second on an edit, drains in-flight requests on the way out, prints its own shutdown lines, and leaves no orphaned process or held port on Ctrl-C — all verified in Task 1.2.6. Whatever the frontend's loop turns out to be, this story's job is making the pair legible together, not replacing what works. Note that `--preserveWatchOutput` is load-bearing under the parallel fan-out: without it a `tsc --watch` clears the terminal and takes the other packages' output with it
 - The frontend can call the backend without CORS or proxy errors
 - Both services reload on source change
 - ~~Prerequisites (runtime versions, package manager) are documented~~ — **done in Task 1.1.8.** Re-check them here rather than rewriting them; add nothing unless this story introduces a new prerequisite
 - A clean clone reaches a **running application** by following the README only. Task 1.1.8 proved the clone reaches a repository that installs and verifies, twice, from an empty pnpm store and an empty Corepack home. This story is the other half, and the verification method is the same: clone into an empty directory and follow the written words, not the working tree you already have
-- Ports are configurable and conflicts produce a clear message
+- Ports are configurable and conflicts produce a clear message — **half met on the backend.** `PORT` and `HOST` are read, an out-of-range or non-numeric `PORT` exits 1 naming the variable and the value, and a busy port exits 1 with Fastify's `EADDRINUSE` record and a `server failed to start` line. Whether that record counts as "a clear message" is this story's call; the frontend half is untouched
 
 ## Notes
 

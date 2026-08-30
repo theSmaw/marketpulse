@@ -1,6 +1,6 @@
 # Task 1.2.6 — Verify the story end to end and document
 
-**Status:** Not started
+**Status:** Complete — 2026-08-30
 **Story:** [1.2 Backend Service Skeleton](STORY.md)
 **Depends on:** Task 1.2.5
 
@@ -81,6 +81,65 @@ Specific findings from the tasks, which should reach the stories that need them 
 - **Story 1.11 — the `pnpm start` wrapper is signal-transparent, so the question is whether to keep it, not whether it works.** Task 1.2.5 measured it rather than assuming either way: pnpm forwards `SIGTERM` to the child, **waits** for it to finish stopping (3.002s against a stand-in that took 3s), and propagates its exit code (7 from a probe, 1 from the real server on a busy port). So a container `CMD` of `pnpm start` would not swallow the signal or truncate the drain. It still adds a process, a package manager and a resolution step to a production image for no benefit once the artifact is built, so this story should choose `node dist/index.js` deliberately — with the knowledge that the wrapper is a preference rather than a bug it is avoiding
 - **Story 1.11 — the deployable unit is the package directory, and that is now measured rather than argued.** `dist` + `package.json` + `node_modules`, copied outside the workspace entirely, starts, serves `/health` with the manifest version, and exits 0 on `SIGTERM` (Task 1.2.5). `dist/` alone dies at import time. `pnpm deploy --filter @marketpulse/backend` produces the shape that works, so this story's named mechanism is confirmed; what it still owns is the base image, the working directory the manifest read depends on, and whether `packages/shared` is bundled or symlinked once something imports it
 - **Story 1.10 — `pnpm verify` no longer covers every file in the repository.** `apps/backend/scripts/dev.sh` is checked by nothing: ESLint sees only JS and TS, Prettier has no shell parser and skips it silently, and `tsc` has no view. It is the first file in the workspace outside the tooling net, and it is a file that starts the development server, so a syntax error in it is a real if minor failure mode. **Do not add `shellcheck` in this story** — one small shell file does not justify a new root dependency and a fifth step in `verify`. Say so in that story instead, so the gap is a known and dated choice rather than something CI is quietly assumed to catch
+
+## Outcome
+
+All six acceptance criteria executed in one sitting from a clean build (`pnpm clean` then `pnpm build`), plus the whole documented command set for the package. Two real findings, one of which contradicts an instruction in this task file.
+
+### The documented per-package `clean` command does not work
+
+`pnpm --filter <pkg> clean` exits **1** with `[ERROR] Unknown option: 'recursive'`, for all three packages. It has presumably never worked; the one-liner in `CLAUDE.md` and `README.md` listed `clean` alongside the other verbs and nobody had run that particular combination — Task 1.1.8 verified the six verbs per package, which is how this slipped through.
+
+The cause is not a bug in this repository. **`pnpm clean` is a built-in pnpm 11 command** (alias `purge`) that removes `node_modules` from every workspace project. pnpm runs a `clean` _script_ instead of the built-in only when the current project has one, which is why root `pnpm clean` correctly runs `tsc -b --clean` — the root manifest has the script. Add `--filter` and it reaches the built-in, which does not accept the `--recursive` that `--filter` implies.
+
+`pnpm --filter <pkg> run clean` works and cleans the right thing. Both files now document the `run` and the reason. The failure is loud and destroys nothing, but it is worth knowing that **the root's `clean` script is the only thing shadowing a command that deletes `node_modules`** — removing it as redundant would be a bad afternoon.
+
+### The `pnpm clean` caveat in this task file was wrong, and the correction is more useful than the original
+
+This task was told: "**Delete a source file and then run `pnpm clean`**, rather than `rm`-ing what you remember it emitting." That was inferred in Task 1.2.5 from the residue it found, not measured. It is backwards.
+
+Measured here, with a temporary route added, built, and then removed:
+
+| Order                         | Result                                |
+| ----------------------------- | ------------------------------------- |
+| Source exists → `pnpm clean`  | All four emitted files removed        |
+| Source deleted → `pnpm clean` | All four **survive**, and always will |
+
+`tsc -b --clean` derives what to delete from the sources that **currently exist**, not from the build state. So a hand-deleted source orphans its output permanently — no number of subsequent cleans will touch it, which is exactly why Task 1.2.4's fixture left `.map` files that Task 1.2.5 later found. The correct rule is the opposite of the one written here: **clean before deleting a source file, or delete its output by hand afterwards.** Recorded in `CLAUDE.md` and `README.md`, and in Story 1.9, which will be creating and removing fixtures.
+
+### Verified
+
+Every row executed in this task, from a build made after `pnpm clean`.
+
+| Criterion / command                                            | Result                                                                                                 |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `pnpm clean` → `pnpm build`                                    | Exit 0, 0.86s; 12 files emitted to `apps/backend/dist`                                                 |
+| Configurable port                                              | `PORT=4321` bound and served; default 3000 with no `PORT`                                              |
+| Configuration failure                                          | `PORT=nonsense` and `PORT=70000` both exit 1, naming the variable and the value, before any log record |
+| `HOST` override                                                | `HOST=0.0.0.0` → socket `*:4322 (LISTEN)` per `lsof`, while the log claims `http://127.0.0.1:4322`     |
+| `GET /health`                                                  | 200, `application/json; charset=utf-8`, `{"status":"ok","version":"0.0.0","uptimeSeconds":0.129}`      |
+| Version matches the manifest                                   | `0.0.0` both sides                                                                                     |
+| Production build runs unflagged                                | Plain `node dist/index.js`, no loader, no transpiler                                                   |
+| `SIGTERM`                                                      | Both shutdown lines logged, exit 0, port released                                                      |
+| `SIGINT`                                                       | Same, exit 0                                                                                           |
+| In-flight request drains                                       | 2s request completed **200** during shutdown; process waited 1.711s then exited 0                      |
+| Shutdown ceiling                                               | 8s request → `shutdown timed out, forcing exit` at 5.054s, exit 1                                      |
+| Second signal mid-drain                                        | `second signal during shutdown, exiting immediately`, exit 1, in-flight request dropped                |
+| `dev` restart on edit                                          | New pid, edit → new listener 1130ms, of which `SIGTERM` → listener 104ms                               |
+| `dev` Ctrl-C                                                   | No surviving `node --watch`, `dist/index.js` or `tsc --watch` process; port released                   |
+| Root `pnpm dev`                                                | One placeholder line, two watchers, a running server, output prefixed per package; clean Ctrl-C        |
+| `start`, `SIGTERM` to the pnpm process                         | Exit 0, both shutdown lines, port released                                                             |
+| `start`, `SIGINT` to the process group                         | Exit 0, same                                                                                           |
+| `start` on a busy port                                         | Exit **1**, `EADDRINUSE` and `server failed to start` intact, `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL`      |
+| `start` against an empty `dist`                                | Exit 1, `Cannot find module` — a stale or empty `dist` is a missing server, as documented              |
+| Six verbs, `apps/backend`                                      | `build` `typecheck` `lint` `test` `lint:fix` exit 0; `clean` exit 1 — see above                        |
+| Root `build` `typecheck` `lint` `format:check` `test` `verify` | All exit 0                                                                                             |
+
+### What this did not prove
+
+- **Nothing about a deployed environment.** Every measurement was taken against a hand-started process on a developer machine. Container signal delivery to PID 1, the platform's host binding, and the orchestrator kill timeout the 5s ceiling has to sit inside are Story 1.11's, and its `pnpm deploy` mechanism is confirmed in shape only
+- **Nothing about CORS.** No task in this story considered it; a browser on another origin reaching `/health` is entirely unproven, and Story 1.12 starts from zero there
+- **Nothing about the response contract holding.** With no test runner and no response schema, a change that broke `/health`'s shape would pass `pnpm verify` — which is Story 1.9's and Story 1.7's respectively, and is the largest gap this story leaves behind
 
 ## Done when
 
