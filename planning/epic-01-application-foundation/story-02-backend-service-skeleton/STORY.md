@@ -1,6 +1,6 @@
 # Story 1.2 — Backend Service Skeleton
 
-**Status:** In progress — Task 1.2.1 complete
+**Status:** In progress — Tasks 1.2.1 and 1.2.2 complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.1
 **Epic scope covered:** TypeScript backend service
@@ -24,11 +24,11 @@ Story 1.1 is complete, and these four bind this story. They are stated in every 
 - **Shared tooling lives at the workspace root; packages declare only what they actually import.** ESLint, Prettier and TypeScript are root-only devDependencies, and pnpm puts the root's `node_modules/.bin` on every package script's PATH. A library the code imports belongs in the package that imports it — `@types/node` in `apps/backend` is the counter-example that keeps the rule from being over-applied
 - **The module setup is ESM-only and single-file-safe** — `"type": "module"`, `module: nodenext`, `isolatedModules`, `verbatimModuleSyntax`, and relative imports carrying `.js` extensions from `.ts` files (TS2835 without one). `packages/shared` is consumed as **built output**, so it must be built before any consumer can be typechecked; `tsc -b` orders that itself, which is why `typecheck` and `build` are the same command
 
-Two more things that are true today and will not be forever. Until Story 1.9 lands, **`pnpm test` passes because there are no tests** — all three `test` scripts are `echo` placeholders that exit 0. Until Stories 1.2 and 1.3 land, both apps' `dev` scripts are placeholders too; only `packages/shared`'s (`tsc -b --watch`) is real.
+Two more things that are true today and will not be forever. Until Story 1.9 lands, **`pnpm test` passes because there are no tests** — all three `test` scripts are `echo` placeholders that exit 0. `apps/frontend`'s `dev` is still a placeholder until Story 1.3; `apps/backend`'s stopped being one in Task 1.2.2, and `packages/shared`'s (`tsc -b --watch --preserveWatchOutput`) was always real.
 
 ## What that means for this story
 
-- **`apps/backend`'s `dev` script is an `echo` placeholder that names this story.** Replacing it with a real watch-and-restart is part of the work; root `pnpm dev` already runs it in parallel with the others
+- **`apps/backend`'s `dev` script was an `echo` placeholder naming this story; Task 1.2.2 replaced it** with `sh scripts/dev.sh` — `tsc -b --watch` emitting to `dist/` and `node --watch dist/index.js` restarting on the emit. Root `pnpm dev` runs it in parallel with the others
 - `build` is `tsc -b` and already emits runnable output to `apps/backend/dist`. If the framework needs a different build, keep the verb meaning what it means in the other two packages — see the parallel note in Story 1.3
 - `@types/node` is pinned to **24.x**, tracking the runtime rather than npm's `latest`, and stays declared in this package rather than at the root: it is a type dependency of this package's code, not a tool. Fastify itself is likewise a dependency of this package, not root tooling
 - Relative imports carry `.js` extensions from `.ts` files. `nodenext` requires the emitted filename and fails with TS2835 without it
@@ -50,7 +50,7 @@ Tackled in order. The story is complete when all six are done.
 | #     | Task                                                                                 | Status      |
 | ----- | ------------------------------------------------------------------------------------ | ----------- |
 | 1.2.1 | [Fastify server bootstrap](TASK-01-fastify-server-bootstrap.md)                      | Complete    |
-| 1.2.2 | [Development mode: watch and restart](TASK-02-development-mode-watch-and-restart.md) | Not started |
+| 1.2.2 | [Development mode: watch and restart](TASK-02-development-mode-watch-and-restart.md) | Complete    |
 | 1.2.3 | [The health endpoint](TASK-03-health-endpoint.md)                                    | Not started |
 | 1.2.4 | [Graceful shutdown](TASK-04-graceful-shutdown.md)                                    | Not started |
 | 1.2.5 | [Production build and run](TASK-05-production-build-and-run.md)                      | Not started |
