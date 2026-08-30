@@ -12,7 +12,8 @@ recommends trades, or produces target prices.
 
 ## What exists today
 
-**Epic 1, Stories 1.1 and 1.2 — the repository, its toolchain, and a backend.**
+**Epic 1, Stories 1.1, 1.2 and 1.3 — the repository, its toolchain, a
+backend, and a frontend.**
 
 `apps/backend` is a running Fastify service. It starts on a configurable port,
 serves `GET /health`, restarts on source change, and shuts down cleanly on
@@ -28,12 +29,32 @@ curl http://127.0.0.1:3000/health
 `PORT` and `HOST` configure it (defaults 3000 and 127.0.0.1). It is a skeleton
 in scope rather than in status: no market data, no database, no domain logic.
 
-`apps/frontend` is still a typed skeleton that imports from
-`@marketpulse/shared` and nothing more; the React application arrives in
-Story 1.3. So the instructions below get you to a working backend and a
-repository that installs, builds, lints, formats and typechecks — not yet to a
-running _application_. When they do, this section is the first thing that
-should change.
+`apps/frontend` is a React 19 application built with Vite. It renders a
+placeholder shell, reloads edited components in about 100 ms without losing
+their state, and builds to static assets:
+
+```sh
+pnpm --filter @marketpulse/frontend dev      # http://localhost:5173
+pnpm build
+pnpm --filter @marketpulse/frontend preview  # http://localhost:4173
+```
+
+It is a shell in scope rather than in status: no routing (Story 1.5), no
+styling system (Story 1.4), no state management, and it does not talk to the
+backend yet (Story 1.12). What it does prove is that the toolchain works end to
+end — `@marketpulse/shared` resolves through the bundler as well as through
+`tsc`, and the built `dist/` renders from a plain static server with no
+`package.json` and no `node_modules` beside it.
+
+So `pnpm dev` now starts a running pair. Getting a **clean clone** to that pair
+by following this file alone is Story 1.8's criterion rather than a claim made
+here; what has been verified is that a clean clone installs, verifies and
+builds an identical bundle.
+
+The browser baseline is **evergreen desktop** — current Chrome, Edge, Firefox
+and Safari — expressed as ES2024 in two places that must agree: `target` in
+`apps/frontend/tsconfig.json` and `build.target` in `vite.config.ts`. See
+[ADR 0003](docs/adr/0003-frontend-build-tooling-and-browser-baseline.md).
 
 ## Prerequisites
 
@@ -77,18 +98,18 @@ allowlist that one package, never to disable the check.
 
 Run from the repository root:
 
-| Command             | What it does                                               |
-| ------------------- | ---------------------------------------------------------- |
-| `pnpm verify`       | `build && lint && format:check && test` — the CI command   |
-| `pnpm build`        | `tsc -b` over the solution; builds `packages/shared` first |
-| `pnpm typecheck`    | The same command as `build`, deliberately — see below      |
-| `pnpm lint`         | `eslint .` over the whole workspace in one process         |
-| `pnpm lint:fix`     | The same, with `--fix`                                     |
-| `pnpm format`       | `prettier --write .` — the whole tree, prose included      |
-| `pnpm format:check` | `prettier --check .`                                       |
-| `pnpm test`         | Placeholders until Story 1.9 — see the warning below       |
-| `pnpm dev`          | Every package's `dev`, in parallel — see below             |
-| `pnpm clean`        | `tsc -b --clean`; removes emitted output and build state   |
+| Command             | What it does                                             |
+| ------------------- | -------------------------------------------------------- |
+| `pnpm verify`       | `build && lint && format:check && test` — the CI command |
+| `pnpm build`        | `tsc -b` over the solution, then the frontend bundle     |
+| `pnpm typecheck`    | The same command as `build`, deliberately — see below    |
+| `pnpm lint`         | `eslint .` over the whole workspace in one process       |
+| `pnpm lint:fix`     | The same, with `--fix`                                   |
+| `pnpm format`       | `prettier --write .` — the whole tree, prose included    |
+| `pnpm format:check` | `prettier --check .`                                     |
+| `pnpm test`         | Placeholders until Story 1.9 — see the warning below     |
+| `pnpm dev`          | Every package's `dev`, in parallel — see below           |
+| `pnpm clean`        | `tsc -b --clean`, plus `rm -rf apps/frontend/dist`       |
 
 Working on a single package uses the same six verbs, meaning the same thing:
 
@@ -102,17 +123,25 @@ Every package exposes `dev`, `build`, `test`, `lint`, `typecheck` and `clean`.
 `lint:fix` is an extra rather than part of the convention — a local convenience
 with no root fan-out and no place in `verify`.
 
-`apps/backend` has a second extra with exactly that status, added in Task 1.2.5:
+Two more extras have exactly that status, one per app:
 
 ```sh
-pnpm --filter @marketpulse/backend start     # node dist/index.js — needs pnpm build first
+pnpm --filter @marketpulse/backend start     # node dist/index.js
+pnpm --filter @marketpulse/frontend preview  # serves dist/ on :4173
 ```
 
-`start` runs the already-built output and builds nothing itself. It is not a
-seventh verb: no root fan-out, no place in `verify`, and the other two packages
-are not obliged to have one. It exists because "production build emits runnable
-output" needs a documented way to run it. An empty or stale `dist/` is a
-missing or stale server, so build first.
+Neither is a seventh verb: no root fan-out, no place in `verify`, and
+`packages/shared` is not obliged to have one. Both exist because "production
+build emits runnable output" needs a documented way to run it, and **both run
+the already-built output and build nothing themselves** — so `pnpm build`
+first, or an empty or stale `dist/` gives you a missing server and a stale
+page.
+
+One warning about `preview`, because it is easy to mistake for a static host.
+Its SPA fallback answers _any_ unmatched path with `index.html` and a 200 — a
+**missing asset** included, which then arrives in the browser as a MIME-type
+error rather than a 404 naming the file. It is the right way to look at a
+production build and the wrong way to prove one works.
 
 **`clean` is the one verb that needs an explicit `run` when filtered.**
 `pnpm clean` is also a built-in pnpm 11 command (alias `purge`) that removes
@@ -127,6 +156,11 @@ sources that currently exist, so deleting a source file first orphans its
 `dist/` output permanently. Clean before deleting a file, or remove its output
 by hand afterwards.
 
+That trap does not reach `apps/frontend`, whose `dist/` is Vite's rather than
+tsc's. Its `clean` is `tsc -b --clean && rm -rf dist`, and `rm -rf` is
+content-blind — it does not care which sources exist. The root's `clean` has
+the same second half for the same reason.
+
 ### `pnpm test` does not yet do what its name suggests
 
 **A green `pnpm test` means "no tests exist", not "tests pass."** All three
@@ -136,24 +170,44 @@ look exactly like passing coverage. It is not.
 
 ### What `pnpm dev` does at the root
 
-One placeholder line, two watchers and a server. `apps/frontend`'s `dev` is
-still an `echo` naming Story 1.3; `packages/shared` sits in
+Three real dev loops, with no placeholders left anywhere.
+`packages/shared` sits in
 `tsc -b --watch --preserveWatchOutput`, the right dev loop for a package whose
-consumers compile against its emitted declarations; and `apps/backend` runs
+consumers compile against its emitted declarations; `apps/backend` runs
 `scripts/dev.sh`, which pairs its own `tsc -b --watch` with
-`node --watch dist/index.js`. Output is prefixed per package, so the server's
-JSON log lines arrive as `apps/backend dev: {...}`.
+`node --watch dist/index.js`; and `apps/frontend` runs `vite`. Output is
+prefixed per package, so the server's JSON log lines arrive as
+`apps/backend dev: {...}`.
 
 Edit a backend source file and the server restarts in about a second — tsc
 emits, `node --watch` notices `dist/` changed, the old process drains and the
-new one listens. Ctrl-C stops everything and leaves no orphaned process and no
-held port.
+new one listens. Edit a frontend component and the change is in the browser in
+about 100 ms with the component's state intact. Ctrl-C stops everything and
+leaves no orphaned process and no held port.
 
-Two things worth knowing before they surprise you. Editing
+**A clean Ctrl-C is noisy, and the noise is not a failure.** pnpm reports each
+interrupted watcher as `Failed`, prints
+`[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] ... Command failed with signal "SIGINT"`,
+and adds a spurious `Local package.json exists, but node_modules missing`
+warning on the way out. Nothing is wrong and nothing is missing; that is what
+shutting down three watchers at once looks like.
+
+**Both frontend servers listen on IPv6 loopback and the backend listens on
+IPv4.** `curl http://localhost:5173/` works and `curl http://127.0.0.1:5173/`
+is connection-refused; `apps/backend` defaults to `127.0.0.1` and is the
+reverse. Both are "localhost" to a browser and are not to a script.
+
+Two more things worth knowing before they surprise you. Editing
 `apps/backend/package.json` restarts the server, because the health route
 imports it for `version` — so **adding a dependency bounces the dev server**.
-And a Ctrl-C now prints the server's own `signal received` / `shutdown
-complete` lines; silence on the way out is the symptom, not the normal case.
+And a Ctrl-C prints the server's own `signal received` / `shutdown complete`
+lines; silence on the way out is the symptom, not the normal case.
+
+The frontend dev server has a failure mode of its own: **it does not
+typecheck.** A type error is applied as an ordinary hot update — no overlay, no
+console error, state preserved — and is caught only by your editor or
+`pnpm verify`. A syntax error, by contrast, fails loudly and leaves the page on
+its last good render.
 
 ### `typecheck` and `build` are the same command
 
@@ -175,7 +229,7 @@ why a per-package `tsc --noEmit` is the wrong instrument here.
 ```
 apps/
   backend/     @marketpulse/backend  — Fastify service (Story 1.2)
-  frontend/    @marketpulse/frontend — skeleton until Story 1.3
+  frontend/    @marketpulse/frontend — React + Vite application (Story 1.3)
 packages/
   shared/      @marketpulse/shared   — domain types shared by both apps
 docs/
@@ -200,9 +254,14 @@ them. pnpm runs a dependency's install scripts only if it appears in
 install failure**, not a warning.
 
 Nothing installed so far has an install script, so there is nothing allowlisted
-yet. The first package to trip this is likely esbuild, arriving with Vite in
-Story 1.3. When it fires, allowlist that specific package — never disable the
-check.
+yet — and the prediction that Story 1.3 would change that was **wrong**. Vite 8
+is the Rolldown release, so there is no esbuild here at all, and Rolldown ships
+as prebuilt per-platform binaries. A cold install of all 200 packages found
+zero `preinstall`/`install`/`postinstall` scripts across the whole tree.
+
+So `allowBuilds` is empty and has never been exercised. The rule is unchanged
+for whenever something does bring an install script: allowlist that specific
+package by name — never disable the check.
 
 ## Editor setup
 

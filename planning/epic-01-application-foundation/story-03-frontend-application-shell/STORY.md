@@ -1,6 +1,6 @@
 # Story 1.3 — Frontend Application Shell
 
-**Status:** In progress
+**Status:** Complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.1
 **Epic scope covered:** React application shell
@@ -11,7 +11,7 @@ A React + TypeScript application that builds, runs in development with fast refr
 
 ## Open decisions — all settled
 
-All three were settled in **Task 1.3.1**, before any application code existed. Task 1.3.5 records them as ADR 0003; the reasoning is in that task's Outcome until then.
+All three were settled in **Task 1.3.1**, before any application code existed, and are now recorded as [ADR 0003 — Frontend build tooling and the browser baseline](../../../docs/adr/0003-frontend-build-tooling-and-browser-baseline.md), which is the record of _why_ and carries the rejected alternatives. The summaries below stay because they are what a reader of this story needs.
 
 - **Build tool — Vite**, pinned at 8.2.2 as a root devDependency. Worth knowing for everything downstream: Vite 8 is the Rolldown release, so this toolchain contains **no esbuild**, and advice written for earlier Vite versions is about a different bundler and a different resolver
 - **What `build` means once a bundler exists** — `tsc -b && vite build`, in that order, so a type error fails the build rather than shipping; `typecheck` stays the `tsc -b` half. The catch nobody predicted: **the root `build` had to change as well.** It was a direct `tsc -b` over the solution, which would have typechecked the frontend and emitted no bundle, letting `pnpm verify` pass without the bundler ever running. It is now `tsc -b && pnpm --filter @marketpulse/frontend exec vite build`
@@ -45,29 +45,44 @@ Two more things that are true today and will not be forever. Until Story 1.9 lan
 
 ## Acceptance criteria
 
-- Development server runs with hot module replacement — met in Task 1.3.3, with a warm edit-to-update baseline of ~100–140 ms. Note for anyone re-checking it: the stateful probe used to measure it was removed afterwards, and **editing a heading and watching it change does not test this** — it passes identically on a full page reload. The check needs component state
-- Application renders a placeholder shell in the browser
-- Production build emits static assets — met in Task 1.3.4 at 190.80 kB across 17 modules, and the criterion was read as "they work" rather than "they exist": `dist/` alone, two files with no `package.json` and no `node_modules`, renders in Chrome from a plain static server outside the workspace. **Serving it under `vite preview` alone would not have proved this** — preview's SPA fallback answers _any_ unmatched path with `index.html` and a 200, a missing asset included
-- **`pnpm verify` passes from the repository root** — build, lint, format:check, test, in that order. The original criterion said "typecheck and lint pass for the frontend package", which is now the weaker check: `verify` is the one CI runs and the one Story 1.1 established as the single acceptance command
-- Browser target is documented (desktop-first per PRODUCT_SPEC.md §3), and `apps/frontend/tsconfig.json`'s `target`/`lib` overrides updated to match it — they are two of the four compiler options the apps are permitted to override, and were left provisional for this story
+All five were re-run together from a clean tree in **Task 1.3.5** rather than inherited from the task that claimed each one. Results below are that run's.
+
+- **Development server runs with hot module replacement** — met. Re-checked the only way that means anything: a counter re-created in `App.tsx`, clicked to 7, then a _different_ line edited (the `<h1>`). The heading changed to "MarketPulse HMR" and the counter still read **7**, so the module was replaced rather than the page reloaded. Warm edit-to-update is ~100–140 ms (Task 1.3.3); the first edit after a server start is ~850 ms and is not the number to regress against. **Editing a heading and watching it change does not test this** — it passes identically on a full reload, which is why the probe has to exist and why it was removed again afterwards
+- **Application renders a placeholder shell in the browser** — met, and checked from both servers: the Vite dev server on 5173, and the built `dist/` copied outside the workspace and served by `python3 -m http.server`. Heading, paragraph and the `AAPL` ticker from `@marketpulse/shared` all render, with an empty console
+- **Production build emits static assets** — met, at 190.80 kB (60.16 kB gzipped) across 17 modules, and read as "they work" rather than "they exist". `dist/` alone — two files, no `package.json`, no `node_modules` — renders in Chrome from a plain static server outside the workspace. **`vite preview` alone would not have proved this**: its SPA fallback answers _any_ unmatched path with `index.html` and a 200, a missing asset included, where the plain server 404s both. The build is also reproducible — two clean builds and a separate clean clone with a cold pnpm store all emitted md5 `e3fa3b5e…`
+- **`pnpm verify` passes from the repository root** — met, in 6.6s from a clean tree and 7.6s from a clean clone with a cold pnpm store (200 packages, installed in 1.3s, **zero** install scripts). The original criterion said "typecheck and lint pass for the frontend package", which is the weaker check: `verify` is the one CI runs and the one Story 1.1 established as the single acceptance command
+- **Browser target is documented and `target`/`lib` match it** — met. Evergreen desktop per PRODUCT_SPEC.md §3, expressed as `target: "es2024"` with `lib: ["es2024", "dom", "dom.iterable"]` in `apps/frontend/tsconfig.json`, and the same `es2024` as `build.target` in `vite.config.ts` — two readers of one decision that must stay equal, because Vite's default is _lower_ and would apply silently. Documented in `README.md` and ADR 0003 §4. Note it is a **choice rather than a measurement**: no browser matrix was exercised, and nothing here has run in Firefox or Safari at all. The overrides were two of four the apps could make and are now two of **six** — `noEmit` and `jsx` joined them in this story
 
 ## Tasks
 
-Tackled in order. The story is complete when all five are done.
+Tackled in order. All five are done.
 
-| #     | Task                                                                                             | Status      |
-| ----- | ------------------------------------------------------------------------------------------------ | ----------- |
-| 1.3.1 | [Vite bootstrap and the browser baseline](TASK-01-vite-bootstrap-and-browser-baseline.md)        | Complete    |
-| 1.3.2 | [React, JSX and the placeholder shell](TASK-02-react-jsx-and-placeholder-shell.md)               | Complete    |
-| 1.3.3 | [Development mode: fast refresh and the root dev loop](TASK-03-development-mode-fast-refresh.md) | Complete    |
-| 1.3.4 | [Production build and static assets](TASK-04-production-build-and-static-assets.md)              | Complete    |
-| 1.3.5 | [Verify the story end to end and document](TASK-05-verify-and-document.md)                       | Not started |
+| #     | Task                                                                                             | Status   |
+| ----- | ------------------------------------------------------------------------------------------------ | -------- |
+| 1.3.1 | [Vite bootstrap and the browser baseline](TASK-01-vite-bootstrap-and-browser-baseline.md)        | Complete |
+| 1.3.2 | [React, JSX and the placeholder shell](TASK-02-react-jsx-and-placeholder-shell.md)               | Complete |
+| 1.3.3 | [Development mode: fast refresh and the root dev loop](TASK-03-development-mode-fast-refresh.md) | Complete |
+| 1.3.4 | [Production build and static assets](TASK-04-production-build-and-static-assets.md)              | Complete |
+| 1.3.5 | [Verify the story end to end and document](TASK-05-verify-and-document.md)                       | Complete |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 and 1.2 followed.
 
 The split is toolchain-first on purpose. Task 1.3.1 stops deliberately short of React, so that every failure in it has exactly one candidate cause; Task 1.3.2 adds rendering and Task 1.3.3 adds hot reloading as separate steps, because they are separate mechanisms and a fault in one should not look like a fault in the other. Story 1.2 ordered its watcher second for the opposite reason — a server is easier to build against a restarting loop — which does not apply here: Vite's dev server exists from the first task, and only _fast refresh_ is deferred.
 
 The five acceptance criteria map onto tasks 1.3.3, 1.3.2, 1.3.4, all of them (`pnpm verify` is a "done when" on every task) and 1.3.1 respectively. Task 1.3.5 runs all five together from a clean build rather than trusting each task's own claim.
+
+## What this story did not prove
+
+Stated plainly, in the habit Story 1.2 established, so none of it is mistaken for covered ground.
+
+- **Nothing tests any of this** (Story 1.9). `pnpm test` is three `echo` placeholders, and they are now the only placeholders left in the workspace
+- **Nothing has been served by a real static host.** `python3 -m http.server` proves the artefact is self-contained and says nothing about caching, compression, redirects or SPA fallback on whatever Story 1.11 picks
+- **The frontend has never spoken to the backend**, and CORS is untouched (Story 1.12)
+- **The browser baseline is a decision, not a measurement.** No browser matrix was exercised
+- **The React Compiler rule set has never met real code.** Fifteen of `eslint-plugin-react-hooks`'s 17 rules are at `error` and this tree contains one stateless component, so they have been adopted rather than exercised. The first time they say something interesting will be in Epic 2, and it may not be welcome then — the risk that came with taking `recommended` whole, written down next to the decision rather than discovered later
+- **`allowBuilds` is still empty and still untested.** Four sweeps found zero install scripts, so the policy holds and nobody has seen it fire
+- **A clean clone has not reached a running _application_.** It reaches one that installs, verifies and builds an identical bundle. The running pair from a clean clone is Story 1.8's criterion
+- **No bundle-size budget was set**, deliberately: 190.80 kB is React and almost nothing else, so a budget today is a budget on a dependency. Deferred to **Epic 14 — Performance & Scale Validation**
 
 ## Notes
 

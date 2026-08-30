@@ -1,6 +1,6 @@
 # Task 1.3.5 — Verify the story end to end and document
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.3 Frontend Application Shell](STORY.md)
 **Depends on:** Task 1.3.4
 
@@ -58,3 +58,61 @@ Then the checks that only make sense once everything is in place:
 ## Notes
 
 Two documentation habits from earlier stories are worth keeping rather than rediscovering. Measure before writing — Task 1.2.6 found that a guess written down confidently (the `tsc -b --clean` mechanism) survived two tasks before being checked and turned out to be backwards. And date the deliberate gaps: a known choice with a date is a decision, while the same gap unwritten is an oversight, and the two are indistinguishable six weeks later.
+
+## Outcome
+
+### The five acceptance criteria, run together from clean
+
+`pnpm clean` first, then install, then everything below in one sitting. All five pass. The results are recorded in `STORY.md` next to each criterion; what follows is what the run turned up that the criteria themselves do not say.
+
+**`clean` tells the truth about both producers.** After `pnpm clean`, `apps/frontend/dist` is **gone** — `rm -rf`, not emptied — along with `tsconfig.tsbuildinfo`, while `packages/shared/dist` and `apps/backend/dist` remain as empty directories in the documented `tsc -b --clean` way. The two halves behave differently and both are correct.
+
+**`pnpm verify` from clean: 6.6s, exit 0.** The bundle is 190.80 kB / 60.16 kB gzipped across 17 modules, and the content hash is `index-Dv4miNH4.js` — **identical to Task 1.3.4's**, from a fully cleaned tree.
+
+**HMR needed the probe re-created, exactly as this task predicted.** Counter added to `App.tsx`, clicked to 7, then the `<h1>` edited on a different line. Heading became "MarketPulse HMR"; the counter still read **7**. That is module replacement, not a reload. `App.tsx` was restored byte-identical afterwards (`git diff` empty).
+
+One trap worth recording for whoever re-checks this with browser automation rather than by hand: **clicking the button by accessibility-tree reference did nothing** — seven clicks, counter still 0 — while clicking the same element by viewport coordinate worked immediately. The reference click does not drive React's synthetic event handler. A silent zero there looks exactly like broken state preservation, which is the wrong conclusion to reach about the thing being measured.
+
+**The static-host check, with the response codes.** `dist/` copied outside the workspace — two files, no `package.json`, no `node_modules` — and served by `python3 -m http.server`:
+
+| request               | `vite preview` | `python3 -m http.server` |
+| --------------------- | -------------- | ------------------------ |
+| `/`                   | 200 html       | 200 html                 |
+| `/assets/<hashed>.js` | 200 js         | 200 js                   |
+| `/no-such-route`      | **200 html**   | **404**                  |
+| `/assets/nope.js`     | **200 html**   | 404                      |
+
+Renders in Chrome from the plain server with an empty console. The bundle contains **zero** bare import specifiers.
+
+### The checks that only make sense once everything is in place
+
+**Root `pnpm dev` runs eight processes and Ctrl-C leaves none.** `pnpm dev` → `pnpm -r --parallel run dev` → `sh scripts/dev.sh`, `vite`, two `tsc -b --watch`, `node --watch dist/index.js`, and the server itself. Backend listening on `127.0.0.1:3000`, dev server on `[::1]:5173`. `SIGINT` to the process group: **zero** survivors in that group, both ports released, no orphaned `vite`, `tsc --watch` or `node --watch` anywhere on the machine.
+
+**A clean Ctrl-C is noisy and the noise is not a failure.** pnpm reports each interrupted watcher as `Failed`, prints `[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] ... Command failed with signal "SIGINT"`, and finishes with a spurious `[WARN] Local package.json exists, but node_modules missing, did you mean to install?`. `node_modules` was checked immediately after and is entirely present. Documented in both `README.md` and `CLAUDE.md`, because it reads as a broken install and is not.
+
+**The clean clone, with a cold pnpm store.** Fresh `git clone` into an empty directory, `--store-dir` pointed at an empty path: **200 packages downloaded in 1.3s**, `pnpm verify` in 7.6s, exit 0. The emitted bundle is **byte-identical** to the working tree's (md5 `e3fa3b5e0fed04b01b859b2df6228fb9`), so the build is reproducible across checkouts and store states.
+
+Two things that clone settled which a warm one could not. A programmatic sweep of every `package.json` under `node_modules/.pnpm` found **zero** `preinstall`/`install`/`postinstall` scripts — the fourth such sweep, and the first on a genuinely cold install. And `@rolldown/binding-darwin-arm64` resolved correctly while the lockfile records all **fifteen** platform variants as optional dependencies, which is the mechanism Story 1.10 now depends on for Linux CI.
+
+**The `.js`-extension convention, and the producers disagree.** Task 1.3.2 established that both accept it. The negative case had not been checked, and it is the more interesting half: drop the extension from `main.tsx`'s `./App.js` and `tsc -b` fails with **TS2835 and exit 1**, while `vite build` resolves `./App` to `App.tsx` and emits a **byte-identical bundle**. So in `apps/frontend` this convention has exactly one enforcer, and it is `tsc` — which is another argument for `build` being `tsc -b && vite build` in that order rather than trusting the bundler.
+
+### Two things measured here that no earlier task had looked at
+
+**Both frontend servers bind IPv6 loopback; the backend binds IPv4.** `vite` and `vite preview` listen on `[::1]`, so `curl http://localhost:4173/` returns 200 and `curl http://127.0.0.1:4173/` is **connection refused**. `apps/backend` defaults to `127.0.0.1` and is the reverse. Both are "localhost" to a browser and are not to a script — which is a real trap for any readiness check, wait-for-port helper or documented `curl` that Story 1.10 or 1.11 writes. Carried into Stories 1.8, 1.10 and 1.12.
+
+This one was found by accident: the first `preview` probe returned four `000`s, which reads as a dead server rather than as the wrong address family.
+
+**`preview`'s inheritance re-confirmed on the shipped config.** A second `vite preview` against a busy 4173 exits **1**, so `strictPort` really is inherited from `server`; the port is not, which is why 4173 is written out explicitly.
+
+### Documented
+
+- **ADR 0003 — Frontend build tooling and the browser baseline**, the next free number, following the convention in `docs/adr/README.md` and added to its index. Four decisions, each with its rejected alternative: Vite over a hand-assembled toolchain, `build` as `tsc -b && vite build` (with the root's separate string and why a `pnpm -r` fan-out was rejected), the `dist/` collision resolved by removing a producer rather than moving output, and the ES2024 browser baseline with its two readers. Then eight consequences a future reader would otherwise trip over
+- **`README.md`** — "What exists today" now describes a frontend and a running pair rather than naming Story 1.3 as the thing that would change it; the command table's `build` and `clean` rows; `preview` documented beside `start` as the second extra, with the SPA-fallback warning; the `pnpm dev` section rewritten for three real loops, plus the noisy Ctrl-C, the loopback families and the dev server not typechecking; the layout entry; the browser baseline; and the install-script policy's esbuild prediction replaced with what actually happened
+- **`CLAUDE.md`** — current state, layout tree (four new frontend entries), the commands block, and every claim this story falsified: four compiler overrides became six, root `build` is no longer a bare `tsc -b` and the "most root scripts do not fan out" paragraph now says what it does instead, `clean` is no longer `tsc -b --clean` in two places, the orphaning trap does not reach the frontend and `emptyOutDir` made the worry moot anyway, `verify` now has two uncovered shell fragments rather than one, the lint config has five kinds of block with a load-bearing order, `--max-warnings 0` changed what a workspace verb means, and the install-script prediction resolved as wrong
+- **Story 1.4's stale ADR reference corrected.** It said the styling decision would be captured "as ADR 0002", written before Story 1.2 took that number and Story 1.3 took 0003 — following it as written would force exactly the renumbering the convention forbids. It now names the next free number at the time, with 0004 given as of 2026-08-30 and an instruction to check rather than trust it. Story 1.4 also gained a "What Story 1.3 hands this story" section, the most useful item being that the build currently emits **no CSS at all**, so this story is what first changes the shape of the deployable artefact
+- **Downstream amendments** to Stories 1.8, 1.9, 1.10, 1.11 and 1.12, in the habit Task 1.2.6 established. 1.8's `pnpm dev` criterion is now met and its port-conflict criterion is met on both halves, leaving the clean-clone-to-running-pair as the only outstanding piece; 1.9 gains the DOM-environment decision and five other constraints the module setup imposes on a runner; 1.10 gains the native-binding note and the fact that `verify` now runs a bundler; 1.11 gains the measured artefact asymmetry with the absolute-`base` and shared-inlining consequences; 1.12 gains the first-state-and-effect note, the settled CORS origin, and the absence of any environment-variable mechanism in the frontend
+- The `## What this story did not prove` section in `STORY.md`, including the size-budget deferral to **Epic 14** rather than the non-existent "Story 1.14" the previous task originally wrote
+
+### What this task did not do
+
+`pnpm verify` passes, Markdown included. It still does not check `apps/backend/scripts/dev.sh` or the `rm -rf` inside `apps/frontend`'s `clean` — both recorded as dated choices rather than closed here, and both carried to Story 1.10.
