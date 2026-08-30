@@ -70,4 +70,24 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
+
+  // `vite preview` serves the *built* output, and it is a different server
+  // with its own defaults — it does not reuse `server` above wholesale.
+  // Measured rather than inferred, in both directions: `preview` **inherits**
+  // `server.strictPort` but **not** `server.port`. So a second preview against
+  // a busy port already exits 1 with `Error: Port 4173 is already in use`, and
+  // removing `strictPort` above makes the same command quietly bind 4174.
+  //
+  // Two consequences, and the first is a thing not to do: **do not add
+  // `preview.strictPort`.** It is inherited, and a second copy is one more
+  // place for the two to disagree on an upgrade. The port itself is the
+  // opposite case — it is *not* inherited, so 4173 below is Vite's default
+  // restated deliberately rather than a setting doing nothing. It is written
+  // out for the same reason 5173 is: it is a URL a human reads out of
+  // `README.md`, and a config that states one port and leaves the other
+  // implicit reads as though `server.port` covered both, which is exactly the
+  // wrong conclusion.
+  preview: {
+    port: 4173,
+  },
 });
