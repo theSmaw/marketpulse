@@ -1,6 +1,6 @@
 # Epic 1 — Application Foundation
 
-**Status:** Not started
+**Status:** In progress — Story 1.1 complete (2026-08-30)
 **Sequence:** 1 of 15 — first epic, no dependencies
 **Spec references:** PRODUCT_SPEC.md §25 (frontend architecture), §29 (backend architecture), §41 Phase 0
 

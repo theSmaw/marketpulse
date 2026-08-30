@@ -4,9 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**Epic 1, Story 1.1, task 7 of 8 done.** The pnpm workspace root, the shared TypeScript baseline and all three workspace packages exist. The two apps are typed skeletons that import from `@marketpulse/shared` and nothing more — there is no server and no React application yet.
+**Epic 1, Story 1.1 complete — all 8 tasks.** The pnpm workspace root, the shared TypeScript baseline and all three workspace packages exist, and the whole thing was verified from a clean clone with an empty pnpm store (Task 1.1.8). The two apps are typed skeletons that import from `@marketpulse/shared` and nothing more — there is no server and no React application yet. Story 1.2 (backend skeleton) and Story 1.3 (frontend shell) are next and can run in parallel.
+
+`README.md` is the human-facing setup and command reference; `docs/adr/0001-*` records why the toolchain is shaped the way it is. Both were written in Task 1.1.8 from the facts below, so a change here usually needs a change there.
 
 ```
+README.md                          prerequisites, setup, commands — for humans
+docs/
+  adr/                             architecture decision records (PRODUCT_SPEC §39)
+    0001-repository-structure-and-typescript-toolchain.md
 package.json                       private workspace root; pins Node and pnpm;
                                    holds every root script and all shared tooling
 pnpm-workspace.yaml                workspace globs (apps/*, packages/*) and pnpm settings
@@ -57,7 +63,7 @@ pnpm typecheck     # the same command as build, deliberately — see below
 pnpm lint          # eslint . over the whole workspace in one process; also lint:fix
 pnpm test          # placeholders until Story 1.9
 pnpm dev           # per-package, in parallel; only shared's is real today
-pnpm clean         # tsc -b --clean
+pnpm clean         # tsc -b --clean; leaves the dist/ directories in place, empty
 pnpm format        # prettier --write .  — the whole tree
 pnpm format:check  # prettier --check .
 
@@ -67,6 +73,10 @@ pnpm --filter @marketpulse/shared dev         # tsc -b --watch
 ```
 
 Every package exposes `dev`, `build`, `test`, `lint`, `typecheck`, `clean` and they mean the same thing in each. `lint:fix` is an extra, not part of the convention — a local convenience with no root fan-out and no place in `verify`. `test` and the two apps' `dev` are `echo` placeholders until Stories 1.9, 1.2 and 1.3 respectively; `packages/shared`'s `dev` is really `tsc -b --watch`.
+
+**A green `pnpm test` means "no tests exist", not "tests pass".** All three placeholders exit 0, and Story 1.10 will put that tick in CI where it looks exactly like coverage. Don't describe it as passing tests anywhere — not in a commit message, not in a PR, not in this file. Same for `pnpm dev`: it prints two placeholder lines and then sits in shared's `tsc -b --watch`, which is correct today and looks like a hang without this sentence.
+
+Every command in this section was executed from a clean clone in Task 1.1.8 and behaves as written. `README.md` carries the same set for humans; keep the two in step.
 
 **Most root scripts do not fan out, and that is deliberate.** `build`/`typecheck` are a single `tsc -b` over the root solution `tsconfig.json`, because the reference graph already orders the work — `pnpm -r run build` would build `packages/shared` three times. `lint` is a single root `eslint .` because each package's `eslint .` resolves the same root config, so a fan-out starts three ESLint processes each building its own typescript-eslint project service over the same solution. Only `test` and `dev` are genuinely per-package and use `pnpm -r`. Keep the per-package scripts for working on one package; the root ones are the direct call.
 
@@ -118,7 +128,9 @@ Prettier owns the Markdown in `planning/` too, not just code — the docs were n
 
 WebStorm needs no per-machine setup: `.idea/prettier.xml` is checked in with `AUTOMATIC` mode plus format-on-save and format-on-reformat, so WebStorm resolves the same `prettier` package and the same config file the CLI does.
 
-Task 1.1.8 verifies all of the above from a clean checkout and fills in how to run a single test once Story 1.9 makes `test` real.
+All of the above was verified from a clean clone in Task 1.1.8 — fresh `git clone`, empty pnpm store, empty Corepack home — where `pnpm install` then `pnpm verify` exits 0 in about four seconds. The reasoning behind each decision is collected in `docs/adr/0001-repository-structure-and-typescript-toolchain.md`; this file is the operational summary and that one is the record of _why_. Two things a fresh checkout deliberately does **not** prove: the stale-`dist` trap above (a clean clone has no stale `dist` — the evidence is in Tasks 1.1.4 and 1.1.7), and the nested-worktree problem (a clean clone has no worktrees).
+
+Still missing here, and it should be added the moment it exists: how to run a **single** test. Story 1.9 picks the runner.
 
 ## What MarketPulse is
 

@@ -1,6 +1,6 @@
 # Task 1.1.8 — Verify from a clean checkout and document
 
-**Status:** Not started
+**Status:** Complete — 2026-08-30
 **Story:** [1.1 Repository Structure & TypeScript Toolchain](STORY.md)
 **Depends on:** Task 1.1.7
 
@@ -59,3 +59,98 @@ The ADR should record this as a deliberate supply-chain position — dependencie
 ## Notes
 
 This is the acceptance test for the whole story. If a step turns out to be undocumented or machine-specific, fix it here rather than noting it — Story 1.10 will run the same sequence in CI and Story 1.11 in a deployment environment.
+
+## Outcome
+
+The story's headline criterion holds: a clean clone installs and verifies with
+the documented commands, and nothing in it needed knowledge from the session
+that built it.
+
+### What was actually run
+
+`git clone` into an empty directory, then install with **an empty pnpm store
+and an empty `COREPACK_HOME`** — so Corepack fetched pnpm 11.24.0 from the
+registry and pnpm downloaded all 92 packages rather than reusing anything local.
+`pnpm install` then `pnpm verify` exits **0** in about 4.3 s total.
+
+Every command in `CLAUDE.md`'s Commands section was executed there, not read:
+
+- All ten root scripts — `build`, `typecheck`, `lint`, `format`,
+  `format:check`, `test`, `dev`, `clean`, `lint:fix`, `verify` — exit 0
+- All six verbs in all three packages via `pnpm --filter`: 18 runs, all exit 0
+- `pnpm exec tsc --version` reports 6.0.3 from `apps/frontend` and
+  `packages/shared`, `eslint --version` 10.9.1 and `prettier --version` 3.9.6
+  from `apps/backend` — none of which declares any of them. The root-only rule
+  works from a cold install, not just from a warm one
+
+Nothing in the section had drifted, so this was a confirmation rather than a
+correction. Two details were added because they surprise on first contact and
+neither was written down: `tsc -b --clean` removes every emitted file and the
+`.tsbuildinfo` but **leaves the `dist/` directories in place, empty**; and root
+`pnpm dev` prints the two app placeholders and then sits in `packages/shared`'s
+`tsc -b --watch`, which reads as a hang until you know it is the watch.
+
+The re-checkable claims were re-checked rather than trusted: typescript-eslint
+is still 8.68.0 with peer range `>=4.8.4 <6.1.0` (TypeScript `latest` now
+7.0.2), so the pin gate has not opened; and `eslint --print-config` still
+reports 138 enabled rules on a `.ts` file, of which the only one on
+`eslint-config-prettier`'s list is `no-unexpected-multiline`.
+
+### Where the documentation went
+
+Two new files, plus edits to `CLAUDE.md`.
+
+**`README.md`** — prerequisites, setup, the command table, layout, the
+install-script policy, editor setup. It did not exist before; Story 1.8's
+criterion is "a clean clone reaches a running application by following the
+README only", so that story now extends this file rather than inventing one.
+It opens by saying plainly that these instructions get you to a repository that
+builds, not to a running application, because that is the honest state.
+
+**`docs/adr/0001-repository-structure-and-typescript-toolchain.md`** — thirteen
+numbered decisions with their reasoning, rejected alternatives and
+consequences, plus `docs/adr/README.md` recording the numbering convention and
+the ADRs PRODUCT_SPEC §39 still wants. `docs/` rather than `planning/`: the
+ADRs are part of the shipped repository and outlive the planning tree that
+produced them.
+
+**`CLAUDE.md`** — story marked complete, the two new paths added to the file
+tree, and the closing paragraph repointed from "Task 1.1.8 will verify this" to
+what the verification found. It stays the operational summary; the ADR is the
+record of _why_, and the two now cross-reference.
+
+### The `pnpm test` warning is in three places on purpose
+
+All three packages' `test` scripts are `echo` placeholders that exit 0. Story
+1.10 will put that green tick in CI, where it is indistinguishable from passing
+coverage. So the sentence "a green `pnpm test` means _no tests exist_, not
+_tests pass_" is in the README, in `CLAUDE.md` and in ADR 0001 — with an
+explicit instruction in `CLAUDE.md` not to describe it as passing tests in a
+commit message or a PR either. Story 1.9 is where it stops being true.
+
+### What the fresh checkout could not prove, and was not asked to
+
+Both were documented from the earlier tasks' evidence rather than
+re-demonstrated, exactly as this task's amended second bullet required:
+
+- **The stale-`dist` silent pass.** A clean clone has no `dist` at all, and in
+  that state even a per-package `tsc --noEmit` correctly reports a
+  cross-package error. The trap needs a stale `dist`; Tasks 1.1.4 and 1.1.7
+  hold the measurement, and ADR 0001 §4 states the distinction rather than
+  claiming the clean run as evidence.
+- **Root tooling walking into a nested checkout.** A clean clone has no
+  worktrees under `.claude/worktrees/`, so the eight-error `verify` run from
+  Task 1.1.7 cannot recur here. Documented in the ADR anyway, including the
+  rule that the ESLint and Prettier ignore lists must be changed together.
+
+One more thing the fresh checkout confirmed cheaply: `pnpm lint` on a fully
+unbuilt tree exits 0, consistent with Task 1.1.5. Lint does not depend on the
+build ordering the way `typecheck` does.
+
+### Story 1.1 is complete
+
+Eight tasks, all five acceptance criteria met. What Stories 1.2 and 1.3 inherit
+is a workspace where the six verbs already mean something, `verify` is already
+the one command, and the decisions they will bump into — `types: []` on the
+frontend, `.js` extensions on relative imports, root-only tooling — are written
+down with their reasons rather than waiting to be rediscovered.
