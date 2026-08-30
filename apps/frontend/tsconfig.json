@@ -1,17 +1,55 @@
 {
   // Shared options come from the base config. What is genuinely
-  // frontend-specific: the project reference to @marketpulse/shared, and the
-  // browser library surface.
+  // frontend-specific: the project reference to @marketpulse/shared, the
+  // browser library surface, and the fact that this is the one package whose
+  // JavaScript is produced by something other than tsc.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist",
+
+    // No `outDir`, because there is no emit — see below. `dist/` in this
+    // package belongs entirely to Vite.
+
+    // TypeScript here typechecks and nothing else. Vite owns the artefact, so
+    // a parallel tsc emit would be dead output that nobody imports, nobody
+    // ships, and nothing typechecks against: unlike packages/shared, this is a
+    // composite project *referenced by nothing*, so no consumer ever reads its
+    // declarations.
+    //
+    // This is what resolves the collision the story flagged: `tsc -b` and Vite
+    // both default to writing into `dist/`, and `tsc -b --clean` only knows
+    // about the half it produced. With one producer there is no half to miss.
+    // The cost is that `clean` can no longer be `tsc -b --clean` alone — see
+    // the `clean` script in package.json.
+    //
+    // `composite` (from the base config) still applies and is still required:
+    // the root solution references this project. `noEmit` alongside it is
+    // accepted by `tsc -b` and still typechecks — verified against TypeScript
+    // 6.0.3, and worth re-checking on an upgrade, because the combination was
+    // an error in older versions.
+    "noEmit": true,
+
+    // --- The browser baseline ---
+    //
+    // Desktop-first, per PRODUCT_SPEC.md §3, and evergreen: current Chrome,
+    // Edge, Firefox and Safari. ES2024 is the language level those four have
+    // shared since roughly March 2024 (Safari 17.4 is the constraint;
+    // Chrome 119 and Firefox 121 arrived earlier), which makes it about two
+    // years of headroom at the time of writing rather than a bet on something
+    // new. Task 1.1.4 left this pair provisional; this is the deliberate
+    // version of it.
+    //
+    // It is also the same `target` the base config picks for Node 24, so the
+    // workspace has one language level rather than two — but for a different
+    // reason, and the two could legitimately diverge later.
+    //
+    // `target` has a second reader now: `build.target` in vite.config.ts
+    // governs the downlevelling that actually ships. Change one and change the
+    // other; Vite's default is lower than this and would apply silently.
+    "target": "es2024",
 
     // The base config leaves `lib` unset so it follows `target`, so adding the
-    // DOM means restating the language libraries alongside it. Story 1.3
-    // settles the real browser baseline and is expected to revisit both of
-    // these — this pair exists only so a browser-targeted file typechecks.
-    "target": "es2024",
+    // DOM means restating the language libraries alongside it.
     "lib": ["es2024", "dom", "dom.iterable"],
 
     // No Node globals here. Left empty rather than unset: without it, TypeScript
@@ -20,6 +58,9 @@
     // and friends should not typecheck in browser code.
     "types": []
   },
+
+  // index.html and vite.config.ts sit outside this deliberately. Vite reads
+  // both directly and neither is part of the program tsc compiles.
   "include": ["src/**/*"],
 
   // See the note in apps/backend/tsconfig.json — this is what orders the build.
