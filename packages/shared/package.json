@@ -12,13 +12,12 @@
     }
   },
   "scripts": {
+    "dev": "tsc -b --watch",
     "build": "tsc -b",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "echo \"@marketpulse/shared: no tests yet — Story 1.9\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc -b",
     "clean": "tsc -b --clean"
-  },
-  "devDependencies": {
-    "typescript": "6.0.3"
   }
 }

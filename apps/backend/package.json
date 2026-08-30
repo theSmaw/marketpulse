@@ -6,17 +6,18 @@
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
+    "dev": "echo \"@marketpulse/backend: no dev server yet — Story 1.2\"",
     "build": "tsc -b",
-    "typecheck": "tsc -b",
+    "test": "echo \"@marketpulse/backend: no tests yet — Story 1.9\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc -b",
     "clean": "tsc -b --clean"
   },
   "dependencies": {
     "@marketpulse/shared": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "24.13.3",
-    "typescript": "6.0.3"
+    "@types/node": "24.13.3"
   }
 }

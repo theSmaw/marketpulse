@@ -4,12 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**Epic 1, Story 1.1, task 6 of 8 done.** The pnpm workspace root, the shared TypeScript baseline and all three workspace packages exist. The two apps are typed skeletons that import from `@marketpulse/shared` and nothing more — there is no server and no React application yet.
+**Epic 1, Story 1.1, task 7 of 8 done.** The pnpm workspace root, the shared TypeScript baseline and all three workspace packages exist. The two apps are typed skeletons that import from `@marketpulse/shared` and nothing more — there is no server and no React application yet.
 
 ```
-package.json                       private workspace root; pins Node and pnpm
+package.json                       private workspace root; pins Node and pnpm;
+                                   holds every root script and all shared tooling
 pnpm-workspace.yaml                workspace globs (apps/*, packages/*) and pnpm settings
 tsconfig.base.json                 the one place shared compiler options live
+tsconfig.json                      solution file: no sources, just references —
+                                   the entry point for root `tsc -b`
 eslint.config.mjs                  the one lint config; ESLint is a root-only dependency
 prettier.config.mjs                the one format config; Prettier is root-only too
 .prettierignore                    build output, lockfile, tsbuildinfo
@@ -47,17 +50,33 @@ Keep this section, and the Commands section, updated as things actually land.
 corepack enable    # once per machine — pnpm comes from the repo pin, not a global install
 pnpm install
 
-pnpm --filter @marketpulse/shared build       # tsc -b, emits dist/
-pnpm --filter @marketpulse/backend build      # builds shared first, then the app
-pnpm --filter @marketpulse/frontend build
+pnpm verify        # build → lint → format:check → test. What CI will run (Story 1.10)
 
-pnpm --filter @marketpulse/shared lint        # eslint .; also lint:fix
+pnpm build         # tsc -b over the solution; builds shared first
+pnpm typecheck     # the same command as build, deliberately — see below
+pnpm lint          # eslint . over the whole workspace in one process; also lint:fix
+pnpm test          # placeholders until Story 1.9
+pnpm dev           # per-package, in parallel; only shared's is real today
+pnpm clean         # tsc -b --clean
+pnpm format        # prettier --write .  — the whole tree
+pnpm format:check  # prettier --check .
 
-pnpm format                                   # prettier --write .  — the whole tree
-pnpm format:check                             # prettier --check .  — what CI runs
+# Working on one package — the same six verbs, meaning the same thing:
+pnpm --filter @marketpulse/shared build       # or typecheck / lint / lint:fix / test / clean
+pnpm --filter @marketpulse/shared dev         # tsc -b --watch
 ```
 
-There is no root-level build/typecheck/lint yet — that is Task 1.1.7. Until then, drive packages with `--filter`. Linting the whole tree at once is `npx eslint .` from the root. `format`/`format:check` are the exception and already live at the root: Prettier's unit of work is the tree, not the package, so there is no per-package `format` script to fan out to and none should be added.
+Every package exposes `dev`, `build`, `test`, `lint`, `typecheck`, `clean` and they mean the same thing in each. `lint:fix` is an extra, not part of the convention — a local convenience with no root fan-out and no place in `verify`. `test` and the two apps' `dev` are `echo` placeholders until Stories 1.9, 1.2 and 1.3 respectively; `packages/shared`'s `dev` is really `tsc -b --watch`.
+
+**Most root scripts do not fan out, and that is deliberate.** `build`/`typecheck` are a single `tsc -b` over the root solution `tsconfig.json`, because the reference graph already orders the work — `pnpm -r run build` would build `packages/shared` three times. `lint` is a single root `eslint .` because each package's `eslint .` resolves the same root config, so a fan-out starts three ESLint processes each building its own typescript-eslint project service over the same solution. Only `test` and `dev` are genuinely per-package and use `pnpm -r`. Keep the per-package scripts for working on one package; the root ones are the direct call.
+
+The root `tsconfig.json` is a solution file — `files: []` plus three `references`, compiling nothing itself. It does **not** extend `tsconfig.base.json`, and should not: inheriting compiler options would imply it has sources.
+
+**`typecheck` and `build` are the same command on purpose.** Consumers compile against `packages/shared/dist/*.d.ts`, so typechecking this workspace _is_ building it; there is no cheaper correct pass, and a per-package `--noEmit` fan-out is exactly the thing that passes against stale declarations. Both names are kept because they can diverge later without a rename. `packages/shared`'s `typecheck` was `tsc --noEmit -p tsconfig.json` until Task 1.1.7 and is now `tsc -b` like everything else.
+
+`verify` chains with `&&`, so the first failure is the exit code, and a failing package script propagates up through `pnpm -r` (verified: a package `test` exiting 3 gives root exit 3).
+
+`.claude/worktrees/` is in both `eslint.config.mjs`'s ignores and `.prettierignore`. It holds git worktrees — whole second checkouts nested inside the repo — which root-level `eslint .`/`prettier .` otherwise walk into and report on. Anything else nesting a checkout here needs the same two entries.
 
 **Node 24.x is required, not merely recommended.** `engineStrict` is on, so pnpm refuses to install under another major rather than warning. Node 23 additionally cannot bootstrap the repo at all: the Corepack it bundles (0.29.4) has a stale npm signing keyset and fails to fetch the pinned pnpm.
 
@@ -65,17 +84,21 @@ pnpm settings live in `pnpm-workspace.yaml`, not `.npmrc` — pnpm 10+ moved the
 
 Dependencies may not run install scripts unless named in `allowBuilds` in `pnpm-workspace.yaml`; an un-allowlisted one fails the install outright. This is deliberate. When it fires, allowlist the specific package — never disable the check.
 
-ESLint is installed **only at the workspace root** — packages do not declare it. pnpm puts the root's `node_modules/.bin` on the PATH of every workspace package script, so `eslint .` resolves from a package directory, and flat config is found by searching upward. There is one `eslint.config.mjs` and there should stay one. `.mjs` because the root `package.json` has no `"type": "module"`.
+**Shared tooling lives at the workspace root; packages declare only what they actually import.** ESLint, Prettier and TypeScript are all root-only devDependencies — no package declares any of them. pnpm puts the root's `node_modules/.bin` on the PATH of every workspace package script, so `eslint .` and `tsc -b` resolve from a package directory (verified: `pnpm exec tsc --version` reports the pinned 6.0.3 from a package that declares nothing). ESLint's flat config is found by searching upward. `@types/node` is the counter-example and stays in `apps/backend`, because it is a type dependency of that package's code rather than a tool.
+
+Task 1.1.7 considered a pnpm catalog instead — `"typescript": "catalog:"` in each package, version in `pnpm-workspace.yaml` — and rejected it: packages stay self-describing but the workspace ends up with two conventions. One rule is worth more here. Apply the same rule to the next tool.
+
+There is one `eslint.config.mjs` and there should stay one. `.mjs` because the root `package.json` has no `"type": "module"`.
 
 Linting is **type-aware** (`strictTypeChecked` + `stylisticTypeChecked`, via typescript-eslint's project service). Two consequences: `packages/shared` must be built before lint is meaningful, same as typecheck; and `no-undef` is off for `.ts` files, so the per-package `globals` in the lint config change nothing on TypeScript today — they exist for the JS tooling files to come, and the comment there says so. Undefined-global errors in `.ts` come from tsc, not ESLint.
 
 `tsconfig.base.json` deliberately omits `noUnusedLocals`/`noUnusedParameters`: `@typescript-eslint/no-unused-vars` owns that, so one problem is not reported by two tools with different escape hatches. Don't add them back.
 
-**TypeScript is held at 6.0.3 while npm's `latest` is 7.x.** TS 7 is the native compiler; `typescript-eslint` does not support it yet (peer range `<6.1.0`), and this repo relies on type-aware linting. Don't raise the pin until typescript-eslint's peer range admits TS 7 — check it, don't assume it. Last checked 2026-08-30: still `>=4.8.4 <6.1.0` at typescript-eslint 8.68.0. Note `@eslint/js` does _not_ share a version line with `eslint` (10.0.1 vs 10.9.1) — don't pin them in lockstep.
+**TypeScript is held at 6.0.3 while npm's `latest` is 7.x**, in the root `package.json` and nowhere else — raising the pin is a one-line edit. TS 7 is the native compiler; `typescript-eslint` does not support it yet (peer range `<6.1.0`), and this repo relies on type-aware linting. Don't raise the pin until typescript-eslint's peer range admits TS 7 — check it, don't assume it. Last checked 2026-08-30: still `>=4.8.4 <6.1.0` at typescript-eslint 8.68.0. Note `@eslint/js` does _not_ share a version line with `eslint` (10.0.1 vs 10.9.1) — don't pin them in lockstep.
 
 Packages are consumed as **TypeScript project references with built output**, not raw source. So a consumer can only be typechecked after `packages/shared/dist/*.d.ts` exists — build before you typecheck. `tsc -b` handles the ordering itself.
 
-**Typecheck a consumer with `tsc -b`, never `tsc --noEmit`.** Because consumers compile against emitted declarations, editing `packages/shared/src` changes nothing for an app until shared is rebuilt, and `--noEmit` reports success against the stale `.d.ts`. Verified: renaming a shared export leaves `--noEmit` at exit 0 in `apps/backend` while `tsc -b` correctly fails. This is why both apps' `typecheck` script is `tsc -b`.
+**Typecheck a consumer with `tsc -b`, never `tsc --noEmit`.** Because consumers compile against emitted declarations, editing `packages/shared/src` changes nothing for an app until shared is rebuilt, and `--noEmit` reports success against the stale `.d.ts`. Verified: renaming a shared export leaves `--noEmit` at exit 0 in `apps/backend` while `tsc -b` correctly fails. This is why every package's `typecheck` script — and the root's — is `tsc -b`. Note the precise failure mode: the silent pass needs a _stale_ `dist`, not a missing one. On a tree with no `dist` at all, `--noEmit` does report the cross-package error; `tsc -b` is right in both cases, which is why it is the one wired up.
 
 The apps override exactly four compiler options between them, and each is load-bearing: the backend sets `types: ["node"]` (with `@types/node` pinned to the runtime major, 24.x — not npm's `latest`), and the frontend sets `types: []` plus `target`/`lib` with `"dom"`. The frontend's empty `types` array is not redundant: without it TypeScript auto-discovers every reachable `@types` package, and pnpm's linking puts `@types/node` in reach, so `process` would typecheck in browser code.
 
@@ -83,7 +106,7 @@ Relative imports inside a package carry explicit `.js` extensions from `.ts` fil
 
 Every shared compiler option lives in `tsconfig.base.json` and nowhere else. Packages extend it and add only `include`, `outDir`/`rootDir`, project `references`, and the frontend's `target`/`lib`. Each option in that file carries a comment explaining why it is there — if you change one, change the comment. `lib` is intentionally unset so it follows `target`.
 
-Prettier is installed **only at the workspace root**, exactly like ESLint, and there is one `prettier.config.mjs`. `.mjs` rather than `.prettierrc.json` so each option carries the reason it is set. Every option in it is explicit even where it restates a Prettier default — a Prettier upgrade must not quietly restyle the tree.
+Prettier follows the root-only tooling rule above, and there is one `prettier.config.mjs`. `.mjs` rather than `.prettierrc.json` so each option carries the reason it is set. Every option in it is explicit even where it restates a Prettier default — a Prettier upgrade must not quietly restyle the tree.
 
 **Formatting is Prettier's, correctness is ESLint's, and the two do not overlap.** `eslint-config-prettier` is deliberately **not** installed: of the 138 rules the lint config enables on a `.ts` file, zero are formatting rules, and the only `eslint-config-prettier` "special rule" enabled is `no-unexpected-multiline`, which guards hand-written code rather than fighting Prettier's output. Measured with `eslint --print-config`, not assumed — re-run it rather than trusting this paragraph, and if a real conflict ever appears, `eslint-config-prettier` goes **last** in the flat config array.
 
@@ -95,7 +118,7 @@ Prettier owns the Markdown in `planning/` too, not just code — the docs were n
 
 WebStorm needs no per-machine setup: `.idea/prettier.xml` is checked in with `AUTOMATIC` mode plus format-on-save and format-on-reformat, so WebStorm resolves the same `prettier` package and the same config file the CLI does.
 
-Build/test/lint/dev commands land in Task 1.1.7 (root script orchestration); Task 1.1.8 fills in this section properly, including how to run a single test.
+Task 1.1.8 verifies all of the above from a clean checkout and fills in how to run a single test once Story 1.9 makes `test` real.
 
 ## What MarketPulse is
 

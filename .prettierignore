@@ -22,3 +22,8 @@ coverage/
 pnpm-lock.yaml
 
 node_modules/
+
+# Git worktrees — entire second checkouts of this repository, nested inside it.
+# Root-level `prettier .` (Task 1.1.7) walks into them otherwise and rewrites
+# files belonging to another branch. Mirrored in eslint.config.mjs.
+.claude/worktrees/

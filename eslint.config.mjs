@@ -23,7 +23,18 @@ export default tseslint.config(
     // pointless — every finding in it is a finding about source we already
     // linted. `*.tsbuildinfo` sits beside each package's tsconfig rather than
     // inside `dist/`, so the `dist/` pattern does not cover it (Task 1.1.3).
-    ignores: ["**/dist/", "**/build/", "**/coverage/", "**/*.tsbuildinfo"],
+    //
+    // `.claude/worktrees/` holds git worktrees — entire second checkouts of
+    // this repository nested inside it. Root-level `eslint .` (Task 1.1.7)
+    // walks into them otherwise and reports every file twice, from a tree
+    // whose `dist/` is usually unbuilt. Mirrored in .prettierignore.
+    ignores: [
+      "**/dist/",
+      "**/build/",
+      "**/coverage/",
+      "**/*.tsbuildinfo",
+      ".claude/worktrees/",
+    ],
   },
 
   // --- Baseline for every file ---
