@@ -10,13 +10,14 @@ Prove the story's headline criterion — a clean checkout installs and verifies 
 
 ## Work
 
-* Clone or copy the repository to a fresh location and install from scratch, with no reuse of existing `node_modules` or store state
+* Clone or copy the repository to a fresh location and install from scratch, with no reuse of existing `node_modules` or store state. This is the one environment guaranteed to have no `dist/` anywhere, which makes it the real test of the build-before-typecheck ordering — every local run after the first has stale declarations lying around to hide a mistake
 * Run the full verification chain and confirm it passes
 * Document prerequisites and the setup commands. Specifically: **Node 24.x and `corepack enable`**. Node 23 is not merely discouraged — its bundled Corepack (0.29.4) has a stale npm signing keyset and cannot fetch the pinned pnpm at all, failing with `Cannot find matching keyid`. State the required version, not a minimum.
 * Note that pnpm settings live in `pnpm-workspace.yaml`, not `.npmrc`; pnpm 11 silently ignores workspace settings left in `.npmrc`, so a future contributor putting them there will be quietly confused.
 * Fill in the **Commands** section of `CLAUDE.md`. It is no longer empty — Tasks 1.1.1–1.1.3 have been adding to it as they landed — so this is a review and completion pass, not a first draft. It must end up describing the real root scripts from Task 1.1.7 and how to run one package's, and the per-package `pnpm --filter` examples added in Task 1.1.3 should be re-checked against what actually exists by then
 * Record the workspace decisions as a short ADR draft — pnpm workspaces, the `apps/` + `packages/` layout, project references, strictness settings, the TypeScript version ceiling below, and the install-script policy below, each with its reasoning (PRODUCT_SPEC.md §39)
 * The project-references entry should record its consequence, not just the choice: consumers compile against emitted declarations, so `packages/shared` must be built before anything that imports it, and root `typecheck` is a `tsc -b` for that reason. Note the fallback too — exporting raw `.ts` source — so a future reader knows the decision was made with an exit, not by default
+* The apps' `types` settings belong in the ADR for the same reason — both look removable and neither is. The frontend's `types: []` is what stops TypeScript auto-discovering every reachable `@types` package and letting `process` typecheck in browser code, and `@types/node` tracks the runtime major (24.x) rather than npm's `latest`, which types a Node this project does not run
 * `module: nodenext` has two consequences that look like mistakes on first encounter and belong in the ADR rather than in tribal memory: every package needs `"type": "module"`, and relative imports carry `.js` extensions from `.ts` files
 * Mark Story 1.1 complete
 
