@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
-    "dev": "echo \"@marketpulse/backend: no dev server yet — Story 1.2\"",
+    "dev": "sh scripts/dev.sh",
     "build": "tsc -b",
     "test": "echo \"@marketpulse/backend: no tests yet — Story 1.9\"",
     "lint": "eslint .",

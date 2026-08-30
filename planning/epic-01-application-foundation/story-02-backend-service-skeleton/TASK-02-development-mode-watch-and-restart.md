@@ -1,6 +1,6 @@
 # Task 1.2.2 — Development mode: watch and restart
 
-**Status:** Not started
+**Status:** Complete — 2026-08-30
 **Story:** [1.2 Backend Service Skeleton](STORY.md)
 **Depends on:** Task 1.2.1
 
@@ -40,6 +40,61 @@ Prefer A if it verifies. Record which was chosen and why in the task outcome; if
 - Root `pnpm dev` runs it alongside `packages/shared`'s watcher
 - Ctrl-C ends it cleanly and leaves no orphaned process — check with `pgrep -f node` after
 - `pnpm verify` passes from the repository root
+
+## Outcome
+
+**Approach B, and A was disqualified on the first test rather than on preference.**
+
+`node --watch src/index.ts` fails immediately:
+
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module
+  '/…/apps/backend/src/server.js' imported from /…/apps/backend/src/index.ts
+```
+
+Node 24's type stripping does not remap a `.js` specifier to the `.ts` file beside it. That is not a bug to work around — `nodenext` requires the emitted extension, and this repository's import style is documented, workspace-wide and not negotiable for one package.
+
+Checked the obvious escape before giving up on A: Node resolves an explicit `./dep.ts` specifier perfectly well (verified in a scratch package — it printed the imported value), so TypeScript's `rewriteRelativeImportExtensions` would let source be written `./server.ts` and still emit `./server.js`. **Rejected.** It buys a marginally simpler dev loop at the price of two relative-import conventions in one workspace, and it means `apps/backend` alone reads differently from `packages/shared`. That is the trade Task 1.1.7 already refused for tooling versions, for the same reason: one rule is worth more than a local optimum.
+
+Because A lost, `erasableSyntaxOnly` is **not** being set. The constraint it enforces only exists if the dev loop strips types, and this one compiles. Nothing here forbids an `enum` in `apps/backend` today.
+
+### What was built
+
+`apps/backend/scripts/dev.sh`, run by `"dev": "sh scripts/dev.sh"`. A file rather than a one-line composition in `package.json`, because five separate decisions needed a reason attached and a JSON string cannot carry one. `sh scripts/dev.sh` rather than an executable shebang so there is no exec-bit to lose in a checkout.
+
+It does four things, in order: `tsc -b` once, `tsc -b --watch --preserveWatchOutput` in the background, a `trap` that reaps the watcher, and `node --watch dist/index.js` in the foreground.
+
+- **The initial `tsc -b`** exists because `pnpm clean` leaves `dist/` empty, and starting the loop there opened with a `MODULE_NOT_FOUND` stack trace. Node recovered on its own a second later when the first emit landed, so it was cosmetic — but it reads as a broken setup, and the fix is an incremental build that costs nothing on a warm tree. It is `|| true`: a type error must not stop the dev server starting, which is exactly when you want it running
+- **`--preserveWatchOutput`** because tsc otherwise clears the screen on every rebuild, wiping the server log you started the loop to read
+- **The `trap`** covers the case where `node --watch` dies and the shell would otherwise leave tsc orphaned. Verified by `kill -9` on the node supervisor: tsc was reaped and the script exited. It is worth knowing that the trap does **not** fire on a `SIGTERM` sent to the script shell alone — POSIX `sh` defers traps while it waits on a foreground command — so this is insurance for one specific case, not general signal handling
+- **No concurrency helper.** `concurrently` would give prefixed output and kill-others semantics for one root devDependency. Two processes with a verified-clean Ctrl-C do not demonstrate the need, and pnpm already prefixes output in the root fan-out
+
+### Where type errors surface, which is the part worth remembering
+
+**They surface in the dev loop, and this is the main thing approach B bought.** Type stripping does not typecheck; `tsc -b --watch` does, on every edit. Verified by appending `const broken: number = "not a number";` — the loop printed `src/index.ts(79,7): error TS2322` and **still restarted the server**, because `noEmitOnError` is not set. That combination is the right one: the error is loud, and the server you are debugging does not vanish because of an unrelated type mistake.
+
+### Verified
+
+| Check                            | Result                                                                                                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Restart on source edit           | Two successive edits, each visible in the server's own log after `Restarting 'dist/index.js'`                                                                 |
+| Cold start from an empty `dist/` | `pnpm clean` then `dev`: no stack trace, server listening in ~8s                                                                                              |
+| Self-triggered restart loop      | None — restart count unchanged over 12 idle seconds. `node` watches `dist/`, `tsc` writes it; neither watches its own output                                  |
+| Root `pnpm dev`                  | Runs backend loop, shared watcher and the frontend placeholder; output legible, pnpm prefixes every line with its package                                     |
+| Ctrl-C leaves no orphan          | Process-group `SIGINT` against the four processes (`sh`, `tsc`, `node --watch`, and the `node dist/index.js` child) left nothing behind and released the port |
+| `pnpm verify` from the root      | Exit 0                                                                                                                                                        |
+
+The Ctrl-C check needed care to be worth anything: `pgrep -f "node --watch"` does not match the actual server, which runs as `node dist/index.js` under the watch supervisor. An earlier run of this check looked clean while a real orphan sat holding port 4214. The honest test is `lsof` on the port plus a pattern that matches the child.
+
+### Two findings
+
+**`packages/shared`'s `dev` script was changed too** — `tsc -b --watch` to `tsc -b --watch --preserveWatchOutput`. Under root `pnpm dev` it was emitting raw `ESC[2J ESC[3J ESC[H` into the shared output stream, which clears the terminal and takes every other package's output with it. The task asked whether the parallel output was legible; it was not, and this was why. One word, same reasoning as the backend's.
+
+**Root `pnpm dev` builds `packages/shared` twice.** Shared's own watcher and the backend's `tsc -b --watch` both follow the project reference, so an edit to shared logs `File change detected` under both package prefixes and both write the same `dist/`. It is redundant rather than harmful — identical inputs, identical output — but it is two processes writing one directory, and if it ever produces a garbled `.tsbuildinfo` this paragraph is the first place to look.
+
+### What the single-package loop does not cover
+
+`pnpm --filter @marketpulse/backend dev` restarts on a change to `apps/backend/src` only. `node --watch` restarts on any file the process actually loaded — confirmed generically in a scratch package, where editing a module in a sibling directory restarted the entry point — so once `apps/backend` imports `@marketpulse/shared` again, an edit to shared will rebuild through the project reference and restart the server through the pnpm symlink. That path is **unverified**, because nothing in `apps/backend/src` imports shared today (see Task 1.2.5), and inventing an import to test it is the thing that task says not to do.
 
 ## Notes
 
