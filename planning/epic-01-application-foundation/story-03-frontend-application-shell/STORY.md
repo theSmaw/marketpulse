@@ -11,8 +11,11 @@ A React + TypeScript application that builds, runs in development with fast refr
 
 ## Open decisions
 
+Both are settled in **Task 1.3.1**, before any application code exists, and recorded as an ADR in Task 1.3.5.
+
 - Build tool — Vite is the default assumption unless there is a reason to differ
 - **What `build` means for this package once a bundler exists.** Today it is `tsc -b`, identical in all three packages, and the six-verb convention from Task 1.1.7 says a verb means the same thing everywhere. Vite makes that awkward: `vite build` emits static assets but does no typechecking, and `tsc -b` typechecks but emits the wrong artefact for a browser. The usual answer is `tsc -b && vite build`, which keeps the verb honest — decide it deliberately here rather than letting the two drift apart, and keep `typecheck` as the `tsc -b` half
+- A third decision the tasks surfaced and the story did not: **`tsc` and Vite both default to writing into `apps/frontend/dist`**, and `tsc -b --clean` knows about only one of them. Two producers and one directory is a `clean` that quietly lies, so Task 1.3.1 settles the layout and Task 1.3.4 proves it empirically
 
 ## Conventions from Story 1.1
 
@@ -42,6 +45,24 @@ Two more things that are true today and will not be forever. Until Story 1.9 lan
 - Production build emits static assets
 - **`pnpm verify` passes from the repository root** — build, lint, format:check, test, in that order. The original criterion said "typecheck and lint pass for the frontend package", which is now the weaker check: `verify` is the one CI runs and the one Story 1.1 established as the single acceptance command
 - Browser target is documented (desktop-first per PRODUCT_SPEC.md §3), and `apps/frontend/tsconfig.json`'s `target`/`lib` overrides updated to match it — they are two of the four compiler options the apps are permitted to override, and were left provisional for this story
+
+## Tasks
+
+Tackled in order. The story is complete when all five are done.
+
+| #     | Task                                                                                             | Status      |
+| ----- | ------------------------------------------------------------------------------------------------ | ----------- |
+| 1.3.1 | [Vite bootstrap and the browser baseline](TASK-01-vite-bootstrap-and-browser-baseline.md)        | Not started |
+| 1.3.2 | [React, JSX and the placeholder shell](TASK-02-react-jsx-and-placeholder-shell.md)               | Not started |
+| 1.3.3 | [Development mode: fast refresh and the root dev loop](TASK-03-development-mode-fast-refresh.md) | Not started |
+| 1.3.4 | [Production build and static assets](TASK-04-production-build-and-static-assets.md)              | Not started |
+| 1.3.5 | [Verify the story end to end and document](TASK-05-verify-and-document.md)                       | Not started |
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 and 1.2 followed.
+
+The split is toolchain-first on purpose. Task 1.3.1 stops deliberately short of React, so that every failure in it has exactly one candidate cause; Task 1.3.2 adds rendering and Task 1.3.3 adds hot reloading as separate steps, because they are separate mechanisms and a fault in one should not look like a fault in the other. Story 1.2 ordered its watcher second for the opposite reason — a server is easier to build against a restarting loop — which does not apply here: Vite's dev server exists from the first task, and only _fast refresh_ is deferred.
+
+The five acceptance criteria map onto tasks 1.3.3, 1.3.2, 1.3.4, all of them (`pnpm verify` is a "done when" on every task) and 1.3.1 respectively. Task 1.3.5 runs all five together from a clean build rather than trusting each task's own claim.
 
 ## Notes
 
