@@ -15,7 +15,7 @@
 - Declare the response type in `apps/backend` for now, next to the route
 - The three fields:
   - **`status`** — a string literal union, not a `boolean` and not a free string. Today it only ever emits `"ok"`. Do not invent a degraded state this story cannot produce: there is no dependency to be degraded about until Epic 2 adds one, and Story 1.12's "healthy / degraded / unreachable" distinction is mostly a client-side concern — _unreachable_ is the absence of a response, which no server can report about itself
-  - **`version`** — from `apps/backend/package.json` rather than a hardcoded string. `createRequire(import.meta.url)` reading `../package.json` resolves to the same file whether it runs from `src/` or `dist/`, which a bare JSON import with `resolveJsonModule` does not (`package.json` sits outside `rootDir`). Verify that claim rather than trusting this sentence
+  - **`version`** — from `apps/backend/package.json` rather than a hardcoded string. `createRequire(import.meta.url)` reading `../package.json` resolves correctly from `dist/`, which a bare JSON import with `resolveJsonModule` does not (`package.json` sits outside `rootDir`). Verify that claim rather than trusting this sentence. The "or from `src/`" half of it stopped mattering in Task 1.2.2: approach A was rejected, so nothing ever executes `apps/backend/src` — the dev loop compiles and runs `dist/index.js` like everything else. One resolution case to get right, not two
   - **`uptime`** — `process.uptime()`. State the unit in the field name or the type, and note that it is _process_ uptime, not time-since-listening; they differ by milliseconds now and could differ by more once startup does real work
 - Set the content type correctly (Fastify does this for a returned object; confirm rather than assume) and return 200 explicitly
 - No JSON schema on the route yet. Fastify's response schemas are worth having, but picking a schema approach is entangled with Story 1.6's configuration validation and Story 1.7's error shape. Note the omission here so it is a deferral rather than an oversight
@@ -31,7 +31,8 @@ When it does move, the build-before-typecheck ordering starts to bite: changing 
 - `curl -sS localhost:3000/health` returns 200, `content-type: application/json`, and a body with all three fields
 - `version` matches `apps/backend/package.json`, verified by changing it and seeing the response change
 - `uptime` increases between two calls
-- The route works both from `dist/` and under the Task 1.2.2 dev loop
+- The route works under the Task 1.2.2 dev loop. That is **one** check rather than two: the loop runs `dist/index.js`, so "from `dist/`" and "under the dev loop" are the same execution. Running the built output as a standalone process is Task 1.2.5's job
+- Editing the route with the dev loop running produces the new response without a manual rebuild — the first real use of what Task 1.2.2 built, and the cheapest possible confirmation that it works
 - `pnpm verify` passes from the repository root
 
 ## Notes

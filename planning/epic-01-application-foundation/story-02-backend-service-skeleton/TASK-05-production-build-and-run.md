@@ -12,9 +12,10 @@ Prove the acceptance criterion "production build emits runnable output" against 
 
 - `pnpm clean` then `pnpm build`, then run the emitted entrypoint directly with `node` and no flags, no loader, no transpiler. If it needs a flag, that is a finding worth recording, not a flag worth adding quietly
 - Run it with `NODE_ENV=production` set and confirm nothing changes that should not. Fastify reads very little from `NODE_ENV`; the point is to notice now if something does
-- Add a **`start`** script to `apps/backend` that runs the built entrypoint. This is an **extra, not a seventh verb** — the same status `lint:fix` has. It gets no root fan-out and no place in `verify`, and `apps/frontend` is not obliged to have one. Say so where it is added
+- Add a **`start`** script to `apps/backend` that runs the built entrypoint. This is an **extra, not a seventh verb** — the same status `lint:fix` has. It gets no root fan-out and no place in `verify`, and `apps/frontend` is not obliged to have one. Say so where it is added. Keep it a plain `node dist/index.js` in `package.json`: Task 1.2.2 put `dev` in `scripts/dev.sh` because four composed commands each needed a reason attached, and that is a precedent for _explaining_ complexity, not for moving one-line scripts into files
 - Check the dependency split is honest: `fastify` is a `dependency`, `@types/node` is a `devDependency`, and nothing the built output needs at runtime is declared as dev-only. The test is not reading `package.json` — it is running the thing
-- Confirm the emitted output is ESM, matching the package's `"type": "module"`, and that nothing in the build produced CommonJS by accident
+- Confirm the emitted output is ESM, matching the package's `"type": "module"`, and that nothing in the build produced CommonJS by accident. This one has been quietly true since Task 1.2.2 — the dev loop runs `dist/index.js` under plain `node`, top-level `await` and all, and has done so on every restart — so treat it as a confirmation rather than a discovery
+- **`apps/backend/scripts/` is new, and is not build output.** Task 1.2.2 added `scripts/dev.sh`. It is a development-only file: `start` must not reference it, and nothing in `dist/` depends on it. Worth one sentence in the outcome, because it is the first non-`src` directory in a package and Story 1.11 will have to decide whether a deployed artifact carries it (it should not)
 
 ## The dependency `apps/backend` no longer imports
 
