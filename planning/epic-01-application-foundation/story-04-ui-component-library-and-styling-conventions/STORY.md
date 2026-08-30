@@ -1,6 +1,6 @@
 # Story 1.4 — UI Component Library & Styling Conventions
 
-**Status:** Not started
+**Status:** In progress — Task 1.4.1 complete (2026-08-30)
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.3
 **Epic scope covered:** select UI component library and styling conventions
@@ -21,9 +21,13 @@ The chosen library must suit this specific product, not general web apps:
 
 ## Open decisions
 
-- Component library — headless primitives (e.g. Radix) plus own styling, versus a full opinionated library
-- Styling approach — CSS Modules, Tailwind, or CSS-in-JS
-- Charting library selection is **not** part of this story; it belongs to Epic 2
+Both are now **settled**, together, in [Task 1.4.1](TASK-01-choose-styling-approach-and-component-library.md), from a spike on the real toolchain rather than from reputation. They were always one decision; the task's Outcome carries the measurements, the four rejected alternatives and their reasons, and the reversal triggers.
+
+- **Component library — Radix Primitives.** Headless primitives plus own styling. The same popover cost +65 kB through Radix and +86 kB through react-aria-components, which is the swap if Epic 15's accessibility review finds against it
+- **Styling approach — CSS Modules plus CSS custom properties.** Static stylesheet, zero build-tool additions, and tokens in the only form Epic 2's charts and Epic 6's WebGL canvas can read. MUI + emotion emitted **no CSS asset at all** — styles computed during render, which is §28's risk made visible in the artefact — and Mantine shipped 231 kB of stylesheet for one table
+- Charting library selection is **not** part of this story; it belongs to Epic 2. The choice above constrains it — a chart will need to read the same tokens Task 1.4.3 defines, and it cannot read a CSS class
+
+Two costs the choice carries, both measured and both landing on Task 1.4.2 rather than being discovered later. A CSS Modules class name is typed as a loose record by `vite/client`, so **a typo is silent** and renders unstyled, with nothing in `pnpm verify` to catch it. And `noUncheckedIndexedAccess` types every `styles.x` as `string | undefined`, so the idiomatic `` `${a} ${b}` `` composition is four `restrict-template-expressions` errors on a single row component — a three-line `cx()` helper makes it green, and that helper is real code Task 1.4.2 owes rather than a convention.
 
 ## Conventions from Story 1.1
 
@@ -64,7 +68,7 @@ Tackled in order. The story is complete when all six are done.
 
 | #     | Task                                                                                                                         | Status      |
 | ----- | ---------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1.4.1 | [Choose the styling approach and the component library](TASK-01-choose-styling-approach-and-component-library.md)            | Not started |
+| 1.4.1 | [Choose the styling approach and the component library](TASK-01-choose-styling-approach-and-component-library.md)            | Complete    |
 | 1.4.2 | [Install the styling approach and get the first stylesheet into the build](TASK-02-styling-pipeline-and-first-stylesheet.md) | Not started |
 | 1.4.3 | [Design tokens and the dark theme](TASK-03-design-tokens-and-dark-theme.md)                                                  | Not started |
 | 1.4.4 | [Semantic market tokens](TASK-04-semantic-market-tokens.md)                                                                  | Not started |
