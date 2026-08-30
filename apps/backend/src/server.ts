@@ -31,6 +31,20 @@ export function buildServer(): FastifyInstance {
     // acceptance criteria — pino-pretty, serializers and a LOG_LEVEL variable
     // belong there, not here.
     logger: true,
+
+    // No `forceCloseConnections` here, and that is a measured decision rather
+    // than an omission (Task 1.2.4). Fastify 5 defaults it to `'idle'`, but the
+    // `'idle'` branch of its onClose hook is gated on `options.serverFactory`,
+    // which this server does not supply — so none of Fastify's force-close
+    // paths run here. It does not matter: Node's own `server.close()` destroys
+    // idle connections (Node 19+), so `app.close()` resolved in under a
+    // millisecond with an idle keep-alive socket held open. Measured against
+    // both Fastify and a bare `http.createServer` to confirm the attribution.
+    //
+    // This matters because the server advertises `Keep-Alive: timeout=72`. If
+    // close() *did* wait on idle sockets, shutdown would read as a 72-second
+    // hang having nothing to do with work in flight. It does not, so the
+    // application needs no option set for the benefit of the process.
   });
 
   // Routes are registered here as they arrive.
