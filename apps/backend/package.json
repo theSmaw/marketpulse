@@ -1,0 +1,21 @@
+{
+  "name": "@marketpulse/backend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "MarketPulse API server — a skeleton until Story 1.2",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "lint": "echo \"lint: no linter yet — Task 1.1.5\"",
+    "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "@marketpulse/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "typescript": "6.0.3"
+  }
+}

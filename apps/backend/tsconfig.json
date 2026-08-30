@@ -1,0 +1,22 @@
+{
+  // Shared options come from the base config. What is genuinely
+  // backend-specific: the project reference to @marketpulse/shared, and the
+  // Node type definitions.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+
+    // Without this, `node:` imports fail with an error that reads like a typo
+    // rather than a missing @types package. `types` is set explicitly so the
+    // ambient global surface is a deliberate list rather than whatever ends up
+    // in node_modules/@types.
+    "types": ["node"]
+  },
+  "include": ["src/**/*"],
+
+  // A *project* reference, not just a package dependency: it is what makes
+  // `tsc -b` build packages/shared first and typecheck this package against
+  // freshly emitted declarations.
+  "references": [{ "path": "../../packages/shared" }]
+}

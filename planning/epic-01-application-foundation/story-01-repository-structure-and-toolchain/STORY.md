@@ -1,6 +1,6 @@
 # Story 1.1 — Repository Structure & TypeScript Toolchain
 
-**Status:** In progress — 3 of 8 tasks complete
+**Status:** In progress — 4 of 8 tasks complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** nothing
 **Epic scope covered:** shared configuration
@@ -48,7 +48,7 @@ Tackled in order. The story is complete when all eight are done.
 | 1.1.1 | [Initialise the pnpm workspace root](TASK-01-initialise-pnpm-workspace.md) | Complete |
 | 1.1.2 | [Shared TypeScript configuration](TASK-02-shared-typescript-configuration.md) | Complete |
 | 1.1.3 | [Create the shared package](TASK-03-create-shared-package.md) | Complete |
-| 1.1.4 | [Create the app package skeletons](TASK-04-create-app-package-skeletons.md) | Not started |
+| 1.1.4 | [Create the app package skeletons](TASK-04-create-app-package-skeletons.md) | Complete |
 | 1.1.5 | [ESLint configuration](TASK-05-eslint-configuration.md) | Not started |
 | 1.1.6 | [Prettier and editor conventions](TASK-06-prettier-and-editor-conventions.md) | Not started |
 | 1.1.7 | [Root script orchestration](TASK-07-root-script-orchestration.md) | Not started |
