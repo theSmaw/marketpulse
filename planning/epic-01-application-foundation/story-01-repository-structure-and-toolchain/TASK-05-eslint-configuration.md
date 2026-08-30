@@ -16,13 +16,13 @@ One lint configuration for the whole workspace, with the minimum necessary per-p
 * Define a shared root configuration covering all packages
 * Enable type-aware linting, wired to the project references from Task 1.1.4. Prefer typescript-eslint's project service over an explicit list of `tsconfig.json` paths — with references, a hand-maintained list drifts every time a package is added
 * Check the branded-type pattern in `packages/shared/src/ticker.ts` survives the chosen rule set. `declare const brand: unique symbol` is referenced only inside a type, which is exactly the shape unused-variable and `no-unused-private-class-members`-style rules get wrong. If a rule flags it, that is a signal to reconsider the rule, not the type — the brand is load-bearing
-* Add only the per-package variation genuinely required — browser globals and React rules for the frontend, Node globals for the backend
+* Add only the per-package variation genuinely required — browser globals and React rules for the frontend, Node globals for the backend. **This split has to mirror the tsconfig `types` split from Task 1.1.4 exactly**, or the two tools disagree: the frontend sets `types: []` specifically so `process` fails to typecheck there (`TS2591`), and an ESLint config that hands the frontend Node globals would report the same code as clean. Where they disagree, tsc is right
 * Add a `lint` script to each package. `packages/shared` already has a **placeholder** — `echo "lint: no linter yet — Task 1.1.5"` — which must be replaced, not appended to. The apps will have the same placeholder from Task 1.1.4
 * Add an ignore configuration covering build output and generated files — `dist/` and `*.tsbuildinfo` at minimum. Linting emitted `.d.ts`/`.js` is both slow and noisy, and the tsbuildinfo sits beside each package's tsconfig rather than inside `dist/`
 
 ## Done when
 
-* Lint runs across every package and passes on the current tree
+* Lint runs across every package and passes on the current tree — but note this is a weak signal on its own. After Task 1.1.4 the tree is `ticker.ts` plus two placeholder `index.ts` files, so a rule set can pass by never firing. Pair it with the deliberate-violation check below rather than treating a green run as evidence
 * Type-aware rules work (verified by a deliberate violation that gets caught, then removed)
 * A rule set is chosen deliberately, not copied wholesale without review
 * Lint is fast enough to run before every commit without being irritating
