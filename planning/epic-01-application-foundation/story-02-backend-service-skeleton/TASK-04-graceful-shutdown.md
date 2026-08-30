@@ -10,7 +10,8 @@
 
 ## Work
 
-- Handle `SIGTERM` and `SIGINT` in `src/index.ts` — the entrypoint, not `buildServer()`. A process-wide signal handler installed by a factory is a surprise for anything that builds two instances, which Story 1.9's tests will
+- Handle `SIGTERM` and `SIGINT` in `src/index.ts` — the entrypoint, not `buildServer()`. A process-wide signal handler installed by a factory is a surprise for anything that builds two instances, which Story 1.9's tests will. Task 1.2.1 left a comment at the exact spot, between `buildServer()` and the `listen` call
+- **Revisit the listen-failure path while you are there.** Task 1.2.1 ends with `app.log.error(...)` then `process.exit(1)` if `listen` rejects. Once `close()` exists as the orderly stop, decide whether a failed start should also go through it — a port already in use leaves nothing to drain, but the logger has buffered output, and `process.exit` does not flush it
 - On signal: `await app.close()`, then exit 0. Fastify's `close` is what stops the listener and drains in-flight requests; do not hand-roll a connection tracker
 - **Make the handler idempotent.** A second signal while shutdown is in progress must not start a second close. Conventionally a second Ctrl-C means "I meant it" — exit immediately, and say which behaviour was chosen
 - **Put a ceiling on it.** A request that never finishes must not wedge the process forever: after a bounded wait, exit non-zero. Pick the timeout deliberately and write down the number and the reason — an orchestrator's own kill timeout is the constraint this has to sit inside, and Story 1.11 chooses the orchestrator

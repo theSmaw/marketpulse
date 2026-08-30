@@ -28,12 +28,19 @@ Also re-run the whole documented command set for this package — the six verbs 
 - **Write `docs/adr/0002-backend-framework-and-server-composition.md`** and add its row to `docs/adr/README.md`'s index. The framework choice is exactly the kind of decision PRODUCT_SPEC.md §39 wants recorded, and the reasoning is unusually worth keeping: Fastify was chosen over NestJS partly on the spec's "keep the backend relatively small" and partly because NestJS's decorator-and-metadata model fights `verbatimModuleSyntax` and the ESM-only setup, which would have meant relaxing workspace-wide options for one package. Record the rejected alternative and its cost, not just the winner. The `buildServer()` / entrypoint split and the signal-handling placement belong in the same record
 - **Update `CLAUDE.md`** — the current-state paragraph (the backend is no longer a skeleton; the two apps are no longer symmetrical), the file tree, and the Commands section. The `dev` placeholder sentence is now wrong for `apps/backend` and must change; `start` needs stating as an extra like `lint:fix`. The "`pnpm test` means no tests exist" warning stays exactly as it is — this story adds no tests
 - **Update `README.md`** to match. It carries the same command set for humans and the two must stay in step
+- **Fix `apps/backend/package.json`'s `description`**, which still reads "MarketPulse API server — a skeleton until Story 1.2". Task 1.2.1 deliberately left it rather than half-correcting it mid-story
 - **Update this story's `STORY.md`** — status, the resolved framework decision, and the task table
 - **Update `EPIC.md`** — Story 1.2's status, and check whether anything this story learned changes what a later story says. Stories 1.6, 1.7, 1.9, 1.11 and 1.12 all make claims about the backend that were written before it existed
 
 ### Then check the downstream stories
 
 Story 1.1's follow-up pass found real corrections in eleven stories. Do the same here, narrowly: 1.6 (configuration replaces this story's two `process.env` reads), 1.7 (error shape, `unhandledRejection`, and the logger this story left at Fastify's default), 1.9 (`app.inject()` against `buildServer()`), 1.11 (`pnpm deploy`, the container host binding, the shutdown timeout inside the orchestrator's kill timeout) and 1.12 (promoting the health type into `packages/shared`). Amend those stories where this story made something concrete that they described speculatively.
+
+Three specific findings from the tasks, which should reach the stories that need them rather than staying in a task file:
+
+- **Story 1.11 — Fastify's startup log is not evidence of the bound interface.** It rewrites `0.0.0.0` to `127.0.0.1` in its `Server listening at` line, so a container that _is_ listening on all interfaces logs as though it is not (Task 1.2.1, confirmed with `lsof`). That story's whole host-binding question has to be answered by checking the socket
+- **Story 1.6 — there is slightly more to replace than two `process.env` reads.** Task 1.2.1 also added a `ConfigError` type, a range check on `PORT`, and a fail-before-the-logger-exists stderr path. Whatever configuration approach 1.6 picks has to keep that failure behaviour, not just the values
+- **Story 1.12 — `apps/backend` currently declares `@marketpulse/shared` without importing it** (Task 1.2.5). Promoting the health type there is what makes the manifest entry honest again, which is worth saying in that story so the dependency is not deleted first
 
 ## Done when
 
