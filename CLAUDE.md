@@ -4,13 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**Epic 1, Story 1.1, task 3 of 8 done.** The pnpm workspace root, the shared TypeScript baseline and the first workspace package exist. There is no application source yet.
+**Epic 1, Story 1.1, task 4 of 8 done.** The pnpm workspace root, the shared TypeScript baseline and all three workspace packages exist. The two apps are typed skeletons that import from `@marketpulse/shared` and nothing more — there is no server and no React application yet.
 
 ```
 package.json                       private workspace root; pins Node and pnpm
 pnpm-workspace.yaml                workspace globs (apps/*, packages/*) and pnpm settings
 tsconfig.base.json                 the one place shared compiler options live
 .nvmrc                             Node 24.20.0
+apps/
+  backend/                         @marketpulse/backend — skeleton until Story 1.2;
+                                   Node types, no server
+  frontend/                        @marketpulse/frontend — skeleton until Story 1.3;
+                                   DOM lib, no React
 packages/
   shared/                          @marketpulse/shared — domain types shared by
                                    backend and frontend; builds to dist/ and is
@@ -38,8 +43,11 @@ corepack enable    # once per machine — pnpm comes from the repo pin, not a gl
 pnpm install
 
 pnpm --filter @marketpulse/shared build       # tsc -b, emits dist/
-pnpm --filter @marketpulse/shared typecheck
+pnpm --filter @marketpulse/backend build      # builds shared first, then the app
+pnpm --filter @marketpulse/frontend build
 ```
+
+There is no root-level build/typecheck/lint yet — that is Task 1.1.7. Until then, drive packages with `--filter`.
 
 **Node 24.x is required, not merely recommended.** `engineStrict` is on, so pnpm refuses to install under another major rather than warning. Node 23 additionally cannot bootstrap the repo at all: the Corepack it bundles (0.29.4) has a stale npm signing keyset and fails to fetch the pinned pnpm.
 
@@ -50,6 +58,10 @@ Dependencies may not run install scripts unless named in `allowBuilds` in `pnpm-
 **TypeScript is held at 6.0.3 while npm's `latest` is 7.x.** TS 7 is the native compiler; `typescript-eslint` does not support it yet (peer range `<6.1.0`), and this repo relies on type-aware linting. Don't raise the pin until typescript-eslint's peer range admits TS 7 — check it, don't assume it.
 
 Packages are consumed as **TypeScript project references with built output**, not raw source. So a consumer can only be typechecked after `packages/shared/dist/*.d.ts` exists — build before you typecheck. `tsc -b` handles the ordering itself.
+
+**Typecheck a consumer with `tsc -b`, never `tsc --noEmit`.** Because consumers compile against emitted declarations, editing `packages/shared/src` changes nothing for an app until shared is rebuilt, and `--noEmit` reports success against the stale `.d.ts`. Verified: renaming a shared export leaves `--noEmit` at exit 0 in `apps/backend` while `tsc -b` correctly fails. This is why both apps' `typecheck` script is `tsc -b`.
+
+The apps override exactly four compiler options between them, and each is load-bearing: the backend sets `types: ["node"]` (with `@types/node` pinned to the runtime major, 24.x — not npm's `latest`), and the frontend sets `types: []` plus `target`/`lib` with `"dom"`. The frontend's empty `types` array is not redundant: without it TypeScript auto-discovers every reachable `@types` package, and pnpm's linking puts `@types/node` in reach, so `process` would typecheck in browser code.
 
 Relative imports inside a package carry explicit `.js` extensions from `.ts` files (`./ticker.js`). It looks wrong; `nodenext` resolution requires the *emitted* filename and errors (TS2835) without it. Every package also needs `"type": "module"`.
 

@@ -1,0 +1,27 @@
+{
+  // Shared options come from the base config. What is genuinely
+  // frontend-specific: the project reference to @marketpulse/shared, and the
+  // browser library surface.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+
+    // The base config leaves `lib` unset so it follows `target`, so adding the
+    // DOM means restating the language libraries alongside it. Story 1.3
+    // settles the real browser baseline and is expected to revisit both of
+    // these — this pair exists only so a browser-targeted file typechecks.
+    "target": "es2024",
+    "lib": ["es2024", "dom", "dom.iterable"],
+
+    // No Node globals here. Left empty rather than unset: without it, TypeScript
+    // pulls in every @types package it can find, and pnpm's linking means
+    // @types/node reaches this package's node_modules root anyway. `process`
+    // and friends should not typecheck in browser code.
+    "types": []
+  },
+  "include": ["src/**/*"],
+
+  // See the note in apps/backend/tsconfig.json — this is what orders the build.
+  "references": [{ "path": "../../packages/shared" }]
+}
