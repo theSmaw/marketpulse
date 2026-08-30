@@ -1,6 +1,6 @@
 # Story 1.3 — Frontend Application Shell
 
-**Status:** Not started
+**Status:** In progress
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.1
 **Epic scope covered:** React application shell
@@ -52,7 +52,7 @@ Tackled in order. The story is complete when all five are done.
 
 | #     | Task                                                                                             | Status      |
 | ----- | ------------------------------------------------------------------------------------------------ | ----------- |
-| 1.3.1 | [Vite bootstrap and the browser baseline](TASK-01-vite-bootstrap-and-browser-baseline.md)        | Not started |
+| 1.3.1 | [Vite bootstrap and the browser baseline](TASK-01-vite-bootstrap-and-browser-baseline.md)        | Complete    |
 | 1.3.2 | [React, JSX and the placeholder shell](TASK-02-react-jsx-and-placeholder-shell.md)               | Not started |
 | 1.3.3 | [Development mode: fast refresh and the root dev loop](TASK-03-development-mode-fast-refresh.md) | Not started |
 | 1.3.4 | [Production build and static assets](TASK-04-production-build-and-static-assets.md)              | Not started |

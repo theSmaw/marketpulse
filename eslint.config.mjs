@@ -96,11 +96,24 @@ export default tseslint.config(
     languageOptions: { globals: {} },
   },
 
-  // --- This config file itself ---
+  // --- Tooling config files ---
+  //
+  // Not covered by any package's tsconfig, so the type-aware rules above
+  // cannot run on them and would error if asked to. This block must stay last:
+  // flat config is order-sensitive and `disableTypeChecked` has to win over
+  // the TypeScript block near the top.
+  //
+  // `apps/frontend/vite.config.ts` is the first file to need this treatment
+  // for a reason other than being this file. It is a `.ts` file inside a
+  // package whose tsconfig `include` is `src/**/*`, so the project service has
+  // no program for it. It also gets Node globals rather than the browser
+  // globals the block above hands the rest of `apps/frontend` — it runs in
+  // Vite's process, not in a page. That block being wrong for it is the first
+  // time the per-package globals split from Task 1.1.5 has decided anything at
+  // all (ADR 0001 §8), even though `no-undef` is still off for `.ts` and so
+  // the correction remains theoretical until a `.js` tooling file appears.
   {
-    // Not covered by any package's tsconfig, so the type-aware rules above
-    // cannot run on it and would error if asked to.
-    files: ["eslint.config.mjs"],
+    files: ["eslint.config.mjs", "apps/frontend/vite.config.ts"],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
   },

@@ -2,17 +2,17 @@
   "name": "@marketpulse/frontend",
   "version": "0.0.0",
   "private": true,
-  "description": "MarketPulse web client — a skeleton until Story 1.3",
+  "description": "MarketPulse web client — Vite, TypeScript, ESM",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
-    "dev": "echo \"@marketpulse/frontend: no dev server yet — Story 1.3\"",
-    "build": "tsc -b",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
     "test": "echo \"@marketpulse/frontend: no tests yet — Story 1.9\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -b",
-    "clean": "tsc -b --clean"
+    "clean": "tsc -b --clean && rm -rf dist"
   },
   "dependencies": {
     "@marketpulse/shared": "workspace:*"
