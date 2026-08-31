@@ -69,7 +69,7 @@ Tackled in order. The story is complete when all six are done.
 | #     | Task                                                                                                                | Status      |
 | ----- | ------------------------------------------------------------------------------------------------------------------- | ----------- |
 | 1.5.1 | [Choose the router, and close the check Story 1.4 owes](TASK-01-choose-the-router.md)                               | Complete    |
-| 1.5.2 | [The route table, the four placeholders and the not-found state](TASK-02-route-table-placeholders-and-not-found.md) | Not started |
+| 1.5.2 | [The route table, the four placeholders and the not-found state](TASK-02-route-table-placeholders-and-not-found.md) | Complete    |
 | 1.5.3 | [The persistent chrome, and the workshop's first provider](TASK-03-persistent-chrome.md)                            | Not started |
 | 1.5.4 | [The desktop layout regions](TASK-04-desktop-layout-regions.md)                                                     | Not started |
 | 1.5.5 | [Deep-linking, code splitting and the artefact's shape](TASK-05-deep-linking-and-the-artefact.md)                   | Not started |
