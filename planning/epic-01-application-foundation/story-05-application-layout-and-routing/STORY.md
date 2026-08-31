@@ -1,6 +1,6 @@
 # Story 1.5 — Application Layout & Routing
 
-**Status:** Not started
+**Status:** Complete (2026-08-31)
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.4
 **Epic scope covered:** basic routing and application layout
@@ -52,9 +52,9 @@ Story 1.4 is complete — six tasks, recorded in `docs/adr/0004-styling-approach
 
 ## Acceptance criteria
 
-- Routes exist for Market Overview (landing), Investigation Workspace, Security Explorer and Market Replay
-- Each route renders an identifiable placeholder
-- Persistent application chrome — product name, market clock area, connection status area — survives navigation
+- Routes exist for Market Overview (landing), Investigation Workspace, Security Explorer and Market Replay — **met**, re-checked from a clean build in Task 1.5.6
+- Each route renders an identifiable placeholder — **met**
+- Persistent application chrome — product name, market clock area, connection status area — survives navigation — **met, and proved of the DOM node rather than of the pixels**: a `data-probe156` attribute stamped on the `<header>` survived all four routes and an unknown path with `performance.timeOrigin` unchanged, so it is the same node and there was no document load
 - An unknown route renders a not-found state rather than a blank screen — **met, and Task 1.5.5 (2026-08-31) qualified it**: the route is correct, and it only runs if the host serves `index.html` for the unmatched path. On a static host with no fallback the user gets the _host's_ 404 and `NotFound` never mounts, so this criterion and the deep-linking one below are the same hosting property wearing two hats
 - Layout uses desktop-first regions consistent with the PRODUCT_SPEC.md §9 sketch — **met by Task 1.5.4 (2026-08-31)**: four named regions on the landing route in a 3:1 by 2:1 grid, designed for 1440 × 900 and checked at 1280, with the three other routes deliberately a single area
 - Deep-linking to a route works on page reload — **measured rather than ticked by Task 1.5.5 (2026-08-31), and deliberately not claimed as met inside this story.** Every route deep-links on `vite preview` and on the dev server, and every one of them **404s** on a plain `python3 -m http.server` serving the identical build. The fallback is a property of the host, hash routing was rejected as a permanent cost in every copied URL, and the decision is handed to **Story 1.11** with three constraints written into its STORY.md — 200 rather than a redirect, `base` being a rebuild rather than a rewrite, and the rewrite not being a blanket catch-all that turns a missing asset into a MIME error
@@ -67,14 +67,14 @@ Story 1.4 is complete — six tasks, recorded in `docs/adr/0004-styling-approach
 
 Tackled in order. The story is complete when all six are done.
 
-| #     | Task                                                                                                                | Status      |
-| ----- | ------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1.5.1 | [Choose the router, and close the check Story 1.4 owes](TASK-01-choose-the-router.md)                               | Complete    |
-| 1.5.2 | [The route table, the four placeholders and the not-found state](TASK-02-route-table-placeholders-and-not-found.md) | Complete    |
-| 1.5.3 | [The persistent chrome, and the workshop's first provider](TASK-03-persistent-chrome.md)                            | Complete    |
-| 1.5.4 | [The desktop layout regions](TASK-04-desktop-layout-regions.md)                                                     | Complete    |
-| 1.5.5 | [Deep-linking, code splitting and the artefact's shape](TASK-05-deep-linking-and-the-artefact.md)                   | Complete    |
-| 1.5.6 | [Verify, document and record the decision as ADR 0005](TASK-06-verify-document-and-adr.md)                          | Not started |
+| #     | Task                                                                                                                | Status   |
+| ----- | ------------------------------------------------------------------------------------------------------------------- | -------- |
+| 1.5.1 | [Choose the router, and close the check Story 1.4 owes](TASK-01-choose-the-router.md)                               | Complete |
+| 1.5.2 | [The route table, the four placeholders and the not-found state](TASK-02-route-table-placeholders-and-not-found.md) | Complete |
+| 1.5.3 | [The persistent chrome, and the workshop's first provider](TASK-03-persistent-chrome.md)                            | Complete |
+| 1.5.4 | [The desktop layout regions](TASK-04-desktop-layout-regions.md)                                                     | Complete |
+| 1.5.5 | [Deep-linking, code splitting and the artefact's shape](TASK-05-deep-linking-and-the-artefact.md)                   | Complete |
+| 1.5.6 | [Verify, document and record the decision as ADR 0005](TASK-06-verify-document-and-adr.md)                          | Complete |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.4 followed.
 
@@ -91,3 +91,15 @@ Task 1.5.1 is a decision task in the shape of Task 1.4.1 but deliberately smalle
 ## Notes
 
 The status and clock areas are placeholders here; Story 1.12 fills the status area, and Epic 3 supplies the live market clock.
+
+## Outcome
+
+**Complete on 2026-08-31, six tasks, recorded in [`docs/adr/0005-routing-application-layout-and-the-deployable-shape.md`](../../../docs/adr/0005-routing-application-layout-and-the-deployable-shape.md).**
+
+Four routes and a not-found route on React Router 8.3.1 in declarative mode, the chrome as a component rendered once outside `<Routes>`, and §9's four named region landmarks on the landing route. **Six of the seven acceptance criteria are met; the other two are met _given_ a host with a history-API fallback and are Story 1.11's** — deep-linking and the unknown-route state are the same hosting property, and neither is ticked on local evidence.
+
+The whole story is **+72 modules, +41.99 kB of JavaScript and +2.61 kB of CSS** — 193 → 265 modules, 300.09 → 342.08 kB, 7.21 → 9.82 kB — still **three files**, one new dependency, and still exactly one file importing `@base-ui/react`. A clean build reproduces those figures and the asset hashes byte for byte. `pnpm verify` exits 0 in 11.0s from a clean tree.
+
+Two decisions in it were taken against the obvious default and both are re-takeable: **route splitting was rejected** with the artefact built both ways, because it relocates 105 kB onto the route served at first paint rather than removing it — reversal trigger Epic 4; and **Base UI stayed at one importing file**, because the chrome is a `<nav>` and four links rather than a menu primitive.
+
+The three things Story 1.4 owed this story, found by building on it rather than by reading it, are recorded in **ADR 0004** rather than 0005: the workshop wired no providers, the permutation grid conflicts with landmark uniqueness, and the token layer has no ladder for proportion.

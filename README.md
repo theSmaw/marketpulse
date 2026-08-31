@@ -12,9 +12,9 @@ recommends trades, or produces target prices.
 
 ## What exists today
 
-**Epic 1, Stories 1.1, 1.2, 1.3 and 1.4 complete — the repository, its
-toolchain, a backend, a frontend, a design-token layer and a component
-workshop.**
+**Epic 1, Stories 1.1, 1.2, 1.3, 1.4 and 1.5 complete — the repository, its
+toolchain, a backend, a frontend, a design-token layer, a component workshop,
+and now navigation and the application layout.**
 
 `apps/backend` is a running Fastify service. It starts on a configurable port,
 serves `GET /health`, restarts on source change, and shuts down cleanly on
@@ -30,10 +30,10 @@ curl http://127.0.0.1:3000/health
 `PORT` and `HOST` configure it (defaults 3000 and 127.0.0.1). It is a skeleton
 in scope rather than in status: no market data, no database, no domain logic.
 
-`apps/frontend` is a React 19 application built with Vite. It renders a
-placeholder shell, reloads edited components without losing their state — a
-stylesheet edit in 24–130 ms, a component edit in a few hundred — and builds to
-static assets:
+`apps/frontend` is a React 19 application built with Vite. It renders the
+application chrome and four routes, reloads edited components without losing
+their state — a stylesheet edit in 24–130 ms, a component edit in a few hundred
+— and builds to static assets:
 
 ```sh
 pnpm --filter @marketpulse/frontend dev      # http://localhost:5173
@@ -41,9 +41,9 @@ pnpm build
 pnpm --filter @marketpulse/frontend preview  # http://localhost:4173
 ```
 
-It is a shell in scope rather than in status: no routing (Story 1.5), no state
-management, and it does not talk to the backend yet (Story 1.12). It **does**
-have a styling system — see below. What it does prove is that the toolchain
+It is a shell in scope rather than in status: no state management, and it does
+not talk to the backend yet (Story 1.12). It **does** have a styling system and
+an application shape — see below. What it does prove is that the toolchain
 works end to end — `@marketpulse/shared` resolves through the bundler as well as through
 `tsc`, and the built `dist/` renders from a plain static server with no
 `package.json` and no `node_modules` beside it.
@@ -234,8 +234,8 @@ why a per-package `tsc --noEmit` is the wrong instrument here.
 
 CSS Modules over CSS custom properties, with **Base UI** (`@base-ui/react`)
 supplying behaviour for anything interactive. There is no CSS-in-JS: styles are
-resolved at build time and shipped as one stylesheet, currently 7.21 kB for the
-whole design language. The reasoning is in
+resolved at build time and shipped as one stylesheet, currently 9.82 kB for the
+whole design language, the chrome and the layout. The reasoning is in
 [ADR 0004](docs/adr/0004-styling-approach-component-library-and-the-component-workshop.md).
 
 ```
@@ -293,6 +293,46 @@ check says so in its own header.
 The a11y panel runs axe against each story and reports; it does not fail the
 build. `pnpm build` also produces a static Storybook into
 `apps/frontend/storybook-static/`, which serves from any dumb static host.
+
+## Routing and layout
+
+Four routes for the four experiences in `PRODUCT_SPEC.md` §8, plus a not-found
+route, using **React Router 8** in declarative mode — a library import, with no
+plugin and no build step. The reasoning is in
+[ADR 0005](docs/adr/0005-routing-application-layout-and-the-deployable-shape.md).
+
+```
+/                 Market Overview — the landing route, and the only one with regions
+/investigations   Investigation Workspace
+/securities       Security Explorer
+/replay           Market Replay
+anything else     a not-found route, with the chrome intact
+```
+
+The chrome — product name, market feed, a reserved market clock, the navigation
+— is `components/AppHeader`, rendered once outside the route table so it
+survives navigation rather than being remounted by it.
+
+Two conventions worth knowing before adding a route:
+
+- **Every path is declared once, in `apps/frontend/src/routes/paths.ts`.** Add
+  it there and read it from both the `<Route path>` and the `to=`. React
+  Router's `to` is an unchecked string, so a hand-written literal is a link
+  that fails silently; the table is what turns a typo into a compile error
+- **Route modules live in `src/routes/`, not `src/components/`.** A `.tsx`
+  under `components/` owes a stories file and `pnpm stories` enforces it. The
+  test for which side something belongs on is _does it have states worth
+  reviewing side by side?_
+
+**Deep-linking works locally for a reason that will not survive deployment.**
+`/replay` typed straight into the address bar works against `vite`, `vite
+preview` and nothing else — both answer any unmatched path with `index.html`
+and a 200. The same build served by a plain static host **404s** every route
+but `/`, and the not-found route rests on exactly the same property: it can
+only render if the host served `index.html` for the address that matched
+nothing. A history-API fallback is a hosting concern and Story 1.11 owns it.
+When it is configured, it must not be a blanket catch-all — one that answers
+_every_ unmatched path with `index.html` answers a missing asset that way too.
 
 ## Layout
 
@@ -362,9 +402,9 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 ## Documentation
 
 - [`docs/adr/`](docs/adr/) — architecture decision records, newest last;
-  [0004](docs/adr/0004-styling-approach-component-library-and-the-component-workshop.md)
-  is the most recent and covers the styling approach, the component library and
-  the workshop
+  [0005](docs/adr/0005-routing-application-layout-and-the-deployable-shape.md)
+  is the most recent and covers the router, the application layout and the
+  shape the artefact deploys in
 - [`planning/PRODUCT_SPEC.md`](planning/PRODUCT_SPEC.md) — the authoritative
   product definition
 - [`planning/EPICS.md`](planning/EPICS.md) — the delivery roadmap

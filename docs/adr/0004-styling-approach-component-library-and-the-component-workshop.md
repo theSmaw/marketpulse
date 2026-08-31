@@ -480,6 +480,53 @@ the wrapper layer was bought for in the first place. Radix and
 react-aria-components remain the standing alternatives if Epic 15 finds against
 Base UI.
 
+## What Story 1.5 found, retrospectively
+
+This record was written on the bet that its first consumer would not need to
+ask it anything. It mostly held: the tokens, `FeedIndicator`, the focus rule
+and the `cx()` idiom were all used as written, and no value in this document
+had to be corrected. Three things were missing, and they are recorded here
+rather than in ADR 0005 because all three are properties of **this** story's
+output.
+
+**The workshop wired no providers, so the first chrome component could not
+render in it at all.** `AppHeader` contains a `NavLink`, and §6's workshop had
+nothing to give it. Task 1.5.3 added a named `MemoryRouter` decorator to
+`.storybook/preview.tsx` — renamed from `.ts` because it now holds JSX — with
+its entry read from a `route` story parameter. Memory rather than browser,
+because the workshop is an iframe with no address bar and a story handed the
+browser's history could navigate the whole Storybook UI. It is the first
+deliberate divergence between the workshop and the application, and keeping it
+to one decorator in one file is the containment. What this ADR got right is
+that the cascade is shared; what it did not anticipate is that **context** is a
+second thing the workshop has to describe, and that every provider the
+application acquires is a decision about whether the workshop acquires it too.
+
+**The permutation-grid convention and landmark uniqueness are in direct
+conflict, and the grid is what gives.** §6 requires an `AllPermutations` story
+rendering the cartesian product in one frame. For a component that is itself a
+landmark, that means several banners on one page: `AppHeader`'s grid produced
+this repository's first real a11y-panel violations —
+`landmark-no-duplicate-banner` and `landmark-unique`, both moderate — while
+every single-state story reported 0 violations, 13 passes, 0 inconclusive. The
+application renders exactly one header, so the finding belongs to the grid
+rather than to the component. Both rules are disabled **on that one story and
+nowhere else**, because a permanent badge on the a11y tab trains the next
+author to ignore the badge, which is worse than the finding. Expect this for
+every landmark component.
+
+**The token layer has no ladder for proportion, and that is a boundary rather
+than a gap.** §4's two layers are spacing, type, colour, one radius, one border
+width and one focus rule. There is nothing for a grid fraction and nothing for
+a page height, so Task 1.5.4's region grid is the first stylesheet in this
+application carrying values that are not tokens — `3fr`/`1fr`, `2fr`/`1fr`,
+`70vh`. Nothing was added to `tokens.css` for it. The rule drawn instead, and
+the reason this is written down: **layout is proportion and the design language
+is not.** A `--layout-primary-ratio` would be a token with exactly one consumer,
+which §4's own reasoning about `--price-unchanged` already rejects in a
+different guise. Every colour, gap, border and font in those stylesheets is
+still a token.
+
 ## Related
 
 - [ADR 0003](0003-frontend-build-tooling-and-browser-baseline.md), whose
@@ -494,6 +541,9 @@ Base UI.
   here, and
   [`VISUAL-LANGUAGE.md`](../../planning/epic-01-application-foundation/story-04-ui-component-library-and-styling-conventions/VISUAL-LANGUAGE.md),
   which is the design input they were built from
+- [ADR 0005](0005-routing-application-layout-and-the-deployable-shape.md), the
+  first consumer of everything here, whose three retrospective findings are the
+  section above
 - `PRODUCT_SPEC.md` §3 (target users and platform), §11 (every score carries its
   explanation), §25 (frontend architecture), §28 (performance), §36 (degraded
   data is a product state), §39 (architecture decision records)
