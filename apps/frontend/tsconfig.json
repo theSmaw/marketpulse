@@ -1,25 +1,98 @@
 {
   // Shared options come from the base config. What is genuinely
-  // frontend-specific: the project reference to @marketpulse/shared, and the
-  // browser library surface.
+  // frontend-specific: the project reference to @marketpulse/shared, the
+  // browser library surface, and the fact that this is the one package whose
+  // JavaScript is produced by something other than tsc.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist",
+
+    // No `outDir`, because there is no emit — see below. `dist/` in this
+    // package belongs entirely to Vite.
+
+    // TypeScript here typechecks and nothing else. Vite owns the artefact, so
+    // a parallel tsc emit would be dead output that nobody imports, nobody
+    // ships, and nothing typechecks against: unlike packages/shared, this is a
+    // composite project *referenced by nothing*, so no consumer ever reads its
+    // declarations.
+    //
+    // This is what resolves the collision the story flagged: `tsc -b` and Vite
+    // both default to writing into `dist/`, and `tsc -b --clean` only knows
+    // about the half it produced. With one producer there is no half to miss.
+    // The cost is that `clean` can no longer be `tsc -b --clean` alone — see
+    // the `clean` script in package.json.
+    //
+    // `composite` (from the base config) still applies and is still required:
+    // the root solution references this project. `noEmit` alongside it is
+    // accepted by `tsc -b` and still typechecks — verified against TypeScript
+    // 6.0.3, and worth re-checking on an upgrade, because the combination was
+    // an error in older versions.
+    "noEmit": true,
+
+    // The modern JSX transform (React 17+): a `.tsx` file needs no
+    // `import React` to use JSX, because the compiler emits an import of
+    // `react/jsx-runtime` itself. That matters more here than it looks —
+    // `verbatimModuleSyntax` (base config) makes imports literal, so an
+    // `import React` kept only to satisfy the classic transform would be a
+    // real, unused runtime import rather than something erased.
+    //
+    // Sixth of the per-app compiler overrides and the second in this file
+    // after `noEmit`. It belongs here and nowhere else: `packages/shared` is
+    // consumed by the backend too, and JSX has no meaning there.
+    //
+    // Note this option is what tsc *typechecks* against, not what runs. The
+    // transform that actually produces the JavaScript is the bundler's, since
+    // tsc emits nothing in this package — so a disagreement between the two
+    // shows up in the browser, not in a compile error.
+    "jsx": "react-jsx",
+
+    // --- The browser baseline ---
+    //
+    // Desktop-first, per PRODUCT_SPEC.md §3, and evergreen: current Chrome,
+    // Edge, Firefox and Safari. ES2024 is the language level those four have
+    // shared since roughly March 2024 (Safari 17.4 is the constraint;
+    // Chrome 119 and Firefox 121 arrived earlier), which makes it about two
+    // years of headroom at the time of writing rather than a bet on something
+    // new. Task 1.1.4 left this pair provisional; this is the deliberate
+    // version of it.
+    //
+    // It is also the same `target` the base config picks for Node 24, so the
+    // workspace has one language level rather than two — but for a different
+    // reason, and the two could legitimately diverge later.
+    //
+    // `target` has a second reader now: `build.target` in vite.config.ts
+    // governs the downlevelling that actually ships. Change one and change the
+    // other; Vite's default is lower than this and would apply silently.
+    "target": "es2024",
 
     // The base config leaves `lib` unset so it follows `target`, so adding the
-    // DOM means restating the language libraries alongside it. Story 1.3
-    // settles the real browser baseline and is expected to revisit both of
-    // these — this pair exists only so a browser-targeted file typechecks.
-    "target": "es2024",
+    // DOM means restating the language libraries alongside it.
     "lib": ["es2024", "dom", "dom.iterable"],
 
-    // No Node globals here. Left empty rather than unset: without it, TypeScript
-    // pulls in every @types package it can find, and pnpm's linking means
-    // @types/node reaches this package's node_modules root anyway. `process`
-    // and friends should not typecheck in browser code.
-    "types": []
+    // Vite's ambient client types, and nothing else. Two independent readers
+    // want this exact entry, which is why it says so here rather than in
+    // either of them:
+    //
+    //   1. Task 1.4.2 - `import "./x.css"` is otherwise TS2882 ("Cannot find
+    //      module or type declarations for side-effect import"), and
+    //      `import styles from "./x.module.css"` TS2307. vite/client declares
+    //      both, the module form as `{ readonly [key: string]: string }`.
+    //   2. Story 1.6 - `import.meta.env` is otherwise TS2339. That story was
+    //      handed the same change; it now inherits a solved problem and its
+    //      STORY.md says so. Do not add it twice.
+    //
+    // This is still an explicit list, and the explicit list is the whole
+    // point: it is what stops TypeScript auto-discovering every reachable
+    // @types package, and pnpm's linking puts @types/node within reach of this
+    // package. `process` and friends must still fail to typecheck in browser
+    // code - verified by deliberate reference in Task 1.4.2 (TS2591), then
+    // removed. Adding an entry here is never the fix for a library that is
+    // *imported*; only for one that is ambient.
+    "types": ["vite/client"]
   },
+
+  // index.html and vite.config.ts sit outside this deliberately. Vite reads
+  // both directly and neither is part of the program tsc compiles.
   "include": ["src/**/*"],
 
   // See the note in apps/backend/tsconfig.json — this is what orders the build.

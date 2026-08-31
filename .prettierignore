@@ -13,6 +13,10 @@ dist/
 build/
 coverage/
 
+# Storybook's static build (Task 1.4.5). Named neither `dist` nor `build`, so
+# the entries above do not reach it. Mirrored in eslint.config.mjs.
+storybook-static/
+
 # Incremental build state. A single-line JSON blob that TypeScript rewrites on
 # every build and Prettier would otherwise expand into a formatted document,
 # producing a diff per build.

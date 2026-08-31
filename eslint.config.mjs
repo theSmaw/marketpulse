@@ -13,6 +13,8 @@
 
 import js from "@eslint/js";
 import globals from "globals";
+import reactHooks from "eslint-plugin-react-hooks";
+import storybook from "eslint-plugin-storybook";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
@@ -32,6 +34,7 @@ export default tseslint.config(
       "**/dist/",
       "**/build/",
       "**/coverage/",
+      "**/storybook-static/",
       "**/*.tsbuildinfo",
       ".claude/worktrees/",
     ],
@@ -96,11 +99,99 @@ export default tseslint.config(
     languageOptions: { globals: {} },
   },
 
-  // --- This config file itself ---
   {
-    // Not covered by any package's tsconfig, so the type-aware rules above
-    // cannot run on it and would error if asked to.
-    files: ["eslint.config.mjs"],
+    // Root tooling scripts. This is the block the three above were written in
+    // anticipation of: `scripts/check-stories.mjs` (Task 1.4.5) is the first
+    // plain-JavaScript file in this workspace, and `no-undef` *is* an error for
+    // JavaScript — it is switched off for TypeScript, where the compiler does
+    // the job better. So this block is the first one here that changes a
+    // result rather than documenting an intention. Without it, `console` and
+    // `process` are eight `no-undef` errors and a failing `verify`.
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: globals.node },
+  },
+
+  // --- React ---
+  //
+  // Adopted deliberately in Task 1.3.2 rather than by default, because nothing
+  // else in Epic 1 owns React lint rules and Story 1.4 is the component
+  // library, not linting. The Rules of Hooks are a correctness concern — call
+  // a hook conditionally and the component is broken at runtime, silently —
+  // which puts them on ESLint's side of the line Task 1.1.6 drew between
+  // correctness and formatting.
+  //
+  // `recommended` in v7 is much wider than the two rules that name suggests:
+  // 17 rules, most of them the React Compiler's Rules of React (`purity`,
+  // `immutability`, `set-state-in-render`) rather than hook ordering. Taken
+  // whole on purpose. They are the rules React itself already assumes are
+  // being followed, and adopting them now — with one component in the tree —
+  // costs nothing, where adopting them in Epic 2 would mean a retrofit.
+  //
+  // Take the config from `configs.flat`, not the top-level `configs`. Both
+  // export a `recommended-latest`; the top-level one is still eslintrc-shaped
+  // (`plugins: ["react-hooks"]`) and ESLint 10 rejects it outright with
+  // "Flat config requires plugins to be an object" and exit 2. Loud, at least.
+  //
+  // Three of the 17 ship as `warn` (`exhaustive-deps`, `incompatible-library`,
+  // `unsupported-syntax`). Left at their shipped severity, but note the lint
+  // scripts now pass `--max-warnings 0`: this is the first plugin in the
+  // workspace to introduce a non-error severity, and a finding that never
+  // fails `verify` is the same green-tick-that-means-nothing problem as the
+  // placeholder `test` scripts. See package.json.
+  //
+  // Scoped to `src` rather than the whole package, so vite.config.ts is not
+  // asked to answer React questions.
+  {
+    files: ["apps/frontend/src/**/*.ts", "apps/frontend/src/**/*.tsx"],
+    extends: [reactHooks.configs.flat["recommended-latest"]],
+  },
+
+  // --- Storybook ---
+  //
+  // The workshop's own rules, adopted in Task 1.4.5 alongside Storybook itself.
+  // Narrow and mechanical: a story file must have a default export, story
+  // exports must be PascalCase, a story must not repeat its own name, and
+  // `.storybook/main.ts` must not list an addon that is not installed. They are
+  // the rules that turn a story silently not appearing into a lint error, which
+  // is the failure mode a component workshop actually has.
+  //
+  // Taken from `configs["flat/recommended"]` rather than `configs.recommended`,
+  // the same trap `eslint-plugin-react-hooks` set in Task 1.3.2: both exist,
+  // the unprefixed one is still eslintrc-shaped, and ESLint 10 rejects it
+  // outright rather than ignoring it.
+  //
+  // It carries its own `files` globs — `**/*.stories.@(ts|tsx|...)` and
+  // `.storybook/main.*` — so it is spread rather than scoped here. It stays
+  // *before* the trailing block below, which must remain last.
+  ...storybook.configs["flat/recommended"],
+
+  // --- Tooling config files ---
+  //
+  // Not covered by any package's tsconfig, so the type-aware rules above
+  // cannot run on them and would error if asked to. This block must stay last:
+  // flat config is order-sensitive and `disableTypeChecked` has to win over
+  // the TypeScript block near the top.
+  //
+  // `apps/frontend/vite.config.ts` was the first file to need this treatment
+  // for a reason other than being this file, and Task 1.4.5's two Storybook
+  // configuration files are the third and fourth for exactly the same reason:
+  // they sit in `apps/frontend`, they are `.ts`, and `include` is `src/**/*`.
+  // Widening that `include` is the alternative and is wrong — it would pull the
+  // workshop's configuration into `tsc -b` and into the application's program. It is a `.ts` file inside a
+  // package whose tsconfig `include` is `src/**/*`, so the project service has
+  // no program for it. It also gets Node globals rather than the browser
+  // globals the block above hands the rest of `apps/frontend` — it runs in
+  // Vite's process, not in a page. That block being wrong for it is the first
+  // time the per-package globals split from Task 1.1.5 has decided anything at
+  // all (ADR 0001 §8), even though `no-undef` is still off for `.ts` and so
+  // the correction remains theoretical until a `.js` tooling file appears.
+  {
+    files: [
+      "eslint.config.mjs",
+      "apps/frontend/vite.config.ts",
+      "apps/frontend/.storybook/main.ts",
+      "apps/frontend/.storybook/preview.tsx",
+    ],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
   },

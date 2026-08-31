@@ -1,0 +1,171 @@
+# Task 1.5.3 — The persistent chrome, and the workshop's first provider
+
+**Status:** Complete (2026-08-31)
+**Story:** [1.5 Application Layout & Routing](STORY.md)
+**Depends on:** Task 1.5.2
+
+## Objective
+
+The application chrome PRODUCT_SPEC.md §9 sketches — product name, market clock area, connection status area, and the navigation between the four routes — rendered once and surviving navigation. This is the first chrome this product has had, and it is where Story 1.4's design language is most exposed.
+
+## Work
+
+- **The chrome is structural, and so is the identity.** There is no brand hue and no distinctive typeface, so what makes a header strip look like this product rather than a generic admin panel is the warm `#f4f3ee` ground under white surfaces, the 1px near-black hairline rather than a grey border, the single 2px radius, the 4px spacing grid and the uppercase letterspaced micro-label. `VISUAL-LANGUAGE.md` in the Story 1.4 directory is the input, not a suggestion, and substituting a neutral grey or a light border is the failure mode — it looks like nothing in isolation
+- **Use the components, not the tokens — and one of the three areas already has one.** `FeedIndicator` (`live` / `stale` / `disconnected`, marker shape plus word, optional `detail` string) is built, has stories and takes `FeedStatus` from `packages/shared`. Place it rather than inventing a coloured dot. Note what it is not: it means the **market feed**, and Story 1.12 is about the **backend service** — so this task places it with a hard-coded status and Story 1.12 decides whether the same component carries both meanings or a second one is needed
+- **The clock area is a region, not a clock.** Epic 3 supplies the live market clock; this task reserves the space, and reserving it correctly matters more than it sounds — a clock is a continuously changing number in a fixed strip, which is exactly what `font-variant-numeric: tabular-nums` on `body` exists for. A placeholder that is not tabular will change width when the real clock arrives
+- **Settle where the workshop's line falls, and write it down.** Task 1.4.5 exempted `App.tsx` and `main.tsx` as page shell rather than workshop material, and explicitly left this story to decide the boundary now that there is real chrome. A header is arguably a component; a route placeholder is arguably not. Decide it once, here, in a comment beside `scripts/check-stories.mjs`'s convention or in `CLAUDE.md`, and make Task 1.5.2's directory choice agree with it
+- **Whatever is a component gets the full obligation**: `src/components/<Name>/<Name>.tsx` + `.module.css` + `.stories.tsx`, one component per file, one named story per discrete state plus an `AllPermutations` grid. `pnpm stories` fails the build if the stories file is missing, and it proves nothing about what is inside — the grid is reviewed, not checked
+- **A component with a router dependency does not render in the workshop on its own, and this is the first one.** `.storybook/preview.ts` loads the three stylesheets in `main.tsx`'s order and asserts the tokens, but wires no providers. A router decorator is this task's to add, and it is the **first deliberate divergence between the workshop and the application** — Task 1.4.5's reason for reusing `vite.config.ts` untouched was to keep exactly one place where the build lives, and a decorator is not that, but it is a second place where the application's context is described. Add it once, in `preview.ts`, rather than per story. Task 1.5.1 settled which router this is — React Router 8.3.1 — so the decorator is a `MemoryRouter`: the workshop has no address bar and must not be given the browser's history
+- **The React Compiler rules are no longer theoretical, and this task is the most likely place to meet them.** They fired for the first time in Task 1.5.1's spike: `react-hooks/set-state-in-effect` at **error**, on a route module syncing state from the URL the obvious way. It was not the router — `useParams`, `Link`, `Outlet` and `RouterProvider` are all silent — it was **state**, and `--max-warnings 0` makes it a failing build rather than a note. Two things in this task's brief attract exactly that shape: a clock area and a connection status. Neither needs state at all here — the clock is a reserved region and the status is hard-coded — so the rule should not fire. If it does, the answer is to derive rather than to mirror into state, not to reach for a disable comment. **Task 1.5.2 is the worked example of avoiding it**: five route modules and the shell, zero hooks and zero state between them, and the rules said nothing — the current route is read by `NavLink` and rendered as `aria-current`, which is derivation rather than mirroring
+- **Two authoring costs that bite in a task adding several small files, and Task 1.5.2 found a third door into the first.** Compose class names with `cx(styles.a, styles.b)` — the template-literal and bracket forms are both lint errors — and use `cx()` around a **single** class too when the consumer is a component rather than a DOM element: `className={styles.x}` on `NavLink` is a hard **TS2375** under `exactOptionalPropertyTypes`, not a lint error, because its `className` is `string | ((props) => string | undefined)` and a module class is `string | undefined`. Every Base UI primitive has the same shape. Know too that a **misspelled class name is completely silent**: it typechecks, lints, builds and renders unstyled, and nothing in `pnpm verify` catches it. This is the second silent rule on the page; the other is the `.js` extension, and only `tsc` catches that one
+- **If the chrome reaches for a Base UI primitive it becomes the second file importing it, and the rule behind that count changed in Task 1.5.1.** The check Story 1.4 owed is closed as **unresolvable** — the external shared component library is not reachable and its exports are not available — so the wrapper rule no longer rests on a pending verification. It stands on its own reason instead: build against Base UI's interfaces and our own, keep every usage behind a thin wrapper in `src/components/<Name>/`, and make the wrapper's props **our** vocabulary rather than a re-export of the primitive's. `Popover` is the model, at 30 lines with nothing of `@base-ui/react` in its public type. Prefer plain elements where they do the job — a four-item navigation is a `<nav>` and four links, and reaching for a menu primitive to render it would widen the seam for nothing
+- **Focus belongs to the token layer.** `base.css` carries one global `:focus-visible` rule — 2px near-black outline at 2px offset, measured on a real button. A navigation link that adds its own focus style is answering a question already answered. Tab through the whole chrome and confirm the outline appears on every interactive element, including the active route link
+- **The current route must be legible without colour**, like everything else in this product. An active navigation link distinguished only by ink colour fails the rule Story 1.4 measured at 1.05:1 under greyscale; pair it with a second channel and with `aria-current="page"`
+- ~~**Delete the placeholder shell rather than keeping it beside the chrome.**~~ **Task 1.5.2 did the first half and deliberately refused the second, so this bullet is replaced rather than inherited.** `App.tsx` no longer holds a page: it is the router's host, and Story 1.4's three demonstration modules moved wholesale into `src/routes/MarketOverview.tsx`. **Do not delete them here.** Routing them out of the graph takes about **100 kB** of Base UI and the five components out of the artefact — the cost Task 1.4.5 paid knowingly — and removes the only thing in the _application_ proving the token layer and the components reach a browser through the bundler rather than only through Storybook. Task 1.5.1's spike and Task 1.5.2 both hit that trap from opposite directions; that is twice. Epic 4 replaces the render check when it has real data. What this task removes is the temporary navigation strip, below. The `@marketpulse/shared` import is safe for the same reason — it is in `MarketOverview.tsx` — and the chrome's `FeedStatus` is still a natural second home for it
+- **There is a temporary navigation strip in `App.tsx` and replacing it is this task's job.** Task 1.5.2 built it to meet "reachable by clicking", said in a comment that it is scaffolding, and left three properties this task must not lose: every `to` reads from `PATHS` (never a literal), `NavLink` supplies `aria-current="page"` rather than a hand-rolled active class, and the active link is underlined as well as re-weighted — so "identifiable without colour" is **already met** and only has to survive the rewrite. Its styles are `.nav`/`.navLink` in `App.module.css`, including the `[aria-current="page"]` selector
+- **The product name is a `<p>`, not an `<h1>`, and it must stay one.** Task 1.5.2 demoted it: every route renders its own `<h1>` now, and two on a page leaves a screen reader user with no single answer to "what is this page?". Same class, no visual change. A chrome that promotes the product name back to a heading reintroduces the problem across every route at once
+
+## Done when
+
+- Product name, clock area, connection status area and navigation render once and survive navigation between all four routes and the not-found state
+- The chrome renders in the token language, and a screenshot of it is recognisably this product rather than a default admin panel
+- Every interactive element in the chrome takes the global focus outline, checked with `Tab` in a browser
+- The active route is identifiable without relying on colour, and carries `aria-current`
+- The workshop renders any chrome component that needs a router, via a decorator in `preview.ts`
+- The `App.tsx`/`main.tsx` exemption boundary is decided and written down
+- `pnpm verify` exits 0, including the `stories` step
+
+## Notes
+
+The status and clock areas are placeholders here. Story 1.12 fills the status area with real data, and Epic 3 supplies the market clock. Placing them badly now is cheap to fix; placing them in a way that assumes a different layout is not, which is why Task 1.5.4's regions come immediately after this rather than before it.
+
+## Outcome
+
+One component, `src/components/AppHeader/`, rendered once by `App` outside
+`<Routes>`. `pnpm verify` exits 0, `dist/` is still three files, and the
+artefact grew by 0.73 kB.
+
+### Where the workshop's line falls, which was the decision this task owed
+
+**A `.tsx` file under `src/components/` is workshop material and owes stories; a
+`.tsx` file anywhere else does not.** The test for which side something belongs
+on: _does it have states worth reviewing side by side?_
+
+- `AppHeader` — three feed states, an optional detail line and four
+  current-route states. The only other way to review those is to hard-code a
+  status and click through the running application. **In.**
+- `src/routes/*` — a route placeholder is one state made of two strings, and a
+  permutation grid over it would be one cell. **Out**, which is where Task 1.5.2
+  put it, so the two answers agree.
+- `App.tsx` and `main.tsx` — the router's host and the mount. Neither renders
+  anything to look at. **Out**, as Task 1.4.5 left them.
+
+Written into `scripts/check-stories.mjs`, beside the check that enforces it,
+along with the honest limit: **the rule is only enforced in one direction.** A
+component put in `src/components/` without stories fails `pnpm verify`; a
+stateful component dropped into `src/routes/` escapes the check silently. The
+directory convention holds the other end.
+
+### The chrome, and the one place it says less than §9 does
+
+Product name, market feed region, market clock region, navigation. Two grid
+rows: identity and status on the first, navigation spanning the second.
+
+**The feed status is `disconnected`, hard-coded, and that is the honest value.**
+§9's sketch shows `LIVE`, and rendering `live` here would be a green tick that
+means nothing — there is no market data in this application until Epic 3. The
+detail line says so: `No market data until Epic 3`. `FeedIndicator` already
+knows none of its three states is an error, so this is a placement rather than
+a coloured dot invented in the chrome.
+
+**Invariant 6's provenance label is deliberately not written yet.** The status
+region is where `Market feed: IEX` belongs, and the comment there says so — but
+a provenance claim with no data behind it is exactly the kind of statement that
+invariant exists to prevent. Epic 3 adds it beside the status.
+
+**The clock area is a region and reserves the space with `--:--:--`**, not with
+a plausible-looking `00:00:00`, which would be a fake time. The reserved width
+is close but **not exact**: tabular figures fix the width of digits and a hyphen
+is not a digit, so the strip will shift slightly the first time the real clock
+renders. A visible small shift then is better than a placeholder that lies now.
+The component does not re-declare `font-variant-numeric` — `body` sets it and it
+is inherited.
+
+### The workshop's first provider, and why `preview.ts` is now `preview.tsx`
+
+`AppHeader` contains `NavLink`, so it is the first component here that does not
+render on its own. `.storybook/preview.tsx` wraps every story in a
+`MemoryRouter` — a memory router and not a browser one, because the workshop is
+an iframe with no address bar and a story handed the browser's history could
+navigate the whole Storybook UI.
+
+The file needed JSX, so it is `.tsx` now and `eslint.config.mjs`'s trailing
+`disableTypeChecked` block names the new extension. That block still protects
+four files. The decorator is **named** (`const withRouter: Decorator`) rather
+than written inline, which is the TS2883 idiom Task 1.4.5 recorded — this file
+is outside every tsconfig so nothing would have caught it here, but there is no
+reason for two idioms.
+
+It is **the first deliberate divergence between the workshop and the
+application**, and worth naming as such: Task 1.4.5 reused `vite.config.ts`
+untouched precisely so there was one place the build lived, and a decorator is a
+second place where the application's context is described. One decorator, in one
+file, is the containment.
+
+The entry comes from a `route` story parameter, which is also why the
+current-route states are **stories** rather than rows in the permutation grid:
+the active link comes from routing context rather than from a prop, and two
+`MemoryRouter`s cannot be nested. Verified in the built workshop — the
+`OnSecurities` story underlines Security Explorer.
+
+### The a11y panel found something real, and it was the grid's fault
+
+The first genuine violation this workshop has reported. `AllPermutations`
+renders six headers on one page, so axe reports
+`landmark-no-duplicate-banner` (1) and `landmark-unique` (2), both **moderate**.
+Every single-state story reports **0 violations, 13 passes, 0 inconclusive**.
+
+The application renders exactly one header, so the finding is an artefact of the
+convention rather than a defect in the component. Both rules are switched off
+**on that one story and nowhere else**: a permanent `2` on the tab would train
+the next author to ignore the badge, which is worse than the finding. The grid
+now reports 0 / 11 / 0.
+
+The general point, which the next landmark component inherits: **the
+permutation-grid convention and landmark uniqueness are in direct conflict, and
+the grid is the one that has to give.**
+
+### Measured
+
+| Build      | Modules |        JS |   JS gzip |     CSS | Files |
+| ---------- | ------: | --------: | --------: | ------: | ----: |
+| Task 1.5.2 |     261 | 340.10 kB | 111.35 kB | 8.62 kB |     3 |
+| This task  |     263 | 340.83 kB | 111.59 kB | 9.13 kB |     3 |
+
+**+2 modules and +0.73 kB**, which is `AppHeader.tsx` and its stylesheet and
+nothing else — no new dependency, and the chrome reaches for no Base UI
+primitive. A four-item navigation is a `<nav>` and four links; a menu primitive
+would have made this the second file importing `@base-ui/react` and widened that
+seam for nothing. The count is still **one**.
+
+The bundle invariant holds: `AllPermutations`, the story title, `stackItem` and
+`MemoryRouter` all appear **zero** times in the emitted JavaScript and CSS.
+
+### Verified in the browser, against the built artefact
+
+`vite preview` on the built `dist/`:
+
+- **The chrome is the same DOM node across every navigation.** Marked the
+  `<header>` with a dataset attribute, clicked through all four routes and then
+  an unknown path: the marker survived all five, so it renders once and is not
+  remounted. `performance.timeOrigin` unchanged throughout
+- **Every interactive element in the chrome takes the global focus outline.**
+  Tabbed through all four links: `:focus-visible` matches on each and the
+  computed outline is `rgb(28, 28, 28) solid 2px` at `outline-offset: 2px` on
+  all four. No component declares a focus style; `base.css` still owns it
+- **One `<h1>` per page**, and it is the route's. The product name is still a
+  `<p>`
+- The current route carries `aria-current="page"` and is underlined as well as
+  re-weighted, so it is identifiable without colour. On the not-found state no
+  link is current, which is correct and has its own story so that "nothing is
+  underlined" is not mistaken for a broken active state

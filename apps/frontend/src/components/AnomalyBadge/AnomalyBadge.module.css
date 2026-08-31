@@ -1,0 +1,52 @@
+/*
+ * The band chip. Ink is `--ink-primary` on every step, which measures 12.65,
+ * 8.87 and 5.59 against the three amber fills. The amber is never the text
+ * colour — it measures under 2.2 on both page grounds and is a fill-or-icon
+ * colour only.
+ */
+
+.badge {
+  display: inline-block;
+  min-width: 6rem;
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius);
+  color: var(--ink-primary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/*
+ * `normal` carries no fill at all. It is the absence of unusualness and does
+ * not need marking, and its step to `elevated` is the weakest in the ramp at
+ * 1.12 — so the two states hardest to tell apart by colour are the two not
+ * distinguished by colour at all.
+ *
+ * The `--anomaly-normal` token still exists, for Epic 6's topology: a canvas
+ * colours every node whether it is interesting or not and cannot render
+ * "no chip".
+ *
+ * The `calc()` keeps this chip the same size as the filled ones. Adding a 1px
+ * border to one variant of a fixed-size set and not the others is how a row of
+ * chips ends up 2px out of alignment with nothing obvious to blame.
+ */
+.normal {
+  color: var(--ink-secondary);
+  border: var(--border-width) solid var(--rule-soft);
+  padding: calc(var(--space-4) - var(--border-width))
+    calc(var(--space-8) - var(--border-width));
+}
+
+.elevated {
+  background: var(--anomaly-elevated);
+}
+
+.unusual {
+  background: var(--anomaly-unusual);
+}
+
+.extreme {
+  background: var(--anomaly-extreme);
+}

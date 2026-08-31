@@ -1,0 +1,49 @@
+/*
+ * The feed indicator. Achromatic apart from the amber on `stale`, which is the
+ * one of the three a glance should land on.
+ */
+
+.indicator {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+/*
+ * Circles are the single documented exception to the one 2px radius. The
+ * `translateY` sits the marker on the text's optical centre rather than its
+ * baseline, which is where `align-items: baseline` would otherwise put it.
+ */
+.marker {
+  flex: none;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: 50%;
+  transform: translateY(-1px);
+}
+
+.label {
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+}
+
+.detail {
+  color: var(--ink-secondary);
+}
+
+.live .marker {
+  background: var(--feed-live);
+}
+
+.stale .marker {
+  background: var(--feed-stale);
+}
+
+/* Hollow rather than filled, and the same grey as `live`. Two states, one
+   colour, told apart by shape. */
+.disconnected .marker {
+  background: none;
+  box-shadow: inset 0 0 0 var(--border-width) var(--feed-disconnected);
+}

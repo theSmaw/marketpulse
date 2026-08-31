@@ -3,6 +3,11 @@ dist/
 build/
 coverage/
 
+# Storybook's static build. A third build output directory, and the only one
+# not named `dist` or `build` — it needs its own entry here, in .prettierignore
+# and in eslint.config.mjs.
+storybook-static/
+
 # Composite projects write this next to the tsconfig, not into dist/, so the
 # rule above does not catch it.
 *.tsbuildinfo
@@ -21,3 +26,11 @@ pnpm-debug.log*
 .tmp/
 tmp/
 temp/
+
+# Claude Code's project directory is tracked for what is shared — `skills/`,
+# and anything else the team is meant to have. The two entries below are not
+# shared: `settings.local.json` is per-machine permission state, and
+# `worktrees/` holds entire second checkouts of this repository nested inside
+# it (also ignored by Prettier and ESLint, for the same reason).
+.claude/settings.local.json
+.claude/worktrees/

@@ -1,0 +1,62 @@
+/*
+ * Route furniture: the surface a route renders on, its title, its prose and the
+ * one link the not-found state offers. Shared by all five route modules, which
+ * is why it is named after the directory rather than after a component.
+ *
+ * Every declaration reads a token, the same rule `App.module.css` follows —
+ * there is not a literal colour, length or font in this file. The idioms are
+ * that file's too, deliberately rather than coincidentally: a white surface on
+ * the warm ground, a near-black hairline instead of a shadow, and an uppercase
+ * letterspaced micro-label above the heading. Story 1.4's visual language says
+ * the identity here is entirely structural, so a grey border or a neutral
+ * ground would not read as a smaller version of this design — it would read as
+ * a different, and much more generic, one.
+ */
+
+.route {
+  max-width: 52rem;
+  padding: var(--space-20);
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--rule-hairline);
+  border-radius: var(--radius);
+}
+
+/* The micro-label carries what kind of thing this is — "Placeholder", "Not
+   found" — so the heading below it can be the route's own name and nothing
+   else. Without it every one of these screens would have to apologise for
+   itself in its title. */
+.label {
+  margin: 0 0 var(--space-4);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0 0 var(--space-12);
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-subheading);
+  font-weight: var(--font-weight-strong);
+}
+
+.prose {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+.prose + .prose {
+  margin-top: var(--space-12);
+}
+
+/* The way back from the not-found state. No focus style here: `base.css`
+   carries one global `:focus-visible` rule and a link that declares its own is
+   answering a question the token layer already answered. */
+.back {
+  display: inline-block;
+  margin-top: var(--space-16);
+  color: var(--ink-primary);
+  text-decoration-thickness: var(--border-width);
+  text-underline-offset: var(--space-4);
+}

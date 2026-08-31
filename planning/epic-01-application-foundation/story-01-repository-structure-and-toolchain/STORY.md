@@ -1,6 +1,6 @@
 # Story 1.1 — Repository Structure & TypeScript Toolchain
 
-**Status:** In progress — 7 of 8 tasks complete
+**Status:** Complete — 2026-08-30, all 8 tasks
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** nothing
 **Epic scope covered:** shared configuration
@@ -21,6 +21,7 @@ Resolved 2026-08-29:
 - **Formatting** — Prettier at the root only, one `prettier.config.mjs`, and no `eslint-config-prettier` (Task 1.1.6). The ESLint/Prettier conflict surface was measured at zero rules rather than assumed, so the usual compatibility package would have been dead weight. Prettier owns `planning/` Markdown as well as code
 - **Script orchestration** — six verbs (`dev`, `build`, `test`, `lint`, `typecheck`, `clean`) identical in every package, and root scripts that run each tool **once** rather than fanning out (Task 1.1.7). `build` and `typecheck` are both a solution-wide `tsc -b`; only `test` and `dev` fan out with `pnpm -r`. `verify` is the CI command
 - **Shared tooling lives at the workspace root; packages declare only what they import** — settled in Task 1.1.7 by making TypeScript root-only alongside ESLint and Prettier, rather than adopting a pnpm catalog. One rule for the workspace, and the TS pin lives in exactly one editable place
+- **Documentation lives in two places, deliberately** (Task 1.1.8) — `README.md` for humans (prerequisites, setup, commands), `docs/adr/0001-*` for the reasoning behind each decision. `docs/` rather than `planning/`, because the ADRs ship with the repository and outlive the planning tree. `CLAUDE.md` stays the operational summary and cross-references both
 - **Type-aware linting** — enabled from the start rather than deferred (Task 1.1.5). One root flat config, ESLint installed only at the workspace root, `strictTypeChecked` + `stylisticTypeChecked`. Re-checked 2026-08-30: typescript-eslint's peer range is unchanged at `<6.1.0`, so the TypeScript pin above still holds
 
 ```
@@ -47,18 +48,20 @@ marketpulse/
 
 Tackled in order. The story is complete when all eight are done.
 
-| #     | Task                                                                                       | Status      |
-| ----- | ------------------------------------------------------------------------------------------ | ----------- |
-| 1.1.1 | [Initialise the pnpm workspace root](TASK-01-initialise-pnpm-workspace.md)                 | Complete    |
-| 1.1.2 | [Shared TypeScript configuration](TASK-02-shared-typescript-configuration.md)              | Complete    |
-| 1.1.3 | [Create the shared package](TASK-03-create-shared-package.md)                              | Complete    |
-| 1.1.4 | [Create the app package skeletons](TASK-04-create-app-package-skeletons.md)                | Complete    |
-| 1.1.5 | [ESLint configuration](TASK-05-eslint-configuration.md)                                    | Complete    |
-| 1.1.6 | [Prettier and editor conventions](TASK-06-prettier-and-editor-conventions.md)              | Complete    |
-| 1.1.7 | [Root script orchestration](TASK-07-root-script-orchestration.md)                          | Complete    |
-| 1.1.8 | [Verify from a clean checkout and document](TASK-08-verify-clean-checkout-and-document.md) | Not started |
+| #     | Task                                                                                       | Status   |
+| ----- | ------------------------------------------------------------------------------------------ | -------- |
+| 1.1.1 | [Initialise the pnpm workspace root](TASK-01-initialise-pnpm-workspace.md)                 | Complete |
+| 1.1.2 | [Shared TypeScript configuration](TASK-02-shared-typescript-configuration.md)              | Complete |
+| 1.1.3 | [Create the shared package](TASK-03-create-shared-package.md)                              | Complete |
+| 1.1.4 | [Create the app package skeletons](TASK-04-create-app-package-skeletons.md)                | Complete |
+| 1.1.5 | [ESLint configuration](TASK-05-eslint-configuration.md)                                    | Complete |
+| 1.1.6 | [Prettier and editor conventions](TASK-06-prettier-and-editor-conventions.md)              | Complete |
+| 1.1.7 | [Root script orchestration](TASK-07-root-script-orchestration.md)                          | Complete |
+| 1.1.8 | [Verify from a clean checkout and document](TASK-08-verify-clean-checkout-and-document.md) | Complete |
 
 Each task builds on the previous one, so the tree stays installable and typechecking throughout rather than being broken until the end.
+
+All five acceptance criteria were verified from a clean clone in Task 1.1.8 — empty pnpm store, empty Corepack home — where `pnpm install` then `pnpm verify` exits 0, and every documented command was executed rather than read. Stories 1.2 and 1.3 can now proceed in parallel.
 
 ## Notes
 

@@ -97,6 +97,14 @@ the one wired up.
 
 ### `verify`
 
+> **The chain took a fifth step on 2026-08-31, in Task 1.4.5.** It is now
+> `build && lint && format:check && stories && test`, where `stories` fails if a
+> component under `apps/frontend/src/components/` has no sibling stories file,
+> and `build` also produces the Storybook bundle. Nothing below is wrong — it is
+> what this task wired, and the reasoning about ordering and about `typecheck`
+> being the same command as `build` is unchanged. The current definition lives
+> in the root `package.json`; do not maintain a copy here.
+
 `build && lint && format:check && test`, sequential with `&&`, so the first
 failure is the exit code. Build first, as specified. `typecheck` is not listed
 separately only because it is the same command as `build`; running it twice

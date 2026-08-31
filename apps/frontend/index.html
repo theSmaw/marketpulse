@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  `data-theme` states the theme the token stylesheet already defaults to. It is
+  redundant today and deliberately so: the themeable tokens are declared on
+  `:root, [data-theme="light"]`, so the page is correct with or without this
+  attribute, and adding a second palette later is a values-only change rather
+  than a change to this file. Setting it here rather than from JavaScript keeps
+  the theme out of the first-paint path.
+-->
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MarketPulse</title>
+  </head>
+  <body>
+    <!--
+      Vite's entry point is this file, not a JavaScript module: it crawls the
+      script tag below to find the graph. That is why it sits at the package
+      root rather than in src/, and why no tsconfig `include` covers it.
+    -->
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,29 @@
+/*
+ * The shell's styles. Every declaration reads a token; there is not a single
+ * literal colour, length or font in this file, and that is the point of it —
+ * it is the proof that the token layer applies, not a design.
+ *
+ * It got shorter three times, and this is the end of the shrinking. Task 1.4.5
+ * moved everything describing a price direction, an anomaly band or a feed
+ * marker into the component that owns it. Task 1.5.2 moved the render check's
+ * own furniture — the modules, the table header, the band and feed lists — into
+ * `routes/MarketOverview.module.css`, because `App` stopped being a page and
+ * became the router's host. Task 1.5.3 moved the header strip and the temporary
+ * navigation into `components/AppHeader/AppHeader.module.css`, because the
+ * chrome became a component.
+ *
+ * What is left is two rules: the page's ground and the gap under the chrome.
+ * Anything longer than this arriving back here is a sign that something which
+ * should be a component is being styled from the shell again.
+ */
+
+.page {
+  min-height: 100vh;
+  padding: var(--space-24) var(--space-40);
+  /* The 24-to-40 jump in the spacing ladder, doing its job: the page breathes
+     horizontally while the content inside a module stays tight. */
+}
+
+.main {
+  margin-top: var(--space-24);
+}

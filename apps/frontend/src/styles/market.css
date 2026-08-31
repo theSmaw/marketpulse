@@ -1,0 +1,191 @@
+/*
+ * Semantic market tokens — the vocabulary the product actually reaches for.
+ *
+ * tokens.css is structural and achromatic: grounds, ink, rules, geometry, type.
+ * This file is the only place colour with meaning enters the interface, which
+ * is a direct consequence of the "neutral chrome, no brand accent" decision in
+ * VISUAL-LANGUAGE.md. There is no accent hue anywhere else, so every colour a
+ * user sees is coming from this file and is saying something about the market.
+ *
+ * --- The shape: exactly one indirection ---
+ *
+ * A palette block declares the chromatic values; a semantic block maps meaning
+ * onto them. `--price-positive` resolves to `--palette-green-strong`, never to
+ * a hex literal, so re-picking the green is one edit rather than a search. One
+ * indirection is what makes a palette change possible; a second — semantic to
+ * semantic to palette — is what makes the layer unreadable, so nothing here
+ * resolves through another semantic token.
+ *
+ * The **achromatic semantics deliberately resolve to the neutrals already in
+ * tokens.css** rather than getting duplicate palette entries. `--price-
+ * unchanged` is `--ink-secondary` because an unchanged price is not a coloured
+ * state, and giving it its own hex would be a second definition of the same
+ * value waiting to drift.
+ *
+ * --- The rule that outranks every value below ---
+ *
+ * **Colour is never the sole encoding.** Roughly one man in twelve has a
+ * red-green deficiency and this product's primary signal is the direction of a
+ * price move, so a green number and a red number that differ only in hue are
+ * the same number to a substantial slice of the audience. Every consumer of
+ * these tokens pairs them with a second channel — a sign, an arrow, a written
+ * band name, a marker shape. Task 1.4.5 puts a component behind that pairing so
+ * it is a mechanism rather than a note asking each author to remember.
+ *
+ * Verified by simulation rather than by reasoning: the render check in App.tsx
+ * was read under a deuteranopia matrix and in greyscale, and it survives both.
+ * The measurements are in Task 1.4.4's record.
+ */
+
+:root,
+[data-theme="light"] {
+  /*
+   * --- The palette ---
+   *
+   * Chromatic primitives only, and every one of them exists because some
+   * semantic token below needs it. They are themeable — a dark palette would
+   * need lighter greens and reds against a dark ground — which is why they sit
+   * in this block and not on bare `:root`. The semantic *mapping* is not
+   * themeable, and sits below.
+   */
+
+  /*
+   * Positive green. **This is not the reference's `#498100`, and the change is
+   * the resolution Task 1.4.4 was required to make explicitly.**
+   *
+   * `#498100` measures 4.27:1 on the warm page ground against a 4.5 threshold —
+   * it fails AA exactly where a price column sits — while passing at 4.75 on
+   * white and landing precisely on 4.50 on the sunken ground. The alternative
+   * resolution was to constrain positive values to white surfaces, which is a
+   * rule with no enforcement and one nobody will remember at the point they add
+   * a figure to a page-ground strip.
+   *
+   * So the green darkens. This is the same hue scaled to 90% brightness, which
+   * keeps it recognisably the reference green: 5.07 on the page ground, 5.63 on
+   * white, 5.34 on sunken. Chosen with margin rather than at the first value
+   * that scrapes past 4.5, and deliberately close to the negative red's 5.31 so
+   * that neither direction of a price move shouts louder than the other.
+   */
+  --palette-green-strong: #427400;
+
+  /* Negative red, unchanged from the reference: 5.31 on the page ground, 5.90
+     on white. It passes everywhere it is used. */
+  --palette-red-strong: #c81219;
+
+  /*
+   * The amber ramp, for anomaly intensity and for the stale-data marker.
+   *
+   * **Amber is a fill colour and never text, at any size.** The reference amber
+   * `#dbaa35` measures 1.93 on the page ground and 2.14 on white; every value
+   * in this ramp is in the same territory. Text on an amber fill is
+   * `--ink-primary`, which measures 12.65 / 8.87 / 5.59 on the three steps
+   * below.
+   *
+   * The ramp is monotone in *lightness*, not merely in hue, so intensity
+   * survives desaturation. Measured contrast between adjacent steps: 1.43 and
+   * 1.59. The weakest step in the scale is `--anomaly-normal` to
+   * `--anomaly-elevated` at 1.12, which is why the DOM presentation of a normal
+   * band carries no fill at all — see below.
+   */
+  --palette-amber-pale: #f0dda4;
+  --palette-amber: #e2b544;
+  --palette-amber-deep: #c08a12;
+
+  /* The neutral fill under a normal anomaly band. Warm, like every other
+     neutral here, and lighter than the palest amber so the ramp stays
+     monotone. */
+  --palette-neutral-pale: #eceae3;
+}
+
+/*
+ * --- Semantics ---
+ *
+ * Named for meaning, never for appearance. `--price-negative`, not `--red`:
+ * the day the negative colour stops being red is the day every appearance-named
+ * token becomes a lie, and this file would then need renaming in every consumer
+ * rather than in one line here.
+ *
+ * Not themeable. Positive is green in every theme; only the green changes.
+ */
+:root {
+  /*
+   * --- Price direction ---
+   *
+   * Three states, not two. An unchanged price is achromatic on purpose: a
+   * `0.00` tinted green or red is a direction the market did not move, and in a
+   * dense column of live figures that reads as noise.
+   *
+   * The second channel for all three is the sign — `+`, `−`, and neither — and
+   * the consumer adds a direction glyph beside it.
+   */
+  --price-positive: var(--palette-green-strong);
+  --price-negative: var(--palette-red-strong);
+  --price-unchanged: var(--ink-secondary);
+
+  /*
+   * --- Anomaly intensity ---
+   *
+   * PRODUCT_SPEC.md §11 normalises the composite score to 0–100, and §11 also
+   * requires that every score carries its explanation. Two decisions follow.
+   *
+   * **Bands, not a continuous ramp.** Four of them, and their names are domain
+   * vocabulary in `@marketpulse/shared` rather than strings invented here, so
+   * the backend and the interface cannot end up with two names for one thing. A
+   * continuous ramp cannot be labelled, and a colour nobody can name is a colour
+   * that gets read as a mood.
+   *
+   * **The ramp is amber, and it is deliberately not red.** Red already means
+   * price-down on every row of this product, and an extreme anomaly on a
+   * security that is moving sharply *up* rendered in red would read as a fall.
+   * Amber also keeps the ramp out of the "risk" and "opportunity" readings the
+   * spec forbids: it measures how unusual something is, and nothing else.
+   *
+   * These are **fills behind a written band name**, never text colours — which
+   * is both what the amber's contrast permits and what keeps the band from
+   * being encoded by colour alone. A `normal` band renders with no fill at all
+   * in the DOM: it is the absence of unusualness, it does not need marking, and
+   * the normal-to-elevated step is the weakest in the ramp at 1.12. The token
+   * still exists because Epic 6's topology gives every node a colour whether it
+   * is interesting or not, and a canvas cannot render "no chip".
+   */
+  --anomaly-normal: var(--palette-neutral-pale);
+  --anomaly-elevated: var(--palette-amber-pale);
+  --anomaly-unusual: var(--palette-amber);
+  --anomaly-extreme: var(--palette-amber-deep);
+
+  /*
+   * --- Feed status ---
+   *
+   * PRODUCT_SPEC.md §36 is specific: "Live feed disconnected — displaying data
+   * through 10:42:17". That is data still shown, still correct as of a stated
+   * time, and no longer live. **It is not an error**, and a token that rendered
+   * it as one would push the interface toward exactly the global error screen
+   * §36 forbids.
+   *
+   * So two of these three are achromatic. Stale gets the amber, because
+   * "updating more slowly than it should" is the one of the three that wants a
+   * glance to land on it; live and disconnected are grey, and are distinguished
+   * from each other by the **shape of the marker** — filled for live, hollow
+   * for disconnected — and by the timestamp the disconnected state carries. A
+   * green "live" dot was rejected: green means price-positive here, and it is
+   * the only other green on the screen.
+   */
+  --feed-live: var(--ink-secondary);
+  --feed-stale: var(--palette-amber);
+  --feed-disconnected: var(--ink-secondary);
+
+  /*
+   * --- Error ---
+   *
+   * The minimum needed to make "stale is not an error" a visible claim rather
+   * than an assertion. Story 1.7 owns failure containment and will say more.
+   *
+   * Note it resolves to the same palette entry as `--price-negative`, and that
+   * collision is deliberate rather than overlooked: there is one red, and the
+   * two meanings are separated by presentation, not by hue. A price is a bare
+   * signed figure in a column; an error is a labelled block with a heading and
+   * a message. If they are ever confusable on screen, the fix is the
+   * presentation, not a second red.
+   */
+  --status-error: var(--palette-red-strong);
+}
