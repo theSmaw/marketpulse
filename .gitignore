@@ -26,3 +26,11 @@ pnpm-debug.log*
 .tmp/
 tmp/
 temp/
+
+# Claude Code's project directory is tracked for what is shared — `skills/`,
+# and anything else the team is meant to have. The two entries below are not
+# shared: `settings.local.json` is per-machine permission state, and
+# `worktrees/` holds entire second checkouts of this repository nested inside
+# it (also ignored by Prettier and ESLint, for the same reason).
+.claude/settings.local.json
+.claude/worktrees/
