@@ -1,6 +1,6 @@
 # Task 1.5.6 — Verify the story end to end, document it and record the decision
 
-**Status:** Not started
+**Status:** Complete (2026-08-31)
 **Story:** [1.5 Application Layout & Routing](STORY.md)
 **Depends on:** Task 1.5.5
 
@@ -33,3 +33,72 @@ Prove the story's criteria against a clean tree, write the conventions down wher
 ## Notes
 
 Story 1.12 is the next consumer of this one, and Story 1.7 is the next after that. The same test applies in turn: if building the health indicator or the first error state needs an answer this story should have given, the answer belongs here, retrospectively.
+
+## Outcome
+
+**Story 1.5 is closed.** `docs/adr/0005-routing-application-layout-and-the-deployable-shape.md` is written and listed, `CLAUDE.md` and `README.md` agree with the tree, and `EPIC.md` records what the story hands the four remaining stories that care. Every figure below was taken from a clean tree — `pnpm clean && pnpm install && pnpm verify` — rather than from the warm one this task started in.
+
+### The clean build reproduces, exactly
+
+`pnpm verify` exits 0 in **11.04s** (build 3.18s, lint 2.91s, `format:check` 1.64s, `stories` 0.25s, `test` 0.45s), against Task 1.4.6's 10.5s before the router.
+
+**265 modules, 342.08 kB of JavaScript, 9.82 kB of CSS, three files** — identical to Task 1.5.4's and 1.5.5's figures, down to the asset hashes (`index-z9p5vXHu.js`, `index-FpotQPsC.css`). That is the result this task was told to expect from 1.5.5's rejection of splitting, and reproducing it byte for byte is the evidence that nothing drifted between the two.
+
+For the story as a whole: **193 → 265 modules, 300.09 → 342.08 kB, 7.21 → 9.82 kB**, still three files, one new dependency, still exactly one file importing `@base-ui/react`. Attributed per task in ADR 0005's table so the router's cost, the routes', the chrome's and the regions' stay separable.
+
+### The deep-linking result, on a clean build, is still 404
+
+`apps/frontend/dist` copied outside the workspace and served by `python3 -m http.server`: `/` is 200 and `/investigations`, `/securities`, `/replay`, `/definitely-not-a-route` and `/assets/nope.js` are all **404**. That is 1.5.5's finding confirmed rather than a new one — a _200_ here would have meant something in the artefact changed.
+
+**What is new is that the fix was built rather than only specified.** A `SimpleHTTPRequestHandler` that falls back to `index.html` only for paths outside `/assets/` gives 200 on all five routes and **404 on `/assets/nope.js`** — so Story 1.11's third constraint, the one saying the rewrite must not be a blanket catch-all, is demonstrably implementable in about six lines rather than an instruction with no example behind it.
+
+Both criteria that depend on it are recorded as met _given_ a fallback, with the pointer to Story 1.11. Against a host that has one, `/replay` cold-loads to the Market Replay heading with `aria-current="page"` on its link, and `/no-such-page` renders "No such page" with the chrome intact and no link marked current.
+
+### The criteria, checked by doing them
+
+| Criterion                      | How it was checked                                              | Result                                                 |
+| ------------------------------ | --------------------------------------------------------------- | ------------------------------------------------------ |
+| Four routes                    | Cold load and in-app navigation                                 | Headings and paths correct on all four                 |
+| Identifiable placeholder       | Each route's heading read from the DOM                          | Met                                                    |
+| Chrome survives navigation     | `data-probe156` on `<header>`, four routes plus an unknown path | Same node throughout, `timeOrigin` unchanged           |
+| Unknown route                  | `/definitely-not-a-route`, both hosts                           | Met given a fallback; host's 404 without one           |
+| §9 regions at the design width | 1440 × 900, then 1280 in an iframe of that exact width          | Met at both, no horizontal overflow                    |
+| Deep-linking                   | Dumb host and fallback host                                     | Measured, handed to Story 1.11                         |
+| Focus outline                  | Tabbed through all seven interactive elements                   | `rgb(28, 28, 28) solid 2px` at 2px offset on every one |
+| Active route without colour    | Computed styles, active against inactive                        | Weight 600/400, underline/none, plus `aria-current`    |
+
+Chrome persistence used Task 1.5.3's method rather than looking at the page, because a header remounted on every navigation looks identical to one that is not. The focus check tabbed rather than reading the stylesheet, and **not one of the seven declares a focus style of its own** — the token layer's rule reaches all of them.
+
+The active-route indication is **three encodings and only one is colour**, which is the property the criterion is actually about: weight, an underline, and `aria-current="page"` for anyone not looking at pixels at all.
+
+### Accessibility, and the layout, both reproduce
+
+axe 4.13.0 against the built page on a static host — 0 violations everywhere, 37 passes on the landing route and 25 on each of the other four, `landmark-unique` passing, and the single inconclusive unchanged: `color-contrast` over the two `aria-hidden` direction arrows, "Element content contains only non-text characters".
+
+Layout at 1710 px: primary 1205 px, right column 402 px, no horizontal overflow, navigation on one line, the primary region scrolling its own content and the other three not. At 1280 px in an iframe: 882 px and 294 px, still one line, still no overflow. Row heights track the viewport rather than the content, because the grid takes a `height` — which is §5 of the ADR working as intended rather than a discrepancy with Task 1.5.4's numbers, taken at a different iframe height.
+
+### HMR, and one figure that should not be compared
+
+A **CSS-only** edit lands in **18–135 ms** (283 ms for the first edit after a server start), reproducing Task 1.4.6's 24–130 ms band with the router, the chrome and the regions in the tree.
+
+**The component figure is not comparable and is not being presented as one.** The measuring tab reported `visibilityState: "hidden"` throughout — the same caveat 1.4.6 stated — and clicking into the page did not change it, so React's scheduler was throttled: component edits measured **227–884 ms** against 1.4.6's 177–280 ms. What this run supports is the ratio between the two kinds of edit, not a regression claim in either direction. Recorded as an upper bound, which is what it is.
+
+`performance.timeOrigin` was unchanged across every measurement, so all of it was HMR rather than a reload.
+
+### What the React Compiler rules said, across 1.5.2 to 1.5.5
+
+Nothing — and 1.5.5 for a different reason from the other three, since it changed no source at all. So it is **three shipping tasks of silence**, not four.
+
+The honest reading is not that the tree is compatible with 17 rules taken wholesale. It is that **this story had almost nothing to hold state about**: five route modules and the shell carry zero state between them, and the chrome holds the two shapes most likely to attract the rules — a clock and a connection status — and holds neither, because the clock is a reserved region and the status is a prop. `Region`'s `useId()` is the first hook in this application and the rules were silent because `useId` is not state. Epic 2 is where that stops being true.
+
+### The question Task 1.4.6 asked of this story
+
+Story 1.4 was documented on the bet that its first consumer would not need to ask it anything, and it mostly held — the tokens, `FeedIndicator`, the focus rule and the `cx()` idiom were all used as written, and not one value in ADR 0004 needed correcting.
+
+Three things were missing, and **all three are recorded in ADR 0004 rather than 0005**, because all three are properties of Story 1.4's output rather than of this story's: the workshop wired **no providers**, so the first chrome component could not render in it at all (Task 1.5.3's `MemoryRouter` decorator); the **permutation grid and landmark uniqueness are in direct conflict**, and the grid is what gives; and the token layer has **no ladder for proportion**, which is a boundary rather than a gap — layout is proportion and the design language is not, which is why no `--layout-primary-ratio` was invented.
+
+### What this task deliberately did not do
+
+- **It did not tick deep-linking or the unknown-route criterion.** Both are annotated as met given a host with a fallback, with the pointer to Story 1.11. A checkmark earned on `vite preview` is the exact failure this story has been avoiding since Task 1.5.1
+- **It did not add a task for implementing the fallback.** That would be scaffolding against a host nobody has chosen, which is what Task 1.5.5 declined to do; the constraint is written where Story 1.11 will read it
+- **It changed no application source.** The only files it touched are records
