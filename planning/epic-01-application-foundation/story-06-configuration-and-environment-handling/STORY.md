@@ -13,7 +13,7 @@ Typed, validated configuration for both packages, with a clear boundary between 
 
 Story 1.1 is complete, and these four bind this story. They are stated in every Epic 1 story so each one can be read on its own; the full reasoning is in `docs/adr/0001-repository-structure-and-typescript-toolchain.md`.
 
-- **`pnpm verify` is the acceptance command** — `build && lint && format:check && stories && test`, chained with `&&` so the first failure is the exit code. It took its fifth step in Task 1.4.5: `stories` fails if a component has no stories file, and `build` now also produces the Storybook bundle. This story passes it from the repository root. Prettier owns Markdown as well as code, so an unformatted planning document fails it too
+- **`pnpm verify` is the acceptance command** — `build && lint && format:check && stories && env:check && test`, chained with `&&` so the first failure is the exit code. It took its fifth step in Task 1.4.5: `stories` fails if a component has no stories file, and `build` now also produces the Storybook bundle. **It took its sixth in Task 1.6.6 of this story**: `env:check` fails if `.env.example` and `CONFIG_VARIABLES` have drifted apart, which is what makes the documented variable set a checked claim rather than prose. This story passes it from the repository root. Prettier owns Markdown as well as code, so an unformatted planning document fails it too
 - **Six verbs, identical in every package** — `dev`, `build`, `test`, `lint`, `typecheck`, `clean`. Only `test` and `dev` fan out with `pnpm -r`; the rest run their tool once from the root, because the reference graph and ESLint's project service already cover the workspace in one pass. Changing what a verb means in one package means changing it everywhere, or saying why not
 - **Shared tooling lives at the workspace root; packages declare only what they actually import.** ESLint, Prettier and TypeScript are root-only devDependencies, and pnpm puts the root's `node_modules/.bin` on every package script's PATH. A library the code imports belongs in the package that imports it — `@types/node` in `apps/backend` is the counter-example that keeps the rule from being over-applied
 - **The module setup is ESM-only and single-file-safe** — `"type": "module"`, `module: nodenext`, `isolatedModules`, `verbatimModuleSyntax`, and relative imports carrying `.js` extensions from `.ts` files (TS2835 without one). `packages/shared` is consumed as **built output**, so it must be built before any consumer can be typechecked; `tsc -b` orders that itself, which is why `typecheck` and `build` are the same command
@@ -66,7 +66,7 @@ Story 1.5 added no configuration and no environment variable, so nothing here is
 
 ## Tasks
 
-Tackled in order. The story is complete when all seven are done.
+Tackled in order, with one exception: **1.6.6 ran before 1.6.5**, because 1.6.5's only input is `import.meta.env.BASE_URL` — a Vite built-in set from `base` rather than a `.env` variable — so it adds nothing to the example files. The story is complete when all seven are done.
 
 | #     | Task                                                                                          | Status      |
 | ----- | --------------------------------------------------------------------------------------------- | ----------- |
@@ -75,7 +75,7 @@ Tackled in order. The story is complete when all seven are done.
 | 1.6.3 | [Environments, and how a `.env` file is loaded](TASK-03-environments-and-env-file-loading.md) | Complete    |
 | 1.6.4 | [The frontend's environment boundary](TASK-04-frontend-environment-boundary.md)               | Complete    |
 | 1.6.5 | [`base` and `basename` as one input](TASK-05-base-and-basename.md)                            | Not started |
-| 1.6.6 | [`.env.example` and the secrets boundary](TASK-06-env-example-and-the-secrets-boundary.md)    | Not started |
+| 1.6.6 | [`.env.example` and the secrets boundary](TASK-06-env-example-and-the-secrets-boundary.md)    | Complete    |
 | 1.6.7 | [Verify, document and record the decision as ADR 0006](TASK-07-verify-document-and-adr.md)    | Not started |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.5 followed.
