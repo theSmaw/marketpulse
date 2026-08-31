@@ -9,13 +9,26 @@
 
 Choose the component library and styling approach, and define the design tokens the rest of the application builds on. This decision is load-bearing: it constrains every screen from Epic 4 onward, and it is expensive to reverse once dozens of components exist.
 
+## Visual direction
+
+Settled 2026-08-31 and recorded in full in **[`VISUAL-LANGUAGE.md`](VISUAL-LANGUAGE.md)**, which is the design input to Tasks 1.4.3–1.4.6 and carries the measured values, the structural idioms and the contrast numbers.
+
+MarketPulse should read as an **internal application at a large financial institution** — dense, sober, desktop analyst tooling — rather than as a consumer product. Four decisions, each settled with the user rather than assumed:
+
+- **Light theme only in V1**, built directly. The theming mechanism ships so a second palette is a values-only swap; the second palette does not. This reversed the dark-primary constraint below
+- **Neutral chrome, no brand accent.** Black, white and warm greys. **Colour appears only where it carries market meaning** — which is Task 1.4.4's entire subject, now doing more work than it would in a colourful interface rather than less
+- **System font stack, no webfont.** No font files ship and none are fetched
+- **Colour is never the sole encoding of anything.** Promoted out of Task 1.4.4's brief to here, because the decision above makes it structural
+
+The consequence worth reading before Task 1.4.3 begins: with no brand hue and no distinctive typeface, **the identity is carried entirely by structure** — a warm `#f4f3ee` ground against white surfaces, 1px near-black hairlines, a 2px radius, a 4px spacing grid, uppercase letterspaced micro-labels, and right-aligned tabular numerals. The values are less forgiving than a token set usually is, and `VISUAL-LANGUAGE.md` is specific for that reason.
+
 ## Selection constraints
 
 The chosen library must suit this specific product, not general web apps:
 
 - **Dense, numeric, desktop-first UI** — analyst tooling, substantial screen real estate (PRODUCT_SPEC.md §3)
 - **Must coexist with a WebGL canvas and charting libraries** without fighting them for layout or theming
-- **Dark theme is the primary theme** for a market-monitoring surface, not an afterthought
+- **A light theme is the only theme in V1**, built directly rather than derived from a dark one. This bullet said "dark theme is the primary theme for a market-monitoring surface, not an afterthought" and was **reversed on 2026-08-31**, before Task 1.4.3 started — see [Visual direction](#visual-direction) below and `VISUAL-LANGUAGE.md`. It is a constraint on the component library only in the weak sense that a library shipping an opinionated dark stylesheet is now less interesting, not more
 - **Fast at high update rates** — live prices change continuously (Epic 3); heavy runtime-CSS-in-JS is a risk
 - **Accessible primitives** — Epic 15 includes an accessibility review
 
@@ -58,7 +71,7 @@ Three things, now measured rather than expected.
 ## Acceptance criteria
 
 - Component library and styling approach chosen, installed, and rendering
-- Design tokens defined for colour, spacing, typography and elevation, with a dark theme
+- Design tokens defined for colour, spacing, typography and elevation, with a light theme — matching the language captured in [`VISUAL-LANGUAGE.md`](VISUAL-LANGUAGE.md), not merely using its hex values
 - Semantic tokens exist for market-specific meaning — positive/negative price movement, anomaly intensity, stale/disconnected data
 - At least one representative component built to demonstrate the conventions
 - Conventions documented, and the decision captured as an ADR in `docs/adr/` (PRODUCT_SPEC.md §39) **numbered with the next free number at the time — not a number fixed in advance.** This criterion said "ADR 0002" and was written before Story 1.2 took that number for the backend framework and Story 1.3 took 0003 for the frontend build; following it as written would force exactly the renumbering the convention forbids. The next free number is **0004** as of 2026-08-30, so check `docs/adr/` rather than trusting that. The convention is in `docs/adr/README.md`: numbered in the order written, never renumbered, superseded records kept with a `**Superseded by:**` line rather than deleted. Follow 0001's shape — context, decision, rejected alternatives, and consequences a future reader would otherwise discover by tripping over them. This is the ADR where "expensive to reverse once dozens of components exist" earns the record
@@ -71,7 +84,7 @@ Tackled in order. The story is complete when all six are done.
 | ----- | ---------------------------------------------------------------------------------------------------------------------------- | ----------- |
 | 1.4.1 | [Choose the styling approach and the component library](TASK-01-choose-styling-approach-and-component-library.md)            | Complete    |
 | 1.4.2 | [Install the styling approach and get the first stylesheet into the build](TASK-02-styling-pipeline-and-first-stylesheet.md) | Complete    |
-| 1.4.3 | [Design tokens and the dark theme](TASK-03-design-tokens-and-dark-theme.md)                                                  | Not started |
+| 1.4.3 | [Design tokens and the theme](TASK-03-design-tokens-and-theme.md)                                                            | Not started |
 | 1.4.4 | [Semantic market tokens](TASK-04-semantic-market-tokens.md)                                                                  | Not started |
 | 1.4.5 | [Component primitives and the representative component](TASK-05-component-primitives-and-representative-component.md)        | Not started |
 | 1.4.6 | [Verify, document the conventions and write ADR 0004](TASK-06-verify-document-and-adr.md)                                    | Not started |
@@ -86,4 +99,4 @@ Task 1.4.5 is the only one that would plausibly split further — installing pri
 
 ## Notes
 
-Positive/negative colour choices need to survive an accessibility review — red/green alone is insufficient as the sole encoding.
+Positive/negative colour choices need to survive an accessibility review — red/green alone is insufficient as the sole encoding. One measurement already taken and handed to Task 1.4.4: the reference palette's positive green (`#498100`) is **4.27:1 on the warm page ground** and so fails AA there, while passing at 4.75 on white surfaces. That is a decision for 1.4.4 to make explicitly — darken the green, or constrain positive values to white surfaces — rather than something to inherit silently.
