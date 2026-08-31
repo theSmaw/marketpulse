@@ -69,7 +69,7 @@ Tackled in order. The story is complete when all seven are done.
 | #     | Task                                                                                          | Status      |
 | ----- | --------------------------------------------------------------------------------------------- | ----------- |
 | 1.6.1 | [Choose the validation approach](TASK-01-choose-the-validation-approach.md)                   | Complete    |
-| 1.6.2 | [The backend configuration module](TASK-02-backend-configuration-module.md)                   | Not started |
+| 1.6.2 | [The backend configuration module](TASK-02-backend-configuration-module.md)                   | Complete    |
 | 1.6.3 | [Environments, and how a `.env` file is loaded](TASK-03-environments-and-env-file-loading.md) | Not started |
 | 1.6.4 | [The frontend's environment boundary](TASK-04-frontend-environment-boundary.md)               | Not started |
 | 1.6.5 | [`base` and `basename` as one input](TASK-05-base-and-basename.md)                            | Not started |
