@@ -62,6 +62,13 @@ The frontend half of this story was the one waiting, and it is no longer waiting
 - **`Region` lives in `src/routes/` and owes no stories today; this story is what moves it.** The rule is a directory rule with a test behind it — a component under `src/components/` owes a stories file and `pnpm verify` fails without one — and `Region` sits outside it because a label and a slot have one state. The moment this story gives it empty, loading and failed states it belongs in `src/components/`, and its permutation grid then walks straight into the landmark conflict Task 1.5.3 found: six `region` landmarks on one page is `landmark-unique`, and the fix there was disabling the rule on the grid story alone. Expect to do the same, and only there
 - **The React Compiler rules have still never fired on shipped code.** Story 1.5 added six modules and zero state; `Region`'s `useId()` is the first hook in the application and `useId` is not state. An error boundary is a **class component** and the rules have nothing to say about one — so the first real test of those 15 error-level rules is still this story's recovery affordance or Story 1.12's polling effect, whichever lands first
 
+### What Story 1.6 hands this story
+
+Task 1.6.3 closed the environment question by deciding there is **no environment variable** — see the note in `TASK-03-environments-and-env-file-loading.md`. Two consequences land here.
+
+- **This story owns `readEnum`, and it owns the first enum variable.** `apps/backend/src/config.ts` has `readString` and `readInt` and deliberately no third reader, because nothing has an enum-valued variable yet. `LOG_LEVEL` is the obvious first one, and building it here means adding `readEnum(env, key, allowed)` beside the other two, with the message shape they already use — `KEY must be one of a, b, c, received "x"` — plus an entry in `CONFIG_VARIABLES`. Do not re-derive the reader signature; Task 1.6.1 measured it and Task 1.6.2 built the two that had callers
+- **If this story wants pino-pretty in development and JSON in production, it is introducing the environment concept, not inheriting one.** Task 1.6.3 measured that a `.env` file, a real environment variable and a container all reach the same readers by the same precedence rule, and concluded that distinguishing environments by _values_ needed no variable naming the environment. A log format is the first thing that plausibly needs to branch on the environment rather than on a value, and that is a decision to take deliberately here — `LOG_LEVEL` alone may well cover it, which would keep the concept unbuilt for another story
+
 ## Acceptance criteria
 
 - Backend emits structured (JSON) logs with configurable levels

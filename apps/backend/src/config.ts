@@ -19,6 +19,7 @@
 // So "validated against a declared schema" here means a declared set of
 // readers plus the CONFIG_VARIABLES table below, not a library.
 
+import path from "node:path";
 import process from "node:process";
 
 // Thrown by the readers and re-thrown once by loadConfig() with every problem
@@ -137,6 +138,67 @@ export function readInt(
   }
 
   return value;
+}
+
+// Where a `.env` file lives: beside `package.json` in this package, rather
+// than in the current working directory.
+//
+// The cwd is what Node itself defaults to, for both `process.loadEnvFile()`
+// and `--env-file`, and it is what dotenv does — so this is a deliberate
+// divergence. Both of the ways this server is started (`scripts/dev.sh` via
+// `pnpm --filter @marketpulse/backend dev`, and `start`) run with the package
+// as their cwd, so the two agree today by coincidence; resolving from the
+// module makes them agree by construction. It also survives the case the
+// coincidence does not — `node apps/backend/dist/index.js` from the repository
+// root, which is the shape of every "just run the built output" instruction.
+//
+// This file emits to `dist/config.js`, so `..` is the package root, and it
+// stays the package root under `pnpm deploy --filter` (Story 1.11), which
+// copies `dist/` and `package.json` into one directory together.
+const ENV_FILE = path.join(import.meta.dirname, "..", ".env");
+
+function isFileNotFound(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
+// Load `apps/backend/.env` into process.env, if there is one.
+//
+// This is `process.loadEnvFile()` and not the `--env-file` flag, and the
+// deciding measurement is that `--env-file` on a missing file is **exit 9
+// before any application code runs** — so a fresh clone, which has no `.env`,
+// would not start. `--env-file-if-exists` fixes that and writes a line to
+// stderr every time instead. But the real argument is the one the flags cannot
+// answer: a flag has to be repeated at every invocation site, and there are two
+// of them here — `start` in package.json and `node --watch dist/index.js`
+// inside scripts/dev.sh, which is the one file `pnpm verify` checks with
+// nothing. Two copies of the loader is exactly the "works in dev, differs in
+// production" bug this is supposed to prevent, and `NODE_OPTIONS` cannot hold
+// the flag either (Node rejects it outright). In-process, there is one call
+// site and the two entrypoints cannot disagree.
+//
+// Precedence is Node's and it is the conventional one, measured both ways
+// round: a variable already set in the real environment **wins** over the same
+// key in the file. That is what a container depends on, and it is why nothing
+// here has to special-case production.
+//
+// A missing file is the ordinary case rather than an error — a fresh clone has
+// none, and a container has none by design — so ENOENT is swallowed and
+// everything else is re-thrown for index.ts to report. The path is returned so
+// a caller can say which file it read; nothing does yet, and Story 1.7 owns the
+// logger that would.
+//
+// Calling this is the entrypoint's job, not this module's: it mutates the
+// process, which is precisely what loadConfig() was written not to do.
+export function loadEnvFile(): string | undefined {
+  try {
+    process.loadEnvFile(ENV_FILE);
+    return ENV_FILE;
+  } catch (error) {
+    if (isFileNotFound(error)) {
+      return undefined;
+    }
+    throw error;
+  }
 }
 
 // Validation happens when this is called, not when the module is imported.
