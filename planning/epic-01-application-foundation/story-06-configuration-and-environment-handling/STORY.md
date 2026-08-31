@@ -56,6 +56,28 @@ Story 1.5 added no configuration and no environment variable, so nothing here is
 - Only explicitly whitelisted variables reach the frontend bundle; secrets cannot leak by accident
 - Real secrets are gitignored and never committed
 
+## Open decisions
+
+- **The validation approach** — a schema library (Zod, Valibot) or a hand-rolled reader generalised from what `apps/backend/src/index.ts` already does. Task 1.6.1 settles it from a measurement, and the null option is a real candidate for six variables
+- **Whether the frontend gets a runtime configuration mechanism** — build-time inlining means one artefact cannot be promoted across environments. Task 1.6.4 states the consequence; inventing a config endpoint or an injected script is a deployment decision and Story 1.11 should be the one to want it
+- **Whether the frontend's ports become configurable** — the backend reads `PORT` and `HOST`, the frontend's 5173 and 4173 are literals. Story 1.8 was handed the same question; whichever story runs first owns it, and Task 1.6.4 is the first at it
+
+## Tasks
+
+Tackled in order. The story is complete when all seven are done.
+
+| #     | Task                                                                                          | Status      |
+| ----- | --------------------------------------------------------------------------------------------- | ----------- |
+| 1.6.1 | [Choose the validation approach](TASK-01-choose-the-validation-approach.md)                   | Not started |
+| 1.6.2 | [The backend configuration module](TASK-02-backend-configuration-module.md)                   | Not started |
+| 1.6.3 | [Environments, and how a `.env` file is loaded](TASK-03-environments-and-env-file-loading.md) | Not started |
+| 1.6.4 | [The frontend's environment boundary](TASK-04-frontend-environment-boundary.md)               | Not started |
+| 1.6.5 | [`base` and `basename` as one input](TASK-05-base-and-basename.md)                            | Not started |
+| 1.6.6 | [`.env.example` and the secrets boundary](TASK-06-env-example-and-the-secrets-boundary.md)    | Not started |
+| 1.6.7 | [Verify, document and record the decision as ADR 0006](TASK-07-verify-document-and-adr.md)    | Not started |
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.5 followed.
+
 ## Notes
 
 Market-data and LLM credentials are server-side only, without exception. The browser talks to the MarketPulse backend, never directly to Alpaca or a model provider.
