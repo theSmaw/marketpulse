@@ -114,3 +114,37 @@ The spike worktree and its branch are deleted. `git status` shows only the untra
 ### One measurement handed to Task 1.4.2
 
 `apps/frontend`'s `types: []` makes a CSS import a hard failure — `error TS2307: Cannot find module './Row.module.css' or its corresponding type declarations` — and `"types": ["vite/client"]` fixes it. Verified in the same run that **`process` still does not typecheck afterwards** (`TS2591`), so the guarantee holds: an explicit list is what keeps auto-discovery off, and the list's contents are not what does the work. This is the same tsconfig entry Story 1.6 was handed for `import.meta.env`; whichever lands first owns it, and on this evidence it will be Task 1.4.2.
+
+### Re-evaluated against Base UI (2026-08-31) — decision unchanged
+
+Asked directly whether the component-library half should pivot to **Base UI** before Task 1.4.5 installs anything. It should not, and the reason is measurement rather than reluctance. Nothing is installed yet, so this was the cheapest possible moment to ask and the pivot would have cost one planning edit; the numbers are what stopped it.
+
+Run the same way as the original spike — a throwaway worktree on the real toolchain, the same dense numeric row, built and linted — but with one improvement on the first run: **both libraries were measured on the same day against the same component**, rather than Base UI being compared to a number recorded a day earlier. The baseline is the tree as Task 1.4.2 left it (18 modules, 190.80 kB, 0.07 kB CSS).
+
+| Candidate                             | Modules | JS        | Δ baseline | gzip      |
+| ------------------------------------- | ------- | --------- | ---------- | --------- |
+| _baseline — nothing installed_        | 18      | 190.80 kB | —          | 60.16 kB  |
+| Radix, one primitive (popover)        | 83      | 255.36 kB | +64.56 kB  | 82.46 kB  |
+| Radix, three (popover/dialog/tooltip) | 86      | 267.34 kB | +76.54 kB  | 85.41 kB  |
+| Base UI, one primitive (popover)      | 179     | 292.67 kB | +101.87 kB | 94.80 kB  |
+| Base UI, three                        | 215     | 313.51 kB | +122.71 kB | 100.37 kB |
+
+Both linted clean under `strictTypeChecked` and `--max-warnings 0`, both installed at exit 0, and neither tripped `allowBuilds`.
+
+**Base UI loses on the exact axis that decided this choice in the first place, and by more than the candidate it already beat.** react-aria-components cost +86 kB for the same popover and was rejected for it; Base UI costs **+101.87 kB**. Reversing to Base UI would therefore mean overturning the original comparison rather than extending it.
+
+**The marginal cost is the more interesting half, because a real product uses many primitives and a first-primitive number can mislead.** Going from one primitive to three costs Radix **+11.98 kB and three modules** — the popover has already pulled in nearly all the shared internals, so dialog and tooltip are close to free. The same step costs Base UI **+20.84 kB and thirty-six modules**. Radix's per-package publishing was the reason it won on weight, and the amortisation argument that might have rescued Base UI runs the wrong way.
+
+**The premise that usually motivates this pivot does not hold.** Base UI is worth asking about mainly because Radix is widely assumed to have stalled. It has not: `@radix-ui/react-popover` shipped **five stable releases in July 2026 alone**, latest 1.1.23 on 2026-07-24, with a 1.2.0 release-candidate line still publishing on 2026-07-31. Checked on the registry rather than recalled.
+
+What is genuinely in Base UI's favour, recorded so this is not a one-sided note: it is a **stable 1.7.0** (2026-08-04) against Radix's per-package 1.1.x; it is one package with nine transitive dependencies where three Radix primitives pull thirty; it is built by a team including the original Radix authors; and it ships primitives Radix does not, of which `NumberField` is the one this product would plausibly want. None of those outweigh 46 kB on the axis the story's own selection constraints name.
+
+**A package-name trap worth writing down.** `@base-ui-components/react` — the name in most existing documentation — is frozen at `1.0.0-rc.0` (2025-12-04) and is _not_ the live package. Base UI moved scope at 1.0; the maintained package is **`@base-ui/react`**, at 1.7.0. Installing the documented name gets a nine-month-old release candidate with no error.
+
+Two smaller observations. Base UI depends on `@babel/runtime`, which nothing else in this tree does. And its popover has one more required layer than Radix's — `Root / Trigger / Portal / Positioner / Popup` against `Root / Trigger / Portal / Content` — which is a markup difference rather than a cost, and confirms the "swap, not rewrite" property still holds in both directions.
+
+**Base UI now joins react-aria-components as a standing alternative rather than a rejected one.** The reversal trigger below is unchanged and still accessibility-led; if it fires, both should be re-measured, because a 46 kB gap is a decision and not a law.
+
+### State of the tree after this re-evaluation
+
+The spike worktree and its branch are deleted. No dependency was added to any `package.json`; `pnpm-lock.yaml` and `pnpm-workspace.yaml` are unchanged. `git status` shows only the untracked `.claude/` and the modified `notes.txt` it started with.
