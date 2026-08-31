@@ -66,6 +66,14 @@ Story 1.5 added a router, and a router is context — which is the first thing i
 - **There is still no state and no network call anywhere in the frontend.** Story 1.5's six modules hold zero of either, so this story's "frontend component tests render through the real component tree" has five components, four route placeholders and a region label to test — all of them pure. The first asynchronous subject arrives with Story 1.7's error boundary or Story 1.12's polling effect, whichever lands first, which is worth knowing before choosing a runner on its async and fake-timer story
 - **Route modules live in `src/routes/` and are inside the React Compiler rule set** just as `src/components/` is. Wherever tests live, the rule about `--max-warnings 0` is unchanged; what Story 1.5 adds is a second directory under `src/` whose files a test might sit beside
 
+### What Story 1.6 hands this story
+
+The configuration module was written for this story before this story existed, and Task 1.6.3 decided what "test configuration" means so the answer is inherited rather than invented.
+
+- **`loadConfig(env)` takes the environment as a parameter and defaults it to `process.env`.** That default is the only occurrence of `process.env` in the workspace. Drive the readers with a plain object; there is no process to mutate and no module to re-import between cases, because `config.ts` validates when it is called rather than when it is imported. `ConfigError` is exported so a test can assert the type as well as the message
+- **There is no `.env.test`, deliberately, and the mechanism does not assume one.** Task 1.6.3 measured the precedence rule both ways round: a variable already set in the real environment beats the same key in the file. So a runner that sets variables in its own process needs no file and cannot be surprised by a developer's `.env` — which is the whole reason the rule was measured rather than read from the documentation. If this story does want a file, it is a new decision and it needs a loader call, because `loadEnvFile()` reads `apps/backend/.env` and nothing else
+- **`loadEnvFile()` is called by `index.ts`, not by `config.ts`.** It mutates the process, which is precisely what `loadConfig()` was written not to do, so importing `config.ts` in a test loads no file and touches nothing
+
 ## Acceptance criteria
 
 - Unit test runner configured for **all three** packages — `apps/backend`, `apps/frontend` and `packages/shared` — running from the repository root. The original wording said "both packages" and predates `packages/shared`

@@ -11,13 +11,17 @@
 
 import process from "node:process";
 
-import { ConfigError, loadConfig } from "./config.js";
+import { ConfigError, loadConfig, loadEnvFile } from "./config.js";
 import { buildServer } from "./server.js";
 
 let port: number;
 let host: string;
 
 try {
+  // The .env file, if there is one, before anything reads the environment.
+  // Both calls are here rather than inside config.ts's own module body for the
+  // same reason: this is the file that is allowed to touch the process.
+  loadEnvFile();
   ({ port, host } = loadConfig());
 } catch (error) {
   // Fail before the logger exists, so this goes to stderr as a plain line
