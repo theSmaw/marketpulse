@@ -1,6 +1,6 @@
 # Epic 1 — Application Foundation
 
-**Status:** In progress — Stories 1.1, 1.2 and 1.3 complete (2026-08-30)
+**Status:** In progress — Stories 1.1, 1.2, 1.3 and 1.4 complete (2026-08-31)
 **Sequence:** 1 of 15 — first epic, no dependencies
 **Spec references:** PRODUCT_SPEC.md §25 (frontend architecture), §29 (backend architecture), §41 Phase 0
 
@@ -53,7 +53,7 @@ A working frontend and backend can be run locally and deployed, with shared conv
 
 Stories 1.2–1.3 can proceed in parallel once 1.1 lands, as can 1.6–1.9 once both skeletons exist. Story 1.12 closes the epic by proving the foundation end to end.
 
-**Stories 1.2, 1.3 and 1.4 are complete, so nothing in this epic is blocked on a missing skeleton or a missing styling system any more.** Every remaining story's dependencies are satisfied except 1.10 (needs 1.9), 1.11 (needs 1.6 and 1.10) and 1.12 (needs 1.5, 1.7 and 1.8). **Story 1.5 is now unblocked and is the obvious next one**: it is the immediate consumer of Story 1.4's tokens and components, and the real test of whether they were documented well enough. Each of 1.5–1.12 has been amended with what the completed stories actually made concrete, rather than what they were expected to.
+**Stories 1.2, 1.3 and 1.4 are complete, so nothing in this epic is blocked on a missing skeleton or a missing styling system any more.** Every remaining story's dependencies are satisfied except 1.10 (needs 1.9), 1.11 (needs 1.6 and 1.10) and 1.12 (needs 1.5, 1.7 and 1.8). **Story 1.5 is now unblocked and is the obvious next one**: it is the immediate consumer of Story 1.4's tokens and components, and the real test of whether they were documented well enough. Each of 1.5–1.12 has been amended with what the completed stories actually made concrete, rather than what they were expected to — Story 1.4's pass over them (2026-08-31) added a `What Story 1.4 hands this story` section to 1.5, 1.7, 1.11 and 1.12, extended 1.9's, and corrected the figures 1.4 moved in 1.8 and 1.10. **No story was added, deleted or re-ordered**: Story 1.4 changed what the remaining stories build on and changed nothing about what they are.
 
 Two consequences of Story 1.3 landing that are worth reading before picking the next story. **Story 1.8 is materially smaller than it is written** — its `pnpm dev` and reload criteria are met, and what is left is one genuinely outstanding item (a clean clone reaching a _running_ pair by following `README.md` alone) plus presentation. It is not deleted, because that outstanding item is one of this epic's exit criteria. And **Story 1.7's two halves are no longer equally ready**: the backend half is unblocked today, while its "contains a failure to the affected region" criterion has no regions until Story 1.5. That is a delivery-order note inside the story rather than a dependency change; the story says so.
 

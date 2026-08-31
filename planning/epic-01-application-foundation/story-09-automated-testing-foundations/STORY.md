@@ -40,6 +40,12 @@ One thing, and it is evidence rather than a decision.
 
 What it does mean is that the Storybook side of a decision to use Vitest is nearly free, and that the reverse choice leaves an unused assertion library in the tree. Both are worth stating; neither settles anything.
 
+Task 1.4.6 added three things to that, and the first is a decision waiting rather than evidence.
+
+- **There are five components with stories covering their permutations, and nothing runs them.** `@storybook/addon-vitest` would turn each existing story into a smoke test — renders without throwing — for close to no authoring cost, and the a11y addon's per-story axe run would gain a way to _fail_ rather than merely report. Both are Vitest-shaped and neither exists today. That is the strongest form of the "cheaper to adopt" argument above and it is still not a reason on its own
+- **`pnpm stories` proves a file exists and nothing more**, and its own header says so: it cannot tell whether the stories inside cover the component's permutations, because a variant set is a type and the check does not typecheck. If this story wants that gap closed, a test runner is the thing that could close it — but only for the permutations someone wrote down
+- **The a11y addon never fails a build**, and the parameter that would make it do so drives the same Vitest integration. Note before treating an axe pass as coverage: Task 1.4.6 found axe returns `color-contrast` as **inconclusive** on non-text content — 24 direction arrows on one grid — so it declines to judge the exact elements carrying this product's non-colour encoding. An automated accessibility check is a floor here, not the measurement
+
 ### What Story 1.3 changed for this story
 
 - **A frontend component test needs a DOM environment, which is a different decision from the backend's.** `app.inject()` needs no environment at all; rendering `<App />` needs jsdom, happy-dom or a real browser runner. That is a second runtime to configure, a second set of globals, and — under ADR 0001 §6 — a **package** dependency rather than a root one, because the test code imports it. Decide it deliberately rather than taking whatever the runner's default template ships
