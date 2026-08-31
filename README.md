@@ -12,9 +12,9 @@ recommends trades, or produces target prices.
 
 ## What exists today
 
-**Epic 1, Stories 1.1, 1.2 and 1.3 complete, and Story 1.4 all but complete —
-the repository, its toolchain, a backend, a frontend, a design-token layer and a
-component workshop.**
+**Epic 1, Stories 1.1, 1.2, 1.3 and 1.4 complete — the repository, its
+toolchain, a backend, a frontend, a design-token layer and a component
+workshop.**
 
 `apps/backend` is a running Fastify service. It starts on a configurable port,
 serves `GET /health`, restarts on source change, and shuts down cleanly on
@@ -31,8 +31,9 @@ curl http://127.0.0.1:3000/health
 in scope rather than in status: no market data, no database, no domain logic.
 
 `apps/frontend` is a React 19 application built with Vite. It renders a
-placeholder shell, reloads edited components in about 100 ms without losing
-their state, and builds to static assets:
+placeholder shell, reloads edited components without losing their state — a
+stylesheet edit in 24–130 ms, a component edit in a few hundred — and builds to
+static assets:
 
 ```sh
 pnpm --filter @marketpulse/frontend dev      # http://localhost:5173
@@ -42,9 +43,8 @@ pnpm --filter @marketpulse/frontend preview  # http://localhost:4173
 
 It is a shell in scope rather than in status: no routing (Story 1.5), no state
 management, and it does not talk to the backend yet (Story 1.12). It **does**
-have a styling system — CSS Modules over CSS custom properties, with design
-tokens, market semantics and five components (Story 1.4). What it does prove is that the toolchain works end to
-end — `@marketpulse/shared` resolves through the bundler as well as through
+have a styling system — see below. What it does prove is that the toolchain
+works end to end — `@marketpulse/shared` resolves through the bundler as well as through
 `tsc`, and the built `dist/` renders from a plain static server with no
 `package.json` and no `node_modules` beside it.
 
@@ -230,6 +230,45 @@ that imports it can be typechecked. `tsc -b` handles that ordering itself, and
 [ADR 0001](docs/adr/0001-repository-structure-and-typescript-toolchain.md) for
 why a per-package `tsc --noEmit` is the wrong instrument here.
 
+## Styling and design tokens
+
+CSS Modules over CSS custom properties, with **Base UI** (`@base-ui/react`)
+supplying behaviour for anything interactive. There is no CSS-in-JS: styles are
+resolved at build time and shipped as one stylesheet, currently 7.21 kB for the
+whole design language. The reasoning is in
+[ADR 0004](docs/adr/0004-styling-approach-component-library-and-the-component-workshop.md).
+
+```
+apps/frontend/src/styles/
+  tokens.css    structure — surfaces, ink, rules, spacing, type. Achromatic
+  market.css    the palette, and the market semantics over it. The only
+                colour in the application that means anything
+  base.css      color-scheme, the page ground, default type, tabular
+                figures, and the one focus rule
+  tokens.ts     typed read-once access, for consumers that are not React
+```
+
+Four things to know before writing a component.
+
+- **CSS is the source of truth for tokens.** `tokens.ts` reads them once at
+  startup and freezes the result; it does not define them. Every value comes
+  back as a string
+- **Compose class names with `cx()`**, from `src/cx.ts` —
+  `cx(styles.row, styles.negative)`. The template-literal form and the
+  `styles["row"]` form are both lint errors, and a **misspelled class name is
+  silent**: it typechecks, builds and renders unstyled
+- **Colour is never the only signal.** Price direction also carries an arrow
+  and a sign, an anomaly band carries its name inside the fill, and a feed
+  state carries the shape of its marker. Under greyscale the positive green and
+  the negative red are 1.05:1 apart, which is no difference at all — so use the
+  components rather than the tokens directly
+- **Focus belongs to `base.css`.** There is one global `:focus-visible` rule;
+  a component does not add its own
+
+The application renders in a light theme, set as `data-theme="light"` on the
+document element. A second palette would be a values-only change to the
+themeable block in `tokens.css` — the mechanism ships, the palette does not.
+
 ## The component workshop
 
 Components are developed and reviewed in isolation, in Storybook:
@@ -322,7 +361,10 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 
 ## Documentation
 
-- [`docs/adr/`](docs/adr/) — architecture decision records, newest last
+- [`docs/adr/`](docs/adr/) — architecture decision records, newest last;
+  [0004](docs/adr/0004-styling-approach-component-library-and-the-component-workshop.md)
+  is the most recent and covers the styling approach, the component library and
+  the workshop
 - [`planning/PRODUCT_SPEC.md`](planning/PRODUCT_SPEC.md) — the authoritative
   product definition
 - [`planning/EPICS.md`](planning/EPICS.md) — the delivery roadmap
