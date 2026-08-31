@@ -1,61 +1,33 @@
 // The entrypoint: the only file that knows there is a process, an
 // environment, and a socket. The application itself is server.ts.
 //
-// Configuration is read inline here, and deliberately: this task's acceptance
-// criterion is "a configurable port", which two `process.env` reads satisfy.
-// Story 1.6 owns configuration properly — a config module, a schema, typed
-// settings — and replacing two reads is far easier than unpicking an
-// abstraction invented before there was anything to configure.
+// Configuration was read inline here until Task 1.6.2, deliberately: Story
+// 1.2's criterion was "a configurable port", which two `process.env` reads
+// satisfy, and replacing two reads is far easier than unpicking an abstraction
+// invented before there was anything to configure. config.ts now owns it — the
+// readers, the defaults, the range check and the declaration of what this
+// application reads. What stayed here is the half that is genuinely about the
+// process: catching the error and exiting.
 
 import process from "node:process";
 
+import { ConfigError, loadConfig } from "./config.js";
 import { buildServer } from "./server.js";
-
-const DEFAULT_PORT = 3000;
-
-// Not 0.0.0.0. A development server should not be reachable on every
-// interface on the machine; a container needs 0.0.0.0 and gets it by setting
-// HOST, which is exactly why this is a variable in the first place
-// (Story 1.11).
-const DEFAULT_HOST = "127.0.0.1";
-
-class ConfigError extends Error {}
-
-function readPort(raw: string | undefined): number {
-  if (raw === undefined || raw.trim() === "") {
-    return DEFAULT_PORT;
-  }
-
-  // Number() rather than parseInt(): parseInt("3000nonsense") is 3000, which
-  // would silently accept a typo'd value.
-  const port = Number(raw);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new ConfigError(
-      `PORT must be an integer between 1 and 65535, received ${JSON.stringify(raw)}`,
-    );
-  }
-
-  return port;
-}
-
-function readHost(raw: string | undefined): string {
-  if (raw === undefined || raw.trim() === "") {
-    return DEFAULT_HOST;
-  }
-
-  return raw.trim();
-}
 
 let port: number;
 let host: string;
 
 try {
-  port = readPort(process.env.PORT);
-  host = readHost(process.env.HOST);
+  ({ port, host } = loadConfig());
 } catch (error) {
   // Fail before the logger exists, so this goes to stderr as a plain line
-  // rather than as a Fastify log record. The message names the variable and
-  // the value it was given; a Node bind error names neither.
+  // rather than as a Fastify log record. The message names each offending
+  // variable and the value it was given; a Node bind error names neither. It
+  // can be several lines now — loadConfig() reports every bad key at once
+  // rather than the first.
+  //
+  // The exit lives here and not in config.ts: a configuration module that
+  // calls process.exit cannot be tested and cannot be reused.
   process.stderr.write(
     `${error instanceof ConfigError ? error.message : String(error)}\n`,
   );

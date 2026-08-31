@@ -39,6 +39,14 @@ The backend half of this story was already concrete after Story 1.2. The fronten
 - **`.env` files are loaded from the Vite project root, not the repository root.** That is `apps/frontend/`, unless `envDir` says otherwise. `.gitignore`'s `.env` patterns are unanchored, so `apps/frontend/.env` is already ignored — verified, so the "real secrets are gitignored" criterion holds at the new location too
 - **The two apps configure their ports differently, and this story may be where that is settled.** The backend reads `PORT` and `HOST` from the environment; the frontend's 5173 and 4173 are literals in `vite.config.ts` with no override. Story 1.8 was handed the question of whether the asymmetry should stand; whichever story runs first owns it. Note that `vite.config.ts` **can** read `process.env` — it runs in Vite's Node process, sits outside the frontend's `include` and so outside that program, and already has its own block in `eslint.config.mjs` giving it Node globals. So the frontend's build configuration and the frontend's client code have genuinely different rules, and conflating them is the mistake to avoid
 
+### What Story 1.5 hands this story
+
+Story 1.5 added no configuration and no environment variable, so nothing here is met that was not met before. It added one build-time input that has to stay in step with an existing one, and it is the kind that fails silently.
+
+- **`base` now has a partner, and neither knows about the other.** `<BrowserRouter>` in `apps/frontend/src/App.tsx` takes **no `basename`**. Deploying under a subpath is already a `base` change and a rebuild (ADR 0003, and Story 1.11's section says so); with a router in the tree it is now _two_ edits, because Vite's `base` fixes the asset paths while React Router still matches against the full pathname. Set one without the other and the page loads its JavaScript correctly and then renders the not-found route at its own address — an application that looks deployed and is not. If this story builds a configuration module, `basename` reading from `import.meta.env.BASE_URL` is the one-line way to make the pair impossible to desynchronise, and it is cheaper now than after Epic 4 has scattered routes
+- **Route paths are not configuration and should not become configuration.** They live once in `apps/frontend/src/routes/paths.ts` as an `as const` object precisely so `tsc -b` catches a typo. Anything that turns them into strings read from the environment gives that back for nothing, since they are the same in every environment
+- **The frontend still has no environment-variable mechanism at all.** `import.meta.env` typechecks (Task 1.4.2 put `vite/client` in the `types` array) and nothing reads it; there is no `.env` file anywhere. Story 1.5 did not change that and had no reason to — the frontend makes no request and reads no host. This story is still starting from nothing on the frontend half, with one more consumer waiting for it than there was
+
 ## Acceptance criteria
 
 - Configuration is parsed and validated at startup, with a declared schema
@@ -47,6 +55,28 @@ The backend half of this story was already concrete after Story 1.2. The fronten
 - `.env.example` documents every variable, with descriptions and safe placeholder values
 - Only explicitly whitelisted variables reach the frontend bundle; secrets cannot leak by accident
 - Real secrets are gitignored and never committed
+
+## Open decisions
+
+- ~~**The validation approach**~~ — **closed by Task 1.6.1 on 2026-08-31: no schema library.** The hand-rolled reader wins, generalised into `readString`/`readInt`/`readEnum` plus an accumulator that reports every bad key. Zod 4.5.4 and Valibot 1.4.2 were both spiked to parity and thrown away. The deciding measurement is that a schema over `process.env` is a schema over strings, so blank-means-absent and a message quoting the value the operator typed have to be written by hand either way — `z.coerce.number()` reports `NaN` and loses the input, and `PORT=` parses as **port 0** rather than as the default. Bundle cost, recorded so it is not re-derived: one single-key schema in the frontend is +74.88 kB for Zod and +3.14 kB for Valibot. The reversal trigger is Epic 11's `WorkspaceCommand` validation, which is a different problem and may well want Zod
+- **Whether the frontend gets a runtime configuration mechanism** — build-time inlining means one artefact cannot be promoted across environments. Task 1.6.4 states the consequence; inventing a config endpoint or an injected script is a deployment decision and Story 1.11 should be the one to want it
+- **Whether the frontend's ports become configurable** — the backend reads `PORT` and `HOST`, the frontend's 5173 and 4173 are literals. Story 1.8 was handed the same question; whichever story runs first owns it, and Task 1.6.4 is the first at it
+
+## Tasks
+
+Tackled in order. The story is complete when all seven are done.
+
+| #     | Task                                                                                          | Status      |
+| ----- | --------------------------------------------------------------------------------------------- | ----------- |
+| 1.6.1 | [Choose the validation approach](TASK-01-choose-the-validation-approach.md)                   | Complete    |
+| 1.6.2 | [The backend configuration module](TASK-02-backend-configuration-module.md)                   | Complete    |
+| 1.6.3 | [Environments, and how a `.env` file is loaded](TASK-03-environments-and-env-file-loading.md) | Not started |
+| 1.6.4 | [The frontend's environment boundary](TASK-04-frontend-environment-boundary.md)               | Not started |
+| 1.6.5 | [`base` and `basename` as one input](TASK-05-base-and-basename.md)                            | Not started |
+| 1.6.6 | [`.env.example` and the secrets boundary](TASK-06-env-example-and-the-secrets-boundary.md)    | Not started |
+| 1.6.7 | [Verify, document and record the decision as ADR 0006](TASK-07-verify-document-and-adr.md)    | Not started |
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.5 followed.
 
 ## Notes
 
