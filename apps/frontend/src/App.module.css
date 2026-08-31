@@ -1,19 +1,19 @@
 /*
- * The placeholder shell's styles. Every declaration reads a token; there is not
- * a single literal colour, length or font in this file, and that is the point
- * of it — it is the proof that the token layer applies, not a design.
+ * The shell's styles. Every declaration reads a token; there is not a single
+ * literal colour, length or font in this file, and that is the point of it —
+ * it is the proof that the token layer applies, not a design.
  *
- * It got shorter in Task 1.4.5 rather than longer. Everything that described a
- * price direction, an anomaly band or a feed marker moved into the component
- * that owns it, under `src/components/`; what is left here is page furniture —
- * the ground, the modules, the headings and the prose. That is the shape to
- * keep: a shell styles its own layout and nothing that a component could be
- * asked for by name.
+ * It got shorter twice. Task 1.4.5 moved everything describing a price
+ * direction, an anomaly band or a feed marker into the component that owns it.
+ * Task 1.5.2 moved the render check's own furniture — the modules, the table
+ * header, the band and feed lists — into `routes/MarketOverview.module.css`,
+ * because `App` stopped being a page and became the router's host. What is left
+ * is what survives navigation: the ground, the header and the temporary
+ * navigation strip.
  *
- * Story 1.5 replaces this shell with the real application chrome. What should
- * survive that is the idioms, not the markup: the warm ground under white
- * modules, the near-black hairline as the separator, and the uppercase
- * letterspaced micro-label.
+ * Task 1.5.3 replaces that strip with the real chrome. What should survive it
+ * is the idioms, not the markup: the warm ground, the near-black hairline as
+ * the separator, and the uppercase letterspaced micro-label.
  */
 
 .page {
@@ -47,126 +47,51 @@
   font-weight: var(--font-weight-strong);
 }
 
-.modules {
+/*
+ * --- The temporary navigation ---
+ *
+ * Scaffolding, and styled as such: enough to be legible and to show which route
+ * is current, and no attempt at the header strip PRODUCT_SPEC.md §9 sketches.
+ * That is Tasks 1.5.3 and 1.5.4.
+ *
+ * There is no focus rule here. `base.css` carries one global `:focus-visible`
+ * outline and a link that declares its own is answering a question the token
+ * layer already answered.
+ */
+.nav {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-24);
+  flex-wrap: wrap;
+  gap: var(--space-16);
+  margin-top: var(--space-12);
+}
+
+.navLink {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  text-decoration: none;
+}
+
+.navLink:hover {
+  color: var(--ink-primary);
+  text-decoration: underline;
+  text-underline-offset: var(--space-4);
+}
+
+/*
+ * The current route. NavLink sets `aria-current="page"` on the match, so the
+ * accessible state and the visible one are the same fact rather than two — and
+ * the underline means the state is not carried by weight alone, which the
+ * design language requires of anything the eye has to find.
+ */
+.navLink[aria-current="page"] {
+  color: var(--ink-primary);
+  font-weight: var(--font-weight-strong);
+  text-decoration: underline;
+  text-underline-offset: var(--space-4);
+  text-decoration-thickness: var(--border-width);
+}
+
+.main {
   margin-top: var(--space-24);
-}
-
-/* A white module on the warm ground, separated by a hairline rather than by a
-   shadow. This is what elevation means here. */
-.module {
-  max-width: 52rem;
-  padding: var(--space-20);
-  background: var(--surface-raised);
-  border: var(--border-width) solid var(--rule-hairline);
-  border-radius: var(--radius);
-}
-
-.moduleTitle {
-  margin: 0 0 var(--space-12);
-  font-size: var(--font-size-subheading);
-  line-height: var(--line-height-subheading);
-  font-weight: var(--font-weight-strong);
-}
-
-.prose {
-  margin: 0 0 var(--space-16);
-  color: var(--ink-secondary);
-}
-
-/*
- * --- The table header ---
- *
- * The rows are `SecurityRow`'s and so is the `.table` class on the element
- * itself. The header is the shell's, because a header belongs to a table rather
- * than to a row, and Epic 4's overview will bring its own.
- *
- * The sunken ground and the near-black rule, both in their intended roles: a
- * header strip, and the *primary* separator underneath it.
- */
-.tableHead th {
-  padding: var(--space-8);
-  background: var(--surface-sunken);
-  color: var(--ink-secondary);
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
-  text-transform: uppercase;
-  font-weight: var(--font-weight-regular);
-  text-align: left;
-  border-bottom: var(--border-width) solid var(--rule-hairline);
-}
-
-/* Numeric headings sit over right-aligned columns, so they are right-aligned
-   too. The cells' own alignment is SecurityRow's. */
-.tableHead .numericHeading {
-  text-align: right;
-}
-
-/* --- Anomaly intensity --- */
-
-.bandList {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.bandRow {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-12);
-  padding: var(--space-8) 0;
-}
-
-.bandRow + .bandRow {
-  border-top: var(--border-width) solid var(--rule-soft);
-}
-
-.bandMeaning {
-  color: var(--ink-secondary);
-}
-
-/* --- Feed status --- */
-
-.feedList {
-  margin: 0 0 var(--space-16);
-  padding: 0;
-  list-style: none;
-}
-
-.feedRow {
-  padding: var(--space-8) 0;
-}
-
-.feedRow + .feedRow {
-  border-top: var(--border-width) solid var(--rule-soft);
-}
-
-/*
- * --- An error, for contrast ---
- *
- * Here so that "a stale feed is not an error" is something visible rather than
- * something asserted. The difference on sight is not the hue: it is that this
- * is a titled block with a message and a rule down its edge, while a feed state
- * is a marker beside data that is still on screen. Story 1.7 owns the real
- * containment.
- */
-.error {
-  padding: var(--space-12) var(--space-16);
-  background: var(--surface-sunken);
-  border-left: var(--focus-width) solid var(--status-error);
-  border-radius: var(--radius);
-}
-
-.errorTitle {
-  margin: 0 0 var(--space-4);
-  color: var(--status-error);
-  font-weight: var(--font-weight-strong);
-}
-
-.errorBody {
-  margin: 0;
-  color: var(--ink-secondary);
 }
