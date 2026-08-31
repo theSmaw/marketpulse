@@ -39,7 +39,7 @@ Deliberately separate from Task 1.4.3. Installing a styling pipeline and designi
 
 The pipeline is real, and the headline is that it cost **no dependency at all**. CSS Modules and plain CSS are Vite features, not packages — Task 1.4.1 chose the one option in the field whose install step is empty. Nothing was added to `apps/frontend`, nothing to the root, and `pnpm-lock.yaml` is untouched. The Prettier-plugin and ESLint-plugin paragraphs in the Work section above describe a Tailwind-shaped choice that was not made; they are correctly written and simply did not apply.
 
-Radix is not here either. It is behaviour rather than styling, and Task 1.4.5 installs it — that is the first dependency this story adds.
+The component library is not here either. It is behaviour rather than styling, and Task 1.4.5 installs it — that is the first dependency this story adds. (It was Radix when this was written; the choice was reversed to Base UI on 2026-08-31 and nothing about this task changes.)
 
 ### What changed
 

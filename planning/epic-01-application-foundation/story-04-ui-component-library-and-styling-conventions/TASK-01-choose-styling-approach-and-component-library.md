@@ -36,6 +36,8 @@ Charting library selection is explicitly **not** part of this story (it belongs 
 
 ## Outcome
 
+**Decision: CSS Modules plus CSS custom properties for styling, and Base UI for component behaviour.** **The component-library half was reversed on 2026-08-31** — see _Reversed to Base UI_ at the end of this record for why, and read the two sections above it as the reasoning that was correct on the evidence available at the time. The styling half is unchanged. Original wording follows, because everything it says about the styling decision still holds.
+
 **Decision: CSS Modules plus CSS custom properties for styling, and Radix Primitives for component behaviour.** Headless primitives plus own styling, in the story's terms. Settled with the user rather than assumed, per the standing rule on this story's open decisions, and settled from measurement rather than reputation.
 
 ### What was actually run
@@ -115,7 +117,7 @@ The spike worktree and its branch are deleted. `git status` shows only the untra
 
 `apps/frontend`'s `types: []` makes a CSS import a hard failure — `error TS2307: Cannot find module './Row.module.css' or its corresponding type declarations` — and `"types": ["vite/client"]` fixes it. Verified in the same run that **`process` still does not typecheck afterwards** (`TS2591`), so the guarantee holds: an explicit list is what keeps auto-discovery off, and the list's contents are not what does the work. This is the same tsconfig entry Story 1.6 was handed for `import.meta.env`; whichever lands first owns it, and on this evidence it will be Task 1.4.2.
 
-### Re-evaluated against Base UI (2026-08-31) — decision unchanged
+### Re-evaluated against Base UI (2026-08-31) — decision unchanged _on weight, and then reversed anyway_
 
 Asked directly whether the component-library half should pivot to **Base UI** before Task 1.4.5 installs anything. It should not, and the reason is measurement rather than reluctance. Nothing is installed yet, so this was the cheapest possible moment to ask and the pivot would have cost one planning edit; the numbers are what stopped it.
 
@@ -148,3 +150,42 @@ Two smaller observations. Base UI depends on `@babel/runtime`, which nothing els
 ### State of the tree after this re-evaluation
 
 The spike worktree and its branch are deleted. No dependency was added to any `package.json`; `pnpm-lock.yaml` and `pnpm-workspace.yaml` are unchanged. `git status` shows only the untracked `.claude/` and the modified `notes.txt` it started with.
+
+### Reversed to Base UI (2026-08-31)
+
+**The component library is Base UI (`@base-ui/react`).** The section above is correct and its numbers stand; it was answering the wrong question, because it only had the evidence a spike can produce.
+
+**The deciding constraint was not available to either spike: an existing shared component library, used at the author's work, is built on Base UI, and plugging it into MarketPulse later is a real intention rather than a hypothetical.** That outranks bundle weight and it is not close. The measured gap is 46 kB uncompressed and about 15 kB gzipped on a desktop analyst tool; the alternative cost is re-authoring every component in the application at the point the shared library arrives. This is exactly the "expensive to reverse once dozens of components exist" property PRODUCT_SPEC.md §39 asks this story to take seriously — and the cheap moment to act on it is now, before Task 1.4.5 installs anything.
+
+**One assumption in that reasoning needs stating rather than inheriting, because it is doing real work.** The expectation is that the shared library's interfaces resemble Base UI's, making the later swap easy. That is likely but not automatic: if the shared library _wraps_ Base UI, its public API is the wrapper's API, not Base UI's, and matching the underlying primitive buys less than it appears to. Two things make the bet pay regardless, and both are Task 1.4.5's to implement:
+
+- **Shared behavioural and composition idioms.** Base UI's part structure — `Root / Trigger / Portal / Positioner / Popup` — is distinctive, and a library built on it almost certainly exposes the same shape of composition, the same controlled/uncontrolled conventions and the same rendering-into-a-portal assumptions. Those are the expensive things to change later; prop names are not
+- **Every Base UI usage sits behind our own thin wrapper component**, so a later swap is a change to a handful of wrapper bodies rather than to every call site. This is a convention Task 1.4.5 must establish rather than a hope, and it is worth its small cost even if the shared library never arrives
+
+**Verify the assumption before Task 1.4.5 rather than after.** Read the shared library's actual exports and check whether it re-exports Base UI parts, wraps them, or only borrows the idiom. That check is cheap now and changes what the wrapper layer should look like.
+
+### What this costs, recorded so it is not rediscovered
+
+Measured, not estimated — the table above is the source.
+
+- **+37.31 kB of JavaScript for the first primitive** (+101.87 kB against baseline, where Radix was +64.56 kB), and **+46.17 kB at three primitives**. In gzip terms, about +15 kB
+- **A higher marginal cost per primitive.** Two further primitives cost Base UI +20.84 kB and 36 modules against Radix's +11.98 kB and 3. A product that ends up using many primitives pays this repeatedly, so **watch it rather than assuming the first number is the whole cost** — re-measure when the component set grows, and put the figure next to Epic 14's budget rather than in a commit message
+- **A `@babel/runtime` dependency**, which nothing else in this tree has
+
+Accepted deliberately. None of it touches PRODUCT_SPEC.md §28's actual constraint, which is about work done during render rather than bytes shipped: Base UI is headless and the styling half is still static CSS, so the "no styles computed on the hot path" property that decided the styling approach is untouched.
+
+### What was already confirmed about Base UI on this toolchain
+
+From the 2026-08-31 spike, so Task 1.4.5 starts from facts rather than a fresh investigation:
+
+- **The package is `@base-ui/react`, at 1.7.0 (2026-08-04).** `@base-ui-components/react` — the name in most existing documentation — is frozen at `1.0.0-rc.0` from 2025-12-04 and is **not** the live package. Installing the documented name silently gets a nine-month-old release candidate
+- **It installs at exit 0** and adds nine packages. **`allowBuilds` does not fire** — no install scripts in the tree it brings
+- **It lints clean** under `strictTypeChecked` + `stylisticTypeChecked` with `--max-warnings 0`, including through the `cx()` helper, and builds on Vite 8/Rolldown with `verbatimModuleSyntax` and `isolatedModules` on
+- **Import from the subpath**, `@base-ui/react/popover`, not the package root
+- **`date-fns` and `@date-fns/tz` are peer dependencies but are `optional: true`**, so they can be left uninstalled until something needs them
+
+### The reversal trigger, restated for the new decision
+
+The accessibility trigger is unchanged and now has two candidates behind it rather than one: **Radix** at roughly −46 kB for the same three primitives, and **react-aria-components**. Both are headless, so a swap changes component markup and leaves styling alone — measured in both directions on 2026-08-31, where the only structural difference was Base UI requiring one more layer (`Positioner`) than Radix's `Content`.
+
+A second trigger now exists that did not before: **if the shared component library is not adopted after all _and_ bundle weight becomes a measured problem**, the reason for this reversal has evaporated and Radix is the swap back. That is two conditions, not one — the weight alone was already judged acceptable.
