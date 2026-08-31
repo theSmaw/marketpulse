@@ -68,9 +68,19 @@ export default tseslint.config(
   // --- Per-package environment ---
   //
   // This split mirrors the tsconfig `types` split from Task 1.1.4 exactly, and
-  // has to: the frontend sets `types: []` so that `process` fails to typecheck
-  // there, and handing it Node globals here would have ESLint call the same
-  // code clean. Where the two disagree, tsc is right.
+  // has to: the frontend sets an explicit `types` array so that `process` does
+  // not typecheck there, and handing it Node globals here would have ESLint
+  // call the same code clean. Where the two disagree, tsc is right.
+  //
+  // **That last sentence stopped being true in Task 1.4.5 and Task 1.6.4 is
+  // where it was noticed.** Storybook's types reach `apps/frontend/src` from
+  // the `.stories.tsx` files, and both `storybook/internal/node-logger` and
+  // `vite`'s own node build carry `/// <reference types="node" />` — which
+  // pulls `@types/node` into the program as a *global* type library, and an
+  // explicit `types` array does not stop a triple-slash reference. So
+  // `process`, `Buffer`, `__dirname` and `node:path` all typecheck in browser
+  // code today. tsc is no longer the thing that is right, which is why the
+  // frontend block further down carries real rules rather than only globals.
   //
   // Be clear about what this currently buys, though. `no-undef` — the rule
   // globals feed — is switched *off* for TypeScript files by typescript-eslint,
@@ -144,6 +154,77 @@ export default tseslint.config(
   {
     files: ["apps/frontend/src/**/*.ts", "apps/frontend/src/**/*.tsx"],
     extends: [reactHooks.configs.flat["recommended-latest"]],
+  },
+
+  // --- The browser boundary (Task 1.6.4) ---
+  //
+  // This is the frontend half of Story 1.6's "secrets cannot leak by accident"
+  // criterion, and it exists because the guarantee it replaces is gone.
+  //
+  // Until Task 1.4.5 the boundary was a type error: `apps/frontend/tsconfig.json`
+  // sets an explicit `types` array, which stops TypeScript auto-discovering
+  // every reachable `@types` package, and a deliberate `process` reference was
+  // verified as TS2591 in Task 1.4.2. Story 1.4 then put `.stories.tsx` files
+  // under `src/`, so the program now reaches `@storybook/react-vite`, and two
+  // files on that path — `storybook/internal/node-logger` and `vite`'s node
+  // build — carry `/// <reference types="node" />`. A triple-slash reference is
+  // not filtered by the `types` array, so `@types/node` is in the program
+  // globally and `process`, `Buffer`, `__dirname`, `__filename` and
+  // `import path from "node:path"` all typecheck in browser code. Re-measured
+  // in Task 1.6.4 and it is exit 0 on every one of them.
+  //
+  // Neither of the things downstream of tsc catches it either, measured
+  // against the built artefact:
+  //
+  //   - `process.env.SECRET` compiles to `{}.SECRET`, because Vite defines
+  //     `process.env` as `{}`. Undefined at runtime, no error, no warning.
+  //   - `import path from "node:path"` **builds successfully** — Rolldown
+  //     externalises it with a warning on stdout and `vite build` exits 0. A
+  //     bundle that fails in the browser, from a green build.
+  //
+  // So these rules are the boundary now, and they are the only thing standing
+  // where a compile error used to. Keep them scoped to `src` — `vite.config.ts`
+  // and the `.storybook/` files are Node processes and legitimately need all of
+  // this; the trailing block below is where they are handled.
+  //
+  // The reversal, if this ever needs to be a type error again: give the stories
+  // their own tsconfig project so `@storybook/react-vite` is out of the
+  // application's program. That is a fourth project, a `references` entry and a
+  // second place the workshop's build lives, which is more than the finding is
+  // worth while a lint rule says the same thing at the same moment.
+  {
+    files: ["apps/frontend/src/**/*.ts", "apps/frontend/src/**/*.tsx"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        ...[
+          "process",
+          "Buffer",
+          "__dirname",
+          "__filename",
+          "global",
+          "require",
+          "setImmediate",
+          "clearImmediate",
+        ].map((name) => ({
+          name,
+          message:
+            "Node global in browser code. Configuration reaching the browser goes through import.meta.env and a VITE_ prefix (see envPrefix in vite.config.ts); anything else is server-only.",
+        })),
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["node:*"],
+              message:
+                "Node builtin in browser code. Vite externalises it and the build still exits 0, so this fails in the browser rather than in CI.",
+            },
+          ],
+        },
+      ],
+    },
   },
 
   // --- Storybook ---
