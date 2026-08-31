@@ -236,6 +236,15 @@ Tasks 1.3.1, 1.3.2, 1.3.3 and a cold 200-package install in 1.3.5 — found
 for whenever something does bring one; what is no longer true is the claim that
 we know what it feels like when it fires.
 
+**Superseded on 2026-08-31 by Task 1.4.5, and this section keeps its original
+wording because the prediction is worth as much as the outcome.** `allowBuilds`
+is no longer empty: Storybook 10 depends on `esbuild` **directly**, not through
+Vite, and its install script fetches the platform binary it cannot ship. The
+policy fired for the first time in the shipping tree, with exactly the signature
+Task 1.4.1's spike recorded, and `esbuild: true` is now its one entry. The
+sentence above is right that Vite will never bring it; it is wrong that nothing
+would. See [ADR 0004](0004-styling-approach-component-library-and-the-component-workshop.md).
+
 ### Rolldown is the first platform-specific native binding in this repository
 
 `@rolldown/binding-darwin-arm64` resolves locally; Linux CI resolves something

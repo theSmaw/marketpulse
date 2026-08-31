@@ -110,7 +110,9 @@ Every component ships one story per discrete state plus an `AllPermutations` sto
 
 ### The bundle, and the one number that moved
 
-The application artefact is still **three files**. The stylesheet grew 6.22 kB → 7.05 kB. The JavaScript grew 196.36 kB → **293.06 kB**, and essentially all of that is Base UI's popover: Task 1.4.1 measured Radix as lighter by 37 kB for one primitive, and this is the other side of that trade being paid. It was a reversal taken knowingly and on a different constraint; the number is recorded here so nobody has to re-derive it.
+**These two figures were measured mid-task and are lower than what this task actually shipped — see the dated note below.** The application artefact is still **three files**. The stylesheet grew 6.22 kB → 7.05 kB. The JavaScript grew 196.36 kB → **293.06 kB**, and essentially all of that is Base UI's popover: Task 1.4.1 measured Radix as lighter by 37 kB for one primitive, and this is the other side of that trade being paid. It was a reversal taken knowingly and on a different constraint; the number is recorded here so nobody has to re-derive it.
+
+**Corrected on 2026-08-31 by Task 1.4.6.** A clean build of the commit this task shipped is **300.09 kB across 193 modules with a 7.21 kB stylesheet**, reproducible byte-for-byte. The numbers above were taken before this task's last edits and were never re-run; the conclusion they support is unchanged and slightly understated. Task 1.4.6's figures are the story's baseline.
 
 No story code reached the bundle — `AllPermutations`, `Market/SecurityRow`, `storybook` and the workshop stylesheet's class names all return zero matches in the emitted JavaScript and CSS. Stories are inside `tsc -b`'s program and unreachable from `index.html`, which is exactly the shape wanted.
 

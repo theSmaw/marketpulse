@@ -1,6 +1,6 @@
 # Story 1.4 — UI Component Library & Styling Conventions
 
-**Status:** In progress — Tasks 1.4.1–1.4.5 complete (2026-08-31)
+**Status:** Complete (2026-08-31) — all six tasks
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.3
 **Epic scope covered:** select UI component library and styling conventions
@@ -81,14 +81,14 @@ Three things, now measured rather than expected.
 
 Tackled in order. The story is complete when all six are done.
 
-| #     | Task                                                                                                                                          | Status      |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1.4.1 | [Choose the styling approach and the component library](TASK-01-choose-styling-approach-and-component-library.md)                             | Complete    |
-| 1.4.2 | [Install the styling approach and get the first stylesheet into the build](TASK-02-styling-pipeline-and-first-stylesheet.md)                  | Complete    |
-| 1.4.3 | [Design tokens and the theme](TASK-03-design-tokens-and-theme.md)                                                                             | Complete    |
-| 1.4.4 | [Semantic market tokens](TASK-04-semantic-market-tokens.md)                                                                                   | Complete    |
-| 1.4.5 | [Component primitives, the representative component and the Storybook workshop](TASK-05-component-primitives-and-representative-component.md) | Complete    |
-| 1.4.6 | [Verify, document the conventions and write ADR 0004](TASK-06-verify-document-and-adr.md)                                                     | Not started |
+| #     | Task                                                                                                                                          | Status   |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| 1.4.1 | [Choose the styling approach and the component library](TASK-01-choose-styling-approach-and-component-library.md)                             | Complete |
+| 1.4.2 | [Install the styling approach and get the first stylesheet into the build](TASK-02-styling-pipeline-and-first-stylesheet.md)                  | Complete |
+| 1.4.3 | [Design tokens and the theme](TASK-03-design-tokens-and-theme.md)                                                                             | Complete |
+| 1.4.4 | [Semantic market tokens](TASK-04-semantic-market-tokens.md)                                                                                   | Complete |
+| 1.4.5 | [Component primitives, the representative component and the Storybook workshop](TASK-05-component-primitives-and-representative-component.md) | Complete |
+| 1.4.6 | [Verify, document the conventions and write ADR 0004](TASK-06-verify-document-and-adr.md)                                                     | Complete |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1, 1.2 and 1.3 followed.
 
@@ -107,3 +107,22 @@ Positive/negative colour choices need to survive an accessibility review — red
 **Task 1.4.4 resolved it on 2026-08-31: the green darkens.** `#427400` — the same hue at 90% brightness — measures 5.07 on the page ground, 5.63 on white and 5.34 on sunken, chosen with margin rather than at the first passing value and deliberately close to the negative red's 5.31 so neither direction shouts louder. Constraining positive values to white surfaces was rejected as a rule nothing can enforce. The accessibility half of this paragraph was also settled and measured rather than argued: under `grayscale(1)` the positive and negative figures differ by **1.05:1**, which is no difference at all, so the arrow glyph and the sign carry the direction and the colour is the redundancy. Task 1.4.4's Outcome carries the simulations.
 
 **Task 1.4.5 found the first thing in this story that the selection constraints did not predict, and it changed a component rather than a token.** "Accessible primitives" was a selection constraint, and Base UI's tooltip is deliberately not one: it renders no `role="tooltip"`, wires no `aria-describedby`, and its own documentation says so — "Tooltips are designed for sighted users and are not a reliable way to deliver important information to touch users or assistive technologies. If the description is important to understanding the element, don't hide it behind a tooltip." The first thing this product puts behind that seam is an anomaly score's explanation, which PRODUCT_SPEC.md §11 makes mandatory and therefore important by definition. So the wrapper is a **popover**, not a tooltip: `role="dialog"`, `aria-labelledby` and `aria-describedby` all present, verified in the browser rather than read off the library. The cost is that an explanation is now a click rather than a glance. This is not a finding against Base UI — the behaviour is documented and correct for what a tooltip is — but it is the first evidence that "accessible primitives" needs to be checked per primitive rather than per library, which is what Epic 15's review should inherit.
+
+## Outcome
+
+**Complete on 2026-08-31.** Every acceptance criterion above was checked rather than reasoned about, from a clean tree: `pnpm clean && pnpm install && pnpm verify` at exit 0, then `pnpm build`, then both artefacts copied outside the workspace and served by `python3 -m http.server`. The decision is recorded in [`docs/adr/0004-styling-approach-component-library-and-the-component-workshop.md`](../../../docs/adr/0004-styling-approach-component-library-and-the-component-workshop.md), which is where the reasoning lives; `CLAUDE.md` and `README.md` carry the operational half.
+
+The story's baseline figures, measured on a clean build and reproducible byte-for-byte: **193 modules, 300.09 kB of JavaScript (97.43 kB gzipped) and a 7.21 kB stylesheet (1.94 kB gzipped), in three files.** ADR 0003 left it at 17 modules, 190.80 kB and no stylesheet. The whole design language — both token layers and five components — is the 7.21 kB; nearly all of the +109 kB of JavaScript is Base UI's popover, which is the reversal in Task 1.4.1 being paid for.
+
+Four things this task found that the tasks before it had not.
+
+- **The a11y addon's tab badge is not a violation count.** `SecurityRow`'s 36-row grid reports **0 violations, 17 passes, 1 inconclusive**, and the `1` on the tab is the inconclusive. Task 1.4.5 recorded the same three numbers; what is new is what the inconclusive _is_ — `color-contrast` over 24 nodes, every one of them a direction arrow, with axe's reason "Element content contains only non-text characters". The automated check declines to judge the exact element that carries the non-colour encoding, which is why Task 1.4.4's manual measurements are the record and why Epic 15's review cannot be an axe run
+- **A CSS-only edit and a component edit are not the same HMR number.** Stylesheet edits land in **24–130 ms** (median ~72 ms); component edits in 177–280 ms warm, 977 ms for the first after a server start. Both component figures are upper bounds — the measuring tab was `visibilityState: "hidden"`, which throttles React's scheduler — so the sound comparison is between the two kinds of edit under identical conditions, not against Task 1.3.3's foreground ~100–140 ms. Method note worth keeping: `performance.timeOrigin` unchanged is a cheaper proof that an update was HMR and not a reload than the counter-component trick
+- **Task 1.4.5's bundle figures were measured mid-task.** It records 293.06 kB and 7.05 kB; the commit it shipped builds at 300.09 kB and 7.21 kB, deterministically. The record is marked rather than rewritten, and this task's numbers are the story's baseline
+- **`pnpm --filter @marketpulse/frontend dev` after a `clean` reports a resolution failure that points at the wrong thing.** `Failed to run dependency scan … @marketpulse/shared … Are they installed?` means the project reference has no `dist`, not that the install is broken. Root `pnpm dev` does not have the problem because the shared watcher is one of its loops
+
+Everything else confirmed what was already recorded. The stories check was seen to fail again (`PriceChange.stories.tsx` moved aside → exit 1 naming the file and the path it wanted). `dist/` is still self-contained — three files, no bare imports, no story string in the output — and renders correctly from a plain static host with the warm ground, the tokens resolved and tabular figures on. The static Storybook renders the same way from the same kind of host. Both `clean` verbs remove `dist/` and `storybook-static/`. And the install-script sweep was re-run: **esbuild is still the only package in the tree with one**, which is the check this task owed rather than an open question.
+
+`pnpm verify` from a clean tree is **10.5s**, against ~7.6s before the workshop. Warm, the steps are build 2.2s, lint 3.3s, `format:check` 1.4s, `stories` 0.24s, `test` 0.45s; cold, the build splits `tsc -b` 1.54s / `vite build` 0.49s / `storybook build` 1.38s. Story 1.10 inherits those numbers.
+
+**What Story 1.5 gets, and the one thing it is owed.** It gets a token layer, five components, a workshop, a house idiom for class names, and an ADR explaining why each of those is shaped the way it is. What it is owed first is the check Task 1.4.5 could not make: the external shared component library's actual exports have never been read, and the Base UI decision rests on an assumption about them. That check is cheap now and gets more expensive with every wrapper added.
