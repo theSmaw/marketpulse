@@ -55,7 +55,7 @@ Story 1.4 is complete — six tasks, recorded in `docs/adr/0004-styling-approach
 - Each route renders an identifiable placeholder
 - Persistent application chrome — product name, market clock area, connection status area — survives navigation
 - An unknown route renders a not-found state rather than a blank screen
-- Layout uses desktop-first regions consistent with the PRODUCT_SPEC.md §9 sketch
+- Layout uses desktop-first regions consistent with the PRODUCT_SPEC.md §9 sketch — **met by Task 1.5.4 (2026-08-31)**: four named regions on the landing route in a 3:1 by 2:1 grid, designed for 1440 × 900 and checked at 1280, with the three other routes deliberately a single area
 - Deep-linking to a route works on page reload
 
 ## Open decisions
@@ -71,7 +71,7 @@ Tackled in order. The story is complete when all six are done.
 | 1.5.1 | [Choose the router, and close the check Story 1.4 owes](TASK-01-choose-the-router.md)                               | Complete    |
 | 1.5.2 | [The route table, the four placeholders and the not-found state](TASK-02-route-table-placeholders-and-not-found.md) | Complete    |
 | 1.5.3 | [The persistent chrome, and the workshop's first provider](TASK-03-persistent-chrome.md)                            | Complete    |
-| 1.5.4 | [The desktop layout regions](TASK-04-desktop-layout-regions.md)                                                     | Not started |
+| 1.5.4 | [The desktop layout regions](TASK-04-desktop-layout-regions.md)                                                     | Complete    |
 | 1.5.5 | [Deep-linking, code splitting and the artefact's shape](TASK-05-deep-linking-and-the-artefact.md)                   | Not started |
 | 1.5.6 | [Verify, document and record the decision as ADR 0005](TASK-06-verify-document-and-adr.md)                          | Not started |
 

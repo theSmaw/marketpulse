@@ -1,0 +1,53 @@
+/*
+ * A region's own styles. Where it sits is the route's business and lives in
+ * `MarketOverview.module.css`; what it looks like is here, which is the whole
+ * reason a region can be rearranged without being rewritten.
+ *
+ * Every colour, gap, border, radius and font size reads a token — the same rule
+ * every other stylesheet in this application follows. The values that are not
+ * tokens are proportions and overflow behaviour, which are layout rather than
+ * design language; there is no token ladder for them and inventing one would be
+ * a token nobody else uses.
+ */
+
+.region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-20);
+  background: var(--surface-raised);
+  /* The near-black hairline again, not a grey border. Four of these boxes with
+     a light border is the generic admin panel VISUAL-LANGUAGE.md warns about;
+     four with this one is a dense instrument. */
+  border: var(--border-width) solid var(--rule-hairline);
+  border-radius: var(--radius);
+  /*
+   * A region is sized by the grid, not by what is in it, so it scrolls its own
+   * content rather than pushing its neighbours around. That is what makes the
+   * layout stable while four different epics fill four boxes at four different
+   * times — and it is also the property Epic 6 needs, since a WebGL canvas has
+   * to measure a box that already has a size.
+   */
+  overflow: auto;
+  min-height: 0;
+}
+
+.name {
+  margin: 0;
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-subheading);
+  font-weight: var(--font-weight-strong);
+}
+
+/* What fills this region, and when. A region labelled and empty is honest; a
+   region labelled and empty with no explanation looks broken. */
+.filledBy {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+.content {
+  margin-top: var(--space-16);
+}

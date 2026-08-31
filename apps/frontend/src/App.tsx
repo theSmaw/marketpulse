@@ -26,6 +26,14 @@ import styles from "./App.module.css";
 // one state does not owe a permutation grid. `AppHeader` is on the other side
 // of that line and says why in its own header comment.
 //
+// Only the landing route has layout regions, and the asymmetry is deliberate
+// rather than unfinished. Task 1.5.4 built PRODUCT_SPEC.md §9's structure into
+// `MarketOverview`, which is the one screen the spec actually sketches; the
+// other three occupy this outlet as a single area. Inventing an Investigation
+// Workspace layout here would be scaffolding ahead of Epic 7, and the layout it
+// invented would be wrong — §8.2 lists eight kinds of content and says nothing
+// about where any of them sits.
+//
 // No `React.lazy` and no dynamic `import()` anywhere here. Every route module
 // is a static import, so `dist/` stays three files and the artefact's shape is
 // unchanged by this task. Task 1.5.5 owns splitting, as a decision with a
