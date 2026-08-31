@@ -1,0 +1,36 @@
+# Task 1.5.3 — The persistent chrome, and the workshop's first provider
+
+**Status:** Not started
+**Story:** [1.5 Application Layout & Routing](STORY.md)
+**Depends on:** Task 1.5.2
+
+## Objective
+
+The application chrome PRODUCT_SPEC.md §9 sketches — product name, market clock area, connection status area, and the navigation between the four routes — rendered once and surviving navigation. This is the first chrome this product has had, and it is where Story 1.4's design language is most exposed.
+
+## Work
+
+- **The chrome is structural, and so is the identity.** There is no brand hue and no distinctive typeface, so what makes a header strip look like this product rather than a generic admin panel is the warm `#f4f3ee` ground under white surfaces, the 1px near-black hairline rather than a grey border, the single 2px radius, the 4px spacing grid and the uppercase letterspaced micro-label. `VISUAL-LANGUAGE.md` in the Story 1.4 directory is the input, not a suggestion, and substituting a neutral grey or a light border is the failure mode — it looks like nothing in isolation
+- **Use the components, not the tokens — and one of the three areas already has one.** `FeedIndicator` (`live` / `stale` / `disconnected`, marker shape plus word, optional `detail` string) is built, has stories and takes `FeedStatus` from `packages/shared`. Place it rather than inventing a coloured dot. Note what it is not: it means the **market feed**, and Story 1.12 is about the **backend service** — so this task places it with a hard-coded status and Story 1.12 decides whether the same component carries both meanings or a second one is needed
+- **The clock area is a region, not a clock.** Epic 3 supplies the live market clock; this task reserves the space, and reserving it correctly matters more than it sounds — a clock is a continuously changing number in a fixed strip, which is exactly what `font-variant-numeric: tabular-nums` on `body` exists for. A placeholder that is not tabular will change width when the real clock arrives
+- **Settle where the workshop's line falls, and write it down.** Task 1.4.5 exempted `App.tsx` and `main.tsx` as page shell rather than workshop material, and explicitly left this story to decide the boundary now that there is real chrome. A header is arguably a component; a route placeholder is arguably not. Decide it once, here, in a comment beside `scripts/check-stories.mjs`'s convention or in `CLAUDE.md`, and make Task 1.5.2's directory choice agree with it
+- **Whatever is a component gets the full obligation**: `src/components/<Name>/<Name>.tsx` + `.module.css` + `.stories.tsx`, one component per file, one named story per discrete state plus an `AllPermutations` grid. `pnpm stories` fails the build if the stories file is missing, and it proves nothing about what is inside — the grid is reviewed, not checked
+- **A component with a router dependency does not render in the workshop on its own, and this is the first one.** `.storybook/preview.ts` loads the three stylesheets in `main.tsx`'s order and asserts the tokens, but wires no providers. A router decorator is this task's to add, and it is the **first deliberate divergence between the workshop and the application** — Task 1.4.5's reason for reusing `vite.config.ts` untouched was to keep exactly one place where the build lives, and a decorator is not that, but it is a second place where the application's context is described. Add it once, in `preview.ts`, rather than per story
+- **Two authoring costs that bite in a task adding several small files.** Compose class names with `cx(styles.a, styles.b)` — the template-literal and bracket forms are both lint errors — and know that a **misspelled class name is completely silent**: it typechecks, lints, builds and renders unstyled, and nothing in `pnpm verify` catches it. This is the second silent rule on the page; the other is the `.js` extension, and only `tsc` catches that one
+- **Focus belongs to the token layer.** `base.css` carries one global `:focus-visible` rule — 2px near-black outline at 2px offset, measured on a real button. A navigation link that adds its own focus style is answering a question already answered. Tab through the whole chrome and confirm the outline appears on every interactive element, including the active route link
+- **The current route must be legible without colour**, like everything else in this product. An active navigation link distinguished only by ink colour fails the rule Story 1.4 measured at 1.05:1 under greyscale; pair it with a second channel and with `aria-current="page"`
+- **Delete the placeholder shell rather than keeping it beside the chrome.** `App.tsx`'s three demonstration modules were Story 1.4's proof that the workshop and the application agree, and the stories now carry that job. Its comment says Story 1.5 replaces this markup wholesale — do that. The `@marketpulse/shared` import must survive somewhere in the application graph, though: it is the only thing proving the workspace dependency resolves through the bundler as well as through tsc, and the chrome's `FeedStatus` is a natural home for it
+
+## Done when
+
+- Product name, clock area, connection status area and navigation render once and survive navigation between all four routes and the not-found state
+- The chrome renders in the token language, and a screenshot of it is recognisably this product rather than a default admin panel
+- Every interactive element in the chrome takes the global focus outline, checked with `Tab` in a browser
+- The active route is identifiable without relying on colour, and carries `aria-current`
+- The workshop renders any chrome component that needs a router, via a decorator in `preview.ts`
+- The `App.tsx`/`main.tsx` exemption boundary is decided and written down
+- `pnpm verify` exits 0, including the `stories` step
+
+## Notes
+
+The status and clock areas are placeholders here. Story 1.12 fills the status area with real data, and Epic 3 supplies the market clock. Placing them badly now is cheap to fix; placing them in a way that assumes a different layout is not, which is why Task 1.5.4's regions come immediately after this rather than before it.
