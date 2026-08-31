@@ -7,21 +7,32 @@ import { createRoot } from "react-dom/client";
 // the backend and shared package already follow, one step further because the
 // source extension here is `.tsx` rather than `.ts`.
 import { App } from "./App.js";
+import { getTokens } from "./styles/tokens.js";
 
-// The repository's first CSS, and a side-effect import rather than a binding:
-// the bundler extracts it into `dist/assets/*.css` and adds the `<link>` to the
-// emitted index.html. Nothing here reads a value from it.
+// The token layer, as two side-effect imports rather than bindings: the
+// bundler extracts them into `dist/assets/*.css` and adds the `<link>` to the
+// emitted index.html. Nothing here reads a value from either.
 //
-// Note the specifier has no `.js` extension, and that is not an oversight. The
-// convention above rewrites relative imports *between TypeScript files* to the
-// name tsc will emit; a stylesheet is not compiled and `./throwaway.css` is the
-// real filename on disk. Over-applying TS2835 to the first non-TypeScript
-// import in the repository is the easy mistake.
+// Order matters and is not alphabetical. `tokens.css` declares the custom
+// properties and `base.css` consumes them, and a custom property referenced
+// before it is declared resolves to nothing — the declaration has to be in the
+// cascade first. Both are imported here rather than one importing the other so
+// that the order is visible in the file that owns it.
 //
-// Throwaway, deliberately: Task 1.4.3 replaces its contents with the token
-// definitions. It exists so that when a token then fails to apply, "the CSS
-// never reached the browser" is already ruled out.
-import "./throwaway.css";
+// Note the specifiers have no `.js` extension, and that is not an oversight.
+// The convention this file follows for `./App.js` rewrites relative imports
+// *between TypeScript files* to the name tsc will emit; a stylesheet is not
+// compiled and these are the real filenames on disk.
+import "./styles/tokens.css";
+import "./styles/base.css";
+
+// Fail fast if the token layer did not reach the browser. `getTokens()` throws
+// naming the first token that resolved to nothing, which turns the silent
+// failure mode of this stack — an unstyled page that still renders, because a
+// missing custom property is not an error to CSS — into a message. It is one
+// `getComputedStyle` call at startup and the result is cached for the
+// non-React consumers that will need it from Epic 2 onward.
+getTokens();
 
 // createRoot, not the legacy ReactDOM.render — the legacy entry point is gone
 // in React 19 and `react-dom/client` is the only mount API.

@@ -1,0 +1,190 @@
+/*
+ * Design tokens — the foundational layer.
+ *
+ * Every value here comes from VISUAL-LANGUAGE.md in Story 1.4's planning
+ * directory, which is the design input to this file. That document is a census
+ * of computed styles from a real institutional application, not a set of
+ * preferences, so **a divergence from it is a change to that document** rather
+ * than a local adjustment here.
+ *
+ * Two rules govern what may be added:
+ *
+ *   1. No market meaning. `--price-up`, anomaly ramps and staleness colours are
+ *      Task 1.4.4's, layered over these primitives rather than beside them.
+ *   2. No value without a consumer. The spacing ladder below deliberately jumps
+ *      from 24 to 40 with no 32, because that gap is what produces the airy
+ *      separation between modules on an otherwise dense page. Filling it in
+ *      because a ramp looks incomplete is the failure this file is written
+ *      against. Control heights (48px/36px) are in VISUAL-LANGUAGE.md and are
+ *      deliberately *not* here: nothing renders a control until Task 1.4.5.
+ *
+ * The identity of this product is carried entirely by structure — there is no
+ * brand hue and no distinctive typeface to fall back on. So the exact values
+ * matter more than they usually would: `#f5f5f5` in place of `#f4f3ee` looks
+ * like nothing in isolation and loses the warmth the whole look depends on,
+ * and a light-grey rule in place of the near-black one produces a generic
+ * admin panel.
+ */
+
+/*
+ * --- The theming mechanism, and what it costs ---
+ *
+ * Light is the only theme in V1. It is built directly as the real palette, not
+ * derived by inverting a dark one that does not exist.
+ *
+ * The *mechanism* ships and the second palette does not: the themeable values
+ * are declared on `:root, [data-theme="light"]`, so adding a dark theme later
+ * is a `[data-theme="dark"]` block of values and nothing else — no selector
+ * rewrite, no component change, no build step. The double selector is
+ * deliberate rather than redundant: `:root` alone means a missing or misspelled
+ * `data-theme` attribute yields a themeless page, and the attribute selector
+ * alone means the same. This way the attribute is an explicit statement of what
+ * is already the default.
+ *
+ * What it costs: one theme's worth of duplication if a second palette arrives
+ * (the `:root` half would then have to pick a side), and the usual custom-
+ * property cost — no typed access from JavaScript. That second cost is answered
+ * in tokens.ts, not here.
+ */
+:root,
+[data-theme="light"] {
+  /* --- Surfaces. A ladder of three grounds, and it is warm. --- */
+
+  /* The application background. Warm, and noticeably not white. */
+  --surface-page: #f4f3ee;
+  /* Cards, modules, panels, table bodies — content sits here. */
+  --surface-raised: #ffffff;
+  /* Table header rows, disabled fields, secondary strips. */
+  --surface-sunken: #f9f9f7;
+
+  /* --- Ink. Never pure black; the neutrals are warm, not blue-grey. --- */
+
+  --ink-primary: #1c1c1c;
+  --ink-secondary: #5a5d5c;
+  /* Fails contrast deliberately: disabled content must read as unavailable. */
+  --ink-disabled: #aaaaaa;
+
+  /*
+   * --- Rules ---
+   *
+   * The near-black hairline is the most distinctive idiom in this language and
+   * the easiest to soften by accident. It is the *primary* separator: section
+   * headings, tab strips, table headers and the bottom of a form field all sit
+   * on a 1px `--rule-hairline`. Reaching for the soft grey instead is the
+   * default instinct and it is wrong.
+   *
+   * `--rule-soft` exists for *repeated* dividers — rows inside a long table —
+   * where near-black would stripe the page.
+   */
+  --rule-hairline: #1c1c1c;
+  --rule-soft: #d7d7d7;
+
+  /*
+   * --- Elevation ---
+   *
+   * Elevation here is ground contrast plus a hairline, not shadow: a raised
+   * module is `--surface-raised` on `--surface-page` with a 1px
+   * `--rule-hairline`. There is deliberately no `--elevation-1` shadow token,
+   * because defining one invites it to be used for cards, where it would
+   * quietly replace the idiom above.
+   *
+   * The one shadow is for content that genuinely floats — popovers, dropdowns,
+   * dialogs — and it is nearly subliminal. Note its third layer: a 1px spread
+   * ring standing in for a border, so even the floating case keeps its
+   * hairline.
+   */
+  --elevation-floating:
+    0 6px 14px rgb(0 0 0 / 8%), 0 1px 2px rgb(0 0 0 / 4%),
+    0 0 0 1px rgb(0 0 0 / 4%);
+}
+
+/*
+ * --- Geometry, spacing and type ---
+ *
+ * These are not themeable and are declared once. A dark palette would change
+ * none of them, so putting them in the theme block above would mean copying
+ * them into every future theme for no benefit.
+ */
+:root {
+  /*
+   * One radius. Not a scale, not per-component, and not 4 or 6 or 8. Buttons,
+   * inputs, cards, popovers and menus all take this value; the effect is
+   * "square with the corner knocked off", which is the intent. Circles (avatars
+   * and status dots) are the sole exception and do not need a token.
+   */
+  --radius: 2px;
+
+  /* Always 1px. A 2px border is a focus ring, not a border. */
+  --border-width: 1px;
+
+  /*
+   * Focus cannot be a coloured ring, because the chrome has no accent colour.
+   * It is a 2px near-black outline with a 2px offset — the one deliberate
+   * exception to the 1px rule above, because a 1px ring against a 1px border is
+   * not a state change anybody can see. It is high contrast on all three
+   * grounds, and it does not depend on colour perception, which is one fewer
+   * thing for Epic 15's accessibility review to find.
+   */
+  --focus-width: 2px;
+  --focus-offset: 2px;
+
+  /*
+   * A 4px grid. These are the steps the reference actually uses, named by their
+   * value rather than by position so that the 24-to-40 jump is visible in the
+   * token names instead of being hidden behind `--space-6`/`--space-7`.
+   */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-40: 40px;
+
+  /*
+   * The system stack. No webfont ships and none is fetched.
+   *
+   * The known cost, recorded because it is a real loss rather than a neutral
+   * substitution: the reference leans on weight 300 for its headings and system
+   * stacks do not reliably have a 300, so a light heading would render at a
+   * different weight per operating system. Hence two weights below, and
+   * hierarchy carried by size and grey. If the light headings are ever judged
+   * essential the fix is contained — a self-hosted variable font, this token's
+   * value, and font files.
+   */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  --font-weight-regular: 400;
+  --font-weight-strong: 600;
+
+  /*
+   * Size and line height are paired deliberately: they are never chosen
+   * independently, and a size token without its line height is an invitation to
+   * pick one by eye.
+   *
+   * `--font-size-dense` is the product's default, not `--font-size-body`. 16px
+   * is a marketing page's body size; a dense analyst table is 14 with a 12px
+   * micro-label above it, and that is where this product actually lives.
+   */
+  --font-size-display: 40px;
+  --line-height-display: 48px;
+  --font-size-heading: 24px;
+  --line-height-heading: 36px;
+  --font-size-subheading: 20px;
+  --line-height-subheading: 30px;
+  --font-size-body: 16px;
+  --line-height-body: 24px;
+  --font-size-dense: 14px;
+  --line-height-dense: 20px;
+  --font-size-micro: 12px;
+  --line-height-micro: 16px;
+
+  /*
+   * Micro-labels are uppercase and letterspaced — `MARKET FEED`, not
+   * `Market feed`. This is the idiom that most says "institutional
+   * application"; a sentence-case grey label does not read the same way.
+   */
+  --letter-spacing-micro: 0.08em;
+}
