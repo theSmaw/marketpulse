@@ -59,7 +59,32 @@ Story 1.4 is complete — six tasks, recorded in `docs/adr/0004-styling-approach
 
 ## Open decisions
 
-- Router library — React Router is the default assumption
+- Router library — React Router is the default assumption. **Task 1.5.1 settles it**, from a spike on the real toolchain rather than from that assumption
+
+## Tasks
+
+Tackled in order. The story is complete when all six are done.
+
+| #     | Task                                                                                                                | Status      |
+| ----- | ------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1.5.1 | [Choose the router, and close the check Story 1.4 owes](TASK-01-choose-the-router.md)                               | Not started |
+| 1.5.2 | [The route table, the four placeholders and the not-found state](TASK-02-route-table-placeholders-and-not-found.md) | Not started |
+| 1.5.3 | [The persistent chrome, and the workshop's first provider](TASK-03-persistent-chrome.md)                            | Not started |
+| 1.5.4 | [The desktop layout regions](TASK-04-desktop-layout-regions.md)                                                     | Not started |
+| 1.5.5 | [Deep-linking, code splitting and the artefact's shape](TASK-05-deep-linking-and-the-artefact.md)                   | Not started |
+| 1.5.6 | [Verify, document and record the decision as ADR 0005](TASK-06-verify-document-and-adr.md)                          | Not started |
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.4 followed.
+
+The split is **decision, then navigation, then chrome, then regions**, and the ordering carries two arguments rather than one.
+
+Navigation comes before the chrome because the chrome's job is to survive navigation, and a chrome built first can only be checked against a single page — which is the state `App.tsx` is already in. Building the routes first makes the persistence criterion testable the moment the chrome exists.
+
+The chrome comes before the regions because §9's sketch is one strip above a grid, and the strip is the part with a component already built for it (`FeedIndicator`) and the part where the design language is most exposed. The regions are empty boxes by comparison; getting them right is a proportions problem, and it is easier to judge under a real header than above a placeholder.
+
+Task 1.5.5 is deliberately not folded into 1.5.2. Deep-linking looks like a routing concern and is not one — it is a property of the host, and both local servers answer any unmatched path with `index.html` and a 200, so the criterion passes on this machine before anyone configures anything. Separating it is what stops it being ticked on local evidence. Route splitting sits with it for the same reason: both change the deployable artefact rather than the application, and both land on Story 1.11's desk.
+
+Task 1.5.1 is a decision task in the shape of Task 1.4.1 but deliberately smaller. A router is cheap to reverse where a component library is not, so the spike is worth a morning rather than a day — and the one genuinely expensive item on it is not the router at all: it is the check Story 1.4 left owed, reading the external shared component library's exports before this story adds a second file importing `@base-ui/react`.
 
 ## Notes
 
