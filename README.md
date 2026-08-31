@@ -12,8 +12,9 @@ recommends trades, or produces target prices.
 
 ## What exists today
 
-**Epic 1, Stories 1.1, 1.2 and 1.3 — the repository, its toolchain, a
-backend, and a frontend.**
+**Epic 1, Stories 1.1, 1.2 and 1.3 complete, and Story 1.4 all but complete —
+the repository, its toolchain, a backend, a frontend, a design-token layer and a
+component workshop.**
 
 `apps/backend` is a running Fastify service. It starts on a configurable port,
 serves `GET /health`, restarts on source change, and shuts down cleanly on
@@ -39,9 +40,10 @@ pnpm build
 pnpm --filter @marketpulse/frontend preview  # http://localhost:4173
 ```
 
-It is a shell in scope rather than in status: no routing (Story 1.5), no
-styling system (Story 1.4), no state management, and it does not talk to the
-backend yet (Story 1.12). What it does prove is that the toolchain works end to
+It is a shell in scope rather than in status: no routing (Story 1.5), no state
+management, and it does not talk to the backend yet (Story 1.12). It **does**
+have a styling system — CSS Modules over CSS custom properties, with design
+tokens, market semantics and five components (Story 1.4). What it does prove is that the toolchain works end to
 end — `@marketpulse/shared` resolves through the bundler as well as through
 `tsc`, and the built `dist/` renders from a plain static server with no
 `package.json` and no `node_modules` beside it.
@@ -87,7 +89,8 @@ pnpm verify
 ```
 
 `pnpm verify` is the whole acceptance check: `build && lint && format:check &&
-test`, in that order, stopping at the first failure. It is what CI will run
+stories && test`, in that order, stopping at the first failure. (`stories` fails
+if a component has no stories file — see [The component workshop](#the-component-workshop).) It is what CI will run
 (Story 1.10). On a clean checkout it takes a few seconds and exits 0.
 
 If `pnpm install` fails complaining about a dependency's install scripts, see
@@ -98,18 +101,19 @@ allowlist that one package, never to disable the check.
 
 Run from the repository root:
 
-| Command             | What it does                                             |
-| ------------------- | -------------------------------------------------------- |
-| `pnpm verify`       | `build && lint && format:check && test` — the CI command |
-| `pnpm build`        | `tsc -b` over the solution, then the frontend bundle     |
-| `pnpm typecheck`    | The same command as `build`, deliberately — see below    |
-| `pnpm lint`         | `eslint .` over the whole workspace in one process       |
-| `pnpm lint:fix`     | The same, with `--fix`                                   |
-| `pnpm format`       | `prettier --write .` — the whole tree, prose included    |
-| `pnpm format:check` | `prettier --check .`                                     |
-| `pnpm test`         | Placeholders until Story 1.9 — see the warning below     |
-| `pnpm dev`          | Every package's `dev`, in parallel — see below           |
-| `pnpm clean`        | `tsc -b --clean`, plus `rm -rf apps/frontend/dist`       |
+| Command             | What it does                                                          |
+| ------------------- | --------------------------------------------------------------------- |
+| `pnpm verify`       | `build && lint && format:check && stories && test` — the CI command   |
+| `pnpm build`        | `tsc -b` over the solution, then the frontend bundle, then Storybook  |
+| `pnpm typecheck`    | The same command as `build`, deliberately — see below                 |
+| `pnpm lint`         | `eslint .` over the whole workspace in one process                    |
+| `pnpm lint:fix`     | The same, with `--fix`                                                |
+| `pnpm format`       | `prettier --write .` — the whole tree, prose included                 |
+| `pnpm format:check` | `prettier --check .`                                                  |
+| `pnpm stories`      | Fails if a component has no stories file                              |
+| `pnpm test`         | Placeholders until Story 1.9 — see the warning below                  |
+| `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
+| `pnpm clean`        | `tsc -b --clean`, plus the frontend's `dist/` and `storybook-static/` |
 
 Working on a single package uses the same six verbs, meaning the same thing:
 
@@ -126,11 +130,13 @@ with no root fan-out and no place in `verify`.
 Two more extras have exactly that status, one per app:
 
 ```sh
-pnpm --filter @marketpulse/backend start     # node dist/index.js
-pnpm --filter @marketpulse/frontend preview  # serves dist/ on :4173
+pnpm --filter @marketpulse/backend start          # node dist/index.js
+pnpm --filter @marketpulse/frontend preview       # serves dist/ on :4173
+pnpm --filter @marketpulse/frontend storybook     # the workshop, on :6006
+pnpm --filter @marketpulse/frontend storybook:build  # static build into storybook-static/
 ```
 
-Neither is a seventh verb: no root fan-out, no place in `verify`, and
+None is a seventh verb: no root fan-out, no place in `verify`, and
 `packages/shared` is not obliged to have one. Both exist because "production
 build emits runnable output" needs a documented way to run it, and **both run
 the already-built output and build nothing themselves** — so `pnpm build`
@@ -224,6 +230,31 @@ that imports it can be typechecked. `tsc -b` handles that ordering itself, and
 [ADR 0001](docs/adr/0001-repository-structure-and-typescript-toolchain.md) for
 why a per-package `tsc --noEmit` is the wrong instrument here.
 
+## The component workshop
+
+Components are developed and reviewed in isolation, in Storybook:
+
+```sh
+pnpm --filter @marketpulse/frontend storybook   # http://localhost:6006
+```
+
+Every component under `apps/frontend/src/components/` lives in a directory of
+its own with its stylesheet and its stories beside it, and ships:
+
+- one named story per discrete state, and
+- one `AllPermutations` story rendering the cartesian product of its variant
+  props in a labelled grid, so completeness is reviewed in one frame rather than
+  by clicking down the sidebar.
+
+`pnpm stories` — a step in `pnpm verify` — fails if a component file has no
+sibling `.stories.tsx`. It proves the file exists and nothing more: whether the
+stories inside it actually cover the permutations is a review question, and the
+check says so in its own header.
+
+The a11y panel runs axe against each story and reports; it does not fail the
+build. `pnpm build` also produces a static Storybook into
+`apps/frontend/storybook-static/`, which serves from any dumb static host.
+
 ## Layout
 
 ```
@@ -232,6 +263,7 @@ apps/
   frontend/    @marketpulse/frontend — React + Vite application (Story 1.3)
 packages/
   shared/      @marketpulse/shared   — domain types shared by both apps
+scripts/       root tooling scripts run by `pnpm verify`
 docs/
   adr/         architecture decision records
 planning/      product spec, epic roadmap, stories and tasks
@@ -241,6 +273,12 @@ Configuration lives at the root and only at the root: one `tsconfig.base.json`,
 one `eslint.config.mjs`, one `prettier.config.mjs`. ESLint, Prettier and
 TypeScript are root-only devDependencies; packages declare only what they
 actually import.
+
+The test that decides where a dependency goes is "does the package's source
+`import` it?", and it gives a counter-intuitive answer for Storybook: story
+files import `@storybook/react-vite`, so Storybook itself is a **frontend**
+devDependency, while `eslint-plugin-storybook` is a tool and sits at the root
+beside the config it extends.
 
 pnpm's own settings live in `pnpm-workspace.yaml`, **not `.npmrc`**. pnpm 10
 moved them, and pnpm 11 silently ignores workspace settings left in `.npmrc` —
@@ -253,15 +291,27 @@ them. pnpm runs a dependency's install scripts only if it appears in
 `allowBuilds` in `pnpm-workspace.yaml`, and an un-allowlisted one is a **hard
 install failure**, not a warning.
 
-Nothing installed so far has an install script, so there is nothing allowlisted
-yet — and the prediction that Story 1.3 would change that was **wrong**. Vite 8
-is the Rolldown release, so there is no esbuild here at all, and Rolldown ships
-as prebuilt per-platform binaries. A cold install of all 200 packages found
-zero `preinstall`/`install`/`postinstall` scripts across the whole tree.
+`allowBuilds` was empty until Storybook arrived. It now has exactly one entry,
+`esbuild`, which Storybook depends on directly and whose install script fetches
+the platform binary it cannot ship in one package.
 
-So `allowBuilds` is empty and has never been exercised. The rule is unchanged
-for whenever something does bring an install script: allowlist that specific
-package by name — never disable the check.
+The failure it produced first is worth recognising, because it edits a tracked
+file:
+
+```
+[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: esbuild@0.28.2
+```
+
+`pnpm install` exits 1, and pnpm appends an `esbuild: set this to true or false`
+stub to `pnpm-workspace.yaml`. A dirty workspace file after a failed install is
+pnpm's edit, not yours — replace the stub with `true` or `false` and say why.
+
+Note this is **not** Vite's esbuild: Vite 8 is the Rolldown release and lists
+esbuild only as an optional peer. A sweep of the installed tree finds esbuild is
+still the only package here with an install script.
+
+The rule is unchanged for the next one: allowlist that specific package by name
+— never disable the check.
 
 ## Editor setup
 

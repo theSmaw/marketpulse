@@ -17,7 +17,9 @@ Prove the story's criteria against a clean tree, write the conventions down wher
 - **Write the ADR with the next free number, checked rather than assumed.** `docs/adr/` holds 0001–0003, so **0004** as of 2026-08-30 — confirm it, and add the row to `docs/adr/README.md`. ADRs are numbered in the order written and never renumbered; the story's criterion originally said "0002" and was written before Stories 1.2 and 1.3 took that number and the one after, which is exactly why the number is checked at the time
 - Follow 0001's shape: context, decision, rejected alternatives, and the consequences a future reader would otherwise discover by tripping over them. The consequences are the part that earns its keep, and this story has several worth stating plainly — the artefact now carries a CSS asset with an absolute path, the token layer has non-React consumers coming in Epics 2 and 6, colour is never the sole encoding of anything, and the reversal triggers recorded in Task 1.4.1
 - Carry Task 1.4.1's rejected alternatives into the ADR **with the reasons they lost**, from that task's record rather than from memory. An ADR that lists alternatives without reasons is a list, not a record
-- Record whether `allowBuilds` finally fired. It has never fired, Story 1.3 predicted it would and was wrong, and this story was the next plausible candidate. Either outcome is worth one sentence; a silent pass leaves the next person re-predicting it
+- **The ADR covers Storybook too, and does not take a number of its own.** Task 1.4.5 added the component workshop to this story, and the decisions worth recording are of a piece with the component library's: which package each dependency landed in and why the answer is counter-intuitive, why every component must have stories and what the check in `verify` does and does not prove, and — the one a future reader would otherwise trip over — **why the Base UI seam is a popover rather than a tooltip**. That last one is a documented property of the primitive, not a bug, and it is the first evidence that "accessible primitives" is a per-primitive question
+- **Re-measure with the workshop in the chain.** `verify` is five steps now and runs two bundlers, and `storybook build` is the slower half. Record the numbers; Story 1.10 inherits them
+- Record whether `allowBuilds` finally fired. **It did, in Task 1.4.5, through Storybook's direct dependency on esbuild** — so this bullet is now a check that the record is accurate rather than an open question. It has never fired, Story 1.3 predicted it would and was wrong, and this story was the next plausible candidate. Either outcome is worth one sentence; a silent pass leaves the next person re-predicting it
 - Update `CLAUDE.md`'s file tree and Commands section if anything moved or was added, and check the two stay in step with `README.md`
 - Mark Story 1.4 complete, and update the Epic 1 file with what this story establishes for the stories after it — Story 1.5 most immediately, which builds the chrome from these tokens
 
@@ -26,6 +28,7 @@ Prove the story's criteria against a clean tree, write the conventions down wher
 - Every acceptance criterion in the story is met and each one was checked rather than reasoned about
 - A clean build renders correctly from a static host outside the workspace
 - The new bundle size, module count and CSS asset are recorded
+- The static Storybook build renders from a static host outside the workspace, and the stories check has been seen to fail
 - `docs/adr/0004-*.md` exists, is listed in `docs/adr/README.md`, and explains _why_ rather than _what_
 - `CLAUDE.md` and `README.md` agree with each other and with the tree
 - Story 1.4 is marked complete and Epic 1 records what it hands the remaining stories

@@ -1,6 +1,6 @@
 # Story 1.4 — UI Component Library & Styling Conventions
 
-**Status:** In progress — Tasks 1.4.1, 1.4.2, 1.4.3 and 1.4.4 complete (2026-08-31)
+**Status:** In progress — Tasks 1.4.1–1.4.5 complete (2026-08-31)
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.3
 **Epic scope covered:** select UI component library and styling conventions
@@ -46,7 +46,7 @@ Two costs the choice carries, both measured and both landing on Task 1.4.2 rathe
 
 Story 1.1 is complete, and these four bind this story. They are stated in every Epic 1 story so each one can be read on its own; the full reasoning is in `docs/adr/0001-repository-structure-and-typescript-toolchain.md`.
 
-- **`pnpm verify` is the acceptance command** — `build && lint && format:check && test`, chained with `&&` so the first failure is the exit code. This story passes it from the repository root. Prettier owns Markdown as well as code, so an unformatted planning document fails it too
+- **`pnpm verify` is the acceptance command** — `build && lint && format:check && stories && test`, chained with `&&` so the first failure is the exit code. It took its fifth step in Task 1.4.5: `stories` fails if a component has no stories file, and `build` now also produces the Storybook bundle. This story passes it from the repository root. Prettier owns Markdown as well as code, so an unformatted planning document fails it too
 - **Six verbs, identical in every package** — `dev`, `build`, `test`, `lint`, `typecheck`, `clean`. Only `test` and `dev` fan out with `pnpm -r`; the rest run their tool once from the root, because the reference graph and ESLint's project service already cover the workspace in one pass. Changing what a verb means in one package means changing it everywhere, or saying why not
 - **Shared tooling lives at the workspace root; packages declare only what they actually import.** ESLint, Prettier and TypeScript are root-only devDependencies, and pnpm puts the root's `node_modules/.bin` on every package script's PATH. A library the code imports belongs in the package that imports it — `@types/node` in `apps/backend` is the counter-example that keeps the rule from being over-applied
 - **The module setup is ESM-only and single-file-safe** — `"type": "module"`, `module: nodenext`, `isolatedModules`, `verbatimModuleSyntax`, and relative imports carrying `.js` extensions from `.ts` files (TS2835 without one). `packages/shared` is consumed as **built output**, so it must be built before any consumer can be typechecked; `tsc -b` orders that itself, which is why `typecheck` and `build` are the same command
@@ -74,20 +74,21 @@ Three things, now measured rather than expected.
 - Design tokens defined for colour, spacing, typography and elevation, with a light theme — matching the language captured in [`VISUAL-LANGUAGE.md`](VISUAL-LANGUAGE.md), not merely using its hex values
 - Semantic tokens exist for market-specific meaning — positive/negative price movement, anomaly intensity, stale/disconnected data
 - At least one representative component built to demonstrate the conventions
+- **Every component can be viewed, developed and verified in isolation, and has stories covering all of its permutations.** Added on 2026-08-31 at the user's request and delivered in Task 1.4.5: Storybook is the workshop, each component ships one story per discrete state plus an `AllPermutations` story rendering the cartesian product, and `pnpm verify` gains a `stories` step that fails if a component has no stories file. The permutation grid is reviewed rather than checked — nothing cheap can prove a set of stories is complete, and the check says only that the file exists
 - Conventions documented, and the decision captured as an ADR in `docs/adr/` (PRODUCT_SPEC.md §39) **numbered with the next free number at the time — not a number fixed in advance.** This criterion said "ADR 0002" and was written before Story 1.2 took that number for the backend framework and Story 1.3 took 0003 for the frontend build; following it as written would force exactly the renumbering the convention forbids. The next free number is **0004** as of 2026-08-30, so check `docs/adr/` rather than trusting that. The convention is in `docs/adr/README.md`: numbered in the order written, never renumbered, superseded records kept with a `**Superseded by:**` line rather than deleted. Follow 0001's shape — context, decision, rejected alternatives, and consequences a future reader would otherwise discover by tripping over them. This is the ADR where "expensive to reverse once dozens of components exist" earns the record
 
 ## Tasks
 
 Tackled in order. The story is complete when all six are done.
 
-| #     | Task                                                                                                                         | Status      |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1.4.1 | [Choose the styling approach and the component library](TASK-01-choose-styling-approach-and-component-library.md)            | Complete    |
-| 1.4.2 | [Install the styling approach and get the first stylesheet into the build](TASK-02-styling-pipeline-and-first-stylesheet.md) | Complete    |
-| 1.4.3 | [Design tokens and the theme](TASK-03-design-tokens-and-theme.md)                                                            | Complete    |
-| 1.4.4 | [Semantic market tokens](TASK-04-semantic-market-tokens.md)                                                                  | Complete    |
-| 1.4.5 | [Component primitives and the representative component](TASK-05-component-primitives-and-representative-component.md)        | Not started |
-| 1.4.6 | [Verify, document the conventions and write ADR 0004](TASK-06-verify-document-and-adr.md)                                    | Not started |
+| #     | Task                                                                                                                                          | Status      |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1.4.1 | [Choose the styling approach and the component library](TASK-01-choose-styling-approach-and-component-library.md)                             | Complete    |
+| 1.4.2 | [Install the styling approach and get the first stylesheet into the build](TASK-02-styling-pipeline-and-first-stylesheet.md)                  | Complete    |
+| 1.4.3 | [Design tokens and the theme](TASK-03-design-tokens-and-theme.md)                                                                             | Complete    |
+| 1.4.4 | [Semantic market tokens](TASK-04-semantic-market-tokens.md)                                                                                   | Complete    |
+| 1.4.5 | [Component primitives, the representative component and the Storybook workshop](TASK-05-component-primitives-and-representative-component.md) | Complete    |
+| 1.4.6 | [Verify, document the conventions and write ADR 0004](TASK-06-verify-document-and-adr.md)                                                     | Not started |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1, 1.2 and 1.3 followed.
 
@@ -97,8 +98,12 @@ Tokens split into two tasks for a different reason: Task 1.4.3's are structural 
 
 Task 1.4.5 is the only one that would plausibly split further — installing primitives and building a component are two mechanisms — but the primitive alone renders nothing worth keeping, so the checkpoint sits inside the task instead of between two of them.
 
+That reasoning was tested when Storybook was added to the story on 2026-08-31, and it held: the workshop went **into** Task 1.4.5 rather than beside it, because a component workshop with no components in it proves nothing and a component built outside the workshop has to be retrofitted into it. The task now carries three mechanisms rather than two.
+
 ## Notes
 
 Positive/negative colour choices need to survive an accessibility review — red/green alone is insufficient as the sole encoding. One measurement was taken here and handed to Task 1.4.4: the reference palette's positive green (`#498100`) is **4.27:1 on the warm page ground** and so fails AA there, while passing at 4.75 on white surfaces. That was a decision for 1.4.4 to make explicitly — darken the green, or constrain positive values to white surfaces — rather than something to inherit silently.
 
 **Task 1.4.4 resolved it on 2026-08-31: the green darkens.** `#427400` — the same hue at 90% brightness — measures 5.07 on the page ground, 5.63 on white and 5.34 on sunken, chosen with margin rather than at the first passing value and deliberately close to the negative red's 5.31 so neither direction shouts louder. Constraining positive values to white surfaces was rejected as a rule nothing can enforce. The accessibility half of this paragraph was also settled and measured rather than argued: under `grayscale(1)` the positive and negative figures differ by **1.05:1**, which is no difference at all, so the arrow glyph and the sign carry the direction and the colour is the redundancy. Task 1.4.4's Outcome carries the simulations.
+
+**Task 1.4.5 found the first thing in this story that the selection constraints did not predict, and it changed a component rather than a token.** "Accessible primitives" was a selection constraint, and Base UI's tooltip is deliberately not one: it renders no `role="tooltip"`, wires no `aria-describedby`, and its own documentation says so — "Tooltips are designed for sighted users and are not a reliable way to deliver important information to touch users or assistive technologies. If the description is important to understanding the element, don't hide it behind a tooltip." The first thing this product puts behind that seam is an anomaly score's explanation, which PRODUCT_SPEC.md §11 makes mandatory and therefore important by definition. So the wrapper is a **popover**, not a tooltip: `role="dialog"`, `aria-labelledby` and `aria-describedby` all present, verified in the browser rather than read off the library. The cost is that an explanation is now a click rather than a glance. This is not a finding against Base UI — the behaviour is documented and correct for what a tooltip is — but it is the first evidence that "accessible primitives" needs to be checked per primitive rather than per library, which is what Epic 15's review should inherit.

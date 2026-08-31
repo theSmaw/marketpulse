@@ -14,6 +14,7 @@
 import js from "@eslint/js";
 import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
+import storybook from "eslint-plugin-storybook";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
@@ -33,6 +34,7 @@ export default tseslint.config(
       "**/dist/",
       "**/build/",
       "**/coverage/",
+      "**/storybook-static/",
       "**/*.tsbuildinfo",
       ".claude/worktrees/",
     ],
@@ -97,6 +99,18 @@ export default tseslint.config(
     languageOptions: { globals: {} },
   },
 
+  {
+    // Root tooling scripts. This is the block the three above were written in
+    // anticipation of: `scripts/check-stories.mjs` (Task 1.4.5) is the first
+    // plain-JavaScript file in this workspace, and `no-undef` *is* an error for
+    // JavaScript — it is switched off for TypeScript, where the compiler does
+    // the job better. So this block is the first one here that changes a
+    // result rather than documenting an intention. Without it, `console` and
+    // `process` are eight `no-undef` errors and a failing `verify`.
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: globals.node },
+  },
+
   // --- React ---
   //
   // Adopted deliberately in Task 1.3.2 rather than by default, because nothing
@@ -132,6 +146,25 @@ export default tseslint.config(
     extends: [reactHooks.configs.flat["recommended-latest"]],
   },
 
+  // --- Storybook ---
+  //
+  // The workshop's own rules, adopted in Task 1.4.5 alongside Storybook itself.
+  // Narrow and mechanical: a story file must have a default export, story
+  // exports must be PascalCase, a story must not repeat its own name, and
+  // `.storybook/main.ts` must not list an addon that is not installed. They are
+  // the rules that turn a story silently not appearing into a lint error, which
+  // is the failure mode a component workshop actually has.
+  //
+  // Taken from `configs["flat/recommended"]` rather than `configs.recommended`,
+  // the same trap `eslint-plugin-react-hooks` set in Task 1.3.2: both exist,
+  // the unprefixed one is still eslintrc-shaped, and ESLint 10 rejects it
+  // outright rather than ignoring it.
+  //
+  // It carries its own `files` globs — `**/*.stories.@(ts|tsx|...)` and
+  // `.storybook/main.*` — so it is spread rather than scoped here. It stays
+  // *before* the trailing block below, which must remain last.
+  ...storybook.configs["flat/recommended"],
+
   // --- Tooling config files ---
   //
   // Not covered by any package's tsconfig, so the type-aware rules above
@@ -139,8 +172,12 @@ export default tseslint.config(
   // flat config is order-sensitive and `disableTypeChecked` has to win over
   // the TypeScript block near the top.
   //
-  // `apps/frontend/vite.config.ts` is the first file to need this treatment
-  // for a reason other than being this file. It is a `.ts` file inside a
+  // `apps/frontend/vite.config.ts` was the first file to need this treatment
+  // for a reason other than being this file, and Task 1.4.5's two Storybook
+  // configuration files are the third and fourth for exactly the same reason:
+  // they sit in `apps/frontend`, they are `.ts`, and `include` is `src/**/*`.
+  // Widening that `include` is the alternative and is wrong — it would pull the
+  // workshop's configuration into `tsc -b` and into the application's program. It is a `.ts` file inside a
   // package whose tsconfig `include` is `src/**/*`, so the project service has
   // no program for it. It also gets Node globals rather than the browser
   // globals the block above hands the rest of `apps/frontend` — it runs in
@@ -149,7 +186,12 @@ export default tseslint.config(
   // all (ADR 0001 §8), even though `no-undef` is still off for `.ts` and so
   // the correction remains theoretical until a `.js` tooling file appears.
   {
-    files: ["eslint.config.mjs", "apps/frontend/vite.config.ts"],
+    files: [
+      "eslint.config.mjs",
+      "apps/frontend/vite.config.ts",
+      "apps/frontend/.storybook/main.ts",
+      "apps/frontend/.storybook/preview.ts",
+    ],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
   },

@@ -1,0 +1,71 @@
+/*
+ * The popover's styles. As with every stylesheet in this application there is
+ * not one literal colour, length or font here.
+ *
+ * A popup is the one case the token layer defines a shadow for. Everything else
+ * in this language is elevated by ground contrast plus a near-black hairline;
+ * `--elevation-floating` exists for content that genuinely floats, and its
+ * third layer is a 1px spread ring standing in for that hairline so even the
+ * floating case keeps it.
+ */
+
+/*
+ * Base UI renders the trigger as a `<button>`, so it arrives with the user
+ * agent's button styling. This strips it back to the element it is wrapping:
+ * the trigger should be invisible, and whatever it wraps should look exactly as
+ * it does outside a popover.
+ *
+ * `font: inherit` rather than the token font, deliberately — the trigger takes
+ * whatever type its context has, including the tabular figures inherited from
+ * `body`, which a button would otherwise reset.
+ */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+/*
+ * No `:focus-visible` rule here. base.css carries one global outline — 2px
+ * near-black at 2px offset — and it applies to this button like any other. A
+ * component-level focus style would be a second answer to a question the token
+ * layer already answered, and the near-black ring is deliberately not a colour
+ * anyone can fail to perceive.
+ */
+
+.popup {
+  max-width: 20rem;
+  padding: var(--space-12) var(--space-16);
+  background: var(--surface-raised);
+  border-radius: var(--radius);
+  box-shadow: var(--elevation-floating);
+  color: var(--ink-primary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: left;
+}
+
+/* A micro-label, like every other small heading in this language: uppercase,
+   letterspaced, grey. Hierarchy from size and colour, not from weight. */
+.title {
+  margin: 0 0 var(--space-4);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-regular);
+}
+
+.description {
+  margin: 0;
+}
