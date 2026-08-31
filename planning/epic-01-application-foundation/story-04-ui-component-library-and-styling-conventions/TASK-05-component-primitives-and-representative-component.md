@@ -144,3 +144,5 @@ Five components, none of them stateful, no hooks anywhere. The 17 rules adopted 
 ### One thing this task owed and did not deliver
 
 **The shared component library's actual exports were not read.** That bullet asks for a check that cannot be made from inside this repository — the library is external to it. The bet Task 1.4.1 made is therefore still a bet: that its interfaces resemble Base UI's closely enough that the swap is cheap. What this task did instead is make the bet as cheap to lose as possible — there is exactly **one** file importing `@base-ui/react`, and it is 30 lines of assembly with no behaviour. The check is still owed, and it is owed **before Story 1.5 adds more wrappers**, not after.
+
+**Marked on 2026-08-31: Task 1.5.1 closed this as unresolvable rather than as verified.** The library is not reachable and its exports are not available, so the check is retired and the wrapper rule stands on its own reason — a wrapper's props are our vocabulary, not a re-export of the primitive's, and the swap cost is the wrapper files rather than the application. Original wording kept; see that task's Outcome and ADR 0004's consequences.
