@@ -1,4 +1,5 @@
-import type { Preview } from "@storybook/react-vite";
+import type { Decorator, Preview } from "@storybook/react-vite";
+import { MemoryRouter } from "react-router";
 
 import { getTokens } from "../src/styles/tokens.js";
 
@@ -27,7 +28,43 @@ document.documentElement.dataset.theme = "light";
 // workshop reports a broken token layer instead of displaying it.
 getTokens();
 
+// The routing context, and it is the **first deliberate divergence between the
+// workshop and the application**. Task 1.4.5 reused `vite.config.ts` untouched
+// so that there is exactly one place the build lives; a decorator is not that,
+// but it is a second place where the application's context is described, and
+// the two can now drift. Keep it here rather than per story, so there is one
+// of them to keep honest.
+//
+// A `MemoryRouter` rather than the application's `BrowserRouter`: the workshop
+// runs in an iframe with no address bar, and handing a story the browser's
+// history would let a story navigate the whole Storybook UI.
+//
+// The entry comes from a `route` parameter so a story can choose which
+// navigation link is current — routing context, not a prop, which is why the
+// current-route states of `AppHeader` are separate stories rather than rows in
+// its permutation grid. Nesting a second `MemoryRouter` inside this one is not
+// an option React Router allows.
+//
+// Named rather than written inline in the object below: an inline decorator
+// makes the inferred type unnameable and `tsc` reports TS2883 — "cannot be
+// named without a reference to `PartialStoryFn`". This file sits outside every
+// tsconfig, so nothing here would catch it, but the idiom is the same one the
+// story files have to follow and there is no reason for two.
+const withRouter: Decorator = (Story, context) => {
+  const route =
+    typeof context.parameters["route"] === "string"
+      ? context.parameters["route"]
+      : "/";
+
+  return (
+    <MemoryRouter initialEntries={[route]}>
+      <Story />
+    </MemoryRouter>
+  );
+};
+
 const preview: Preview = {
+  decorators: [withRouter],
   parameters: {
     // Storybook's default is to match `background`/`color` props as colour
     // controls, which is noise on components whose colour comes entirely from

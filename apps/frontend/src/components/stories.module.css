@@ -41,3 +41,20 @@
 .specimen {
   padding: var(--space-12) 0;
 }
+
+/*
+ * For specimens that are full-width by nature — a chrome strip, a header —
+ * where the two-column grid above would squeeze the thing being reviewed into
+ * a `max-content` column. Label above, specimen below, stacked.
+ */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-40);
+}
+
+.stackItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}

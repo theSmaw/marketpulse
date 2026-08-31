@@ -190,7 +190,7 @@ export default tseslint.config(
       "eslint.config.mjs",
       "apps/frontend/vite.config.ts",
       "apps/frontend/.storybook/main.ts",
-      "apps/frontend/.storybook/preview.ts",
+      "apps/frontend/.storybook/preview.tsx",
     ],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
