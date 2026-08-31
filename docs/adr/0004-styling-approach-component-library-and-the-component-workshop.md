@@ -455,9 +455,30 @@ portable"); naming the decorator fixes it.
   render — which was the collision the story predicted. Adding components was
   the wrong thing to wait for; adding **state** is, which is Story 1.5 or
   Epic 2
+
+**It fired on 2026-08-31, in Task 1.5.1's router spike, and this bullet was
+right.** `react-hooks/set-state-in-effect` failed the build at `error` on a route
+module syncing state from a URL parameter. It was not the router — neither
+candidate provoked a rule on its own, and the same route written without the
+effect lints clean. Adding **state** was indeed the thing to wait for.
+
 - **The shared component library's exports were not read.** It is not reachable
   from this repository, so §2's assumption is still an assumption. The check is
   owed **before Story 1.5 adds more wrappers**, not after
+
+**Closed on 2026-08-31 by Task 1.5.1, and this bullet keeps its original wording
+because the open check is worth as much as its resolution.** The check was not
+made — the library is not reachable and its exports are not available — so it is
+**retired** rather than satisfied. §2's assumption stops being a claim about a
+specific library's interfaces and becomes a bet on a shape; what carries the
+decision instead is the rule §2 already bought, stated positively: build against
+Base UI's interfaces and our own, keep every usage behind a thin wrapper whose
+props are _our_ vocabulary rather than a re-export of the primitive's, and treat
+the number of files importing `@base-ui/react` as the figure worth watching. The
+swap cost is then the wrapper files, not the application, which is the property
+the wrapper layer was bought for in the first place. Radix and
+react-aria-components remain the standing alternatives if Epic 15 finds against
+Base UI.
 
 ## Related
 

@@ -101,3 +101,5 @@ So the automated check **declines to judge the exact element that carries the no
 ### Still owed, and it is owed to Story 1.5 rather than to this story
 
 **The external shared component library's exports have not been read.** It is not reachable from this repository, so the assumption behind choosing Base UI over the lighter Radix is still an assumption. Task 1.4.5 made it as cheap as possible to be wrong — one file imports `@base-ui/react` — and this task cannot close it either. It gets more expensive with every wrapper, so it belongs **before** Story 1.5 adds more.
+
+**Marked on 2026-08-31: Task 1.5.1 closed this as unresolvable rather than as verified.** The library is not reachable and its exports are not available, so the check is retired and the wrapper rule stands on its own reason — a wrapper's props are our vocabulary, not a re-export of the primitive's, and the swap cost is the wrapper files rather than the application. Original wording kept; see that task's Outcome and ADR 0004's consequences.
