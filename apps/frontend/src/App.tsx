@@ -39,6 +39,45 @@ import styles from "./App.module.css";
 // unchanged by this task. Task 1.5.5 owns splitting, as a decision with a
 // measurement behind it rather than one taken by reflex.
 
+// `basename` is read from `import.meta.env.BASE_URL` and is not optional
+// (Task 1.6.5). Vite's `base` and React Router's `basename` describe **one**
+// fact — the path the application is deployed under — and until this task they
+// were two build-time inputs that did not know about each other. `base` fixes
+// the asset URLs; React Router goes on matching against the full pathname. Set
+// one without the other and the failure looks like success: the assets resolve,
+// React boots, and the **not-found route renders at the application's own
+// address**, under chrome that looks perfectly healthy. Measured before it was
+// fixed — `base: "/marketpulse/"` served from a plain static host gave
+// `<h1>No such page</h1>` at `/marketpulse/`, and every link in the header
+// pointed at `/investigations` rather than `/marketpulse/investigations`, off
+// the deployment entirely.
+//
+// One input, two readers, is the shape this repository already uses for the
+// browser baseline: `target` in tsconfig.json and `build.target` in
+// vite.config.ts, which must be equal and say so in both places. The difference
+// is that here the second reader can be *derived* rather than restated, so
+// there is nothing to keep in step.
+//
+// `BASE_URL` is exempt from `envPrefix` and does not need a `VITE_` prefix,
+// which is why this is not a hole in Task 1.6.4's boundary: it is one of Vite's
+// own built-ins, set from `base`, rather than anything a `.env` file can reach.
+// The value is substituted at build time like any other, and it was checked in
+// the artefact rather than assumed — a `void 0` here would be a `basename` of
+// `undefined`, which is exactly the bug this comment is about.
+//
+// The trailing slash is Vite's (`/marketpulse/`) and React Router accepts it —
+// it strips one internally, so `basename="/marketpulse/"` and
+// `basename="/marketpulse"` behave identically. Checked rather than assumed,
+// because a basename that is off by a slash fails the same way as no basename
+// at all. At the default `base` of `/` this is `basename="/"`, which is what
+// React Router already assumes, so the default deployment is unchanged.
+//
+// Route paths are deliberately not part of this. They live once in
+// `routes/paths.ts` so `tsc -b` catches a typo, and they are the same in every
+// environment — the basename is a deployment fact, a path is not. Nothing here
+// turns a path into a string read from the environment, and the next person
+// reading "configuration" and "routes" in one file should not either.
+
 // The feed's state, hard-coded, and `disconnected` is the honest value: there
 // is no market data in this application until Epic 3, and rendering `live`
 // because §9's sketch shows it would be a green tick that means nothing. The
@@ -48,7 +87,7 @@ const FEED_DETAIL = "No market data until Epic 3";
 
 export function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <div className={styles.page}>
         <AppHeader feedStatus="disconnected" feedDetail={FEED_DETAIL} />
 

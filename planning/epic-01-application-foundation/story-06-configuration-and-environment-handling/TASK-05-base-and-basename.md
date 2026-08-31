@@ -1,6 +1,6 @@
 # Task 1.6.5 — `base` and `basename` as one input
 
-**Status:** Not started
+**Status:** Complete — 2026-08-31
 **Story:** [1.6 Configuration & Environment Handling](STORY.md)
 **Depends on:** Task 1.6.4
 
@@ -28,3 +28,155 @@ Close the silent desynchronisation Story 1.5 created: Vite's `base` and React Ro
 ## Notes
 
 This is cheaper now than it will ever be again. There are four routes and one `<BrowserRouter>`; after Epic 4 there are more of both, and the failure mode does not become easier to spot.
+
+## Outcome
+
+**Done on 2026-08-31.** One prop and a comment block in
+`apps/frontend/src/App.tsx`, and nothing else in the source tree. Everything
+else this task produced is measurement.
+
+```tsx
+<BrowserRouter basename={import.meta.env.BASE_URL}>
+```
+
+Ran **after** Task 1.6.6 rather than before it; the reason is recorded in that
+task's outcome and in `STORY.md`, and it does not affect anything here.
+
+### The broken case, reproduced rather than described
+
+`base: "/marketpulse/"` in `vite.config.ts`, built, copied outside the
+workspace into `<host>/marketpulse/` and served by `python3 -m http.server`
+from the parent. The assets are found — `index.html` references
+`/marketpulse/assets/index-*.js` and both it and the stylesheet are 200 — React
+boots, the chrome renders, and:
+
+| At `/marketpulse/`  | Value                                |
+| ------------------- | ------------------------------------ |
+| `location.pathname` | `/marketpulse/`                      |
+| `<main> h1`         | **`No such page`**                   |
+| region landmarks    | 0 (the landing route has four)       |
+| `<header>`          | present, and looks perfectly healthy |
+
+An application that looks deployed and is not, exactly as this task predicted.
+
+**The half the task did not predict is worse, because it survives the fix
+being applied to only one page.** Every link in the chrome pointed off the
+deployment entirely:
+
+```
+Market Overview        -> /
+Investigation Workspace -> /investigations
+Security Explorer      -> /securities
+Market Replay          -> /replay
+Go to Market Overview  -> /            (the not-found route's own recovery link)
+```
+
+So a subpath deployment without a `basename` is not one broken screen. It is a
+not-found page whose recovery link leaves the application, under a header whose
+every link leaves the application. There is no route from which a user recovers.
+
+### `BASE_URL` is a real literal in the artefact, not `void 0`
+
+The check this task asked for, because a `void 0` here would be a `basename` of
+`undefined` and would look exactly like the bug. From `dist/assets/index-*.js`
+at `base: "/marketpulse/"`:
+
+```js
+jsx(BrowserRouter, { basename: `/marketpulse/`, children: ... })
+```
+
+`grep -c 'basename:void 0'` is **0**. This is not a hole in Task 1.6.4's
+`envPrefix` boundary and does not need a `VITE_` prefix: `BASE_URL` is one of
+Vite's own built-ins, set from `base`, rather than anything a `.env` file can
+reach. At the default `base` it compiles to `` basename: `/` ``.
+
+### The trailing slash, checked rather than assumed
+
+Vite normalises `base` to carry a trailing slash, so `BASE_URL` is
+`/marketpulse/` and never `/marketpulse`. React Router accepts it and strips one
+internally — the rendered links are `/marketpulse/investigations`, not
+`/marketpulse//investigations`. So the two conventions do not have to be
+reconciled and nothing here trims a slash. At the default `base` the value is
+`/`, which is what React Router already assumed, which is why the default
+deployment is untouched.
+
+### All four routes and the not-found state, under the subpath
+
+Client-side navigation from `/marketpulse/`, on the plain static host:
+
+| Address                       | `<main> h1`             | `aria-current`          | Regions |
+| ----------------------------- | ----------------------- | ----------------------- | ------- |
+| `/marketpulse/`               | Market Overview         | Market Overview         | 4       |
+| `/marketpulse/investigations` | Investigation Workspace | Investigation Workspace | 0       |
+| `/marketpulse/securities`     | Security Explorer       | Security Explorer       | 0       |
+| `/marketpulse/replay`         | Market Replay           | Market Replay           | 0       |
+| `/marketpulse/nonsense`       | No such page            | none                    | 0       |
+
+Four region landmarks on the landing route and none elsewhere is Task 1.5.4's
+layout intact; `aria-current` being absent on the not-found state is correct,
+since no navigation item is current.
+
+### The host's limitation, not papered over
+
+Those are **client-side** navigations. On the plain static host every deep link
+is a 404 — `/marketpulse/replay`, `/marketpulse/securities` and
+`/marketpulse/nonsense` all 404 before React exists, which is Task 1.5.5's
+finding unchanged and Story 1.11's to configure. `basename` does not touch it
+and was never going to.
+
+To confirm the routes work on a **cold** load rather than only after a
+client-side transition, this task also built the smallest honest version of the
+rewrite Story 1.11 owes — a fallback scoped to the subpath that declines to
+rewrite anything whose last segment contains a dot:
+
+| Request                       | Status  |
+| ----------------------------- | ------- |
+| `/marketpulse/`               | 200     |
+| `/marketpulse/replay`         | 200     |
+| `/marketpulse/securities`     | 200     |
+| `/marketpulse/investigations` | 200     |
+| `/marketpulse/nonsense`       | 200     |
+| `/marketpulse/assets/nope.js` | **404** |
+| `/other/`                     | **404** |
+
+Deep-loaded directly, `/marketpulse/replay` renders Market Replay with
+`aria-current` set and the page ground computed as `rgb(244, 243, 238)` — the
+stylesheet applied, so the whole cascade arrived under the subpath too. And
+`/marketpulse/nonsense` renders `No such page` with its recovery link now
+reading `/marketpulse/` rather than `/`.
+
+That server is scratch and is not committed; it exists because it is the
+measurement Story 1.11's "must not be a blanket catch-all" constraint was
+written from, and now that constraint has a working example behind it rather
+than only a warning. Both figures are recorded in Story 1.11's STORY.md.
+
+### The default build is unchanged
+
+`base` restored, rebuilt:
+
+| Figure     | Before    | After         |
+| ---------- | --------- | ------------- |
+| Modules    | 265       | 265           |
+| JavaScript | 342.00 kB | **342.01 kB** |
+| CSS        | 9.82 kB   | 9.82 kB       |
+| Files      | 3         | 3             |
+
++0.01 kB, which is the prop. `index.html` still references `/assets/index-*.js`
+and `` basename: `/` `` is what ships. All four routes plus the not-found state
+re-checked on a static host at the default path, and the **dev server** too,
+since `BASE_URL` is `/` there and a mistake would have shown up as the router
+refusing to match anything.
+
+The workshop is unaffected and was not touched: `.storybook/preview.tsx` wraps
+stories in a `MemoryRouter`, which takes no basename and reads no `BASE_URL`.
+
+### Documentation
+
+ADR 0003's "a subpath deployment is a `base` change and a rebuild" paragraph
+now carries the half that was missing, and Story 1.11's two bullets inherit the
+finished mechanism rather than the warning — one variable and a rebuild, with
+the fallback measurements above.
+
+### `pnpm verify`
+
+Exit 0. No dependency added, no lockfile change.
