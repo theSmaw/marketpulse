@@ -1,0 +1,57 @@
+/*
+ * Element-level base styles — the smallest set that makes the tokens visible,
+ * and nothing that belongs to a component.
+ *
+ * Deliberately not a reset. A full normalise/reset is a dependency and a set of
+ * decisions about elements this product has not rendered yet; what is here is
+ * the four things the token layer needs in order to be observable at all.
+ */
+
+html {
+  /*
+   * Declared rather than inherited. The browser's defaults for form controls,
+   * scrollbars and the pre-paint background are already light, so this changes
+   * no pixel today — which is exactly why it is worth stating. Without it, the
+   * application is light by coincidence, and a later `color-scheme: dark` or a
+   * user-agent default change would silently move it. With it, the light
+   * appearance of a native `<select>` or a scrollbar is a decision this file
+   * made. Task 1.4.3's brief calls this out specifically.
+   */
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+
+  background: var(--surface-page);
+  color: var(--ink-primary);
+
+  font-family: var(--font-sans);
+  /* The dense size is the product's default; see tokens.css. */
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  font-weight: var(--font-weight-regular);
+
+  /*
+   * A token-level decision rather than a per-component fix, and it is set here
+   * so that it is inherited by every digit rather than remembered at each
+   * column. Every figure that appears in a column — price, change, percentage,
+   * volume, score — must occupy the same width, or the column jitters on every
+   * tick. Epic 3 updates these continuously, so a proportional figure set turns
+   * a live price column into visible noise.
+   *
+   * Verified in the browser rather than assumed from this declaration: the
+   * measurement is in Task 1.4.3's record.
+   */
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * One global rule, because a focus treatment that each component opts into is a
+ * focus treatment some component forgets. `:focus-visible` rather than `:focus`
+ * so a mouse click on a button does not leave a ring behind it.
+ */
+:focus-visible {
+  outline: var(--focus-width) solid var(--ink-primary);
+  outline-offset: var(--focus-offset);
+}

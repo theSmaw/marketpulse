@@ -1,0 +1,103 @@
+/*
+ * The placeholder shell's styles. Every declaration here reads a token; there
+ * is not a single literal colour, length or font in this file, and that is the
+ * point of it — it is the proof that the token layer applies, not a design.
+ *
+ * Story 1.5 replaces this shell with the real application chrome. What should
+ * survive that is the idioms, not the markup: the warm ground under a white
+ * module, the near-black hairline as the separator, the uppercase letterspaced
+ * micro-label, and the right-aligned tabular numeric column.
+ */
+
+.page {
+  min-height: 100vh;
+  padding: var(--space-24) var(--space-40);
+  /* The 24-to-40 jump in the spacing ladder, doing its job: the page breathes
+     horizontally while the content inside a module stays tight. */
+}
+
+.header {
+  padding-bottom: var(--space-12);
+  /* The primary separator, and it is near-black rather than grey. */
+  border-bottom: var(--border-width) solid var(--rule-hairline);
+}
+
+.microLabel {
+  margin: 0 0 var(--space-4);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-heading);
+  line-height: var(--line-height-heading);
+  /* 600, not 300. The system stack has no reliable light weight — see the
+     divergence recorded in tokens.css. */
+  font-weight: var(--font-weight-strong);
+}
+
+/* A white module on the warm ground, separated by a hairline rather than by a
+   shadow. This is what elevation means here. */
+.module {
+  max-width: 40rem;
+  margin-top: var(--space-24);
+  padding: var(--space-20);
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--rule-hairline);
+  border-radius: var(--radius);
+}
+
+.moduleTitle {
+  margin: 0 0 var(--space-12);
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-subheading);
+  font-weight: var(--font-weight-strong);
+}
+
+.prose {
+  margin: 0 0 var(--space-16);
+  color: var(--ink-secondary);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: var(--space-8) 0;
+  text-align: left;
+}
+
+/* The sunken ground and the soft divider, both in their intended roles: a
+   header strip, and a repeated row rule where near-black would stripe the
+   table. */
+.table thead th {
+  background: var(--surface-sunken);
+  padding-left: var(--space-8);
+  padding-right: var(--space-8);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-regular);
+  border-bottom: var(--border-width) solid var(--rule-hairline);
+}
+
+.table tbody tr + tr td {
+  border-top: var(--border-width) solid var(--rule-soft);
+}
+
+/* Numeric columns are right-aligned, always: a right-aligned tabular column
+   aligns decimal points for free. `tabular-nums` itself is inherited from
+   `body` in base.css rather than repeated here. */
+.table .numeric {
+  text-align: right;
+  padding-right: var(--space-8);
+}

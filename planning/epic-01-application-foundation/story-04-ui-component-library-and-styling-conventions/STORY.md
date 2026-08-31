@@ -1,6 +1,6 @@
 # Story 1.4 — UI Component Library & Styling Conventions
 
-**Status:** In progress — Tasks 1.4.1 and 1.4.2 complete (2026-08-31)
+**Status:** In progress — Tasks 1.4.1, 1.4.2 and 1.4.3 complete (2026-08-31)
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.3
 **Epic scope covered:** select UI component library and styling conventions
@@ -84,7 +84,7 @@ Tackled in order. The story is complete when all six are done.
 | ----- | ---------------------------------------------------------------------------------------------------------------------------- | ----------- |
 | 1.4.1 | [Choose the styling approach and the component library](TASK-01-choose-styling-approach-and-component-library.md)            | Complete    |
 | 1.4.2 | [Install the styling approach and get the first stylesheet into the build](TASK-02-styling-pipeline-and-first-stylesheet.md) | Complete    |
-| 1.4.3 | [Design tokens and the theme](TASK-03-design-tokens-and-theme.md)                                                            | Not started |
+| 1.4.3 | [Design tokens and the theme](TASK-03-design-tokens-and-theme.md)                                                            | Complete    |
 | 1.4.4 | [Semantic market tokens](TASK-04-semantic-market-tokens.md)                                                                  | Not started |
 | 1.4.5 | [Component primitives and the representative component](TASK-05-component-primitives-and-representative-component.md)        | Not started |
 | 1.4.6 | [Verify, document the conventions and write ADR 0004](TASK-06-verify-document-and-adr.md)                                    | Not started |

@@ -12,8 +12,10 @@ import { defineConfig } from "vite";
 // gives itself.
 //
 // It must stay free of Node APIs — `path`, `process`, `__dirname`. Reaching
-// for one wants `@types/node` in this package, which is exactly what the empty
-// `types: []` in tsconfig.json exists to prevent. Vite resolves `root`,
+// for one wants `@types/node` in this package, which is exactly what the
+// explicit `types` list in tsconfig.json exists to prevent — it is
+// `["vite/client"]` since Task 1.4.2, and what makes it work is that it is
+// explicit rather than that it is short. Vite resolves `root`,
 // `publicDir` and `build.outDir` relative to this file's directory on its own,
 // so nothing here needs to compute a path.
 export default defineConfig({
