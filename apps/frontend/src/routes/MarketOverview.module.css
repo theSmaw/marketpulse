@@ -7,31 +7,87 @@
  * colours and the five components all reach the browser. Epic 4 replaces the
  * markup with the real overview, and this file goes with it.
  *
- * Every declaration reads a token. There is not a literal colour, length or
- * font here, which is the same rule — and the same proof — as before the move.
+ * Every colour, gap, border and font here reads a token. Since Task 1.5.4 the
+ * file also carries the region grid, and that is where the exceptions are: grid
+ * fractions and one viewport-relative minimum, which are proportions rather
+ * than design language. There is no token ladder for a proportion and inventing
+ * one would be a token nobody else uses.
  */
+
+/*
+ * --- The region grid (Task 1.5.4) ---
+ *
+ * PRODUCT_SPEC.md §9's sketch, as a proportion rather than a pixel spec: a
+ * dominant primary area with the topology in it, a narrower right column
+ * carrying unusual activity above investigations, and a lower band for market
+ * breadth. Four regions in source order — topology, unusual activity, breadth,
+ * investigations — auto-placed into two columns, which is why no region needs a
+ * class naming where it sits. A region called `rightColumn` is a layout that
+ * cannot be rearranged; this one is rearranged by editing two lines here.
+ *
+ * Designed for 1440 × 900 and checked at 1280 wide, which is an ordinary
+ * analyst monitor. Desktop-first is PRODUCT_SPEC.md §3's stated constraint and
+ * mobile is explicitly out of scope for V1 — that is permission to assume real
+ * screen area, and not permission to break one step narrower.
+ *
+ * The 3:1 and 2:1 ratios are the emphasis §9 asks for: the primary area is the
+ * visual centre of gravity by size, before anything is drawn in it.
+ */
+.regions {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-24);
+  margin-top: var(--space-24);
+  /*
+   * What the layout does about Epic 6's canvas, thought about once and then
+   * left alone. A WebGL renderer needs a region with a resolved size rather
+   * than one that grows to fit its content, and `fr` rows only resolve if the
+   * grid itself has a height — so the grid takes one, and each region scrolls
+   * its own overflow instead of pushing its neighbours.
+   *
+   * It is a proportion of the viewport rather than "the space left below the
+   * chrome", because the second would mean the shell owning the page's height
+   * and `App.module.css` has finished shrinking. Epic 6 is where an exactly
+   * resolved canvas box becomes worth that change; today it would be a guess
+   * with a flex container attached.
+   *
+   * `height` rather than `min-height`, and the difference is the whole layout:
+   * with a minimum the `fr` rows still size to their content, the primary area
+   * grows as tall as whatever is in it, and §9's proportions disappear the
+   * moment one region holds more than another — which is exactly the state this
+   * screen is in while three regions are a sentence and one holds a render
+   * check. A height makes the ratios real and hands the overflow to the region.
+   */
+  height: 70vh;
+}
 
 .modules {
   display: flex;
   flex-direction: column;
   gap: var(--space-24);
-  margin-top: var(--space-24);
 }
 
-/* A white module on the warm ground, separated by a hairline rather than by a
-   shadow. This is what elevation means here. */
+/*
+ * A module inside the primary region, so it takes the sunken ground: white on
+ * white with a near-black rule between them reads as a mistake rather than as
+ * nesting. The width is the region's now — it was `max-width: 52rem` when these
+ * modules sat directly on the page and nothing bounded them.
+ */
 .module {
-  max-width: 52rem;
   padding: var(--space-20);
-  background: var(--surface-raised);
+  background: var(--surface-sunken);
   border: var(--border-width) solid var(--rule-hairline);
   border-radius: var(--radius);
 }
 
+/* An `h3` since Task 1.5.4, because these modules are inside a region whose
+   name is the `h2`. The type steps down with the heading level rather than
+   staying at the region's size — the outline and the page have to agree. */
 .moduleTitle {
   margin: 0 0 var(--space-12);
-  font-size: var(--font-size-subheading);
-  line-height: var(--line-height-subheading);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
   font-weight: var(--font-weight-strong);
 }
 
