@@ -1,6 +1,6 @@
 # Task 1.5.5 — Deep-linking, code splitting and the artefact's shape
 
-**Status:** Not started
+**Status:** Complete (2026-08-31)
 **Story:** [1.5 Application Layout & Routing](STORY.md)
 **Depends on:** Task 1.5.4
 
@@ -29,3 +29,130 @@ Prove the story's deep-linking criterion against a server that will actually fai
 ## Notes
 
 This is the task most likely to end with "the criterion cannot be fully met inside Epic 1", and that is an acceptable outcome as long as it is written down where Story 1.11 will read it. What is not acceptable is the criterion being ticked because the local server has a fallback nobody chose.
+
+## Outcome
+
+No source changed. This task is a measurement and two decisions: **deep-linking
+is handed to Story 1.11 with its constraint written down**, and **route
+splitting is rejected on its own numbers**. `dist/` is still three files and the
+artefact figures are unchanged from Task 1.5.4 — 265 modules, 342.08 kB of
+JavaScript, 9.82 kB of CSS — which is itself the result rather than an omission.
+
+### Deep-linking, against a host that actually fails it
+
+`apps/frontend/dist` copied outside the workspace and served by
+`python3 -m http.server`, with each path requested directly:
+
+| Path                      | Dumb static host | `vite preview`  |
+| ------------------------- | ---------------- | --------------- |
+| `/`                       | 200 `text/html`  | 200 `text/html` |
+| `/investigations`         | **404**          | 200 `text/html` |
+| `/securities`             | **404**          | 200 `text/html` |
+| `/replay`                 | **404**          | 200 `text/html` |
+| `/definitely-not-a-route` | **404**          | 200 `text/html` |
+| `/assets/nope.js`         | **404**          | 200 `text/html` |
+
+**The 404s are the correct finding, not a failure of this task.** The dev server
+behaves like `preview`; every one of those 200s is 1101 bytes of the same
+`index.html`, which is exactly why passing this criterion locally is not
+evidence of anything.
+
+**A second criterion turns out to rest on the same host property, and this
+story recorded it as met on local evidence.** On the dumb host,
+`/definitely-not-a-route` returns _Python's_ error page — `NotFound` never
+mounts, because the document that would boot React is never served. So
+"an unknown route renders a not-found state rather than a blank screen" is met
+**given a history-API fallback** and not otherwise. Task 1.5.2 built the route
+correctly and the route is fine; what was untested was the hosting assumption
+underneath it. Both criteria are annotated in `STORY.md` rather than quietly
+left ticked.
+
+With a fallback present, both work end to end — checked in a browser against
+`vite preview` rather than inferred: `/replay` on a cold load renders the
+Market Replay heading with `aria-current="page"` on its navigation link, and
+`/no-such-page` renders "No such page" with the chrome intact and no link
+marked current.
+
+### The answer, and where it lives
+
+**Handed to Story 1.11, because the fallback is a property of the host and the
+host is not chosen yet.** Hash routing was the alternative that needs no host
+support, and it loses: it puts `/#/` in every URL a user copies, pastes into an
+investigation, or files in a ticket, permanently, to avoid one line of hosting
+configuration on a platform that has not been picked. A static export per route
+is not justified by four placeholders and stops being possible the moment
+Epic 4 gives `/securities/:symbol` a parameter.
+
+**Three constraints go with it, and the third is the one that would otherwise
+be discovered in production.**
+
+- The rewrite must serve `index.html` with **200**, not a redirect. A 302 to `/`
+  loses the path, which is the whole point of deep-linking
+- `base` is `/`, so every emitted asset path is absolute. A subpath deployment
+  is a `base` change and a **rebuild**, not a rewrite rule — ADR 0003's finding,
+  restated here because a fallback is exactly where somebody would try to fix it
+  cheaply
+- **The rewrite must not be a blanket catch-all.** A fallback that answers
+  _every_ unmatched path with `index.html` answers a missing asset that way too
+  — which is precisely the `vite preview` trap measured above and in Task 1.3.5,
+  arriving in the browser as a MIME-type error rather than a 404 naming the
+  file. Scope it to paths that are not under `/assets/`, or let `/assets/*`
+  404 explicitly. The failure this prevents is a partially uploaded deploy
+  looking like a broken application with no error that names the missing file
+
+### Route splitting, measured both ways and rejected
+
+Built with a `React.lazy` per route module and one `<Suspense>` boundary, then
+reverted — the reverted build reproduces the unsplit hashes exactly.
+
+|                        | Unsplit                            | Split                                   |
+| ---------------------- | ---------------------------------- | --------------------------------------- |
+| Files in `dist/`       | **3**                              | **12**                                  |
+| JavaScript, total      | 342.08 kB                          | 343.52 kB                               |
+| CSS, total             | 9.82 kB                            | 9.83 kB                                 |
+| Gzipped, total         | 114.36 kB                          | 115.62 kB                               |
+| Eager chunk (JS + CSS) | 351.90 kB                          | 236.53 kB                               |
+| First paint of `/`     | 351.90 kB, 2 files, one round trip | 351.39 kB, 7 files, **two** round trips |
+
+**The eager chunk does shrink — by 105.37 kB — and not one of those bytes is
+saved on the route the product opens on.** They move into
+`MarketOverview-*.js` at 108.85 kB, which is Base UI arriving on a second
+waterfall instead of the first. Splitting relocates the cost of the landing
+route rather than removing it, and adds 1.44 kB of JavaScript and nine files
+doing so. React and React Router stay in the eager chunk either way, because
+the chrome renders on every route including the not-found state.
+
+The three non-landing routes are where the eager saving is real, and they are
+reached by clicking a link — so the chunk fetch lands mid-interaction, which is
+a worse place to spend a round trip than the initial load. The four placeholder
+route chunks are 0.34–0.64 kB each.
+
+**Nobody pays for this today, and Story 1.11 would.** The artefact stops being
+three files and becomes a directory of twelve with absolute hashed paths, where
+a partial upload is a broken application rather than a stale one.
+
+**The reversal trigger is Epic 4**, which replaces Story 1.4's render check with
+the real overview. The moment Base UI is no longer dragged in by a temporary
+render check on the landing route, the arithmetic is a different one — and if
+the topology, the charts or the replay controls make any single route large,
+that route is the case for splitting rather than all five.
+
+### The loading state, looked at rather than reasoned about
+
+Served from a static host that sleeps 2s on every lazy chunk, so the fallback
+was visible instead of theoretical. **The chrome renders immediately and the
+entire page body is empty** — `AppHeader` is outside `<Routes>` and in the eager
+chunk, so what a `fallback={null}` blanks is the whole of `<main>`: four named
+region landmarks and the 70vh grid, replaced by nothing, under a header that
+looks perfectly healthy.
+
+That is a more specific problem than "a blank screen", and it is the argument
+for scoping a fallback to the regions rather than to the router — the same
+boundaries Story 1.7 will put error states inside. Recorded rather than built:
+nothing here is split, so nothing here needs a fallback.
+
+One measurement caveat stated rather than buried: the delaying host was
+single-threaded, so the five chunk requests **serialised** (2055 / 4061 / 6072 /
+8079 / 10084 ms). The 2s-per-chunk figure is the instrument, not a network
+prediction; what the sequence shows is the shape — eager chunk complete at
+34 ms, body renderable only after the last of five further requests.
