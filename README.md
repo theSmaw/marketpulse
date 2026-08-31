@@ -299,8 +299,16 @@ if a documented default no longer matches the code, or if a name in
 code and not to the example is a failing build rather than stale documentation.
 
 `.env` and `.env.*` are gitignored; `.env.example` is negated back in. Verified
-in place at both package roots and the repository root — the three `.env.example`
-files show as untracked and the six `.env` / `.env.local` files as ignored.
+in place at both package roots and the repository root — the six `.env` /
+`.env.local` files show as ignored and an example file does not, at every one of
+the three locations. There are **two** `.env.example` files, one per package;
+there is deliberately no root one, because `cp .env.example .env` there would
+produce a file no loader reads.
+
+Check it with `git status --porcelain --ignored=matching` rather than with
+`git check-ignore`, which does not answer the question: `-v` exits **0** on a
+negated path, printing the `!.env.example` rule, so it reads as "ignored" for a
+file that is not.
 
 ## Styling and design tokens
 
@@ -483,9 +491,9 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 ## Documentation
 
 - [`docs/adr/`](docs/adr/) — architecture decision records, newest last;
-  [0005](docs/adr/0005-routing-application-layout-and-the-deployable-shape.md)
-  is the most recent and covers the router, the application layout and the
-  shape the artefact deploys in
+  [0006](docs/adr/0006-configuration-and-the-secrets-boundary.md) is the most
+  recent and covers configuration, the three environments and the boundary
+  between a value the browser may have and one that never leaves the server
 - [`planning/PRODUCT_SPEC.md`](planning/PRODUCT_SPEC.md) — the authoritative
   product definition
 - [`planning/EPICS.md`](planning/EPICS.md) — the delivery roadmap

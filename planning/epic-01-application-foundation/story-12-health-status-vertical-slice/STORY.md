@@ -59,6 +59,17 @@ The chrome this story's first acceptance criterion names now exists, and it alre
 - **There are four routes now, and the indicator is on all of them.** Nothing about polling is per-route, but the not-found route renders under the same chrome — so an unreachable-backend state has to read correctly on a page that is itself an error state. Worth checking rather than assuming
 - **A component test of anything in the chrome needs router context.** `AppHeader` uses `NavLink`, so it cannot render outside a router; the workshop solves this with a single `MemoryRouter` decorator in `.storybook/preview.tsx`. If this story writes the first component test (Story 1.9 permitting), that is a second place the application's context gets described — see Story 1.9, which owns keeping it from becoming a third
 
+### What Story 1.6 hands this story
+
+The frontend reads **no** configuration today, and this story brings the first variable it will genuinely need: the backend's URL. Everything about how that variable behaves is already decided and measured.
+
+- **It must be `VITE_`-prefixed or it silently never arrives.** `envPrefix: ["VITE_"]` is stated in `vite.config.ts` as a decision, and the enforcement is at the reference site: a non-prefixed read compiles to `void 0`, not to a runtime lookup. `pnpm env:check` fails on a non-prefixed name in `apps/frontend/.env.example` for exactly this reason. `VITE_API_BASE_URL` is the shape the boundary was measured with
+- **Adding it means adding it in two places, and the check enforces the second.** The variable itself, and a line in `apps/frontend/.env.example` — which is currently deliberately empty of variables. `env:check` only requires the prefix on the frontend side today; if this story wants the stronger backend-style guarantee (every documented name read by something, every default in step), that is a small extension to `scripts/check-env-example.mjs` rather than a new mechanism
+- **It is inlined at build time, so one artefact cannot be promoted across environments.** A different backend URL is a **rebuild**, not a setting — the same shape as `base`. If this story's deployment story needs one artefact against two backends, that is the reversal trigger for ADR 0006 §6 and it is a decision, not a workaround
+- **A credential must never follow it.** The browser talks to the MarketPulse backend and never to Alpaca or a model provider. A `VITE_` prefix is a boundary against accidents, not a permission: prefixing a credential makes it a string literal in a file every visitor downloads
+- **CORS is pinned to 5173, and that is why the frontend's ports are literals.** Task 1.6.4 closed the "should the frontend's ports be configurable" question against making them so, partly on this story's allowlist: a silently moved port fails as a browser error naming neither the port nor the cause, which is why `strictPort` is on. If this story needs a second origin, it is `loadEnv()` in `vite.config.ts` rather than `process.env`
+- **The backend's URL is the first thing that will want to differ between environments, and nothing branches on the environment today.** ADR 0006 §4 made that a decision rather than an omission. Read it before adding an `APP_ENV`; the answer is very likely one more value, not a name for the environment
+
 ## Acceptance criteria
 
 - The frontend queries backend health and displays it in the application chrome

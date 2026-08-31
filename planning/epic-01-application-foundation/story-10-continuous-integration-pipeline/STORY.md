@@ -32,6 +32,15 @@ Everything else this story adds is around that one command: triggers, toolchain 
 
 **The exit code CI reads is the child's, not pnpm's own.** Measured in Tasks 1.2.5 and 1.2.6 rather than assumed: `pnpm run` waits for the script to finish and propagates its exit code — 7 from a probe, 1 from the real server on a busy port — printing `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL` alongside it. So a non-zero from anything `verify` runs, at any nesting depth, reaches the runner intact. That is the mechanism this whole story leans on, and it holds.
 
+### What Story 1.6 hands this story
+
+One finding, and it is aimed squarely at this story's "know what `pnpm verify` does not cover" bullet — in a form that bullet does not currently describe.
+
+- **The gaps already listed are files no tool reads.** `apps/backend/scripts/dev.sh`, and the `rm -rf` fragments inside two `clean` scripts. Both are known, dated and cheap to state
+- **Task 1.6.4 found the other kind, and it is the one CI cannot help with either.** `apps/frontend`'s explicit `types` array was written down in three documents as making `process` a compile error in browser code. It stopped being one in Task 1.4.5 — `.stories.tsx` entered the program and dragged `@types/node` in through a triple-slash reference inside Storybook's and Vite's node-side declarations, which an explicit `types` array does not filter — and stayed wrong for two stories. That was a file **every** tool read, carrying a guarantee nothing was checking. `process`, `Buffer`, `__dirname` and `import path from "node:path"` all typechecked in browser code at exit 0, and the build externalised the import and exited 0 too
+- **So the honest framing for this story is that a green CI run means every check passed, not that every claim holds.** A stated invariant is not a checked one, and the only thing that found this one was a task whose Done-when said to re-measure rather than to cite. Two checks in the tree now exist for that reason — `env:check`, and the `no-restricted-globals` block over `apps/frontend/src/**` — and both were made to fail before they were trusted
+- **`pnpm verify` is six steps now, not five.** `env:check` sits between `stories` and `test` and costs 0.26s. Like `stories`, it depends on `build` having run — it imports the backend's built `dist/config.js` — so it is not safe to reorder or to run standalone on a clean tree, where it says ``run `pnpm build` first``. The clean-tree chain is **9.3–9.8s** as of Task 1.6.7
+
 ## Acceptance criteria
 
 - Pipeline runs on push and on pull request

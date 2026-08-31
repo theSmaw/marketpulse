@@ -26,6 +26,16 @@ One thing that is true today and will not be forever: until Story 1.9 lands, **`
 
 So this story **extends the README, it does not create one** — and two of its criteria below are already met. What is genuinely outstanding is the part the README says plainly it cannot yet do: get you to a _running application_. Its "What exists today" section says so and names itself as the first thing to change when that stops being true.
 
+### What Story 1.6 hands this story
+
+Task 1.6.6 wrote `README.md`'s `## Configuration` section, so this story's job there is to **follow it from a clean clone rather than to write it**. Three things in it are the ones a first run trips over, and all three are already documented:
+
+- **Neither `.env` file is needed.** Every backend variable has a default and a missing file is swallowed silently, so a fresh clone starts on port 3000 and `127.0.0.1` with no file at all. The silence is deliberate — two of the three environments have no file by design — and it is exactly the kind of thing a setup document usually gets wrong by implying a required step
+- **The `cp` destinations are package-local and must be copied as written.** `cp apps/backend/.env.example apps/backend/.env`, not `cp .env.example .env`. A `.env` at the repository root is read by **neither** package and fails silently: the file exists, nothing reads it, the application starts on defaults. There is deliberately no root example, for that reason
+- **The failure message is part of the setup experience.** An invalid value fails at startup naming both the key and what it was given — `PORT must be an integer between 1 and 65535, received "nonsense"` — before the server binds. Worth reproducing during this story's clean-clone run, because it is the one path where a mistyped `.env` is recoverable in one read
+
+This story's outstanding criterion is unchanged and is the one the configuration work does not touch: a clean clone reaching a **running application** by following the README alone. Task 1.6.7 re-ran install-and-verify from a clean tree, not the running pair.
+
 ## Acceptance criteria
 
 - ~~**`pnpm dev` is the single command, and it already exists**~~ — **this criterion is now met, and Story 1.3 closed the second half of it.** All three `dev` scripts are real: `packages/shared` in `tsc -b --watch --preserveWatchOutput`, `apps/backend` in `scripts/dev.sh` (a second `tsc -b --watch` plus `node --watch dist/index.js`), and `apps/frontend` in `vite`. Root `pnpm dev` starts the pair — eight processes, backend on 3000 and dev server on 5173 — and Task 1.3.5 verified Ctrl-C leaves zero survivors in the process group with both ports released. What is left for this story is not starting them but **making the pair legible together**, which is a presentation problem rather than a wiring one
