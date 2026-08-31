@@ -1,6 +1,6 @@
 # Story 1.6 — Configuration & Environment Handling
 
-**Status:** Not started
+**Status:** Complete — 2026-08-31
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Stories 1.2, 1.3
 **Epic scope covered:** shared configuration, environment handling
@@ -49,12 +49,14 @@ Story 1.5 added no configuration and no environment variable, so nothing here is
 
 ## Acceptance criteria
 
-- Configuration is parsed and validated at startup, with a declared schema
-- The server refuses to start on missing or invalid configuration and names the offending key
-- Distinct configuration for development, test and production
-- `.env.example` documents every variable, with descriptions and safe placeholder values
-- Only explicitly whitelisted variables reach the frontend bundle; secrets cannot leak by accident
-- Real secrets are gitignored and never committed
+All six re-run from a clean tree in Task 1.6.7 rather than inherited from the task that first met them. Two are annotated rather than plainly ticked, following the Story 1.5 precedent where a criterion was a property of something this story does not own.
+
+- **Configuration is parsed and validated at startup, with a declared schema** — met, with the meaning of "schema" stated. `apps/backend/src/config.ts` declares a `Config` interface and a set of readers, plus the `CONFIG_VARIABLES` table; there is no schema library, and Task 1.6.1 measured why (ADR 0006 §1). Validation happens when `loadConfig()` is called, not on import, so it is testable
+- **The server refuses to start on missing or invalid configuration and names the offending key** — met for invalid, and **"missing" cannot occur today**: both variables have defaults, so nothing is required and absence is a valid state. Re-measured: `PORT=nonsense`, `PORT=70000` and `PORT=3000x` each give `PORT must be an integer between 1 and 65535, received "<value>"` and exit 1 before the server binds. A related note carried into Story 1.7: the accumulator reports _every_ bad key rather than the first, and with `PORT` and `HOST` that cannot be demonstrated, because `readString` never throws — the first constrained-value variable makes it visible again
+- **Distinct configuration for development, test and production** — met, and **annotated, because it is met by values rather than by code paths.** Nothing in the application branches on the environment; there is no `NODE_ENV` read and no `APP_ENV`. The three differ in where values come from — a gitignored `apps/backend/.env`, the runner's own process, the container's environment — which one precedence rule covers. Re-measured both ways round: a real variable beats a file entry, and a blank `PORT=` falls back to 3000 rather than binding port 0. The frontend half is a **rebuild per environment**, because its configuration is inlined at build time; **Story 1.11 owns whether that is acceptable for the hosting it picks**, and ADR 0006 §6 states the reversal trigger. Story 1.9 owns the test half in practice
+- **`.env.example` documents every variable, with descriptions and safe placeholder values** — met, and it is a **checked** claim rather than a written one. `pnpm env:check` walks `CONFIG_VARIABLES` and fails on an undocumented variable, an orphan entry, a documented default that no longer matches the code, or a non-prefixed name in the frontend example. All four re-made to fail in Task 1.6.7
+- **Only explicitly whitelisted variables reach the frontend bundle; secrets cannot leak by accident** — met, measured in **both** artefacts. With a realistic secret planted, the emitted read is ``console.log(`probe`,void 0,`https://api.marketpulse.example/v1`)`` and neither the value nor the name `ALPACA` appears anywhere in `dist/` or in `storybook-static/`. Two things defeat it and neither is configured: widening `envPrefix`, and `define`. The **type-level** half of this boundary is gone and is now a lint rule — see the open-decisions note below and ADR 0006 §5
+- **Real secrets are gitignored and never committed** — met at all three locations. Six `.env` / `.env.local` paths report `!!` under `git status --porcelain --ignored=matching`, an untracked example reports `??`, and the two tracked examples are clean tracked files. `git check-ignore` is the wrong tool for this and Task 1.6.7 recorded why
 
 ## Open decisions
 
@@ -66,17 +68,17 @@ Story 1.5 added no configuration and no environment variable, so nothing here is
 
 ## Tasks
 
-Tackled in order, with one exception: **1.6.6 ran before 1.6.5**, because 1.6.5's only input is `import.meta.env.BASE_URL` — a Vite built-in set from `base` rather than a `.env` variable — so it adds nothing to the example files. That held: 1.6.5 added no variable and neither `.env.example` changed. Only 1.6.7 is left.
+Tackled in order, with one exception: **1.6.6 ran before 1.6.5**, because 1.6.5's only input is `import.meta.env.BASE_URL` — a Vite built-in set from `base` rather than a `.env` variable — so it adds nothing to the example files. That held: 1.6.5 added no variable and neither `.env.example` changed. 1.6.7 then closed the story.
 
-| #     | Task                                                                                          | Status      |
-| ----- | --------------------------------------------------------------------------------------------- | ----------- |
-| 1.6.1 | [Choose the validation approach](TASK-01-choose-the-validation-approach.md)                   | Complete    |
-| 1.6.2 | [The backend configuration module](TASK-02-backend-configuration-module.md)                   | Complete    |
-| 1.6.3 | [Environments, and how a `.env` file is loaded](TASK-03-environments-and-env-file-loading.md) | Complete    |
-| 1.6.4 | [The frontend's environment boundary](TASK-04-frontend-environment-boundary.md)               | Complete    |
-| 1.6.5 | [`base` and `basename` as one input](TASK-05-base-and-basename.md)                            | Complete    |
-| 1.6.6 | [`.env.example` and the secrets boundary](TASK-06-env-example-and-the-secrets-boundary.md)    | Complete    |
-| 1.6.7 | [Verify, document and record the decision as ADR 0006](TASK-07-verify-document-and-adr.md)    | Not started |
+| #     | Task                                                                                          | Status   |
+| ----- | --------------------------------------------------------------------------------------------- | -------- |
+| 1.6.1 | [Choose the validation approach](TASK-01-choose-the-validation-approach.md)                   | Complete |
+| 1.6.2 | [The backend configuration module](TASK-02-backend-configuration-module.md)                   | Complete |
+| 1.6.3 | [Environments, and how a `.env` file is loaded](TASK-03-environments-and-env-file-loading.md) | Complete |
+| 1.6.4 | [The frontend's environment boundary](TASK-04-frontend-environment-boundary.md)               | Complete |
+| 1.6.5 | [`base` and `basename` as one input](TASK-05-base-and-basename.md)                            | Complete |
+| 1.6.6 | [`.env.example` and the secrets boundary](TASK-06-env-example-and-the-secrets-boundary.md)    | Complete |
+| 1.6.7 | [Verify, document and record the decision as ADR 0006](TASK-07-verify-document-and-adr.md)    | Complete |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.5 followed.
 

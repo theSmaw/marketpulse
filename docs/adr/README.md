@@ -24,3 +24,4 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0003](0003-frontend-build-tooling-and-browser-baseline.md)                   | Frontend build tooling and the browser baseline                | Accepted |
 | [0004](0004-styling-approach-component-library-and-the-component-workshop.md) | Styling approach, component library and the component workshop | Accepted |
 | [0005](0005-routing-application-layout-and-the-deployable-shape.md)           | Routing, the application layout, and the deployable shape      | Accepted |
+| [0006](0006-configuration-and-the-secrets-boundary.md)                        | Configuration, environments, and the secrets boundary          | Accepted |
