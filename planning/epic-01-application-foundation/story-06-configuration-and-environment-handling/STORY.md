@@ -58,7 +58,7 @@ Story 1.5 added no configuration and no environment variable, so nothing here is
 
 ## Open decisions
 
-- **The validation approach** — a schema library (Zod, Valibot) or a hand-rolled reader generalised from what `apps/backend/src/index.ts` already does. Task 1.6.1 settles it from a measurement, and the null option is a real candidate for six variables
+- ~~**The validation approach**~~ — **closed by Task 1.6.1 on 2026-08-31: no schema library.** The hand-rolled reader wins, generalised into `readString`/`readInt`/`readEnum` plus an accumulator that reports every bad key. Zod 4.5.4 and Valibot 1.4.2 were both spiked to parity and thrown away. The deciding measurement is that a schema over `process.env` is a schema over strings, so blank-means-absent and a message quoting the value the operator typed have to be written by hand either way — `z.coerce.number()` reports `NaN` and loses the input, and `PORT=` parses as **port 0** rather than as the default. Bundle cost, recorded so it is not re-derived: one single-key schema in the frontend is +74.88 kB for Zod and +3.14 kB for Valibot. The reversal trigger is Epic 11's `WorkspaceCommand` validation, which is a different problem and may well want Zod
 - **Whether the frontend gets a runtime configuration mechanism** — build-time inlining means one artefact cannot be promoted across environments. Task 1.6.4 states the consequence; inventing a config endpoint or an injected script is a deployment decision and Story 1.11 should be the one to want it
 - **Whether the frontend's ports become configurable** — the backend reads `PORT` and `HOST`, the frontend's 5173 and 4173 are literals. Story 1.8 was handed the same question; whichever story runs first owns it, and Task 1.6.4 is the first at it
 
@@ -68,7 +68,7 @@ Tackled in order. The story is complete when all seven are done.
 
 | #     | Task                                                                                          | Status      |
 | ----- | --------------------------------------------------------------------------------------------- | ----------- |
-| 1.6.1 | [Choose the validation approach](TASK-01-choose-the-validation-approach.md)                   | Not started |
+| 1.6.1 | [Choose the validation approach](TASK-01-choose-the-validation-approach.md)                   | Complete    |
 | 1.6.2 | [The backend configuration module](TASK-02-backend-configuration-module.md)                   | Not started |
 | 1.6.3 | [Environments, and how a `.env` file is loaded](TASK-03-environments-and-env-file-loading.md) | Not started |
 | 1.6.4 | [The frontend's environment boundary](TASK-04-frontend-environment-boundary.md)               | Not started |

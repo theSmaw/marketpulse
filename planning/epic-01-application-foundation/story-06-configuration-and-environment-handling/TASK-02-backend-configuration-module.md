@@ -8,6 +8,15 @@
 
 One place on the backend that reads the environment, validates it against a declared schema and hands the rest of the application typed settings — replacing the inline reads in `index.ts` without losing anything they already do.
 
+## What Task 1.6.1 hands this task
+
+**There is no schema library.** The decision was measured and closed on 2026-08-31 — Zod and Valibot were both spiked to parity and rejected — so "validates it against a declared schema" below means a declared set of readers, not a library. Four things came out of that spike that this task should take rather than rediscover:
+
+- **The three reader signatures.** `readString(env, key, fallback)`, `readInt(env, key, fallback, min, max)` and `readEnum(env, key, allowed)`, over a `Record<string, string | undefined>` passed in rather than reaching for `process.env` inside — which is what makes the module testable in Story 1.9 without touching the process
+- **Blank means absent, and this is the finding neither library got right.** `PORT=` is the commonest shape in a `.env` file and Task 1.6.3 is about to write one. `Number("")` is `0`, so a blank port that is not treated as absent starts the server on a random free port and says nothing about it
+- **The accumulator is about eleven lines**, and it is the only thing the libraries were doing that the current code does not: catch each reader's `ConfigError`, collect the messages, throw once with all of them joined by newlines. That is the "report every invalid key" bullet below, already sized
+- **Declare the interface; do not infer it.** `exactOptionalPropertyTypes` means an optional key is `?: T`, not `?: T | undefined`, so the config type is written by hand and the readers are built to fit it — spreading a conditional `...(value === undefined ? {} : { KEY: value })` for genuinely optional keys
+
 ## Work
 
 - **Create `apps/backend/src/config.ts`** (one module, not a directory) exporting a typed settings object and the schema behind it. Nothing outside it may read `process.env` — that is the invariant the module exists to create, and it is worth stating in the file's own comment because it is the thing that decays first
