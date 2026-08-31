@@ -19,6 +19,54 @@ import { defineConfig } from "vite";
 // `publicDir` and `build.outDir` relative to this file's directory on its own,
 // so nothing here needs to compute a path.
 export default defineConfig({
+  // --- The environment boundary (Task 1.6.4) ---
+  //
+  // Only variables whose names start with one of these prefixes are exposed to
+  // client code through `import.meta.env`. That is Vite's default, and it is
+  // restated here because the difference between a default and a decision is
+  // the whole of this story's "only explicitly whitelisted variables reach the
+  // frontend bundle" criterion: a default can be widened by someone who does
+  // not know it was load-bearing, and a stated one has to be argued with.
+  //
+  // Proved against the artefact rather than the documentation (Task 1.6.4).
+  // With `PROBE_PLAIN` and `VITE_PROBE` both set in `apps/frontend/.env` and
+  // both referenced from `main.tsx`, the built bundle contains the prefixed
+  // value as a string literal and renders the non-prefixed reference as
+  // `void 0` — statically substituted to `undefined` at the reference site,
+  // not merely absent from the string pool. So the boundary is enforced at
+  // build time and a non-prefixed variable cannot leak by being read.
+  //
+  // **Two things defeat it, and neither is configured here.** Widening this
+  // array is the obvious one. `define` is the one to watch: it substitutes
+  // whatever it is given, with no prefix rule of any kind, so a single
+  // `define` entry is how a server-only value reaches the browser without
+  // anybody editing this line. Adding one is a decision about the security
+  // boundary, not a build tweak. Note Vite already sets one itself —
+  // `process.env` becomes `{}`, so a stray `process.env.SECRET` in client code
+  // compiles to `{}.SECRET` and is `undefined` at runtime rather than throwing.
+  // That is a safe failure but a silent one; see the frontend block in
+  // eslint.config.mjs for the rule that makes it loud.
+  envPrefix: ["VITE_"],
+
+  // Where `.env` files are read from: this directory, `apps/frontend/`, not
+  // the repository root. It is Vite's default (the project root) and it is
+  // written down for the same reason as the line above, plus one of its own —
+  // the symmetry with the backend, which Task 1.6.3 settled first. That task
+  // resolves `apps/backend/.env` from `import.meta.dirname`, deliberately not
+  // from the cwd and not from the repository root, so the house rule is one
+  // env file per package beside its `package.json`. Pointing this at the root
+  // would make the frontend the odd one out.
+  //
+  // The cost is real and worth stating: a developer who puts a `.env` at the
+  // repository root will find both packages silently ignoring it. `.gitignore`
+  // covers every location — its `.env` patterns are unanchored — so being
+  // ignored by git is not the signal that the file is in the wrong place.
+  //
+  // Not a Node path computation: Vite resolves this relative to `root`, which
+  // is this file's directory, so the rule above about keeping Node APIs out of
+  // this file still holds.
+  envDir: ".",
+
   // React Fast Refresh — the part that preserves component state across an
   // edit — is this plugin's, not Vite's. Plain Vite already replaces modules
   // on save; without the plugin that replacement is a full reload and every
@@ -69,6 +117,26 @@ export default defineConfig({
     // Story 1.12 configures CORS against it, and a frontend that silently
     // moves to 5174 fails an allowlist pinned to 5173 as a browser CORS error
     // — a symptom that names neither the port nor the cause.
+    //
+    // **Left as a literal, deliberately (Task 1.6.4), and the question does not
+    // pass to Story 1.8.** The backend reads `PORT` and `HOST` because they are
+    // properties of a *deployed process*: Story 1.11's container sets them and
+    // nothing else can. Neither of the two ports in this file survives into a
+    // deployment at all — `apps/frontend/dist` is three static files served by
+    // somebody else's host, and `vite` and `vite preview` are development
+    // tools. So the asymmetry is not an inconsistency to resolve; it is the two
+    // packages having genuinely different kinds of port.
+    //
+    // The cost is a developer with a busy 5173, who has to edit this line
+    // rather than export a variable. `strictPort` above means they find out
+    // immediately, which is the trade being made. Against it: Story 1.12 pins
+    // its CORS allowlist to this origin, so a configurable port is a second way
+    // to break CORS with a symptom that names neither the port nor the cause —
+    // and per the env-file note above, matching the backend *properly* would
+    // mean `loadEnv()` here rather than `process.env`, because Vite does not
+    // put `.env` entries on the process. The reversal trigger is two people
+    // needing two frontends at once, and the shape it takes then is
+    // `loadEnv()` plus a `VITE_`-free variable read in this file only.
     port: 5173,
     strictPort: true,
   },
