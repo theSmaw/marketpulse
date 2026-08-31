@@ -36,9 +36,18 @@ Charting library selection is explicitly **not** part of this story (it belongs 
 
 ## Outcome
 
-**Decision: CSS Modules plus CSS custom properties for styling, and Base UI for component behaviour.** **The component-library half was reversed on 2026-08-31** — see _Reversed to Base UI_ at the end of this record for why, and read the two sections above it as the reasoning that was correct on the evidence available at the time. The styling half is unchanged. Original wording follows, because everything it says about the styling decision still holds.
+**Decision: CSS Modules plus CSS custom properties for styling, and Base UI (`@base-ui/react`) for component behaviour.**
 
-**Decision: CSS Modules plus CSS custom properties for styling, and Radix Primitives for component behaviour.** Headless primitives plus own styling, in the story's terms. Settled with the user rather than assumed, per the standing rule on this story's open decisions, and settled from measurement rather than reputation.
+That is the live decision and the only one to act on. It reached its current form in two steps, and this record keeps both rather than rewriting the first, per `docs/adr/README.md`:
+
+- **Styling — CSS Modules plus CSS custom properties**, settled 2026-08-30 and unchanged since
+- **Component library — Radix Primitives** on 2026-08-30, **reversed to Base UI on 2026-08-31**. The reversal and its reasoning are in [_Reversed to Base UI_](#reversed-to-base-ui-2026-08-31) at the end of this file
+
+**Everything from here to the _Re-evaluated against Base UI_ heading is the 2026-08-30 record.** It is accurate about the styling decision, and accurate about what was measured on the day — but **its component-library conclusion is superseded, and it names Radix throughout.** Read it as evidence of what was known then, not as an instruction. Where it says "the decision", it means the 2026-08-30 one.
+
+### The original decision, as written on 2026-08-30 — superseded on the component library
+
+> **Decision: CSS Modules plus CSS custom properties for styling, and Radix Primitives for component behaviour.** Headless primitives plus own styling, in the story's terms. Settled with the user rather than assumed, per the standing rule on this story's open decisions, and settled from measurement rather than reputation.
 
 ### What was actually run
 
@@ -101,7 +110,7 @@ The chosen stack does **not** trip it. `allowBuilds` stays empty and stays untes
 Written down now, because "expensive to reverse" is only useful with a reversal trigger.
 
 - **A measured frame budget blown by style recalculation.** Static CSS moves cost out of render, but a token architecture that ends up reading `getComputedStyle` on the hot path puts it straight back. The trigger is a main-thread task over 50 ms attributable to style, not a feeling — Epic 14 owns the measurement, and Epic 3 is where it would first appear
-- **An accessibility finding against Radix in Epic 15.** The swap is react-aria-components at roughly +21 kB for the same behaviour. Both are headless, so component markup changes and styling does not
+- **An accessibility finding against Radix in Epic 15.** The swap is react-aria-components at roughly +21 kB for the same behaviour. Both are headless, so component markup changes and styling does not. **Superseded — the library is Base UI and this trigger is restated for it at the end of this file**
 - **A Sigma.js coexistence failure in Epic 6.** This is the one the styling half is least exposed to — CSS Modules do not fight a canvas for layout or theming, which is a large part of why they won — but if the token bridge to WebGL turns out to need typed tokens badly enough, vanilla-extract is the reversal, and it costs an `allowBuilds` entry for esbuild
 - **The unstyled-class typo going from annoyance to defect.** If silent class-name typos start causing real bugs, the fix is a `.d.ts` generator rather than a change of approach
 
@@ -116,6 +125,10 @@ The spike worktree and its branch are deleted. `git status` shows only the untra
 ### One measurement handed to Task 1.4.2
 
 `apps/frontend`'s `types: []` makes a CSS import a hard failure — `error TS2307: Cannot find module './Row.module.css' or its corresponding type declarations` — and `"types": ["vite/client"]` fixes it. Verified in the same run that **`process` still does not typecheck afterwards** (`TS2591`), so the guarantee holds: an explicit list is what keeps auto-discovery off, and the list's contents are not what does the work. This is the same tsconfig entry Story 1.6 was handed for `import.meta.env`; whichever lands first owns it, and on this evidence it will be Task 1.4.2.
+
+---
+
+**End of the 2026-08-30 record. Everything below is later and supersedes it on the component library.**
 
 ### Re-evaluated against Base UI (2026-08-31) — decision unchanged _on weight, and then reversed anyway_
 
@@ -146,6 +159,8 @@ What is genuinely in Base UI's favour, recorded so this is not a one-sided note:
 Two smaller observations. Base UI depends on `@babel/runtime`, which nothing else in this tree does. And its popover has one more required layer than Radix's — `Root / Trigger / Portal / Positioner / Popup` against `Root / Trigger / Portal / Content` — which is a markup difference rather than a cost, and confirms the "swap, not rewrite" property still holds in both directions.
 
 **Base UI now joins react-aria-components as a standing alternative rather than a rejected one.** The reversal trigger below is unchanged and still accessibility-led; if it fires, both should be re-measured, because a 46 kB gap is a decision and not a law.
+
+**This section's conclusion — keep Radix — was itself superseded within the day.** Its measurements are not: they are the numbers the reversal below accepts as a cost. What changed is a constraint the spike had no way to observe.
 
 ### State of the tree after this re-evaluation
 
