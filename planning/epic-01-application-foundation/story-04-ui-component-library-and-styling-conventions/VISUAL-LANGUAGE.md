@@ -168,6 +168,16 @@ Measured, not assumed, and two of those numbers are findings rather than confirm
 - **The positive green fails AA on the warm page ground** — 4.27 against a 4.5 threshold. It passes on white cards. Task 1.4.4 must decide this explicitly: darken the green, or constrain positive values to white surfaces. Inheriting it silently is the failure mode
 - **The amber fails as text at any size** and is a fill-or-icon colour only. A 12px amber label on any of these grounds is unreadable
 
+### The divergence Task 1.4.4 took, recorded here because this document is the reference
+
+**The positive green shipped is `#427400`, not the reference's `#498100`.** This document's own rule is that a divergence from it is a change to it, so the change is written down here rather than living only in the task record.
+
+It is the same hue at 90% brightness — still recognisably the reference green — and it measures **5.63 on white, 5.07 on the warm page ground, 5.34 on sunken**. It was chosen with margin rather than at the first value that clears 4.5, and close to the negative red's 5.31 so that neither direction of a price move carries more visual weight. The alternative resolution, constraining positive values to white surfaces, was rejected as a rule with no enforcement.
+
+The other two values ship unchanged. The amber's status is unchanged too, and Task 1.4.4 extended it into a three-step ramp — `#f0dda4`, `#e2b544`, `#c08a12` — for anomaly intensity, all of them fills, none of them text.
+
+One measurement to carry into any future palette work, because it is the reason the redundant channel is not optional: under `grayscale(1)` the positive green and the negative red differ by **1.05:1**. They are the same tone. The hue is the whole of the difference, which is exactly what the rule below says cannot be relied on.
+
 **And the rule that outranks all three values:** colour is never the sole encoding. A negative change is red **and** carries its sign; a positive one is green **and** carries its sign. Roughly one man in twelve has a red-green deficiency and this product's primary signal is direction of price movement. With a neutral chrome the redundant channel is doing _more_ work than it would in a colourful interface, not less, because there is no other colour on screen to contrast against.
 
 ## What this is not

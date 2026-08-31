@@ -38,10 +38,25 @@
 // error, and a token that is declared but missing from the stylesheet is a
 // startup throw naming it.
 
-// Every token this module exposes. Deliberately not every token in tokens.css:
-// spacing and type are consumed by CSS alone today, and a name here is a
-// promise to keep the value readable from JavaScript.
+// Every token this module exposes. Deliberately not every token in the
+// stylesheets: spacing and type are consumed by CSS alone today, and a name
+// here is a promise to keep the value readable from JavaScript.
+//
+// The market tokens in the second group are the reason this module exists at
+// all. Epic 6's Sigma.js/WebGL topology colours a node by its anomaly band and
+// by the direction of its move, and a canvas cannot read a CSS class — so
+// `--anomaly-extreme` has to be reachable as a string from here. That was the
+// case Task 1.4.3 answered in the abstract; this is the first group of tokens
+// that actually depends on the answer.
+//
+// Note what comes back for a semantic token: the *substituted* value. Both
+// `--price-unchanged` and `--ink-secondary` read as `"#5a5d5c"`, because the
+// computed value of a custom property has its `var()` references resolved. The
+// indirection in market.css is a source-level structure and it does not survive
+// into this reader — which is fine, since a consumer wants the colour, but it
+// does mean this module cannot be used to check that the indirection is intact.
 const TOKEN_NAMES = [
+  // Structural — tokens.css
   "--surface-page",
   "--surface-raised",
   "--surface-sunken",
@@ -50,6 +65,19 @@ const TOKEN_NAMES = [
   "--ink-disabled",
   "--rule-hairline",
   "--rule-soft",
+
+  // Market semantics — market.css
+  "--price-positive",
+  "--price-negative",
+  "--price-unchanged",
+  "--anomaly-normal",
+  "--anomaly-elevated",
+  "--anomaly-unusual",
+  "--anomaly-extreme",
+  "--feed-live",
+  "--feed-stale",
+  "--feed-disconnected",
+  "--status-error",
 ] as const;
 
 export type TokenName = (typeof TOKEN_NAMES)[number];
@@ -73,8 +101,8 @@ export function readTokens(): Tokens {
     if (value === "") {
       throw new Error(
         `Design token ${name} resolved to nothing. Either the token stylesheet ` +
-          `has not been applied, or the token was removed from tokens.css ` +
-          `without being removed here.`,
+          `has not been applied, or the token was removed from tokens.css or ` +
+          `market.css without being removed here.`,
       );
     }
 

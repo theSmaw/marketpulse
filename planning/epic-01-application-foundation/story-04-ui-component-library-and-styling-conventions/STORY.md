@@ -1,6 +1,6 @@
 # Story 1.4 — UI Component Library & Styling Conventions
 
-**Status:** In progress — Tasks 1.4.1, 1.4.2 and 1.4.3 complete (2026-08-31)
+**Status:** In progress — Tasks 1.4.1, 1.4.2, 1.4.3 and 1.4.4 complete (2026-08-31)
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.3
 **Epic scope covered:** select UI component library and styling conventions
@@ -85,7 +85,7 @@ Tackled in order. The story is complete when all six are done.
 | 1.4.1 | [Choose the styling approach and the component library](TASK-01-choose-styling-approach-and-component-library.md)            | Complete    |
 | 1.4.2 | [Install the styling approach and get the first stylesheet into the build](TASK-02-styling-pipeline-and-first-stylesheet.md) | Complete    |
 | 1.4.3 | [Design tokens and the theme](TASK-03-design-tokens-and-theme.md)                                                            | Complete    |
-| 1.4.4 | [Semantic market tokens](TASK-04-semantic-market-tokens.md)                                                                  | Not started |
+| 1.4.4 | [Semantic market tokens](TASK-04-semantic-market-tokens.md)                                                                  | Complete    |
 | 1.4.5 | [Component primitives and the representative component](TASK-05-component-primitives-and-representative-component.md)        | Not started |
 | 1.4.6 | [Verify, document the conventions and write ADR 0004](TASK-06-verify-document-and-adr.md)                                    | Not started |
 
@@ -99,4 +99,6 @@ Task 1.4.5 is the only one that would plausibly split further — installing pri
 
 ## Notes
 
-Positive/negative colour choices need to survive an accessibility review — red/green alone is insufficient as the sole encoding. One measurement already taken and handed to Task 1.4.4: the reference palette's positive green (`#498100`) is **4.27:1 on the warm page ground** and so fails AA there, while passing at 4.75 on white surfaces. That is a decision for 1.4.4 to make explicitly — darken the green, or constrain positive values to white surfaces — rather than something to inherit silently.
+Positive/negative colour choices need to survive an accessibility review — red/green alone is insufficient as the sole encoding. One measurement was taken here and handed to Task 1.4.4: the reference palette's positive green (`#498100`) is **4.27:1 on the warm page ground** and so fails AA there, while passing at 4.75 on white surfaces. That was a decision for 1.4.4 to make explicitly — darken the green, or constrain positive values to white surfaces — rather than something to inherit silently.
+
+**Task 1.4.4 resolved it on 2026-08-31: the green darkens.** `#427400` — the same hue at 90% brightness — measures 5.07 on the page ground, 5.63 on white and 5.34 on sunken, chosen with margin rather than at the first passing value and deliberately close to the negative red's 5.31 so neither direction shouts louder. Constraining positive values to white surfaces was rejected as a rule nothing can enforce. The accessibility half of this paragraph was also settled and measured rather than argued: under `grayscale(1)` the positive and negative figures differ by **1.05:1**, which is no difference at all, so the arrow glyph and the sign carry the direction and the colour is the redundancy. Task 1.4.4's Outcome carries the simulations.

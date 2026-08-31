@@ -15,7 +15,12 @@
 // guarantee across the whole workspace for a convenience in one file type.
 // This is the cheaper half of that trade.
 //
-// Unused until Task 1.4.5 builds the first component with more than one class.
+// First called in Task 1.4.4, a task earlier than expected. The predicted
+// caller was Task 1.4.5's components; the actual one is the render check's
+// price column, where a cell is `cx(styles.numeric, styles.negative)` — a
+// layout class and a semantic-colour class on the same element. That is the
+// shape the helper was written for, and it turns out the semantic token layer
+// produces it before any component does.
 export function cx(...parts: readonly (string | undefined)[]): string {
   return parts.filter((part) => part !== undefined).join(" ");
 }

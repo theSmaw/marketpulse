@@ -9,21 +9,24 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App.js";
 import { getTokens } from "./styles/tokens.js";
 
-// The token layer, as two side-effect imports rather than bindings: the
+// The token layer, as three side-effect imports rather than bindings: the
 // bundler extracts them into `dist/assets/*.css` and adds the `<link>` to the
-// emitted index.html. Nothing here reads a value from either.
+// emitted index.html. Nothing here reads a value from any of them.
 //
-// Order matters and is not alphabetical. `tokens.css` declares the custom
-// properties and `base.css` consumes them, and a custom property referenced
-// before it is declared resolves to nothing — the declaration has to be in the
-// cascade first. Both are imported here rather than one importing the other so
-// that the order is visible in the file that owns it.
+// Order matters and is not alphabetical. It runs outward: `tokens.css`
+// declares the structural custom properties, `market.css` layers the semantic
+// market colours over them, and `base.css` consumes both at the element level.
+// A custom property referenced before it is declared resolves to nothing, so
+// the declarations have to reach the cascade first. All three are imported here
+// rather than chained through one another so that the order is visible in the
+// file that owns it.
 //
 // Note the specifiers have no `.js` extension, and that is not an oversight.
 // The convention this file follows for `./App.js` rewrites relative imports
 // *between TypeScript files* to the name tsc will emit; a stylesheet is not
 // compiled and these are the real filenames on disk.
 import "./styles/tokens.css";
+import "./styles/market.css";
 import "./styles/base.css";
 
 // Fail fast if the token layer did not reach the browser. `getTokens()` throws

@@ -1,12 +1,13 @@
 /*
- * The placeholder shell's styles. Every declaration here reads a token; there
- * is not a single literal colour, length or font in this file, and that is the
- * point of it — it is the proof that the token layer applies, not a design.
+ * The placeholder shell's styles. Every declaration reads a token; there is not
+ * a single literal colour, length or font in this file, and that is the point
+ * of it — it is the proof that the token layer applies, not a design.
  *
  * Story 1.5 replaces this shell with the real application chrome. What should
- * survive that is the idioms, not the markup: the warm ground under a white
- * module, the near-black hairline as the separator, the uppercase letterspaced
- * micro-label, and the right-aligned tabular numeric column.
+ * survive that is the idioms, not the markup: the warm ground under white
+ * modules, the near-black hairline as the separator, the uppercase letterspaced
+ * micro-label, the right-aligned tabular numeric column, and — added by Task
+ * 1.4.4 — the rule that no state below is legible by colour alone.
  */
 
 .page {
@@ -40,11 +41,17 @@
   font-weight: var(--font-weight-strong);
 }
 
+.modules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+  margin-top: var(--space-24);
+}
+
 /* A white module on the warm ground, separated by a hairline rather than by a
    shadow. This is what elevation means here. */
 .module {
   max-width: 40rem;
-  margin-top: var(--space-24);
   padding: var(--space-20);
   background: var(--surface-raised);
   border: var(--border-width) solid var(--rule-hairline);
@@ -62,6 +69,8 @@
   margin: 0 0 var(--space-16);
   color: var(--ink-secondary);
 }
+
+/* --- Price direction --- */
 
 .table {
   width: 100%;
@@ -96,8 +105,204 @@
 
 /* Numeric columns are right-aligned, always: a right-aligned tabular column
    aligns decimal points for free. `tabular-nums` itself is inherited from
-   `body` in base.css rather than repeated here. */
+   `body` in base.css rather than repeated here.
+
+   Note the two-class selector rather than a bare `.numeric`. `.table th,
+   .table td` above is specificity (0,1,1) and would otherwise win the
+   `text-align`, silently left-aligning the column this whole file is about. */
 .table .numeric {
   text-align: right;
   padding-right: var(--space-8);
+}
+
+/*
+ * The three price directions. The colour is the *redundant* channel: the arrow
+ * glyph beside the figure and the sign on the figure itself are what carry the
+ * direction, and both survive being desaturated or read by someone who cannot
+ * separate the hues.
+ */
+.positive {
+  color: var(--price-positive);
+}
+
+.negative {
+  color: var(--price-negative);
+}
+
+/* Achromatic on purpose. A `0.00` tinted green or red is a direction the market
+   did not move. */
+.unchanged {
+  color: var(--price-unchanged);
+}
+
+/* Fixed width and its own box so the arrow cannot disturb the tabular
+   alignment of the figures — the glyph is not part of the font's tabular set,
+   and letting it sit inline would undo the column. */
+.directionGlyph {
+  display: inline-block;
+  width: var(--space-12);
+  margin-right: var(--space-4);
+  text-align: center;
+}
+
+/* --- Anomaly bands --- */
+
+.bandList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bandRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+  padding: var(--space-8) 0;
+}
+
+.bandRow + .bandRow {
+  border-top: var(--border-width) solid var(--rule-soft);
+}
+
+/*
+ * The band chip: a fill with the band's name written inside it. The name is the
+ * point — an intensity ramp with no label reads as a mood, and PRODUCT_SPEC.md
+ * §11 requires every score to carry its explanation.
+ *
+ * Ink is `--ink-primary` on every step, which measures 12.65, 8.87 and 5.59 on
+ * the three amber fills. The amber is never the text colour; it measures under
+ * 2.2 on both grounds and is a fill-or-icon colour only.
+ */
+.band {
+  min-width: 6rem;
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius);
+  color: var(--ink-primary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/*
+ * `normal` carries no fill in the DOM. It is the absence of unusualness and
+ * does not need marking, and its step to `elevated` is the weakest in the ramp
+ * at 1.12 — so the two states that are hardest to tell apart by colour are the
+ * two that are not distinguished by colour at all. The `--anomaly-normal` token
+ * still exists for Epic 6's canvas, which colours every node whether it is
+ * interesting or not and cannot render "no chip".
+ */
+.bandNormal {
+  color: var(--ink-secondary);
+  border: var(--border-width) solid var(--rule-soft);
+  padding: calc(var(--space-4) - var(--border-width))
+    calc(var(--space-8) - var(--border-width));
+}
+
+.bandElevated {
+  background: var(--anomaly-elevated);
+}
+
+.bandUnusual {
+  background: var(--anomaly-unusual);
+}
+
+.bandExtreme {
+  background: var(--anomaly-extreme);
+}
+
+.bandMeaning {
+  color: var(--ink-secondary);
+}
+
+/* --- Feed status --- */
+
+.feedList {
+  margin: 0 0 var(--space-16);
+  padding: 0;
+  list-style: none;
+}
+
+.feedRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  padding: var(--space-8) 0;
+}
+
+.feedRow + .feedRow {
+  border-top: var(--border-width) solid var(--rule-soft);
+}
+
+/*
+ * The marker is the channel that actually separates the three states: filled
+ * for a feed that is updating, filled and amber for one that is lagging, hollow
+ * for one that is down. Colour distinguishes only the middle case, and the
+ * outer two differ by shape alone — which is deliberate. A green "live" dot was
+ * rejected because green means price-positive here and would be the only other
+ * green on the screen.
+ *
+ * Circles are the one documented exception to the single 2px radius.
+ */
+.feedMarker {
+  flex: none;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: 50%;
+  transform: translateY(-1px);
+}
+
+.feedLabel {
+  min-width: 8rem;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+}
+
+.feedDetail {
+  color: var(--ink-secondary);
+}
+
+.feedLive .feedMarker {
+  background: var(--feed-live);
+}
+
+.feedStale .feedMarker {
+  background: var(--feed-stale);
+}
+
+/* Hollow rather than filled, and the same grey as `live`. Two states, one
+   colour, told apart by shape. */
+.feedDisconnected .feedMarker {
+  background: none;
+  box-shadow: inset 0 0 0 var(--border-width) var(--feed-disconnected);
+}
+
+/*
+ * --- An error, for contrast ---
+ *
+ * Here so that "a stale feed is not an error" is something visible rather than
+ * something asserted. The difference on sight is not the hue: it is that this
+ * is a titled block with a message and a rule down its edge, while a feed state
+ * is a marker beside data that is still on screen. Story 1.7 owns the real
+ * containment.
+ */
+.error {
+  padding: var(--space-12) var(--space-16);
+  background: var(--surface-sunken);
+  border-left: var(--focus-width) solid var(--status-error);
+  border-radius: var(--radius);
+}
+
+.errorTitle {
+  margin: 0 0 var(--space-4);
+  color: var(--status-error);
+  font-weight: var(--font-weight-strong);
+}
+
+.errorBody {
+  margin: 0;
+  color: var(--ink-secondary);
 }

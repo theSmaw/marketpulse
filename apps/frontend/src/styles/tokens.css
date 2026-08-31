@@ -9,8 +9,12 @@
  *
  * Two rules govern what may be added:
  *
- *   1. No market meaning. `--price-up`, anomaly ramps and staleness colours are
- *      Task 1.4.4's, layered over these primitives rather than beside them.
+ *   1. No market meaning, and no colour with meaning. Price direction, the
+ *      anomaly ramp and the feed-status colours live in `market.css`, layered
+ *      over these primitives rather than beside them (Task 1.4.4). **This file
+ *      is achromatic and should stay that way** — it is what makes "colour
+ *      appears only where it carries market meaning" a property of the file
+ *      layout rather than a habit.
  *   2. No value without a consumer. The spacing ladder below deliberately jumps
  *      from 24 to 40 with no 32, because that gap is what produces the airy
  *      separation between modules on an otherwise dense page. Filling it in
