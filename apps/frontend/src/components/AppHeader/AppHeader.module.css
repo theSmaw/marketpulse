@@ -1,0 +1,127 @@
+/*
+ * The chrome's styles. Like every other stylesheet in this application there
+ * is not one literal colour, length, weight or font here — every declaration
+ * reads a token, and that is what makes the design language a property of the
+ * build rather than of each author's memory.
+ *
+ * Most of this arrived from `App.module.css`, where Task 1.5.2 left it as an
+ * explicitly temporary navigation strip. What survived the move is the idioms
+ * rather than the markup: the near-black hairline as the separator, the
+ * uppercase letterspaced micro-label, and an active link carried by underline
+ * as well as weight.
+ */
+
+/*
+ * Two rows: identity and status on the first, navigation spanning the second.
+ * The status regions sit hard right against the product name, which is the
+ * arrangement §9 sketches.
+ */
+.header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: var(--space-12) var(--space-40);
+  padding-bottom: var(--space-12);
+  /* The primary separator, and it is near-black rather than grey. This one
+     declaration is most of the difference between this product and a default
+     admin panel. */
+  border-bottom: var(--border-width) solid var(--rule-hairline);
+}
+
+.productName {
+  margin: 0;
+  font-size: var(--font-size-heading);
+  line-height: var(--line-height-heading);
+  /* 600, not 300. The system stack has no reliable light weight — see the
+     divergence recorded in tokens.css. */
+  font-weight: var(--font-weight-strong);
+}
+
+/* --- The status strip: market feed, market clock --- */
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-40);
+  /* The 24-to-40 jump in the ladder, doing its job: the regions are far enough
+     apart to read as separate facts on an otherwise dense strip. */
+}
+
+.region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.microLabel {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+}
+
+/*
+ * The clock region is right-aligned because it is the end of the strip and
+ * because a time is a figure: when Epic 3 replaces the placeholder, the digits
+ * grow leftwards from a fixed edge rather than pushing the label around.
+ */
+.clock {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.clockValue {
+  margin: 0;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  /* No `font-variant-numeric` here. `body` sets `tabular-nums` and it is
+     inherited; re-declaring it would suggest this component is the thing
+     keeping the clock from jittering, and it is not. A component that *breaks*
+     alignment has overridden it. */
+}
+
+.clockZone {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  letter-spacing: var(--letter-spacing-micro);
+}
+
+/* --- Navigation --- */
+
+.nav {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-16);
+}
+
+.navLink {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  text-decoration: none;
+}
+
+.navLink:hover {
+  color: var(--ink-primary);
+  text-decoration: underline;
+  text-underline-offset: var(--space-4);
+}
+
+/*
+ * The current route. NavLink sets `aria-current="page"` on the match, so this
+ * selector and the accessible state are one fact rather than two — and the
+ * underline means the state is not carried by ink colour alone, which the
+ * design language requires of anything the eye has to find. Story 1.4 measured
+ * the two market colours at 1.05:1 under greyscale; the same rule applies to
+ * chrome that has no colour at all.
+ */
+.navLink[aria-current="page"] {
+  color: var(--ink-primary);
+  font-weight: var(--font-weight-strong);
+  text-decoration: underline;
+  text-underline-offset: var(--space-4);
+  text-decoration-thickness: var(--border-width);
+}

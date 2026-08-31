@@ -19,6 +19,24 @@
 //      that limitation harmless, and it is the reason the convention exists
 //      rather than a nicety.
 //
+// **Where the line falls**, decided in Task 1.5.3 and written here because this
+// is the file that enforces it. A `.tsx` file under `src/components/` is
+// workshop material and owes stories; a `.tsx` file anywhere else does not. The
+// test for which side something belongs on is: *does it have states worth
+// reviewing side by side?*
+//
+//   - `src/components/AppHeader` — three feed states, an optional detail line
+//     and four current-route states. The only other way to review those is to
+//     hard-code a status and click through the running application. In.
+//   - `src/routes/*` — a route placeholder is one state made of two strings,
+//     and a permutation grid over it would be one cell. Out (Task 1.5.2).
+//   - `App.tsx` and `main.tsx` — the router's host and the mount. Neither
+//     renders anything to look at. Out, as Task 1.4.5 left them.
+//
+// Note the second of those is not enforced by anything: a stateful component
+// dropped into `src/routes/` escapes this check silently. The directory rule is
+// the convention, and this script only holds up one end of it.
+//
 // Dependency-free on purpose: this workspace has no test runner until Story
 // 1.9, and reaching for one here would take that story's decision.
 
