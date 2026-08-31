@@ -13,7 +13,7 @@ Establish the testing stack and the conventions later epics follow. PRODUCT_SPEC
 
 Story 1.1 is complete, and these four bind this story. They are stated in every Epic 1 story so each one can be read on its own; the full reasoning is in `docs/adr/0001-repository-structure-and-typescript-toolchain.md`.
 
-- **`pnpm verify` is the acceptance command** — `build && lint && format:check && test`, chained with `&&` so the first failure is the exit code. This story passes it from the repository root. Prettier owns Markdown as well as code, so an unformatted planning document fails it too
+- **`pnpm verify` is the acceptance command** — `build && lint && format:check && stories && test`, chained with `&&` so the first failure is the exit code. It took its fifth step in Task 1.4.5: `stories` fails if a component has no stories file, and `build` now also produces the Storybook bundle. This story passes it from the repository root. Prettier owns Markdown as well as code, so an unformatted planning document fails it too
 - **Six verbs, identical in every package** — `dev`, `build`, `test`, `lint`, `typecheck`, `clean`. Only `test` and `dev` fan out with `pnpm -r`; the rest run their tool once from the root, because the reference graph and ESLint's project service already cover the workspace in one pass. Changing what a verb means in one package means changing it everywhere, or saying why not
 - **Shared tooling lives at the workspace root; packages declare only what they actually import.** ESLint, Prettier and TypeScript are root-only devDependencies, and pnpm puts the root's `node_modules/.bin` on every package script's PATH. A library the code imports belongs in the package that imports it — `@types/node` in `apps/backend` is the counter-example that keeps the rule from being over-applied
 - **The module setup is ESM-only and single-file-safe** — `"type": "module"`, `module: nodenext`, `isolatedModules`, `verbatimModuleSyntax`, and relative imports carrying `.js` extensions from `.ts` files (TS2835 without one). `packages/shared` is consumed as **built output**, so it must be built before any consumer can be typechecked; `tsc -b` orders that itself, which is why `typecheck` and `build` are the same command
@@ -31,6 +31,14 @@ One thing that is true today and will not be forever: until Story 1.9 lands, **`
 - **`app.inject()` cannot test any of the backend's process behaviour**, and that is worth knowing before picking a runner. Injection drives an instance with no listening socket, so it covers the response half of this backend and none of the process half: signals, exit codes, the 5-second shutdown ceiling and the second-signal path all need a **real child process** started, signalled and waited on. Tasks 1.2.4 and 1.2.6 verified them exactly that way — spawning `dist/index.js`, `kill -TERM`, reading the exit code — which is a workable test shape but a slow one, and it needs a **built tree** rather than a compiled instance. The temporary slow route used for it (a `FastifyPluginCallback` in `src/routes/`, deleted afterwards) is the shape a fixture would take; it was deliberately not left in the shipped surface
 - **A fixture route added and deleted by hand leaves output behind.** `tsc -b --clean` removes the output of the sources that currently exist, so deleting the fixture first orphans its `dist/` files permanently (Task 1.2.6). If this story leaves fixtures in the tree rather than deleting them, that problem disappears — which is one argument for a `__fixtures__` directory over temporary files
 - `coverage/` is already in `.gitignore`, `.prettierignore` and `eslint.config.mjs`'s ignores. Emitting coverage anywhere else means adding it to all three
+
+### What Story 1.4 changed for this story
+
+One thing, and it is evidence rather than a decision.
+
+**Vitest and Testing Library are already in the lockfile**, as transitive dependencies of Storybook 10 — `@vitest/expect`, `@vitest/spy`, `@testing-library/dom`, `@testing-library/jest-dom` and `@testing-library/user-event` all arrived with `storybook` in Task 1.4.5. That makes one candidate runner cheaper to adopt than the others, and it is deliberately **not** a choice this story has to honour: Task 1.4.5 adopted no test runner, ran no interaction tests, and did not install `@storybook/addon-vitest`. This story still picks the runner on its own criteria, and "it is already downloaded" is the weakest of them.
+
+What it does mean is that the Storybook side of a decision to use Vitest is nearly free, and that the reverse choice leaves an unused assertion library in the tree. Both are worth stating; neither settles anything.
 
 ### What Story 1.3 changed for this story
 

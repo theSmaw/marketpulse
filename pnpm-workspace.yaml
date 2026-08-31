@@ -2,6 +2,27 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# Dependencies may not run install scripts unless they are named here, and an
+# un-allowlisted one fails the install outright rather than warning. That policy
+# has been in place since Task 1.1.1 and stayed empty until Task 1.4.5.
+#
+# `esbuild` is the first and only entry. Storybook 10 depends on it directly —
+# there is still no esbuild in the Vite toolchain itself, because Vite 8 is the
+# Rolldown release and lists esbuild only as an optional peer. Installing
+# Storybook produced exactly the failure Task 1.4.1's spike recorded:
+#
+#   [ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: esbuild@0.28.2
+#
+# with `pnpm install` at exit 1, and pnpm rewriting this file with an
+# `esbuild: set this to true or false` stub. esbuild's install script fetches
+# and unpacks the platform binary it cannot ship in one package, so it genuinely
+# needs to run; the alternative is a broken binary, not a safer install.
+#
+# When this fires again, allowlist the specific package and say why here. Never
+# widen the policy.
+allowBuilds:
+  esbuild: true
+
 # Refuse to install under a Node version outside the range in package.json's
 # `engines`, rather than printing a warning and carrying on. Keeps local and CI
 # on the version recorded in .nvmrc.

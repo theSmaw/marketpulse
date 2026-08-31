@@ -1,0 +1,56 @@
+/*
+ * The security row, and the minimal table chrome it needs to be legible on its
+ * own.
+ *
+ * `.table` is here rather than in the consumer because a row's alignment is not
+ * a property of the row: `border-collapse` and the column padding decide where
+ * the decimal points land. Epic 4 will bring its own table and may not use this
+ * class; what it must not do is style the cells differently and then wonder why
+ * the column drifts.
+ */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/*
+ * A repeated divider, so `--rule-soft` rather than the near-black hairline.
+ * Near-black between every row would stripe the table; the hairline is the
+ * *primary* separator — the header, the section edge — not the repeated one.
+ */
+.row + .row {
+  border-top: var(--border-width) solid var(--rule-soft);
+}
+
+.cell,
+.ticker {
+  padding: var(--space-8);
+  text-align: left;
+  vertical-align: baseline;
+}
+
+/*
+ * The ticker is a `<th scope="row">`: it is the row's label, not one of its
+ * values, which is what lets a screen reader announce "AAPL" before each cell.
+ * `font-weight` is reset because a `th` is bold by default and this is a dense
+ * table, where weight is not the hierarchy — size and grey are.
+ */
+.ticker {
+  font-weight: var(--font-weight-regular);
+}
+
+/*
+ * Numeric columns are right-aligned, always: a right-aligned tabular column
+ * aligns decimal points for free. `tabular-nums` itself is inherited from
+ * `body` in base.css and deliberately not repeated — a component that breaks
+ * the alignment has overridden it, not failed to declare it.
+ *
+ * Note the two-class selector rather than a bare `.numeric`. `.cell, .ticker`
+ * above is specificity (0,1,0) and this is (0,2,0); a bare `.numeric` would tie
+ * on specificity and win only by source order, which is a rule that breaks the
+ * moment the file is reordered.
+ */
+.cell.numeric {
+  text-align: right;
+}

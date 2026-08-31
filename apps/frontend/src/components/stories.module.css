@@ -1,0 +1,43 @@
+/*
+ * Workshop furniture — the grid a story uses to lay out a component's
+ * permutations, and nothing else.
+ *
+ * It is imported only by `*.stories.tsx`, which nothing in `index.html` can
+ * reach, so none of it is in the application bundle. That is worth stating
+ * because it is the one stylesheet here that is deliberately not part of the
+ * product: it exists so that a story file contains no literal lengths, which is
+ * the same rule every other stylesheet in this application follows.
+ *
+ * It carries no colour. A permutation grid that tinted anything would be
+ * competing with the component it is displaying.
+ */
+
+/* A two-column grid: the name of the permutation, and the permutation. */
+.grid {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  align-items: baseline;
+  gap: var(--space-12) var(--space-20);
+}
+
+/* The label beside each cell. Uppercase and letterspaced, like every other
+   micro-label in this language. */
+.label {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+}
+
+/* For grids whose right-hand column is numeric — the alignment is the thing
+   being demonstrated, so the grid must not undo it. */
+.numeric {
+  justify-self: end;
+  text-align: right;
+}
+
+/* A single specimen with room around it, for the one-state stories. */
+.specimen {
+  padding: var(--space-12) 0;
+}

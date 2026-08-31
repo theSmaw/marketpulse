@@ -7,21 +7,27 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && storybook build",
     "preview": "vite preview",
+    "storybook": "storybook dev -p 6006 --no-open",
+    "storybook:build": "storybook build",
     "test": "echo \"@marketpulse/frontend: no tests yet — Story 1.9\"",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",
     "typecheck": "tsc -b",
-    "clean": "tsc -b --clean && rm -rf dist"
+    "clean": "tsc -b --clean && rm -rf dist storybook-static"
   },
   "dependencies": {
+    "@base-ui/react": "1.7.0",
     "@marketpulse/shared": "workspace:*",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@storybook/addon-a11y": "10.5.10",
+    "@storybook/react-vite": "10.5.10",
     "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.5"
+    "@types/react-dom": "19.2.5",
+    "storybook": "10.5.10"
   }
 }

@@ -126,7 +126,7 @@ The per-package scripts stay, for working on one package. Six verbs — `dev`,
 package. `lint:fix` is an extra rather than part of the convention: a local
 convenience with no root fan-out and no place in `verify`.
 
-`verify` is `build && lint && format:check && test`, chained with `&&` so the
+`verify` is `build && lint && format:check && stories && test`, chained with `&&` so the
 first failure is the exit code, and building first so that lint and test see
 current declarations.
 
