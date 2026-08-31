@@ -180,6 +180,20 @@ a `base` change and a **rebuild**, not a hosting setting. And rebuilding
 is inlined at bundle time and the workspace symlink is not part of the
 artefact.
 
+That first sentence was half the story between Story 1.5 and Task 1.6.5, and
+the missing half failed silently. Once there was a router, `base` fixed the
+asset paths while React Router went on matching the **full** pathname — so a
+subpath build loaded its JavaScript perfectly and then rendered the not-found
+route at its own address, with every navigation link pointing off the
+deployment. Measured at `base: "/marketpulse/"` on a plain static host:
+`<h1>No such page</h1>` at `/marketpulse/`, and header links reading
+`/investigations` rather than `/marketpulse/investigations`. Task 1.6.5 closed
+it by reading `<BrowserRouter basename>` from `import.meta.env.BASE_URL`, which
+Vite sets from `base` — so it is **one variable and a rebuild** rather than two
+edits, and there is nothing left to keep in step. The same one-input-two-readers
+shape as `target` above, except that the second reader is derived rather than
+restated.
+
 ### `vite preview` is not a static host, and the difference hides a real failure
 
 `preview` was added in Task 1.3.4 with the status `apps/backend`'s `start`

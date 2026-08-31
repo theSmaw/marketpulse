@@ -396,6 +396,15 @@ Two conventions worth knowing before adding a route:
   test for which side something belongs on is _does it have states worth
   reviewing side by side?_
 
+**Deploying under a subpath is one edit and a rebuild.** Set `base` in
+`vite.config.ts`; `<BrowserRouter basename>` reads `import.meta.env.BASE_URL`,
+which Vite sets from `base`, so the router moves with the assets and the two
+cannot desynchronise. It used to be two edits, and getting only the first
+produced an application that loaded perfectly and then rendered the not-found
+route at its own address, with every navigation link pointing off the
+deployment. Route paths are not part of this — the basename is a deployment
+fact and `paths.ts` is not configuration.
+
 **Deep-linking works locally for a reason that will not survive deployment.**
 `/replay` typed straight into the address bar works against `vite`, `vite
 preview` and nothing else — both answer any unmatched path with `index.html`
