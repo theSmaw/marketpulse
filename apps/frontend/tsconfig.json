@@ -69,11 +69,26 @@
     // DOM means restating the language libraries alongside it.
     "lib": ["es2024", "dom", "dom.iterable"],
 
-    // No Node globals here. Left empty rather than unset: without it, TypeScript
-    // pulls in every @types package it can find, and pnpm's linking means
-    // @types/node reaches this package's node_modules root anyway. `process`
-    // and friends should not typecheck in browser code.
-    "types": []
+    // Vite's ambient client types, and nothing else. Two independent readers
+    // want this exact entry, which is why it says so here rather than in
+    // either of them:
+    //
+    //   1. Task 1.4.2 - `import "./x.css"` is otherwise TS2882 ("Cannot find
+    //      module or type declarations for side-effect import"), and
+    //      `import styles from "./x.module.css"` TS2307. vite/client declares
+    //      both, the module form as `{ readonly [key: string]: string }`.
+    //   2. Story 1.6 - `import.meta.env` is otherwise TS2339. That story was
+    //      handed the same change; it now inherits a solved problem and its
+    //      STORY.md says so. Do not add it twice.
+    //
+    // This is still an explicit list, and the explicit list is the whole
+    // point: it is what stops TypeScript auto-discovering every reachable
+    // @types package, and pnpm's linking puts @types/node within reach of this
+    // package. `process` and friends must still fail to typecheck in browser
+    // code - verified by deliberate reference in Task 1.4.2 (TS2591), then
+    // removed. Adding an entry here is never the fix for a library that is
+    // *imported*; only for one that is ambient.
+    "types": ["vite/client"]
   },
 
   // index.html and vite.config.ts sit outside this deliberately. Vite reads
