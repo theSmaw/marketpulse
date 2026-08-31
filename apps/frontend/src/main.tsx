@@ -8,6 +8,21 @@ import { createRoot } from "react-dom/client";
 // source extension here is `.tsx` rather than `.ts`.
 import { App } from "./App.js";
 
+// The repository's first CSS, and a side-effect import rather than a binding:
+// the bundler extracts it into `dist/assets/*.css` and adds the `<link>` to the
+// emitted index.html. Nothing here reads a value from it.
+//
+// Note the specifier has no `.js` extension, and that is not an oversight. The
+// convention above rewrites relative imports *between TypeScript files* to the
+// name tsc will emit; a stylesheet is not compiled and `./throwaway.css` is the
+// real filename on disk. Over-applying TS2835 to the first non-TypeScript
+// import in the repository is the easy mistake.
+//
+// Throwaway, deliberately: Task 1.4.3 replaces its contents with the token
+// definitions. It exists so that when a token then fails to apply, "the CSS
+// never reached the browser" is already ruled out.
+import "./throwaway.css";
+
 // createRoot, not the legacy ReactDOM.render — the legacy entry point is gone
 // in React 19 and `react-dom/client` is the only mount API.
 const container = document.querySelector("#root");

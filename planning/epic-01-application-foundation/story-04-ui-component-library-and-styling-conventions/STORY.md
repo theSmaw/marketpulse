@@ -1,6 +1,6 @@
 # Story 1.4 — UI Component Library & Styling Conventions
 
-**Status:** In progress — Task 1.4.1 complete (2026-08-30)
+**Status:** In progress — Tasks 1.4.1 and 1.4.2 complete (2026-08-31)
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.3
 **Epic scope covered:** select UI component library and styling conventions
@@ -27,7 +27,7 @@ Both are now **settled**, together, in [Task 1.4.1](TASK-01-choose-styling-appro
 - **Styling approach — CSS Modules plus CSS custom properties.** Static stylesheet, zero build-tool additions, and tokens in the only form Epic 2's charts and Epic 6's WebGL canvas can read. MUI + emotion emitted **no CSS asset at all** — styles computed during render, which is §28's risk made visible in the artefact — and Mantine shipped 231 kB of stylesheet for one table
 - Charting library selection is **not** part of this story; it belongs to Epic 2. The choice above constrains it — a chart will need to read the same tokens Task 1.4.3 defines, and it cannot read a CSS class
 
-Two costs the choice carries, both measured and both landing on Task 1.4.2 rather than being discovered later. A CSS Modules class name is typed as a loose record by `vite/client`, so **a typo is silent** and renders unstyled, with nothing in `pnpm verify` to catch it. And `noUncheckedIndexedAccess` types every `styles.x` as `string | undefined`, so the idiomatic `` `${a} ${b}` `` composition is four `restrict-template-expressions` errors on a single row component — a three-line `cx()` helper makes it green, and that helper is real code Task 1.4.2 owes rather than a convention.
+Two costs the choice carries, both measured and both landing on Task 1.4.2 rather than being discovered later. A CSS Modules class name is typed as a loose record by `vite/client`, so **a typo is silent** and renders unstyled, with nothing in `pnpm verify` to catch it. And `noUncheckedIndexedAccess` types every `styles.x` as `string | undefined`, so the idiomatic `` `${a} ${b}` `` composition is four `restrict-template-expressions` errors on a single row component — a three-line `cx()` helper makes it green, and that helper is real code Task 1.4.2 owes rather than a convention. **Task 1.4.2 delivered it as `apps/frontend/src/cx.ts` and found a third constraint the spike had missed:** `styles["row"]` is a `@typescript-eslint/dot-notation` error, so bracket access is not an escape hatch either. The house idiom is `cx(styles.row, styles.negative)` — dot access, composed through the helper — and both halves are needed.
 
 ## Conventions from Story 1.1
 
@@ -50,7 +50,8 @@ One thing that is true today and will not be forever: until Story 1.9 lands, **`
 
 Three things, now measured rather than expected.
 
-- **There is a React application to style, and it emits no CSS at all.** `apps/frontend/src/App.tsx` is a single stateless component; the production build is 190.80 kB across 17 modules and contains **no stylesheet**, because nothing imports one. This story is what makes a CSS asset appear in `dist/assets/` for the first time, which is worth watching: it is the first change to the shape of the deployable artefact
+- ~~**There is a React application to style, and it emits no CSS at all.**~~ **No longer true as of Task 1.4.2 (2026-08-31)**, which is what that bullet asked for: the build is now 18 modules across three files, with a 0.07 kB stylesheet linked absolutely from `index.html`. The original wording follows because the numbers in it are still the baseline the change is measured against. **There is a React application to style, and it emits no CSS at all.** `apps/frontend/src/App.tsx` is a single stateless component; the production build is 190.80 kB across 17 modules and contains **no stylesheet**, because nothing imports one. This story is what makes a CSS asset appear in `dist/assets/` for the first time, which is worth watching: it is the first change to the shape of the deployable artefact
+- **The styling approach needed no library at all, which is the one thing this section did not anticipate.** CSS Modules and plain CSS are Vite features; Task 1.4.2 added no dependency to either the package or the root and left `pnpm-lock.yaml` untouched. The rule below is still the rule and Task 1.4.5 is where it first applies, when Radix arrives in `apps/frontend`.
 - **A styling library is a dependency of `apps/frontend`, not of the root** — it is imported by that package's code. A Prettier or ESLint _plugin_ that comes with it is a tool and goes to the root, next to the config it extends. Task 1.3.2 drew that line the same way for React (package) and `eslint-plugin-react-hooks` (root)
 - **The React Compiler rule set is already in force and has never met real code.** `eslint-plugin-react-hooks`'s `recommended` is 17 rules, 15 at `error`, most of them Rules of React — `purity`, `immutability`, `set-state-in-render` — rather than hook ordering, and `lint` now runs with `--max-warnings 0`. This story writes the first components those rules will actually see. A CSS-in-JS approach that computes styles during render is the likely first collision, and it will surface as a lint error rather than a runtime problem
 
@@ -69,7 +70,7 @@ Tackled in order. The story is complete when all six are done.
 | #     | Task                                                                                                                         | Status      |
 | ----- | ---------------------------------------------------------------------------------------------------------------------------- | ----------- |
 | 1.4.1 | [Choose the styling approach and the component library](TASK-01-choose-styling-approach-and-component-library.md)            | Complete    |
-| 1.4.2 | [Install the styling approach and get the first stylesheet into the build](TASK-02-styling-pipeline-and-first-stylesheet.md) | Not started |
+| 1.4.2 | [Install the styling approach and get the first stylesheet into the build](TASK-02-styling-pipeline-and-first-stylesheet.md) | Complete    |
 | 1.4.3 | [Design tokens and the dark theme](TASK-03-design-tokens-and-dark-theme.md)                                                  | Not started |
 | 1.4.4 | [Semantic market tokens](TASK-04-semantic-market-tokens.md)                                                                  | Not started |
 | 1.4.5 | [Component primitives and the representative component](TASK-05-component-primitives-and-representative-component.md)        | Not started |
