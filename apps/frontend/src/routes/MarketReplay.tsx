@@ -7,7 +7,7 @@ import { Placeholder } from "./Placeholder.js";
 // unrequested.
 export function MarketReplay() {
   return (
-    <Placeholder label="Placeholder" name="Market Replay">
+    <Placeholder name="Market Replay">
       Replaying a historical session through its own clock, with every part of
       the product constrained to what was knowable at that moment. Epic 13
       builds it, on top of the temporal isolation the data layer carries from

@@ -98,7 +98,7 @@ const rows = [
 export function MarketOverview() {
   return (
     <>
-      <Placeholder label="Placeholder" name="Market Overview">
+      <Placeholder name="Market Overview">
         The landing screen, and the one that answers what is happening right
         now: index and ETF summaries, an unusual activity feed, market breadth,
         sector performance and the topology. Epic 4 builds it on live data, Epic

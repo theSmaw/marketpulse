@@ -2,8 +2,10 @@ import type { ReactNode } from "react";
 
 import styles from "./routes.module.css";
 
-// The shape every route placeholder takes: what this screen is, its name, and
-// one sentence saying which epic fills it. A placeholder is identifiable rather
+// The shape every route placeholder takes: the word "Placeholder", the screen's
+// name, and one sentence saying which epic fills it. The label is fixed rather
+// than a prop — every caller passed the same literal, and `NotFound` needs a
+// different one but is a hand-written route rather than a placeholder. A placeholder is identifiable rather
 // than empty — this is the first thing anyone clicking through MarketPulse will
 // see, and it will be that for several epics, so "coming soon" on a white page
 // is not good enough.
@@ -16,17 +18,15 @@ import styles from "./routes.module.css";
 // question of where that line falls now that there is real chrome; this file
 // only claims that a route placeholder sits on the far side of it.
 export function Placeholder({
-  label,
   name,
   children,
 }: {
-  readonly label: string;
   readonly name: string;
   readonly children: ReactNode;
 }) {
   return (
     <section className={styles.route}>
-      <p className={styles.label}>{label}</p>
+      <p className={styles.label}>Placeholder</p>
       <h1 className={styles.title}>{name}</h1>
       <p className={styles.prose}>{children}</p>
     </section>

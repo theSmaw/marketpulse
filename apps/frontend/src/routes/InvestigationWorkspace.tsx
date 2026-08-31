@@ -6,7 +6,7 @@ import { Placeholder } from "./Placeholder.js";
 // other way round.
 export function InvestigationWorkspace() {
   return (
-    <Placeholder label="Placeholder" name="Investigation Workspace">
+    <Placeholder name="Investigation Workspace">
       Where an anomaly becomes a question with evidence behind it. Epic 7 builds
       the deterministic investigation engine and its event stream, Epic 8 the
       evidence workspace, and Epic 10 lets a model drive what already works
