@@ -50,6 +50,11 @@ apps/
                                    which is why index.ts calls it
     src/server.ts                  buildServer() — the app, without listening
     src/routes/health.ts           GET /health; also exports HealthResponse
+    .env.example                   the documented variable set (Task 1.6.6).
+                                   Tracked, by the `!.env.example` negation;
+                                   `.env` beside it is not. `pnpm env:check`
+                                   fails if this and CONFIG_VARIABLES disagree,
+                                   defaults included
   frontend/                        @marketpulse/frontend — React + Vite (Story 1.3)
     .storybook/                    the component workshop's configuration
       main.ts                      framework, story glob, addons, telemetry off.
@@ -60,6 +65,11 @@ apps/
                                    MemoryRouter decorator, which is why it is
                                    .tsx. Both files are outside every tsconfig
                                    — see eslint.config.mjs
+    .env.example                   documents NO variables, deliberately — the
+                                   application reads none yet. It exists because
+                                   apps/frontend/.env is where somebody will put
+                                   an Alpaca key, and this is the file open in
+                                   front of them when they do
     index.html                     Vite's real entry point. At the package root,
                                    inside no tsconfig — Vite crawls its script
                                    tag to find the module graph
@@ -127,6 +137,12 @@ scripts/
                                    first plain-JavaScript file in the workspace,
                                    and the reason eslint.config.mjs has a
                                    globals block for `scripts/`
+  check-env-example.mjs            the `env:check` step (Task 1.6.6). Walks
+                                   CONFIG_VARIABLES from the backend's BUILT
+                                   dist/config.js — the table is TypeScript and
+                                   this is not — and checks both .env.example
+                                   files against it. Four failure modes, all of
+                                   them exercised
 planning/
   PRODUCT_SPEC.md                  authoritative product definition
   EPICS.md                         epic roadmap and delivery sequence
@@ -149,12 +165,13 @@ Keep this section, and the Commands section, updated as things actually land.
 corepack enable    # once per machine — pnpm comes from the repo pin, not a global install
 pnpm install
 
-pnpm verify        # build → lint → format:check → stories → test. What CI will run (Story 1.10)
+pnpm verify        # build → lint → format:check → stories → env:check → test. What CI will run (Story 1.10)
 
 pnpm build         # tsc -b, THEN the frontend bundle, THEN Storybook — see below
 pnpm typecheck     # the tsc -b half only; no bundle
 pnpm lint          # eslint . over the whole workspace in one process; also lint:fix
 pnpm stories       # fails if a component has no stories file
+pnpm env:check     # fails if .env.example and CONFIG_VARIABLES have drifted apart
 pnpm test          # placeholders until Story 1.9
 pnpm dev           # per-package, in parallel; all three are real loops
 pnpm clean         # tsc -b --clean, plus the frontend's dist/ and storybook-static/
@@ -313,6 +330,14 @@ The frontend's `types` array is not redundant, and **what makes it work is that 
 **The workshop's line was settled in Task 1.5.3, and it is a directory rule with a test behind it.** A `.tsx` file under `src/components/` is workshop material and owes stories; a `.tsx` file anywhere else does not. The test for which side something belongs on is _does it have states worth reviewing side by side?_ — `AppHeader` has three feed states, an optional detail and four current-route states, so it is in; a route placeholder is one state made of two strings, so `src/routes/` is out; `App.tsx` and `main.tsx` are the router's host and the mount and render nothing to look at, so they stay exempt as Task 1.4.5 left them. **The rule is enforced in one direction only** — a component in `src/components/` without stories fails `pnpm verify`, while a stateful component dropped into `src/routes/` escapes the check silently. The argument is written into `scripts/check-stories.mjs` beside the check itself. Task 1.5.4 is the first application of it rather than a restatement: `Region` is a label and a slot, so it went to `src/routes/` and owes nothing — and the day Story 1.7 gives it empty, loading and failed states it moves into `src/components/` and its permutation grid walks straight into the landmark conflict below.
 
 **Components live in `apps/frontend/src/components/<Name>/`, one component per file, with its stylesheet and its stories beside it.** The layout is not a preference — `scripts/check-stories.mjs` depends on it, and the one-component-per-file half is what keeps that check honest: it cannot see a component declared inside another component's file, so the convention is the thing that makes the limitation harmless. Every component ships **one named story per discrete state plus an `AllPermutations` story** rendering the cartesian product in a labelled grid. Where the product is unbounded, the story fixes representative **extremes** rather than plausible examples — the widest digits, the longest ticker, a negative sign — because those are what break a tabular column, and Task 1.4.3 measured a 14.3 px spread riding on exactly that.
+
+**`pnpm verify` has a sixth step since Task 1.6.6, and it is the first one that checks a claim rather than a file's existence.** `pnpm env:check` runs `scripts/check-env-example.mjs` between `stories` and `test`. It imports the backend's **built** `dist/config.js` — the table is TypeScript and the script is not, so `verify` building first is load-bearing; run standalone on a clean tree it says `run \`pnpm build\` first`rather than throwing a resolver error. Four checks: every`CONFIG_VARIABLES`key is in`apps/backend/.env.example`; every key there is in `CONFIG_VARIABLES`; the **default** each optional variable documents equals the one in `config.ts`; and every name in `apps/frontend/.env.example`carries the`VITE_`prefix. The third is the one a grep cannot do and the one that rots first — a changed default leaves a plausible wrong number rather than a missing line. The fourth is not a leak check: a non-prefixed name there compiles to`void 0`, so it is a variable that silently never arrives. All four were made to fail before the task closed. Named `env:check`and not`env`or`config`because both of those are real pnpm 11 built-ins and a root script shadows a built-in repository-wide — which was right for`clean`, whose built-in deletes `node_modules`, and wrong for two commands that are useful.
+
+**The `.env.example` files are one per package, beside the file each loader actually reads, and there is deliberately no root one.** `apps/backend/.env.example` documents `PORT` and `HOST`; `apps/frontend/.env.example` documents **nothing**, because the frontend reads no configuration yet, and exists so that the file open in front of whoever is about to put an Alpaca key in `apps/frontend/.env` is the one telling them not to. A root example was rejected on a specific hazard rather than a general one: `cp .env.example .env` at the root produces a file **no loader reads**, silently, and the corrected instruction is a copy whose source and destination are in different directories. Beside the file it configures, `cp apps/backend/.env.example apps/backend/.env` is self-evidently right.
+
+**The gitignore negation works at all three locations, and the obvious command for checking it does not answer the question.** `git check-ignore -v` exits **0** for a negated path too, printing the `!.env.example` rule that matched — so read as an exit code it says "ignored" for a file that is tracked, which is exactly the shape of a check that passes while the negation is broken. Without `-v` the exit code means what it looks like (0 ignored, 1 not), and `git status --porcelain --ignored=matching` states it outright: `!!` for the six `.env` / `.env.local` files at `apps/backend/`, `apps/frontend/` and the root, `??` for the three `.env.example`. Task 1.6.6 measured all nine; the frontend's location had never been checked before.
+
+**The secrets boundary was re-measured against a realistic value, and against a second artefact nobody had considered.** With `ALPACA_API_SECRET_KEY=…` and `VITE_API_BASE_URL=…` in `apps/frontend/.env` and both referenced from `main.tsx`, the built bundle contains ``console.log(`probe`, void 0, `https://api.marketpulse.example/v1`)`` — the secret's **value and its name** are both absent from `dist/` entirely. The same probe in a `.stories.tsx` emits the identical line into `storybook-static/assets/`, which matters because `pnpm build` produces that directory too and it serves from a dumb static host exactly as `dist/` does. That follows by construction from `.storybook/main.ts` reusing `vite.config.ts`, but it had never been measured. A `VITE_` prefix is a boundary against accidents, not a permission — prefixing a credential makes it a string literal in a file every visitor downloads.
 
 **`pnpm stories` proves a file exists and nothing more, and its own header says so.** It does not prove the stories inside cover the permutations; nothing cheap can, because a variant set is a type and the check does not typecheck. It has been seen to fail — move a `.stories.tsx` aside and it exits 1 naming the file and the path it wanted. That matters: a check that has never failed is a check that has never been tested, which is the same problem as the placeholder `test` scripts one paragraph up.
 

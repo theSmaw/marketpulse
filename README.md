@@ -27,8 +27,9 @@ curl http://127.0.0.1:3000/health
 # {"status":"ok","version":"0.0.0","uptimeSeconds":0.129}
 ```
 
-`PORT` and `HOST` configure it (defaults 3000 and 127.0.0.1). It is a skeleton
-in scope rather than in status: no market data, no database, no domain logic.
+`PORT` and `HOST` configure it (defaults 3000 and 127.0.0.1) — see
+[Configuration](#configuration). It is a skeleton in scope rather than in
+status: no market data, no database, no domain logic.
 
 `apps/frontend` is a React 19 application built with Vite. It renders the
 application chrome and four routes, reloads edited components without losing
@@ -89,9 +90,12 @@ pnpm verify
 ```
 
 `pnpm verify` is the whole acceptance check: `build && lint && format:check &&
-stories && test`, in that order, stopping at the first failure. (`stories` fails
-if a component has no stories file — see [The component workshop](#the-component-workshop).) It is what CI will run
-(Story 1.10). On a clean checkout it takes a few seconds and exits 0.
+stories && env:check && test`, in that order, stopping at the first failure.
+(`stories` fails if a component has no stories file — see
+[The component workshop](#the-component-workshop); `env:check` fails if the
+`.env.example` files and the code have drifted apart — see
+[Configuration](#configuration).) It is what CI will run (Story 1.10). On a
+clean checkout it takes a few seconds and exits 0.
 
 If `pnpm install` fails complaining about a dependency's install scripts, see
 [Install-script policy](#install-script-policy) below — the fix is to
@@ -103,7 +107,7 @@ Run from the repository root:
 
 | Command             | What it does                                                          |
 | ------------------- | --------------------------------------------------------------------- |
-| `pnpm verify`       | `build && lint && format:check && stories && test` — the CI command   |
+| `pnpm verify`       | `build && lint && format:check && stories && env:check && test` — CI  |
 | `pnpm build`        | `tsc -b` over the solution, then the frontend bundle, then Storybook  |
 | `pnpm typecheck`    | The same command as `build`, deliberately — see below                 |
 | `pnpm lint`         | `eslint .` over the whole workspace in one process                    |
@@ -111,6 +115,7 @@ Run from the repository root:
 | `pnpm format`       | `prettier --write .` — the whole tree, prose included                 |
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
+| `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
 | `pnpm test`         | Placeholders until Story 1.9 — see the warning below                  |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
 | `pnpm clean`        | `tsc -b --clean`, plus the frontend's `dist/` and `storybook-static/` |
@@ -229,6 +234,73 @@ that imports it can be typechecked. `tsc -b` handles that ordering itself, and
 `verify` builds first. See
 [ADR 0001](docs/adr/0001-repository-structure-and-typescript-toolchain.md) for
 why a per-package `tsc --noEmit` is the wrong instrument here.
+
+## Configuration
+
+Both packages read configuration from a `.env` file **beside their own
+`package.json`**, and each ships a documented example:
+
+```sh
+cp apps/backend/.env.example apps/backend/.env    # PORT, HOST
+cp apps/frontend/.env.example apps/frontend/.env  # nothing to set yet
+```
+
+Copy the destination as written. A `.env` at the repository root is read by
+**neither** package — the backend resolves its file from the configuration
+module rather than from the working directory, and the frontend's `envDir` is
+its own package root. Both are deliberate, and the failure is silent: the file
+exists, nothing reads it, and the application starts on defaults as if it were
+not there.
+
+**You do not need either file to run MarketPulse.** Every backend variable has
+a default, and a missing `.env` is swallowed rather than reported — a fresh
+clone starts on port 3000 and `127.0.0.1` with no file at all. That silence is
+deliberate (a container has no file by design) and is documented here precisely
+because it is silent.
+
+A real environment variable **beats** an entry in the file:
+
+```sh
+PORT=4020 pnpm --filter @marketpulse/backend start   # 4020, whatever .env says
+```
+
+A blank value is treated as absent rather than as an empty string, so `PORT=`
+gives 3000 rather than "any free port". Anything invalid fails at startup
+naming both the key and the value it was given, before the server binds:
+
+```
+PORT must be an integer between 1 and 65535, received "nonsense"
+```
+
+### Secrets live on the server, without exception
+
+Market-data and model-provider credentials belong in `apps/backend/.env` and
+nowhere else. The browser talks to the MarketPulse backend; it never talks to
+Alpaca or to a model provider directly, so no credential ever needs to reach
+`apps/frontend`. Epic 2 brings the first of them.
+
+Only `VITE_`-prefixed names reach the browser (`envPrefix` in
+`vite.config.ts`). Everything else is not merely withheld — the read is
+substituted away at build time, so `import.meta.env.SOMETHING` compiles to
+`void 0` and neither the value nor the name appears anywhere in `dist/`. The
+Storybook build behaves the same way, which matters because `pnpm build`
+produces `storybook-static/` too.
+
+A `VITE_` prefix is a boundary against accidents, not a permission. Prefixing a
+credential makes it a string literal in a file every visitor downloads.
+
+### `pnpm env:check`
+
+A step in `pnpm verify`. It walks `CONFIG_VARIABLES` in
+`apps/backend/src/config.ts` and fails if a variable the code reads is missing
+from `apps/backend/.env.example`, if the example documents one nothing reads,
+if a documented default no longer matches the code, or if a name in
+`apps/frontend/.env.example` lacks the `VITE_` prefix. Adding a variable to the
+code and not to the example is a failing build rather than stale documentation.
+
+`.env` and `.env.*` are gitignored; `.env.example` is negated back in. Verified
+in place at both package roots and the repository root — the three `.env.example`
+files show as untracked and the six `.env` / `.env.local` files as ignored.
 
 ## Styling and design tokens
 

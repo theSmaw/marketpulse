@@ -20,7 +20,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "stories": "node scripts/check-stories.mjs",
-    "verify": "pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run test"
+    "env:check": "node scripts/check-env-example.mjs",
+    "verify": "pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run test"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
