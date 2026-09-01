@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router";
 
 import { AppHeader } from "./components/AppHeader/AppHeader.js";
+import { ErrorBoundary } from "./components/ErrorBoundary/ErrorBoundary.js";
 import { InvestigationWorkspace } from "./routes/InvestigationWorkspace.js";
 import { MarketOverview } from "./routes/MarketOverview.js";
 import { MarketReplay } from "./routes/MarketReplay.js";
@@ -89,21 +90,68 @@ export function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <div className={styles.page}>
-        <AppHeader feedStatus="disconnected" feedDetail={FEED_DETAIL} />
+        {/*
+         * The chrome gets its own boundary, and that was a decision rather than
+         * a default (Task 1.7.6). `AppHeader` is outside `<Routes>` and eager,
+         * which is what lets a Story 1.12 status indicator survive the thing it
+         * is reporting on — and it also means a failure *in* the header has
+         * nothing above it. Without this, a header that throws unmounts the
+         * whole tree and the user gets a blank document, which is the exact
+         * outcome PRODUCT_SPEC.md §36 forbids, reached from the one place
+         * nobody looks.
+         *
+         * `compact` because the strip is a line tall and a stacked block here
+         * would push the page down. The cost, stated rather than discovered:
+         * this fallback replaces the `<header>`, so a broken chrome takes the
+         * banner landmark and the navigation with it. Everything below keeps
+         * working and the address bar still works, which is the recovery that
+         * is left.
+         */}
+        <ErrorBoundary
+          title="The header could not be displayed"
+          detail="Navigation is unavailable; the page below is unaffected."
+          compact
+        >
+          <AppHeader feedStatus="disconnected" feedDetail={FEED_DETAIL} />
+        </ErrorBoundary>
 
         <main className={styles.main}>
-          <Routes>
-            <Route path={PATHS.overview} element={<MarketOverview />} />
-            <Route
-              path={PATHS.investigations}
-              element={<InvestigationWorkspace />}
-            />
-            <Route path={PATHS.securities} element={<SecurityExplorer />} />
-            <Route path={PATHS.replay} element={<MarketReplay />} />
-            {/* Everything else. `*` is not in PATHS because it is not an
-                address — nothing links to it and nothing should. */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          {/*
+           * The outer boundary, and it is deliberately not the only one.
+           *
+           * Task 1.5.5 measured what a boundary *only* here does: a
+           * `<Suspense fallback={null}>` at the router blanked the entire
+           * `<main>` — four named landmarks and the 70vh grid — under a header
+           * that looked perfectly healthy. That is the degenerate case, and the
+           * region boundaries inside `Region` are what stop it happening on the
+           * landing route: React uses the nearest boundary, so a failure in a
+           * region's contents never reaches this one.
+           *
+           * What this one is for is everything that is not inside a region.
+           * On the four routes that are deliberately a single area —
+           * investigations, securities, replay and the not-found route — the
+           * outlet *is* the affected region, and this is the boundary around
+           * it. On the landing route it catches a failure in the route's own
+           * frame: the grid, the placeholder, or `Region` itself throwing
+           * before its own boundary exists. Both cases leave the chrome.
+           */}
+          <ErrorBoundary
+            title="This page could not be displayed"
+            detail="The rest of the application is unaffected — try again, or use the navigation above."
+          >
+            <Routes>
+              <Route path={PATHS.overview} element={<MarketOverview />} />
+              <Route
+                path={PATHS.investigations}
+                element={<InvestigationWorkspace />}
+              />
+              <Route path={PATHS.securities} element={<SecurityExplorer />} />
+              <Route path={PATHS.replay} element={<MarketReplay />} />
+              {/* Everything else. `*` is not in PATHS because it is not an
+                  address — nothing links to it and nothing should. */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </ErrorBoundary>
         </main>
       </div>
     </BrowserRouter>

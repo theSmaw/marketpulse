@@ -645,6 +645,69 @@ nothing. A history-API fallback is a hosting concern and Story 1.11 owns it.
 When it is configured, it must not be a blanket catch-all — one that answers
 _every_ unmatched path with `index.html` answers a missing asset that way too.
 
+## When something fails to render
+
+The frontend contains a render failure to the box it happened in. There is no
+global error screen and there is no reload button — `PRODUCT_SPEC.md` §36 asks
+for local degradation, and a page reload discards the rest of a working screen,
+which is the thing being avoided.
+
+Three boundaries, and they nest:
+
+```
+ErrorBoundary  around AppHeader          a broken chrome leaves the page below working
+ErrorBoundary  around the route outlet   the affected area on the four single-area routes
+ErrorBoundary  inside each Region        the landing route's four regions fail independently
+```
+
+React uses the nearest boundary, so a failure in a region's contents never
+reaches the outlet. The region boundary is **inside** the `<section>`, which is
+what keeps the heading, the explanatory line and the `region` landmark when the
+contents are gone: a failed region is a labelled box with a problem in it,
+rather than a hole in the layout.
+
+**The fallback never shows the error.** Not the message, not the stack. It is
+the same rule the backend's 5xx follows, for the same reason — a message
+written for a developer is internal detail too. The error is in the browser
+console with its component stack, which is where a developer already is.
+
+**Recovery is a reset.** "Try again" remounts the failed subtree and nothing
+else; the document is not reloaded and the rest of the screen never blinks.
+If whatever failed is still failing, the fallback comes straight back, which is
+the correct answer rather than a broken button.
+
+### What a boundary does not catch
+
+A React error boundary catches errors thrown **during render**, in **lifecycle
+methods** and in **constructors**. It catches nothing thrown in an **event
+handler**, a **`setTimeout`**, a **promise callback**, or anything else running
+outside the render pass — and neither does React's `onUncaughtError`. Measured:
+a button whose `onClick` throws leaves every region rendering normally, no
+fallback anywhere, and produces no report at all. The only thing that sees it
+is a `window` `error` listener.
+
+That is deliberately not installed. It is the browser's analogue of the
+backend's `process.on("uncaughtException")`, and the argument that justified
+those handlers does not carry over: they earned their place by moving a crash
+out of raw stderr and into the log stream every other record goes to. A browser
+has no second stream — an uncaught error is already in the console with its
+stack, which is exactly where a report would go — so a listener would repeat
+what is there while also catching every browser extension on the page. It
+becomes worth having the day there is a server endpoint to send it to.
+
+### Reporting
+
+`createRoot` is given `onCaughtError`, `onUncaughtError` and
+`onRecoverableError`, all three routed to `apps/frontend/src/report-error.ts`.
+Providing them **replaces** React's own console message rather than adding to
+it, so this is a choice of wording and not an extra line of noise; what it buys
+is one place to change when there is somewhere to send a report, and a message
+that says which of the three events it was.
+
+An `uncaught` report means a boundary is missing. Without the header boundary,
+a header that throws leaves `#root` with **zero children** — a blank document —
+which is measured rather than hypothetical.
+
 ## Layout
 
 ```

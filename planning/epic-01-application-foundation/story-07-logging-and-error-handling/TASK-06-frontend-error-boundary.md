@@ -1,6 +1,6 @@
 # Task 1.7.6 — The frontend error boundary and its region fallback
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.7 Logging & Error Handling](STORY.md)
 **Depends on:** Story 1.5 (complete). Independent of Tasks 1.7.1–1.7.5
 
@@ -40,3 +40,217 @@ Contain a render failure to the region it happened in, offer a way out of it, an
 ## Notes
 
 Deliberately independent of the backend tasks: it shares no file with them and could run first. Task 1.7.7 is the only thing downstream of both halves.
+
+## Outcome
+
+Three boundaries, two new components, one moved component and one reporting
+seam. No dependency. `pnpm verify` exits 0 in 10.1s and the stories check is
+now 9 components / 9 stories.
+
+### The artefact
+
+|                              | modules | JS        | CSS      | files |
+| ---------------------------- | ------- | --------- | -------- | ----- |
+| Baseline (`HEAD`)            | 267     | 342,017 B | 9,825 B  | 3     |
+| Hand-rolled (shipped)        | 271     | 343,658 B | 10,926 B | 3     |
+| `react-error-boundary` 6.1.4 | 272     | 344,590 B | 10,926 B | 3     |
+
+**A correction to the baseline first.** Every figure carried since Task 1.5.5
+says **265 modules**, and it is 267. The byte count and the bundle hash both
+match exactly — `index-BAidohu3.js`, 342,017 B — so it is the same tree and the
+same build, and the module figure was simply mis-recorded and then copied
+forward through four tasks. Task 1.7.3 already corrected the byte figure by
+re-measuring rather than citing; this is the same thing happening to the other
+half of the same line.
+
+So the boundaries cost **+4 modules, +1,641 B of JavaScript and +1,101 B of
+CSS**, and the artefact is still three files.
+
+### Hand-rolled, and the library was built before it was rejected
+
+`react-error-boundary` 6.1.4 was installed, the boundary was rewritten to
+delegate to it, and the artefact was built: **+932 B and +1 module** over
+hand-rolling. Then it was reverted, and the tree rebuilt to the same hash as
+before the spike.
+
+932 bytes is not the argument, and pretending it is would be dishonest — it is
+close to free. Two things decided it.
+
+The first is that **the library's reset has exactly the limitation the
+hand-rolled one does.** `resetErrorBoundary()` clears the error state; it does
+not remount, so a child holding its own bad state throws again immediately and
+the user clicks a button that visibly does nothing. Getting a real reset means
+supplying `resetKeys` with a counter you increment yourself — which is the same
+`key`-based remount the hand-rolled version does in two lines. The brief called
+the library "a well-tested `key`-based remount"; it is a well-tested wrapper
+around a `key`-based remount you still have to write.
+
+The second is the count. This repository needs exactly one boundary component.
+The library brings a second vocabulary — `fallbackRender`, `resetKeys`,
+`onReset`, `useErrorBoundary` — beside the four props this one exposes, and
+every one of those is a thing to learn and a thing to keep in step with. It
+stays a standing alternative; the reversal trigger is a second boundary with
+genuinely different reset semantics, which is Story 1.12's fetch-retry shape if
+it is anybody's.
+
+### Placement, all five routes and the header
+
+```
+ErrorBoundary  around <AppHeader>        outside <Routes>, compact fallback
+ErrorBoundary  around <Routes>           the outlet
+ErrorBoundary  inside <Region>           around the content slot, four of them on /
+```
+
+Nearest boundary wins, so on the landing route a failure in a region's contents
+never reaches the outlet. All three were measured on the running application
+with a temporary throwing probe, removed before the commit — the tree rebuilds
+to `index-C-Puqfnm.js` with no probe residue.
+
+- **A region fails alone.** `Unusual activity` shows its fallback while
+  `Market topology`, `Market breadth` and `Current investigations` and the
+  whole chrome render normally. All four `region` landmarks are still in the
+  document, the failed one included.
+- **The other four routes.** `/replay` made to throw renders the outlet
+  fallback with the chrome intact, `Market Replay` still marked
+  `aria-current="page"`. On those routes the outlet **is** the affected region,
+  which is what the brief asked to be said rather than assumed.
+- **The header.** With its boundary, a throwing `AppHeader` becomes a one-line
+  compact fallback and all four regions below render. Without it — measured by
+  removing the boundary — `#root` has **zero children** and `document.body` is
+  empty. A blank document, from the one component that has nothing above it.
+  The cost of the boundary, stated rather than discovered: the fallback
+  replaces the `<header>`, so a broken chrome takes the banner landmark and the
+  navigation with it.
+
+### The boundary is inside `Region`, and `Region` moved because of it
+
+`apps/frontend/src/routes/Region.tsx` → `apps/frontend/src/components/Region/`,
+with a stories file. Its own header comment predicted this: a label and a slot
+had one state, and the day it acquired a failed one it belonged in the
+workshop. It has one now.
+
+Inside rather than around, decided on what the user sees. A boundary outside
+the `<section>` replaces the heading along with the contents, so the failed box
+loses its name, loses its landmark, and stops being one of §9's four areas.
+Inside, all three survive.
+
+### Recovery
+
+Measured in the browser, not asserted. With a probe armed to throw once,
+clicking **Try again**:
+
+- `performance.timeOrigin` unchanged and `window.__origin` still set — no
+  reload
+- exactly one `navigation` performance entry
+- `[role="alert"]` count 0, and the region rendering its real content
+
+The reset increments a counter used as the children's `key`, so the failed
+subtree is unmounted and a fresh one mounted. Clearing the flag alone would
+re-render a child still holding the state that broke it.
+
+### What the boundary does not catch, measured
+
+A button whose `onClick` throws: **no fallback anywhere**, all four regions
+still rendering, and **no report at all** — not from the boundary and not from
+`onUncaughtError`. A `window` `error` listener added from the console saw it as
+`Uncaught Error: PROBE: thrown in an event handler`, and nothing else did.
+
+That is Task 1.7.5's third row exactly — work detached from the thing that
+scheduled it. **No `window` listener was installed**, and the reason is that
+the backend's parallel does not carry over: `process.on("uncaughtException")`
+earned its place by moving a crash out of raw stderr and into the log stream
+every other record goes to, and the change was the _stream_. A browser has no
+second stream. An uncaught error is already in the console with its stack,
+which is the destination a report would use, so a listener would repeat what is
+there while also catching every extension and third-party script on the page.
+Story 1.12 gets a destination; that is when this is worth revisiting.
+
+### Reporting, and the `StrictMode` warning that did not materialise
+
+All three `createRoot` options are wired to `report-error.ts`. Providing them
+**replaces** React's own console message rather than adding to it — measured:
+one entry per caught error, ours, with the full component stack, and React's
+"The above error occurred in ..." absent.
+
+**The double-report did not happen.** Story 1.7's notes and this brief both
+warned that `StrictMode` would make anything reporting an error see it twice in
+development, and that it would look like a duplicate-logging defect. A render
+throw caught by a boundary produced **exactly one** `onCaughtError` report on
+the development server with `StrictMode` on. The constructor does run twice;
+the first throw aborts that render pass and React reports the failure once. The
+warning stands for anything counting renders and does not stand for this, so no
+de-duplicator was written.
+
+### The landmark conflict was predicted and does not exist
+
+Story 1.5, this brief and the first draft of `Region.stories.tsx` all expected
+`landmark-unique` to fire on the permutation grid, the way six banners did for
+`AppHeader` in Task 1.5.3 — and the disable was written before it was measured.
+Three `region` landmarks in the grid report **0 violations**, and
+`landmark-unique` is in the _passes_ list on all three nodes. The disable was
+removed.
+
+The reason is worth carrying forward, because it says when the conflict is real:
+`landmark-unique` keys on role **and accessible name together**, so it fires on
+landmarks that are indistinguishable, not on landmarks that repeat.
+`AppHeader`'s six banners were six copies of one anonymous thing. A region's
+name is its heading, and a grid reviewing regions gives each cell a different
+one — because that is what a region is. The permutation grid and landmark
+uniqueness only conflict for a component whose landmark has no name.
+
+### axe, against the built page on a static host
+
+axe-core 4.13.0, `dist/` served from outside the workspace by a dumb Python
+host with the smallest correct SPA fallback.
+
+| page                                                     | violations | passes | incomplete |
+| -------------------------------------------------------- | ---------- | ------ | ---------- |
+| `/` (healthy)                                            | 0          | 37     | 1          |
+| `/investigations`, `/securities`, `/replay`, `/nonsense` | 0          | 25     | 0          |
+| `/` with a region failed                                 | 0          | **41** | 1          |
+| `/` with the header failed                               | 0          | 37     | 1          |
+| workshop: `Region` AllPermutations                       | 0          | 16     | 0          |
+| workshop: `ErrorFallback` AllPermutations                | 0          | 7      | 0          |
+| workshop: `ErrorBoundary` AllPermutations                | 0          | 7      | 0          |
+
+The healthy figures are identical to Task 1.5.4's, so the boundaries are not a
+regression. The one `incomplete` is the known one and has not moved —
+`color-contrast` over two `aria-hidden` direction arrows, "Element content
+contains only non-text characters". The failed-region page adds four passes and
+no violations. With the header failed, `<header>` and `<nav>` are gone from the
+document and the four regions are still there.
+
+### Visual rules
+
+One red, and the fallback uses it as a rule down the left edge rather than as a
+fill — the same shape `MarketOverview`'s render check has carried since Task
+1.4.4, which was a sketch of this component. The state is carried by the words:
+there is no icon-only version, deliberately, because axe returns
+`color-contrast` as _inconclusive_ on non-text content and an icon-only error
+state is precisely the shape it declines to judge. The fallback brings no
+height, no minimum height and no centring, so a region keeps its grid-given box
+and scrolls its own overflow.
+
+### The React Compiler rules still have not fired
+
+Sixteen new files' worth of code and they said nothing, which is not evidence
+that the tree satisfies them. A class component is invisible to rules written
+about function components, `ErrorFallback` is stateless, and the one piece of
+state in this task — the boundary's `caught`/`resetCount` — lives in a class.
+The first real test is still Story 1.12's.
+
+### For Task 1.7.7
+
+- Criterion 7 is met and the demonstration is above. The word "region" means
+  three different boxes in three places and the brief asked for that to be
+  said, which the placement table does.
+- The baseline correction (265 → 267 modules) needs to reach `CLAUDE.md`, and
+  the ADR should record it as the second half of a figure Task 1.7.3 already
+  half-corrected.
+- Two predictions in Story 1.7's own notes turned out to be wrong — the
+  `StrictMode` double-report and the landmark conflict. Both were written as
+  warnings and both were disproved by measurement; the ADR should say so
+  rather than quietly dropping them.
+- The `window`-listener decision is the one with a reversal trigger attached
+  (Story 1.12's destination), and it is the frontend's half of Task 1.7.5's
+  contained/uncontained split.

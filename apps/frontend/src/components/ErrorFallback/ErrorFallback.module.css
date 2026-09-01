@@ -1,0 +1,95 @@
+/*
+ * The fallback's styles.
+ *
+ * Every colour, gap, border, radius and font here reads a token. The shape is
+ * the one `MarketOverview.module.css` has been carrying as the render check's
+ * `.error` block since Task 1.4.4 — a sunken block with the one red down its
+ * left edge — and that is deliberate rather than coincidental: that block
+ * existed so "a stale feed is not an error" was visible rather than asserted,
+ * and this is the component it was a sketch of.
+ *
+ * There is no height, no minimum height and no centring. A region is sized by
+ * the grid and scrolls its own overflow, so a fallback that brought its own
+ * frame would take away the property that keeps §9's proportions stable while
+ * one box is broken.
+ */
+
+.fallback {
+  padding: var(--space-12) var(--space-16);
+  background: var(--surface-sunken);
+  /*
+   * The one red, as a rule rather than as a fill or a text colour on
+   * everything. `--status-error` and `--price-negative` are the same value, so
+   * the hue cannot be what tells a failure from a fall — the titled block is.
+   * Under greyscale this edge becomes a dark rule and the words carry the
+   * state on their own, which is the requirement.
+   */
+  border-left: var(--focus-width) solid var(--status-error);
+  border-radius: var(--radius);
+}
+
+.title {
+  margin: 0 0 var(--space-4);
+  color: var(--status-error);
+  font-weight: var(--font-weight-strong);
+}
+
+.detail {
+  margin: 0 0 var(--space-12);
+  color: var(--ink-secondary);
+}
+
+/*
+ * A real `<button>`, styled down to this language rather than left at the user
+ * agent's. It is the only interactive control this component has, and it is a
+ * button rather than a link because it changes state on this page instead of
+ * going anywhere — which is also why the fallback cannot be a static block.
+ *
+ * No `:focus-visible` rule. base.css carries one global outline and it applies
+ * here like anywhere else; a component-level focus style would be a second
+ * answer to a question the token layer already answered.
+ */
+.retry {
+  padding: var(--space-4) var(--space-12);
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--rule-hairline);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-primary);
+  cursor: pointer;
+}
+
+.retry:hover {
+  background: var(--surface-sunken);
+}
+
+/*
+ * The chrome's density. One row rather than three blocks, because the header
+ * strip is a line tall and a stacked block inside it would push the whole page
+ * down — which is the neighbours-moving failure this component exists to avoid,
+ * arriving from the other direction.
+ *
+ * Same words, same rule, same button. It is a density change and not a second
+ * error language.
+ */
+.compact {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+  padding: var(--space-4) var(--space-12);
+}
+
+.compact .title,
+.compact .detail {
+  margin: 0;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+.compact .retry {
+  margin-left: auto;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+}
