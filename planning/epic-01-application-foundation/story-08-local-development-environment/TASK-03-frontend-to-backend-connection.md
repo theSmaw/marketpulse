@@ -10,7 +10,7 @@ Settle how a browser on `http://localhost:5173` reaches a server on `http://127.
 
 ## Work
 
-- **Establish the failure first, because it has never been seen here.** `apps/frontend` makes no request at all — Story 1.3 deliberately did not touch this, and the backend has no CORS. Write a temporary `fetch("http://localhost:3000/health")` in a route module, load the page, and paste the actual browser console error and the actual network entry. A decision taken against a remembered CORS message is a decision taken against the wrong message
+- **The failure is already established — Task 1.8.1 took it, and it is worse than the usual telling.** `fetch("http://localhost:3000/health")` from the page at `http://localhost:5173/` gives `TypeError: Failed to fetch`, which names neither CORS nor the origin, while **the backend logs the request and answers it 200**. So the request is not blocked; the browser discards the response after the server has already done the work. Start from that capture rather than re-deriving it, and note the consequence for whoever debugs this next: the terminal — the first place anyone looks — shows a perfectly healthy request beside a page that says the call failed
 - **The two answers are alternatives and one of them makes Story 1.12's work vacuous.** Vite's `server.proxy` gives the browser a same-origin path (`/api/*` on 5173, forwarded to 3000) and no CORS is involved at all. Backend CORS keeps the two origins distinct and lets the server say who may call it. **Story 1.12 configures CORS against `http://localhost:5173`** — so choosing a proxy here leaves that configuration testing nothing in the one environment anybody runs. That is the deciding consideration and it belongs in the write-up whichever way it goes
 - **Whatever is chosen, it must not be a third place the base URL lives.** The frontend's environment boundary is `envPrefix` plus `envDir` (ADR 0006): a `VITE_`-prefixed value is substituted into the bundle at build time, a non-prefixed read compiles to `undefined`. `apps/frontend/.env.example` currently documents **nothing**, deliberately, and this may be the task that gives it its first entry. If it does, `pnpm env:check`'s fourth check applies — every name there must carry the `VITE_` prefix, and a non-prefixed one is a variable that silently never arrives
 - **Frontend configuration is build-time, and that constrains the answer.** One artefact cannot be promoted across environments, which is the same shape as `base` and the reason no runtime configuration mechanism was invented in Story 1.6. If the API's address becomes a build-time literal here, Story 1.11 inherits a rebuild-per-environment consequence and should be told so in writing rather than discovering it
@@ -20,7 +20,7 @@ Settle how a browser on `http://localhost:5173` reaches a server on `http://127.
 
 ## Done when
 
-- The real cross-origin failure is captured as literal browser output before anything is configured
+- The chosen mechanism is decided against Task 1.8.1's captured failure rather than a remembered one, and the 200-in-the-terminal detail is carried into the write-up
 - Proxy versus CORS is closed with the Story 1.12 consequence stated explicitly, and the rejected option recorded with why
 - A throwaway request from the frontend reaches `GET /health` in the running pair with no console error, demonstrated in a browser rather than with `curl`
 - The IPv4/IPv6 asymmetry is re-measured and written down wherever an address is now hardcoded

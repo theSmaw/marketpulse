@@ -81,6 +81,10 @@ Tackled in order. 1.8.1 is a measurement task that changes nothing, and everythi
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.7 followed.
 
+**Task 1.8.1's measurements were read back against this split and it survives with amendments and no re-order.** No task was added, removed or moved: all ten friction items landed inside the four tasks that were already meant to hold them, and the one item with no owner was recorded as out of scope rather than becoming a ninth task. Four tasks changed. 1.8.2 gained the lever the numbers actually point at — the request record's _rendering_ rather than its severity, since 12 of 12 lines are `pretty` expanding two records — plus the ragged prefixes, the three clocks and the Ctrl-C misattribution. 1.8.3 no longer has to establish the cross-origin failure, because 1.8.1 established it and found it stranger than expected: the request is answered **200** and the browser discards the response. 1.8.4 gained a third reason the startup line is not a readiness signal (it arrives second) and a measured false positive (`curl /` against the frontend returns 200 from a server whose module graph does not resolve). 1.8.5 lost one sentence it was going to write and gained three, and both of its stale quotations were corrected.
+
+**The one re-order worth considering was 1.8.2 after 1.8.3, and it was rejected on the measurement.** The case for it is that a page load costs zero terminal lines only because the frontend makes no request, so 1.8.2 would be deciding legibility against a terminal that is about to change. The case against is that 1.8.3's probe is temporary and removed before that task closes — the shipping request is Story 1.12's — so the terminal after 1.8.3 is the same silent one, and the re-order buys nothing an instruction cannot. 1.8.2 is instead told to decide against the terminal Story 1.12 will produce, where 12 lines per page load is the floor.
+
 ## Notes
 
 No database is required yet — PostgreSQL arrives in Epic 2, at which point this story's setup extends to include it.
