@@ -74,6 +74,15 @@ The configuration module was written for this story before this story existed, a
 - **There is no `.env.test`, deliberately, and the mechanism does not assume one.** Task 1.6.3 measured the precedence rule both ways round: a variable already set in the real environment beats the same key in the file. So a runner that sets variables in its own process needs no file and cannot be surprised by a developer's `.env` — which is the whole reason the rule was measured rather than read from the documentation. If this story does want a file, it is a new decision and it needs a loader call, because `loadEnvFile()` reads `apps/backend/.env` and nothing else
 - **`loadEnvFile()` is called by `index.ts`, not by `config.ts`.** It mutates the process, which is precisely what `loadConfig()` was written not to do, so importing `config.ts` in a test loads no file and touches nothing
 
+### What Story 1.7 hands this story
+
+Story 1.7 is complete and `docs/adr/0007-*` records it. Four things land here, and the first one was built for this story specifically.
+
+- **`buildServer({ logLevel: "silent", logFormat: "json" })` is why `silent` is in the vocabulary.** The factory takes its logger settings and defaults neither, deliberately, so a test can have a server that does not narrate every injected request. Use it — an `app.inject()` suite at `info` writes two records per request and buries whatever the test was actually about
+- **Both error handlers are registered inside `buildServer()`**, not in `index.ts`, so an injected instance carries the whole error contract for free. That is the reason to assert against `{ code, message, requestId }` rather than against Fastify's defaults, and the reason a test does not need a listening socket to exercise a 404, a 400, a 413 or a thrown 500
+- **The process-level handlers are deliberately _not_ in `buildServer()`.** They install `process.on("uncaughtException")` and mutate `app.log.level`, which is exactly the surprise a factory should not spring on a suite building two instances. If a test ever needs to exercise them, it needs a child process, not a second `buildServer()` call
+- **There is a measured shape to copy for a performance assertion, and a warning with it.** Task 1.7.7 compared the shipping server against Fastify's defaults over 20 000 injections after a 2 000 warm-up and got 13.8 µs against 14.1 µs — the two are indistinguishable. Run-to-run variance on this workspace is larger than most of the differences worth measuring, so a latency assertion needs a warm-up, a large n, and a threshold set well outside noise, or it will be the flakiest test in the suite
+
 ## Acceptance criteria
 
 - Unit test runner configured for **all three** packages — `apps/backend`, `apps/frontend` and `packages/shared` — running from the repository root. The original wording said "both packages" and predates `packages/shared`
