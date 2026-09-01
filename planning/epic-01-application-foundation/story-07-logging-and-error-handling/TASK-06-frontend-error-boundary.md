@@ -1,0 +1,40 @@
+# Task 1.7.6 — The frontend error boundary and its region fallback
+
+**Status:** Not started
+**Story:** [1.7 Logging & Error Handling](STORY.md)
+**Depends on:** Story 1.5 (complete). Independent of Tasks 1.7.1–1.7.5
+
+## Objective
+
+Contain a render failure to the region it happened in, offer a way out of it, and leave the rest of the screen working — the frontend half of PRODUCT_SPEC.md §36's "degrade locally".
+
+## Work
+
+- **The containment boundary has a literal referent now, and the wrong placement was measured rather than argued.** Story 1.5 built four `region` landmarks on the landing route — market topology, unusual activity, market breadth, current investigations — each with `aria-labelledby` pointing at its own heading. Task 1.5.5 put a `<Suspense fallback={null}>` at the router and served the build from a host delaying each chunk: `AppHeader` rendered perfectly and the **entire** `<main>` went blank underneath it. A boundary at `<Routes>` blanks the page body; a boundary at a region blanks a box. That is the degenerate case criterion 7 exists to rule out
+- **Decide the placement for all five routes, not just the one with regions.** The landing route gets a boundary per region. The other four are deliberately a single area, so on those routes "the affected region" means the outlet — say which, rather than letting the two cases quietly mean different things. And decide `AppHeader` separately: it is outside `<Routes>` and eager, which is what makes a Story 1.12 status indicator survive the thing it reports on, and it also means a failure _in_ the chrome has nothing above it. Either it gets its own boundary or a broken header is allowed to take the page — both are defensible, neither is a default
+- **This is the codebase's first class component, and React 19 has not changed that.** There is still no hook equivalent for `componentDidCatch`/`getDerivedStateFromError`. Decide hand-rolled versus a small library (`react-error-boundary` is the standing candidate) and **measure it against the baseline before adopting**: 265 modules, 342.08 kB of JavaScript, 9.82 kB of CSS, three files. A library that costs a few kB for a reset API and a well-tested `key`-based remount may well win; the point is that the number is attached to the decision the way Task 1.5.1's was
+- **React 19's root options are a reporting hook, not a containment one.** `createRoot` takes `onUncaughtError`, `onCaughtError` and `onRecoverableError`, and `main.tsx` passes none today. They complement a boundary rather than replace it, and they are the natural place for whatever this application does with an error it has already contained. Decide whether to wire them, knowing there is nowhere to send a log — see below
+- **`StrictMode` double-invokes render in development, so anything that counts or reports an error will see it twice locally and once in production.** That was adopted deliberately in Task 1.3.3 and it will look like a duplicate-logging defect the first time it is seen. Note it wherever the reporting lands
+- **The frontend has nowhere to send a log, and this task should not invent one.** The backend writes JSON to stdout; a browser boundary has no destination, and the criteria do not ask for one. The correlation-id chain only closes once the frontend makes a request, which is Story 1.12. `console.error` with the component stack is an honest stopping point
+- **Whatever renders is a component with a component's obligations.** `src/components/<Name>/` holding `<Name>.tsx`, `<Name>.module.css` and `<Name>.stories.tsx`; one story per discrete state plus an `AllPermutations` grid; `pnpm stories` fails the build without the file. A fallback genuinely has states worth a story each, which makes this one of the few places the permutation rule does real work rather than bookkeeping
+- **Expect the landmark conflict, and confine the fix to the grid story.** If the fallback renders inside or as a `region`, the permutation grid puts several landmarks on one page and axe reports `landmark-unique` — exactly what `AppHeader` hit in Task 1.5.3, where the fix was disabling the rule via `parameters.a11y.config.rules` **on that one story and nowhere else**. A permanent badge trains the next author to ignore the badge
+- **The visual rules are already decided and two of them are easy to get wrong.** There is **one red**: `--status-error` and `--price-negative` resolve to the same value, and what separates "this failed" from "this fell" is presentation — a titled block with a message versus a bare signed figure. So reaching for a distinct error red breaks the one-red rule rather than helping. And colour is never the sole encoding: under greyscale this palette's red and green differ by 1.05:1, so the state must be carried by a **word** — a heading or a label — exactly as an anomaly band carries its name inside its fill. The a11y panel will not catch a failure here: axe returns `color-contrast` as _inconclusive_ on non-text content, which is precisely an icon-only error state
+- **The fallback fits the box it is given.** The region grid takes a `height`, not a `min-height`, and each region scrolls its own overflow — which is what stops a fallback pushing its neighbours around or changing §9's 3:1 and 2:1 proportions. A fallback that brings its own layout loses the property the criterion is about
+- **A degraded feed is not an error and already has a component.** `FeedIndicator` (`live`/`stale`/`disconnected`) is built, takes its `FeedStatus` from `packages/shared`, and is achromatic apart from the amber on `stale`, because §36 makes a dropped feed a product state. The "displaying data through 10:42:17" case is **not** this boundary's job; do not style it as one
+- **Recovery is a reset, not a page reload.** Re-render the region rather than reloading the document — a reload discards the rest of a working screen, which is the failure mode being avoided. That reset is likely the first genuinely stateful thing in this application, which makes it the first real test of the React Compiler's 15 error-level rules; they have fired exactly once, in Task 1.5.1's spike, on `set-state-in-effect`, and never on shipped code. `--max-warnings 0` means whatever they say is a failing build
+- **`Region` may move, and that is this story's call.** It lives in `src/routes/` and owes no stories because a label and a slot have one state. The rule is a directory rule: a `.tsx` under `src/components/` owes stories, and the test is whether it has states worth reviewing side by side. If this task gives `Region` a failed state, it moves — and its permutation grid meets the landmark conflict above. If the boundary wraps a region's children instead and leaves `Region` untouched, it stays. Decide, do not drift
+
+## Done when
+
+- The landing route's four regions each fail independently, demonstrated: one region shows its fallback while the other three and the chrome render normally
+- The placement decision covers all five routes and the header, with reasoning
+- The class-component decision records the bundle delta against 265 modules / 342.08 kB / 9.82 kB / 3 files, whichever way it went
+- The fallback is a component with a stylesheet and stories, one per state plus `AllPermutations`, and `pnpm stories` passes
+- Recovery is exercised — a failing region is reset back to a working one without a page reload
+- axe is run against the built page on a static host, and any new finding is either fixed or scoped to a single story with a reason
+- `Region`'s directory is decided either way and the reason recorded
+- `pnpm verify` exits 0
+
+## Notes
+
+Deliberately independent of the backend tasks: it shares no file with them and could run first. Task 1.7.7 is the only thing downstream of both halves.

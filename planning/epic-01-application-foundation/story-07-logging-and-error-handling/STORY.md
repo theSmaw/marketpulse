@@ -79,6 +79,32 @@ Task 1.6.3 closed the environment question by deciding there is **no environment
 - Stack traces and internal detail are not exposed to clients in production
 - The frontend has an error boundary that contains a failure to the affected region and offers recovery, rather than replacing the whole screen
 
+## Open decisions
+
+These are the choices this story has to take deliberately. Each has a task that owns it, and each has a recorded decision elsewhere in the repository bearing on it — so none of them starts from nothing.
+
+- **Whether prettified development logs introduce the environment concept** (Task 1.7.1). Task 1.6.3 closed Story 1.6 by deciding there is **no** variable naming the environment: the three environments differ in where _values_ come from, and one precedence rule covers all three. A log format is the first thing that plausibly has to _behave_ differently. The options are JSON always with `scripts/dev.sh` piping through `pino-pretty`, a `LOG_FORMAT` value variable, or `NODE_ENV` — which is a reversal of a recorded decision and has to be written as one. `LOG_LEVEL` alone may cover it, which would keep the concept unbuilt for another story
+- **Whether responses carry a JSON schema** (Task 1.7.3). Task 1.2.3 deferred it at the registration site in `apps/backend/src/server.ts` because it was entangled with Stories 1.6 and 1.7; Story 1.6 closed without taking it. ADR 0006 §1 says explicitly that 1.6's rejection of Zod and Valibot does **not** transfer — that argument was about a schema over `process.env` being a schema over strings, and a JSON body is typed data. Fastify's built-in support adds no dependency, and its serialiser strips undeclared properties, which is a mechanism for criterion 6 and a silent-failure hazard in the same feature
+- **How "not in production" is enforced with no environment variable** (Task 1.7.4). Never exposing a stack at all is safe by construction and costs nothing once the client has a correlation id; a value variable is one more way to be misconfigured in the leaking direction; branching on the environment reverses Task 1.6.3
+- **Whether an inbound correlation id is honoured** (Task 1.7.2). Adopting `x-request-id` makes Story 1.12 and Epic 10 easier; it also puts attacker-controlled text into a log line, so it is validated for shape and length or it is ignored
+- **Hand-rolled error boundary or a library, and where the boundaries go** (Task 1.7.6). This would be the codebase's first class component. React 19's `onUncaughtError`/`onCaughtError` root options are a **reporting** hook rather than a containment one and complement a boundary instead of replacing it
+
+## Tasks
+
+Tackled in order, with one exception: **1.7.6 is independent of 1.7.1–1.7.5** and could run first. It shares no file with them — the backend half touches `apps/backend` and `packages/shared`, the frontend half touches `apps/frontend` — and its dependency was Story 1.5, which is complete. 1.7.7 is downstream of both halves.
+
+| #     | Task                                                                                               | Status      |
+| ----- | -------------------------------------------------------------------------------------------------- | ----------- |
+| 1.7.1 | [Log format, level, and whether the environment exists](TASK-01-log-format-level-and-transport.md) | Not started |
+| 1.7.2 | [Request logging and the correlation id](TASK-02-request-logging-and-the-correlation-id.md)        | Not started |
+| 1.7.3 | [The error contract, and whether responses carry a JSON schema](TASK-03-the-error-contract.md)     | Not started |
+| 1.7.4 | [The backend error handler](TASK-04-the-backend-error-handler.md)                                  | Not started |
+| 1.7.5 | [Crash handlers, and their interaction with shutdown](TASK-05-crash-handlers-and-shutdown.md)      | Not started |
+| 1.7.6 | [The frontend error boundary and its region fallback](TASK-06-frontend-error-boundary.md)          | Not started |
+| 1.7.7 | [Verify, document, and record the decisions as ADR 0007](TASK-07-verify-document-and-adr.md)       | Not started |
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.6 followed.
+
 ## Notes
 
 Later epics extend this pattern rather than replacing it — failed analytical tools (Epic 7), SEC unavailability (Epic 9) and agent failures (Epic 10) are all _product states_, not exceptions.
