@@ -4,7 +4,8 @@
  * This is a **wire shape, not an `Error`**. Nothing throws an `ApiError` and
  * nothing catches one; it is what the server serialises when a request fails,
  * and what a client parses. Task 1.7.4 owns the mapping from a thrown `Error`
- * to this, and until it lands nothing here is constructed. That is deliberate:
+ * to this, and it is `apps/backend/src/errors.ts` — the only file that
+ * constructs one. The contract shipped unused for exactly one task, on purpose:
  * a contract defined and unused is honest, a contract half-wired into a handler
  * is not.
  *
@@ -65,11 +66,26 @@
  * The failures this API can report, as a closed set a client can branch on.
  *
  * A union rather than a free string, for the same reason `HealthStatus` is: a
- * client matching on prose breaks when the prose is improved. It is a union of
- * exactly **two** today, and both are measured rather than anticipated — they
- * are the two failures the server already produces, a 404 for an unrouted
- * address and a 500 for a thrown error. Task 1.7.4 is what makes those
- * responses take this shape.
+ * client matching on prose breaks when the prose is improved. Every member is
+ * measured rather than anticipated — it names a failure the server can actually
+ * be made to produce, which is the test this union is kept to.
+ *
+ * `NOT_FOUND` and `INTERNAL_ERROR` shipped with Task 1.7.3: an unrouted address
+ * and a thrown error, the two failures the server produced before anything
+ * mapped them. `BAD_REQUEST` was added by Task 1.7.4 under the same test, and
+ * its measurement is worth keeping because it is counter-intuitive — with a
+ * single `GET /health` route and nothing accepting a body, `POST /health` with
+ * `content-type: application/json` and a malformed body is a **400**, and a 2 MB
+ * body is a **413**, because Fastify's content-type parser runs before its
+ * not-found handler. Both are the client's mistake and neither is a 404.
+ *
+ * One member covers both, decided on what a client branches on rather than on
+ * status codes: 400 and 413 both mean "your request was not acceptable, fix it
+ * and retry", and the status line still carries the difference. A caller that
+ * genuinely has to behave differently on a 413 is the reversal trigger.
+ *
+ * Adding a member is non-breaking by construction, which is the property that
+ * lets this union start small. Removing one is not.
  *
  * Deliberately **not** enumerated here: Epic 7's failed analytical tools, Epic
  * 9's SEC unavailability and Epic 10's agent failures. Those are product states
@@ -82,7 +98,11 @@
  * discriminators a client switches on — the same distinction that makes the
  * event vocabulary `STEP_STARTED` rather than `step started`.
  */
-export const API_ERROR_CODES = ["NOT_FOUND", "INTERNAL_ERROR"] as const;
+export const API_ERROR_CODES = [
+  "NOT_FOUND",
+  "BAD_REQUEST",
+  "INTERNAL_ERROR",
+] as const;
 
 /** One of {@link API_ERROR_CODES}. */
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

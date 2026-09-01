@@ -1,6 +1,6 @@
 # Task 1.7.4 — The backend error handler
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.7 Logging & Error Handling](STORY.md)
 **Depends on:** Task 1.7.3
 
@@ -43,3 +43,109 @@ Make every error response the application produces take the contract's shape, lo
 ## Notes
 
 Later epics extend this rather than replacing it — PRODUCT_SPEC.md §36 makes a failed analytical tool, an unavailable SEC endpoint and a dropped feed **product states**, not exceptions. Anything this handler does that would collapse such a state into a 500 is a mistake to catch here, while there is one route to reason about.
+
+## Outcome
+
+Both of Fastify's failure paths are replaced, every failure the server produces
+answers in `ApiError`'s shape, and criterion 6 is closed by two mechanisms
+rather than by discipline.
+
+### What landed
+
+| File                                | Change                                                                                                     |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `apps/backend/src/errors.ts`        | New. The only file that constructs an `ApiError`: both handlers, the mapping, the levels, `apiErrorSchema` |
+| `apps/backend/src/json-schema.ts`   | New. `JsonSchemaProperty`, moved out of `health.ts` because a second schema needs it                       |
+| `apps/backend/src/server.ts`        | `registerErrorHandling(app)` before the routes                                                             |
+| `apps/backend/src/routes/health.ts` | Imports the shared property type; declares `500: apiErrorSchema`                                           |
+| `packages/shared/src/api-error.ts`  | `BAD_REQUEST` added to `API_ERROR_CODES`, with the measurement that justifies it                           |
+
+### Decisions
+
+**`BAD_REQUEST`, and no `UNSUPPORTED_MEDIA_TYPE`.** The union's test is a member
+per failure that can be produced. Measured against the shipping tree, whose only
+route is `GET /health` and which accepts no body anywhere:
+
+| Request                                                        | Status | Reachable? |
+| -------------------------------------------------------------- | ------ | ---------- |
+| `POST /health`, `content-type: application/json`, body `{oops` | 400    | yes        |
+| `POST /health`, `content-type: application/json`, 2 MB body    | 413    | yes        |
+| `POST /health`, `content-type: application/xml`                | 404    | —          |
+| `GET /health` with a 2 MB body                                 | 200    | —          |
+
+Both 4xx are reachable because Fastify's content-type parser runs **before** its
+not-found handler, which is the opposite of the intuition that a route which
+does not exist cannot produce a body error. A 415 is not reachable, so no member
+was added for it. One member covers 400 and 413 together: a client branches the
+same way on both, and the status line still carries the difference. The reversal
+trigger is a caller that has to behave differently on a 413.
+
+**A 5xx never carries the thrown message.** Not the stack either, but the stack
+was never the whole risk — Fastify's default already withheld it and returned
+the message verbatim. The generic message plus the correlation id costs a
+developer nothing, because the real message is on the log record carrying that
+id.
+
+**No `ERROR_DETAIL` variable.** Task 1.7.1's `redact` reasoning applies
+unchanged: a switch whose misconfiguration leaks, silently, outward. Task
+1.6.3's "nothing branches on the environment" decision therefore held for the
+second time in this story.
+
+**The 404 message does not reflect the URL.** The client already knows what it
+asked for; the log record has it beside the same id.
+
+**Log levels keep Fastify's own split** — 5xx at `error`, 4xx at `info` — rather
+than inventing one. `info` and not `warn` for 4xx because at `LOG_LEVEL=warn` a
+healthy server is silent and a server answering 404s is healthy.
+
+### Measurements
+
+| Question                                  | Before                                                                                                           | After                                                                                                                     |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 404 body                                  | `{"message":"Route GET:/nope not found","error":"Not Found","statusCode":404}`                                   | `{"code":"NOT_FOUND","message":"Route not found.","requestId":"…"}`                                                       |
+| 500 body                                  | `{"statusCode":500,"error":"Internal Server Error","message":"connection to postgres at 10.0.0.4:5432 refused"}` | `{"code":"INTERNAL_ERROR","message":"An unexpected error occurred.","requestId":"…"}`                                     |
+| 400 body                                  | `{"statusCode":400,"code":"FST_ERR_CTP_INVALID_JSON_BODY",…}`                                                    | `{"code":"BAD_REQUEST","message":"Body is not valid JSON but content-type is set to 'application/json'","requestId":"…"}` |
+| Log records per failure                   | 3                                                                                                                | 3 — no doubling                                                                                                           |
+| Levels                                    | 5xx = 50, 4xx = 30                                                                                               | unchanged                                                                                                                 |
+| `x-request-id` header vs body `requestId` | header only                                                                                                      | identical on 200 / 400 / 404 / 413 / 500                                                                                  |
+| Inbound `x-request-id: my-own-id-42`      | honoured                                                                                                         | honoured, and on the body                                                                                                 |
+| 404 at `LOG_LEVEL=warn`                   | silent                                                                                                           | silent                                                                                                                    |
+
+**The leak test, end to end.** A route throwing an `Error` with
+`cause: { dsn: "postgres://user:hunter2@10.0.0.4/db" }` and a `query` property:
+both, plus the full ten-frame stack and the real message, appear on the level-50
+log record under the same `reqId`; none of them appears on the wire.
+
+**The serialiser's contribution, isolated.** A handler sending a body decorated
+with `stack` and `cause`:
+
+- on a route declaring `500: apiErrorSchema` → the four contracted fields only
+- on a route declaring no schema → both extras verbatim on the wire
+
+So the schema is a real second mechanism, and it is **per-route and opt-in**.
+
+### The gap this found
+
+**`setNotFoundHandler` is not a route, so it can never carry a response schema.**
+The strongest form of criterion 6 is therefore structurally unavailable on the
+404 path, and `apiError()` — which builds an object with no slot for a fifth
+field — is the mechanism that has to hold everywhere. Nothing in `pnpm verify`
+checks that a route which can fail declared the schema; Task 1.7.7 inherits that
+as a thing to confirm by hand.
+
+### For Task 1.7.5
+
+- `errors.ts` catches everything **inside** the request lifecycle, so a thrown
+  route never reaches a process-level handler and its record keeps its `reqId`.
+  What 1.7.5 installs is for what escapes, and those records have no id — the
+  asymmetry the brief already predicts
+- The 4xx-at-`info` decision is the precedent for the `LOG_LEVEL=silent`
+  question: this task chose to respect the level for ordinary traffic, which is
+  not the same as respecting it for a crash
+
+### For Task 1.7.7
+
+- The two accepted schema gaps of 2026-09-01 still stand and now apply to two
+  schemas rather than one; the coercion gap has not cost anything yet
+- `JsonSchemaProperty` living in its own file is what makes "confirm the guard
+  is on every schema in the tree" a grep for `satisfies Record<keyof`
