@@ -12,17 +12,21 @@
 import process from "node:process";
 
 import { ConfigError, loadConfig, loadEnvFile } from "./config.js";
+import type { Config } from "./config.js";
 import { buildServer } from "./server.js";
 
-let port: number;
-let host: string;
+// Declared before the try rather than assigned inside it, because everything
+// below the catch needs it and the catch never returns. TypeScript follows
+// that: `process.exit()` is typed `never`, so the assignment is definite and
+// no `!` is needed.
+let config: Config;
 
 try {
   // The .env file, if there is one, before anything reads the environment.
   // Both calls are here rather than inside config.ts's own module body for the
   // same reason: this is the file that is allowed to touch the process.
   loadEnvFile();
-  ({ port, host } = loadConfig());
+  config = loadConfig();
 } catch (error) {
   // Fail before the logger exists, so this goes to stderr as a plain line
   // rather than as a Fastify log record. The message names each offending
@@ -38,7 +42,10 @@ try {
   process.exit(1);
 }
 
-const app = buildServer();
+const app = buildServer({
+  logLevel: config.logLevel,
+  logFormat: config.logFormat,
+});
 
 // Signal handling lives here rather than in buildServer(), because it is a
 // property of this process, not of the application. A factory that installs
@@ -119,7 +126,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
 }
 
 try {
-  await app.listen({ port, host });
+  await app.listen({ port: config.port, host: config.host });
 } catch (error) {
   // Deliberately *not* routed through the shutdown path above. A failed listen
   // has no socket bound and no requests in flight, so close() would drain

@@ -15,7 +15,24 @@
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 
+import type { LogFormat, LogLevel } from "./config.js";
 import { healthRoutes } from "./routes/health.js";
+
+// What the application needs from the process, which is currently only how to
+// log. Not the whole `Config` — this factory has no business knowing there is
+// a port, and a test that wants a quiet server should not have to invent one.
+//
+// The two types come from config.ts, which is the wrong direction on paper: the
+// application importing from the module that reads the environment. It is a
+// type-only import, so it erases entirely and there is no runtime edge. And the
+// alternative is worse — declaring the vocabularies here would put the allowed
+// values in one file and the reader that validates against them in another,
+// which is the drift `env:check` exists to catch elsewhere. These are
+// configuration vocabularies; they live with the configuration.
+export interface ServerOptions {
+  readonly logLevel: LogLevel;
+  readonly logFormat: LogFormat;
+}
 
 // Stays synchronous, decided in Task 1.2.3 rather than left to drift.
 // `app.register()` is itself synchronous — it queues the plugin and defers
@@ -24,13 +41,38 @@ import { healthRoutes } from "./routes/health.js";
 // something here needs `await app.register(...)` or an explicit
 // `await app.ready()`, this becomes `Promise<FastifyInstance>` and every caller
 // changes with it, Story 1.9's tests included. Nothing needs that yet.
-export function buildServer(): FastifyInstance {
+//
+// It now takes the logger settings. There is no default: a caller has to say
+// what it wants, which is one line for index.ts and is the point for Story
+// 1.9 — `buildServer({ logLevel: "silent", logFormat: "json" })` is a server
+// that does not narrate every injected request. A default here would be a
+// second copy of config.ts's defaults, and two copies of a default is how they
+// stop agreeing.
+export function buildServer(options: ServerOptions): FastifyInstance {
   const app = Fastify({
-    // Fastify's built-in logger at its defaults, and no further. Structured
-    // JSON, levels, correlation ids and request logging are Story 1.7's
-    // acceptance criteria — pino-pretty, serializers and a LOG_LEVEL variable
-    // belong there, not here.
-    logger: true,
+    // Fastify's built-in pino. `logger: true` until Task 1.7.1, which added
+    // the level and the rendering and nothing else — correlation ids,
+    // serialisers and the error shape are Tasks 1.7.2 to 1.7.4.
+    //
+    // `transport` is set only for `pretty`, and its absence is what makes json
+    // the cheap path: a transport is a worker thread, and the JSON server
+    // should not start one to do nothing. Measured against the 74 ms median
+    // start-to-listening, the transport costs about 5 ms and the SIGTERM half
+    // of the dev loop about 1 ms; 5000 records followed immediately by
+    // `process.exit()` lost nothing in either mode, to a file or to a pipe.
+    //
+    // `pino-pretty` is resolved by name, at runtime, from a string. That is why
+    // it is a `dependency` and not a `devDependency`, against the first read of
+    // the house rule: nothing here `import`s it, but `LOG_FORMAT=pretty` in an
+    // environment that pruned it is `ERR_MODULE_NOT_FOUND` at startup, in the
+    // one place that is hardest to debug. 448 kB in the image is the price of
+    // a documented value not being a trap.
+    logger: {
+      level: options.logLevel,
+      ...(options.logFormat === "pretty"
+        ? { transport: { target: "pino-pretty" } }
+        : {}),
+    },
 
     // No `forceCloseConnections` here, and that is a measured decision rather
     // than an omission (Task 1.2.4). Fastify 5 defaults it to `'idle'`, but the

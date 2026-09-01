@@ -20,6 +20,23 @@
 # and the error is above it in the log. That is deliberate: a type error should
 # not silently stop the server you are looking at.
 
+# Pretty logs, because this is the loop with a human reading it.
+#
+# `LOG_FORMAT` is an ordinary configuration value (see src/config.ts) and not a
+# statement about which environment this is — the application branches on
+# nothing. What makes development different is that the development entrypoint
+# sets it, here, in the one file that only ever runs during development.
+#
+# Exported rather than piped. The obvious alternative is
+# `node --watch dist/index.js | pino-pretty`, and it costs two things this does
+# not: a pipeline's exit status is the last command's, so the server's exit code
+# stops propagating (Task 1.2.5 verified that it does), and `node --watch` stops
+# being this shell's foreground process, which is what the trap below relies on.
+#
+# A real environment variable beats this, so `LOG_FORMAT=json pnpm dev` gives
+# JSON in the dev loop when that is what you want to look at.
+export LOG_FORMAT="${LOG_FORMAT:-pretty}"
+
 # `-u` only. Not `-e`: the one command below that can fail is the initial build,
 # and it is deliberately non-fatal — see the next comment.
 set -u
