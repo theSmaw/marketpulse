@@ -65,6 +65,22 @@ Story 1.7 is complete and `docs/adr/0007-*` records it. It is not a dependency o
 - **There are four routes now, and the dev server tells a flattering lie about three of them.** `vite` and `vite preview` answer any unmatched path with `index.html` and a 200, so `/investigations`, `/securities`, `/replay` and any made-up address all deep-link locally — and all **404** on a plain static host serving the identical build. Task 1.5.5 measured both. This story documents the local loop, so it is entitled to say deep-linking works _here_; what it must not do is write that down as a property of the application. Story 1.11 owns the host, and two of Story 1.5's acceptance criteria are annotated rather than ticked for exactly this reason
 - **The chrome gives the pair a visible connection point that does not exist yet.** `AppHeader` renders a `FeedIndicator` hard-coded to `disconnected` with the detail "No market data until Epic 3". Anyone following this story's README and looking at the running application sees a disconnected indicator on every route — which is honest and will read as a broken setup unless the README says what it means. One sentence, and it stops a first-run experience looking like a failed one
 
+## Tasks
+
+Tackled in order. 1.8.1 is a measurement task that changes nothing, and everything after it works from the friction list it produces. 1.8.3 and 1.8.4 are the two that make a decision this story has been carrying since Story 1.3; 1.8.5 and 1.8.6 are the headline criterion split into writing the document and then following it from a clean clone, which are deliberately different tasks done in that order.
+
+| #     | Task                                                                                           | Status      |
+| ----- | ---------------------------------------------------------------------------------------------- | ----------- |
+| 1.8.1 | [Baseline the running pair](TASK-01-baseline-the-running-pair.md)                              | Not started |
+| 1.8.2 | [Make the pair legible in one terminal](TASK-02-make-the-pair-legible.md)                      | Not started |
+| 1.8.3 | [The frontend-to-backend connection: proxy or CORS](TASK-03-frontend-to-backend-connection.md) | Not started |
+| 1.8.4 | [Ports, conflicts, and knowing when the pair is up](TASK-04-ports-conflicts-and-readiness.md)  | Not started |
+| 1.8.5 | [Extend the README to a running application](TASK-05-readme-to-a-running-application.md)       | Not started |
+| 1.8.6 | [Reach a running application from a clean clone](TASK-06-clean-clone-first-run.md)             | Not started |
+| 1.8.7 | [Verify, document, and record the decisions as ADR 0008](TASK-07-verify-document-and-adr.md)   | Not started |
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.7 followed.
+
 ## Notes
 
 No database is required yet — PostgreSQL arrives in Epic 2, at which point this story's setup extends to include it.
