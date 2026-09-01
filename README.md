@@ -295,18 +295,27 @@ human reading it. Everything else — `pnpm --filter @marketpulse/backend start`
 a container, CI — gets JSON, and a real environment variable still wins, so
 `LOG_FORMAT=json pnpm dev` gives JSON in the dev loop.
 
-Two behaviours worth knowing before you set either:
+Three behaviours worth knowing before you set either. All three were
+re-measured in Task 1.7.7 rather than carried forward, and the second one had
+already stopped being true:
 
 - **At `warn` and above a healthy server is completely silent**, including its
   `Server listening at …` line. Nothing in a normal run emits above `info`.
-- **`silent` means silent**, errors included. It exists for a test runner
-  driving `buildServer()` under `app.inject()`. Anything waiting on the
-  readiness line to decide the server is up will wait forever. There is exactly
-  one exception, and it is deliberate: a **crash** is logged whatever the level
-  is set to — see below.
-
-`LOG_LEVEL=debug` currently shows nothing that `info` does not — Fastify's
-request logging is at `info` and nothing in this application emits below it yet.
+  Measured at `warn`, `error` and `silent`: a full start → 200 → 404 → clean
+  shutdown writes **zero lines** to stdout and zero to stderr. Anything waiting
+  on the readiness line to decide the server is up will wait forever, which
+  matters more for a deployment than for a terminal.
+- **`silent` silences ordinary traffic, not a crash.** It exists for a test
+  runner driving `buildServer()` under `app.inject()`, and it does silence
+  errors — a 500 answered to a client leaves no log line at `silent`. But a
+  process-level crash is a deliberate exception to the level, so a crashing
+  server at `silent` writes exactly one line, the `fatal` record, and nothing
+  else. The rule is: **ordinary traffic obeys the level; the process dying does
+  not** — see below.
+- **`LOG_LEVEL=debug` shows nothing that `info` does not.** Fastify's request
+  logging is at `info` and nothing in this application emits below it, so the
+  variable is real and its lower half is empty. Re-measured: the message sets at
+  `info` and `debug` are identical.
 
 #### The correlation id
 
@@ -704,6 +713,15 @@ it, so this is a choice of wording and not an extra line of noise; what it buys
 is one place to change when there is somewhere to send a report, and a message
 that says which of the three events it was.
 
+That replacement is **React's behaviour, not ours**, so it is the claim here
+most likely to stop being true on an upgrade. Re-check it rather than trusting
+this paragraph: a caught render failure should produce exactly one console
+entry, ours, carrying the component stack, with React's "The above error
+occurred in …" absent. Verified on React 19.2.8 in both the dev server and the
+built artefact — and in development, with `StrictMode` on, it is **one** report
+and not two: the constructor does run twice, but the first throw aborts that
+render pass and React reports the failure once.
+
 An `uncaught` report means a boundary is missing. Without the header boundary,
 a header that throws leaves `#root` with **zero children** — a blank document —
 which is measured rather than hypothetical.
@@ -776,9 +794,11 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 ## Documentation
 
 - [`docs/adr/`](docs/adr/) — architecture decision records, newest last;
-  [0006](docs/adr/0006-configuration-and-the-secrets-boundary.md) is the most
-  recent and covers configuration, the three environments and the boundary
-  between a value the browser may have and one that never leaves the server
+  [0007](docs/adr/0007-logging-the-error-contract-and-failure-containment.md) is
+  the most recent and covers structured logging, the correlation id, the
+  `ApiError` wire contract, the crash handlers and the frontend's error
+  boundaries — including why the same analysis installs a process-level handler
+  on the server and declines the equivalent listener in the browser
 - [`planning/PRODUCT_SPEC.md`](planning/PRODUCT_SPEC.md) — the authoritative
   product definition
 - [`planning/EPICS.md`](planning/EPICS.md) — the delivery roadmap

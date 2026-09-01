@@ -1,6 +1,6 @@
 # Task 1.7.7 — Verify, document, and record the decisions as ADR 0007
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.7 Logging & Error Handling](STORY.md)
 **Depends on:** Tasks 1.7.1–1.7.6
 
@@ -70,3 +70,79 @@ Close the story from a clean tree by re-running every criterion and re-measuring
 ## Notes
 
 The story's own `Notes` section says later epics extend this pattern rather than replacing it — failed analytical tools (Epic 7), SEC unavailability (Epic 9) and agent failures (Epic 10) are product states. The ADR is where that intent has to be legible to whoever implements them.
+
+## Outcome
+
+Closed on 2026-09-01. `docs/adr/0007-logging-the-error-contract-and-failure-containment.md` records the decisions; this is what the verification actually found.
+
+**Nothing was inherited.** Every figure below was re-taken from a clean tree, and four old commits were rebuilt rather than cited. That rule was the most valuable part of the task — see the corrections section.
+
+### All seven criteria, with evidence
+
+| #   | Criterion                                              | Evidence                                                                                                                                                                                            |
+| --- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Structured JSON, configurable levels                   | One JSON object per line on stdout. `LOG_LEVEL` exercised at `info`, `debug`, `warn`, `error`, `silent`; `LOG_FORMAT=pretty` renders the same records through a worker transport                    |
+| 2   | Request logged with id, method, path, status, duration | `{"level":30,…,"reqId":"362142fd-…","req":{"method":"GET","url":"/health"},"msg":"incoming request"}` then `…,"res":{"statusCode":200},"responseTime":5.2245…,"msg":"request completed"`            |
+| 3   | The id reaches the client                              | `x-request-id` equals the body's `requestId` on a 200, a 404, a 400, a 413 and a thrown 500 — **re-taken against Task 1.7.4's custom handlers**, since Task 1.7.2 verified it against Fastify's own |
+| 4   | One error shape                                        | `{"code":"NOT_FOUND","message":"Route not found.","requestId":"6b7a6131-…"}`, and the same shape on every other failure                                                                             |
+| 5   | Crashes caught and logged — **annotated**              | **stderr is empty** on every crash and the level-60 record is on stdout, exit 1. The process never crashed _silently_; it crashed onto the wrong stream                                             |
+| 6   | No internal detail to clients                          | A thrown error with `cause: { dsn: "postgres://user:hunter2@…" }` and a `query` property: both on the level-50 record with the full stack, **neither on the wire**                                  |
+| 7   | Frontend contains a failure — **annotated**            | One region's fallback with three regions and the chrome rendering normally; recovery is a remount; and the wording covers none of what a boundary cannot catch                                      |
+
+Criterion 5's wording is wrong about the baseline and criterion 7's is narrower than what was built; both are annotated in `STORY.md` rather than ticked.
+
+### The three corrections, which are the result worth leading on
+
+`CLAUDE.md` carried three wrong figures, and **two of them were corrections made earlier in this same story**. Rebuilt at four commits:
+
+| Commit                | Modules | JS bytes    | Hash                |
+| --------------------- | ------- | ----------- | ------------------- |
+| Story 1.5.6 `a22b13a` | 265     | 342,080     | `index-z9p5vXHu.js` |
+| Story 1.6.7 `ebf495d` | 265     | **342,017** | `index-BAidohu3.js` |
+| Pre-1.7.3 `dd043cd^`  | 265     | 342,017     | `index-BAidohu3.js` |
+| Post-1.7.5 `1c2b6f9`  | **267** | 342,017     | `index-BAidohu3.js` |
+| Now                   | **271** | **343,658** | `index-C-Puqfnm.js` |
+
+Story 1.5's recorded 265 and 342.08 kB were **both correct**. Story 1.6 moved the bundle by **−63 bytes** (its lockfile is byte-identical to Story 1.5's, so the change is source-attributable), and **Task 1.7.3 added +2 modules while emitting the same bytes under the same hash** — `api-error.ts` and `request-id.ts` enter the graph through the shared barrel and are tree-shaken out entirely; `INTERNAL_ERROR` is in neither `dist/` nor `storybook-static/`.
+
+Task 1.7.3 compared its own tree against a written number and blamed the record. Task 1.7.6 did the same thing again. **A figure that has moved looks exactly like a figure that was mis-recorded**, and only rebuilding the old commit tells them apart.
+
+Two other figures did not survive: `pretty` renders **12 lines per request and not 9** (Fastify's defaults render 15, so the direction is right and the number was not), and the other four routes report **26 axe passes and not 25**.
+
+### Figures re-measured
+
+- **Start to listening** 81 ms json / 87 ms pretty medians (n=15) — the transport's **+6 ms** reproduces Task 1.7.1 exactly. **SIGTERM to exit, raw process**, 2.1 ms json / 3.4 ms pretty, exit 0. Both absolutes sit ~8 ms above 1.7.1's on a busier machine; the deltas are what reproduce
+- **Per-request latency, which Task 1.7.2 never took**: the shipping server against a Fastify instance with the same route and Fastify's defaults, 20 000 injections each after a 2 000 warm-up — **13.8 µs against 14.1 µs**, the shipping server _faster_ by 0.25–1.44 µs across four runs. Inside noise, in the direction of the narrowed serialiser saving more than the UUID costs. **There is no per-request cost to report**
+- **Records per failure: 3**, on a 404, a 400, a 413 and a thrown 500 alike — unchanged from Fastify's own, so replacing both handlers did not double the logging. Levels 4xx **30**, 5xx **50**, crash **60**
+- **JSON request pair 422 B** against Fastify's 431 B. The byte totals are machine-dependent (`pid` width, `hostname`, `responseTime` digits); quote the saving, not the totals
+- **Crash: stderr empty in every configuration.** At `LOG_LEVEL=silent` the level-60 record is the **only** line the process produces, in both formats. Crash during a drain: `shutdown complete` present, exit **0**, in-flight request answered **200**
+- **The three failure experiences** all reproduce, including the uncomfortable one — a route throwing in a timer answers **200 with a valid `x-request-id`** and the process dies milliseconds later, so the id points at a record correctly saying the request succeeded
+- **Frontend artefact 271 modules / 343,658 B JS / 10,926 B CSS / three files**, rebuilding to the identical hash after every probe was reverted. `pnpm stories` **9 / 9**. Files importing `@base-ui/react`: **1**
+- **axe 4.13.0 on a dumb static host**: `/` **0 / 37 / 1**; the other four routes **0 / 26 / 0**; `/` with the primary region failed **0 / 33 / 0**; `/` with the header failed **0 / 37 / 1** with `<header>` and `<nav>` absent. The single inconclusive has not moved in four tasks and is **2 nodes** — the `▲` and `▼` `aria-hidden` arrows
+- **`pnpm verify` 8.77 s warm**, exit 0 — build 3.69 / lint 3.17 / `format:check` 2.20 / `stories` 0.27 / `env:check` 0.27 / `test` 0.48. From a cold clone with an empty store: install **3.2 s**, verify **13.2 s**, artefact md5 `cba2825c…` **byte-identical** to the working tree's
+- **`storybook-static/` 299 modules / 59 files / 9.3 MB on disk** (7.3 MB apparent), from 289 / 52 / 9.2 MB at Story 1.6
+- **Clean clone runs the pair**: backend `127.0.0.1:3000`, frontend `[::1]:5173`, 9 processes in the group. `SIGINT` to the **group** — not to pnpm's pid — gives **0 survivors**, both ports released, and `signal received` / `shutdown complete` both present
+
+### Dependencies
+
+`pino-pretty` 13.1.3 is still the story's **only** new dependency, across seven tasks and both halves of the stack. The error contract, both handlers, both response schemas and all three boundaries cost **zero packages**; `react-error-boundary` 6.1.4 was built (**+932 B, +1 module**) before being rejected, and the tree rebuilt to the same hash. `allowBuilds` still has one entry.
+
+### Both accepted schema gaps re-checked, and one changed
+
+`grep -rn "satisfies Record<keyof" --include="*.ts"` finds the guard on the expected **two** sites, so no schema in the tree is missing it. Coercion is still silent — `1.5` declared `"string"` reaches the wire as `"1.5"`. The missing-required gap got **quieter rather than louder**: it was Fastify's `"b" is required!` on the wire before Task 1.7.4, and is now a generic `INTERNAL_ERROR` with the detail in the log. Better for a client, harder to notice in development. Both re-dated 2026-09-01.
+
+The gap the grep does **not** close — nothing checks that a route which _can_ fail declared `500: apiErrorSchema` at all — joins the known-and-dated list rather than being closed, because `apiError()` already covers every path structurally and the schema is a second net.
+
+### The gaps list was understated and is now corrected
+
+`scripts/dev.sh` is no longer just "a file no tool reads". Since Task 1.7.1 it carries `export LOG_FORMAT="${LOG_FORMAT:-pretty}"` — the only configuration value in the application that `pnpm env:check` cannot see, because that check reads `CONFIG_VARIABLES` and the two `.env.example` files and has no view of a shell script. A typo there is a silent fallback to JSON in the dev loop. Accepted, re-dated 2026-09-01.
+
+### Two of the story's own warnings stayed disproved
+
+Both were re-verified independently rather than taken from Task 1.7.6. The **`StrictMode` double-report** does not happen — one `onCaughtError` per caught render error against the dev server, React's own message absent in both dev and the built artefact. The **landmark conflict** does not exist — `landmark-unique` is in the _passes_ list on 3 nodes in `Region`'s permutation grid and on 7 on the built page.
+
+One methodological finding came with the second: **axe's scope changes the answer.** Run over the whole story iframe, that grid reports 3 violations (`landmark-one-main`, `page-has-heading-one`, `region`); scoped to `#storybook-root` as the addon does, it reports 0. All three are page-level rules a story fragment cannot satisfy. Never compare a whole-document axe run against an addon figure.
+
+### Documentation updated
+
+`CLAUDE.md` (state, the ADR roll-call, the corrected artefact history, the log-record figures, the gaps paragraph, the clean-clone timings, the Storybook figures, and three new findings), `README.md` (the three level behaviours re-measured and the `silent` wording corrected, plus a version caveat on the React-behaviour claim in the reporting section), `EPIC.md` (status, the blocking paragraph, and a **What Story 1.7 established** section), `STORY.md`, `docs/adr/README.md`, and a `What Story 1.7 hands this story` section in Stories **1.9**, **1.10**, **1.11** and **1.12**. No story was added, deleted or re-ordered.

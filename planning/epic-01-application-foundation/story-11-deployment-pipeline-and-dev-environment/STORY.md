@@ -81,6 +81,16 @@ Story 1.6 is complete and recorded in `docs/adr/0006-configuration-and-the-secre
 - **The first credential belongs in `apps/backend/.env` and on the backend's platform, never in the frontend's.** Epic 2 brings the Alpaca key. A `VITE_` prefix is a boundary against accidents, not a permission — prefixing a credential makes it a string literal in a file every visitor downloads. Note this applies to `storybook-static/` too, which `pnpm build` also produces and which serves from a dumb static host exactly as `dist/` does; that is a second reason the bullet above about not deploying it by accident matters
 - **`pnpm verify` is six steps now and `env:check` needs `build` to have run**, because it imports the backend's built `dist/config.js`. Anything here that runs a subset of the chain, or runs it against a tree it has not built, gets ``run `pnpm build` first`` rather than a pass
 
+### What Story 1.7 hands this story
+
+Story 1.7 is complete and `docs/adr/0007-*` records it. Five things land here, and the first is a trap rather than a decision.
+
+- **At `warn` and above the server never prints `Server listening at …`.** Nothing in a normal run emits above `info`, so at `LOG_LEVEL=warn`, `error` or `silent` a server that starts, serves and shuts down cleanly writes zero lines to stdout and zero to stderr. **Anything waiting on that line to decide the process is up will hang, not fail.** Readiness is the port or `GET /health`
+- **Logs are JSON on stdout and there is no file destination, deliberately.** `LOG_FORMAT=pretty` exists for a terminal and starts a worker thread; production wants `json`. The one thing to get right is that **stdout is the whole story** — Task 1.7.5's entire point was that Node's default put a crash on stderr while every other record went to stdout, so a deployment collecting only stdout lost exactly the record it most needed. Collect both, or know why not
+- **There is no production-detail switch, and adding one would be a regression.** No `ERROR_DETAIL`, no environment branch: a 5xx never carries the thrown message, the stack is in the log beside the correlation id the client was handed, and withholding is free because of that id. This is the same shape as the rejected `redact` — a setting whose misconfiguration leaks silently, outward
+- **`NODE_ENV` is still read nowhere, and that has now survived two tests.** The three environments differ in where values come from, not in how the application behaves. Introduce an environment variable only when something has to _behave_ differently rather than be configured differently
+- **The operator needs to know about the third failure experience before reading a log with it in.** A crash detached from the request that caused it answers **200 with a valid `x-request-id`** and then dies, so the id the user quotes points at a record correctly saying their request succeeded, and the level-60 record beside it carries no id at all. A crash _with_ a request in flight is worse for the user and easier to read: `curl: (52) Empty reply from server`, **no body and no headers**, so not even an id to quote. "Quote the id and find the entry" is a rule with a stated exception, not a guarantee
+
 ## Acceptance criteria
 
 - Merging to the main branch deploys automatically

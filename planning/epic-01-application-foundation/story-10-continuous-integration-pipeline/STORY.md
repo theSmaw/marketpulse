@@ -41,6 +41,14 @@ One finding, and it is aimed squarely at this story's "know what `pnpm verify` d
 - **So the honest framing for this story is that a green CI run means every check passed, not that every claim holds.** A stated invariant is not a checked one, and the only thing that found this one was a task whose Done-when said to re-measure rather than to cite. Two checks in the tree now exist for that reason — `env:check`, and the `no-restricted-globals` block over `apps/frontend/src/**` — and both were made to fail before they were trusted
 - **`pnpm verify` is six steps now, not five.** `env:check` sits between `stories` and `test` and costs 0.26s. Like `stories`, it depends on `build` having run — it imports the backend's built `dist/config.js` — so it is not safe to reorder or to run standalone on a clean tree, where it says ``run `pnpm build` first``. The clean-tree chain is **9.3–9.8s** as of Task 1.6.7
 
+### What Story 1.7 hands this story
+
+Story 1.7 is complete and `docs/adr/0007-*` records it. It changes nothing about what CI runs — `pnpm verify` is still the whole of it — and adds three things CI has to be right about.
+
+- **A green `pnpm verify` still does not check two things this story added.** Nothing verifies that a route which can fail declared `500: apiErrorSchema`, and nothing reads `scripts/dev.sh` — which since Task 1.7.1 carries `export LOG_FORMAT="${LOG_FORMAT:-pretty}"`, the only configuration value `pnpm env:check` cannot see. Both are known and dated 2026-09-01. This story should not quietly imply CI covers them
+- **A health check must not wait for `Server listening at …`.** At `LOG_LEVEL=warn` and above a healthy server writes **zero lines**, that line included — so a CI step or a container probe that greps for it hangs rather than fails, which is the worse failure. Poll the port or `GET /health`; do not read the log
+- **`pnpm verify` is 8.77 s warm here**, against Task 1.6.7's 9.3–9.8 s and Task 1.7.6's 10.1 s on the same six steps with more code in the tree. Three consecutive measurements have moved in both directions while the tree only grew: **the total is variance, and the per-step split is the number worth asserting on**. Cold, from a clean clone with an empty store, it is 13.2 s with a 3.2 s install — which is the figure CI will actually see
+
 ## Acceptance criteria
 
 - Pipeline runs on push and on pull request
