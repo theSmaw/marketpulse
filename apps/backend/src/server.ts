@@ -13,9 +13,10 @@
 // specifier: the inline form erases to `import Fastify, {} from "fastify"` in
 // the emitted JS, which is valid but reads like a mistake.
 import Fastify from "fastify";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 
 import type { LogFormat, LogLevel } from "./config.js";
+import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
 import { healthRoutes } from "./routes/health.js";
 
 // What the application needs from the process, which is currently only how to
@@ -51,8 +52,8 @@ export interface ServerOptions {
 export function buildServer(options: ServerOptions): FastifyInstance {
   const app = Fastify({
     // Fastify's built-in pino. `logger: true` until Task 1.7.1, which added
-    // the level and the rendering and nothing else — correlation ids,
-    // serialisers and the error shape are Tasks 1.7.2 to 1.7.4.
+    // the level and the rendering; Task 1.7.2 added the request serialiser and
+    // the correlation id below. The error shape is Tasks 1.7.3 and 1.7.4.
     //
     // `transport` is set only for `pretty`, and its absence is what makes json
     // the cheap path: a transport is a worker thread, and the JSON server
@@ -69,10 +70,53 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     // a documented value not being a trap.
     logger: {
       level: options.logLevel,
+
+      // The request record, chosen rather than inherited (Task 1.7.2).
+      //
+      // pino's default `req` serialiser logs method, url, host, remoteAddress
+      // and remotePort — and, importantly, **no headers**, so no Authorization
+      // has ever reached a log line here. That is a constraint this narrowing
+      // inherits and must not relax; anything added to this object is a field
+      // every request writes forever.
+      //
+      // Three fields are dropped. `host` is this server's own bind address,
+      // already known to anyone reading its log and constant across every
+      // record. `remoteAddress` and `remotePort` are the two with a privacy
+      // dimension, and the argument against them is not only that: behind
+      // Story 1.11's proxy or load balancer they become the proxy's address,
+      // so they would be a field that is quietly *wrong* rather than one that
+      // is merely absent. If a client address is ever wanted, it comes from a
+      // forwarded-header decision taken on purpose, not from this default.
+      //
+      // `url` and not `path`, so the query string is logged. The standing rule
+      // is that personal data never goes in a URL in the first place, which
+      // makes a query string here filter parameters — and a logged request
+      // without them is not the request that was made. That rule is the thing
+      // holding this open: the day a query string carries something sensitive,
+      // this line is the second place to change and the first is the caller.
+      //
+      // The `res` serialiser is deliberately left as Fastify's, which logs
+      // `statusCode` and nothing else. Restating a one-field default here would
+      // be a second copy to keep in step for no gain.
+      serializers: {
+        req: (request: FastifyRequest) => ({
+          method: request.method,
+          url: request.url,
+        }),
+      },
+
       ...(options.logFormat === "pretty"
         ? { transport: { target: "pino-pretty" } }
         : {}),
     },
+
+    // The correlation id. See request-id.ts for the generator, the inbound-id
+    // decision and the validation behind it.
+    //
+    // This sits beside `logger` rather than inside it on purpose: `genReqId` is
+    // a Fastify option, not a pino one, and the id it returns is `request.id` —
+    // available to routes and hooks — of which the log field is one consumer.
+    genReqId: (request) => resolveRequestId(request.headers),
 
     // No `forceCloseConnections` here, and that is a measured decision rather
     // than an omission (Task 1.2.4). Fastify 5 defaults it to `'idle'`, but the
@@ -87,6 +131,19 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     // close() *did* wait on idle sockets, shutdown would read as a 72-second
     // hang having nothing to do with work in flight. It does not, so the
     // application needs no option set for the benefit of the process.
+  });
+
+  // The id, back to the client. Without this it exists only in the log, and a
+  // user reporting a failure has nothing to quote.
+  //
+  // `onRequest` and not `onSend`, and not a per-route line. It is the earliest
+  // hook, so the header is already on the reply before anything downstream can
+  // fail — verified on a 404 and on a thrown 500, where the response is
+  // produced by Fastify's own handlers and no route code runs at all. A
+  // per-route line would cover exactly the routes somebody remembered.
+  app.addHook("onRequest", (request, reply, done) => {
+    reply.header(REQUEST_ID_HEADER, request.id);
+    done();
   });
 
   // Routes are registered here as they arrive.

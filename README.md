@@ -306,6 +306,37 @@ Two behaviours worth knowing before you set either:
 `LOG_LEVEL=debug` currently shows nothing that `info` does not — Fastify's
 request logging is at `info` and nothing in this application emits below it yet.
 
+#### The correlation id
+
+Every response carries an `x-request-id` header, and the same value is the
+`reqId` on every log record for that request. Quote the header from a failure
+and the log entry is one grep away:
+
+```
+$ curl -si http://127.0.0.1:3000/health | grep -i x-request-id
+x-request-id: 670a0de7-1783-44b2-a59e-d0ce84fce79b
+```
+
+```
+{"level":30,...,"reqId":"670a0de7-1783-44b2-a59e-d0ce84fce79b","req":{"method":"GET","url":"/health"},"msg":"incoming request"}
+{"level":30,...,"reqId":"670a0de7-1783-44b2-a59e-d0ce84fce79b","res":{"statusCode":200},"responseTime":5.35,"msg":"request completed"}
+```
+
+The header is on **every** response, including 404s and 500s that no route code
+produced. `responseTime` is fractional milliseconds over the request lifecycle.
+
+**You may send your own `x-request-id` and it will be honoured**, provided it
+matches `[A-Za-z0-9_-]{1,128}`. Anything else — a longer value, a space, a
+quote, or the same header sent twice — is dropped without comment and a fresh
+UUID is minted, so the id in the response is the authoritative one either way.
+Read it back rather than assuming the value you sent was used.
+
+A request record carries the correlation id, the method and the URL, and the
+response record the status and the duration. Client address and port are
+deliberately not logged: behind a proxy they would be the proxy's, so they would
+be wrong rather than missing. No request header is logged at all, which is what
+keeps an `Authorization` out of the log.
+
 **The resolved configuration is never logged**, and that is a rule rather than
 an oversight. Epic 2's Alpaca credentials and Epic 10's model-provider key
 become keys on that object, and a startup line dumping it is how one reaches a
