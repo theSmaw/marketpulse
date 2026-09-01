@@ -8,10 +8,10 @@ import {
 
 import { AnomalyBadge } from "../components/AnomalyBadge/AnomalyBadge.js";
 import { FeedIndicator } from "../components/FeedIndicator/FeedIndicator.js";
+import { Region } from "../components/Region/Region.js";
 import { SecurityRow } from "../components/SecurityRow/SecurityRow.js";
 import rowStyles from "../components/SecurityRow/SecurityRow.module.css";
 import { Placeholder } from "./Placeholder.js";
-import { Region } from "./Region.js";
 import styles from "./MarketOverview.module.css";
 
 // PRODUCT_SPEC.md §8.1 — "What is happening?", and the spec's landing screen,

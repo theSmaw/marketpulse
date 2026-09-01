@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 // the backend and shared package already follow, one step further because the
 // source extension here is `.tsx` rather than `.ts`.
 import { App } from "./App.js";
+import { reportRenderError } from "./report-error.js";
 import { getTokens } from "./styles/tokens.js";
 
 // The token layer, as three side-effect imports rather than bindings: the
@@ -54,7 +55,30 @@ if (container === null) {
 //
 // Measured both ways: the fast-refresh reading is unchanged with it on. It
 // costs nothing in production — React strips it from the production build.
-createRoot(container).render(
+// The three root-level error options React 19 added, wired in Task 1.7.6.
+//
+// They are a **reporting** hook and not a containment one: none of them stops
+// anything, and wiring them is not an alternative to the boundaries `App`
+// renders. What they buy is one place that hears about every render failure in
+// the application, whichever boundary caught it — and the fact that providing
+// them *replaces* React's own default console message rather than adding to it,
+// so this is a choice of wording rather than an extra line of noise.
+//
+// Everything about what is logged, why there is nowhere else to send it, and
+// what a `window` listener would and would not add is in `report-error.ts` —
+// including the `StrictMode` double-report that was predicted and measured not
+// to happen.
+createRoot(container, {
+  onCaughtError: (error, errorInfo) => {
+    reportRenderError("caught", error, errorInfo.componentStack);
+  },
+  onUncaughtError: (error, errorInfo) => {
+    reportRenderError("uncaught", error, errorInfo.componentStack);
+  },
+  onRecoverableError: (error, errorInfo) => {
+    reportRenderError("recoverable", error, errorInfo.componentStack);
+  },
+}).render(
   <StrictMode>
     <App />
   </StrictMode>,
