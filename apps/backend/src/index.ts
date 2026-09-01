@@ -125,6 +125,98 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
   });
 }
 
+// Crashes: what escapes the request lifecycle entirely (Task 1.7.5).
+//
+// These are not "the server had an error" — Task 1.7.4 owns that, and an error
+// thrown inside a route never reaches here at all: the error handler catches
+// it, answers an `ApiError` and writes a level-50 record carrying the stack
+// under that request's `reqId`. What reaches here is what has no request to
+// belong to — a timer, a stray promise, a callback in a library — and by the
+// time it does, the process is not the program it was.
+//
+// The baseline this replaces is not silence, which is worth being precise
+// about. Node 24 already prints a stack for both events and exits 1. What it
+// does not do is put that stack in the **log stream**: it goes to stderr as
+// raw text with no level, no timestamp, no pid and nothing an aggregator can
+// index, while every other record this process writes goes to stdout as JSON.
+// A deployment collecting stdout loses the crash and keeps everything else.
+// Measured on both events; the two are also indistinguishable from each other
+// on stderr, which the `event` field below fixes.
+function crash(
+  event: "uncaughtException" | "unhandledRejection",
+  error: unknown,
+): void {
+  // The one deliberate exception to LOG_LEVEL in this application, and it is
+  // stated as one rather than left to be discovered.
+  //
+  // Task 1.7.1 admitted `silent` on purpose, for Story 1.9's test runner, and
+  // `warn` and above already make a healthy server completely silent. Without
+  // this line, `LOG_LEVEL=silent` would give a process that dies leaving
+  // **nothing at all** — not even the stack on stderr, because these handlers
+  // are what replaced Node's default behaviour. That is strictly worse than
+  // the failure this task exists to fix.
+  //
+  // The rule, in two clauses: **ordinary traffic obeys the level; the process
+  // dying does not.** Task 1.7.4 is the other half — it logs a 4xx at `info`
+  // precisely so a server answering 404s stays silent at `warn`.
+  //
+  // Mutating the level rather than writing our own stderr line keeps one
+  // rendering of a log record: same serialisers, same format, and `pretty`
+  // still pretty. Measured from `silent` and from `warn`, in both formats.
+  //
+  // Restored immediately afterwards, and that is not tidiness — the mutation
+  // is otherwise permanent for the rest of the process's life. On the
+  // `shuttingDown` path below, the drain carries on logging after this
+  // returns, and a level left at `fatal` swallows its `shutdown complete` and
+  // (worse) the ceiling's level-50 `shutdown timed out, forcing exit`. Both
+  // observed: the first version of this function lost `shutdown complete` from
+  // a crash-during-drain run. The exception is exactly one record wide.
+  const previousLevel = app.log.level;
+  app.log.level = "fatal";
+
+  // `err` unnormalised. A rejection's reason need not be an `Error`, and pino
+  // renders a bare string as `"err":"…"` rather than failing — verified.
+  // Wrapping it in `new Error(String(reason))` would manufacture a stack
+  // pointing at this file, which is a worse lie than having none.
+  app.log.fatal({ err: error, event }, "process crashed, exiting");
+
+  app.log.level = previousLevel;
+
+  // A crash during a shutdown does not start a second one. The drain owns the
+  // `shuttingDown` flag and the 5-second ceiling above; returning here leaves
+  // both intact, and the ceiling is what guarantees this path still reaches
+  // `process.exit()` — the property `node --watch` depends on, since it waits
+  // for the child indefinitely.
+  if (shuttingDown) {
+    return;
+  }
+
+  // No drain. `app.close()` on a process whose state is by definition unknown
+  // is a second failure stacked on the one being reported, and it would serve
+  // in-flight requests from a program that has already proved it is not the
+  // program you thought. So in-flight requests are dropped deliberately: a
+  // client mid-request gets a reset connection rather than an `ApiError`,
+  // which is the one hole in the shape Task 1.7.4 made universal.
+  //
+  // Exit 1, like every other failure path here — bad configuration, failed
+  // listen, shutdown timeout, second signal. A distinct code would say nothing
+  // the record above does not, and no orchestrator exists yet to want one.
+  process.exit(1);
+}
+
+// Both events, treated the same. An `uncaughtException` leaves the process in
+// an unknown state by definition, so continuing is not an option; a rejection
+// is arguably softer, but two behaviours is two things to remember and Node's
+// own default already treats them alike. What would change this is a rejection
+// source that is known-benign and frequent — and the answer to that is to
+// handle it where it is thrown, not to weaken this.
+process.on("uncaughtException", (error) => {
+  crash("uncaughtException", error);
+});
+process.on("unhandledRejection", (reason) => {
+  crash("unhandledRejection", reason);
+});
+
 try {
   await app.listen({ port: config.port, host: config.host });
 } catch (error) {

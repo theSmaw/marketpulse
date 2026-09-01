@@ -301,7 +301,9 @@ Two behaviours worth knowing before you set either:
   `Server listening at …` line. Nothing in a normal run emits above `info`.
 - **`silent` means silent**, errors included. It exists for a test runner
   driving `buildServer()` under `app.inject()`. Anything waiting on the
-  readiness line to decide the server is up will wait forever.
+  readiness line to decide the server is up will wait forever. There is exactly
+  one exception, and it is deliberate: a **crash** is logged whatever the level
+  is set to — see below.
 
 `LOG_LEVEL=debug` currently shows nothing that `info` does not — Fastify's
 request logging is at `info` and nothing in this application emits below it yet.
@@ -341,6 +343,53 @@ keeps an `Authorization` out of the log.
 an oversight. Epic 2's Alpaca credentials and Epic 10's model-provider key
 become keys on that object, and a startup line dumping it is how one reaches a
 log aggregator. Log the individual non-secret value where it matters instead.
+
+#### When the process crashes
+
+An `uncaughtException` or an `unhandledRejection` — something that escaped the
+request lifecycle entirely, from a timer, a stray promise or a library callback
+— is logged as a level-60 `fatal` record and the process exits 1.
+
+```
+{"level":60,...,"err":{"type":"Error","message":"boom from a timer","stack":"Error: boom from a timer\n    at …"},"event":"uncaughtException","msg":"process crashed, exiting"}
+```
+
+Node already printed that stack before these handlers existed, so this is not
+about silence. It is about **which stream**: Node's default writes raw text to
+stderr with no level, no timestamp and no pid, while every other record this
+process writes is JSON on stdout — so a deployment collecting stdout lost the
+crash and kept everything else. Node's two defaults are also indistinguishable
+from each other; the `event` field is what tells you which one you had.
+
+Three things follow that are worth knowing before you read a crash log:
+
+- **A crash ignores `LOG_LEVEL`, including `silent`.** Ordinary traffic obeys
+  the level; the process dying does not. Without the exception, `silent` would
+  give a process that dies leaving nothing at all — not even Node's stderr
+  stack, because these handlers replaced it.
+- **A crash record has no correlation id**, because there is no request to take
+  one from. This is the one case where "quote the `x-request-id` and find the
+  log entry" gives an incomplete answer, and it can be actively misleading: a
+  request can be answered `200` with a valid id and the process die
+  milliseconds later on a rejection that request detached. Measured — the id
+  points at a record saying the request succeeded, and it did.
+- **In-flight requests are dropped, deliberately.** There is no drain: the
+  process state is unknown by definition, so `app.close()` would serve
+  remaining requests from a program that has already proved it is not the
+  program you thought. A client mid-request gets `curl: (52) Empty reply from
+server` and no headers at all — no `ApiError`, no `x-request-id`. That is the
+  one hole in the error shape, and it is the reason a crash and a contained
+  `500` are different failures rather than two sizes of the same one.
+
+A route that throws is **not** a crash and never reaches these handlers: the
+error handler answers an `ApiError`, logs the stack at level 50 under that
+request's `reqId`, and the server carries on. See
+[The API error contract](#the-api-error-contract).
+
+A crash **during** a shutdown does not start a second one. The record is
+written and the drain in progress finishes on its own — measured: a rejection
+thrown mid-drain still produced `shutdown complete` and exit 0, with the
+in-flight request answered.
 
 ### Secrets live on the server, without exception
 
