@@ -39,6 +39,54 @@ const DEFAULT_HOST = "127.0.0.1";
 const MIN_PORT = 1;
 const MAX_PORT = 65535;
 
+// The levels pino understands, in the order pino orders them, plus `silent`.
+//
+// This is deliberately pino's whole set rather than a curated subset. A
+// narrower list would be a second vocabulary to keep in step with the logger's
+// own, and the thing it would buy — refusing `trace` because nothing emits at
+// it yet — costs an operator a rejected value for a level the library
+// genuinely supports. The set is the logger's; the default is ours.
+//
+// `silent` is not a level but a sentinel meaning "emit nothing", and it is in
+// for one concrete reason: Story 1.9 drives `buildServer()` under a test
+// runner, where a server narrating every injected request is noise. Admitting
+// it here costs one array entry against inventing a second mechanism later.
+// The cost is that an operator can switch off error logging in production —
+// which is what they asked for, in a variable they had to set by hand.
+export const LOG_LEVELS = [
+  "fatal",
+  "error",
+  "warn",
+  "info",
+  "debug",
+  "trace",
+  "silent",
+] as const;
+
+export type LogLevel = (typeof LOG_LEVELS)[number];
+
+// `info` is pino's default, so this default is "what the server did before
+// this variable existed" rather than a new opinion.
+const DEFAULT_LOG_LEVEL: LogLevel = "info";
+
+// How a log record is rendered. Not what is in it, and not which records are
+// emitted — the same pino, the same fields, the same levels either way.
+//
+// This is a value, not an environment. Task 1.6.3 decided this application has
+// no variable naming which environment it is in, and nothing here reverses
+// that: `LOG_FORMAT` reads exactly like `PORT`, through the same module, with
+// the same precedence, and no code branches on "am I in development". What
+// makes development pretty is that `scripts/dev.sh` — the file that *is* the
+// development loop — sets it. Production sets nothing and gets JSON.
+export const LOG_FORMATS = ["json", "pretty"] as const;
+
+export type LogFormat = (typeof LOG_FORMATS)[number];
+
+// JSON is the default because the environments that read nothing are the ones
+// that ship logs to a machine. Prettifying is opt-in, by the one caller that
+// has a human in front of it.
+const DEFAULT_LOG_FORMAT: LogFormat = "json";
+
 // The settings the application gets. Written by hand rather than inferred, and
 // that is the shape Task 1.6.1 measured into: `exactOptionalPropertyTypes`
 // makes an optional key `?: T`, while both schema libraries infer
@@ -52,6 +100,8 @@ const MAX_PORT = 65535;
 export interface Config {
   readonly port: number;
   readonly host: string;
+  readonly logLevel: LogLevel;
+  readonly logFormat: LogFormat;
 }
 
 // The machine-readable declaration of what this application reads.
@@ -89,6 +139,18 @@ export const CONFIG_VARIABLES: readonly ConfigVariable[] = [
     default: DEFAULT_HOST,
     description:
       "Interface the API server binds to. 0.0.0.0 to accept connections from outside the machine.",
+  },
+  {
+    key: "LOG_LEVEL",
+    required: false,
+    default: DEFAULT_LOG_LEVEL,
+    description: `Lowest severity the server emits. One of ${LOG_LEVELS.join(", ")}. \`silent\` emits nothing at all, errors included.`,
+  },
+  {
+    key: "LOG_FORMAT",
+    required: false,
+    default: DEFAULT_LOG_FORMAT,
+    description: `How a log record is rendered: ${LOG_FORMATS.join(" or ")}. \`pretty\` is for a human reading a terminal and is what \`pnpm dev\` sets; anything shipping logs to a machine wants json.`,
   },
 ];
 
@@ -138,6 +200,42 @@ export function readInt(
   }
 
   return value;
+}
+
+// The third reader, and the one Task 1.6.3 went looking for a caller for and
+// did not find. `LOG_LEVEL` is that caller.
+//
+// The `allowed` list is the source of both the check and the message, so a
+// value added to the vocabulary cannot be accepted while the error still
+// advertises the old set. The message quotes the raw value the same way
+// readInt does — an operator who typed a trailing space or the wrong case sees
+// it, and casing is the likeliest mistake here: pino's levels are lowercase
+// and `LOG_LEVEL=INFO` looks correct.
+//
+// The cast on the return is the one place this file asserts something the
+// compiler cannot see. `allowed.includes()` on a `readonly T[]` narrows nothing
+// in TypeScript — its parameter type is `T`, so passing a `string` is an error
+// before it is a narrowing — and the alternatives are a type predicate helper
+// that says the same thing with more ceremony. The guard immediately above it
+// is what makes it true.
+export function readEnum<T extends string>(
+  env: Record<string, string | undefined>,
+  key: string,
+  allowed: readonly T[],
+  fallback: T,
+): T {
+  const raw = present(env[key]);
+  if (raw === undefined) {
+    return fallback;
+  }
+
+  if (!(allowed as readonly string[]).includes(raw)) {
+    throw new ConfigError(
+      `${key} must be one of ${allowed.join(", ")}, received ${JSON.stringify(env[key])}`,
+    );
+  }
+
+  return raw as T;
 }
 
 // Where a `.env` file lives: beside `package.json` in this package, rather
@@ -236,13 +334,38 @@ export function loadConfig(
     readInt(env, "PORT", DEFAULT_PORT, MIN_PORT, MAX_PORT),
   );
   const host = read(() => readString(env, "HOST", DEFAULT_HOST));
+  const logLevel = read(() =>
+    readEnum(env, "LOG_LEVEL", LOG_LEVELS, DEFAULT_LOG_LEVEL),
+  );
+  const logFormat = read(() =>
+    readEnum(env, "LOG_FORMAT", LOG_FORMATS, DEFAULT_LOG_FORMAT),
+  );
 
   // The undefined checks are redundant at runtime — a reader only returns
   // undefined after pushing a problem — and they are what narrows the types,
   // so the success path cannot be reached with a hole in it.
-  if (problems.length > 0 || port === undefined || host === undefined) {
+  if (
+    problems.length > 0 ||
+    port === undefined ||
+    host === undefined ||
+    logLevel === undefined ||
+    logFormat === undefined
+  ) {
     throw new ConfigError(problems.join("\n"));
   }
 
-  return Object.freeze({ port, host });
+  // Nothing logs this object, and nothing should.
+  //
+  // The tempting convenience is a startup line naming what the process
+  // actually read, which is genuinely useful right up until Epic 2's Alpaca
+  // credentials and Epic 10's model-provider key are keys on it. The
+  // alternative — configuring pino's `redact` with those paths — is a denylist,
+  // and a denylist's failure mode is a key nobody added to it, silently, in the
+  // one place secrets are hardest to retract from. So the rule is the simpler
+  // one and it is stated here rather than inferred: **the resolved
+  // configuration is never logged.** Log the individual non-secret value at the
+  // point it matters instead — Fastify already prints the host and port in its
+  // `Server listening at` line, which is the whole of what a startup dump would
+  // have been good for.
+  return Object.freeze({ port, host, logLevel, logFormat });
 }

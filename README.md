@@ -241,7 +241,7 @@ Both packages read configuration from a `.env` file **beside their own
 `package.json`**, and each ships a documented example:
 
 ```sh
-cp apps/backend/.env.example apps/backend/.env    # PORT, HOST
+cp apps/backend/.env.example apps/backend/.env    # PORT, HOST, LOG_LEVEL, LOG_FORMAT
 cp apps/frontend/.env.example apps/frontend/.env  # nothing to set yet
 ```
 
@@ -271,6 +271,45 @@ naming both the key and the value it was given, before the server binds:
 ```
 PORT must be an integer between 1 and 65535, received "nonsense"
 ```
+
+Every bad key is reported, not just the first:
+
+```
+PORT must be an integer between 1 and 65535, received "nope"
+LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, received "INFO"
+```
+
+### Logging
+
+The server logs structured JSON through Fastify's built-in pino. Two variables
+configure it, and neither changes what is in a record — only the severity floor
+and how the record is rendered:
+
+| Variable     | Values                                                 | Default |
+| ------------ | ------------------------------------------------------ | ------- |
+| `LOG_LEVEL`  | `fatal` `error` `warn` `info` `debug` `trace` `silent` | `info`  |
+| `LOG_FORMAT` | `json` `pretty`                                        | `json`  |
+
+`pnpm dev` sets `LOG_FORMAT=pretty` for you, because that is the loop with a
+human reading it. Everything else — `pnpm --filter @marketpulse/backend start`,
+a container, CI — gets JSON, and a real environment variable still wins, so
+`LOG_FORMAT=json pnpm dev` gives JSON in the dev loop.
+
+Two behaviours worth knowing before you set either:
+
+- **At `warn` and above a healthy server is completely silent**, including its
+  `Server listening at …` line. Nothing in a normal run emits above `info`.
+- **`silent` means silent**, errors included. It exists for a test runner
+  driving `buildServer()` under `app.inject()`. Anything waiting on the
+  readiness line to decide the server is up will wait forever.
+
+`LOG_LEVEL=debug` currently shows nothing that `info` does not — Fastify's
+request logging is at `info` and nothing in this application emits below it yet.
+
+**The resolved configuration is never logged**, and that is a rule rather than
+an oversight. Epic 2's Alpaca credentials and Epic 10's model-provider key
+become keys on that object, and a startup line dumping it is how one reaches a
+log aggregator. Log the individual non-secret value where it matters instead.
 
 ### Secrets live on the server, without exception
 
