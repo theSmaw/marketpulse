@@ -75,7 +75,7 @@ Task 1.6.3 closed the environment question by deciding there is **no environment
 - Every request is logged with a correlation id, method, path, status and duration
 - The correlation id is returned to the client so a user-visible error can be traced to a log entry
 - API errors use a single consistent shape
-- Unhandled errors and promise rejections are caught and logged rather than crashing the process silently
+- Unhandled errors and promise rejections are caught and logged rather than crashing the process silently — **met by Task 1.7.5, with the wording annotated rather than accepted**: the process never crashed _silently_, it crashed onto raw stderr outside the log stream while every other record went to stdout as JSON. The change is the stream, and the evidence is that stderr is now empty on a crash
 - Stack traces and internal detail are not exposed to clients in production
 - The frontend has an error boundary that contains a failure to the affected region and offers recovery, rather than replacing the whole screen
 
