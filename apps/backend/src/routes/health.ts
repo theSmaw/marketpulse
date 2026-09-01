@@ -51,11 +51,66 @@ export interface HealthResponse {
   uptimeSeconds: number;
 }
 
+// The response schema, and the guard that keeps it in step with the interface
+// above.
+//
+// Fastify serialises a schema'd response through `fast-json-stringify`, which
+// **strips every property the schema does not declare**. That is the mechanism
+// behind Story 1.7's "no internal detail reaches a client" criterion, and it is
+// stronger than remembering: measured on this route, a `secret` field added to
+// the body vanished from the wire entirely with the schema in place and was
+// serialised verbatim without it.
+//
+// The same stripping is silent, which is the trap. Add a field to
+// `HealthResponse`, forget it here, and it disappears at runtime with a green
+// `tsc -b`, a green lint and a green build — a fourth silent-failure class
+// beside the misspelled CSS Module class, the missing `.js` import extension
+// and the unchecked router path.
+//
+// `satisfies Record<keyof HealthResponse, JsonSchemaProperty>` is what closes
+// it, for zero dependencies: a field added to the interface and not to this
+// object is `TS1360` naming the missing property, and a property here that is
+// not on the interface is an excess-property error. Verified both ways round.
+//
+// Two things it does not close, both measured and both accepted. A declared
+// property whose JSON type disagrees with the TypeScript one is **coerced
+// silently** — a `number` declared as `"string"` went out as `"1.5"` — because
+// this guard checks that the keys match, not that the types do. And a property
+// the schema marks `required` that the handler omits is a **500 at runtime**
+// with `"x" is required!` as the message, which is loud rather than silent but
+// is still a runtime failure rather than a compile one. Known and dated
+// 2026-09-01; closing either would mean deriving the type from the schema, and
+// see the outcome of Task 1.7.3 for why that dependency was not taken.
+interface JsonSchemaProperty {
+  readonly type: "string" | "number" | "boolean";
+  readonly enum?: readonly string[];
+}
+
+const healthProperties = {
+  status: { type: "string", enum: ["ok"] },
+  version: { type: "string" },
+  uptimeSeconds: { type: "number" },
+} satisfies Record<keyof HealthResponse, JsonSchemaProperty>;
+
+// `required` is derived rather than written out, so it cannot fall behind the
+// properties it lists. Everything in this response is always present; the day
+// something here is genuinely optional, this line becomes a literal and the
+// omission becomes a decision rather than a default.
+const healthSchema = {
+  response: {
+    200: {
+      type: "object",
+      properties: healthProperties,
+      required: Object.keys(healthProperties),
+    },
+  },
+};
+
 // FastifyPluginCallback rather than the async form: there is nothing to await
 // here, and an async function that never awaits is a lie the linter is right
 // about.
 export const healthRoutes: FastifyPluginCallback = (app, _options, done) => {
-  app.get("/health", (_request, reply) => {
+  app.get("/health", { schema: healthSchema }, (_request, reply) => {
     const body: HealthResponse = {
       status: "ok",
       version: manifest.version,

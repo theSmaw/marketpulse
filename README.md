@@ -380,6 +380,70 @@ Check it with `git status --porcelain --ignored=matching` rather than with
 negated path, printing the `!.env.example` rule, so it reads as "ignored" for a
 file that is not.
 
+## The API error contract
+
+Every failed request answers with the same JSON body, declared once in
+`packages/shared` as `ApiError` and imported by both apps:
+
+```json
+{
+  "code": "NOT_FOUND",
+  "message": "No route for GET /nope",
+  "requestId": "d70b78aa-7cba-4724-80f9-114fd8b0d2c3",
+  "details": ["optional, and only when there are several specifics"]
+}
+```
+
+Flat rather than wrapped in an `error` key, because `requestId` is a property
+of the response and not of the failure — the same id is on every successful
+response too, as `x-request-id` — so a wrapper would either misfile it or need
+two levels for four fields. The HTTP status already says that this is an error,
+and there is deliberately no `statusCode` in the body repeating it.
+
+`code` is a union rather than a free string, so a client can branch on it
+without matching prose that may be improved later. It has two members today —
+`NOT_FOUND` and `INTERNAL_ERROR` — because those are the two failures the
+server actually produces. It is meant to grow; a new member is a non-breaking
+addition.
+
+`details` is a list of strings and never an arbitrary object, because an
+open-ended object is the field internal detail leaks through. Every entry is a
+sentence already fit to show a user.
+
+This is a **transport** error. "Not enough evidence to explain this move" is a
+successful response carrying an uncertain finding, and has nothing to do with
+this shape.
+
+The correlation-id header name lives in `packages/shared` beside it, as
+`REQUEST_ID_HEADER`. Import it; a mistyped header name is a compile error
+nowhere.
+
+Note that `packages/shared` is consumed as **built output**, so changing this
+shape means rebuilding it before either app typechecks against the change.
+`pnpm build` and `pnpm verify` handle the ordering; a bare `tsc --noEmit` in an
+app will pass against the previous shape.
+
+### Response schemas
+
+Routes declare a JSON Schema for their responses, using Fastify's built-in
+support — no extra dependency, since ajv and `fast-json-stringify` arrive with
+Fastify. `GET /health` is the first.
+
+The reason is not validation, it is that Fastify serialises through
+`fast-json-stringify`, which **strips any property the schema does not
+declare**. A field that should not reach a client cannot, whether or not
+somebody remembered.
+
+The trap is that the stripping is silent: add a field to the response type,
+forget the schema, and it disappears at runtime with a green build. The house
+idiom closes that without a dependency — the schema's properties are declared
+`satisfies Record<keyof TheResponseType, JsonSchemaProperty>`, so a field on
+the type and not in the schema is a compile error naming it. Copy that idiom
+when adding a route. Two smaller gaps are known and accepted: a declared
+property whose JSON type disagrees with the TypeScript one is coerced silently,
+and a `required` property the handler omits is a 500 at runtime rather than a
+compile error.
+
 ## Styling and design tokens
 
 CSS Modules over CSS custom properties, with **Base UI** (`@base-ui/react`)

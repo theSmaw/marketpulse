@@ -14,3 +14,12 @@ export { ANOMALY_BANDS } from "./anomaly.js";
 export type { AnomalyBand } from "./anomaly.js";
 export { FEED_STATUSES } from "./feed-status.js";
 export type { FeedStatus } from "./feed-status.js";
+
+// The wire contract with the API: the shape every error response takes, and the
+// name of the header that correlates any response with its log records. Both
+// are here for the same reason — the backend writes them and Story 1.12's
+// frontend reads them, and a wire format described in two places is a wire
+// format that will disagree with itself.
+export { API_ERROR_CODES, apiError } from "./api-error.js";
+export type { ApiError, ApiErrorCode } from "./api-error.js";
+export { REQUEST_ID_HEADER } from "./request-id.js";

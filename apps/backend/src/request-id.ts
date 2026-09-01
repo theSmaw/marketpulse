@@ -1,18 +1,23 @@
-// The correlation id: where it comes from, what it is allowed to be, and the
-// one place its header is named.
+// The correlation id: where it comes from, and what it is allowed to be. The
+// header that carries it is named in `packages/shared` — see below.
 //
 // Fastify already had a request id before this module existed — a per-process
 // counter rendered `req-1`, `req-2`, … It appeared in the log and *nowhere
 // else*, which is the half of the criterion that matters: an id nobody outside
 // the process can see correlates nothing. What this module adds is an id that
-// is unique without coordination, a decision about ids arriving from outside,
-// and a name for the header that carries it back.
+// is unique without coordination, and a decision about ids arriving from
+// outside.
 
 import { randomUUID } from "node:crypto";
 
-// The header, named once. Both directions use the same name: it is what a
-// client may send and what every response carries back, so a caller can echo
-// the value it was given without translating between two spellings.
+import { REQUEST_ID_HEADER } from "@marketpulse/shared";
+
+// The header name is no longer here. Task 1.7.2 left its home open; Task 1.7.3
+// moved it to `packages/shared`, beside the error shape, because it is the same
+// kind of fact — something the server writes and Story 1.12's frontend reads.
+// Only the name moved: generating an id and deciding whether to honour an
+// inbound one are server behaviour with a threat model behind them, and they
+// stay in this file.
 //
 // `x-request-id` rather than a W3C `traceparent`. Trace context is a
 // propagation *format* — version, trace id, parent id, flags, plus `tracestate`
@@ -21,13 +26,6 @@ import { randomUUID } from "node:crypto";
 // per investigation and is where real tracing would earn its keep; it can adopt
 // the whole specification then, alongside this header rather than instead of
 // it.
-//
-// It stays here rather than in `packages/shared` for now. Task 1.7.2 is
-// deliberately backend-only — the frontend makes no request until Story 1.12 —
-// and Task 1.7.3 is the task that decides where the wire contract lives. When
-// the error shape moves to `packages/shared`, this name should go with it, and
-// Story 1.12 must import it rather than writing the string out again.
-export const REQUEST_ID_HEADER = "x-request-id";
 
 // What an inbound id is allowed to look like.
 //

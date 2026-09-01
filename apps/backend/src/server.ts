@@ -15,8 +15,10 @@
 import Fastify from "fastify";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
+import { REQUEST_ID_HEADER } from "@marketpulse/shared";
+
 import type { LogFormat, LogLevel } from "./config.js";
-import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
+import { resolveRequestId } from "./request-id.js";
 import { healthRoutes } from "./routes/health.js";
 
 // What the application needs from the process, which is currently only how to
@@ -148,10 +150,20 @@ export function buildServer(options: ServerOptions): FastifyInstance {
 
   // Routes are registered here as they arrive.
   //
-  // No JSON response schema on this route yet. Fastify's response schemas are
-  // worth having, but choosing a schema approach is entangled with Story 1.6's
-  // configuration validation and Story 1.7's error shape, and picking one here
-  // would pre-empt both. A deliberate deferral rather than an oversight.
+  // Task 1.2.3 deferred the response-schema question to Story 1.7 and Task
+  // 1.7.3 answered it: **Fastify's own JSON Schema support, per route, and no
+  // new dependency** — ajv and `fast-json-stringify` are already in the tree as
+  // Fastify's own. `/health` carries one; see routes/health.ts for what it buys
+  // and for the compile-time guard that keeps it honest.
+  //
+  // Story 1.6's argument against a schema library does not transfer here and
+  // was not reused: that was a schema over `process.env`, which is a schema
+  // over strings. A response body is typed data, which is the case a schema is
+  // actually good at.
+  //
+  // Nothing is declared at this level. A schema here would be an application
+  // saying something about routes it has not seen; the shape of a response
+  // belongs to the route that produces it.
   app.register(healthRoutes);
 
   return app;
