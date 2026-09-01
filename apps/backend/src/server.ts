@@ -18,6 +18,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { REQUEST_ID_HEADER } from "@marketpulse/shared";
 
 import type { LogFormat, LogLevel } from "./config.js";
+import { registerErrorHandling } from "./errors.js";
 import { resolveRequestId } from "./request-id.js";
 import { healthRoutes } from "./routes/health.js";
 
@@ -147,6 +148,15 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     reply.header(REQUEST_ID_HEADER, request.id);
     done();
   });
+
+  // The error contract, before the routes rather than after them (Task 1.7.4).
+  //
+  // Order does not actually matter to Fastify — `setErrorHandler` and
+  // `setNotFoundHandler` on the root instance apply to everything registered on
+  // it, whenever they are called. It is written first because it reads as what
+  // it is: a property of the application, not of any route. See errors.ts for
+  // the status-to-code mapping and the log levels.
+  registerErrorHandling(app);
 
   // Routes are registered here as they arrive.
   //

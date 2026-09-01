@@ -388,11 +388,31 @@ Every failed request answers with the same JSON body, declared once in
 ```json
 {
   "code": "NOT_FOUND",
-  "message": "No route for GET /nope",
+  "message": "Route not found.",
   "requestId": "d70b78aa-7cba-4724-80f9-114fd8b0d2c3",
   "details": ["optional, and only when there are several specifics"]
 }
 ```
+
+The three failures the server produces today, verbatim from a running instance:
+
+```
+GET /nope                                            -> 404
+{"code":"NOT_FOUND","message":"Route not found.","requestId":"91fc8c77-..."}
+
+POST /health  content-type: application/json  body: {oops   -> 400
+{"code":"BAD_REQUEST","message":"Body is not valid JSON but content-type is set
+to 'application/json'","requestId":"f35067d1-..."}
+
+a route that throws                                  -> 500
+{"code":"INTERNAL_ERROR","message":"An unexpected error occurred.",
+ "requestId":"bc58ce02-..."}
+```
+
+`requestId` is always the same value as the response's `x-request-id` header,
+and the same value the log records for that request carry as `reqId`. Quoting
+it from a failed response is how you find the log line — which, for a 500, is
+the one holding the real message and the stack.
 
 Flat rather than wrapped in an `error` key, because `requestId` is a property
 of the response and not of the failure — the same id is on every successful
@@ -401,10 +421,19 @@ two levels for four fields. The HTTP status already says that this is an error,
 and there is deliberately no `statusCode` in the body repeating it.
 
 `code` is a union rather than a free string, so a client can branch on it
-without matching prose that may be improved later. It has two members today —
-`NOT_FOUND` and `INTERNAL_ERROR` — because those are the two failures the
-server actually produces. It is meant to grow; a new member is a non-breaking
-addition.
+without matching prose that may be improved later. It has three members —
+`NOT_FOUND`, `BAD_REQUEST` and `INTERNAL_ERROR` — and every one of them names a
+failure the server can actually be made to produce, rather than one somebody
+imagined. `BAD_REQUEST` covers every 4xx that is not a 404, including a 413:
+both mean "your request was not acceptable, fix it and retry", and the HTTP
+status line still carries the specific difference. The union is meant to grow;
+a new member is a non-breaking addition.
+
+A **5xx never carries the real message**. The thrown error's own message goes
+to the log beside the correlation id and never to the client, because a message
+written for a developer — `connection to postgres at 10.0.0.4:5432 refused` —
+is internal detail even though it is not a stack. A 4xx passes Fastify's own
+message through, because it describes the client's own request.
 
 `details` is a list of strings and never an arbitrary object, because an
 open-ended object is the field internal detail leaks through. Every entry is a
@@ -433,6 +462,16 @@ The reason is not validation, it is that Fastify serialises through
 `fast-json-stringify`, which **strips any property the schema does not
 declare**. A field that should not reach a client cannot, whether or not
 somebody remembered.
+
+That is the second of two mechanisms behind "no internal detail reaches a
+client", and it is per-route and opt-in. The first covers everything: error
+bodies are built by `apiError()`, which constructs an object with no slot for
+anything else. The serialiser is what catches a handler that adds a field
+anyway — measured, a body decorated with `stack` and `cause` reached the wire
+as the four contracted fields on a route declaring the schema, and with both
+extras intact on one that did not. Declare `500: apiErrorSchema` on routes that
+can fail; note the not-found handler is not a route and can never have one,
+which is why the constructor is the mechanism that has to hold.
 
 The trap is that the stripping is silent: add a field to the response type,
 forget the schema, and it disappears at runtime with a green build. The house

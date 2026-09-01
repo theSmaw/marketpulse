@@ -29,6 +29,9 @@ import type { FastifyPluginCallback } from "fastify";
 // no runtime shape check to write.
 import manifest from "../../package.json" with { type: "json" };
 
+import { apiErrorSchema } from "../errors.js";
+import type { JsonSchemaProperty } from "../json-schema.js";
+
 // A string literal union, not a boolean and not a free string. Today it only
 // ever emits "ok": there is no dependency for this server to be degraded about
 // until Epic 2 adds one, and "unreachable" is the absence of a response, which
@@ -81,11 +84,10 @@ export interface HealthResponse {
 // is still a runtime failure rather than a compile one. Known and dated
 // 2026-09-01; closing either would mean deriving the type from the schema, and
 // see the outcome of Task 1.7.3 for why that dependency was not taken.
-interface JsonSchemaProperty {
-  readonly type: "string" | "number" | "boolean";
-  readonly enum?: readonly string[];
-}
-
+//
+// `JsonSchemaProperty` was declared here until Task 1.7.4 and now lives in
+// ../json-schema.ts, because the error contract's schema needs the same guard
+// and two copies of the type is how the two schemas stop agreeing.
 const healthProperties = {
   status: { type: "string", enum: ["ok"] },
   version: { type: "string" },
@@ -103,6 +105,20 @@ const healthSchema = {
       properties: healthProperties,
       required: Object.keys(healthProperties),
     },
+
+    // 500 declared even though this handler cannot fail today, and it is not
+    // ceremony: a route-level response schema is the *only* place Fastify will
+    // apply the serialiser to what an error handler sends. Measured both ways —
+    // with this entry, a body the error handler decorated with `stack` and
+    // `cause` reached the wire as the four contracted fields; without it, both
+    // extra fields went out verbatim. So this is the second mechanism behind
+    // criterion 6, and it is per-route and opt-in. The first one covers
+    // everything and is `apiError()` itself, which builds an object with no
+    // slot for anything else.
+    //
+    // Declare this on every route that can fail. Nothing in `pnpm verify`
+    // checks that you did.
+    500: apiErrorSchema,
   },
 };
 
