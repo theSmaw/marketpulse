@@ -38,7 +38,7 @@ Story 1.1 chose a pnpm workspace with `apps/backend` depending on `packages/shar
 
 ### What Story 1.4 changed for this story
 
-One thing, and it is a second artefact rather than a change to either of the two above. `pnpm build` now also emits **`apps/frontend/storybook-static/`** — 52 files and 9.2 MB on disk (Task 1.6.7's re-measurement; the 50 files and 7.4 MB recorded here were wrong, and 7.4 MB was the apparent size), none of it part of the product. It is a static site like the frontend and could be deployed the same way, but **Story 1.10 owns whether CI publishes it** and this story should not deploy it by accident: a `dist`-shaped glob or a "copy everything the build produced" step will pick it up. Decide it deliberately, in one place, with 1.10.
+One thing, and it is a second artefact rather than a change to either of the two above. `pnpm build` now also emits **`apps/frontend/storybook-static/`** — 59 files and 9.3 MB on disk (Task 1.7.7; it was 52 files and 9.2 MB through Story 1.6, and the 50 files and 7.4 MB originally recorded here were wrong, 7.4 MB being the apparent size), none of it part of the product. It is a static site like the frontend and could be deployed the same way, but **Story 1.10 owns whether CI publishes it** and this story should not deploy it by accident: a `dist`-shaped glob or a "copy everything the build produced" step will pick it up. Decide it deliberately, in one place, with 1.10.
 
 ### What Story 1.2 measured for this story
 
