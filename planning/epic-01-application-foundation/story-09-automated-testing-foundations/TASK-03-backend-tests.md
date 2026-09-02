@@ -1,6 +1,6 @@
 # Task 1.9.3 — Backend tests: the injected server, the error contract, and the configuration module
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.9 Automated Testing Foundations](STORY.md)
 **Depends on:** Task 1.9.2
 

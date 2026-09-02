@@ -130,11 +130,14 @@ convenience with no root fan-out and no place in `verify`.
 first failure is the exit code, and building first so that lint and test see
 current declarations.
 
-**Consequence:** `pnpm test` and both apps' `pnpm dev` are `echo` placeholders
-that exit 0 — until Story 1.9 for tests, and Stories 1.2 and 1.3 for the two
-dev servers. **A green `pnpm test` means "no tests exist", not "tests pass",**
-and Story 1.10 is about to put that green tick in CI where it will look like
-coverage. Only `packages/shared`'s `dev` (`tsc -b --watch`) is real.
+**Consequence:** every package's `dev` is real (Stories 1.2 and 1.3), and
+`test` is real in `packages/shared` (Task 1.9.2) and `apps/backend` (Task
+1.9.3). `apps/frontend`'s `test` is still an `echo` placeholder that exits 0, so
+**a green `pnpm test` means "two packages pass and the frontend has no tests",
+not "tests pass"** — and Story 1.10 is about to put that mixed tick in CI where
+it will look like workspace-wide coverage. Task 1.9.4 replaces the last
+placeholder; this paragraph, `README.md`'s and `CLAUDE.md`'s are removed
+together in Task 1.9.7.
 
 ### 6. Shared tooling lives at the workspace root; packages declare only what they import
 
