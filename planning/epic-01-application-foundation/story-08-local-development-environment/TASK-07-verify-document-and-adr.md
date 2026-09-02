@@ -1,6 +1,6 @@
 # Task 1.8.7 — Verify, document, and record the decisions as ADR 0008
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.8 Local Development Environment](STORY.md)
 **Depends on:** Tasks 1.8.1–1.8.6
 

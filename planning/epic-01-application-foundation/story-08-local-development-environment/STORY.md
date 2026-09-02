@@ -1,6 +1,6 @@
 # Story 1.8 — Local Development Environment
 
-**Status:** Not started
+**Status:** Complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Stories 1.2, 1.3
 **Epic scope covered:** local development environment
@@ -69,15 +69,15 @@ Story 1.7 is complete and `docs/adr/0007-*` records it. It is not a dependency o
 
 Tackled in order. 1.8.1 is a measurement task that changes nothing, and everything after it works from the friction list it produces. 1.8.3 and 1.8.4 are the two that make a decision this story has been carrying since Story 1.3; 1.8.5 and 1.8.6 are the headline criterion split into writing the document and then following it from a clean clone, which are deliberately different tasks done in that order.
 
-| #     | Task                                                                                           | Status      |
-| ----- | ---------------------------------------------------------------------------------------------- | ----------- |
-| 1.8.1 | [Baseline the running pair](TASK-01-baseline-the-running-pair.md)                              | Complete    |
-| 1.8.2 | [Make the pair legible in one terminal](TASK-02-make-the-pair-legible.md)                      | Complete    |
-| 1.8.3 | [The frontend-to-backend connection: proxy or CORS](TASK-03-frontend-to-backend-connection.md) | Complete    |
-| 1.8.4 | [Ports, conflicts, and knowing when the pair is up](TASK-04-ports-conflicts-and-readiness.md)  | Complete    |
-| 1.8.5 | [Extend the README to a running application](TASK-05-readme-to-a-running-application.md)       | Complete    |
-| 1.8.6 | [Reach a running application from a clean clone](TASK-06-clean-clone-first-run.md)             | Complete    |
-| 1.8.7 | [Verify, document, and record the decisions as ADR 0008](TASK-07-verify-document-and-adr.md)   | Not started |
+| #     | Task                                                                                           | Status   |
+| ----- | ---------------------------------------------------------------------------------------------- | -------- |
+| 1.8.1 | [Baseline the running pair](TASK-01-baseline-the-running-pair.md)                              | Complete |
+| 1.8.2 | [Make the pair legible in one terminal](TASK-02-make-the-pair-legible.md)                      | Complete |
+| 1.8.3 | [The frontend-to-backend connection: proxy or CORS](TASK-03-frontend-to-backend-connection.md) | Complete |
+| 1.8.4 | [Ports, conflicts, and knowing when the pair is up](TASK-04-ports-conflicts-and-readiness.md)  | Complete |
+| 1.8.5 | [Extend the README to a running application](TASK-05-readme-to-a-running-application.md)       | Complete |
+| 1.8.6 | [Reach a running application from a clean clone](TASK-06-clean-clone-first-run.md)             | Complete |
+| 1.8.7 | [Verify, document, and record the decisions as ADR 0008](TASK-07-verify-document-and-adr.md)   | Complete |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.7 followed.
 
@@ -114,3 +114,29 @@ No database is required yet — PostgreSQL arrives in Epic 2, at which point thi
 **Two of this story's own bullets above were stale and have been struck through rather than left standing.** The filtered-frontend criterion still quoted `Failed to run dependency scan … Are they installed?`, a message Task 1.8.1 had already retired; and the Story 1.7 hand-off said pnpm reports _each_ interrupted watcher as `Failed`, where it reports one and the choice is a race. Both were corrected in `README.md` and `CLAUDE.md` by Task 1.8.5 and are now corrected here, because a criterion that quotes a message the tree no longer produces cannot be ticked honestly by Task 1.8.7.
 
 **Two tasks changed. 1.8.6** gains the fifth first-run surprise to confirm in a browser, an instruction not to "correct" the Ctrl-C transcript to whatever the clone happens to print (the block names `packages/shared` while the prose says the name is not information — that tension is deliberate and 1.8.6 may reverse it, but not silently), ten new intra-document links to check with the double-hyphen slug rule that makes a correct anchor look broken, and the README's own figures as something to re-take rather than read past. **1.8.7** has **one** outstanding `CLAUDE.md` correction rather than two — 1.8.5 fixed the filtered-frontend paragraph, leaving only the doubled-`packages/shared`-build sentence — and gains an instruction to re-take `README.md`'s figures alongside `CLAUDE.md`'s, plus a decision to record: whether prose figures and unchecked intra-document links are a **fourth** `pnpm verify` gap beside `scripts/dev.sh`, the `rm -rf` fragments and the unenforced-invariant class.
+
+## Closed by Task 1.8.7
+
+**The story is complete and `docs/adr/0008-the-local-development-loop.md` records it.** Every criterion above was re-run on the shipping tree rather than ticked from a task file — six of them had been annotated as met before the story started, and two of those annotations were written by earlier stories, which is exactly the case the re-run instruction exists for.
+
+| Criterion                              | Re-run result                                                                                                                                |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev` is the single command       | **Ticked.** 3 watchers, 2 servers, **8 processes**, **13 lines**, **786 ms** to the listening line                                           |
+| The backend's dev loop is the pattern  | **Ticked.** Edit → new listener **1061 ms median** (958–1270, n=5), against the ~1.1 s baseline                                              |
+| Frontend calls backend, no CORS errors | **Ticked, and re-verified from the browser's console** — it is not observable from the application, because nothing calls the API until 1.12 |
+| Both services reload on source change  | **Ticked, with the measurement annotated** — see below; the foreground half could not be taken                                               |
+| Storybook is deliberately out          | **Ticked, with 1.8.2's mechanism refined** — it prompts for 6007 and, with no tty, hangs; it does not silently bind                          |
+| The filtered dev server's failure      | **Ticked.** The stale quotation is gone from both documents; the real error is a `vite:import-analysis` pre-transform error                  |
+| Prerequisites documented               | **Ticked.** Unchanged since Task 1.1.8; this story introduced no new prerequisite                                                            |
+| A clean clone reaches a running app    | **Ticked twice.** Task 1.8.6 followed the document; Task 1.8.7 re-ran the install-and-verify half as a comparison and it reproduced          |
+| Ports configurable, conflicts clear    | **Ticked, and the configurable half is a decision rather than a build** — see ADR 0008 §3                                                    |
+
+**Three findings from the re-run are worth more than the ticks.**
+
+- **The one `CLAUDE.md` correction this task was briefed to make would have made the file wrong.** Task 1.8.1 read the dev-loop transcript and concluded the second `packages/shared` build finds nothing to do. Measured, it emits: one shared edit rewrites `dist/api-error.js` and `tsconfig.tsbuildinfo` **twice** under root `pnpm dev` and **once** under the shared watcher alone. The original sentence stands, now with the measurement behind it. This is Story 1.7's lesson from the other direction — **a correction is itself a claim** — caught before landing rather than after
+- **The foreground-tab instruction could not be followed, and is recorded as unfollowed.** `document.visibilityState` was `hidden` on every one of ten samples; an automated tab cannot be foregrounded. Measured hidden-against-hidden, a **CSS-only** edit is **81–107 ms (median 91)** and a **component** edit **621–797 ms (median 696)**. The useful half is that **only one of the two is throttled** — the CSS band sits inside Task 1.4.6's foreground 24–130 ms because a stylesheet swap never reaches React's scheduler, while the component band is 2.5–4× its 177–280 ms. What needed no foreground tab is the proof it was module replacement: `timeOrigin` unchanged and **one** navigation entry, on all ten
+- **Two things in the Ctrl-C transcript are non-deterministic, not one.** Which watcher pnpm blames was already known to be a race; the spurious `node_modules missing` warning **also** comes and goes — absent on a clean Ctrl-C and present on a busy-3000 shutdown in the same session. `README.md` said it always appears and now does not
+
+**Two decisions were recorded rather than left implied.** `README.md`'s prose figures and its ten intra-document links are a **fourth `pnpm verify` gap**, accepted and dated 2026-09-02, with the two halves treated differently — the links are cheaply checkable and were checked at 0 broken, while a figure in a sentence is checkable by nothing, so closing the cheap half alone would make the section look covered. Story 1.10 owns CI and is where a link check belongs. And the cosmetic defect Task 1.8.6 found in `scripts/check-ready.mjs` — a multi-line configuration error indented on its first line only — was **fixed here** rather than inherited, because this is the story that shipped the script.
+
+**The three original `pnpm verify` gaps are unchanged and re-dated**: `apps/backend/scripts/dev.sh` is read by nothing and carries the only configuration value `env:check` cannot see; two `clean` scripts hold unchecked `rm -rf` fragments; and a stated invariant can quietly stop being enforced. Story 1.10 carries all four.
