@@ -1,0 +1,33 @@
+# Task 1.8.6 — Reach a running application from a clean clone
+
+**Status:** Not started
+**Story:** [1.8 Local Development Environment](STORY.md)
+**Depends on:** Task 1.8.5
+
+## Objective
+
+Prove the story's headline criterion the only way it can be proved: clone into an empty directory, follow the written words, and end up looking at the application. This is the acceptance test for the whole story.
+
+## Work
+
+- **Follow the document, not the tree you already have.** Clone into an empty directory with an empty pnpm store and an empty `COREPACK_HOME`, so Corepack fetches the pinned pnpm from the registry and pnpm downloads every package rather than reusing anything local. Then execute the README's words literally, including the ones that look obviously skippable. The failure mode this catches is knowledge that exists only in this session
+- **Six clean-clone runs already exist and none of them started the pair.** Task 1.1.8 proved the clone reaches a repository that installs and verifies; Task 1.3.5 re-proved it with the frontend present (cold store, 200 packages in 1.3s, `pnpm verify` in 7.6s, a **byte-identical** bundle); Task 1.4.6 re-ran it at 10.5s with the workshop in the chain; Task 1.5.6 at 11.0s with the router, the chrome and the regions; Task 1.6.7 at 9.3–9.8s with a sixth `verify` step; Task 1.7.7 at 8.77s warm and **13.2s** from a genuinely cold clone. Three consecutive stories have measured that total going up and down while the tree only grew, so **read the per-step split rather than the total** and do not present it as a trend. Install-and-verify is the part that is already covered; **starting the pair from that clone is what is outstanding, and it is the only half left**
+- **Run `pnpm dev` in the clone and reach all four addresses in a browser.** Not `curl` — the criterion is a running _application_, and three of the four things that look like faults on a first run (the disconnected feed indicator, a rendered fallback, the region grid) are only visible in a page. Reach `/`, `/investigations`, `/securities`, `/replay` and a made-up path, and confirm each matches what Task 1.8.5 wrote about it
+- **Exercise the two setup paths that are easy to get wrong, because a first-timer will.** Start with no `.env` at all and confirm the pair comes up on defaults; then copy `apps/backend/.env.example` to `apps/backend/.env` exactly as written and confirm nothing changes; then put a deliberately invalid value in it and confirm the failure names the key and quotes what was typed, before the server binds. A setup document that has never been followed wrongly has not been tested
+- **Do the loop, not just the launch.** Edit a backend source file and a frontend component in the clone and confirm both reload — the two mechanisms have different baselines (Task 1.8.1 measured **941–1198 ms, median 963** for the backend's process restart, against a foreground module replacement at 56–257 ms) and a fresh clone is where a missing build step shows up as a loop that does not work. Prove the frontend half was HMR with an unchanged `performance.timeOrigin` and a `navigation` entry count of 1, and record `document.visibilityState` with any timing — a hidden tab costs 4–6× and makes a number that looks like a regression. Then Ctrl-C and confirm zero survivors in the process group with both ports released
+- **Fix, do not note.** If a step turns out to be undocumented, machine-specific, or in the wrong order, the change goes into `README.md` in this task rather than into a list for later. Story 1.10 runs the same sequence in CI and Story 1.11 in a deployment environment, so an undocumented step here becomes a CI failure there
+- **Be precise about what a clean clone cannot prove.** It has no stale `dist`, so it cannot reproduce the silent-pass trap `tsc -b` exists to prevent — that evidence is in Tasks 1.1.4 and 1.1.7 and should be cited rather than expected to recur. It has no worktrees under `.claude/worktrees/`, so root-tooling-walks-into-a-nested-checkout cannot recur either. And it says nothing about deep-linking on a real host, which stays Story 1.11's
+- Confirm `pnpm verify` exits 0 in the clone, and record the per-step split rather than only the total
+
+## Done when
+
+- A clean clone reaches all four running addresses in a browser by following `README.md` alone
+- No step required knowledge that exists solely in this session, and anything that did is now written down
+- The no-`.env`, correct-`cp` and invalid-value paths were each exercised in the clone
+- Both reload mechanisms work in the clone, and Ctrl-C leaves nothing behind
+- `pnpm verify` exits 0 there, with the per-step split recorded and the total not presented as a trend
+- What the clean clone could **not** prove is stated, with the tasks that hold that evidence instead
+
+## Notes
+
+The instruction is the same one Task 1.1.8 followed and it is the whole value of the task: if a step is wrong, fix it here. This is also the run an interviewer is standing in for — PRODUCT_SPEC.md §40 is the reason the criterion is written as "a clean clone", not "a working machine".

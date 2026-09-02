@@ -1,6 +1,6 @@
 # Story 1.7 — Logging & Error Handling
 
-**Status:** Not started
+**Status:** Complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.2
 **Epic scope covered:** logging, basic error handling
@@ -93,15 +93,15 @@ These are the choices this story has to take deliberately. Each has a task that 
 
 Tackled in order, with one exception: **1.7.6 is independent of 1.7.1–1.7.5** and could run first. It shares no file with them — the backend half touches `apps/backend` and `packages/shared`, the frontend half touches `apps/frontend` — and its dependency was Story 1.5, which is complete. 1.7.7 is downstream of both halves.
 
-| #     | Task                                                                                               | Status      |
-| ----- | -------------------------------------------------------------------------------------------------- | ----------- |
-| 1.7.1 | [Log format, level, and whether the environment exists](TASK-01-log-format-level-and-transport.md) | Complete    |
-| 1.7.2 | [Request logging and the correlation id](TASK-02-request-logging-and-the-correlation-id.md)        | Complete    |
-| 1.7.3 | [The error contract, and whether responses carry a JSON schema](TASK-03-the-error-contract.md)     | Complete    |
-| 1.7.4 | [The backend error handler](TASK-04-the-backend-error-handler.md)                                  | Complete    |
-| 1.7.5 | [Crash handlers, and their interaction with shutdown](TASK-05-crash-handlers-and-shutdown.md)      | Complete    |
-| 1.7.6 | [The frontend error boundary and its region fallback](TASK-06-frontend-error-boundary.md)          | Complete    |
-| 1.7.7 | [Verify, document, and record the decisions as ADR 0007](TASK-07-verify-document-and-adr.md)       | Not started |
+| #     | Task                                                                                               | Status   |
+| ----- | -------------------------------------------------------------------------------------------------- | -------- |
+| 1.7.1 | [Log format, level, and whether the environment exists](TASK-01-log-format-level-and-transport.md) | Complete |
+| 1.7.2 | [Request logging and the correlation id](TASK-02-request-logging-and-the-correlation-id.md)        | Complete |
+| 1.7.3 | [The error contract, and whether responses carry a JSON schema](TASK-03-the-error-contract.md)     | Complete |
+| 1.7.4 | [The backend error handler](TASK-04-the-backend-error-handler.md)                                  | Complete |
+| 1.7.5 | [Crash handlers, and their interaction with shutdown](TASK-05-crash-handlers-and-shutdown.md)      | Complete |
+| 1.7.6 | [The frontend error boundary and its region fallback](TASK-06-frontend-error-boundary.md)          | Complete |
+| 1.7.7 | [Verify, document, and record the decisions as ADR 0007](TASK-07-verify-document-and-adr.md)       | Complete |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.6 followed.
 

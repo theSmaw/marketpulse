@@ -36,6 +36,17 @@ Task 1.6.6 wrote `README.md`'s `## Configuration` section, so this story's job t
 
 This story's outstanding criterion is unchanged and is the one the configuration work does not touch: a clean clone reaching a **running application** by following the README alone. Task 1.6.7 re-ran install-and-verify from a clean tree, not the running pair.
 
+### What Story 1.7 hands this story
+
+Story 1.7 is complete and `docs/adr/0007-*` records it. It is not a dependency of this story and it did not change how anything starts — what it changed is what the running pair **looks like**, which is this story's whole subject.
+
+- **The development loop already has an environment mechanism, and it is one line in `scripts/dev.sh`.** `export LOG_FORMAT="${LOG_FORMAT:-pretty}"` is why the backend's output is rendered lines rather than JSON in `pnpm dev`, and it is the whole of how "development" exists here: ADR 0007 §1 records that `NODE_ENV` is still read nowhere and nothing branches on which environment it is in — the development entrypoint simply passes a value. Extend that file if this story needs another such value; do not introduce a name for the environment
+- **That file is also the epic's worst-covered one, and it got worse in Story 1.7.** `pnpm verify` reads it with nothing — ESLint sees only JS and TS, Prettier has no shell parser and skips it silently, `tsc` has no view of it — and it now carries the only configuration value `pnpm env:check` structurally cannot see. A typo there is not an error; it is a silent fallback to JSON in the one loop that wanted `pretty`. Known and dated 2026-09-01, and Story 1.10 carries the same note
+- **Legibility now has a number.** A request writes **12 rendered lines** in `pretty` (six per record — message, `reqId`, and a four-line `req` or a `res` plus `responseTime`), into a terminal already shared by three loops and eight processes. Fastify's own defaults render 15, so Task 1.7.2's narrowed serialiser made this smaller rather than larger — but 12 lines per request is still the thing a "make the pair legible together" decision is up against, and `LOG_LEVEL` is the knob
+- **Turning that knob down has a trap in it.** At `warn` and above a healthy server is **completely silent**, its `Server listening at …` line included, because nothing in a normal run emits above `info`. So a quieter dev loop looks exactly like a failed start, and anything this story writes that waits for the server to be up must poll the port or `GET /health` rather than grep the log
+- **Ctrl-C is no longer silent, and silence is now the symptom.** The dev loop logs `signal received` and `shutdown complete` on the way out. The surrounding noise is unchanged and still not a failure — pnpm reports each interrupted watcher as `Failed` and adds a spurious `node_modules missing` warning
+- **A first run can now see a rendered failure rather than a blank page.** Three error boundaries contain a render failure to the box it happened in, so a broken region is a labelled box with a reset button and the rest of the screen keeps working. The one exception worth documenting beside the disconnected feed indicator: the header's own fallback replaces the `<header>`, so a broken chrome takes the banner and the navigation with it
+
 ## Acceptance criteria
 
 - ~~**`pnpm dev` is the single command, and it already exists**~~ — **this criterion is now met, and Story 1.3 closed the second half of it.** All three `dev` scripts are real: `packages/shared` in `tsc -b --watch --preserveWatchOutput`, `apps/backend` in `scripts/dev.sh` (a second `tsc -b --watch` plus `node --watch dist/index.js`), and `apps/frontend` in `vite`. Root `pnpm dev` starts the pair — eight processes, backend on 3000 and dev server on 5173 — and Task 1.3.5 verified Ctrl-C leaves zero survivors in the process group with both ports released. What is left for this story is not starting them but **making the pair legible together**, which is a presentation problem rather than a wiring one
@@ -53,6 +64,26 @@ This story's outstanding criterion is unchanged and is the one the configuration
 
 - **There are four routes now, and the dev server tells a flattering lie about three of them.** `vite` and `vite preview` answer any unmatched path with `index.html` and a 200, so `/investigations`, `/securities`, `/replay` and any made-up address all deep-link locally — and all **404** on a plain static host serving the identical build. Task 1.5.5 measured both. This story documents the local loop, so it is entitled to say deep-linking works _here_; what it must not do is write that down as a property of the application. Story 1.11 owns the host, and two of Story 1.5's acceptance criteria are annotated rather than ticked for exactly this reason
 - **The chrome gives the pair a visible connection point that does not exist yet.** `AppHeader` renders a `FeedIndicator` hard-coded to `disconnected` with the detail "No market data until Epic 3". Anyone following this story's README and looking at the running application sees a disconnected indicator on every route — which is honest and will read as a broken setup unless the README says what it means. One sentence, and it stops a first-run experience looking like a failed one
+
+## Tasks
+
+Tackled in order. 1.8.1 is a measurement task that changes nothing, and everything after it works from the friction list it produces. 1.8.3 and 1.8.4 are the two that make a decision this story has been carrying since Story 1.3; 1.8.5 and 1.8.6 are the headline criterion split into writing the document and then following it from a clean clone, which are deliberately different tasks done in that order.
+
+| #     | Task                                                                                           | Status      |
+| ----- | ---------------------------------------------------------------------------------------------- | ----------- |
+| 1.8.1 | [Baseline the running pair](TASK-01-baseline-the-running-pair.md)                              | Complete    |
+| 1.8.2 | [Make the pair legible in one terminal](TASK-02-make-the-pair-legible.md)                      | Not started |
+| 1.8.3 | [The frontend-to-backend connection: proxy or CORS](TASK-03-frontend-to-backend-connection.md) | Not started |
+| 1.8.4 | [Ports, conflicts, and knowing when the pair is up](TASK-04-ports-conflicts-and-readiness.md)  | Not started |
+| 1.8.5 | [Extend the README to a running application](TASK-05-readme-to-a-running-application.md)       | Not started |
+| 1.8.6 | [Reach a running application from a clean clone](TASK-06-clean-clone-first-run.md)             | Not started |
+| 1.8.7 | [Verify, document, and record the decisions as ADR 0008](TASK-07-verify-document-and-adr.md)   | Not started |
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.7 followed.
+
+**Task 1.8.1's measurements were read back against this split and it survives with amendments and no re-order.** No task was added, removed or moved: all ten friction items landed inside the four tasks that were already meant to hold them, and the one item with no owner was recorded as out of scope rather than becoming a ninth task. Four tasks changed. 1.8.2 gained the lever the numbers actually point at — the request record's _rendering_ rather than its severity, since 12 of 12 lines are `pretty` expanding two records — plus the ragged prefixes, the three clocks and the Ctrl-C misattribution. 1.8.3 no longer has to establish the cross-origin failure, because 1.8.1 established it and found it stranger than expected: the request is answered **200** and the browser discards the response. 1.8.4 gained a third reason the startup line is not a readiness signal (it arrives second) and a measured false positive (`curl /` against the frontend returns 200 from a server whose module graph does not resolve). 1.8.5 lost one sentence it was going to write and gained three, and both of its stale quotations were corrected.
+
+**The one re-order worth considering was 1.8.2 after 1.8.3, and it was rejected on the measurement.** The case for it is that a page load costs zero terminal lines only because the frontend makes no request, so 1.8.2 would be deciding legibility against a terminal that is about to change. The case against is that 1.8.3's probe is temporary and removed before that task closes — the shipping request is Story 1.12's — so the terminal after 1.8.3 is the same silent one, and the re-order buys nothing an instruction cannot. 1.8.2 is instead told to decide against the terminal Story 1.12 will produce, where 12 lines per page load is the floor.
 
 ## Notes
 
