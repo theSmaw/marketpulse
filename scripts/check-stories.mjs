@@ -57,6 +57,7 @@ const COMPONENTS_DIR = resolve(
 const REPO_ROOT = resolve(import.meta.dirname, "..");
 
 const STORIES_SUFFIX = ".stories.tsx";
+const TEST_SUFFIX = ".test.tsx";
 
 /**
  * Every `.tsx` file under the components directory, recursively.
@@ -83,8 +84,18 @@ async function findTsxFiles(dir) {
 
 const tsxFiles = await findTsxFiles(COMPONENTS_DIR);
 
+// A test file is not a component and owes no stories. Task 1.9.2 put test
+// files at `src/<subject>.test.ts` beside their subject — forced rather than
+// chosen, because ESLint's project service only discovers a `tsconfig.json` —
+// and Task 1.9.4 brought that convention under `src/components/`, where this
+// check lives. Without this line the two conventions collide loudly: measured,
+// `PriceChange.test.tsx` was reported as a component wanting a
+// `PriceChange.test.stories.tsx`, and `pnpm stories` exited 1.
+//
+// This narrows what the check *reads*, not what it demands: a real component
+// with no stories still fails, which is the one direction this check enforces.
 const componentFiles = tsxFiles.filter(
-  (path) => !path.endsWith(STORIES_SUFFIX),
+  (path) => !path.endsWith(STORIES_SUFFIX) && !path.endsWith(TEST_SUFFIX),
 );
 
 const storyFiles = new Set(
