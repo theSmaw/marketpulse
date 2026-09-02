@@ -1,0 +1,39 @@
+# Task 1.9.4 — Frontend component tests and the DOM environment
+
+**Status:** Not started
+**Story:** [1.9 Automated Testing Foundations](STORY.md)
+**Depends on:** Task 1.9.2
+
+## Objective
+
+Make `apps/frontend`'s `test` script real: choose a DOM environment, build the one render helper that supplies the application's context, and test the real component tree rather than a set of shallow renders.
+
+## Work
+
+- **Choose the DOM environment deliberately and install it in the right place.** jsdom, happy-dom or a real browser runner — a second runtime, a second set of globals, and under ADR 0001 §6 a **package** dependency rather than a root one, because the test code imports it. Do not take whatever the runner's default template ships. Record the cost the way every other install in this repository is recorded, and check `allowBuilds`: a browser runner in particular is the most likely thing yet to add a second install script to a tree that has had exactly one since Task 1.4.5
+- **Decide where the tests live, and know that the two options differ in more than tidiness.** Under `apps/frontend/src/**` a test file gets the browser globals block, the `no-restricted-globals` rule over `process`/`Buffer`/`node:*`, the React Compiler rule set, and `--max-warnings 0` making a warning a failing `verify`. Outside `src` it gets none of them and needs its own tsconfig or ESLint block. Neither is obviously right; the choice has to be made rather than fallen into, and it should match whatever Task 1.9.2 chose for `packages/shared` unless there is a reason not to
+- **Do not weaken `types: ["vite/client"]` to make a test typecheck.** A runner wanting its own globals is an **addition** to that array, not a reason to abandon it — what does the work is that the list is explicit, not that it is empty. Adding `"node"` is the specific wrong fix: the array exists so server-side APIs do not typecheck in browser code. Note the array is already weaker than it looks — Task 1.6.4 found `@types/node` reaching the program through a `/// <reference>` in a declaration file the stories drag in — so re-measure the boundary here rather than citing it, and remember the lint block is what actually stands there
+- **Build exactly one render helper, and treat it as the third description of the application's context.** `App.tsx` is the first (`<BrowserRouter>`), `.storybook/preview.tsx` is the second (a `MemoryRouter` decorator with an entry from a story parameter). A test setup is the third, and keeping it to one shared helper is this story's job — every provider Epic 2 adds lands in the same place. `MemoryRouter` for the same reason the workshop uses it, and the helper takes an initial entry so route-dependent components can be tested. `AppHeader` uses `NavLink` and `App` is a router, so rendering either bare throws; that is the thing the helper exists for
+- **Test through the real component tree, which is the criterion's wording and not an accident.** The five components in `src/components/` are pure and cheap: `PriceChange`, `AnomalyBadge`, `FeedIndicator`, `SecurityRow` and `Popover`, plus `AppHeader`, `Region`, `ErrorBoundary` and `ErrorFallback`. `SecurityRow` composes four of them and is the representative subject
+- **Assert on roles and accessible names, not on markup, and there is a mechanical reason as well as a principled one.** `Region` generates its `aria-labelledby` target with `useId()`, whose `«r1»`-style output depends on where the component sits in the render tree, and four regions render on the landing route. A DOM snapshot is stable only while nothing above it moves. Roles and names are the better assertion anyway and they are what the non-colour encoding actually is — the arrow glyph, the band name inside the fill, the marker shape plus word. **Do not assert on colour**: under `grayscale(1)` the positive and negative price colours differ by 1.05:1, which is the finding the components were built around
+- **`ErrorBoundary` is the one component with behaviour, and it is the only place a test can assert a decision rather than a render.** A child that throws produces the fallback; the fallback never shows the error's message, because `getDerivedStateFromError` deliberately keeps a boolean and not the error; and reset **remounts** via a `key` change rather than re-rendering, which is what makes recovery work on a child still holding the state that broke it. Assert the remount, not just that the alert went away. A boundary catches nothing thrown in an event handler — measured in Task 1.7.6 — so a test asserting containment of a click handler's throw will fail, correctly
+- **Write the route test the story asked for, in three lines, from `paths.ts`.** Every path is declared once as an `as const` object, read by both the `<Route path>` declarations and every `to=`. The gap `paths.ts` explicitly does not close is that **nothing checks a declared path has a route** — walk the object, render at each path, and assert the not-found route did not render. That is the only mechanism that would ever catch a mistyped route, and it is the third silent-failure class in this frontend alongside a misspelled CSS Module class and a missing `.js` import extension
+- **Decide `@storybook/addon-vitest`: adopt or reject, with a reason either way.** It would turn each of the existing stories into a smoke test — renders without throwing — for close to no authoring cost, and would give the a11y addon's per-story axe run a way to **fail** rather than report. Against it: a second way to run tests, a second place coverage comes from, and a set of stories written as a workshop rather than as assertions. If it is adopted, note that `AppHeader`'s `AllPermutations` story has two a11y rules disabled on it deliberately, and that `pnpm stories` still proves only that a file exists
+- **If axe runs at all here, state what an axe pass is worth.** Task 1.5.4's figures were 0 violations / 37 passes / 1 inconclusive on the landing route and 0 / 26 / 0 on the others — and the pass count already moved once, so it is a figure to re-take rather than assert on. The one inconclusive is `color-contrast` on non-text content: axe declines to judge the exact elements carrying this product's non-colour encoding, which makes an automated check a floor rather than the measurement
+- **There is no state, no timer and no network call anywhere in this frontend**, and Story 1.12's polling effect is definitively the first. Do not invent an async subject to exercise the runner's async story; note the gap instead, so 1.12 knows it is the first suite that will need fake timers
+- **Replace the `echo` placeholder** and confirm a failing frontend test propagates to the root exit code
+
+## Done when
+
+- A DOM environment is chosen, installed as a dependency of `apps/frontend`, and its cost recorded
+- One render helper supplies router context, and it is the only place the application's providers are described for tests
+- Component tests render through the real tree and assert roles and accessible names
+- `ErrorBoundary`'s containment, its message-free fallback and its remount-on-reset are each asserted
+- A test walks `paths.ts` and would fail on a declared path with no route
+- `@storybook/addon-vitest` is adopted or rejected, with a reason
+- `types: ["vite/client"]` is intact or extended, never replaced, and the browser boundary is re-measured rather than cited
+- `pnpm verify` exits 0, with lint clean under `--max-warnings 0` including the React Compiler rules on any test file under `src/`
+
+## Notes
+
+The React Compiler rule set has never fired outside a spike, and the reason is that nothing shipped here has state — not that the tree is compatible with it. Test files are new code under `src/`, so this is the first realistic chance of a finding. If one appears, it is a finding rather than an obstruction; `set-state-in-effect` at `error` is what it looked like last time.

@@ -1,0 +1,33 @@
+# Task 1.9.6 — Test conventions, and running a single test
+
+**Status:** Not started
+**Story:** [1.9 Automated Testing Foundations](STORY.md)
+**Depends on:** Tasks 1.9.3, 1.9.4, 1.9.5
+
+## Objective
+
+Write down the conventions the previous four tasks established — naming, location, what belongs at each level — and close the one item `CLAUDE.md` has carried as explicitly outstanding since Task 1.1.7: how to run a single test file, and a single test by name.
+
+## Work
+
+- **Run every command before writing it down.** This is the same rule Task 1.1.8 followed and the one Task 1.8.6 found three prose figures wrong under: a command in a document is a claim. Single file, single test by name, one package, watch mode if the runner has one, and the coverage command from Task 1.9.5 — executed, with their real output, from both the repository root and a package directory, because those are two different invocations and the difference is the thing a reader trips on
+- **Get the `pnpm` filtering right, and check the trap.** `pnpm --filter @marketpulse/backend test <path>` and `pnpm --filter @marketpulse/backend run test -- -t "name"` are not obviously equivalent, and `clean` is the standing proof that a filtered verb can dispatch somewhere unexpected — `pnpm --filter <pkg> clean` hits pnpm's built-in and fails with `Unknown option: 'recursive'`. Check whether `test` has any such collision and whether argument forwarding needs `--`, rather than writing the plausible form
+- **State the conventions as rules with reasons, not as a style list.** Four are already decided by the time this task runs and it only has to record them: where test files live and what they are named; how the shared render helper is used and why there is exactly one; how `buildServer({ logLevel: "silent" })` is the way to get a server; and that a test importing a relative module carries the `.js` extension like every other file here
+- **Say what belongs at each level, in this codebase's terms rather than in general ones.** A unit test drives a function with a plain argument — `loadConfig(env)` is the model, because it takes the environment as a parameter specifically so no process has to be mutated. An integration test drives the real HTTP layer through `app.inject()` with both error handlers and CORS already registered by the factory. A component test renders through the real tree with the one helper. And there is a fourth level with no runner behind it — the backend's process half needs a real child process against a built tree — which belongs in the list precisely because it is the level people assume is covered
+- **Write down what a test must not assert**, because each item cost a measurement to learn: not colour, since the two price directions differ by 1.05:1 desaturated; not a DOM snapshot of a route, since `useId()` output moves when anything above it moves; not a CORS rejection through `app.inject()`, since the server asserts the allowed origin unconditionally and the browser is the only enforcer; not an axe pass as coverage, since axe returns `color-contrast` inconclusive on exactly the non-text elements this product encodes with; and not latency, unless it is warmed up with a large n and a threshold well outside variance
+- **Update `CLAUDE.md`'s Commands section and `README.md`'s command table together**, and keep them in step — that is the standing rule and both files are current rather than sketches, so this is an edit. `CLAUDE.md`'s closing line "Still missing here, and it should be added the moment it exists: how to run a **single** test" is the sentence this task deletes by making it true
+- **Leave the three "a green `pnpm test` means no tests exist" warnings alone.** They are in `README.md`, `CLAUDE.md` and ADR 0001 §5, and they stop being true only when the last placeholder is gone and the story closes. Task 1.9.7 removes all three in one change; removing one here leaves the set inconsistent, which is the failure mode the triplication was set up to avoid
+- **Decide where the conventions actually live and do not write them twice.** `README.md` is for humans running commands; `CLAUDE.md` is the operational summary; ADR 0009 is the record of _why_. The conventions are operational, the reasoning is the ADR's, and the commands are the README's — a copy in all three is three things to keep in step, which this epic already has enough of
+
+## Done when
+
+- Running a single test file and a single test by name is documented, from the root and from a package directory, and every documented form was executed
+- `CLAUDE.md`'s outstanding-item sentence is gone because the thing it wanted exists
+- Naming, location and the three-plus-one levels are written down with their reasons
+- The "must not assert" list exists, each item traceable to a measurement
+- `README.md` and `CLAUDE.md` agree, with no third copy of the same prose
+- `pnpm verify` exits 0 — Prettier owns Markdown, so an unformatted document fails it
+
+## Notes
+
+`README.md`'s prose figures and intra-document links are a known and dated `verify` gap (2026-09-02) with no tool reading either. This task adds more prose with commands in it, so it is a good moment to re-state the gap rather than quietly enlarge it — and a bad moment to build a checker for it, which Story 1.8 already rejected as scaffolding ahead of the iteration that needs it. Story 1.10 owns CI and is where it would belong.

@@ -102,6 +102,26 @@ Story 1.8 is complete and `docs/adr/0008-*` records it. It is not a dependency a
 - Coverage reporting is available on demand
 - Test conventions documented — naming, location, what belongs at each level
 
+## Tasks
+
+Tackled in order. The story is complete when all seven are done.
+
+1.9.1 is a decision task that changes nothing in the tree — the module setup constrains the choice hard enough that picking first and discovering second would mean rewriting whatever landed. 1.9.2 puts the runner in the workspace and proves it on the package with no DOM, no server and no framework, so the wiring is the only thing under test. 1.9.3 and 1.9.4 are the two halves of the tree and can be done in either order once 1.9.2 lands; they are numbered backend-first because the backend's subjects already exist and the frontend's need a second runtime chosen. 1.9.5 and 1.9.6 both need every test that will exist. 1.9.7 closes it.
+
+| #     | Task                                                                                         | Status      |
+| ----- | -------------------------------------------------------------------------------------------- | ----------- |
+| 1.9.1 | [Choose the test runner](TASK-01-choose-the-test-runner.md)                                  | Not started |
+| 1.9.2 | [Wire the runner and prove it on `packages/shared`](TASK-02-wire-the-runner-on-shared.md)    | Not started |
+| 1.9.3 | [Backend tests: the injected server and the configuration module](TASK-03-backend-tests.md)  | Not started |
+| 1.9.4 | [Frontend component tests and the DOM environment](TASK-04-frontend-component-tests.md)      | Not started |
+| 1.9.5 | [Coverage reporting on demand](TASK-05-coverage-on-demand.md)                                | Not started |
+| 1.9.6 | [Test conventions, and running a single test](TASK-06-conventions-and-single-test.md)        | Not started |
+| 1.9.7 | [Verify, document, and record the decisions as ADR 0009](TASK-07-verify-document-and-adr.md) | Not started |
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.8 followed. One consequence specific to this story: each of 1.9.2, 1.9.3 and 1.9.4 removes exactly one of the three `echo` placeholders, so between those tasks `pnpm test` is a mix of real suites and placeholders. That is expected, and it is also why the three "a green `pnpm test` means no tests exist" warnings are removed in **one** change at the end rather than a third at a time.
+
+**Two things this split deliberately does not do.** There is no task for testing the backend's process half — signals, exit codes, the shutdown ceiling, the second-signal path, both crash handlers — because none of it is reachable by `app.inject()` and all of it needs a child process against a built tree. Task 1.9.3 has to decide whether to demonstrate one such test or record the class as out of scope with an owner, and that decision is cheaper than an eighth task written before the runner is chosen. And there is no task for CI: Story 1.10 owns it, and the instruction it inherits is easy to get backwards — the coverage command from 1.9.5 is deliberately not a `verify` step, exactly as `pnpm ready` is not.
+
 ## Notes
 
 The commands established here go into `CLAUDE.md`'s Commands section and `README.md`'s command table — both of which now exist and are current, so this is an edit rather than a fill-in. The note here used to say the Commands section was a placeholder; Task 1.1.7 wrote it and Task 1.1.8 verified every command in it from a clean clone.
