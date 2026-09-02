@@ -1,6 +1,6 @@
 # Task 1.8.6 — Reach a running application from a clean clone
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.8 Local Development Environment](STORY.md)
 **Depends on:** Task 1.8.5
 
@@ -42,3 +42,206 @@ Prove the story's headline criterion the only way it can be proved: clone into a
 ## Notes
 
 The instruction is the same one Task 1.1.8 followed and it is the whole value of the task: if a step is wrong, fix it here. This is also the run an interviewer is standing in for — PRODUCT_SPEC.md §40 is the reason the criterion is written as "a clean clone", not "a working machine".
+
+## Outcome
+
+A clean clone reached the running application by following `README.md` alone.
+Every figure the document publishes was re-taken in the clone rather than read
+past, and **four sentences in it were wrong** — three claims, corrected here.
+Nothing in the source tree changed.
+
+### 0. What "clean" meant
+
+Cloned from `https://github.com/theSmaw/marketpulse.git` into an empty
+directory with an empty `COREPACK_HOME` (Corepack fetched the pinned pnpm
+11.24.0 from the registry — confirmed by the new `corepack/v1/pnpm/11.24.0`
+appearing) and an empty pnpm store. The store had to be pointed at with
+`--store-dir`; the `npm_config_store_dir` / `NPM_CONFIG_STORE_DIR` env vars are
+**ignored** by pnpm 11 and an install that looks cold is not, which is worth
+knowing before anyone re-runs this.
+
+Cold install: **327 packages, 327 downloaded, 0 reused, 3.1 s.** Task 1.3.5's
+200 is stale by 127 packages across five stories, so quote this one rather than
+that. `allowBuilds` did not fire: `esbuild` is still the tree's only install
+script.
+
+### 1. `pnpm verify` in the clone, per step
+
+Exit **0**, three times: 14.64 s on the first cold run after install, 9.66 s
+warm, and 12.78 s cold again after a `pnpm clean`. Read the split, not the
+total — three stories have now watched the total move in both directions while
+the tree only grew.
+
+| Step           | Warm   |
+| -------------- | ------ |
+| `build`        | 2.12 s |
+| `lint`         | 3.38 s |
+| `format:check` | 2.58 s |
+| `stories`      | 0.25 s |
+| `env:check`    | 0.26 s |
+| `test`         | 0.49 s |
+
+Cold, `build` splits `tsc -b` 1.83 s / `vite build` 0.51 s / `storybook build`
+1.50 s.
+
+The artefact reproduces exactly: **271 modules, 343,658 B of JavaScript,
+10,926 B of CSS, three files**, and the bundle's md5 is
+`cba2825c87721779927b2f385df406e9` — byte-identical to the working tree's and
+to the md5 Task 1.7.7 recorded from its own cold clone. `storybook-static` is
+59 files and 9.3 MB. The README's published stylesheet figure of 10.93 kB is
+correct.
+
+### 2. `pnpm ready` in all three places it can say something
+
+- **Before any build**, which is only naturally reachable from a clean clone:
+  `Cannot read apps/backend/dist/config.js — run \`pnpm build\` first.`, exit 1.
+  The documented message, verbatim
+- **With the pair up**: exit 0, both addresses named. **0.33 s** warm, and
+  **0.86 s** when run in the same breath as `pnpm dev` — it waited out the
+  startup, as the 15-second poll window is there to let it
+- **Against an invalid `.env`**: the configuration error as plain lines, no
+  stack, exit 1
+
+One cosmetic thing seen and deliberately not fixed, because this task's remit
+is the document: with **two** bad keys, `pnpm ready` indents the first line of
+the error and not the second.
+
+### 3. `pnpm dev` from the clone
+
+**Thirteen lines, and 1,159 ms** from invoking the command to the server's
+`Server listening at` line (3:32:10.169 → 3:32:11.328). "Under a second and a
+half" holds. The pair came up with **no `.env` file at all**, on port 3000 and
+`127.0.0.1`, which is what `CORS_ORIGIN`'s default of `http://localhost:5173`
+makes a working pair rather than two running servers.
+
+All four routes and a made-up path were reached in a browser and each matched
+the README's table: `/` with its four region landmarks and the render check,
+three placeholders, and `NotFound` on `/nonsense-made-up-path`. **Zero console
+errors, and zero requests to port 3000 across 265 network requests** — which is
+the criterion Task 1.8.3 met being correctly invisible, not a fault.
+
+### 4. All five first-run surprises, seen in a browser
+
+The `DISCONNECTED` feed indicator with "No market data until Epic 3"; the
+`--:--:-- ET` clock; the render check's deliberate `STALE` and `DISCONNECTED`
+rows; and the **"Peer comparison failed"** block, which is the one the brief
+was right to worry about — it is a title, a red rule and the word "failed", in
+the product's real failure vocabulary. The README's sentence distinguishing it
+from Story 1.7's fallback survives contact with the running page for a concrete
+reason: **the sample block has no "Try again" button and the fallback does**,
+so the test the document gives you is one you can actually apply on sight.
+
+The fifth is Ctrl-C, below.
+
+### 5. Both reload mechanisms, and the frontend half proved rather than assumed
+
+**Backend**, edit to new listener: **1428, 897, 944 ms** — median 944, first
+one slowest, and the process id changed each time. That sits inside Task
+1.8.1's 941–1198 and Task 1.8.2's 961–1248; "about a second" holds.
+
+**Frontend**, in a tab whose `visibilityState` was `hidden` throughout — worth
+stating first, because a hidden tab costs 4–6× and these are upper bounds:
+
+- first component edit after a server start: **939 ms**
+- warm component edits: **77, 220, 1146, 1286 ms**
+- CSS-only edits: **42, 102, 189 ms**
+
+`performance.timeOrigin` was unchanged and the `navigation` entry count stayed
+**1** across every one of them, so all of it was module replacement and none of
+it was a reload. The two kinds of edit are an order of magnitude apart in the
+clone exactly as Task 1.4.6 measured; the long tail on the component samples is
+the throttled tab, not the loop.
+
+Ctrl-C: **9 processes to 0 survivors**, both ports released, the server's own
+`signal received` / `shutdown complete` pair printed, one `Failed` line, and
+the spurious `node_modules missing` warning.
+
+### 6. The three setup paths a first-timer gets wrong
+
+- **No `.env` at all** — the pair comes up on defaults. This is the state the
+  whole run above was in
+- **`cp apps/backend/.env.example apps/backend/.env` exactly as written** —
+  nothing changes. Both copies are gitignored (`git status` stays clean; the
+  `!.env.example` negation really is line 17 of `.gitignore`, as the example
+  file claims). The copy sets `LOG_FORMAT=json` and the dev loop **still**
+  rendered pretty, which is the documented precedence rule demonstrating itself:
+  `scripts/dev.sh` exports a real environment variable and a real variable beats
+  a file entry
+- **An invalid value** — `PORT=nonsense` and `LOG_LEVEL=INFO` together produce
+  both lines, each naming its key and quoting what was typed, before anything
+  binds. Nothing was listening on 3000 afterwards, exit 1
+
+### 7. The half-dead pair, reproduced from the clone
+
+With a leftover server on 3000, the record is **sixteen lines** and the sentence
+you need is **line 4 of 16**; `server failed to start ` still renders with its
+trailing space. `pnpm dev` kept running, the frontend kept serving 200, and
+**nothing exited non-zero**. `pnpm ready` named the half that was down and
+diagnosed it correctly — "Something is holding 127.0.0.1:3000 and not answering.
+That is not this server".
+
+Both recovery traps confirmed:
+
+- **Freeing the port is not enough.** Six seconds after the squatter died the
+  backend was still down; `pnpm ready`'s diagnosis usefully changed from
+  "something is holding the port" to `ECONNREFUSED`
+- **`touch`ing a source is not enough either**, and the log shows exactly why:
+  tsc reported `File change detected. Starting incremental compilation…` and
+  `Found 0 errors.` and emitted nothing, so `node --watch` — which watches
+  `dist/` — never saw a thing
+- A real edit brought the listener back in **1,273 ms**
+
+The opposite conflict was reproduced too, for symmetry: a busy 5173 is seven
+lines, `Exit status 1`, and the whole of `pnpm dev` gone.
+
+### 8. Three README claims were wrong, and four sentences changed
+
+Everything else in the document held. These did not:
+
+1. **"…ending with Vite's address and the server's `Server listening at` line."**
+   The listening line is reliably last; **where Vite's address lands is a race**
+   — in one run the three Vite lines came before the backend's compiler lines
+   and in another after. Now says the last line is the listening line and that
+   the interleaving above it is not a signal
+2. **"Edit a frontend component and the change is in the browser in about
+   100 ms."** That is the _stylesheet_ figure. The document's own opening
+   section already had this right — "a stylesheet edit in 24–130 ms, a component
+   edit in a few hundred" — so the README disagreed with itself two hundred
+   lines apart. Now a couple of hundred milliseconds for a component, under one
+   hundred for a stylesheet
+3. **`ready in 96 ms`, quoted twice** as what you will see. The clone said
+   `ready in 121 ms`. It is a machine-specific number presented as a constant,
+   and neither passage needs the figure to make its point — both now describe
+   the line rather than quoting a time
+
+### 9. Two things checked and deliberately left alone
+
+**The Ctrl-C transcript still names `packages/shared`,** and this clone printed
+`packages/shared` too. The prose around it already says outright that the
+package pnpm blames is whichever watcher exits first and that the name is not
+information, so the block is doing the job it was written for — showing you the
+scary output so you recognise it — while denying the one thing it could
+accidentally assert. Left as it stands.
+
+**All the intra-document links resolve.** Eleven link occurrences to ten
+distinct headings, plus nine relative file links, all present. The
+double-hyphen anchor `pnpm-ready--knowing-the-pair-is-up` is **correct**:
+GitHub replaces each space with a hyphen without collapsing runs, so the removed
+em dash leaves two. The first checker written for this reported it broken, which
+is precisely the false positive the brief predicted.
+
+### 10. What the clean clone could not prove
+
+- **The stale-`dist` silent pass** that `tsc -b` exists to prevent. A clean
+  clone has no stale `dist`; the evidence is in Tasks 1.1.4 and 1.1.7
+- **Root tooling walking into a nested checkout.** There are no worktrees under
+  `.claude/worktrees/` in a clone
+- **Deep-linking on a real host.** All four routes and a made-up path deep-link
+  here, and that is a property of Vite's dev server, not of the application.
+  Story 1.11 owns it, and Task 1.5.5 measured both sides
+- **The frontend calling the backend.** The criterion is met and unobservable:
+  Task 1.8.3 shipped the mechanism and removed its probe, so a page load makes
+  zero requests to 3000 — measured, above — and `curl` cannot stand in, because
+  the server sends the allowed origin to every caller. Recorded as met on Task
+  1.8.3's browser demonstration; no check was invented here, because a check
+  that cannot fail is worse than none

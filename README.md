@@ -121,9 +121,10 @@ pnpm dev
 
 That is the whole thing. It starts three watchers and two servers — the shared
 package's compiler, the backend, and the frontend dev server — and prints
-thirteen lines in under a second and a half, ending with Vite's address and the
-server's `Server listening at` line. There is no silent stretch to wait out and
-no `.env` file to write first.
+thirteen lines in under a second and a half, the last of them the server's
+`Server listening at` line. The order the three loops interleave in above that
+varies between runs, so where Vite's address lands is not a signal. There is no
+silent stretch to wait out and no `.env` file to write first.
 
 | Address                 | What it is                                          |
 | ----------------------- | --------------------------------------------------- |
@@ -248,8 +249,9 @@ with no root fan-out and no place in `verify`.
 loops — but a filtered command has no such loop beside it, and both apps compile
 against `packages/shared/dist`. The frontend's version of that failure is
 particularly quiet: after a `pnpm clean`,
-`pnpm --filter @marketpulse/frontend dev` starts, reports `ready in 96 ms` and
-serves `/` as a clean **200**, and the terminal says nothing wrong. Only when a
+`pnpm --filter @marketpulse/frontend dev` starts, reports its usual
+`ready in …` line and serves `/` as a clean **200**, and the terminal says
+nothing wrong. Only when a
 browser requests a module that actually imports the shared package does it
 print:
 
@@ -324,8 +326,9 @@ prefixed per package, so the server's JSON log lines arrive as
 Edit a backend source file and the server restarts in about a second — tsc
 emits, `node --watch` notices `dist/` changed, the old process drains and the
 new one listens. Edit a frontend component and the change is in the browser in
-about 100 ms with the component's state intact. Ctrl-C stops everything and
-leaves no orphaned process and no held port.
+a couple of hundred milliseconds — a stylesheet-only edit in well under one —
+with the component's state intact. Ctrl-C stops everything and leaves no
+orphaned process and no held port.
 
 **A clean Ctrl-C is noisy, and the noise is not a failure.** After the server's
 own `signal received` / `shutdown complete` lines, pnpm reports **one** watcher
@@ -470,8 +473,8 @@ Three things it deliberately does not do:
   does not state the interface that was bound; and it arrives _after_ Vite's
   banner, so treating it as "the pair is up" works by luck
 - **It does not fetch the frontend's `/`.** With `packages/shared` unbuilt, Vite
-  reports `ready in 96 ms` and `GET /` returns a clean 200 from a server that
-  cannot render the application. Requesting _a_ module is not enough either —
+  starts normally and `GET /` returns a clean 200 from a server that cannot
+  render the application. Requesting _a_ module is not enough either —
   `/src/main.tsx` also answers 200, because Vite transforms one module per
   request and the failing import is further down the graph. The check names a
   module with a **value** import of `@marketpulse/shared`, and reads the
