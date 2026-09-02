@@ -1,6 +1,6 @@
 # Task 1.8.5 — Extend the README from a building repository to a running application
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.8 Local Development Environment](STORY.md)
 **Depends on:** Tasks 1.8.2, 1.8.3, 1.8.4
 
