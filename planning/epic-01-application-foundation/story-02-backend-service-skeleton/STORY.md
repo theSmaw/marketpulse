@@ -70,14 +70,14 @@ Each of these belongs to a later story, and each is a thing a backend skeleton n
 - **Structured logging, error shape, `unhandledRejection`** (Story 1.7) — Fastify's default logger, untouched
 - **Tests** (Story 1.9) — the `buildServer()` split exists so `app.inject()` is possible later, but no test runner is chosen here
 - **Deployment** (Story 1.11) — `apps/backend/dist` is not a self-contained artifact, and `pnpm deploy --filter` is that story's problem
-- **CORS and the frontend contract** (Story 1.12) — nothing here proves a browser on another origin can reach this endpoint
+- **CORS and the frontend contract** (~~Story 1.12~~ — **CORS landed in Story 1.8**, 2026-09-02) — nothing here proves a browser on another origin can reach this endpoint, and the story that needed that proof turned out to be the development-pair one rather than the vertical slice. `apps/backend/src/cors.ts` registers `@fastify/cors` inside `buildServer()`; Story 1.12 is its first shipping consumer
 
 ## What the verification could not prove
 
 Named deliberately, in the habit Task 1.1.8 established:
 
 - **Nothing here says anything about a deployed environment.** Every measurement was taken against a process started by hand on a developer machine. Signal delivery to PID 1 in a container, the host binding that a platform actually exposes, and whether the orchestrator's kill timeout is larger than the 5s ceiling are all Story 1.11's, and its `pnpm deploy` mechanism is confirmed in shape only — a package directory copied outside the workspace runs
-- **Nothing here proves the frontend can reach this endpoint across an origin boundary.** CORS was not considered by any task in this story. That is a deliberate deferral to Story 1.12, recorded so it is not mistaken for an oversight
+- **Nothing here proves the frontend can reach this endpoint across an origin boundary.** CORS was not considered by any task in this story. That was a deliberate deferral, recorded so it is not mistaken for an oversight — and **it was discharged by Story 1.8 rather than by Story 1.12**. Task 1.8.3 built the Vite proxy alternative before rejecting it, and the deciding finding is one this story could not have anticipated: through a proxy `x-request-id` reads back with no configuration at all, so a proxy would have hidden both the allowlist and the fact that a correlation id needs a server to expose it
 - **The `/health` response shape is unverified by anything but a curl.** There is no test runner (Story 1.9) and no response schema (Story 1.7), so a change that broke the contract would pass `pnpm verify`
 
 ## Notes
