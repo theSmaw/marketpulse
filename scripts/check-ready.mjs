@@ -194,8 +194,16 @@ try {
   // names the key and the value it was given. It is also the honest answer to
   // this script's question: a server that cannot read its configuration is not
   // going to be listening.
+  // Indented per line rather than once: `config.ts` reports *every* bad key, so
+  // this message is multi-line whenever two are wrong, and a single leading
+  // indent would align the first line and leave the rest hard against the
+  // margin. Found in Task 1.8.6, fixed in Task 1.8.7.
+  const detail = error instanceof Error ? error.message : String(error);
   console.error(
-    `The backend's configuration is invalid, so it cannot be running:\n\n  ${error instanceof Error ? error.message : String(error)}\n`,
+    `The backend's configuration is invalid, so it cannot be running:\n\n${detail
+      .split("\n")
+      .map((line) => `  ${line}`)
+      .join("\n")}\n`,
   );
   process.exit(1);
 }

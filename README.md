@@ -334,7 +334,7 @@ orphaned process and no held port.
 own `signal received` / `shutdown complete` lines, pnpm reports **one** watcher
 as `Failed`, quotes
 `[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] ... Command failed with signal "SIGINT"`,
-and adds a spurious `[WARN] Local package.json exists, but node_modules
+and usually adds a spurious `[WARN] Local package.json exists, but node_modules
 missing, did you mean to install?`:
 
 ```
@@ -348,7 +348,9 @@ Command failed with signal "SIGINT"
 Nothing is wrong and nothing is missing — do not reinstall a working tree. That
 is what interrupting a parallel run looks like: `pnpm -r` reports whichever
 watcher exits first, so the package it names is a **race** and varies between
-runs. Which one it says is not information.
+runs. Which one it says is not information — and neither is whether the warning
+appears at all. It comes and goes between runs on the same tree, so a Ctrl-C
+without it is just as normal as one with it.
 
 It is not fixable for less than it costs. Every pnpm lever was measured:
 `--no-bail` prints two `Failed` lines and keeps the false warning, `--loglevel
@@ -1104,11 +1106,16 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 ## Documentation
 
 - [`docs/adr/`](docs/adr/) — architecture decision records, newest last;
-  [0007](docs/adr/0007-logging-the-error-contract-and-failure-containment.md) is
-  the most recent and covers structured logging, the correlation id, the
-  `ApiError` wire contract, the crash handlers and the frontend's error
-  boundaries — including why the same analysis installs a process-level handler
-  on the server and declines the equivalent listener in the browser
+  [0008](docs/adr/0008-the-local-development-loop.md) is the most recent and
+  covers this page's subject: how the pair was made legible in one terminal, why
+  the browser talks to the API through real CORS rather than a Vite proxy, why
+  the frontend's ports are literals, and why `pnpm ready` is a script and
+  deliberately not a `pnpm verify` step.
+  [0007](docs/adr/0007-logging-the-error-contract-and-failure-containment.md)
+  covers structured logging, the correlation id, the `ApiError` wire contract,
+  the crash handlers and the frontend's error boundaries — including why the
+  same analysis installs a process-level handler on the server and declines the
+  equivalent listener in the browser
 - [`planning/PRODUCT_SPEC.md`](planning/PRODUCT_SPEC.md) — the authoritative
   product definition
 - [`planning/EPICS.md`](planning/EPICS.md) — the delivery roadmap
