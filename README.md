@@ -118,6 +118,7 @@ Run from the repository root:
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
 | `pnpm test`         | Placeholders until Story 1.9 — see the warning below                  |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
+| `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
 | `pnpm clean`        | `tsc -b --clean`, plus the frontend's `dist/` and `storybook-static/` |
 
 Working on a single package uses the same six verbs, meaning the same thing:
@@ -219,6 +220,130 @@ typecheck.** A type error is applied as an ordinary hot update — no overlay, n
 console error, state preserved — and is caught only by your editor or
 `pnpm verify`. A syntax error, by contrast, fails loudly and leaves the page on
 its last good render.
+
+### Three ports, and only two of them are decisions
+
+| Port     | What is on it           | Where it is set                                 | Configurable     |
+| -------- | ----------------------- | ----------------------------------------------- | ---------------- |
+| **3000** | the API                 | `PORT` in `apps/backend/.env`                   | yes              |
+| **5173** | the frontend dev server | `server.port` in `apps/frontend/vite.config.ts` | no, deliberately |
+| **4173** | `vite preview`          | `preview.port` in the same file                 | no, deliberately |
+
+The backend's port is configurable because it is a property of a **deployed
+process** — Story 1.11's container sets `PORT` and `HOST`, and nothing else
+can. Neither Vite port reaches a deployment at all: `apps/frontend/dist` is
+three static files served by somebody else's host, and both Vite servers are
+development tools. Symmetry with the backend is not on its own a reason to make
+them configurable, and they are not.
+
+A busy 5173 or 4173 therefore means **editing `vite.config.ts`** rather than
+exporting a variable — and editing `CORS_ORIGIN` with it, because the backend's
+allowlist is pinned to the dev server's origin. `pnpm ready` dials the origin
+`CORS_ORIGIN` names, so forgetting the second edit is reported rather than
+discovered in the browser as a `TypeError: Failed to fetch`.
+
+4173 is Vite's own default, written down anyway: `vite preview` inherits
+`server.strictPort` but **not** `server.port`. Do not add a `preview.strictPort`
+— it is inherited, and a second copy is one more place for the two to disagree
+on an upgrade.
+
+### What a port conflict looks like, and why the two are not alike
+
+Both services refuse to move — `strictPort: true` on the frontend, the ordinary
+`EADDRINUSE` on the backend — but what happens next is opposite, and the
+cheaper-looking failure is the dangerous one.
+
+**A busy 5173 stops everything.** Vite prints seven lines ending in
+`Error: Port 5173 is already in use`, exits 1, and pnpm's fan-out takes the
+other two loops down with it:
+
+```
+apps/frontend dev: error when starting dev server:
+apps/frontend dev: Error: Port 5173 is already in use
+...
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @marketpulse/frontend@0.0.0 dev: `vite`
+Exit status 1
+```
+
+You cannot miss it: the command you just ran has exited.
+
+**A busy 3000 does not stop anything.** The record is sixteen lines, because
+the whole of it is an error object and the pretty renderer deliberately leaves
+a stack multi-line — so the sentence you need is line 4 of 16:
+
+```
+apps/backend dev: [2:40:49.871 PM] ERROR (66870): server failed to start
+apps/backend dev:     err: {
+apps/backend dev:       "type": "Error",
+apps/backend dev:       "message": "listen EADDRINUSE: address already in use 127.0.0.1:3000",
+...
+apps/backend dev: Failed running 'dist/index.js'. Waiting for file changes before restarting...
+```
+
+That last line is the problem. `node --watch` catches the exit, the frontend
+carries on serving, `pnpm dev` keeps running, and nothing exits non-zero. Sixteen
+lines scroll away behind Vite's banner and what is left on screen is a pair that
+looks healthy and is half dead. **This is what `pnpm ready` is for.**
+
+Two things about recovering from it. Freeing the port is **not** enough on its
+own — the loop is waiting for a _file_ change, not for the port. And `touch`ing
+a source file is not enough either, because tsc's incremental build emits
+nothing when the content has not changed and `node --watch` is watching `dist/`.
+A real edit brings it back in about a second.
+
+### `pnpm ready` — knowing the pair is up
+
+```sh
+pnpm dev      # in one terminal
+pnpm ready    # in another
+```
+
+```
+  ✓ backend   http://127.0.0.1:3000/health  0.0.0, up 0.5s
+  ✓ frontend  http://localhost:5173/src/routes/MarketOverview.tsx  module graph resolves
+
+The pair is up.
+```
+
+It polls for up to 15 seconds, so it can be run immediately after `pnpm dev`
+rather than after guessing how long to wait. It exits 0 when both halves answer
+and 1 otherwise, with a line saying which one did not and why.
+
+It is **not** a step in `pnpm verify` and must not become one: `verify` runs
+with no servers up, where the honest answer to this question is "nothing is
+running" rather than a failure. It lives in `scripts/` so ESLint and Prettier
+read it.
+
+Three things it deliberately does not do:
+
+- **It does not grep the log.** At `LOG_LEVEL=warn` and above a healthy server
+  writes nothing at all, `Server listening at …` included, so that line is
+  absent from a working server; it also rewrites `0.0.0.0` to `127.0.0.1`, so it
+  does not state the interface that was bound; and it arrives _after_ Vite's
+  banner, so treating it as "the pair is up" works by luck
+- **It does not fetch the frontend's `/`.** With `packages/shared` unbuilt, Vite
+  reports `ready in 96 ms` and `GET /` returns a clean 200 from a server that
+  cannot render the application. Requesting _a_ module is not enough either —
+  `/src/main.tsx` also answers 200, because Vite transforms one module per
+  request and the failing import is further down the graph. The check names a
+  module with a **value** import of `@marketpulse/shared`, and reads the
+  **content type** rather than the status, because the dev server never 404s: a
+  module path that does not exist comes back as `index.html` with a 200
+- **It does not send an `Origin` header,** and a CORS check cannot be built out
+  of one. The server sends the allowed origin to every caller; the browser is
+  the only party that compares. A 200 from `curl -H "Origin: …"` proves nothing
+
+If you would rather do it by hand, note that `curl` needs the right address
+family per service and Node's `fetch` does not — undici tries both, `curl` takes
+what you give it:
+
+```sh
+curl http://127.0.0.1:3000/health     # backend: IPv4 only
+curl http://localhost:5173/           # dev server: IPv6 only — 127.0.0.1 is refused
+```
+
+The second of those is the false positive described above; it tells you a server
+is listening and nothing about whether the application resolves.
 
 ### `typecheck` and `build` are the same command
 
