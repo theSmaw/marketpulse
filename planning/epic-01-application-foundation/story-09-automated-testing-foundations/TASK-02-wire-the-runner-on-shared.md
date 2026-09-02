@@ -1,6 +1,6 @@
 # Task 1.9.2 — Wire the runner and prove it on `packages/shared`
 
-**Status:** Not started
+**Status:** Complete (2026-09-02)
 **Story:** [1.9 Automated Testing Foundations](STORY.md)
 **Depends on:** Task 1.9.1
 
@@ -33,3 +33,107 @@ Install the chosen runner, decide where its configuration lives, and make the fi
 ## Notes
 
 A check that has never failed is a check that has never been tested — the same sentence `CLAUDE.md` uses about `pnpm stories` and the placeholder `test` scripts. Break a test on purpose before closing this task, and confirm the failure propagates through `pnpm -r` to the root exit code, which Task 1.1.7 verified for a package script exiting 3.
+
+## Outcome
+
+**Vitest 4.1.11 installed at the root, configured per package, tests living in `src/` beside their subject — and `packages/shared`'s placeholder replaced by a real suite of 7 tests across 2 files that exits 1 when one fails.** `pnpm verify` exits 0 in **10.45 s** against a **10.00 s** baseline taken on the same tree immediately before the install.
+
+### The install, and its cost
+
+`pnpm add -D -w -E vitest@4.1.11`, pinned exactly like every other devDependency here, at exit 0.
+
+|                           | Before      | After       | Marginal  |
+| ------------------------- | ----------- | ----------- | --------- |
+| Virtual store entries     | 342         | 364         | **+22**   |
+| `node_modules` (`du -sh`) | 246 MB      | 250 MB      | **+4 MB** |
+| `pnpm-lock.yaml`          | 3,888 lines | 4,111 lines | +223      |
+
+Task 1.9.1's forecast of +22 packages and +4 MB reproduced exactly, re-taken rather than copied. **`allowBuilds` did not fire and `pnpm-workspace.yaml` is byte-unchanged** — a sweep of the whole installed tree for `preinstall`/`install`/`postinstall` scripts returns `esbuild@0.28.2` and nothing else, so that statement is still true.
+
+### Where configuration lives — one file per package, and no root config
+
+Root `test` is `pnpm -r run test`, one of only two verbs that genuinely fan out. A root config with a `projects` list would be a **second entry point meaning "run the tests"**, which this story says explicitly not to introduce, and it would compete with the fan-out rather than describe it. So the shape matches the shape the workspace already has, and it differs from `eslint.config.mjs` and `prettier.config.mjs` for a reason those two do not share: their tools run **once from the root**, and this one does not.
+
+Because no root config exists, **Task 1.9.1's `.mts` finding does not apply here**. `packages/shared/vitest.config.ts` is a `.ts`: the CommonJS config-loader warning is a property of the _root_, whose `package.json` has no `"type": "module"`. Every workspace package is ESM, so a `.ts` config loads as ESM — verified, zero warnings. If a root config is ever added, `.mts` still stands.
+
+It is the **fifth** file needing `eslint.config.mjs`'s trailing `disableTypeChecked` block, joining `eslint.config.mjs`, `vite.config.ts` and the two `.storybook/` files for the identical reason — a `.ts` file in a package whose tsconfig `include` is `src/**/*`. Without the entry it is a hard `was not found by the project service` parsing error, exit 1, not a silent skip. That block's comment now says Tasks 1.9.3 and 1.9.4 add one line each, so the cost of a config file stays attributed to the task that introduces it.
+
+### File naming and location — `src/<subject>.test.ts`, and it is forced rather than chosen
+
+`packages/shared/src/api-error.test.ts` beside `api-error.ts`. The three constraints the task asked to be named:
+
+- **Inside `src/`, tests are inside `tsc -b`'s program**, so they typecheck, they lint under the full type-aware pass, and they must carry `.js` extensions on relative imports. That is the point — Task 1.9.1 measured that a green runner is not evidence of a compiling tree
+- **Outside it, they get none of that**, and the failure is loud rather than silent. The alternative was **built before being rejected**: a `packages/shared/tsconfig.test.json` with `noEmit`, referencing `./tsconfig.json`, with `src/**/*.test.ts` excluded from the main project. It **typechecks correctly** — `tsc -b` on it is exit 0, and a deliberate `const bad: number = REQUEST_ID_HEADER` is `TS2322` at exit 2 — and it **fails `pnpm lint`**, because ESLint's project service only ever discovers a `tsconfig.json` and there is no per-package way to point it at another. Both test files came back as `Parsing error: … was not found by the project service`. So the choice is a test file with type-aware linting or a clean `dist/`, and this workspace takes the linting
+- **`packages/shared` is consumed as built output, so the tests emit** — answered below
+
+Everything after this copies the convention, so Tasks 1.9.3 and 1.9.4 inherit the location rather than re-deciding it, and Task 1.9.6 documents it.
+
+**One convention was taken here without being argued, and it should be, because it is load-bearing for Task 1.9.4.** Vitest's `globals` option is **off** — the default — so every test file opens with `import { describe, expect, it } from "vitest"`. The alternative is `globals: true` plus `"vitest/globals"` in each package's tsconfig `types` array, and that is the specific thing `apps/frontend` must not do: its `types: ["vite/client"]` is explicit so that server-side APIs do not typecheck in browser code, and the array's value is that it is a deliberate list rather than that it is short. Explicit imports mean **no package's `types` array is touched at all** to make tests typecheck, which is exactly the pressure Task 1.9.4 was warned to resist. It also costs nothing: three named imports at the top of a file that already carries import statements.
+
+### The emitted-into-`dist` question, answered — and the second half of it is a live defect, not a tidiness one
+
+`tsc -b` emits **8 files for 2 test files** (`.js`, `.d.ts` and both maps), into the directory that _is_ this package's contract.
+
+**The harmless half, measured rather than assumed.** A consumer cannot reach them: `import("@marketpulse/shared/dist/api-error.test.js")` from `apps/backend` is **`ERR_PACKAGE_PATH_NOT_EXPORTED`**, because the `exports` map declares `"."` and nothing else. And the frontend artefact is byte-identical with them in the tree — **271 modules / 343,658 B / 10,926 B / three files / md5 `cba2825c…`**, unchanged since Task 1.7.7 — so no test string reaches either bundle.
+
+**The half that is a real trap, and it was found by running the suite after a build rather than by reasoning.** **Vitest 4's `defaultExclude` is `['**/node_modules/**', '**/.git/**']` and nothing else** — read out of the package; `dist/` is not on it, and the list is shorter than Vitest 3's. So an unconfigured `vitest run` with `dist/` populated collects **4 files and 14 tests** against the 2 and 7 that exist. Every test runs twice, and the second copy comes from whatever the last build emitted rather than from the source just edited — so an edited test shows its old and new selves side by side, and a stale build can make a fixed test still look broken.
+
+`test.include` is scoped to `src/**/*.test.ts`, which takes it back to 2 and 7 with `dist/` populated. It is an **allowlist rather than an `exclude` of `dist/`**, for the reason `config.ts` gives for rejecting `redact`: a denylist's failure mode is the entry nobody added.
+
+One consequence to carry forward: **`tsc -b --clean` deletes the output of the sources that currently exist**, so deleting a test file first orphans its four `dist/` files permanently. That documented trap now applies to test files too, and an orphaned `dist/*.test.js` is exactly the file the paragraph above explains why you do not want lying around.
+
+### The `.js`-extension convention in a test file — it works, and Vitest is a third resolver with the wrong opinion on the negative case
+
+`import { apiError } from "./api-error.js"` from a `.ts` test, in a package with `"type": "module"` and `module: nodenext`, resolves **unconfigured** — 7 passed, no `resolve.alias`, no plugin. Task 1.9.1's decision holds on the real package.
+
+The negative case is the finding. With the extension dropped:
+
+|              | Result                                      |
+| ------------ | ------------------------------------------- |
+| `tsc -b`     | **TS2835**, exit 2, naming `./api-error.js` |
+| `vitest run` | **7 passed, exit 0**                        |
+
+That is the same asymmetry ADR 0003 records for Rolldown, arriving in a third place. `tsc` remains the **only** enforcer of the convention, and the new consequence is that **a green test suite is not evidence the convention was followed**, any more than a green `vite build` is. It is Task 1.9.1's rule from the other direction: the runner transpiles and strips types, it does not check them.
+
+### `@marketpulse/shared` resolution
+
+Nothing to configure. As Task 1.9.1 predicted, this package's own tests import `./api-error.js` **relatively**, not by package name, so the `exports`-versus-alias decision costs this task nothing and lands on Tasks 1.9.3 and 1.9.4. The decision itself is unchanged and unexercised here.
+
+### The tests
+
+Written against what already exists, not a fixture. `apiError()` is the subject and its **branch** is the assertion worth having: `expect("details" in error).toBe(false)` for the no-details path tests the `exactOptionalPropertyTypes` decision rather than the syntax — a spread-based constructor passes a `toEqual` of the three fields and fails that line. `API_ERROR_CODES` and `REQUEST_ID_HEADER` get one assertion each precisely because other packages import them rather than spelling them; the `REQUEST_ID_HEADER` lower-case test exists because Node lower-cases inbound header names, so an upper-case letter would break `request.headers` lookup silently.
+
+### Breaking it on purpose
+
+A check that has never failed is a check that has never been tested. `REQUEST_ID_HEADER` was pointed at the wrong string and the failure propagated at every level:
+
+| Command                                  | Exit                                                                         |
+| ---------------------------------------- | ---------------------------------------------------------------------------- |
+| `pnpm --filter @marketpulse/shared test` | **1**, `AssertionError: expected 'x-request-id' to be 'nope'`                |
+| `pnpm test` (root, through `pnpm -r`)    | **1**, `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL`                                   |
+| `pnpm verify`                            | **1**, after clearing build, lint, `format:check`, `stories` and `env:check` |
+
+The first attempt at this is worth recording because it proved something else by accident: the broken line was long enough to fail **`format:check`**, so `verify` stopped one step early. Re-broken formatting-clean, it fails at `test` as intended.
+
+### Exclusions
+
+**Nothing new needed.** Vitest emits no cache directory and no results file — `git status --porcelain --ignored=matching` after a run shows only the files this task actually wrote. `coverage/` was already in `.gitignore`, `.prettierignore` and `eslint.config.mjs`'s ignores, and producing anything there remains Task 1.9.5's.
+
+### `pnpm verify`, with the new step's duration alongside the existing six
+
+Exit 0, **10.45 s** total against the **10.00 s** baseline measured on the same tree immediately before the install.
+
+| Step           | Duration   | Note                                                                                                  |
+| -------------- | ---------- | ----------------------------------------------------------------------------------------------------- |
+| `build`        | 3.55 s     |                                                                                                       |
+| `lint`         | 3.67 s     |                                                                                                       |
+| `format:check` | 2.83 s     |                                                                                                       |
+| `stories`      | 0.28 s     |                                                                                                       |
+| `env:check`    | 0.28 s     |                                                                                                       |
+| **`test`**     | **0.80 s** | was 0.45 s as three `echo`s; Vitest's own reported duration is 92–131 ms, the rest is process startup |
+
+Per `CLAUDE.md`'s standing instruction, read the per-step split rather than the total — the total has now gone up and down across five stories while the tree only grew.
+
+### The placeholder
+
+`packages/shared`'s `test` is `vitest run`. `apps/backend` and `apps/frontend` are still `echo`s, so root `pnpm test` is **one real suite and two placeholders**, and that is not "passing tests". `CLAUDE.md`, `README.md` and ADR 0001 §5 all carry the warning; the first two were updated to say what is now true rather than deleted, and all three are removed together in Task 1.9.7.

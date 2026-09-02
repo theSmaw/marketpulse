@@ -92,6 +92,16 @@ Story 1.8 is complete and `docs/adr/0008-*` records it. It is not a dependency a
 - **There is a second script in `scripts/` to keep in mind when picking a runner.** `scripts/check-ready.mjs` is plain JavaScript with no dependency, and it is deliberately **not** a `verify` step because `verify` runs with no servers up. If this story's runner brings a way to run an integration suite against a **live** pair rather than an injected instance, `pnpm ready` is the gate to put in front of it — not a seventh `verify` step
 - **`@fastify/cors` is the story's one new dependency** — 11.3.0, +2 packages, 172 kB, no install script, and about **+1.5 µs on a ~13 µs request**. That figure is worth copying as a _method_ rather than a number: it took three runs to state honestly, because an alternating A/B's first and second rounds are JIT warm-up rather than noise. It is the same warning as Task 1.7.7's above — warm up, use a large n, and set the threshold well outside variance
 
+### What Task 1.9.2 settled for the rest of this story
+
+The runner is in the workspace and `packages/shared`'s suite is real. Five decisions are now inherited rather than open, and Tasks 1.9.3 and 1.9.4 should copy them rather than re-derive them.
+
+- **Test files live at `src/<subject>.test.ts`, beside their subject, and this is forced rather than preferred.** ESLint's project service only ever discovers a `tsconfig.json`, so a test outside the package's `include` is a hard `Parsing error: … was not found by the project service` and loses the whole type-aware pass. The alternative was built before being rejected: a `tsconfig.test.json` with `noEmit` typechecks correctly — exit 0, and `TS2322` on a deliberate error — and fails `pnpm lint` on every test file. A test file gets type-aware linting or a clean `dist/`, and this workspace takes the linting
+- **Configuration is one `vitest.config.ts` per package and there is deliberately no root config**, because root `test` is `pnpm -r run test` and a root `projects` list would be the second command meaning "run the tests" that this story says not to introduce. Each new one is another entry in `eslint.config.mjs`'s trailing `disableTypeChecked` block — a hard lint failure if forgotten, not a silent skip. Task 1.9.1's `.mts` finding applies only to a _root_ config, which does not exist; every workspace package is ESM, so a `.ts` config loads with zero warnings
+- **Each config scopes `test.include` to `src/**/*.test.ts`, and this one is a trap rather than a tidiness rule.** Vitest 4's `defaultExclude` is `['**/node_modules/**', '**/.git/**']` and nothing more — `dist/` is not on it. Because tests sit inside `include` they emit, so with `dist/` populated an unconfigured run collected **4 files and 14 tests against the 2 and 7 that exist**, the duplicate coming from the last build rather than the source just edited. `apps/backend` emits too and will do the same
+- **Vitest's `globals` are off**; every test opens with `import { describe, expect, it } from "vitest"`. That is what keeps every package's tsconfig `types` array untouched, which matters most in `apps/frontend`, where the explicit array is the browser boundary's last stated guarantee
+- **The runner does not enforce the `.js`-extension convention, and is the third resolver not to.** Drop the extension and `tsc -b` is `TS2835` at exit 2 while `vitest run` is 7 passed at exit 0 — the same asymmetry ADR 0003 records for Rolldown. `tsc` remains the only enforcer, so a green suite is not evidence the convention was followed
+
 ## Acceptance criteria
 
 - Unit test runner configured for **all three** packages — `apps/backend`, `apps/frontend` and `packages/shared` — running from the repository root. The original wording said "both packages" and predates `packages/shared`
@@ -111,7 +121,7 @@ Tackled in order. The story is complete when all seven are done.
 | #     | Task                                                                                         | Status      |
 | ----- | -------------------------------------------------------------------------------------------- | ----------- |
 | 1.9.1 | [Choose the test runner](TASK-01-choose-the-test-runner.md)                                  | Complete    |
-| 1.9.2 | [Wire the runner and prove it on `packages/shared`](TASK-02-wire-the-runner-on-shared.md)    | Not started |
+| 1.9.2 | [Wire the runner and prove it on `packages/shared`](TASK-02-wire-the-runner-on-shared.md)    | Complete    |
 | 1.9.3 | [Backend tests: the injected server and the configuration module](TASK-03-backend-tests.md)  | Not started |
 | 1.9.4 | [Frontend component tests and the DOM environment](TASK-04-frontend-component-tests.md)      | Not started |
 | 1.9.5 | [Coverage reporting on demand](TASK-05-coverage-on-demand.md)                                | Not started |

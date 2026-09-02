@@ -227,7 +227,7 @@ Run from the repository root:
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Placeholders until Story 1.9 — see the warning below                  |
+| `pnpm test`         | Real in `packages/shared`; placeholders in both apps — see below      |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
 | `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
 | `pnpm clean`        | `tsc -b --clean`, plus the frontend's `dist/` and `storybook-static/` |
@@ -307,10 +307,15 @@ the same second half for the same reason.
 
 ### `pnpm test` does not yet do what its name suggests
 
-**A green `pnpm test` means "no tests exist", not "tests pass."** All three
-packages' `test` scripts are `echo` placeholders that exit 0, until Story 1.9
-brings a test runner. Story 1.10 will put that green tick in CI, where it will
-look exactly like passing coverage. It is not.
+**A green `pnpm test` still does not mean what it looks like, and it now means
+two different things at once.** Task 1.9.2 made `packages/shared`'s script real
+— `vitest run`, 7 tests across 2 files, and it exits 1 when one of them fails.
+The other two are still `echo` placeholders that exit 0, so a green root
+`pnpm test` today means "the shared package's tests pass, and neither app has
+any". Tasks 1.9.3 and 1.9.4 replace the remaining two; this warning goes away in
+Task 1.9.7, when there is nothing left for it to warn about. Until then, Story
+1.10 would put that mixed tick in CI, where it looks exactly like passing
+coverage across the workspace. It is not.
 
 ### What `pnpm dev` does at the root
 
