@@ -39,6 +39,39 @@ const DEFAULT_HOST = "127.0.0.1";
 const MIN_PORT = 1;
 const MAX_PORT = 65535;
 
+// The one browser origin allowed to call this API (Task 1.8.3).
+//
+// The default is the development server's own origin, so a clean clone with no
+// `.env` at all has a working pair — which is this story's headline criterion.
+// It is the same shape as PORT and HOST defaulting to 3000 and 127.0.0.1:
+// values chosen so that the environment nobody configures is the one a first
+// run happens in.
+//
+// Two consequences an operator should read rather than discover. **The default
+// is not safe by omission**: a deployment that never sets CORS_ORIGIN allows a
+// page served from `http://localhost:5173` to call it, so somebody's local dev
+// server can talk to production. That is small — there is no cookie and no
+// credential to ride along, because `credentials` is off in cors.ts — and it is
+// real, so Story 1.11 sets this variable explicitly. **And there is no
+// environment concept to lean on** (ADR 0007 §1): nothing here branches on
+// which environment it is in, so "required in production" is not a thing this
+// application can express. A documented default that `env:check` keeps honest
+// is what replaces it.
+//
+// It is one origin and not a list. Story 1.12 owns the allowlist and may widen
+// this to a separated set; a list today would be a reader, a separator
+// convention and an error message written for a case that does not exist.
+//
+// It is `http://localhost:5173` and not `http://127.0.0.1:5173`, which are two
+// different origins to a browser rather than two spellings of one. The dev
+// server binds IPv6 loopback and is genuinely unreachable on the IPv4 literal
+// — re-measured in Task 1.8.3: `curl http://127.0.0.1:5173/` is
+// connection-refused while `[::1]:5173` and `localhost:5173` both answer 200,
+// and this server is the exact reverse (`127.0.0.1:3000` answers, `[::1]:3000`
+// is refused). So `localhost` is the only spelling that is both what Vite
+// prints in the terminal and what the browser puts in the `Origin` header.
+const DEFAULT_CORS_ORIGIN = "http://localhost:5173";
+
 // The levels pino understands, in the order pino orders them, plus `silent`.
 //
 // This is deliberately pino's whole set rather than a curated subset. A
@@ -102,6 +135,7 @@ export interface Config {
   readonly host: string;
   readonly logLevel: LogLevel;
   readonly logFormat: LogFormat;
+  readonly corsOrigin: string;
 }
 
 // The machine-readable declaration of what this application reads.
@@ -151,6 +185,13 @@ export const CONFIG_VARIABLES: readonly ConfigVariable[] = [
     required: false,
     default: DEFAULT_LOG_FORMAT,
     description: `How a log record is rendered: ${LOG_FORMATS.join(" or ")}. \`pretty\` is for a human reading a terminal and is what \`pnpm dev\` sets; anything shipping logs to a machine wants json.`,
+  },
+  {
+    key: "CORS_ORIGIN",
+    required: false,
+    default: DEFAULT_CORS_ORIGIN,
+    description:
+      "The one browser origin allowed to call this API, matched exactly (scheme, host and port). The default is the Vite dev server, so a fresh clone works with no .env at all; a deployment should set this to the site's own origin.",
   },
 ];
 
@@ -340,6 +381,9 @@ export function loadConfig(
   const logFormat = read(() =>
     readEnum(env, "LOG_FORMAT", LOG_FORMATS, DEFAULT_LOG_FORMAT),
   );
+  const corsOrigin = read(() =>
+    readString(env, "CORS_ORIGIN", DEFAULT_CORS_ORIGIN),
+  );
 
   // The undefined checks are redundant at runtime — a reader only returns
   // undefined after pushing a problem — and they are what narrows the types,
@@ -349,7 +393,8 @@ export function loadConfig(
     port === undefined ||
     host === undefined ||
     logLevel === undefined ||
-    logFormat === undefined
+    logFormat === undefined ||
+    corsOrigin === undefined
   ) {
     throw new ConfigError(problems.join("\n"));
   }
@@ -367,5 +412,5 @@ export function loadConfig(
   // point it matters instead — Fastify already prints the host and port in its
   // `Server listening at` line, which is the whole of what a startup dump would
   // have been good for.
-  return Object.freeze({ port, host, logLevel, logFormat });
+  return Object.freeze({ port, host, logLevel, logFormat, corsOrigin });
 }

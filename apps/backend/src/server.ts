@@ -18,6 +18,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { REQUEST_ID_HEADER } from "@marketpulse/shared";
 
 import type { LogFormat, LogLevel } from "./config.js";
+import { registerCors } from "./cors.js";
 import { registerErrorHandling } from "./errors.js";
 import { resolveRequestId } from "./request-id.js";
 import { healthRoutes } from "./routes/health.js";
@@ -36,6 +37,11 @@ import { healthRoutes } from "./routes/health.js";
 export interface ServerOptions {
   readonly logLevel: LogLevel;
   readonly logFormat: LogFormat;
+
+  // The one browser origin allowed to call this API (Task 1.8.3). A `string`
+  // and not the `Config` type, for the reason above: this factory takes what
+  // the application needs, not everything the process read.
+  readonly corsOrigin: string;
 }
 
 // Stays synchronous, decided in Task 1.2.3 rather than left to drift.
@@ -205,6 +211,17 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   // it is: a property of the application, not of any route. See errors.ts for
   // the status-to-code mapping and the log levels.
   registerErrorHandling(app);
+
+  // Who may call this from a browser (Task 1.8.3). See cors.ts for why this is
+  // a real allowlist on the server rather than a Vite proxy that would make
+  // the question disappear in development and reappear in production.
+  //
+  // After the error contract and before the routes, which is where it reads
+  // rather than where it has to be — like `registerErrorHandling`, this is a
+  // property of the application and not of any route. Fastify's own ordering
+  // constraint is the one that matters and it is satisfied either way: a
+  // plugin registered on the root instance applies to everything on it.
+  registerCors(app, options.corsOrigin);
 
   // Routes are registered here as they arrive.
   //

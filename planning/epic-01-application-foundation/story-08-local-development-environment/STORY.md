@@ -73,7 +73,7 @@ Tackled in order. 1.8.1 is a measurement task that changes nothing, and everythi
 | ----- | ---------------------------------------------------------------------------------------------- | ----------- |
 | 1.8.1 | [Baseline the running pair](TASK-01-baseline-the-running-pair.md)                              | Complete    |
 | 1.8.2 | [Make the pair legible in one terminal](TASK-02-make-the-pair-legible.md)                      | Complete    |
-| 1.8.3 | [The frontend-to-backend connection: proxy or CORS](TASK-03-frontend-to-backend-connection.md) | Not started |
+| 1.8.3 | [The frontend-to-backend connection: proxy or CORS](TASK-03-frontend-to-backend-connection.md) | Complete    |
 | 1.8.4 | [Ports, conflicts, and knowing when the pair is up](TASK-04-ports-conflicts-and-readiness.md)  | Not started |
 | 1.8.5 | [Extend the README to a running application](TASK-05-readme-to-a-running-application.md)       | Not started |
 | 1.8.6 | [Reach a running application from a clean clone](TASK-06-clean-clone-first-run.md)             | Not started |

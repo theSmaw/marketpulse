@@ -45,6 +45,7 @@ try {
 const app = buildServer({
   logLevel: config.logLevel,
   logFormat: config.logFormat,
+  corsOrigin: config.corsOrigin,
 });
 
 // Signal handling lives here rather than in buildServer(), because it is a
