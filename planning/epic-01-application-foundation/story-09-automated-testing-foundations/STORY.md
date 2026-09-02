@@ -144,7 +144,7 @@ Tackled in order. The story is complete when all seven are done.
 | 1.9.3 | [Backend tests: the injected server and the configuration module](TASK-03-backend-tests.md)  | Complete    |
 | 1.9.4 | [Frontend component tests and the DOM environment](TASK-04-frontend-component-tests.md)      | Complete    |
 | 1.9.5 | [Coverage reporting on demand](TASK-05-coverage-on-demand.md)                                | Complete    |
-| 1.9.6 | [Test conventions, and running a single test](TASK-06-conventions-and-single-test.md)        | Not started |
+| 1.9.6 | [Test conventions, and running a single test](TASK-06-conventions-and-single-test.md)        | Complete    |
 | 1.9.7 | [Verify, document, and record the decisions as ADR 0009](TASK-07-verify-document-and-adr.md) | Not started |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.8 followed. One consequence specific to this story: each of 1.9.2, 1.9.3 and 1.9.4 removes exactly one of the three `echo` placeholders, so between those tasks `pnpm test` is a mix of real suites and placeholders. That is expected, and it is also why the three "a green `pnpm test` means no tests exist" warnings are removed in **one** change rather than a third at a time. **That change turned out to be Task 1.9.4 rather than 1.9.7**, and the plan was wrong about the timing rather than about the rule: the three become false simultaneously when the last placeholder goes, which is 1.9.4, so removing them there is the one change — waiting would have left two false warnings standing for three more tasks.
@@ -155,6 +155,6 @@ Each task leaves the repository installable, typechecking and passing `pnpm veri
 
 The commands established here go into `CLAUDE.md`'s Commands section and `README.md`'s command table — both of which now exist and are current, so this is an edit rather than a fill-in. The note here used to say the Commands section was a placeholder; Task 1.1.7 wrote it and Task 1.1.8 verified every command in it from a clean clone.
 
-One item in it is explicitly outstanding and named as this story's to close: **how to run a single test file, and a single test by name.** `CLAUDE.md` says so at the end of its Commands section. It is also an acceptance criterion above.
+That item — **how to run a single test file, and a single test by name** — was the one thing `CLAUDE.md` carried as explicitly outstanding, and **Task 1.9.6 closed it**: the sentence at the end of its Commands section is gone because the thing it wanted exists. The forms live in `README.md` as a section and in `CLAUDE.md`'s Commands block as one line each, and every one of them was executed from both the root and a package directory before it was written down. Task 1.9.7 re-runs them rather than reading them.
 
 Both files carry the "a green `pnpm test` means no tests exist" warning, as does ADR 0001 §5. When this story lands, all three sentences become false and must be removed in the same change — leaving a stale warning is as misleading as the thing it was warning about.
