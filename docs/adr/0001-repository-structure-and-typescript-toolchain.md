@@ -130,14 +130,19 @@ convenience with no root fan-out and no place in `verify`.
 first failure is the exit code, and building first so that lint and test see
 current declarations.
 
-**Consequence:** every package's `dev` is real (Stories 1.2 and 1.3), and
-`test` is real in `packages/shared` (Task 1.9.2) and `apps/backend` (Task
-1.9.3). `apps/frontend`'s `test` is still an `echo` placeholder that exits 0, so
-**a green `pnpm test` means "two packages pass and the frontend has no tests",
-not "tests pass"** — and Story 1.10 is about to put that mixed tick in CI where
-it will look like workspace-wide coverage. Task 1.9.4 replaces the last
-placeholder; this paragraph, `README.md`'s and `CLAUDE.md`'s are removed
-together in Task 1.9.7.
+**Consequence, as recorded when this ADR was written (2026-08-29):** `pnpm test`
+and both apps' `pnpm dev` were `echo` placeholders that exited 0, so **a green
+`pnpm test` meant "no tests exist", not "tests pass"** — and Story 1.10 was
+about to put that green tick in CI where it would look like coverage.
+
+**Amended 2026-09-02, Story 1.9.** That is no longer true and the warning has
+been removed from `README.md` and `CLAUDE.md` in the same change. Every
+package's `dev` became real in Stories 1.2 and 1.3, and every package's `test`
+became real across Tasks 1.9.2, 1.9.3 and 1.9.4 — 103 tests in total. The
+record of what was true then is kept above rather than rewritten; what changed
+is that the green tick now means precisely what it says, and no more. It is
+still not a coverage claim: the backend's process half is unreachable by any
+runner in this workspace, and Story 1.10 owns it.
 
 ### 6. Shared tooling lives at the workspace root; packages declare only what they import
 

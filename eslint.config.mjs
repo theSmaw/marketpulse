@@ -279,6 +279,7 @@ export default tseslint.config(
       "apps/frontend/.storybook/preview.tsx",
       "packages/shared/vitest.config.ts",
       "apps/backend/vitest.config.ts",
+      "apps/frontend/vitest.config.ts",
     ],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
