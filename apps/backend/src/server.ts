@@ -108,8 +108,56 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         }),
       },
 
+      // How `pretty` renders, chosen in Task 1.8.2 against the measured
+      // baseline rather than left at pino-pretty's defaults.
+      //
+      // `singleLine` is the whole of the legibility fix. Task 1.8.1 counted
+      // **12 rendered lines for one `GET /health`** — six per record, because
+      // the default puts the message, `reqId` and an expanded `req` or `res`
+      // object each on their own line — against a frontend HMR update costing
+      // one. In a controlled session of one page load, three requests and four
+      // edits, 94% of the shared terminal was this server and 77% of it was
+      // three requests. `singleLine` collapses a request to **two** lines and
+      // drops no field: the record is the same record, rendered flat.
+      //
+      // It was chosen over the obvious alternative — a lower `LOG_LEVEL` in
+      // the dev loop — because that one has a trap in it. Above `info` a
+      // healthy server is completely silent, `Server listening at …`
+      // included (ADR 0007 §2), so a quieter loop and a failed start look
+      // identical. This changes the rendering and leaves the severity floor
+      // exactly where it was.
+      //
+      // `messageFormat` was tried and rejected in the same measurement.
+      // Interpolating `{req.method} {req.url}` into the message reads well on
+      // the two records that have a `req` and leaves a ragged run of spaces on
+      // every record that does not — the `Server listening` line included,
+      // since a template is applied to every record and there is no per-record
+      // form. `ignore` was tried too and nothing is ignored: `reqId` is half
+      // the width of a line and it is the field that exists precisely to
+      // survive interleaving, which is what Story 1.12 brings the moment the
+      // page starts calling the API. Proximity is not a correlation id.
+      //
+      // A stack is still multi-line, and that is pino-pretty's behaviour
+      // rather than luck — verified on a thrown 500, where the `err` object
+      // keeps its indented `stack` while the surrounding records are flat. So
+      // the one thing worth reading down the page still reads down the page.
+      //
+      // `translateTime` answers the second finding: three clocks in one
+      // stream. tsc and Vite both print 12-hour without milliseconds
+      // (`8:57:35 PM`); pino printed 24-hour with them (`[20:57:36.471]`), so
+      // comparing an HMR update against a request took mental arithmetic in
+      // the one terminal where they sit side by side. `SYS:` is load-bearing —
+      // without it pino-pretty formats in **UTC**, which is a clock that
+      // silently disagrees with the other two rather than one that obviously
+      // does. The milliseconds stay: they are what this repository's own
+      // restart and drain timings are read off.
       ...(options.logFormat === "pretty"
-        ? { transport: { target: "pino-pretty" } }
+        ? {
+            transport: {
+              target: "pino-pretty",
+              options: { singleLine: true, translateTime: "SYS:h:MM:ss.l TT" },
+            },
+          }
         : {}),
     },
 
