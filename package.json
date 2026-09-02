@@ -13,6 +13,7 @@
     "dev": "pnpm -r --parallel run dev",
     "build": "tsc -b && pnpm --filter @marketpulse/frontend exec vite build && pnpm --filter @marketpulse/frontend exec storybook build",
     "test": "pnpm -r run test",
+    "coverage": "pnpm -r run coverage",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",
     "typecheck": "tsc -b",
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@vitejs/plugin-react": "6.1.1",
+    "@vitest/coverage-v8": "4.1.11",
     "eslint": "10.9.1",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-storybook": "10.5.10",

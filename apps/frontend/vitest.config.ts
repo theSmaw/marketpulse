@@ -60,6 +60,65 @@ export default mergeConfig(
       // helper: a leaf-component test calls `render()` directly and needs the
       // cleanup just as much.
       setupFiles: ["./src/test-setup.ts"],
+
+      // Coverage (Task 1.9.5). One config per package, three reports, run only
+      // by `pnpm coverage` — never `test`, never `verify`.
+      coverage: {
+        // Vitest's own provider. It matters slightly more here than in the
+        // other two packages that it does not instrument the sources: this
+        // config *is* the build config, so istanbul's transform would sit
+        // inside the same plugin chain that produces `dist/`. Measured on this
+        // package against `@vitest/coverage-istanbul`: identical statements,
+        // functions and lines (44/160, 26/59, 42/158), and one branch of
+        // difference — istanbul counts `compact = false` in
+        // `ErrorFallback.tsx` as a branch and v8 does not. That is the known
+        // undercount, and it is the reversal trigger if branch coverage ever
+        // gates anything.
+        provider: "v8",
+
+        // `.tsx` as well as `.ts`, exactly as `test.include` does and for a
+        // related reason: a `.ts`-only glob silently drops every component.
+        // Explicit rather than defaulted, because Vitest 4 with no `include`
+        // reports only the files some test loaded.
+        include: ["src/**/*.{ts,tsx}"],
+
+        exclude: [
+          // The tests are not the subject. Vitest withholds the files it ran
+          // anyway, but `coverageConfigDefaults.exclude` is **`[]`** in
+          // Vitest 4 — read out of the package — so every other exclusion
+          // below has to be spelled out here or it does not happen.
+          "src/**/*.test.{ts,tsx}",
+
+          // The workshop is not the application. Stories are unreachable from
+          // `index.html` — verified by grepping the emitted bundle — and
+          // `@storybook/addon-vitest` was measured and rejected, so nothing
+          // executes them. Left in, nine story files each report 0% and they
+          // dominate: measured, statements are **27.04% with stories counted
+          // against 68.25% without** (159 statements against 63), and the
+          // lower number describes the workshop rather than the application.
+          "src/**/*.stories.tsx",
+
+          // Test scaffolding that is not named `*.test.*`: the shared render
+          // helper and the `afterEach(cleanup)` file.
+          "src/test-render.tsx",
+          "src/test-setup.ts",
+        ],
+
+        // Nothing else is excluded, and one omission from that list is
+        // deliberate: **`main.tsx` stays in**, matching `apps/backend`'s
+        // treatment of `index.ts`. It is the mount — `createRoot`,
+        // `StrictMode`, the three error-reporting options and the `getTokens()`
+        // startup assertion — and no jsdom test calls it, so it reports 0%.
+        // Excluding an entrypoint because nothing tests it is how a coverage
+        // number stops describing the application.
+
+        // `text` for the terminal, `html` for the lines behind a number.
+        // `coverage/` is already in .gitignore, .prettierignore and
+        // eslint.config.mjs's ignores.
+        reporter: ["text", "html"],
+
+        // No threshold. See the story write-up.
+      },
     },
   }),
 );

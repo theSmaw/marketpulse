@@ -228,6 +228,7 @@ Run from the repository root:
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
 | `pnpm test`         | Every package's tests — 103 across the workspace — see below          |
+| `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
 | `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
 | `pnpm clean`        | `tsc -b --clean`, plus the frontend's `dist/` and `storybook-static/` |
@@ -324,6 +325,50 @@ They are three different kinds of test:
 half — signals, exit codes, the shutdown ceiling, `EADDRINUSE`, the two crash
 handlers — because `app.inject()` drives a server with no socket and that
 whole class needs a child process against a built tree. Story 1.10 owns it.
+
+### `pnpm coverage` — on demand, and never in `verify`
+
+```sh
+pnpm coverage                                   # all three packages
+pnpm --filter @marketpulse/backend coverage     # one of them
+```
+
+It is the same 103 tests with `--coverage` added, fanning out through
+`pnpm -r` exactly as `pnpm test` does, so there are **three reports and no
+merged one** — each package answers for its own sources. It is deliberately
+not part of `pnpm test` and not a seventh `pnpm verify` step: nothing gates on
+the number yet, and an instrumentation pass on the acceptance command costs
+every developer and every CI run for a figure nobody is reading.
+
+Each run writes a terminal table and a browsable HTML report to that package's
+`coverage/`, which is already ignored by git, Prettier and ESLint. Note the
+terminal table lists only files that are **not** fully covered; open
+`<package>/coverage/index.html` for every file, and for the lines behind a
+number.
+
+The first figures, measured on the tree Task 1.9.5 shipped:
+
+| Package           | Statements      | Branches | Functions | Lines           |
+| ----------------- | --------------- | -------- | --------- | --------------- |
+| `packages/shared` | 30.00% (3/10)   | 50.00%   | 33.33%    | 30.00% (3/10)   |
+| `apps/backend`    | 64.33% (92/143) | 75.00%   | 72.72%    | 63.82% (90/141) |
+| `apps/frontend`   | 68.25% (43/63)  | 70.83%   | 80.64%    | 67.21% (41/61)  |
+
+**What those numbers structurally exclude matters more than the numbers.**
+`apps/backend/src/index.ts` reports **0%** and is deliberately left in the
+denominator: it is the process — `listen`, both signal handlers, the shutdown
+ceiling, both crash handlers — and `app.inject()` cannot reach any of it, so
+that is the same hole the section above names, now visible as a figure rather
+than as a caveat. `apps/frontend/src/main.tsx` is 0% for the same reason and is
+left in for the same reason. Outside the report entirely, because no test
+imports them and no runner reads them: `scripts/*.mjs`, and
+`apps/backend/scripts/dev.sh`, which no tool in this workspace reads at all.
+
+**There is no threshold, and that is a decision.** A minimum set against nine
+components, one configuration module and no application state would be a number
+invented before there is anything to hold it to, and it would be met by testing
+what is easy. Story 1.10 owns CI and can set one against the baseline in the
+table above, which is what this command exists to provide.
 
 ### What `pnpm dev` does at the root
 

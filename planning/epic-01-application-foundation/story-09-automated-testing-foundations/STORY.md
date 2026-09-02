@@ -143,7 +143,7 @@ Tackled in order. The story is complete when all seven are done.
 | 1.9.2 | [Wire the runner and prove it on `packages/shared`](TASK-02-wire-the-runner-on-shared.md)    | Complete    |
 | 1.9.3 | [Backend tests: the injected server and the configuration module](TASK-03-backend-tests.md)  | Complete    |
 | 1.9.4 | [Frontend component tests and the DOM environment](TASK-04-frontend-component-tests.md)      | Complete    |
-| 1.9.5 | [Coverage reporting on demand](TASK-05-coverage-on-demand.md)                                | Not started |
+| 1.9.5 | [Coverage reporting on demand](TASK-05-coverage-on-demand.md)                                | Complete    |
 | 1.9.6 | [Test conventions, and running a single test](TASK-06-conventions-and-single-test.md)        | Not started |
 | 1.9.7 | [Verify, document, and record the decisions as ADR 0009](TASK-07-verify-document-and-adr.md) | Not started |
 

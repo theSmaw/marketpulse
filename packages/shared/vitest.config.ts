@@ -41,5 +41,49 @@ export default defineConfig({
     // the entry nobody added. This says where tests are, which is also the
     // convention Task 1.9.6 documents.
     include: ["src/**/*.test.ts"],
+
+    // Coverage (Task 1.9.5). Configured here rather than at the root for the
+    // same reason the runner is: root `coverage` is a `pnpm -r` fan-out, so
+    // each package answers for itself and there are three reports rather than
+    // one merged one. It runs only under `pnpm coverage` — never in `test` and
+    // never in `verify`.
+    coverage: {
+      // The v8 provider, which is Vitest's own and does not rewrite the
+      // sources it measures. Measured against `@vitest/coverage-istanbul` on
+      // this package and on `apps/frontend`: identical statements, functions
+      // and lines, and one branch of difference — istanbul counts a default
+      // parameter (`compact = false`) as a branch and v8 does not. Install cost
+      // is a wash (+31 store entries against +29) and so is runtime.
+      provider: "v8",
+
+      // **An explicit `include` is the whole point, not tidiness.** Vitest 4
+      // reports only the files a test actually loaded when `include` is left
+      // undefined — so this package, whose `ticker.ts`, `anomaly.ts` and
+      // `feed-status.ts` no test imports, reports **100%** with an empty file
+      // table. That is the "green tick that means nothing" this story exists to
+      // remove. Scoped to `src` for the reason `test.include` is: `dist/` holds
+      // a compiled copy of every test and every source, and a provider
+      // instrumenting those reports coverage of generated output as source.
+      include: ["src/**/*.ts"],
+
+      // The tests themselves are not the subject. This is belt-and-braces
+      // rather than the only thing holding: Vitest withholds the files it ran
+      // as tests on its own, and `coverageConfigDefaults.exclude` in Vitest 4
+      // is **`[]`** — read out of the package, the same shape as Task 1.9.2's
+      // finding about `defaultExclude`. So the runner's own list protects
+      // nothing here, and every exclusion this workspace wants it has to say.
+      // Everything else under `src` stays in — including `index.ts`, a pure
+      // re-export barrel with no statements, which costs the percentage
+      // nothing either way.
+      exclude: ["src/**/*.test.ts"],
+
+      // `text` for the terminal, `html` for the lines behind a number.
+      // `coverage/` is already in .gitignore, .prettierignore and
+      // eslint.config.mjs's ignores; anywhere else needs three new entries.
+      reporter: ["text", "html"],
+
+      // No threshold, deliberately — see the story write-up. A minimum set now
+      // would be a number invented before there is anything to hold it to.
+    },
   },
 });
