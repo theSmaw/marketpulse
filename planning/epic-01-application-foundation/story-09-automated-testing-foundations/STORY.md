@@ -78,7 +78,7 @@ The configuration module was written for this story before this story existed, a
 
 Story 1.7 is complete and `docs/adr/0007-*` records it. Four things land here, and the first one was built for this story specifically.
 
-- **`buildServer({ logLevel: "silent", logFormat: "json" })` is why `silent` is in the vocabulary.** The factory takes its logger settings and defaults neither, deliberately, so a test can have a server that does not narrate every injected request. Use it — an `app.inject()` suite at `info` writes two records per request and buries whatever the test was actually about
+- **`buildServer({ logLevel: "silent", logFormat: "json", corsOrigin })` is why `silent` is in the vocabulary.** (Task 1.9.1 correction: the two-field form written here predates Story 1.8, which added a required `corsOrigin` to `ServerOptions`. The runner will not catch the omission — it does not typecheck — but `tsc -b` will, as long as the test file is inside a tsconfig `include`.) The factory takes its logger settings and defaults neither, deliberately, so a test can have a server that does not narrate every injected request. Use it — an `app.inject()` suite at `info` writes two records per request and buries whatever the test was actually about
 - **Both error handlers are registered inside `buildServer()`**, not in `index.ts`, so an injected instance carries the whole error contract for free. That is the reason to assert against `{ code, message, requestId }` rather than against Fastify's defaults, and the reason a test does not need a listening socket to exercise a 404, a 400, a 413 or a thrown 500
 - **The process-level handlers are deliberately _not_ in `buildServer()`.** They install `process.on("uncaughtException")` and mutate `app.log.level`, which is exactly the surprise a factory should not spring on a suite building two instances. If a test ever needs to exercise them, it needs a child process, not a second `buildServer()` call
 - **One gap in `pnpm verify` is test-shaped, and this is the story that could close it.** Nothing checks that a route which can fail declared `500: apiErrorSchema` — the serialiser that strips undeclared properties is per-route and opt-in, and `setNotFoundHandler` is not a route and can never have one. That is the same shape as the `paths.ts` gap two sections up: a three-line test walking the registered routes is the only mechanism that would ever catch it, and it is cheaper than a seventh `verify` step
@@ -110,7 +110,7 @@ Tackled in order. The story is complete when all seven are done.
 
 | #     | Task                                                                                         | Status      |
 | ----- | -------------------------------------------------------------------------------------------- | ----------- |
-| 1.9.1 | [Choose the test runner](TASK-01-choose-the-test-runner.md)                                  | Not started |
+| 1.9.1 | [Choose the test runner](TASK-01-choose-the-test-runner.md)                                  | Complete    |
 | 1.9.2 | [Wire the runner and prove it on `packages/shared`](TASK-02-wire-the-runner-on-shared.md)    | Not started |
 | 1.9.3 | [Backend tests: the injected server and the configuration module](TASK-03-backend-tests.md)  | Not started |
 | 1.9.4 | [Frontend component tests and the DOM environment](TASK-04-frontend-component-tests.md)      | Not started |
