@@ -111,7 +111,7 @@ Tackled in order. The story is complete when all seven are done.
 | #     | Task                                                                                         | Status      |
 | ----- | -------------------------------------------------------------------------------------------- | ----------- |
 | 1.9.1 | [Choose the test runner](TASK-01-choose-the-test-runner.md)                                  | Complete    |
-| 1.9.2 | [Wire the runner and prove it on `packages/shared`](TASK-02-wire-the-runner-on-shared.md)    | Not started |
+| 1.9.2 | [Wire the runner and prove it on `packages/shared`](TASK-02-wire-the-runner-on-shared.md)    | Complete    |
 | 1.9.3 | [Backend tests: the injected server and the configuration module](TASK-03-backend-tests.md)  | Not started |
 | 1.9.4 | [Frontend component tests and the DOM environment](TASK-04-frontend-component-tests.md)      | Not started |
 | 1.9.5 | [Coverage reporting on demand](TASK-05-coverage-on-demand.md)                                | Not started |

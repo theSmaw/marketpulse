@@ -257,6 +257,11 @@ export default tseslint.config(
   // for a reason other than being this file, and Task 1.4.5's two Storybook
   // configuration files are the third and fourth for exactly the same reason:
   // they sit in `apps/frontend`, they are `.ts`, and `include` is `src/**/*`.
+  // Task 1.9.2's `packages/shared/vitest.config.ts` is the fifth, and Tasks
+  // 1.9.3 and 1.9.4 add one each — the runner is configured per package,
+  // because root `test` is a `pnpm -r` fan-out rather than a single process.
+  // Each of those tasks adds its own line here, so the cost of a config file
+  // stays attributed to the task that introduced it.
   // Widening that `include` is the alternative and is wrong — it would pull the
   // workshop's configuration into `tsc -b` and into the application's program. It is a `.ts` file inside a
   // package whose tsconfig `include` is `src/**/*`, so the project service has
@@ -272,6 +277,7 @@ export default tseslint.config(
       "apps/frontend/vite.config.ts",
       "apps/frontend/.storybook/main.ts",
       "apps/frontend/.storybook/preview.tsx",
+      "packages/shared/vitest.config.ts",
     ],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
