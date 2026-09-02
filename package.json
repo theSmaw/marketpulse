@@ -21,6 +21,7 @@
     "format:check": "prettier --check .",
     "stories": "node scripts/check-stories.mjs",
     "env:check": "node scripts/check-env-example.mjs",
+    "ready": "node scripts/check-ready.mjs",
     "verify": "pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run test"
   },
   "devDependencies": {

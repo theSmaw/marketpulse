@@ -118,25 +118,37 @@ export default defineConfig({
     // moves to 5174 fails an allowlist pinned to 5173 as a browser CORS error
     // — a symptom that names neither the port nor the cause.
     //
-    // **Left as a literal, deliberately (Task 1.6.4), and the question does not
-    // pass to Story 1.8.** The backend reads `PORT` and `HOST` because they are
-    // properties of a *deployed process*: Story 1.11's container sets them and
-    // nothing else can. Neither of the two ports in this file survives into a
-    // deployment at all — `apps/frontend/dist` is three static files served by
-    // somebody else's host, and `vite` and `vite preview` are development
-    // tools. So the asymmetry is not an inconsistency to resolve; it is the two
-    // packages having genuinely different kinds of port.
+    // **Left as a literal. Deliberated in Task 1.6.4, and closed as a decision
+    // rather than a deferral in Task 1.8.4.** The backend reads `PORT` and
+    // `HOST` because they are properties of a *deployed process*: Story 1.11's
+    // container sets them and nothing else can. Neither of the two ports in
+    // this file survives into a deployment at all — `apps/frontend/dist` is
+    // three static files served by somebody else's host, and `vite` and `vite
+    // preview` are development tools. So the asymmetry with the backend is not
+    // an inconsistency to resolve; it is the two packages having genuinely
+    // different kinds of port, and symmetry on its own is not a reason.
     //
-    // The cost is a developer with a busy 5173, who has to edit this line
-    // rather than export a variable. `strictPort` above means they find out
-    // immediately, which is the trade being made. Against it: Story 1.12 pins
-    // its CORS allowlist to this origin, so a configurable port is a second way
-    // to break CORS with a symptom that names neither the port nor the cause —
-    // and per the env-file note above, matching the backend *properly* would
-    // mean `loadEnv()` here rather than `process.env`, because Vite does not
-    // put `.env` entries on the process. The reversal trigger is two people
-    // needing two frontends at once, and the shape it takes then is
-    // `loadEnv()` plus a `VITE_`-free variable read in this file only.
+    // The argument against configurability used to be a forecast and is now
+    // the state of the tree. Task 1.8.3 shipped a real allowlist: the backend
+    // reads `CORS_ORIGIN`, it defaults to `http://localhost:5173`, and it
+    // enforces it. A dev server that bound 5174 would therefore be a broken
+    // pair **today**, and its symptom is the one Story 1.8 keeps meeting —
+    // `TypeError: Failed to fetch` in the page beside a **200** in the server
+    // log, naming neither the port nor the cause. `strictPort` below is what
+    // turns that into an exit 1 that names the port. Making this configurable
+    // would be making it possible to move one half of a pinned pair.
+    //
+    // The cost is a developer with a busy 5173, who edits this line rather
+    // than exporting a variable — and who now has to edit `CORS_ORIGIN` with
+    // it, so the reversal is two edits rather than one. `scripts/check-ready.mjs`
+    // dials the origin `CORS_ORIGIN` names precisely so that forgetting the
+    // second edit is reported rather than discovered in the browser.
+    //
+    // The reversal trigger is unchanged and is two people needing two
+    // frontends at once. The shape it takes then is **`loadEnv()`** plus a
+    // `VITE_`-free variable read in this file only — not `process.env`, which
+    // per the env-file note above cannot see a `.env` at all, because Vite
+    // loads env files for client code and does not put them on the process.
     port: 5173,
     strictPort: true,
   },
