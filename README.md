@@ -12,13 +12,29 @@ recommends trades, or produces target prices.
 
 ## What exists today
 
-**Epic 1, Stories 1.1, 1.2, 1.3, 1.4 and 1.5 complete — the repository, its
-toolchain, a backend, a frontend, a design-token layer, a component workshop,
-and now navigation and the application layout.**
+**Epic 1 complete through Story 1.8 — the repository and its toolchain, a
+backend, a frontend, a design-token layer, a component workshop, navigation and
+the application layout, a configuration boundary, structured logging with an
+error contract, and a development loop that takes a clean clone to a running
+pair.**
+
+One command starts both halves:
+
+```sh
+pnpm install
+pnpm dev        # http://localhost:5173 and http://127.0.0.1:3000
+```
+
+No `.env` file is needed and no database is involved yet. What you get is a
+running application — see [Running MarketPulse](#running-marketpulse) for the
+four addresses it serves and for the several things a correct first run shows
+that look like faults.
 
 `apps/backend` is a running Fastify service. It starts on a configurable port,
-serves `GET /health`, restarts on source change, and shuts down cleanly on
-`SIGTERM`/`SIGINT`:
+serves `GET /health`, restarts on source change, shuts down cleanly on
+`SIGTERM`/`SIGINT`, logs structured JSON with a correlation id on every
+request, answers every failure in one documented error shape, and allows one
+browser origin through CORS:
 
 ```sh
 pnpm build
@@ -27,14 +43,15 @@ curl http://127.0.0.1:3000/health
 # {"status":"ok","version":"0.0.0","uptimeSeconds":0.129}
 ```
 
-`PORT` and `HOST` configure it (defaults 3000 and 127.0.0.1) — see
-[Configuration](#configuration). It is a skeleton in scope rather than in
-status: no market data, no database, no domain logic.
+`PORT`, `HOST`, `LOG_LEVEL`, `LOG_FORMAT` and `CORS_ORIGIN` configure it, all
+with defaults — see [Configuration](#configuration). It is a skeleton in
+**scope** rather than in status: no market data, no database, no domain logic.
 
 `apps/frontend` is a React 19 application built with Vite. It renders the
-application chrome and four routes, reloads edited components without losing
-their state — a stylesheet edit in 24–130 ms, a component edit in a few hundred
-— and builds to static assets:
+application chrome and four routes, contains a render failure to the box it
+happened in, reloads edited components without losing their state — a
+stylesheet edit in 24–130 ms, a component edit in a few hundred — and builds to
+static assets:
 
 ```sh
 pnpm --filter @marketpulse/frontend dev      # http://localhost:5173
@@ -42,17 +59,12 @@ pnpm build
 pnpm --filter @marketpulse/frontend preview  # http://localhost:4173
 ```
 
-It is a shell in scope rather than in status: no state management, and it does
-not talk to the backend yet (Story 1.12). It **does** have a styling system and
-an application shape — see below. What it does prove is that the toolchain
-works end to end — `@marketpulse/shared` resolves through the bundler as well as through
-`tsc`, and the built `dist/` renders from a plain static server with no
+It is a shell in **scope** rather than in status: no state management, and it
+does not call the backend yet (Story 1.12) — the CORS allowlist that will let it
+is already configured and enforced. What it does prove is that the toolchain
+works end to end: `@marketpulse/shared` resolves through the bundler as well as
+through `tsc`, and the built `dist/` renders from a plain static server with no
 `package.json` and no `node_modules` beside it.
-
-So `pnpm dev` now starts a running pair. Getting a **clean clone** to that pair
-by following this file alone is Story 1.8's criterion rather than a claim made
-here; what has been verified is that a clean clone installs, verifies and
-builds an identical bundle.
 
 The browser baseline is **evergreen desktop** — current Chrome, Edge, Firefox
 and Safari — expressed as ES2024 in two places that must agree: `target` in
@@ -101,6 +113,104 @@ If `pnpm install` fails complaining about a dependency's install scripts, see
 [Install-script policy](#install-script-policy) below — the fix is to
 allowlist that one package, never to disable the check.
 
+## Running MarketPulse
+
+```sh
+pnpm dev
+```
+
+That is the whole thing. It starts three watchers and two servers — the shared
+package's compiler, the backend, and the frontend dev server — and prints
+thirteen lines in under a second and a half, ending with Vite's address and the
+server's `Server listening at` line. There is no silent stretch to wait out and
+no `.env` file to write first.
+
+| Address                 | What it is                                          |
+| ----------------------- | --------------------------------------------------- |
+| `http://localhost:5173` | the application                                     |
+| `http://127.0.0.1:3000` | the API — `GET /health` is currently the only route |
+
+Note the two addresses are not interchangeable spellings. The dev server binds
+IPv6 loopback and the backend binds IPv4, so `curl http://127.0.0.1:5173/` is
+refused and `curl http://[::1]:3000/health` is too. A browser resolves both as
+`localhost`; a script does not.
+
+If you want that confirmed rather than inferred, in a second terminal:
+
+```sh
+pnpm ready
+```
+
+It exits 0 only when the backend answers `/health` **and** the frontend's module
+graph resolves, and it polls for up to 15 seconds so it can be run in the same
+breath as `pnpm dev`. Read
+[`pnpm ready` — knowing the pair is up](#pnpm-ready--knowing-the-pair-is-up)
+before trusting a hand-rolled substitute; the obvious ones give false positives.
+The reason it exists is below: **a busy port 3000 leaves `pnpm dev` running and
+looking healthy**, and the terminal is not a reliable answer.
+
+The component workshop is deliberately **not** part of `pnpm dev` — it is a
+different activity, it does not hold its port, and it would leave a second
+bundler idling. Start it when you want it:
+`pnpm --filter @marketpulse/frontend storybook`.
+
+### What you are looking at
+
+Four routes for `PRODUCT_SPEC.md` §8's four experiences, plus a not-found route.
+This is a **shell on purpose** (§40): the structure, the chrome and the design
+language are real, and almost none of the content is.
+
+| Route             | What it is for                         | What is there today                                                                                                                                       |
+| ----------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`               | Market Overview — "what is happening?" | the only route with regions: four named landmarks, three of them a heading and a sentence naming the epic that fills them, and one holding a render check |
+| `/investigations` | Investigation Workspace                | a placeholder — a label, the screen's name and one sentence (Epics 7, 8 and 10)                                                                           |
+| `/securities`     | Security Explorer                      | a placeholder (Epics 4 and 9)                                                                                                                             |
+| `/replay`         | Market Replay                          | a placeholder (Epic 13)                                                                                                                                   |
+| anything else     | the not-found route                    | says what happened and links back to `/`; it is a route, not an error screen                                                                              |
+
+The landing route's first region is the exception. Under **Market topology**,
+where Epic 6 will draw the securities graph, is Story 1.4's render check: a
+three-row securities table, the four anomaly bands, the three feed states and
+one example failure block. It is kept there because it is the only thing in the
+application proving the design tokens, the market colours and the components
+reach the browser through the bundler rather than only through Storybook.
+
+Deep-linking to `/replay` works here, and that is a property of **Vite** rather
+than of the application — see
+[Routing and layout](#routing-and-layout) before assuming it survives
+deployment.
+
+### What looks broken on a correct first run
+
+Five things. None of them is a fault.
+
+- **The feed indicator says `DISCONNECTED`.** It is the most prominent thing in
+  the chrome and it is honest: there is no market feed until Epic 3, which is
+  what the smaller line beside it says. It reports the **market feed**, not the
+  backend — the frontend does not call the backend at all yet (Story 1.12)
+- **The market clock reads `--:--:-- ET`.** It is a reserved region rather than
+  a stopped clock. Epic 3 supplies the live market clock; `--:--:--` is used in
+  preference to a plausible `00:00:00`, which would be a fake time
+- **The render check deliberately shows a `STALE` row and a `DISCONNECTED` row.**
+  Demonstrating those states is what it is for. `PRODUCT_SPEC.md` §36 makes
+  stale and disconnected data a product state rather than a failure — still
+  shown, still correct as of a stated time — and the table exists to show that
+  they read correctly
+- **A titled red block reading "Peer comparison failed" is a sample.** It sits
+  under the feed states so a real failure can be compared against them; it is
+  the reason one red can mean both "price down" and "this did not work"
+- **Ctrl-C is noisy.** See [What `pnpm dev` does at the root](#what-pnpm-dev-does-at-the-root)
+  — the `Failed` line and the `node_modules missing` warning on the way out are
+  what stopping several watchers at once looks like, and nothing is missing
+
+If a **box with a heading and a "Try again" button** appears where content
+should be, that is different: something failed to render and was contained to
+that box, which is the design. See
+[When something fails to render](#when-something-fails-to-render). The one place
+it is not local is the chrome itself — the header's own fallback replaces the
+`<header>`, so a broken chrome takes the navigation with it while everything
+below carries on working.
+
 ## Commands
 
 Run from the repository root:
@@ -132,6 +242,26 @@ pnpm --filter @marketpulse/shared run clean  # note the `run` — see below
 Every package exposes `dev`, `build`, `test`, `lint`, `typecheck` and `clean`.
 `lint:fix` is an extra rather than part of the convention — a local convenience
 with no root fan-out and no place in `verify`.
+
+**Run `pnpm build` first whenever you run one package on its own.** Root
+`pnpm dev` does not need it — the shared package's watcher is one of its three
+loops — but a filtered command has no such loop beside it, and both apps compile
+against `packages/shared/dist`. The frontend's version of that failure is
+particularly quiet: after a `pnpm clean`,
+`pnpm --filter @marketpulse/frontend dev` starts, reports `ready in 96 ms` and
+serves `/` as a clean **200**, and the terminal says nothing wrong. Only when a
+browser requests a module that actually imports the shared package does it
+print:
+
+```
+Failed to resolve import "@marketpulse/shared" from "src/routes/MarketOverview.tsx"
+```
+
+Do not try to check this by hand with a request of your own — Vite's dev server
+never 404s, `/src/main.tsx` answers 200 against the broken graph, and a module
+path that does not exist at all comes back as `index.html` with a 200. That is
+what `pnpm ready` is for; it reads the content type rather than the status for
+exactly this reason.
 
 Two more extras have exactly that status, one per app:
 
@@ -197,12 +327,30 @@ new one listens. Edit a frontend component and the change is in the browser in
 about 100 ms with the component's state intact. Ctrl-C stops everything and
 leaves no orphaned process and no held port.
 
-**A clean Ctrl-C is noisy, and the noise is not a failure.** pnpm reports each
-interrupted watcher as `Failed`, prints
+**A clean Ctrl-C is noisy, and the noise is not a failure.** After the server's
+own `signal received` / `shutdown complete` lines, pnpm reports **one** watcher
+as `Failed`, quotes
 `[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] ... Command failed with signal "SIGINT"`,
-and adds a spurious `Local package.json exists, but node_modules missing`
-warning on the way out. Nothing is wrong and nothing is missing; that is what
-shutting down three watchers at once looks like.
+and adds a spurious `[WARN] Local package.json exists, but node_modules
+missing, did you mean to install?`:
+
+```
+packages/shared dev: Failed
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @marketpulse/shared@0.0.0 dev: `tsc -b --watch --preserveWatchOutput`
+Command failed with signal "SIGINT"
+[WARN]  Local package.json exists, but node_modules missing, did you mean to install?
+[ELIFECYCLE] Command failed.
+```
+
+Nothing is wrong and nothing is missing — do not reinstall a working tree. That
+is what interrupting a parallel run looks like: `pnpm -r` reports whichever
+watcher exits first, so the package it names is a **race** and varies between
+runs. Which one it says is not information.
+
+It is not fixable for less than it costs. Every pnpm lever was measured:
+`--no-bail` prints two `Failed` lines and keeps the false warning, `--loglevel
+error` suppresses every child's output including the server's log, and
+`--silent` prints nothing at all.
 
 **Both frontend servers listen on IPv6 loopback and the backend listens on
 IPv4.** `curl http://localhost:5173/` works and `curl http://127.0.0.1:5173/`
@@ -701,8 +849,8 @@ compile error.
 
 CSS Modules over CSS custom properties, with **Base UI** (`@base-ui/react`)
 supplying behaviour for anything interactive. There is no CSS-in-JS: styles are
-resolved at build time and shipped as one stylesheet, currently 9.82 kB for the
-whole design language, the chrome and the layout. The reasoning is in
+resolved at build time and shipped as one stylesheet, currently 10.93 kB for
+the whole design language, the chrome, the layout and the error fallback. The reasoning is in
 [ADR 0004](docs/adr/0004-styling-approach-component-library-and-the-component-workshop.md).
 
 ```
@@ -768,13 +916,10 @@ route, using **React Router 8** in declarative mode — a library import, with n
 plugin and no build step. The reasoning is in
 [ADR 0005](docs/adr/0005-routing-application-layout-and-the-deployable-shape.md).
 
-```
-/                 Market Overview — the landing route, and the only one with regions
-/investigations   Investigation Workspace
-/securities       Security Explorer
-/replay           Market Replay
-anything else     a not-found route, with the chrome intact
-```
+The addresses, and what is in each of them today, are in
+[Running MarketPulse](#what-you-are-looking-at); this section is how they are
+wired rather than what they show. The not-found route keeps the chrome intact
+like any other route, because it is a route.
 
 The chrome — product name, market feed, a reserved market clock, the navigation
 — is `components/AppHeader`, rendered once outside the route table so it
@@ -831,6 +976,13 @@ what keeps the heading, the explanatory line and the `region` landmark when the
 contents are gone: a failed region is a labelled box with a problem in it,
 rather than a hole in the layout.
 
+**The chrome is the one place containment is not local, and the cost is stated
+rather than discovered.** The header's fallback replaces the `<header>`, so a
+broken chrome takes the banner landmark and the whole navigation with it. What
+survives is everything below it and the address bar, which is the recovery that
+is left. It is still much better than the alternative: without that boundary a
+header that throws leaves `#root` with **zero** children — a blank document.
+
 **The fallback never shows the error.** Not the message, not the stack. It is
 the same rule the backend's 5xx follows, for the same reason — a message
 written for a developer is internal detail too. The error is in the browser
@@ -878,9 +1030,8 @@ built artefact — and in development, with `StrictMode` on, it is **one** repor
 and not two: the constructor does run twice, but the first throw aborts that
 render pass and React reports the failure once.
 
-An `uncaught` report means a boundary is missing. Without the header boundary,
-a header that throws leaves `#root` with **zero children** — a blank document —
-which is measured rather than hypothetical.
+An `uncaught` report means a boundary is missing, and the blank document
+described above is what that costs — measured rather than hypothetical.
 
 ## Layout
 
