@@ -16,6 +16,7 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
+    "@fastify/cors": "11.3.0",
     "@marketpulse/shared": "workspace:*",
     "fastify": "5.12.1",
     "pino-pretty": "13.1.3"

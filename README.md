@@ -241,7 +241,7 @@ Both packages read configuration from a `.env` file **beside their own
 `package.json`**, and each ships a documented example:
 
 ```sh
-cp apps/backend/.env.example apps/backend/.env    # PORT, HOST, LOG_LEVEL, LOG_FORMAT
+cp apps/backend/.env.example apps/backend/.env    # PORT, HOST, LOG_LEVEL, LOG_FORMAT, CORS_ORIGIN
 cp apps/frontend/.env.example apps/frontend/.env  # nothing to set yet
 ```
 
@@ -278,6 +278,37 @@ Every bad key is reported, not just the first:
 PORT must be an integer between 1 and 65535, received "nope"
 LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, received "INFO"
 ```
+
+### Talking to the API from the browser
+
+The frontend and the backend are two different origins — `http://localhost:5173`
+and `http://localhost:3000` — so a browser applies CORS between them. One
+variable says who is allowed:
+
+| Variable      | Values                      | Default                 |
+| ------------- | --------------------------- | ----------------------- |
+| `CORS_ORIGIN` | One origin, matched exactly | `http://localhost:5173` |
+
+The default is the dev server's own origin, so **a fresh clone works with no
+`.env` at all**. A deployment should set this to the site's own origin; the
+default is not safe by omission, because it would let a page served from
+someone's local dev server call your API.
+
+Three things that will otherwise cost you an afternoon:
+
+- **A blocked request looks like a healthy one in the terminal.** The page says
+  `TypeError: Failed to fetch`, which names neither CORS nor the origin, while
+  the server logs the request and answers it **200**. The request is not
+  blocked — the browser discards a response that was already produced. If the
+  page says the call failed and the log says 200, this is why
+- **`localhost` and `127.0.0.1` are different origins**, not two spellings of
+  one, and the dev server genuinely does not answer on the IPv4 literal — it
+  binds IPv6 loopback, while the backend binds IPv4. Set `CORS_ORIGIN` to
+  whatever the browser's address bar says
+- **`curl` cannot tell you whether CORS works.** The server sends the allowed
+  origin to every caller, including one it does not allow; the browser is what
+  compares and refuses. A 200 from `curl -H "Origin: …"` proves nothing about
+  what a browser will do
 
 ### Logging
 
