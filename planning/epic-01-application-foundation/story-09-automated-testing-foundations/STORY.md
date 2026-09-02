@@ -102,6 +102,15 @@ The runner is in the workspace and `packages/shared`'s suite is real. Five decis
 - **Vitest's `globals` are off**; every test opens with `import { describe, expect, it } from "vitest"`. That is what keeps every package's tsconfig `types` array untouched, which matters most in `apps/frontend`, where the explicit array is the browser boundary's last stated guarantee
 - **The runner does not enforce the `.js`-extension convention, and is the third resolver not to.** Drop the extension and `tsc -b` is `TS2835` at exit 2 while `vitest run` is 7 passed at exit 0 — the same asymmetry ADR 0003 records for Rolldown. `tsc` remains the only enforcer, so a green suite is not evidence the convention was followed
 
+### What Task 1.9.3 settled for the rest of this story
+
+`apps/backend`'s suite is real — **49 tests across 3 files**, and the `include` scoping was measured rather than trusted: the shipping config collects 3 files / 49 tests with `dist/` populated, an empty config collects **6 and 98**. Four things Task 1.9.4 inherits.
+
+- **The process half of the backend is out of scope for this story, and its owner is Story 1.10.** `app.inject()` drives an instance with no listening socket, so signals, exit codes, the 5-second shutdown ceiling, the second-signal path, `EADDRINUSE` and both crash handlers are all unreachable — they need a real child process against a **built** tree. One demonstration was considered and rejected: such a test needs `pnpm build` to have run, spawns and signals processes, and its first failure mode is a port held by a previous run, so putting it in the same `vitest run` as 48 injected ones makes the fast suite conditional on a build and occasionally flaky. Story 1.10 builds CI and is where a suite requiring a built tree belongs
+- **A test helper does not get its own module.** Test files are forced inside the package's tsconfig `include`, so a `src/test-support.ts` would emit into `dist/` as scaffolding shipped beside the application. Keep helpers file-local. Relatedly, a suite exercising an assembled thing is **one file for what looks like several subjects** — `registerErrorHandling` and `registerCors` take an instance and return nothing, so there is no unit that is not the server
+- **Type-aware lint runs on tests and `--max-warnings 0` applies.** `@typescript-eslint/non-nullable-type-assertion-style` failed the first draft twice, both times on catching an error as `unknown` and casting it. The idiom that needs neither a cast nor a `!`: narrow with `instanceof` in the `catch`, then `if (x === undefined) { expect.fail("…") }` — `expect.fail` returns `never`, so it narrows as well as fails
+- **A test can close a gap that no `verify` step could.** The route-schema audit — walk the registered routes via an `onRoute` hook added after `buildServer()` returns, which still sees every route because plugin registration is deferred to `ready()` — found `OPTIONS *`, a preflight route `@fastify/cors` registers and nobody wrote. Prefer this over a seventh `verify` step when the thing being checked is reachable from an assembled instance
+
 ## Acceptance criteria
 
 - Unit test runner configured for **all three** packages — `apps/backend`, `apps/frontend` and `packages/shared` — running from the repository root. The original wording said "both packages" and predates `packages/shared`
@@ -122,7 +131,7 @@ Tackled in order. The story is complete when all seven are done.
 | ----- | -------------------------------------------------------------------------------------------- | ----------- |
 | 1.9.1 | [Choose the test runner](TASK-01-choose-the-test-runner.md)                                  | Complete    |
 | 1.9.2 | [Wire the runner and prove it on `packages/shared`](TASK-02-wire-the-runner-on-shared.md)    | Complete    |
-| 1.9.3 | [Backend tests: the injected server and the configuration module](TASK-03-backend-tests.md)  | Not started |
+| 1.9.3 | [Backend tests: the injected server and the configuration module](TASK-03-backend-tests.md)  | Complete    |
 | 1.9.4 | [Frontend component tests and the DOM environment](TASK-04-frontend-component-tests.md)      | Not started |
 | 1.9.5 | [Coverage reporting on demand](TASK-05-coverage-on-demand.md)                                | Not started |
 | 1.9.6 | [Test conventions, and running a single test](TASK-06-conventions-and-single-test.md)        | Not started |

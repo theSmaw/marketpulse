@@ -216,21 +216,21 @@ below carries on working.
 
 Run from the repository root:
 
-| Command             | What it does                                                          |
-| ------------------- | --------------------------------------------------------------------- |
-| `pnpm verify`       | `build && lint && format:check && stories && env:check && test` — CI  |
-| `pnpm build`        | `tsc -b` over the solution, then the frontend bundle, then Storybook  |
-| `pnpm typecheck`    | The same command as `build`, deliberately — see below                 |
-| `pnpm lint`         | `eslint .` over the whole workspace in one process                    |
-| `pnpm lint:fix`     | The same, with `--fix`                                                |
-| `pnpm format`       | `prettier --write .` — the whole tree, prose included                 |
-| `pnpm format:check` | `prettier --check .`                                                  |
-| `pnpm stories`      | Fails if a component has no stories file                              |
-| `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Real in `packages/shared`; placeholders in both apps — see below      |
-| `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
-| `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
-| `pnpm clean`        | `tsc -b --clean`, plus the frontend's `dist/` and `storybook-static/` |
+| Command             | What it does                                                                               |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| `pnpm verify`       | `build && lint && format:check && stories && env:check && test` — CI                       |
+| `pnpm build`        | `tsc -b` over the solution, then the frontend bundle, then Storybook                       |
+| `pnpm typecheck`    | The same command as `build`, deliberately — see below                                      |
+| `pnpm lint`         | `eslint .` over the whole workspace in one process                                         |
+| `pnpm lint:fix`     | The same, with `--fix`                                                                     |
+| `pnpm format`       | `prettier --write .` — the whole tree, prose included                                      |
+| `pnpm format:check` | `prettier --check .`                                                                       |
+| `pnpm stories`      | Fails if a component has no stories file                                                   |
+| `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree                              |
+| `pnpm test`         | Real in `packages/shared` and `apps/backend`; a placeholder in `apps/frontend` — see below |
+| `pnpm dev`          | Every package's `dev`, in parallel — see below                                             |
+| `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below                      |
+| `pnpm clean`        | `tsc -b --clean`, plus the frontend's `dist/` and `storybook-static/`                      |
 
 Working on a single package uses the same six verbs, meaning the same thing:
 
@@ -307,15 +307,16 @@ the same second half for the same reason.
 
 ### `pnpm test` does not yet do what its name suggests
 
-**A green `pnpm test` still does not mean what it looks like, and it now means
-two different things at once.** Task 1.9.2 made `packages/shared`'s script real
-— `vitest run`, 7 tests across 2 files, and it exits 1 when one of them fails.
-The other two are still `echo` placeholders that exit 0, so a green root
-`pnpm test` today means "the shared package's tests pass, and neither app has
-any". Tasks 1.9.3 and 1.9.4 replace the remaining two; this warning goes away in
-Task 1.9.7, when there is nothing left for it to warn about. Until then, Story
-1.10 would put that mixed tick in CI, where it looks exactly like passing
-coverage across the workspace. It is not.
+**A green `pnpm test` still does not mean what it looks like.** Task 1.9.2 made
+`packages/shared`'s script real — `vitest run`, 7 tests across 2 files — and
+Task 1.9.3 made `apps/backend`'s real: 49 tests across 3 files, driving the
+assembled server with `app.inject()`, and it exits 1 when one of them fails.
+`apps/frontend` is still an `echo` placeholder that exits 0, so a green root
+`pnpm test` today means "shared and the backend pass, and the frontend has no
+tests at all". Task 1.9.4 replaces the last one; this warning goes away in Task
+1.9.7, when there is nothing left for it to warn about. Until then, Story 1.10
+would put that mixed tick in CI, where it looks exactly like passing coverage
+across the workspace. It is not.
 
 ### What `pnpm dev` does at the root
 
