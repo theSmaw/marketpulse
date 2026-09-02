@@ -76,7 +76,7 @@ Tackled in order. 1.8.1 is a measurement task that changes nothing, and everythi
 | 1.8.3 | [The frontend-to-backend connection: proxy or CORS](TASK-03-frontend-to-backend-connection.md) | Complete    |
 | 1.8.4 | [Ports, conflicts, and knowing when the pair is up](TASK-04-ports-conflicts-and-readiness.md)  | Complete    |
 | 1.8.5 | [Extend the README to a running application](TASK-05-readme-to-a-running-application.md)       | Complete    |
-| 1.8.6 | [Reach a running application from a clean clone](TASK-06-clean-clone-first-run.md)             | Not started |
+| 1.8.6 | [Reach a running application from a clean clone](TASK-06-clean-clone-first-run.md)             | Complete    |
 | 1.8.7 | [Verify, document, and record the decisions as ADR 0008](TASK-07-verify-document-and-adr.md)   | Not started |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.7 followed.
