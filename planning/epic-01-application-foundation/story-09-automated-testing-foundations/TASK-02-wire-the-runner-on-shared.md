@@ -68,6 +68,8 @@ It is the **fifth** file needing `eslint.config.mjs`'s trailing `disableTypeChec
 
 Everything after this copies the convention, so Tasks 1.9.3 and 1.9.4 inherit the location rather than re-deciding it, and Task 1.9.6 documents it.
 
+**One convention was taken here without being argued, and it should be, because it is load-bearing for Task 1.9.4.** Vitest's `globals` option is **off** — the default — so every test file opens with `import { describe, expect, it } from "vitest"`. The alternative is `globals: true` plus `"vitest/globals"` in each package's tsconfig `types` array, and that is the specific thing `apps/frontend` must not do: its `types: ["vite/client"]` is explicit so that server-side APIs do not typecheck in browser code, and the array's value is that it is a deliberate list rather than that it is short. Explicit imports mean **no package's `types` array is touched at all** to make tests typecheck, which is exactly the pressure Task 1.9.4 was warned to resist. It also costs nothing: three named imports at the top of a file that already carries import statements.
+
 ### The emitted-into-`dist` question, answered — and the second half of it is a live defect, not a tidiness one
 
 `tsc -b` emits **8 files for 2 test files** (`.js`, `.d.ts` and both maps), into the directory that _is_ this package's contract.
