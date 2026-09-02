@@ -1,6 +1,6 @@
 # Task 1.9.5 — Coverage reporting on demand
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.9 Automated Testing Foundations](STORY.md)
 **Depends on:** Tasks 1.9.3, 1.9.4
 

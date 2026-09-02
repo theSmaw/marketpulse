@@ -33,5 +33,43 @@ export default defineConfig({
     // `config.ts` gives for rejecting `redact`: a denylist's failure mode is
     // the entry nobody added.
     include: ["src/**/*.test.ts"],
+
+    // Coverage (Task 1.9.5). Same shape as `packages/shared`'s and for the same
+    // reasons; only the honest hole below is this package's own. Runs under
+    // `pnpm coverage` only — never in `test`, never in `verify`.
+    coverage: {
+      // Vitest's own provider, which does not rewrite the sources it measures.
+      // Measured against `@vitest/coverage-istanbul`: identical statements,
+      // functions and lines across the workspace, one branch of difference
+      // (istanbul counts a default parameter, v8 does not), and no meaningful
+      // difference in install cost or runtime.
+      provider: "v8",
+
+      // Explicit, because Vitest 4 reports only the files a test loaded when
+      // `include` is undefined — which would quietly drop every module no test
+      // imports and report a flattering number over what is left. Scoped to
+      // `src` for the same reason `test.include` is: `tsc -b` emits a compiled
+      // copy of all of this into `dist/`, and a provider pointed at those
+      // reports coverage of generated output as if it were source.
+      include: ["src/**/*.ts"],
+
+      // Only the tests — and note `coverageConfigDefaults.exclude` is `[]` in
+      // Vitest 4, so nothing is excluded that this file does not exclude.
+      // **`index.ts` is deliberately not excluded**, and it is
+      // the most important line in this block: it is the process — `listen`,
+      // both signal handlers, the shutdown ceiling and both crash handlers —
+      // and `app.inject()` reaches none of it, so it reports 0% and drags the
+      // package's figure down. That is the correct behaviour. Excluding it
+      // would hide the one part of this server that no runner in the workspace
+      // can currently reach; Story 1.10 owns a process-level test, and until it
+      // exists the hole should be visible in the number.
+      exclude: ["src/**/*.test.ts"],
+
+      reporter: ["text", "html"],
+
+      // No threshold. See the story write-up: a minimum here would be met by
+      // testing what is easy, and half of what is untested is untestable by
+      // this runner.
+    },
   },
 });

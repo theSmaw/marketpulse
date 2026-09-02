@@ -15,6 +15,7 @@
     "dev": "tsc -b --watch --preserveWatchOutput",
     "build": "tsc -b",
     "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",
     "typecheck": "tsc -b",
