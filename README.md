@@ -326,6 +326,55 @@ half — signals, exit codes, the shutdown ceiling, `EADDRINUSE`, the two crash
 handlers — because `app.inject()` drives a server with no socket and that
 whole class needs a child process against a built tree. Story 1.10 owns it.
 
+### Running one file, or one test
+
+The `test` script takes arguments straight through, from the repository root
+with a filter or from the package directory without one. **The path is relative
+to the package**, not to the repository root.
+
+```sh
+# One file
+pnpm --filter @marketpulse/backend test src/config.test.ts
+pnpm --filter @marketpulse/frontend test src/components/PriceChange/PriceChange.test.tsx
+
+# Any substring of the path — usually what you want
+pnpm --filter @marketpulse/frontend test PriceChange
+
+# One test by name
+pnpm --filter @marketpulse/backend test -t "freezes what it returns"
+
+# The names to match against
+pnpm --filter @marketpulse/shared test --reporter=verbose
+
+# Watch mode — `--watch` is required; see below
+pnpm --filter @marketpulse/frontend exec vitest --watch
+```
+
+From inside a package directory the filter comes off and everything else is the
+same — `pnpm test src/config.test.ts`, and `pnpm t` is the same command again.
+
+**Do not write `--` before the arguments.** `pnpm test -- -t "name"` looks
+right, forwards the `--` to Vitest literally, and Vitest then ignores the
+filter: all 49 backend tests run and it exits **0**, so a command that reads as
+a narrow run is a full one. Nothing here needs `--`, `--reporter=verbose`
+included, even though `--reporter` is also one of pnpm's own flags.
+
+**A `-t` that matches nothing is also green.** It reports `47 skipped` and exits
+**0** — a typo in a test name looks like a pass, so read the skipped count
+rather than the exit code. A path that matches nothing is the loud case:
+`No test files found`, exit 1.
+
+**Root `pnpm test <path>` is not the way to narrow it.** Root `test` is
+`pnpm -r run test`, so the path goes to all three packages and the two that do
+not have that file fail. Use `--filter`.
+
+**Watch mode needs an explicit `--watch`.** A bare `vitest` runs once and exits,
+the same as `vitest run` — that changed in Vitest 4, and the old habit reads as
+watch mode being broken. With `--watch` you get a `DEV` banner,
+`PASS Waiting for file changes...`, and a saved file re-runs only that file.
+There is no `test:watch` script on purpose: it would be a seventh verb in three
+packages for something `exec` already spells.
+
 ### `pnpm coverage` — on demand, and never in `verify`
 
 ```sh
@@ -342,9 +391,15 @@ every developer and every CI run for a figure nobody is reading.
 
 Each run writes a terminal table and a browsable HTML report to that package's
 `coverage/`, which is already ignored by git, Prettier and ESLint. Note the
-terminal table lists only files that are **not** fully covered; open
+terminal table lists only files that are **not** fully covered — for
+`packages/shared` that is three of its six sources; open
 `<package>/coverage/index.html` for every file, and for the lines behind a
 number.
+
+Narrowing a coverage run to one test file gives a misleading number rather than
+that file's coverage: `coverage.include` fixes the denominator while the
+numerator shrinks, so `pnpm --filter @marketpulse/shared coverage
+src/api-error.test.ts` reports 20% where the full run reports 30%.
 
 The first figures, measured on the tree Task 1.9.5 shipped:
 
