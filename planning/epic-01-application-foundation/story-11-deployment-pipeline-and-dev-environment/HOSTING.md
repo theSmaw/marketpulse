@@ -326,26 +326,27 @@ with a pull request's temporary environment suffixed by its PR number, and branc
 
 This is the class of fact Story 1.10 recorded for its repository ruleset: real configuration that no file here can hold, where the write-up is the only copy a future reader gets.
 
-| Fact                       | Value                                                                                                                                                    |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cloud                      | Microsoft Azure                                                                                                                                          |
-| Subscription id            | `5104e168-b3de-41c2-92a8-c68d28bd4d16`                                                                                                                   |
-| Tenant id                  | `6069915b-5bf2-4e36-8b25-8ffb25b5fdd1`                                                                                                                   |
-| Subscription type          | Azure free account (12-month offers plus the always-free grants)                                                                                         |
-| Region                     | East US for the backend, the registry and the eventual database. **The frontend is East US 2** — see below; Static Web Apps is not offered in East US    |
-| Resource group             | `rg-marketpulse-dev` (East US)                                                                                                                           |
-| Container Apps environment | `cae-marketpulse-dev`, unique id **`blackgrass-e682fefb`**, `WorkloadProfiles` mode with a **Consumption profile only**, no VNet                         |
-| Backend URL                | **<https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io>**                                                                       |
-| Backend identity           | System-assigned, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`, `AcrPull` on the registry                                                             |
-| Log destination            | Log Analytics workspace `log-marketpulse-dev`, **30-day retention**, `PerGB2018` — $2.30/GB ingested, $0.10/GB/month retained beyond the included period |
-| Budget                     | `marketpulse-monthly`, **$20/month**, actual-cost alerts at 50 / 80 / 100% to the account owner                                                          |
-| Frontend service           | Azure Static Web Apps, **Free** plan, app `marketpulse-frontend` in **East US 2**                                                                        |
-| Frontend URL               | **<https://red-smoke-029583a0f.5.azurestaticapps.net>**                                                                                                  |
-| Backend service            | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                                                                                             |
-| Database service           | Azure Database for PostgreSQL flexible server, Burstable B1MS — **not yet provisioned**                                                                  |
-| Container registry         | **`crmarketpulse.azurecr.io`** — ACR Basic, East US, $0.1666/day, 10 GB included, **admin user disabled**. Pulled by managed identity with `AcrPull`     |
-| Source repository          | `github.com/theSmaw/marketpulse`                                                                                                                         |
-| Deploy trigger             | A merge to `main`, through the existing `verify` workflow's gate (Task 1.11.6)                                                                           |
+| Fact                       | Value                                                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloud                      | Microsoft Azure                                                                                                                                                                     |
+| Subscription id            | `5104e168-b3de-41c2-92a8-c68d28bd4d16`                                                                                                                                              |
+| Tenant id                  | `6069915b-5bf2-4e36-8b25-8ffb25b5fdd1`                                                                                                                                              |
+| Subscription type          | Azure free account (12-month offers plus the always-free grants)                                                                                                                    |
+| Region                     | East US for the backend, the registry and the eventual database. **The frontend is East US 2** — see below; Static Web Apps is not offered in East US                               |
+| Resource group             | `rg-marketpulse-dev` (East US)                                                                                                                                                      |
+| Container Apps environment | `cae-marketpulse-dev`, unique id **`blackgrass-e682fefb`**, `WorkloadProfiles` mode with a **Consumption profile only**, no VNet                                                    |
+| Backend URL                | **<https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io>**                                                                                                  |
+| Backend identity           | System-assigned, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`, `AcrPull` on the registry                                                                                        |
+| Log destination            | Log Analytics workspace `log-marketpulse-dev`, **30-day retention**, `PerGB2018` — $2.30/GB ingested, $0.10/GB/month retained beyond the included period                            |
+| Budget                     | `marketpulse-monthly`, **$20/month**, actual-cost alerts at 50 / 80 / 100% to the account owner                                                                                     |
+| Frontend service           | Azure Static Web Apps, **Free** plan, app `marketpulse-frontend` in **East US 2**                                                                                                   |
+| Frontend URL               | **<https://red-smoke-029583a0f.5.azurestaticapps.net>**                                                                                                                             |
+| Backend service            | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                                                                                                                        |
+| Database service           | Azure Database for PostgreSQL flexible server, Burstable B1MS — **not yet provisioned**                                                                                             |
+| Container registry         | **`crmarketpulse.azurecr.io`** — ACR Basic, East US, $0.1666/day, 10 GB included, **admin user disabled**. Pulled by managed identity with `AcrPull`                                |
+| Source repository          | `github.com/theSmaw/marketpulse`                                                                                                                                                    |
+| Deploy trigger             | A merge to `main`, gated on `verify` — `.github/workflows/deploy.yml`, automatic since Task 1.11.6                                                                                  |
+| Deploy credential          | Federated identity credential (OIDC) on app registration `marketpulse-github-deploy`, app id **`1bb765eb-fff3-4aed-80f2-90796c2fbcfb`**. **No repository secret exists.** See below |
 
 **Why East US.** Alpaca's market data endpoints are US-hosted, and Epic 3's WebSocket is the latency that matters; the frontend is a geo-distributed CDN on the production environment regardless of the app's region, so co-locating it costs nothing. The trade accepted is portal and log latency for a UK-based maintainer, which is a human cost paid once per session rather than per market tick.
 
@@ -353,9 +354,13 @@ This is the class of fact Story 1.10 recorded for its repository ruleset: real c
 
 **It is, and here is the divergence with its reason (Task 1.11.4, 2026-09-03).** The frontend's first deploy used the app's **deployment token**, read at the moment of use with `az staticwebapp secrets list` and passed to the CLI through `SWA_CLI_DEPLOYMENT_TOKEN` in the environment of a single command. Two things make that acceptable here and neither generalises. It is **not stored**: nothing was written to a file, to a keychain (`--no-use-keychain` is passed for exactly that reason) or to a repository secret, so there is no long-lived copy to leak or rotate — the token is the app's, it is fetched by the operator's own Azure credential, and each deploy fetches it again. And it is **a hand deploy, not the pipeline**: Task 1.11.6 is where a credential is genuinely persisted, and the federated identity credential above is still what that task owes. The trap this leaves is worth naming — the default advice everywhere is to paste this token into `AZURE_STATIC_WEB_APPS_API_TOKEN` as a repository secret, which is precisely the long-lived-secret shape this document has now declined three times. **Task 1.11.6 must not take that path by default**; if it does, it is a second divergence needing its own reason here.
 
+**It did not, and the divergence is now closed rather than repeated (Task 1.11.6, 2026-09-03).** The pipeline authenticates with a **federated identity credential** and holds **no repository secret at all** — not a deployment token, not a service-principal password, not even a client secret. What is in `deploy.yml` is three identifiers as literals; the deployment token is fetched with `az staticwebapp secrets list` **at the moment of use** under that federated login and passed to one command's environment, exactly as Task 1.11.4's hand deploy did, with the operator's credential replaced by the workflow's own. Nothing is stored anywhere.
+
+**And the "does the deploy action accept OIDC" question was established rather than assumed, which is what made that possible.** `Azure/static-web-apps-deploy`'s own `action.yml`, read from the repository rather than recalled, declares `azure_static_web_apps_api_token` as **`required: true`** and offers **no** Azure-credential input of any kind. So the action genuinely cannot take an OIDC login, and using it would have meant creating `AZURE_STATIC_WEB_APPS_API_TOKEN` — the fourth time this document would have declined that shape and the first time it would have lost. The CLI can be handed a token the workflow mints for itself, so the CLI is what the pipeline uses and the **action is declined with a reason**. That also disposes of the platform's generated workflow entirely: it takes an `app_location` and an `output_location` and builds the site on the deploy side, which is a second definition of the artefact; `swa deploy <dir>` uploads a directory and builds nothing, so `skip_app_build` has no equivalent here — there is no build to skip.
+
 **Rollback.** Container Apps keeps revisions, so a rollback is shifting traffic to the previous revision rather than re-running a deploy — Task 1.11.7 owns proving it. Static Web Apps has no equivalent revision history on the Free plan, so the frontend's rollback is **re-running the deploy from the previous commit**, which makes the frontend the slower half to recover and is worth knowing before it is needed.
 
-**The table above is filled in, both halves are deployed, and the only row still owed is the federated credential's subject (Task 1.11.6), which does not exist yet.** Task 1.11.3 deployed the backend and Task 1.11.4 the frontend, both on 2026-09-03.
+**The table above is filled in and nothing in it is owed.** Task 1.11.3 deployed the backend, Task 1.11.4 the frontend and Task 1.11.6 automated both, all on 2026-09-03. The federated credential's subject — the one row that was still owed — is in the identities section below, and it is **not** the subject the documentation predicts.
 
 ## What the first deploy measured
 
@@ -501,7 +506,7 @@ Three things follow. **A deploy has a ~1.5-second window in which a cold load is
 
 ### The configuration file reaches two artefacts, and the CLI found the wrong one
 
-It lives in `apps/frontend/public/`, which Vite copies to the root of `dist/` untouched. **Storybook's build copies it too** — `apps/frontend/storybook-static/staticwebapp.config.json` exists after `pnpm build`, because `.storybook/main.ts` deliberately reuses `vite.config.ts` and therefore inherits its `publicDir`. That was not anticipated and it had a visible consequence on the very first deploy: the SWA CLI printed `Found configuration file: .../apps/frontend/storybook-static/staticwebapp.config.json` — it globs the working directory and picked the **workshop's** copy, not the one in the directory being deployed. Harmless here only because the two are the same bytes. If the workshop is ever published with a different configuration, or if `public/` gains a file the workshop should not carry, this is where it bites. The platform reads the copy inside the deployed directory; the CLI's line is about the CLI.
+It lives in `apps/frontend/public/`, which Vite copies to the root of `dist/` untouched. **Storybook's build copies it too** — `apps/frontend/storybook-static/staticwebapp.config.json` exists after `pnpm build`, because `.storybook/main.ts` deliberately reuses `vite.config.ts` and therefore inherits its `publicDir`. That was not anticipated and it had a visible consequence on the very first deploy: the SWA CLI printed `Found configuration file: .../apps/frontend/storybook-static/staticwebapp.config.json` — it globs the working directory and picked the **workshop's** copy, not the one in the directory being deployed. Harmless here only because the two are the same bytes. If the workshop is ever published with a different configuration, or if `public/` gains a file the workshop should not carry, this is where it bites. The platform reads the copy inside the deployed directory; the CLI's line is about the CLI. **Task 1.11.6 closed it** — `publicDir: false` in `.storybook/main.ts`, so the workshop copies nothing and the client now reports finding `apps/frontend/public/staticwebapp.config.json`, the source of truth. `staticDirs: []` was tried first and does not work.
 
 Unlike `apps/backend/Dockerfile` and the root `.dockerignore`, this file **is** inside `pnpm verify`'s net: `prettier --file-info` reports `"inferredParser": "json"` for it, so a malformed edit fails `format:check`. Formatting only — nothing validates the schema, so a misspelled `navigationFallback` or an `exclude` that matches nothing is green locally and silent in production, in the same class as the workflow's unchecked schema.
 
@@ -511,7 +516,7 @@ Story 1.10 declined `storybook-static/` as a CI artefact and explicitly left "is
 
 ### The Static Web Apps CLI emulator was not used, and the reason is that it was not needed
 
-The task asked whether `swa` emulates `navigationFallback` locally, because that would move the line between its blocked and unblocked halves. The account exists, so the question is moot in the direction that matters: **a local pass would have been evidence about the configuration file and never about the host**, which is exactly the distinction Task 1.5.5 drew when it refused to tick a criterion against `vite preview`. Everything above was read from the deployed site. The CLI was used only as a **deploy** client, pinned at `@azure/static-web-apps-cli@2.0.10` and run through `npx` — it is deliberately not a dependency of this workspace, because nothing in `pnpm verify` needs it and Task 1.11.6 will use a pinned GitHub Action instead.
+The task asked whether `swa` emulates `navigationFallback` locally, because that would move the line between its blocked and unblocked halves. The account exists, so the question is moot in the direction that matters: **a local pass would have been evidence about the configuration file and never about the host**, which is exactly the distinction Task 1.5.5 drew when it refused to tick a criterion against `vite preview`. Everything above was read from the deployed site. The CLI was used only as a **deploy** client, pinned at `@azure/static-web-apps-cli@2.0.10` and run through `npx` — it is deliberately not a dependency of this workspace, because nothing in `pnpm verify` needs it. ~~Task 1.11.6 will use a pinned GitHub Action instead.~~ **It does not** — the official action cannot take an OIDC login, so the pipeline runs this same pinned `npx` invocation under a federated credential. See Task 1.11.6's section below.
 
 The deploy, in full, so it is reproducible and so Task 1.11.6 has the shape it is automating:
 
@@ -620,6 +625,185 @@ Left to Story 1.12, deliberately and completely:
 - **The React Compiler rules' first real test.** Keeping the probe out of React is what leaves that to 1.12's polling effect rather than spending it on code that is going to be deleted.
 
 **`main.tsx`'s `void probeBackendHealth();` and the module behind it are meant to be deleted by Story 1.12**, and both say so in their own comments.
+
+## What automating the deploy measured (Task 1.11.6)
+
+**A merge to `main` now deploys both halves with no human action.** `.github/workflows/deploy.yml` is triggered by `workflow_run` on `verify` completing, and it was observed on real merges rather than reasoned about: PR #127 merged at 08:01, `verify` ran on `main`, the deploy fired on its own and put a new revision and a new bundle live. Everything below was read back from the running system.
+
+### Where the deploy lives, and why it is not a job in `verify.yml`
+
+A separate workflow, on three arguments in order of weight.
+
+**The badge.** `README.md`'s badge paragraph says in as many words that green certifies the chain and **not** coverage. A deploy job inside `verify` would make the badge report the deployment too, so a registry outage, an expired credential or a platform incident would turn the tick red for something the paragraph beside it disclaims. The badge keys on the **workflow** name, so this is a property of the file rather than of the job — it cannot be arranged any other way.
+
+**Concurrency.** `verify` cancels superseded runs everywhere except `main`, because a cancelled run leaves a commit with no verdict. A cancelled **deploy** is worse than no verdict: it is a half-done rollout. This needs cancellation off and a queue of its own, and concurrency is a property of the workflow.
+
+**The gate.** The required status check keys on the **job** name `verify`. Adding a job to that workflow leaves the gate keyed on a job that no longer describes the whole run, and the obvious "fix" — adding the deploy job to the ruleset — would make a deploy gate a merge, which is backwards, since the deploy happens after one.
+
+The cost is stated rather than discovered: `workflow_run` does not check anything out, so the workflow has to be told which commit it is deploying, and it repeats the toolchain and install steps. It reads the **same** pnpm store cache `verify` writes, so the install is warm.
+
+### The gate, and it was made to go red
+
+`github.event.workflow_run.conclusion == 'success'`. That is a **workflow run's** conclusion and never a step's, because Story 1.10 recorded that a step marked `continue-on-error` reports `conclusion: success` however it exited — a deploy gate written against a step would be a gate against nothing. The coverage step cannot turn `verify` red, which is exactly the property that makes this gate honest.
+
+Two further clauses close a hole the branch filter does not. `branches: [main]` filters on the **triggering** run's head branch, and a pull request from a fork whose source branch is called `main` produces a `verify` run with `head_branch: main`. `event == 'push'` is what closes it, because `verify`'s own `push` trigger is restricted to this repository's `main`.
+
+**It was made to happen.** A deliberately unformatted Markdown file was merged to `main` with admin bypass (PR #128), `verify` run **33732058463** failed at `format:check`, and deploy run **33732126041** was created and **`skipped`** — nothing was built, nothing was pushed, nothing was rolled out. The probe was reverted immediately (PR #129).
+
+**The detail worth knowing is that it is a `skipped` run and not an absent one.** The deploy workflow is triggered by every `verify` completion and the job's `if:` is what declines; so the deploy history carries a visible record of the gate firing, rather than a silence that is indistinguishable from a trigger that never worked. That is the better failure shape and it was not designed for — it is how `workflow_run` plus a job-level `if:` behaves.
+
+### Two rapid merges do not interleave, and the queue was measured
+
+`concurrency: { group: deploy, cancel-in-progress: false }` — a literal group rather than one keyed on the ref, because every run of this workflow targets the same two live resources and they all belong in one queue.
+
+PR #129 and PR #130 were merged 95 seconds apart. The timings, read from the API:
+
+| Run             | Created    | Job started    | Job completed |
+| --------------- | ---------- | -------------- | ------------- |
+| **33732556392** | `08:17:27` | `08:17:30`     | `08:20:14`    |
+| **33732695554** | `08:19:02` | **`08:20:17`** | `08:22:5x`    |
+
+The second run was created while the first was still rolling out and its job **did not start for 75 seconds**, beginning three seconds after the first finished. Two uploads and two rollouts did not overlap, and neither run was cancelled.
+
+### Nothing here re-defines the build, and the 72-byte divergence is closed — it was two files
+
+Every build is invoked **by name**: `pnpm build` for the frontend and `pnpm image` for the backend, exactly as a developer runs them. There is no `tsc`, no `vite build`, no `docker build` and no `--build-arg` anywhere in `deploy.yml`.
+
+The deployed artefact is a **rebuild**, and what makes it the same thing is now a measurement rather than an argument. `VITE_API_BASE_URL` is set in the workflow file, the deploy fingerprints **that** build, and the bundle downloaded back from the CDN is **344,609 B / `7654c2e097fa03d738e488da88e265d8`** — byte-identical to the artefact Task 1.11.5 deployed by hand from a Mac. So the pipeline's build on Linux reproduces the hand deploy exactly.
+
+**The divergence Task 1.11.5 measured is two files, not one, and the second one is invisible to a size comparison.** For one commit, on two runners, in the same minute:
+
+| File                        | `verify`'s build                   | The deployed build                     |
+| --------------------------- | ---------------------------------- | -------------------------------------- |
+| `assets/index-*.js`         | 344,537 B `3c886f88…` (`_IZTTvsJ`) | **344,609 B** `7654c2e0…` (`BuDdAKpl`) |
+| `index.html`                | 1,101 B **`21577235…`**            | 1,101 B **`e1768b6b…`**                |
+| `assets/index-DFxUCjbx.css` | 10,926 B `f98519e3…`               | identical                              |
+| `staticwebapp.config.json`  | 300 B `fce10675…`                  | identical                              |
+
+`index.html` carries the hashed script filename, so it changes with the bundle **at exactly the same length**. Task 1.11.5 recorded the 72-byte JavaScript difference and stopped there; a reader comparing file sizes would have concluded the document was the same file, and it is not. Read the hash.
+
+Both ends are now honest. The deploy prints the deployed fingerprint, and **`verify`'s own fingerprint step says in its summary that what it describes is not the deployed artefact** — the cheap half, and the half that stops a reader being misled by a table under a green tick.
+
+### The image is tagged from the commit, and a `-dirty` tag cannot arise
+
+`MARKETPULSE_IMAGE_TAG` is set from the checked-out commit's short SHA — the door `scripts/build-image.mjs` opened in Task 1.11.3 — rather than from whatever `HEAD` resolves to inside a checkout step. No second rule was invented.
+
+Two belts for one brace, because the failure is silent: the workflow **asserts the checkout is clean before any build runs**, so a `-dirty` tag cannot be produced at all, and the push step refuses a `-dirty` tag anyway. On a clean CI checkout neither can fire, which is the point — one appearing means a step wrote into the working tree, and that is a different bug from anything this workflow is about.
+
+### The pipeline's image is NOT an OCI index, and this contradicts what was recorded
+
+Read back from the registry rather than inferred from a green push. The first pipeline image resolves to **`application/vnd.docker.distribution.manifest.v2+json`** with **zero** child manifests and **no attestations**, where the section above records a local `pnpm image` producing an OCI index carrying the `linux/amd64` manifest plus a buildx provenance/SBOM attestation at `unknown/unknown`.
+
+**The cause is the image store, not the recipe.** `pnpm image` runs `docker build -t`, which uses the `docker` exporter; attestations need an exporter that can carry them, which on the development machine is Docker Desktop's containerd image store and on `ubuntu-latest` is not available. Same `Dockerfile`, same three build arguments, same runnable bytes — a different envelope around them.
+
+**The stated reversal trigger did not fire and this is a different case.** That trigger was "any tool in the deploy path refusing the index"; nothing refused one. The builder never made one. So the honest statement is narrower than the one recorded above: **the index digest is the provenance record of a local build, and a pipeline image has no attestations to record.** What `deploy.yml` pins and prints is therefore _the digest the tag resolves to_ — which is what the platform pulls in either shape — with the platform manifest digest printed beside it when there is an index.
+
+Accepted rather than chased, and the alternatives are priced: a sixth pinned action (`docker/setup-buildx-action`) plus a `--push` mode on a recipe whose "this pushes nothing" is a stated property, or reconfiguring the runner's Docker daemon to use the containerd store. **The reversal trigger is anything that actually consumes the attestations** — a policy check, a signature requirement, an SBOM scan.
+
+### The backend has a fingerprint now, and it is a record rather than a check
+
+The asymmetry Task 1.11.6 was asked to close: the frontend has had a four-file fingerprint in every job summary since Task 1.10.4, and the backend's equivalent figures existed only as prose in a task write-up. From deploy run 33732695554, commit `de943a2`:
+
+|                                              |                                                                           |
+| -------------------------------------------- | ------------------------------------------------------------------------- |
+| Tag                                          | `de943a2`                                                                 |
+| Digest the tag resolves to                   | `sha256:870df0e180a32abcaed1e0a1e5fa7edd58fd0a00e3e65918fc5b2f8f08f978e0` |
+| Media type                                   | `application/vnd.docker.distribution.manifest.v2+json`                    |
+| Manifests in the index                       | 0                                                                         |
+| Layers + config, as the registry stores them | 60,247,220 B                                                              |
+| `/app` inside the image                      | 16,700 KB                                                                 |
+| `/app/dist` files                            | 32                                                                        |
+
+That is a **fourth** correct size for one image, beside the three the section above already warns about — `docker save` 60,266,496 B, the platform manifest 60,239,874 B and the platform's own pull event 59,768,832 B. Different boundaries, not different images. Quote which one you mean, and this one means "layer blobs plus the config, as the registry accounts for them".
+
+Nothing asserts a digest. The image is supposed to change, and a pinned hash would be a check that fails for the right reason — the same argument the frontend's fingerprint carries.
+
+Both fingerprints and the deployed record are `tee`d into the log as well as the job summary. The first run wrote them to the summary only, which is not greppable across runs, and being greppable across runs is the entire argument for having a fingerprint.
+
+### The app is updated, never re-created, and pulls with its own identity
+
+`az containerapp update --image <ref>` and nothing else. The ingress, the probes, the scale rule, the environment variables and the managed identity are all already set on this app and are deliberately **not** re-specified: a deploy step that restated them would be a second definition of the app's configuration, which is the same failure Story 1.10 forbids for the build.
+
+**By digest rather than by tag.** A tag is a pointer that can be moved; a digest is the thing. The tag is still pushed and still means "the tree is exactly that commit" — it is how a human finds the image — but what the revision records is the digest.
+
+**The registry decision was not silently reversed.** The container app pulls with its own **system-assigned managed identity** holding `AcrPull`; its `secrets` array is still empty and its registry entry still carries `"identity": "system"` with an empty `passwordSecretRef`. No admin-user password, no stored PAT. The workflow's own identity holds **`AcrPush`** on the registry and nothing else there — **CI never needs pull credentials at all**, which is the payoff of choosing ACR over the free GHCR in Task 1.11.3, arriving one task later than the decision.
+
+`az containerapp update` returning is not the deploy being live — Task 1.11.5 measured a 20–25-second rollout during which the **old** revision serves the old bytes. The workflow waits for the new revision to be running, bounded at 300 s. It is deliberately **not** a smoke check; Task 1.11.7 owns whether the deployed thing works.
+
+**One thing measured while writing that wait, which would otherwise have cost a five-minute timeout on a perfectly good deploy: `runningState` on a healthy replica at `minReplicas: 1` reads `RunningAtMaxScale`, not `Running`.** Read off the live app. Match the family, not the word.
+
+### Two identities, named
+
+| Identity                     | What it is                                                                                                                                                                                    | What it authorises                                                                                    | How to rotate                                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **GitHub → Azure**           | Federated identity credential (OIDC) on app registration `marketpulse-github-deploy`, app id `1bb765eb-fff3-4aed-80f2-90796c2fbcfb`, service principal `f8b785a8-f6e1-4ca9-a71a-a906e5356d6a` | `AcrPush` on `crmarketpulse`; `Contributor` on the container app; `Contributor` on the static web app | Nothing to rotate — there is no secret. Revoke by deleting the federated credential or the role assignment |
+| **Container app → registry** | System-assigned managed identity, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`                                                                                                            | `AcrPull` on `crmarketpulse`                                                                          | Platform-managed; nothing stored                                                                           |
+
+**The role assignments are scoped per resource rather than to the resource group**, which is tighter than the "role assignment on the resource group" this document originally intended. Three assignments instead of one, and the deploy credential cannot touch the Log Analytics workspace, the Container Apps environment or the database Epic 2 will create.
+
+### The federated credential's subject is not the documented one, and this was a real failure
+
+The first deploy run failed at `azure/login` with:
+
+> `AADSTS700213: No matching federated identity record found for presented assertion subject 'repo:theSmaw@429802/marketpulse@1351035456:ref:refs/heads/main'`
+
+The credential had been created with the documented form, `repo:theSmaw/marketpulse:ref:refs/heads/main`. **What GitHub actually presents for this repository is an ID-qualified subject** — `owner@<ownerId>/repo@<repoId>` — which no amount of reading the documented pattern would have produced. A second federated credential matching the presented subject verbatim is what fixed it; **both are kept**, because the ID-qualified form is what is presented today and the plain form is what the documentation describes.
+
+Two things follow, and the second is the transferable one. The numeric ids are **stable** — they are GitHub's internal owner and repository ids — so a rename of either does not break this, which is the point of the format. And **the failure is only diagnosable from the error message**: the presented subject is not printed anywhere on the GitHub side, so an OIDC credential that will not exchange has to be read out of the Azure rejection. Read the subject the assertion carried; do not re-check the one you typed.
+
+### Secrets: there are none, and that is the record
+
+**No repository secret exists.** `gh secret list` is empty and so is `gh variable list`. Three identifiers are literals in `deploy.yml` — the application id, the tenant id and the subscription id — and they are identifiers rather than credentials: all three are already published in this document, in a public repository, and none authorises anything without a token whose OIDC claims match the federated subject. GitHub masks the client id in logs anyway, because `azure/login` registers it.
+
+The Static Web Apps **deployment token** is fetched at the moment of use and lives only in one command's environment, with `--no-use-keychain` so the CLI stores nothing. It is never written to a file, a keychain or a repository secret. If it ever needs rotating that is `az staticwebapp secrets reset-api-key`, and nothing in this repository has to change.
+
+**Epic 2's Alpaca key is the first real secret**, and it does not go here: it goes into the container app's `secrets` array referenced by `secretRef`, which Task 1.11.3 identified. Nothing in a frontend build may ever hold one — the substitution rule means anything the frontend build can see is downloadable.
+
+### Preview environments are declined, as an action rather than a default
+
+Nothing in `deploy.yml` creates one, and the deploy only ever runs on a push to `main`. The reason is measured rather than aesthetic: every preview environment gets its own origin, `CORS_ORIGIN` holds exactly one string, and a wildcard that admitted them would admit every Static Web App anybody deploys in that region. So a preview environment is a page that loads perfectly and cannot call the backend, failing with a `TypeError: Failed to fetch` that names neither CORS nor the origin.
+
+### The frontend's transient now happens once per merge, and that is accepted
+
+Task 1.11.4 measured a **~1.5-second window** on each frontend deploy in which the outgoing `index.html` is still served while its hashed asset has already been withdrawn, so a cold load in that window is broken. There is no flag on this platform that removes it. Automating the deploy turns that from a window somebody chose to open into one per merge to `main`.
+
+**Deploying the frontend only when `apps/frontend` changed was the alternative and it was rejected on correctness, not on effort.** The bundle inlines `packages/shared` at build time, carries `VITE_API_BASE_URL` from this workflow file, and is produced by a `vite.config.ts` and a lockfile that both live outside `apps/frontend`. A path filter that named only `apps/frontend` would skip deploys that genuinely changed the artefact and leave the site quietly stale — a worse failure than a 1.5-second window, because it is silent and unbounded. Accepted, and recorded so it is a decision rather than an oversight.
+
+### The workshop's stray host configuration, fixed on the Storybook side
+
+The Static Web Apps client **globs the working directory** for `staticwebapp.config.json`, and in the pipeline it reported finding `apps/frontend/storybook-static/staticwebapp.config.json` — the workshop's copy, a build artefact of a different application — rather than the one in the directory being deployed. Task 1.11.4 saw the same thing by hand.
+
+It was harmless because the two files were byte-identical, and that is a property of today rather than of the arrangement: the day somebody edits `apps/frontend/public/staticwebapp.config.json` and the workshop has not been rebuilt, the deploy takes a stale routing and cache policy from a directory nobody was thinking about, silently.
+
+Fixed where the task said it should be — on the Storybook side. **`staticDirs: []` is the narrow fix and it does not work**, measured rather than assumed: the file still lands, because Storybook honours vite's own `publicDir`, which it inherits along with the rest of `vite.config.ts`. **`publicDir: false` in a one-key `viteFinal` does.** That file's standing "there is deliberately no `viteFinal`" is now a divergence with its reason written beside it, which is what that comment asked for. Confirmed on the next deploy: the client reports finding `apps/frontend/public/staticwebapp.config.json`, the source of truth.
+
+### Dependabot, and the action pins re-counted from the files
+
+**Five distinct actions, eight uses, every one on a commit SHA** — counted out of `.github/workflows/` rather than copied from a sentence, which is the instruction because this number has been wrong once:
+
+| Action                    | Pin                  | Used in  |
+| ------------------------- | -------------------- | -------- |
+| `actions/checkout`        | `3d3c42e5…` (v7.0.1) | both     |
+| `actions/setup-node`      | `82076278…` (v7.0.0) | both     |
+| `actions/cache`           | `55cc8345…` (v6.1.0) | both     |
+| `actions/upload-artifact` | `043fb46d…` (v7.0.1) | `verify` |
+| `azure/login`             | `7ddb5af1…` (v3.0.2) | `deploy` |
+
+Task 1.10.7 declined Dependabot on a one-file argument and stated the reversal trigger explicitly: **a fifth action**. `azure/login` is the fifth, so the trigger fired, and the decision is **taken** rather than left to drift past its own trigger unremarked. `.github/dependabot.yml` enables `github-actions` updates weekly; it opens pull requests and merges none, every bump still goes through `verify` and a human, and the SHA pinning is unchanged because Dependabot rewrites the SHA and its `# vX.Y.Z` comment together.
+
+**npm is deliberately not enabled.** The pnpm workspace is a different question with a lockfile, an `allowBuilds` policy and a TypeScript pin held back on purpose against typescript-eslint's peer range. A bot opening pull requests against that is a decision Story 1.10 did not take and Task 1.11.6 is not the place to take it. The reversal trigger is a dependency here gaining a published advisory.
+
+One thing worth knowing: it is a **file** and not the repository setting Task 1.10.7 assumed, so unlike the ruleset it is visible in a diff. It started work within a minute of landing on `main`.
+
+### The deploy does not gate a merge, and that is recorded either way
+
+Ruleset `main` (id 22160620) is **unchanged**: it requires a pull request and the `verify` check, and nothing was added to it. The deploy runs **after** a merge, so requiring it would be a gate on a thing that cannot have happened yet — and `workflow_run` runs are not attributable to a pull request as checks in the first place. A future reader finding the deploy job absent from the ruleset should read that as the decision, not as an omission.
+
+### What this cost, in wall clock
+
+The whole deploy is **~2 min 50 s** on the runner: run 33731233275 took 151 s and 33732695554 about 165 s, including a warm install from the cache `verify` wrote, a native `linux/amd64` image build (no emulation, unlike the 45.3 s Apple Silicon figure Task 1.11.2 measured as an upper bound), the registry push, a 20–25-second rollout wait, a full `pnpm build` and the upload. It runs after `verify`, so a merge is green in ~90 s and live in ~4 min 20 s.
+
+`pnpm build` builds Storybook too, which is time spent on an artefact this workflow does not publish. It was **not** narrowed to `vite build`: that would be this file defining its own build, which is the one rule it exists not to break.
 
 ## What Task 1.11.1 did not do — kept as its own record
 

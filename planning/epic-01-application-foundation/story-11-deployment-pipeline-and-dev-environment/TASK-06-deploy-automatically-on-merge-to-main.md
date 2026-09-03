@@ -1,6 +1,6 @@
 # Task 1.11.6 — Deploy automatically on a merge to `main`, gated on `verify`
 
-**Status:** Not started
+**Status:** Complete (2026-09-03)
 **Story:** [1.11 Deployment Pipeline & Development Environment](STORY.md)
 **Depends on:** Tasks 1.11.3, 1.11.4
 
@@ -46,3 +46,34 @@ Turn the two manual deploys into one automatic consequence of merging, without g
 ## Notes
 
 The rule this task is most likely to break is the one Story 1.10 spent eight tasks protecting: **the pipeline runs `pnpm verify` by name and defines nothing of its own.** A deploy is the first thing that legitimately has to do something the chain does not — the correct shape is a step that consumes what the chain produced, not one that reproduces it.
+
+## Outcome
+
+**Complete, 2026-09-03.** A merge to `main` deploys both halves with no human action. The full record — every figure, every divergence and every decision — is in [`HOSTING.md`](HOSTING.md) under _What automating the deploy measured (Task 1.11.6)_; this section is the summary and the answer to each _Done when_.
+
+**Two files are new** — `.github/workflows/deploy.yml` and `.github/dependabot.yml` — plus one key in `apps/frontend/.storybook/main.ts` and one honesty note in `verify.yml`'s fingerprint summary. No dependency was added and `pnpm verify` is untouched.
+
+### Against the criteria
+
+- **A merge to `main` deploys both halves, observed on a real merge.** PR #127, #129 and #130 each merged and each deployed on its own. The deployed bundle downloaded back from the CDN is **344,609 B / `7654c2e0…`**, byte-identical to the artefact Task 1.11.5 deployed by hand.
+- **A red `verify` was seen not to deploy.** A deliberately unformatted Markdown file merged to `main` with admin bypass; `verify` run 33732058463 failed at `format:check` and deploy run 33732126041 was created and **`skipped`**. Reverted immediately. Worth knowing that the gate leaves a visible `skipped` run rather than a silence.
+- **Provenance decided and stated.** The deployed artefact is a **rebuild**, and what makes it the same thing is the byte-identical result above rather than an argument. The 72-byte divergence is closed by the deploy fingerprinting its own build, **and** `verify`'s summary now says its fingerprint is not the deployed artefact. **The divergence turned out to be two files**: `index.html` differs too, at identical length, because it carries the hashed script filename — invisible to a size comparison.
+- **`VITE_API_BASE_URL` is in the workflow file** where a reviewer sees it, and the build that gets uploaded is the one that had it.
+- **The backend's fingerprint is printed**, beside the frontend's: digest, media type, layer bytes, `/app` size, `dist/` file count, read back from the registry. Both `tee` into the log as well as the summary.
+- **Concurrency**: group `deploy`, cancellation off. Two merges 95 s apart produced two deploy runs whose jobs did **not** overlap — the second was created at `08:19:02` and its job started at `08:20:17`, three seconds after the first finished.
+- **The tag comes from `MARKETPULSE_IMAGE_TAG`**, set from the commit being deployed. The checkout is asserted clean before any build runs, and the push refuses a `-dirty` tag anyway.
+- **The container app still pulls by managed identity with `AcrPull`.** Its `secrets` array is empty. CI holds `AcrPush` and never needs pull credentials at all.
+- **No secret is named because none exists.** `gh secret list` and `gh variable list` are both empty.
+- **Five distinct actions, eight uses, all on SHAs**, counted out of the files. That is the fifth, so Task 1.10.7's stated Dependabot trigger fired and the decision was taken: `github-actions` updates enabled, npm deliberately not.
+- **The credential is a federated identity credential.** No departure to record — the earlier one is closed.
+- **The platform's generated workflow was not used at all**, and the reason is recorded: it builds the site on the deploy side.
+- **The deploy does not gate a merge**, and the ruleset is unchanged.
+
+### Four things it found that the brief did not anticipate
+
+1. **GitHub presents an ID-qualified OIDC subject for this repository** — `repo:theSmaw@429802/marketpulse@1351035456:ref:refs/heads/main` — not the documented `repo:owner/repo:ref:...`. The first deploy failed at `azure/login` with `AADSTS700213`, and the presented subject is readable **only** from the Azure rejection. Both credentials are kept.
+2. **The pipeline's image is a plain Docker v2 manifest with no attestations**, where a local `pnpm image` produces an OCI index with them. The cause is the image store, not the recipe, and HOSTING.md's stated reversal trigger ("any tool refusing the index") did not fire — the builder never made one. So "the index digest is the provenance record" is true of a local build and not of a pipeline one.
+3. **The `VITE_API_BASE_URL` divergence is two files**, and the second differs at identical size.
+4. **`runningState` reads `RunningAtMaxScale`**, not `Running`, on a healthy replica at `minReplicas: 1` — a wait loop matching the word would wait out its whole deadline on a good deploy.
+
+And one the brief did anticipate and asked to be verified rather than assumed: **the SWA client picked up the workshop's `staticwebapp.config.json`** in CI exactly as it did by hand. Fixed on the Storybook side with `publicDir: false` — `staticDirs: []` was tried first and **does not work**.

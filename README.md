@@ -11,6 +11,12 @@ the 10-test process suite spawned a real server on a real port, drained it on
 this README documents, run by name — CI does not keep its own list of what
 "verified" means.
 
+**Green does not mean anything is deployed, either.** Deployment is a second
+workflow (`deploy.yml`), keyed on this one succeeding, and it is deliberately
+outside the badge: a registry outage or an expired credential must not turn this
+tick red for something these paragraphs disclaim. Green means the chain passed;
+whether the deploy that follows it worked is its own run.
+
 **Green does not mean the coverage figures are good.** The pipeline publishes a
 per-package coverage table in every run's summary and uploads the three HTML
 reports, and it gates on neither: there is no threshold, the coverage step
@@ -254,11 +260,23 @@ It is a **development environment and it is public** — no authentication, no
 user data, and a backend whose entire surface is `GET /health`. That is
 acceptable only for as long as nothing deployed holds a credential.
 
-Three things worth knowing before relying on it:
+Five things worth knowing before relying on it:
 
-- **Deploys are by hand today.** Task 1.11.6 automates them on a merge to
-  `main`; until then the deployed site is whatever was last pushed to it, which
-  is not necessarily `main`.
+- **A merge to `main` deploys both halves, with no human action.**
+  `.github/workflows/deploy.yml` runs when `verify` completes successfully on a
+  push to `main`, and nothing else triggers it — a red `verify` leaves a
+  `skipped` deploy run and changes nothing. The whole deploy is about **2 min
+  50 s**, so a merge is green in ~90 s and live in ~4 min 20 s. It builds
+  nothing of its own: `pnpm build` and `pnpm image` by name, exactly as you
+  would run them.
+- **It queues rather than races.** Two merges 95 seconds apart produced two
+  deploy runs whose jobs did not overlap; the second waited 75 s for the first
+  to finish. Deploy runs are never cancelled.
+- **`verify`'s artefact fingerprint is not the deployed one, and it says so.**
+  The chain builds without `VITE_API_BASE_URL`; the deploy builds with it, and
+  prints the fingerprint of what it actually uploaded. The two differ in the
+  JavaScript bundle **and** in `index.html`, which changes at identical length
+  because it carries the hashed script filename.
 - **A frontend deploy is not atomic.** Measured on two deploys: the outgoing
   hashed asset is withdrawn while the outgoing `index.html` is still being
   served, so there is a **~1.5-second window in which a cold page load is
@@ -1641,25 +1659,38 @@ it is ever built it is an eighth `pnpm verify` step and a script under
 forks the definition of "verified", which is the whole reason the pipeline runs
 `pnpm verify` by name.
 
-**5. The workflow file's schema — and this one is only half a gap.**
-`.github/workflows/verify.yml` is YAML, and Prettier **does** read it:
+**5. The workflow files' schema — and this one is only half a gap.**
+`.github/workflows/verify.yml` and `deploy.yml` are YAML, and Prettier **does**
+read them:
 `prettier --file-info` infers the `yaml` parser, and a badly-formatted probe
 workflow dropped into that directory fails `pnpm format:check` by name. So its
 formatting is inside the net. Its **schema** is not — a misspelled key, an
 action reference that does not resolve, or a `runs-on` label GitHub retires are
 all green locally and red only on the runner. `actionlint` would close it and
-is declined for the same reason `shellcheck` is: one file.
+is declined for the same reason `shellcheck` is: two small files.
 
-**Inside that half-gap is the part nothing watches at all.** The workflow pins
-four third-party actions to commit SHAs — `actions/checkout`,
-`actions/setup-node`, `actions/cache` and `actions/upload-artifact` — and every
-one is bumped by hand, because a SHA does not follow security releases, which
-is the point of pinning it. `pnpm outdated` has no view of a YAML file and the
-lockfile has no view of GitHub, so a stale pin is invisible in every way a
-stale dependency is not. Dependabot is the tool that closes it and is a
-repository setting rather than a file; it is not enabled. Count the actions in
-the file rather than trusting this paragraph — the number grows whenever a step
-is added.
+**`deploy.yml` widens this half-gap rather than adding a sixth entry, and it is
+worth knowing which way.** Its schema is unchecked like `verify.yml`'s, and it
+additionally contains things no schema could check: an Azure resource name, a
+role assignment that lives in nobody's tree, and `VITE_API_BASE_URL`, whose
+absence produces a page that loads, renders and cannot reach the backend with
+every signal green. The variable is in the workflow file rather than a secret
+precisely so a human review is the check.
+
+**Inside that half-gap was the part nothing watched at all, and it is closed
+now.** The workflows pin **five** third-party actions to commit SHAs across
+eight uses — `actions/checkout`, `actions/setup-node`, `actions/cache`,
+`actions/upload-artifact` and `azure/login` — and a SHA does not follow security
+releases, which is the point of pinning it. `pnpm outdated` has no view of a
+YAML file and the lockfile has no view of GitHub. Task 1.10.7 declined
+Dependabot on a one-file argument and named a **fifth action** as the reversal
+trigger; `azure/login` is the fifth, so the trigger fired and it is enabled —
+`.github/dependabot.yml`, `github-actions` only, weekly. It is a **file**, not
+the repository setting that note assumed, so unlike the branch ruleset it is
+visible in a diff. It opens pull requests and merges none. npm is deliberately
+not enabled. Count the actions out of the files rather than trusting this
+paragraph — the number grows whenever a step is added, and it has been wrong
+once.
 
 ### Two things that read like gaps and are not
 
