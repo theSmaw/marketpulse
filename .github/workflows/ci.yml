@@ -95,11 +95,12 @@ jobs:
       # the version lives. Corepack runs after setup-node so the shims land in
       # the Node that setup-node put on the PATH.
       #
-      # The ordering trap this avoids belongs to Task 1.10.3:
-      # actions/setup-node's `cache: pnpm` needs pnpm on the PATH *before*
-      # setup-node runs, which is the usual reason people reach for a separate
-      # install action. There is no caching here, so that question is answered
-      # on its merits there rather than under pressure.
+      # This ordering is why the store cache below is an explicit
+      # `actions/cache` step: actions/setup-node's own `cache: pnpm` needs pnpm
+      # on the PATH *before* setup-node runs, which is the usual reason people
+      # reach for a separate pnpm install action. Task 1.10.3 kept the ordering
+      # and the pin and paid a third pinned action for it; the argument is
+      # written out beside the cache step.
       - name: Enable Corepack
         run: corepack enable
 
@@ -116,6 +117,92 @@ jobs:
           [ "$node_actual" = "$node_expected" ] || { echo "::error::Node is $node_actual, .nvmrc pins $node_expected"; exit 1; }
           [ "$pnpm_actual" = "$pnpm_expected" ] || { echo "::error::pnpm is $pnpm_actual, packageManager pins $pnpm_expected"; exit 1; }
 
+      # ------------------------------------------------------------------
+      # The STORE is cached. `node_modules` is not, and neither is any build
+      # output — see the two rules below, both of which are measurements rather
+      # than caution.
+      #
+      # WHY THE STORE AND NOT node_modules: a cold install from an empty store
+      # is dominated by fetching, and linking is what pnpm is fast at (Task
+      # 1.1.8). A restored `node_modules` is additionally a tree that was linked
+      # against a different store and a different lockfile, which is a class of
+      # failure with no error message.
+      #
+      # WHY NOTHING UNDER dist/, storybook-static/ OR ANY .tsbuildinfo IS
+      # CACHED, EVER: `packages/shared` is consumed as built output, and Story
+      # 1.9 measured what a STALE `packages/shared/dist` does — 13 failing
+      # backend tests whose messages name nothing about staleness. `tsc -b`
+      # decides what to rebuild from `.tsbuildinfo`, so a restored build state
+      # is a runner that may skip work the commit needed; and `tsc -b --clean`
+      # deletes the output of the sources that CURRENTLY exist, so a restored
+      # `dist/` can carry orphaned files from a branch where a source was
+      # deleted. The whole value of this pipeline is that it builds from
+      # nothing. Task 1.10.2 measured what that costs: running the chain twice
+      # in one job, the second with `dist/`, `storybook-static/` and the
+      # `.tsbuildinfo` files present, moved exactly ONE step — `build`, 6,010 ->
+      # 3,477 ms — while lint, Prettier, both checks and Vitest were unchanged,
+      # because they start from nothing either way. So the entire prize for
+      # caching the build is ~2.5 s against a 9 s runner-to-runner spread. It is
+      # not a correctness risk taken for speed; it is a correctness risk taken
+      # for a saving smaller than the measurement noise.
+      #
+      # ORDERING: `corepack enable` stays after `actions/setup-node` so the
+      # shims land in the Node setup-node installed, which means setup-node's
+      # own `cache: pnpm` cannot see pnpm at the moment it runs. This explicit
+      # cache step is what that ordering costs: a third pinned action. The
+      # alternative — moving Corepack before setup-node — keeps one action and
+      # pins pnpm to whatever Node the runner image happens to ship until
+      # setup-node replaces it, which is a second, invisible toolchain for the
+      # length of one step. Not worth it. Do not reach for an action that
+      # INSTALLS pnpm: `packageManager` is the pin and that is the point.
+      - name: Resolve the pnpm store path
+        id: store
+        run: |
+          set -euo pipefail
+          # From pnpm, never a literal. The location is pnpm's business and it
+          # has moved before; on this runner it has been
+          # /home/runner/.local/share/pnpm/store/v11, which is a cross-check on
+          # what this prints and not a value to hardcode.
+          path="$(pnpm store path)"
+          echo "pnpm store path: $path"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          # The Node major belongs in the key because the store can hold
+          # packages built for a runtime. It comes from the Node that is
+          # actually on the PATH, which the step above has already asserted
+          # equals .nvmrc.
+          echo "node-major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+
+      # Keyed on the lockfile hash, the runner OS and the Node major. The OS
+      # component is not a formality: Task 1.10.1 measured 397 packages on Linux
+      # against 398 on macOS from the same lockfile, and the one package is
+      # fsevents@2.3.3 (os: [darwin], optional, via Vite). A store restored
+      # across operating systems is a store missing — or carrying — a package
+      # the other side never wanted.
+      #
+      # The restore-key drops the lockfile hash, so a changed dependency starts
+      # from the previous store rather than from nothing. `--frozen-lockfile`
+      # still decides what a partial store is allowed to become.
+      #
+      # SCOPE, which is the trap: a cache saved by a `pull_request` run lives
+      # in that pull request's scope and a `workflow_dispatch` run on the same
+      # branch CANNOT see it — measured, `Cache not found` on the dispatched run
+      # immediately after the pull request run reported `Cache saved`. So Task
+      # 1.10.2's note that `workflow_dispatch` covers a branch with no pull
+      # request open does not extend to measuring this cache: a warm reading has
+      # to come from a re-run of the pull request run itself.
+      #
+      # TO BUST THIS CACHE BY HAND: bump `v1` in both the key and the
+      # restore-key below. That is the one-line edit; there is no other
+      # procedure and no button that is better.
+      - name: Cache the pnpm store
+        id: store-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-
+
       # --frozen-lockfile is CI's default and is asserted rather than relied on:
       # a runner that silently updates the lockfile is a runner testing a
       # different dependency tree from the one in the repository. Made to fail
@@ -123,10 +210,36 @@ jobs:
       - name: Install
         run: |
           set -euo pipefail
+          # The pass/fail evidence for the cache is CATEGORICAL and lives here,
+          # not in the wall clock: Task 1.10.2 measured a 9 s spread between two
+          # runners on identical work, which is larger than the whole install a
+          # cache could remove — so a timing delta from one run against one run
+          # cannot tell a working cache from a lucky runner, and these two
+          # facts can.
+          #
+          # `cache-hit` is the ONLY output `actions/cache` declares, and it is
+          # `true` on an exact key match and `false` on both a restore-key match
+          # and a total miss. `cache-matched-key` belongs to `actions/cache/restore`
+          # and reads as the empty string here — read out of the action's own
+          # action.yml after a run printed nothing three times, so do not put it
+          # back. What separates the two `false` cases is the line below it:
+          # pnpm's own `reused`/`downloaded` counts. A restore-key hit reads
+          # `reused 397, downloaded 2`; a genuine miss reads `reused 0,
+          # downloaded 397`.
+          echo "cache-hit (exact key): ${{ steps.store-cache.outputs.cache-hit }}"
+          echo "read the reused/downloaded counts below to tell a restore-key hit from a miss"
           start=$(date +%s%N)
           pnpm install --frozen-lockfile
           end=$(date +%s%N)
-          echo "cold install: $(( (end - start) / 1000000 )) ms"
+          echo "install: $(( (end - start) / 1000000 )) ms"
+          # Not `--trust-lockfile`. That flag skips pnpm 11's supply-chain
+          # verification, which is the single dominant line in a cold install
+          # here (492 entries in 2.5-5.2 s) and the one thing a store cache
+          # structurally cannot remove, because it verifies the LOCKFILE rather
+          # than the store. It is tempting for exactly that reason and it is
+          # wrong here: a pull request may change the lockfile, and this runner
+          # is the machine that is supposed to check it. Its own documentation
+          # says "use only when the lockfile is part of the trusted base".
 
       # This repository's first platform-specific native binding. Rolldown
       # resolves @rolldown/binding-darwin-arm64 on the development machine and
@@ -173,7 +286,8 @@ jobs:
       # `pnpm test` on its own reports a partial pass (16 backend tests, which
       # import nothing shared) with `dist` missing, and 13 silent failures with
       # `dist` stale. Nothing here runs a chain step on its own, and nothing
-      # here caches `dist/` — Task 1.10.3 inherits that constraint.
+      # here caches `dist/`, `storybook-static/` or any `.tsbuildinfo` — the
+      # rule and its measured price are beside the cache step above.
       #
       # Nothing here starts a server. `pnpm ready` is not a step and must not
       # become one: `verify` runs with no servers up, where "nothing is running"

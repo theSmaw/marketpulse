@@ -1,6 +1,6 @@
 # Story 1.10 — Continuous Integration Pipeline
 
-**Status:** In progress — eight tasks, two complete
+**Status:** In progress — eight tasks, three complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.9
 **Epic scope covered:** CI pipeline
@@ -82,6 +82,14 @@ Four things landed in 1.10.2 that every later task in this story has to work wit
 - **The per-step split already exists and is derived, not declared.** The step names come out of pnpm's own first announcement line and the boundaries are the timestamps of its root-level `$ ` lines, so the workflow names no step. Anything later that wants to report per-step timings — a job summary, an artefact — reuses that block's output and must not become a second, hand-written list of the steps, which is the thing this story exists to prevent
 - **The names are settled: workflow `verify`, job `verify`.** A badge and a required status check are keyed on them and a rename silently un-requires a check, so 1.10.6 points a badge at a stable name rather than choosing one. The file is still `.github/workflows/ci.yml`, which no longer matches the workflow name — 1.10.6 owns that mismatch, because a badge URL is keyed on the **file name**
 
+### What Task 1.10.3 hands the remaining tasks
+
+- **A cache saved on a `pull_request` run is invisible to a `workflow_dispatch` run on the same branch** — measured, `Cache not found` on the dispatched run immediately after the pull request run reported `Cache saved`, because a pull request's cache is scoped to its own ref. Task 1.10.2's note that `workflow_dispatch` covers a branch with no pull request open **does not extend to anything cached**: a warm reading, or any probe that depends on a restored cache, has to come from re-running the pull request run itself
+- **The install is now cached but is not much faster, and the spread got worse rather than better.** Seven runs of the same tree in this task produced chain totals of 18,589 / 18,612 / 24,450 / 24,568 / 24,693 / 31,274 / 32,210 ms — a **13.6 s spread**, wider than Task 1.10.2's 9 s. Nothing in this story can be measured by comparing one run against one run; report a range with n, or report a categorical fact
+- **`pnpm install --help` is worth reading before optimising the install.** `--trust-lockfile` skips pnpm 11's supply-chain verification, which is the dominant line of a cold install here (2.5–4.5 s over 492 entries) and the one thing a store cache structurally cannot remove. It was rejected in a workflow comment; anyone who reaches for it later is re-opening a decision rather than finding a trick
+- **`actions/cache` declares `cache-hit` and nothing else.** `cache-matched-key` belongs to `actions/cache/restore` and reads empty here — it was printed three times before being read out of the action's own `action.yml`. A restore-key hit and a total miss are both `cache-hit: false`; pnpm's `reused`/`downloaded` counts separate them
+- **Three pinned actions now.** `actions/checkout`, `actions/setup-node` and `actions/cache`, all on commit SHAs and all bumped by hand. Task 1.10.6 adds nothing here unless a badge needs one
+
 ## Acceptance criteria
 
 - Pipeline runs on push and on pull request
@@ -91,7 +99,7 @@ Four things landed in 1.10.2 that every later task in this story has to work wit
 - **Formatting is part of verification, and this story's criteria previously omitted it.** `format:check` has been in `verify` since Task 1.1.7 and Prettier owns Markdown as well as code, so an unformatted `planning/` document fails CI exactly as an unformatted `.ts` file does. That is intended
 - The pipeline pins the toolchain the same way local machines do: Node from `.nvmrc` (24.20.0 — `engineStrict` makes pnpm refuse any other major) and pnpm from `package.json`'s `packageManager` field via `corepack enable`. Do not install pnpm separately in the workflow; the pin is the point
 - A failure in any stage fails the pipeline visibly
-- Dependency and build caching keep runtimes reasonable — the pnpm **store**, not `node_modules`. Task 1.1.8 measured a cold install from an empty store at under a second once the packages are fetched, so cache the store and let pnpm link
+- ~~Dependency and build caching keep runtimes reasonable~~ — **the pnpm store is cached and nothing else is, and Task 1.10.3 measured that the word "build" in this criterion was a mistake.** The store cache is real and categorically proven (`cache-hit: true`, `reused 397, downloaded 0`), and it saves ~1.6 s on a median install of ~5.6 s — against a **13.6 s runner-to-runner spread on identical work**. Caching the _build_ would move exactly one step (`build`, 6,010 → 3,477 ms) in exchange for a restored `dist/`, `.tsbuildinfo` or `storybook-static/`, which Story 1.9 measured as 13 silent test failures when stale. So the criterion is met in its store half and **deliberately refused in its build half**, and "keep runtimes reasonable" is answered honestly: the runtime is dominated by neither
 - Status is visible from the repository
 - **Know what `pnpm verify` does not cover, and say so rather than closing the gap here.** `apps/backend/scripts/dev.sh` is checked by nothing: ESLint sees only JS and TS, Prettier has no shell parser and skips it silently, and `tsc` has no view of it. It is the first file in the workspace outside the tooling net, and it is the file that starts the development server, so a syntax error in it is a real if minor failure mode. **There is now a second, smaller one of the same shape:** `apps/frontend`'s `clean` script contains an `rm -rf dist`, an unchecked shell fragment inside a JSON string, added by Task 1.3.1 — and Task 1.4.5 added `storybook-static` to that string and to the root's, so it is **two** scripts now rather than one. **Do not add `shellcheck` in this story** — one small shell file and two short strings do not justify a new root dependency and a further step in `verify`. Record both as a known and dated choice (2026-08-30) so the gap is not something CI is quietly assumed to catch. Note what is **not** a further gap of this kind: `scripts/check-stories.mjs`, `scripts/check-env-example.mjs` and `scripts/check-ready.mjs` are all plain JavaScript, so ESLint and Prettier cover all three. **The genuine additions are elsewhere** — see the Story 1.7 and Story 1.8 hand-offs above for the unenforced-invariant class and for `README.md`'s prose figures and links, and re-date all four here rather than deleting any of them
 
@@ -116,7 +124,7 @@ Tackled in order. The story is complete when all eight are done.
 | ------ | -------------------------------------------------------------------------------------------------------------- | ----------- |
 | 1.10.1 | [Choose the provider and prove the toolchain pins on Linux](TASK-01-choose-provider-and-pin-the-runner.md)     | Complete    |
 | 1.10.2 | [Run `pnpm verify` on push and on pull request](TASK-02-run-verify-on-push-and-pull-request.md)                | Complete    |
-| 1.10.3 | [Cache the pnpm store, and decide what must never be cached](TASK-03-cache-the-pnpm-store.md)                  | Not started |
+| 1.10.3 | [Cache the pnpm store, and decide what must never be cached](TASK-03-cache-the-pnpm-store.md)                  | Complete    |
 | 1.10.4 | [Coverage as its own step, the threshold, and what CI publishes](TASK-04-coverage-threshold-and-artefacts.md)  | Not started |
 | 1.10.5 | [The backend's process half: a child-process test suite](TASK-05-backend-process-tests.md)                     | Not started |
 | 1.10.6 | [Make the status visible from the repository](TASK-06-make-status-visible.md)                                  | Not started |

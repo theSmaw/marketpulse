@@ -1,6 +1,6 @@
 # Task 1.10.3 — Cache the pnpm store, and decide what must never be cached
 
-**Status:** Not started
+**Status:** Complete (2026-09-03)
 **Story:** [1.10 Continuous Integration Pipeline](STORY.md)
 **Depends on:** Task 1.10.2 — read its hand-off in [STORY.md](STORY.md#what-task-1102-hands-the-remaining-tasks) first
 
@@ -35,3 +35,28 @@ Keep the pipeline's runtime reasonable by caching the pnpm **store**, and record
 ## Notes
 
 The temptation this task exists to resist is the second cache. Build caching is where CI pipelines usually go wrong quietly, and this repository has already paid for the measurement that says so — twice, in Tasks 1.1.4/1.1.7 and again in Story 1.9.
+
+## Outcome (2026-09-03)
+
+The pnpm **store** is cached on an explicit `actions/cache` step pinned to a commit SHA (`55cc8345…`, v6.1.0), and **nothing else is** — the rule against caching `dist/`, `storybook-static/` and any `.tsbuildinfo` is written into the workflow beside the cache step with the number that decides it.
+
+- **The store path comes from `pnpm store path`**, never a literal. On the runner it printed `/home/runner/.local/share/pnpm/store/v11`, matching Task 1.10.1's cross-check. The Node major comes from the Node actually on the PATH, which the toolchain step has already asserted equals `.nvmrc`.
+- **The key is `pnpm-store-v1-<runner.os>-node<major>-<hashFiles(pnpm-lock.yaml)>`**, with the restore-key dropping the lockfile hash. `v1` is the manual bust: **bump it in the key and the restore-key, and that is the whole procedure.**
+- **The evidence is categorical, not temporal, and both halves were exercised.** An exact hit reads `cache-hit: true` and `Progress: resolved 397, reused 397, downloaded 0`. A **genuinely changed lockfile** (a throwaway `type-fest` devDependency, added and then reverted) missed the exact key, hit the restore key, and read `cache-hit: false` with `Packages: +399` and `reused 397, downloaded 2` — only the two new packages fetched, installing correctly under `--frozen-lockfile`, and saving a new cache under the new hash. A genuine miss reads `reused 0, downloaded 397`.
+- **`cache-matched-key` is not an output of `actions/cache` and was removed after it printed empty three times.** It belongs to `actions/cache/restore`; the combined action declares **`cache-hit` and nothing else**, read out of its own `action.yml` at the pinned SHA. So `cache-hit: false` covers both a restore-key hit and a total miss, and **pnpm's `reused`/`downloaded` counts are what separate them** — which is why the workflow prints a line saying so rather than a second boolean that is always empty.
+
+### What it actually buys, measured against the spread rather than a pair of runs
+
+| Install                          | n   | Range          | Median    |
+| -------------------------------- | --- | -------------- | --------- |
+| Uncached (Tasks 1.10.1–1.10.3)   | 8   | 4,455–6,127 ms | ~5,610 ms |
+| Exact cache hit                  | 4   | 3,895–4,597 ms | ~4,000 ms |
+| Restore-key hit (2 new packages) | 1   | 3,032 ms       | —         |
+
+So the cache saves roughly **1.6 s on the median install**, and the warm and cold ranges **overlap**. The chain totals across these seven runs are 18,589 / 18,612 / 24,450 / 24,568 / 24,693 / 31,274 / 32,210 ms — a **13.6 s spread on identical work**, larger than the entire install either way. **The honest conclusion is the one the brief allowed for: the cache is correct and nearly free, and it buys less than it looks like it does.** It was kept because it is categorically provable and costs one pinned action, not because it moves the wall clock; anyone reading a CI timing as a regression should read the install summary and the per-step split, never the total.
+
+- **The supply-chain check is confirmed uncacheable, and it is still the dominant line.** `✓ Lockfile passes supply-chain policies (492 entries in …)` reported 3.5 s and 4.5 s uncached and 2.7 / 3.2 / 3.4 / 3.9 s on a full cache hit — it verifies the **lockfile**, not the store, so a warm store does not shrink it and the 2.5–4.5 s spread is the noisiest number in the job. **`--trust-lockfile` would remove it**, found in `pnpm install --help` rather than guessed, and was **rejected in a comment in the workflow**: a pull request may change the lockfile and this runner is the machine meant to check it, which is exactly what the flag's own documentation excludes ("use only when the lockfile is part of the trusted base"). It is not a cache, so this task's suspicion of second caches did not have to be invoked.
+- **The `cache: pnpm` ordering question is answered on its merits.** `corepack enable` stays **after** `actions/setup-node` so the shims land in the pinned Node, which means `setup-node`'s own `cache: pnpm` cannot see pnpm when it runs. The price is the third pinned action. The alternative — Corepack before setup-node — keeps one action and pins pnpm to whatever Node the runner image happens to ship for the length of one step, which is a second, invisible toolchain. No action that _installs_ pnpm was considered: `packageManager` is the pin and that is the point.
+- **A cache hit means the platform binaries are not re-fetched**, which is the point and also the new failure surface: `@rolldown/binding-linux-x64-gnu` (19,324,672 bytes) and esbuild's fetched binary both live in the store, so a corrupted or half-populated store fails somewhere Task 1.10.1's clean install cannot reproduce. Both assertion steps still run after every install, hit or miss, and the bust procedure above is the first thing to reach for.
+- **A `workflow_dispatch` run cannot see a `pull_request` run's cache** — measured: the dispatched run reported `Cache not found` for the key the pull request run had just reported `Cache saved` for, because a cache saved on a pull request is scoped to that pull request's ref. Task 1.10.2's note that `workflow_dispatch` covers a branch with no pull request open therefore **does not extend to this cache**: a warm reading has to come from re-running the pull request run itself. Recorded in the workflow beside the cache step.
+- **Nothing under `dist/`, `storybook-static/` or any `.tsbuildinfo` is cached**, and the workflow says why with Task 1.10.2's number: caching the build moves exactly one step, `build` 6,010 → 3,477 ms, so the whole prize is **~2.5 s against a 13.6 s spread** — a correctness risk taken for a saving smaller than the measurement noise. The probe commit that changed the lockfile was reverted and the branch force-pushed back.
