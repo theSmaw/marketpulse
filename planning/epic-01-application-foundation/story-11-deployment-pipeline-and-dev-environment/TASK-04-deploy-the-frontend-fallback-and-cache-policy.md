@@ -2,13 +2,17 @@
 
 **Status:** Not started
 **Story:** [1.11 Deployment Pipeline & Development Environment](STORY.md)
-**Depends on:** Task 1.11.1
+**Depends on:** Task 1.11.1, and — for everything that touches the host — the Azure subscription Task 1.11.3 owns creating
 
 ## Objective
 
 Serve `apps/frontend/dist` from a real static host, close the two Story 1.5 acceptance criteria that were deliberately left open because they are properties of the host, and decide caching rather than inheriting it.
 
 ## Work
+
+**This task has two halves and the first one is not blocked.** Task 1.11.3 stopped on there being no Azure subscription, and everything here that reads a response from a real host is blocked with it. **Authoring the configuration is not**: `staticwebapp.config.json`, the mechanism that gets it to the root of the build output, and the re-fingerprinting of an artefact that has been three files since Task 1.7.7 are all changes to this repository and can be made and reviewed before an account exists. Doing that half early is worth more than tidiness — it is the half that touches six stories' worth of recorded figures, and it is better not to be doing a `grep` sweep in the same sitting as a first deploy.
+
+**One thing to check rather than assume, because it would move the line between the halves.** The Azure Static Web Apps CLI (`swa`) emulates `staticwebapp.config.json` routing locally, which would make `navigationFallback` and its `exclude` array testable — including the `/assets/nope.js` 404 that separates a scoped fallback from a catch-all — without deploying anything. **Verify that it honours `navigationFallback` and `exclude` before relying on it**, and treat a local pass as evidence about the _configuration file_ and never as evidence about the _host_: Task 1.5.5 already measured that `vite preview` answers every unmatched path with a 200 and that deep-linking is a property of the host and not of the router. The criteria below still require the deployed site. If the emulator does not do it, say so and the whole task waits for the account.
 
 - **Upload `apps/frontend/dist` and nothing else.** It is three files — `index.html`, one hashed `assets/*.js`, one hashed `assets/*.css` — with no `package.json` and no `node_modules`, and it is **byte-identical on Linux and macOS**: 343,658 B / md5 `cba2825c…`, 10,926 B / `f98519e3…`, 1,101 B / `eab270a4…`, 355,685 B over three files. Compare what the host is serving against a local build; a difference is a real difference and not a platform artefact. Re-take the figures rather than copying this bullet — they are five stories old in places and this repository has been wrong twice by citing rather than rebuilding
 - **`apps/frontend/storybook-static/` must not ship by accident.** `pnpm build` produces it too — 59 files and 9.3 MB — and a `dist`-shaped glob or a "copy everything the build produced" step picks it up. Story 1.10 declined to keep it as a build artefact and explicitly left **whether the workshop is published as a site** to this story: take that decision here, in one place. If it is published, it is a second static site with its own URL, and the build-time substitution rule applies to it exactly as it does to `dist/` — a `VITE_`-prefixed credential is a string literal in a file every visitor downloads, in both artefacts. **The platform makes this cheap rather than free**: the Free plan allows 10 apps per subscription, so a second static web app costs nothing in money, and it costs a second URL, a second deploy job and a second thing that can be stale. 9.3 MB against a 500 MB total-storage cap is not the constraint; whether anyone will look at it is
