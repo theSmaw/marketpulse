@@ -1,4 +1,13 @@
-Do we need to amend, add or delete any tasks in
-@planning/epic-01-application-foundation/story-01-repository-structure-and-toolchain
+Do we need to amend, add, delete or re-order any tasks in
+@planning/epic-01-application-foundation/story-10-continuous-integration-pipeline
  based on our implementation of
-@planning/epic-01-application-foundation/story-01-repository-structure-and-toolchain/TASK-03-create-shared-package.md ?
+@planning/epic-01-application-foundation/story-10-continuous-integration-pipeline/TASK-07-the-verify-gaps-and-the-link-check.md?
+
+Do we need to amend, add, delete or re-order any stories in
+@planning/epic-01-application-foundation based on our implementation of
+@planning/epic-01-application-foundation/story-10-continuous-integration-pipeline
+
+
+Like we did with @planning/epic-01-application-foundation/story-01-repository-structure-and-toolchain,
+let's split @planning/epic-01-application-foundation/story-10-continuous-integration-pipeline
+into small, self-contained tasks that we can implement sequentially to be able to comprehensively satisfy the story.
