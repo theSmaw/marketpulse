@@ -376,16 +376,47 @@ jobs:
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --query "properties.latestRevisionName" -o tsv)"
           echo "waiting on $revision"
-          # `runningState` is NOT simply `Running`: a healthy replica at
-          # minReplicas 1 reports `RunningAtMaxScale`, read off the live app
-          # rather than guessed, so a loop matching `Running` exactly waits out
-          # its whole deadline on a perfectly good deploy. Match the family.
-          deadline=$(( $(date +%s) + 300 ))
+          # THIS LOOP WAS WRITTEN BLIND AND TASK 1.11.7 RAN ITS FAILURE BRANCH
+          # FOR THE FIRST TIME. What that measured, deploying a revision that
+          # starts cleanly and fails its health check (PORT=3001 against probes
+          # pinned to 3000), is the reason for every line below.
+          #
+          #   `runningState` is NOT simply `Running`: a healthy replica at
+          #   minReplicas 1 reports `RunningAtMaxScale`, read off the live app
+          #   rather than guessed, so a loop matching `Running` exactly waits
+          #   out its whole deadline on a perfectly good deploy. Match the
+          #   family. (Unchanged, and still true.)
+          #
+          #   A FAILING ROLLOUT SITS AT `Activating` FOR TEN MINUTES. Measured
+          #   three times: `az containerapp update` returned at 09:08:58 and the
+          #   revision did not leave `Activating` until 09:19:01 — 10 m 03 s —
+          #   when it became `ActivationFailed` with `healthState: Unhealthy`.
+          #   So the `*Failed*` pattern is CORRECT and the old 300-second
+          #   deadline expired 4 m 09 s before it could ever match. The step
+          #   went red for the right reason by accident, with the wrong message.
+          #
+          #   THE REPLICA KNOWS FIRST AND KNOWS WHY. While the revision says
+          #   `Activating`, the replica already reports `ready: false`, a rising
+          #   `restartCount` and `CrashLoopBackOff` — visible ~75 s in, because
+          #   the startup probe is 30 failures at a 2 s period. That is the
+          #   check below, and it takes a failing deploy from a 300-second
+          #   silent timeout to a 94-second failure that NAMES the cause.
+          #
+          #   `runningState` came back an EMPTY STRING on one poll of an
+          #   otherwise healthy rollout. It matches no pattern, so the loop
+          #   simply continues — which is why the echo prints `<empty>` rather
+          #   than a blank, and why nothing here treats "not a known state" as
+          #   a failure.
+          #
+          # The deadline is 600 s rather than 300 so that `ActivationFailed` is
+          # reachable as a backstop. It should never be what fires: the replica
+          # check gets there first.
+          deadline=$(( $(date +%s) + 600 ))
           while :; do
             state="$(az containerapp revision show --name "$AZURE_CONTAINER_APP" \
               --resource-group "$AZURE_RESOURCE_GROUP" --revision "$revision" \
               --query "properties.runningState" -o tsv)"
-            echo "  $(date -u +%H:%M:%S)  $state"
+            echo "  $(date -u +%H:%M:%S)  revision: ${state:-<empty>}"
             case "$state" in
               Running*) echo "$revision is $state"; break ;;
               *Failed*|Degraded|Stopped)
@@ -393,8 +424,23 @@ jobs:
                 exit 1
                 ;;
             esac
+            # A container that has restarted during a rollout is a rollout that
+            # is failing. A healthy one reaches `RunningAtMaxScale` in 20-25 s
+            # having never restarted, so any restart here is the startup probe
+            # giving up rather than a transient. `|| true` keeps `set -e` out of
+            # the way while the replica list is briefly empty on a new revision.
+            crash="$(az containerapp replica list --name "$AZURE_CONTAINER_APP" \
+              --resource-group "$AZURE_RESOURCE_GROUP" --revision "$revision" \
+              --query "[].properties.containers[].[restartCount, runningStateDetails]" \
+              -o tsv 2>/dev/null | tr -d '\r' \
+              | awk -F'\t' '$1 > 0 { print "restart " $1 ": " $2 }' || true)"
+            if [ -n "$crash" ]; then
+              echo "::error::$revision has a container that has already restarted; the rollout is failing"
+              printf '%s\n' "$crash"
+              exit 1
+            fi
             if [ "$(date +%s)" -ge "$deadline" ]; then
-              echo "::error::$revision was still $state after 300 s"
+              echo "::error::$revision was still ${state:-<empty>} after 600 s"
               exit 1
             fi
             sleep 5
