@@ -1,6 +1,6 @@
 # Task 1.12.4 — Build the status indicator, and settle the one-indicator-or-two question
 
-**Status:** Not started
+**Status:** Complete (2026-09-04)
 **Story:** [1.12 Health & Status Vertical Slice](STORY.md)
 **Depends on:** Task 1.12.1
 

@@ -1,0 +1,111 @@
+/*
+ * The backend indicator. It deliberately imitates FeedIndicator's marker
+ * language — a small marker whose shape carries the state, a lowercase
+ * letterspaced word beside it, achromatic apart from one amber — because the
+ * two sit in the same strip and must read as one language even though they
+ * report two different facts.
+ *
+ * Nothing here is `--status-error` red. A degraded or unreachable backend is a
+ * product state (PRODUCT_SPEC.md §36), and the red in this palette is reserved
+ * for something that actually failed.
+ */
+
+/*
+ * A grid rather than a row, because this indicator carries up to two sentences
+ * under its word and a chrome strip has no room for them beside it. The marker
+ * column is `auto` and everything else sits in the second column, so the
+ * sentences hang under the word rather than under the marker.
+ */
+.indicator {
+  display: inline-grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-8);
+}
+
+/*
+ * The marker. Circles are the documented exception to the one 2px radius; the
+ * `degraded` square below is not an exception, it takes `--radius` like every
+ * other rectangle here. The `translateY` sits it on the text's optical centre
+ * rather than its baseline, which is where `align-items: baseline` puts it.
+ */
+.marker {
+  flex: none;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: 50%;
+  transform: translateY(-1px);
+  /* So the one marker that uses a real border (`checking`, below) is the same
+     size on screen as the three that do not. There is no global
+     `box-sizing: border-box` in base.css — checked rather than assumed. */
+  box-sizing: border-box;
+}
+
+.label {
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+}
+
+/* Both sentences sit in the word's column, under the word. */
+.detail,
+.since {
+  grid-column: 2;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+}
+
+/* No `font-variant-numeric` here. `body` sets `tabular-nums` and it is
+   inherited, so the clock time keeps its column alignment as the digits change;
+   re-declaring it would suggest this component is what keeps that true. */
+
+/* --- The four markers, each a different silhouette --- */
+
+/* Filled disc: the ordinary state, and the same grey as `unreachable`. The two
+   differ by shape alone, which is what survives greyscale. */
+.healthy .marker {
+  background: var(--service-healthy);
+}
+
+/* A filled square, not a second coloured disc. The amber is the one colour in
+   this component and it marks the state a glance should land on — but the
+   silhouette carries it on its own, which the colour must never have to. */
+.degraded .marker {
+  background: var(--service-degraded);
+  border-radius: var(--radius);
+}
+
+/* Hollow, and the same grey as `healthy`. */
+.unreachable .marker {
+  background: none;
+  box-shadow: inset 0 0 0 var(--border-width) var(--service-unreachable);
+}
+
+/*
+ * Not a state — the placeholder shown until the first check settles. Dashed
+ * rather than hollow, so it is not mistaken for `unreachable` at a glance, and
+ * `--ink-secondary` rather than the full-strength ink the three status words
+ * take, so it recedes: it is the one rendering here that is saying nothing
+ * about the backend at all.
+ *
+ * It took `--ink-disabled` first and axe rejected it — **a real violation
+ * rather than this repository's standing `color-contrast` inconclusive**:
+ * 2.09:1 at 12px against the page ground, where 4.5 is the threshold. The
+ * disabled ink is for a control nobody can operate, and this is ordinary text
+ * a user is expected to read. Receding is a job for weight and hierarchy, not
+ * for ink below the contrast floor.
+ *
+ * `box-shadow` cannot be dashed, so this is the one marker with a real border.
+ * `.marker` sets `box-sizing: border-box` for it, so it stays the same size on
+ * screen as the other three.
+ */
+.checking .marker {
+  background: none;
+  border: var(--border-width) dashed var(--ink-secondary);
+}
+
+.checking .label {
+  color: var(--ink-secondary);
+}
