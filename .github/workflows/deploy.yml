@@ -481,6 +481,15 @@ jobs:
             sleep 5
           done
 
+      # PROBE (Task 1.11.7). Reverted in the next commit. A failure here is a
+      # failure BETWEEN the two halves: the backend is already at this commit
+      # and the frontend has not been touched, which is the half-deployed merge
+      # this task has to make happen rather than reason about.
+      - name: PROBE fail between the two halves
+        run: |
+          echo "::error::deliberate probe failure between the backend and frontend halves"
+          exit 1
+
       # ---------------------------------------------------------------------
       # The frontend. Its artefact is NOT the one `verify` fingerprinted, and
       # this is where that gets closed rather than implied.

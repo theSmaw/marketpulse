@@ -91,7 +91,7 @@ export async function probeBackendHealth(): Promise<HealthProbeResult> {
         body,
       };
       console.error(
-        `[health-probe PROBE-1117] ${HEALTH_URL} answered ${String(response.status)}`,
+        `[health-probe] ${HEALTH_URL} answered ${String(response.status)}`,
         `${REQUEST_ID_HEADER}: ${requestId ?? "(not exposed)"}`,
         body,
       );
@@ -99,7 +99,7 @@ export async function probeBackendHealth(): Promise<HealthProbeResult> {
     }
 
     console.info(
-      `[health-probe PROBE-1117] ${HEALTH_URL} answered ${String(response.status)}`,
+      `[health-probe] ${HEALTH_URL} answered ${String(response.status)}`,
       `${REQUEST_ID_HEADER}: ${requestId ?? "(not exposed)"}`,
       body,
     );
@@ -117,7 +117,7 @@ export async function probeBackendHealth(): Promise<HealthProbeResult> {
     // reading a bare `Failed to fetch` and looking at the backend, which is the
     // one place the evidence is not.
     console.error(
-      `[health-probe PROBE-1117] could not reach ${HEALTH_URL}.`,
+      `[health-probe] could not reach ${HEALTH_URL}.`,
       "If the backend is up and logging a 200, this is the cross-origin check failing:",
       "the browser is the only party that compares CORS_ORIGIN against this page's origin.",
       error,
