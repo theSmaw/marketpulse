@@ -52,7 +52,6 @@ describe("API_ERROR_CODES", () => {
   });
 });
 
-
 it("probe 4: deliberately fails (Task 1.10.8)", () => {
   expect(1).toBe(2);
 });
