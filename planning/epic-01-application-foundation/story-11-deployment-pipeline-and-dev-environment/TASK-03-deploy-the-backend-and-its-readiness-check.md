@@ -1,6 +1,6 @@
 # Task 1.11.3 — Deploy the backend, configure it from the platform, and make `/health` the readiness check
 
-**Status:** Not started
+**Status:** Partially complete — offline half done 2026-09-03, deploy half blocked on an Azure subscription
 **Story:** [1.11 Deployment Pipeline & Development Environment](STORY.md)
 **Depends on:** Task 1.11.2
 
@@ -10,6 +10,7 @@ Get the backend running on the chosen host at a documented URL, with every value
 
 ## Work
 
+- **The Azure account is a prerequisite and it is not yours to create — see [`ACCOUNT-SETUP.md`](ACCOUNT-SETUP.md).** Task 1.11.1 chose the platform and deliberately created nothing; this is the first task that needs an account to exist, and signup needs a payment card and a human at a browser. The first sitting of this task stopped on it. **What this task does own is everything after `az login`**, starting with the budget and the cost alert — set them **before** creating the first billable resource, not after. `HOSTING.md` records the expected figure (about $9.21/month, of which the registry is 54%) and records that Epic 3 invalidates it on purpose. Fill in `HOSTING.md`'s account-facts table as the resources are created; that table is the durable copy and it currently carries a paragraph saying that finding it still there means the work was not done.
 - **Choose the container registry, because Container Apps cannot run an image that is not in one.** Task 1.11.1 chose the platform and left this open, and it is the first thing this task needs: the documentation supports "Containers from any public or private container registry", so the real choice is **Azure Container Registry** (Basic is roughly $0.167/day with 10 GiB included — confirm the current figure rather than citing this one) against **GitHub Container Registry**, which is free for this repository and sits beside the source. Two things weigh on it: ACR authenticates by **managed identity** with the `acrPull` role and no password in a secret, which is the same argument that took the federated credential in Task 1.11.6; and the docs warn off Docker Hub explicitly on rate limits — "When the limit is reached, containers in your app fail to start" — which is the failure shape to avoid whichever is picked. **Record the choice, the cost and the authentication method**, and note that GHCR keeps the monthly bill at the Container Apps figure alone.
 - **The image Task 1.11.2 built is an OCI image _index_, not a single manifest, and that decides what a digest means here.** Read out of the built image rather than assumed: `index.json` holds one `application/vnd.oci.image.index.v1+json`, and inside it are **two** manifests — the real `linux/amd64` image, and a buildx **attestation manifest** carrying `platform: unknown/unknown`. Three consequences to settle when it is pushed. The registry has to accept an index (ACR does; confirm rather than assume, and note the `unknown/unknown` entry is what older tooling chokes on). **There are two digests** — the index's and the platform image's — so "pin the digest" is ambiguous, and Task 1.11.6's provenance claim rests on picking one and saying which. And `--provenance=false --sbom=false` is the alternative shape, producing a plain single-platform manifest; take it or keep the attestations deliberately, because the default was never chosen.
 - **`pnpm image` reads `git rev-parse --short HEAD` at build time, so the tag can lie, and it already did once.** Task 1.11.2 built its image before committing, so it is tagged `03a3b63` — the **parent** commit — while the tree it contains is `de960ce`. The tag names a commit that does not describe what was built. That is harmless locally and is exactly the thing a registry tag is supposed to answer, so decide the rule here: build only from a clean tree, or have the recipe refuse a dirty one, or tag from the commit the pipeline is running rather than from `HEAD`. Task 1.11.6 inherits whichever is chosen.
@@ -26,8 +27,22 @@ Get the backend running on the chosen host at a documented URL, with every value
 - **Write down the third failure experience before somebody meets it.** A crash detached from the request that caused it answers **200 with a valid `x-request-id`** and then dies, so the id a user quotes points at a record correctly saying their request succeeded, and the level-60 record beside it carries no id at all. A crash with a request in flight is `curl: (52) Empty reply from server` — no body, no headers, not even an id to quote. "Quote the id and find the entry" is a rule with a stated exception
 - **Decide what `version` should report.** `/health` returns whatever the deployed manifest carries, which is free version reporting if the release process sets it and a permanently `0.0.0` endpoint if it does not
 
+## Progress — 2026-09-03
+
+**Done, and recorded in [`HOSTING.md`](HOSTING.md):**
+
+- The registry is **Azure Container Registry, Basic**, chosen on managed identity with `acrPull` rather than on price. Rates read from the Azure Retail Prices API rather than the pricing page, which renders its numbers in JavaScript: **$0.1666/day**, 10 GB included, $0.10/GB/month beyond. The finding worth carrying is that at $5.00/month the registry is **54% of the bill** and costs more than the always-on replica it serves ($4.21/month) — recorded rather than quietly reversed, with the reversal trigger named.
+- The cost arithmetic HOSTING.md left as "a few dollars a month" is now done, and it corrects that section: **the idle rate is a vCPU discount only** — memory bills identically idle or active — so idling saves $9.83/month rather than most of the bill. The `Environment Management Hour` meter ($73/month) does not apply on Consumption, quoted.
+- The image's manifest shape is read out of the artefact: an OCI **image index** holding the `linux/amd64` manifest plus a buildx attestation at `platform: unknown/unknown`. The attestations are **kept deliberately**, and **the index digest is the provenance record** — with the cost of that choice stated.
+- The commit-SHA tag rule is decided **and implemented**: `pnpm image` is now `scripts/build-image.mjs`, which tags a clean tree with the bare short SHA, a dirty tree with a `-dirty` suffix and a warning not to push it, and honours `MARKETPULSE_IMAGE_TAG` for Task 1.11.6. All three branches were exercised, along with the empty-`.nvmrc` guard. Moving the recipe out of `package.json` also puts it inside ESLint's and Prettier's net, which `apps/backend/Dockerfile` and the root `.dockerignore` are still outside.
+
+**Not started, and why.** Everything from "deploy it by hand first" onward needs an **Azure subscription, which does not exist** — signup requires a payment card and a human. So there is no resource group, no registry, no container app, no credential, no URL and no log destination, and no criterion below that begins "the backend answers" is met. Nothing was faked and no untested command was written down as a recipe: a deploy transcript nobody ran is the exact failure this task's own "deploy it by hand first" instruction exists to prevent.
+
+**The one thing the offline half could not settle:** whether ACR accepts an OCI image index. It is documented and unconfirmed, and flagged as unconfirmed where it is stated.
+
 ## Done when
 
+- The subscription, the resource group, the budget and the cost alert exist, and `HOSTING.md`'s account-facts table is filled in rather than still carrying its "work not done" paragraph
 - The registry is chosen, with its cost and authentication method recorded, and the image Task 1.11.2 built is in it
 - The pushed image's manifest shape is recorded, and which digest is the provenance record — the index's or the platform image's — is stated
 - The rule for what a commit-SHA tag is allowed to mean is stated, given that `pnpm image` reads `HEAD` at build time
@@ -45,6 +60,6 @@ Get the backend running on the chosen host at a documented URL, with every value
 
 ## Notes
 
-This task creates the first billable resource in this repository's history, and probably two of them — the container app and, unless GitHub Container Registry is chosen, a registry. Set a budget and a cost alert on the subscription while doing it; `HOSTING.md` records the expected figure and the fact that Epic 3 invalidates it on purpose.
+This task creates the first billable resource in this repository's history, and it creates two of them — the container app and, since ACR was chosen over GHCR, a registry. The budget and the cost alert are now the first bullet of the work rather than a note here, because the first sitting found that **the account itself was owned by nobody** and that is a heavier omission than an unset alert.
 
 Two of this task's traps — the silence above `info` and the listening address — had been recorded three times in three stories without ever costing anybody anything, because nothing had yet waited on that line. **Task 1.11.2 was the first thing to check the socket in a container, and it found the recorded version of the second trap was understated** rather than merely untested. A container probe is the first thing that will actually depend on it.
