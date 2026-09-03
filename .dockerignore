@@ -1,0 +1,37 @@
+# What never enters a build context.
+#
+# This is the repository root because the backend image's context has to be the
+# root: pnpm needs the workspace manifest and the lockfile, and neither lives
+# in apps/backend. So the Dockerfile is at apps/backend/Dockerfile and is built
+# with `-f apps/backend/Dockerfile .`.
+#
+# Nothing in `pnpm verify` reads this file, or the Dockerfile beside it. That
+# is the same gap CLAUDE.md records for apps/backend/scripts/dev.sh: Prettier
+# has no parser for either (`--file-info` reports `"inferredParser": null`) and
+# ESLint sees no matching configuration. Recorded rather than closed.
+
+# Build output. Every stage of the image builds from source; a host-built dist/
+# is macOS-produced and would be copied over the top of what the builder makes.
+node_modules/
+dist/
+build/
+storybook-static/
+coverage/
+*.tsbuildinfo
+
+# Secrets. `.env` is gitignored, which is not the same as being outside a build
+# context — a build context is assembled from the working tree, not from git.
+.env
+.env.*
+!.env.example
+
+# Not needed to build or run the server.
+.git/
+.github/
+.idea/
+.claude/
+planning/
+docs/
+apps/frontend/
+*.log
+.DS_Store

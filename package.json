@@ -24,6 +24,7 @@
     "stories": "node scripts/check-stories.mjs",
     "env:check": "node scripts/check-env-example.mjs",
     "ready": "node scripts/check-ready.mjs",
+    "image": "docker build -f apps/backend/Dockerfile --platform linux/amd64 --build-arg NODE_VERSION=\"$(cat .nvmrc)\" -t marketpulse-backend:\"$(git rev-parse --short HEAD)\" .",
     "verify": "pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run test && pnpm run test:process"
   },
   "devDependencies": {

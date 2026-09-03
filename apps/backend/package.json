@@ -5,6 +5,10 @@
   "description": "MarketPulse API server — Fastify, TypeScript, ESM",
   "license": "UNLICENSED",
   "type": "module",
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
   "scripts": {
     "dev": "sh scripts/dev.sh",
     "build": "tsc -b",
