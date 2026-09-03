@@ -16,7 +16,7 @@
 // beside a misspelled CSS Module class and a missing `.js` import extension.
 
 import { render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App.js";
 import { PATHS } from "./routes/paths.js";
@@ -28,7 +28,19 @@ function renderAt(path: string) {
   return render(<App />);
 }
 
+// `App` starts the backend health poll (Task 1.12.3), so rendering it makes a
+// request. The stub is a `fetch` that never settles: the route table is what
+// this file is about, and a request that resolves would write state after the
+// assertions have run for no reason. The hook aborts it on unmount either way.
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => new Promise<Response>(() => undefined)),
+  );
+});
+
 afterEach(() => {
+  vi.unstubAllGlobals();
   window.history.pushState({}, "", "/");
 });
 

@@ -8,6 +8,7 @@ import { MarketReplay } from "./routes/MarketReplay.js";
 import { NotFound } from "./routes/NotFound.js";
 import { PATHS } from "./routes/paths.js";
 import { SecurityExplorer } from "./routes/SecurityExplorer.js";
+import { useBackendHealth } from "./use-backend-health.js";
 import styles from "./App.module.css";
 
 // `App` stopped being a page in Task 1.5.2 and became the router's host. Task
@@ -87,6 +88,26 @@ import styles from "./App.module.css";
 const FEED_DETAIL = "No market data until Epic 3";
 
 export function App() {
+  // The backend health poll, started here and rendered nowhere yet
+  // (Task 1.12.3).
+  //
+  // **The value is deliberately unused for exactly one task.** Task 1.12.4
+  // builds the indicator and Task 1.12.5 gives this result a consumer in
+  // `AppHeader`; what this line is doing in the meantime is keeping the
+  // deployed frontend calling the deployed backend, which is Story 1.11's
+  // criterion and which `health-probe.ts` held until this change deleted it.
+  // Deleting the probe without starting this loop would leave a merge window
+  // with no call at all, and starting the loop from a component that does not
+  // exist yet is not available.
+  //
+  // It lives in `App` rather than in `AppHeader` because the poll is a property
+  // of the application rather than of the chrome: `AppHeader` sits inside its
+  // own `ErrorBoundary`, and a header that throws would otherwise take the
+  // health check down with it — the state would stop updating at the moment it
+  // became most interesting. Task 1.12.5 can pass this value down; it should
+  // not move the call.
+  useBackendHealth();
+
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <div className={styles.page}>
