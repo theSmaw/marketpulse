@@ -326,19 +326,25 @@ with a pull request's temporary environment suffixed by its PR number, and branc
 
 This is the class of fact Story 1.10 recorded for its repository ruleset: real configuration that no file here can hold, where the write-up is the only copy a future reader gets.
 
-| Fact               | Value                                                                                                                                                             |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cloud              | Microsoft Azure                                                                                                                                                   |
-| Subscription id    | `5104e168-b3de-41c2-92a8-c68d28bd4d16`                                                                                                                            |
-| Tenant id          | `6069915b-5bf2-4e36-8b25-8ffb25b5fdd1`                                                                                                                            |
-| Subscription type  | Azure free account (12-month offers plus the always-free grants)                                                                                                  |
-| Region             | East US, for both halves and the eventual database                                                                                                                |
-| Frontend service   | Azure Static Web Apps, **Free** plan                                                                                                                              |
-| Backend service    | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                                                                                                      |
-| Database service   | Azure Database for PostgreSQL flexible server, Burstable B1MS — **not yet provisioned**                                                                           |
-| Container registry | **Azure Container Registry, Basic** — $0.1666/day in East US, 10 GB included. Authenticated by managed identity with `acrPull`. **Not yet created** (Task 1.11.3) |
-| Source repository  | `github.com/theSmaw/marketpulse`                                                                                                                                  |
-| Deploy trigger     | A merge to `main`, through the existing `verify` workflow's gate (Task 1.11.6)                                                                                    |
+| Fact                       | Value                                                                                                                                                    |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloud                      | Microsoft Azure                                                                                                                                          |
+| Subscription id            | `5104e168-b3de-41c2-92a8-c68d28bd4d16`                                                                                                                   |
+| Tenant id                  | `6069915b-5bf2-4e36-8b25-8ffb25b5fdd1`                                                                                                                   |
+| Subscription type          | Azure free account (12-month offers plus the always-free grants)                                                                                         |
+| Region                     | East US, for both halves and the eventual database                                                                                                       |
+| Resource group             | `rg-marketpulse-dev` (East US)                                                                                                                           |
+| Container Apps environment | `cae-marketpulse-dev`, unique id **`blackgrass-e682fefb`**, `WorkloadProfiles` mode with a **Consumption profile only**, no VNet                         |
+| Backend URL                | **<https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io>**                                                                       |
+| Backend identity           | System-assigned, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`, `AcrPull` on the registry                                                             |
+| Log destination            | Log Analytics workspace `log-marketpulse-dev`, **30-day retention**, `PerGB2018` — $2.30/GB ingested, $0.10/GB/month retained beyond the included period |
+| Budget                     | `marketpulse-monthly`, **$20/month**, actual-cost alerts at 50 / 80 / 100% to the account owner                                                          |
+| Frontend service           | Azure Static Web Apps, **Free** plan                                                                                                                     |
+| Backend service            | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                                                                                             |
+| Database service           | Azure Database for PostgreSQL flexible server, Burstable B1MS — **not yet provisioned**                                                                  |
+| Container registry         | **`crmarketpulse.azurecr.io`** — ACR Basic, East US, $0.1666/day, 10 GB included, **admin user disabled**. Pulled by managed identity with `AcrPull`     |
+| Source repository          | `github.com/theSmaw/marketpulse`                                                                                                                         |
+| Deploy trigger             | A merge to `main`, through the existing `verify` workflow's gate (Task 1.11.6)                                                                           |
 
 **Why East US.** Alpaca's market data endpoints are US-hosted, and Epic 3's WebSocket is the latency that matters; the frontend is a geo-distributed CDN on the production environment regardless of the app's region, so co-locating it costs nothing. The trade accepted is portal and log latency for a UK-based maintainer, which is a human cost paid once per session rather than per market tick.
 
@@ -346,10 +352,66 @@ This is the class of fact Story 1.10 recorded for its repository ruleset: real c
 
 **Rollback.** Container Apps keeps revisions, so a rollback is shifting traffic to the previous revision rather than re-running a deploy — Task 1.11.7 owns proving it. Static Web Apps has no equivalent revision history on the Free plan, so the frontend's rollback is **re-running the deploy from the previous commit**, which makes the frontend the slower half to recover and is worth knowing before it is needed.
 
-**Owed by Task 1.11.3, and this table is where they go.** The subscription id, the tenant id, the resource group name, the Container Apps environment name and its unique identifier, both published URLs, and the federated credential's subject. **A future reader finding this section still carrying this paragraph should read it as work not done rather than as facts that were never knowable.**
+**The table above is filled in, and Task 1.11.3's deploy half is done (2026-09-03).** What is still owed is the **frontend URL** (Task 1.11.4) and the **federated credential's subject** (Task 1.11.6), neither of which exists yet.
 
-**Task 1.11.3 was split across two sittings, and this is the record of where the line fell (2026-09-03).** Its offline half is done: the registry is chosen with its rates measured, the image's manifest shape is read out of the artefact, the provenance digest is named, and the commit-SHA tag rule is implemented and exercised in `scripts/build-image.mjs`. **Its deploy half is not started, and the reason is that no Azure subscription exists** — signup needs a payment card and a human, which is not a thing this repository can do to itself. So there is still **no resource, no registry, no credential and no URL**, the container registry row above says `Not yet created`, and every criterion that begins "the backend answers" remains open. The one claim that half would have tested and this one could not is whether ACR accepts an OCI image index; it is documented and unconfirmed, and flagged as such where it is stated.
+## What the first deploy measured
 
-## What this task did not do
+Everything here was read back from the deployed resource rather than from the command that created it, which is the instruction and which caught nothing wrong this time — but the readings themselves corrected three things.
 
-**Nothing was deployed and no artefact was produced.** No Azure resource exists, no account was linked to the repository, no credential was created and no file outside `planning/` was touched. That is the point, and it is the same shape as Task 1.10.1 installing and stopping: when Task 1.11.3's first deploy fails, the platform choice is not one of the candidate causes.
+**The one open question from the offline half is closed: ACR accepts an OCI image index.** The pushed tag resolves to `application/vnd.oci.image.index.v1+json` holding both manifests, the `unknown/unknown` attestation included. The registry lists all three:
+
+|                                   | Digest                                                                    | Size         |
+| --------------------------------- | ------------------------------------------------------------------------- | ------------ |
+| **Index — the provenance record** | `sha256:bcd83645388dbf2ea21358bd74edf935f4ed90291af6d93a94fbf0a546779f40` | —            |
+| Platform image, `linux/amd64`     | `sha256:c8db64672c4cdff27c87fbdf45aefb4e07935c48d1654f7bc59bc402f14c21d4` | 60,239,874 B |
+| Attestation, `unknown/unknown`    | `sha256:fd7f90dffb6c59e05cc6eeaeeafd16fbfdd1ca740b639647e355475dd7756a95` | 1,131 B      |
+
+**There are now three different sizes for one image and they are all correct**, which is worth writing down before somebody treats a mismatch as a fault: `docker save` gives 60,266,496 B, the registry's platform manifest reports 60,239,874 B, and the platform's own pull event reports `Image size: 59768832 bytes`. Different boundaries, not different images. Quote which one you mean.
+
+**`HOST=0.0.0.0` is mandatory and its absence would be a silent, total failure.** `config.ts` defaults `HOST` to `127.0.0.1`, which inside a container binds the loopback interface of the container's own namespace — the ingress proxy could never reach it, and the app would look perfectly healthy from inside. It is set explicitly on the app.
+
+**The listening-line trap is confirmed in production, and it is the sharper version.** The deployed replica logs **two** lines — `Server listening at http://127.0.0.1:3000` **and** `http://100.100.198.132:3000` — loopback first, with `HOST=0.0.0.0` set. So anything reading the first line, or grepping for one line, concludes the server is loopback-only. Check the socket, never the log.
+
+**`pid` is 1 in every record**, so the exec-form `CMD` holds on the real platform and `SIGTERM` reaches Node directly. Task 1.11.2 measured this in a local container; this is the same finding on the thing that will actually send the signal.
+
+### No secret was needed, and that is the answer rather than an omission
+
+The app's `secrets` array is **empty** and its registry entry carries `"identity": "system"` with an empty `passwordSecretRef`. `PORT`, `HOST`, `LOG_LEVEL`, `LOG_FORMAT` and `CORS_ORIGIN` are all plain `value` entries because none of them is a credential. **The mechanism is identified for Epic 2's Alpaca key** — a `secrets` entry referenced by `secretRef` — so that is not the occasion for learning where secrets go.
+
+`CORS_ORIGIN` is set to **`https://placeholder.invalid`**, deliberately: it is explicitly not the `http://localhost:5173` default (which would let somebody's local dev server call the deployment), and `.invalid` is reserved by RFC 2606 so it can never resolve. **Task 1.11.5 replaces it with the real frontend origin.**
+
+### The probes are HTTP against `/health`, and the defaults they replaced were implicit
+
+A CLI-created app has `probes: null` — the documented TCP defaults are applied by the platform rather than written into the resource, so there was nothing to read back. What is configured now:
+
+| Probe     | Path      | Delay | Period | Timeout | Failures | Grace    |
+| --------- | --------- | ----- | ------ | ------- | -------- | -------- |
+| Startup   | `/health` | 1 s   | 2 s    | 3 s     | 30       | **60 s** |
+| Readiness | `/health` | 3 s   | 10 s   | 5 s     | 3        | —        |
+| Liveness  | `/health` | 5 s   | 30 s   | 5 s     | 3        | —        |
+
+The 60-second startup grace is well above the observed start, which is sub-second. **A TCP probe passes on any process that binds the port**, which is exactly the case `/health` exists to distinguish, so this is an action rather than a default.
+
+**One consequence nobody costed: the probes are the only traffic an idle deployment has, and they are its entire log volume.** Readiness and liveness together write about 16 records a minute — roughly 5 MB a day, 160 MB a month at the observed record size. That is comfortably inside Log Analytics' free allowance and it is not zero, and it is the reason the log bill will be non-zero before a single user exists. **Whether continuous probing also breaks the idle billing condition is not settled here** — the condition requires the replica not be processing requests, and a probe every few seconds is very nearly that. The bill is the arbiter; re-take it rather than assuming either way.
+
+### Zero downtime was tested rather than cited
+
+An invalid `PORT=0` was deployed on purpose and the environment was polled by request throughout. The result, which is Task 1.11.7's criterion arriving early:
+
+- The new revision took **`trafficWeight: 100` while still `Activating`**, and the old revision — at `trafficWeight: 0` — kept answering. **Traffic weight is not what serves.** That is the mechanism behind the zero-downtime claim and it reads backwards from the API.
+- `/health` returned **200 on every one of 19 polls** across the failed deploy and the recovery.
+- The bad revision crash-looped: `Container 'marketpulse-backend' was terminated with exit code '1' and reason 'ProcessExited'`, and was deprovisioned without ever taking traffic.
+
+**And the prediction about the logs was half wrong, in the useful direction.** The worry was that a configuration failure exits before the logger exists and so writes zero structured records, leaving the most likely first failure invisible at the log destination. The first half is confirmed — the record is a bare line, not JSON. But it **is** collected: `F PORT must be an integer between 1 and 65535, received "0"` appears in the console log stream, because Container Apps captures **stdout and stderr together**. So the answer to "collect both anyway, or write down why not" is that the platform already does. The failure is visible; it is simply not queryable as structured data.
+
+### `version` reports `0.0.0`, and it is left that way deliberately
+
+`/health` returns the deployed manifest's version, every package here is `0.0.0`, and nothing sets it. Leaving it is a decision with a reason rather than an omission: **the image tag and the index digest already answer "what is deployed", precisely and immutably**, and the obvious fix conflicts with the mechanism that makes them trustworthy — writing a version into `package.json` at build time dirties the working tree, which is exactly what `scripts/build-image.mjs` refuses to tag as a clean commit. Any future version reporting therefore has to come through a build argument that does not mutate a tracked file. The reversal trigger is a second deployed environment, where "which build is this" stops being answerable from the one URL.
+
+## What Task 1.11.1 did not do — kept as its own record
+
+**This section describes the state on 2026-09-03 _before_ the deploy above, and is kept rather than deleted because its argument is the reason the deploy went the way it did.**
+
+**Task 1.11.1 deployed nothing and produced no artefact.** No Azure resource existed, no account was linked to the repository, no credential was created and no file outside `planning/` was touched. That was the point, and it is the same shape as Task 1.10.1 installing and stopping: when Task 1.11.3's first deploy failed, the platform choice would not be one of the candidate causes.
+
+**It paid off, and the honest reckoning is that the first deploy had no platform surprises at all.** Every limit quoted in this document held. What did bite came from elsewhere: a `HOST` default of `127.0.0.1` that is correct everywhere except inside a container, a `consumption budget` CLI command that rejects its own valid input, and a first request that hung rather than failed. None of those is a hosting choice.
