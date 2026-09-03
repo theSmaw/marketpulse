@@ -5,7 +5,7 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all 103 fast tests passed, and
+files still agree with the configuration table, all 118 fast tests passed, and
 the 10-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
@@ -41,7 +41,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of 103 fast tests plus a 10-test process suite, with
+and a test suite of 118 fast tests plus a 10-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -263,9 +263,18 @@ Three things worth knowing before relying on it:
   hashed asset is withdrawn while the outgoing `index.html` is still being
   served, so there is a **~1.5-second window in which a cold page load is
   broken**. Anyone already on the page is unaffected.
-- **The two halves do not talk yet.** `CORS_ORIGIN` on the backend is
-  `https://placeholder.invalid` on purpose. Task 1.11.5 replaces it with the
-  frontend's real origin.
+- **The two halves talk.** The deployed page calls the deployed `/health` on
+  load and reports the result to the browser console, including the
+  `x-request-id` that appears in the backend's own log for the same request.
+  That is one `fetch`, deliberately — Story 1.12 brings the API client, the
+  status indicator and the polling.
+- **The frontend's build is bound to the backend's address.**
+  `VITE_API_BASE_URL` is substituted into the bundle at build time, so the
+  deployed artefact and a local build are different artefacts and pointing the
+  frontend at another backend is a **rebuild**, not a setting. A build that
+  forgets the variable does not fail — it ships a page dialling
+  `http://localhost:3000`, which an HTTPS page blocks as mixed content and
+  which reads as an unreachable backend.
 
 ## Commands
 
@@ -282,7 +291,7 @@ Run from the repository root:
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Every package's tests — 103 across the workspace — see below          |
+| `pnpm test`         | Every package's tests — 118 across the workspace — see below          |
 | `pnpm test:process` | The backend's process half — 10 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
@@ -370,7 +379,7 @@ the same second half for the same reason.
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
 in this workspace. `packages/shared` runs 7 tests across 2 files,
-`apps/backend` 49 across 3, and `apps/frontend` 47 across 8 — 103 in total,
+`apps/backend` 49 across 3, and `apps/frontend` 62 across 10 — 118 in total,
 and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -476,7 +485,7 @@ pnpm coverage                                   # all three packages
 pnpm --filter @marketpulse/backend coverage     # one of them
 ```
 
-It is the same 103 tests with `--coverage` added, fanning out through
+It is the same 118 tests with `--coverage` added, fanning out through
 `pnpm -r` exactly as `pnpm test` does, so there are **three reports and no
 merged one** — each package answers for its own sources. It is deliberately
 not part of `pnpm test` and not a `pnpm verify` step of its own: nothing gates
@@ -855,7 +864,7 @@ Both packages read configuration from a `.env` file **beside their own
 
 ```sh
 cp apps/backend/.env.example apps/backend/.env    # PORT, HOST, LOG_LEVEL, LOG_FORMAT, CORS_ORIGIN
-cp apps/frontend/.env.example apps/frontend/.env  # nothing to set yet
+cp apps/frontend/.env.example apps/frontend/.env  # VITE_API_BASE_URL
 ```
 
 Copy the destination as written. A `.env` at the repository root is read by
@@ -866,8 +875,9 @@ exists, nothing reads it, and the application starts on defaults as if it were
 not there.
 
 **You do not need either file to run MarketPulse.** Every backend variable has
-a default, and a missing `.env` is swallowed rather than reported — a fresh
-clone starts on port 3000 and `127.0.0.1` with no file at all. That silence is
+a default, the frontend's one variable has a default, and a missing `.env` is
+swallowed rather than reported — a fresh clone starts on port 3000 and
+`127.0.0.1` with no file at all, and its page reaches that backend. That silence is
 deliberate (a container has no file by design) and is documented here precisely
 because it is silent.
 
@@ -1060,6 +1070,40 @@ produces `storybook-static/` too.
 
 A `VITE_` prefix is a boundary against accidents, not a permission. Prefixing a
 credential makes it a string literal in a file every visitor downloads.
+
+### The frontend's one variable
+
+`VITE_API_BASE_URL` is where the MarketPulse API lives, and it is the only
+configuration the browser half reads. It is **optional**: unset, it falls back
+to `http://localhost:3000`, which is `apps/backend`'s own default port and
+host, so a clean clone with no `.env` file anywhere has a working pair.
+
+That default and the backend's `CORS_ORIGIN` default of `http://localhost:5173`
+are a **matched pair pointing at each other**. Change one without the other and
+the local loop fails _in a browser_ while every server log stays green — the
+failure shape described under [Talking to the API from the
+browser](#talking-to-the-api-from-the-browser).
+
+**It is substituted into the bundle at build time**, so it is not a deployment
+setting:
+
+```sh
+VITE_API_BASE_URL=https://api.example pnpm build   # bakes the address in
+```
+
+One artefact therefore cannot be promoted from one environment to another —
+pointing the frontend at a different backend is a rebuild, the same shape as
+`base`. A build that forgets it does not fail; it ships a page dialling
+localhost.
+
+The name is checked in two independent places. `pnpm env:check` requires the
+`VITE_` prefix on every name in `apps/frontend/.env.example`, because a
+non-prefixed name is not a leak — it is a variable that silently never arrives.
+And `apps/frontend/src/vite-env.d.ts` declares Vite's `strictImportMetaEnv`,
+which removes `ImportMetaEnv`'s index signature, so a misspelled name at the
+_reading_ site is a compile error (`TS2551`, with tsc suggesting the correct
+name) rather than an `any` that evaluates to `undefined`. **Adding a variable
+means adding it in both places, and nothing checks that pair.**
 
 ### `pnpm env:check`
 

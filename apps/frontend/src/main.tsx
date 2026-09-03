@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 // the backend and shared package already follow, one step further because the
 // source extension here is `.tsx` rather than `.ts`.
 import { App } from "./App.js";
+import { probeBackendHealth } from "./health-probe.js";
 import { reportRenderError } from "./report-error.js";
 import { getTokens } from "./styles/tokens.js";
 
@@ -37,6 +38,20 @@ import "./styles/base.css";
 // `getComputedStyle` call at startup and the result is cached for the
 // non-React consumers that will need it from Epic 2 onward.
 getTokens();
+
+// One request to the API, fired and not awaited (Task 1.11.5).
+//
+// It is here rather than inside the tree on purpose: it is the smallest thing
+// that proves Story 1.11's "the deployed frontend communicates with the
+// deployed backend" criterion, and it deliberately does not build any of
+// Story 1.12 — no state, no effect, no component, no client. Keeping it out of
+// React is what leaves the React Compiler rules' first real test to 1.12's
+// polling effect rather than spending it on throwaway code.
+//
+// `void` because the promise is deliberately not awaited: the probe reports to
+// the console and never rejects, and the mount below must not wait on a network
+// call to render. **Story 1.12 replaces this line**, and the module with it.
+void probeBackendHealth();
 
 // createRoot, not the legacy ReactDOM.render — the legacy entry point is gone
 // in React 19 and `react-dom/client` is the only mount API.

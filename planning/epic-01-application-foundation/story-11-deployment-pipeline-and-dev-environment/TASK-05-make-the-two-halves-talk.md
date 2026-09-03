@@ -1,6 +1,6 @@
 # Task 1.11.5 — Make the deployed frontend talk to the deployed backend
 
-**Status:** Not started
+**Status:** Complete — 2026-09-03
 **Story:** [1.11 Deployment Pipeline & Development Environment](STORY.md)
 **Depends on:** Tasks 1.11.3, 1.11.4
 
@@ -34,3 +34,28 @@ Meet the criterion that the deployed frontend communicates with the deployed bac
 ## Notes
 
 Story 1.8 built this boundary and deliberately rejected a Vite proxy for it, because a proxy hides two things at once: the allowlist itself, and the fact that the correlation id needs a server to expose it. This task is where that decision is collected — it is the first time the allowlist has had a second origin to be right or wrong about.
+
+## Outcome — 2026-09-03
+
+**The deployed frontend calls the deployed backend, and the correlation id the browser reads is the id in the backend's log.** The full record is the _What making the two halves talk measured_ section of [`HOSTING.md`](HOSTING.md); this is the summary and the "done when" list answered item by item.
+
+- **A request from the deployed page reaches the deployed backend**, visible in the browser console: `[health-probe] …/health answered 200 x-request-id: c22c9b0b-… {status: 'ok', …}`, and that `reqId` appears in two Log Analytics records for the same request.
+- **The allowlist was made to fail and restored**, with both halves observed together: the browser reported `TypeError: Failed to fetch` while `curl` with the same `Origin` got **200** with a full body and the log recorded `statusCode: 200`. Three revisions — `0000005` set it, `0000006` broke it, `0000007` restored it — each 20–25 s to serve, with `/health` answering 200 on every poll throughout.
+- **`x-request-id` was read from the response in the browser**, which is the first time `exposedHeaders` has been load-bearing anywhere and is exactly what Story 1.8's rejection of a Vite proxy was protecting.
+- **No preflight**: zero `OPTIONS` records across the whole exercise, as a simple `GET` predicts.
+- **The scope taken from Story 1.12 is written down** — one `fetch`, the variable and its resolver, 15 tests — **and so is what was left**: the client, `HealthResponse`'s promotion, all state and polling, the status indicator, the `ApiError` seam, and the React Compiler rules' first real test.
+- **Preview environments are recorded as outside the allowlist**, with the symptom named.
+- **`VITE_API_BASE_URL` is documented in `apps/frontend/.env.example` and `pnpm env:check` passes** — and the check was made to fail first, on a deliberately non-prefixed name.
+- **The per-environment-build consequence is written down** in `HOSTING.md`, `README.md`, `CLAUDE.md` and the `.env.example` itself.
+
+### Three things this task found that its own brief did not anticipate
+
+1. **CI's artefact is not the deployed artefact, and that is now a measured 72 bytes rather than a principle.** The variable is substituted at build time, so a build without it (a clean clone, and **CI**) is 344,537 B / `3c886f88…` and the deployed build is 344,609 B / `7654c2e0…`. The fingerprint the pipeline prints into every job summary therefore describes something that is not deployed. **Task 1.11.6 has to reconcile that** — either its deploy job sets the variable, or the asymmetry is written down.
+2. **A build that forgets the variable does not fail.** It ships a page dialling `http://localhost:3000`, which from an HTTPS page is blocked as mixed content and reads as an unreachable backend — a successful-looking deploy that is broken only in a browser, the same shape this task's whole diagnostic is about.
+3. **Vite's `ImportMetaEnv` index signature made a misspelled variable an `any` that evaluated to `undefined`** — the precise silent failure `.env.example` warns about, invisible to every tool in `pnpm verify`. `apps/frontend/src/vite-env.d.ts` declares `strictImportMetaEnv` and turns it into **TS2551 at exit 2**. The cost is stated: two places per variable, and nothing yet checks the pair.
+
+### What was deliberately not done
+
+**No component, no state, no effect, no polling and nothing rendered changed.** The probe runs from `main.tsx` before the tree mounts, which is what keeps the React Compiler rules' first real test for Story 1.12's polling effect rather than spending it on code that is going to be deleted. `HealthResponse` stays in `apps/backend`; the probe's body is `unknown`.
+
+**The local defaults were left as a matched pair rather than made configurable.** `VITE_API_BASE_URL` falls back to `http://localhost:3000` and `CORS_ORIGIN` to `http://localhost:5173`, verified on a tree with **no `.env` file at all**: `pnpm ready` green and the page logging a 200 with its correlation id.

@@ -381,7 +381,7 @@ Everything here was read back from the deployed resource rather than from the co
 
 The app's `secrets` array is **empty** and its registry entry carries `"identity": "system"` with an empty `passwordSecretRef`. `PORT`, `HOST`, `LOG_LEVEL`, `LOG_FORMAT` and `CORS_ORIGIN` are all plain `value` entries because none of them is a credential. **The mechanism is identified for Epic 2's Alpaca key** — a `secrets` entry referenced by `secretRef` — so that is not the occasion for learning where secrets go.
 
-`CORS_ORIGIN` is set to **`https://placeholder.invalid`**, deliberately: it is explicitly not the `http://localhost:5173` default (which would let somebody's local dev server call the deployment), and `.invalid` is reserved by RFC 2606 so it can never resolve. **Task 1.11.5 replaces it with the real frontend origin.**
+`CORS_ORIGIN` was set to **`https://placeholder.invalid`**, deliberately: it is explicitly not the `http://localhost:5173` default (which would let somebody's local dev server call the deployment), and `.invalid` is reserved by RFC 2606 so it can never resolve. ~~**Task 1.11.5 replaces it with the real frontend origin.**~~ **It did, on 2026-09-03**: it is now `https://red-smoke-029583a0f.5.azurestaticapps.net`, on revision `0000007`.
 
 ### The probes are HTTP against `/health`, and the defaults they replaced were implicit
 
@@ -525,6 +525,101 @@ SWA_CLI_DEPLOYMENT_TOKEN="$TOKEN" npx -y @azure/static-web-apps-cli@2.0.10 \
 ```
 
 `--env production` is the decision in that command: the default is a preview environment, so omitting it deploys somewhere nobody is looking. `--no-use-keychain` is what keeps the token out of the operator's keychain, which is the whole basis on which the divergence above is acceptable.
+
+## What making the two halves talk measured (Task 1.11.5)
+
+The deployed frontend now calls the deployed backend. What crossed the boundary is deliberately one `fetch` and not Story 1.12's API client — see the scope note at the end — and everything below was read from a browser and from the log destination rather than from a command's own output.
+
+### The end-to-end loop, and the correlation id closing it
+
+Loading the deployed page writes one line to the browser console:
+
+```
+[health-probe] https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io/health
+  answered 200  x-request-id: c22c9b0b-46a1-497e-a010-aded7a7999f0  {status: 'ok', version: '0.0.0', …}
+```
+
+and that id is in the backend's own log, queried out of Log Analytics rather than inferred:
+
+```json
+{"level":30,"reqId":"c22c9b0b-46a1-497e-a010-aded7a7999f0","req":{"method":"GET","url":"/health"},"msg":"incoming request"}
+{"level":30,"reqId":"c22c9b0b-46a1-497e-a010-aded7a7999f0","res":{"statusCode":200},"responseTime":0.5633,"msg":"request completed"}
+```
+
+**That is the first time `exposedHeaders` has been load-bearing anywhere, and it is why Story 1.8 rejected a Vite proxy.** The CORS-safelisted response headers are a short list and `x-request-id` is not on it, so cross-origin JavaScript cannot read it unless the server names it in `access-control-expose-headers` — which `apps/backend/src/cors.ts` does. A same-origin setup, or a proxy, exposes every header and would have hidden that requirement completely until production.
+
+**No preflight, as predicted.** A simple `GET` is not preflighted, and a grep of the log across the whole exercise found **zero** `OPTIONS` records. So the healthy case is one request and one pair of log lines, and an `OPTIONS` appearing later means something made the request non-simple.
+
+### The allowlist was made to fail, and both halves were observed together
+
+`CORS_ORIGIN` was pointed at `https://not-the-frontend.example`, the page reloaded, and then it was put back. The pairing is the whole diagnostic:
+
+| Observer                               | What it saw                                                                                  |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| The browser, on the deployed page      | `TypeError: Failed to fetch` — naming neither CORS nor the origin                            |
+| `curl`, same URL, same `Origin` header | **`HTTP/2 200`**, `access-control-allow-origin: https://not-the-frontend.example`, full body |
+| The backend's log, same request        | `{"res":{"statusCode":200},"responseTime":0.3856,"msg":"request completed"}`                 |
+
+**The server never sees the check fail.** With a string origin `@fastify/cors` asserts `access-control-allow-origin` unconditionally, so the request was made, answered and then discarded by the browser — and every piece of server-side evidence says the system is healthy. This is why `curl` cannot test any of it, and why the probe's own failure message names the cross-origin check explicitly rather than letting a bare `Failed to fetch` send somebody to look at the backend.
+
+**Recovery took a revision, both ways.** Environment variables live in the app's `template`, so each change is a rollout: `0000005` set the real origin, `0000006` broke it, `0000007` restored it. Each took **20–25 seconds** to start serving, `/health` answered **200 on every poll throughout**, and — Task 1.11.3's finding reproducing for the third time — the old revision kept answering with the _old_ value until the new one actually took over. A configuration change is not instant and is not atomic from a client's point of view.
+
+### Preview environments, restated as a consequence rather than a prediction
+
+The allowlist holds exactly one string and it is now the production origin. Every preview environment has a different hostname, so **a page served from one cannot call this backend**, and the symptom is precisely the `TypeError: Failed to fetch` above with a healthy 200 in the log — indistinguishable, from the browser, from the misconfiguration this task existed to prevent. Widening the allowlist is not the fix: a pattern admitting `*-*.eastus2.5.azurestaticapps.net` admits every Static Web App anybody deploys in that region.
+
+### The frontend's first environment variable, and the per-environment build
+
+`VITE_API_BASE_URL` is the first `.env` variable this frontend has ever read, and it arrived one story earlier than Story 1.6 predicted, because Story 1.11's criterion cannot be met without an address.
+
+**It is substituted into the bundle at build time, so the deployed artefact and a local build are genuinely different artefacts.** Read out of the emitted JavaScript rather than assumed — the call site compiles to `Td("https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io")`, a string literal:
+
+| Build                                     | JavaScript    | md5         | Total     |
+| ----------------------------------------- | ------------- | ----------- | --------- |
+| No variable (a clean clone, and **CI's**) | 344,537 B     | `3c886f88…` | 356,864 B |
+| `VITE_API_BASE_URL` set (**deployed**)    | **344,609 B** | `7654c2e0…` | 356,936 B |
+
+**That is a 72-byte difference and it is a real problem for Task 1.11.6**, which has to decide whether the deployed artefact is the one CI built or a rebuild. Today it can only be a rebuild, because CI does not set the variable — so the fingerprint the pipeline prints into every job summary describes an artefact that is _not_ what is deployed. Either the deploy job sets the variable and the fingerprint becomes the deployed one, or the asymmetry gets written down. It cannot be ignored: this is exactly the "say what makes the two the same" question Story 1.10's rule asks.
+
+The deploy recipe is therefore:
+
+```sh
+VITE_API_BASE_URL=https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io pnpm build
+SWA_CLI_DEPLOYMENT_TOKEN="$TOKEN" npx -y @azure/static-web-apps-cli@2.0.10 \
+  deploy apps/frontend/dist --env production --no-use-keychain
+```
+
+**A build that forgets the variable does not fail — it ships a page that dials `http://localhost:3000`**, which from an HTTPS page is blocked as mixed content and reads as an unreachable backend. That is the failure mode to watch for, and it is why the variable belongs in the deploy job rather than in somebody's shell history.
+
+### The default is a matched pair with `CORS_ORIGIN`, and a clean clone still works
+
+`VITE_API_BASE_URL` is optional and falls back to `http://localhost:3000` — `apps/backend`'s own default port and host. Verified on a tree with **no `.env` file of any kind**: `pnpm dev`, `pnpm ready` green, and the page at `http://localhost:5173` logging `http://localhost:3000/health answered 200` with the correlation id read back. 5173 → 3000 is cross-origin, so the local loop exercises `exposedHeaders` too rather than only the deployed one.
+
+Those two defaults are a **matched pair**: `VITE_API_BASE_URL`'s `http://localhost:3000` and `CORS_ORIGIN`'s `http://localhost:5173` point at each other, and changing one without the other breaks the local loop in a browser while every server log stays green. `localhost` rather than `127.0.0.1` on the frontend side is deliberate — only a browser reads that string, and a browser tries both address families while the backend binds IPv4 only.
+
+One measurable side effect on the development loop: **a page load now costs the shared `pnpm dev` terminal two rendered lines**, where before this task the frontend made no request at all and cost none. That is Story 1.8's measured floor of 2 for a simple `GET`, now actually being paid.
+
+### A silent-failure class was closed on the way, and it was not in the brief
+
+Vite types `ImportMetaEnv` with an index signature returning `any`, so `import.meta.env.VITE_ANYTHING` typechecks and evaluates to `undefined` at run time. That is the exact failure `apps/frontend/.env.example` warns about — a misspelled or non-prefixed name is substituted to `void 0` and **silently never arrives** — and no tool in `pnpm verify` could see it.
+
+`apps/frontend/src/vite-env.d.ts` declares Vite's own `strictImportMetaEnv`, which removes the fallback index signature, and declares each name explicitly. Measured rather than assumed: reading `import.meta.env.VITE_API_BASE_URLL` is now **TS2551 at exit 2**, with tsc suggesting the correct name. So the frontend's environment boundary has three enforcers now rather than two — `envPrefix` at build time, `pnpm env:check` on the example file, and the compiler on the reading site.
+
+**Its cost is stated rather than discovered**: every variable now has to be declared in two places, and _nothing checks that pair_. `scripts/check-env-example.mjs` reads `.env.example` and not the declaration file. Story 1.12 brings the second variable and is where a pair becomes a set.
+
+### What was taken from Story 1.12, and what was left
+
+Taken, and only this: **one `fetch` at startup, reported to the console** — `apps/frontend/src/health-probe.ts`, called from `main.tsx` and not from React at all — plus the `VITE_API_BASE_URL` variable and its resolver, and 15 tests over the two.
+
+Left to Story 1.12, deliberately and completely:
+
+- **The API client.** This is one `fetch` with no retry, no timeout, no abort and no shared transport.
+- **`HealthResponse` in `packages/shared`.** The probe types its body as `unknown` and logs it. Promoting that type is Story 1.12's stated payoff for having created the package in Story 1.1, and doing it here would spend it.
+- **All state, every effect, the polling, and the status indicator** — including the vocabulary decision Story 1.4 posed and Story 1.5 sharpened, of whether a backend-status indicator is a second `FeedIndicator` or a widened one. Nothing rendered changed in this task.
+- **The `ApiError` seam and how much of a `requestId` a user should ever see.** The probe shows a developer an id in a console; it shows a user nothing.
+- **The React Compiler rules' first real test.** Keeping the probe out of React is what leaves that to 1.12's polling effect rather than spending it on code that is going to be deleted.
+
+**`main.tsx`'s `void probeBackendHealth();` and the module behind it are meant to be deleted by Story 1.12**, and both say so in their own comments.
 
 ## What Task 1.11.1 did not do — kept as its own record
 
