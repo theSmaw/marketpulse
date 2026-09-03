@@ -1,6 +1,6 @@
 # Task 1.12.5 — Wire the indicator into the chrome, on every route, without making the chrome fragile
 
-**Status:** Not started
+**Status:** Complete (2026-09-04)
 **Story:** [1.12 Health & Status Vertical Slice](STORY.md)
 **Depends on:** Tasks 1.12.3 and 1.12.4 — both complete, and this file was amended against what 1.12.4 shipped on 2026-09-04
 

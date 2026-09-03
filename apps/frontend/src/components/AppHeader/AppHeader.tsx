@@ -1,7 +1,12 @@
-import type { FeedStatus } from "@marketpulse/shared";
+import type {
+  BackendDegradedCause,
+  BackendStatus,
+  FeedStatus,
+} from "@marketpulse/shared";
 import { NavLink } from "react-router";
 
 import { cx } from "../../cx.js";
+import { BackendIndicator } from "../BackendIndicator/BackendIndicator.js";
 import { FeedIndicator } from "../FeedIndicator/FeedIndicator.js";
 import { PATHS } from "../../routes/paths.js";
 import styles from "./AppHeader.module.css";
@@ -11,11 +16,27 @@ import styles from "./AppHeader.module.css";
 // four experiences. Rendered once, outside `<Routes>`, so it survives
 // navigation rather than being remounted by it.
 //
+// **The status strip is three regions since Task 1.12.5**: the market feed, the
+// backend service and the reserved clock. Only the second of them is driven by
+// anything real — `App` polls `/health` and passes the result down — and that
+// is what makes this header the one place in the application where a failure of
+// the backend is visible.
+//
+// It being eager and outside `<Routes>` is what makes that indicator worth
+// having. A failure inside the router blanks `<main>` — four named landmarks
+// and the 70vh grid — under a header that still renders, measured in Task
+// 1.5.5, so the status survives the page body. The cost is stated rather than
+// discovered: this component sits inside its own `ErrorBoundary` (Task 1.7.6)
+// whose fallback replaces the `<header>`, so a broken chrome takes the banner
+// landmark, the navigation **and this indicator** with it. The poll itself is
+// unaffected — it is called in `App`, outside that boundary, on purpose.
+//
 // **This is a component and not page shell, and that is the boundary decision
 // Task 1.4.5 left to this story.** The line is: does it have states worth
 // reviewing side by side? A route placeholder has one state made of two
 // strings, so `src/routes/` stays outside the workshop. This header has three
-// feed states, an optional detail line and four current-route states, and the
+// feed states, four backend renderings, an optional detail line and four
+// current-route states, and the
 // only other way to review them is to hard-code a status and click through the
 // running application. That is exactly what the workshop is for. `App.tsx` and
 // `main.tsx` stay exempt for the opposite reason — they are the mount and the
@@ -51,6 +72,42 @@ export interface AppHeaderProps {
    * for it, which is why `FeedIndicator` made it optional.
    */
   readonly feedDetail?: string;
+
+  /**
+   * The **backend service's** state, and the three fields that go with it.
+   *
+   * These are four props rather than one `health: BackendHealth` object, and
+   * the collapse is the thing to resist rather than the tidy-up to make. A
+   * prop named after a hook's return type is how a presentational component
+   * acquires a dependency on a network loop: `AppHeader` would then be a
+   * component that cannot be rendered without knowing what `useBackendHealth`
+   * returns, and its stories and tests would have to construct one. Four
+   * fields spread through a header that already takes `feedStatus` and
+   * `feedDetail` is the same shape it already has.
+   *
+   * They are prefixed `backend` for the reason the feed's are prefixed `feed`:
+   * this header carries two indicators reporting two facts that fail
+   * independently, and a bare `status` here would be ambiguous between them.
+   *
+   * The hook's fifth field, `lastSuccess`, is deliberately not here. Its only
+   * interesting member is `version`, which is `"0.0.0"` on purpose — the image
+   * tag and its digest are what answer "what is deployed" — so nothing renders
+   * it and passing it would be a prop with no reader.
+   */
+  readonly backendStatus: BackendStatus;
+
+  /** Which cause made it `degraded`, and `null` in every other state. */
+  readonly backendDegradedCause: BackendDegradedCause | null;
+
+  /** When the last successful check completed, or `null` if none ever has. */
+  readonly backendLastSuccessAt: Date | null;
+
+  /**
+   * Has any check settled yet? Before the first one has, the indicator renders
+   * a neutral placeholder rather than the hook's literally-true-but-
+   * uninteresting `unreachable` — see `BackendIndicator`.
+   */
+  readonly backendHasChecked: boolean;
 }
 
 // Every `to` reads from `PATHS`. React Router's `to` is a plain string, so a
@@ -63,7 +120,14 @@ const NAVIGATION = [
   { to: PATHS.replay, label: "Market Replay" },
 ] as const;
 
-export function AppHeader({ feedStatus, feedDetail }: AppHeaderProps) {
+export function AppHeader({
+  feedStatus,
+  feedDetail,
+  backendStatus,
+  backendDegradedCause,
+  backendLastSuccessAt,
+  backendHasChecked,
+}: AppHeaderProps) {
   return (
     <header className={styles.header}>
       {/* The product name is a `<p>`, not an `<h1>`, and Task 1.5.2 demoted it
@@ -81,9 +145,9 @@ export function AppHeader({ feedStatus, feedDetail }: AppHeaderProps) {
           here.
 
           It is the **market feed's** indicator and it stays that way. The
-          backend service's state is a second indicator beside it
-          (`components/BackendIndicator`, Task 1.12.4), wired in by Task
-          1.12.5 — two indicators sharing one marker language rather than one
+          backend service's state is the second region below
+          (`components/BackendIndicator`, Task 1.12.4, wired in here by Task
+          1.12.5) — two indicators sharing one marker language rather than one
           indicator carrying two vocabularies.
 
           This region is also where invariant 6's provenance label belongs
@@ -100,6 +164,34 @@ export function AppHeader({ feedStatus, feedDetail }: AppHeaderProps) {
           ) : (
             <FeedIndicator status={feedStatus} detail={feedDetail} />
           )}
+        </div>
+
+        {/*
+          The backend service, and it is a **third region** rather than a
+          second thing inside the feed's (Task 1.12.5).
+
+          The micro-label names the **service**, not the connection and not the
+          network. "Connection" was the obvious word and is wrong twice over:
+          the states already say "unreachable", which is a statement about
+          reaching it, so the label would be redundant — and worse, a strip
+          holding two indicators would then have one labelled by the thing being
+          reported on and one by the act of reaching it, which is exactly the
+          ambiguity two separate indicators exist to remove.
+
+          It sits **before** the clock deliberately. `.clock` is
+          `align-items: flex-end` because it is the end of the strip, and a
+          region appended after it would take that edge away — so the two status
+          facts are adjacent, which is also where they are most comparable, and
+          the clock keeps the right-hand edge it is aligned to.
+        */}
+        <div className={cx(styles.region, styles.serviceRegion)}>
+          <p className={styles.microLabel}>Backend service</p>
+          <BackendIndicator
+            status={backendStatus}
+            degradedCause={backendDegradedCause}
+            lastSuccessAt={backendLastSuccessAt}
+            hasChecked={backendHasChecked}
+          />
         </div>
 
         {/*

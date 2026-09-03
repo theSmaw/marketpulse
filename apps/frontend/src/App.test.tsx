@@ -29,9 +29,11 @@ function renderAt(path: string) {
 }
 
 // `App` starts the backend health poll (Task 1.12.3), so rendering it makes a
-// request. The stub is a `fetch` that never settles: the route table is what
-// this file is about, and a request that resolves would write state after the
-// assertions have run for no reason. The hook aborts it on unmount either way.
+// request. The default stub is a `fetch` that never settles: the route table is
+// what this file is about, and a request that resolves would write state after
+// the assertions have run for no reason. The hook aborts it on unmount either
+// way — and a pending request is also exactly the state the chrome renders as
+// `checking`, which the second describe block below relies on.
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",
@@ -107,6 +109,76 @@ describe("the route table", () => {
       const { unmount } = renderAt(path);
       expect(screen.getByRole("banner")).toBeDefined();
       expect(screen.getByRole("navigation", { name: "Primary" })).toBeDefined();
+      unmount();
+    }
+  });
+});
+
+// Task 1.12.5's half of the story, and the half the criterion words as "the
+// rest of the interface remains usable". The visible part is that the status is
+// in the chrome on every route; the part that will silently stop being true is
+// that a backend nobody can reach is a **value in state** rather than an
+// exception — so nothing here should ever produce a fallback.
+describe("the backend status in the chrome", () => {
+  it("renders the placeholder on every route while the first check is outstanding", () => {
+    for (const path of [...Object.values(PATHS), "/nonsense"]) {
+      const { unmount } = renderAt(path);
+
+      const banner = screen.getByRole("banner");
+      expect(within(banner).getByText("Backend service")).toBeDefined();
+      expect(within(banner).getByText("checking")).toBeDefined();
+
+      unmount();
+    }
+  });
+
+  // The not-found route is worth its own assertion rather than only its turn in
+  // the loop above: it is a page that is itself an error state, and a status
+  // indicator has to read correctly on it. `NotFound` is a real route, so the
+  // chrome around it is the same chrome.
+  it("reports an unreachable backend on the not-found route without a fallback", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))),
+    );
+
+    renderAt("/nonsense");
+
+    // The state, not an error: `getHealth()` never throws, so there is no
+    // rejection for `ErrorBoundary` to catch and no `try`/`catch` in the loop.
+    expect(await screen.findByText("unreachable")).toBeDefined();
+    expect(screen.getByText("No response from the service.")).toBeDefined();
+    expect(screen.getByText("No successful check yet.")).toBeDefined();
+
+    // Nothing collapsed. The not-found route still renders, the chrome still
+    // renders, and neither boundary's fallback is on the page.
+    expect(
+      screen.getByRole("heading", { level: 1, name: NOT_FOUND_HEADING }),
+    ).toBeDefined();
+    expect(screen.getByRole("navigation", { name: "Primary" })).toBeDefined();
+    expect(screen.queryByText("The header could not be displayed")).toBeNull();
+    expect(screen.queryByText("This page could not be displayed")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  // Navigation with the backend down. The links are the recovery path §36
+  // leaves the user, so they have to work while the indicator is reporting a
+  // failure — this is the criterion exercised rather than reasoned about.
+  it("keeps every route usable while the backend is unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))),
+    );
+
+    for (const path of Object.values(PATHS)) {
+      const { unmount } = renderAt(path);
+
+      expect(await screen.findByText("unreachable")).toBeDefined();
+      expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+      expect(
+        screen.queryByRole("heading", { level: 1, name: NOT_FOUND_HEADING }),
+      ).toBeNull();
+
       unmount();
     }
   });

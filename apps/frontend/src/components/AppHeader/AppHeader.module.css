@@ -37,7 +37,7 @@
   font-weight: var(--font-weight-strong);
 }
 
-/* --- The status strip: market feed, market clock --- */
+/* --- The status strip: market feed, backend service, market clock --- */
 
 .status {
   display: flex;
@@ -51,6 +51,22 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+/*
+ * The backend region is the only one of the three that can render two
+ * sentences under its word, and the strip is the grid's `auto` column — so
+ * unconstrained it competes with the product name for the row rather than
+ * wrapping. The cap is a measure in `ch`, which is a proportion of the text
+ * itself rather than a length from the design language: the same category as
+ * the region grid's `fr` fractions and its one `vh`, and the reason there is no
+ * width token to read here.
+ *
+ * At the narrow end the cap does nothing, because `.status` already wraps and
+ * the region is then the full width of the strip.
+ */
+.serviceRegion {
+  max-width: 34ch;
 }
 
 .microLabel {
