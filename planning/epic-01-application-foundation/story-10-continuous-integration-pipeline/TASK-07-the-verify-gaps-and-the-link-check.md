@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Story:** [1.10 Continuous Integration Pipeline](STORY.md)
-**Depends on:** Task 1.10.2
+**Depends on:** Task 1.10.2 — read its hand-off in [STORY.md](STORY.md#what-task-1102-hands-the-remaining-tasks) first
 
 ## Objective
 
@@ -21,6 +21,7 @@ State plainly, in the one story whose deliverable is a green tick, everything th
   - **It must be made to fail before it is trusted.** `stories` and `env:check` were both broken deliberately before they were believed; the double-hyphen anchor is the ready-made test case
   - If the answer is no, say so as a decision with its reversal trigger, and do not leave the gap implied
 - **Add the new gap this story creates — and it is half a gap, which Task 1.10.1 measured rather than left for this task to determine.** `.github/workflows/*.yml` is YAML, and the instinct is to file it beside `scripts/dev.sh` as another file no tool reads. That is wrong in one direction: **Prettier ships a YAML parser and `prettier --check .` reaches `.github/workflows/`**, proved by dropping a badly-formatted probe workflow into the directory and watching `format:check` fail on it. So the file's _formatting_ is inside the net. ESLint does not read it and nothing validates the **schema**: a misspelled key, an action reference that does not resolve, or a `runs-on` label GitHub retires are all green locally and red only on the runner. `actionlint` is the tool that would close it; declining it is the `shellcheck` decision applied to one file, and should be recorded the same way rather than left implied. Re-check the Prettier half here rather than citing it — that is this task's whole subject — but do not re-derive it from scratch. The pipeline's own definition is the one file whose breakage is invisible until a run fails — or worse, until a run silently stops triggering. Record it with the others rather than letting it arrive unlisted
+- **Task 1.10.2 added an unchecked claim of the third kind — the expensive kind — and it is inside the pipeline itself.** The `Verify` step's per-step split is **derived** from pnpm's output format: the step names are parsed out of the first `$ pnpm run a && pnpm run b …` line and the boundaries are the timestamps of the root-level `$ ` lines. Nothing checks that pnpm still prints either. If a pnpm upgrade changes the announcement format, the split prints **nothing, or the wrong names, on a run that is still green** — a stated invariant with no enforcement, which is exactly Task 1.6.4's class rather than the "file no tool reads" class. It is deliberately harmless by construction (the exit code is the chain's, never the parser's) and that is the sentence to write: **the split is diagnostics, not a check, and a silently empty split is not a failing build.** Re-check it here by reading a real run's output rather than by citing this bullet
 - **Write the honest framing into the ADR and the README, in one sentence each.** A green pipeline means every check passed, not that every claim holds. The only thing that has ever caught a claim in this repository is a task whose Done-when said to re-measure rather than to cite
 
 ## Done when
@@ -29,6 +30,7 @@ State plainly, in the one story whose deliverable is a green tick, everything th
 - The fifth — the workflow file itself — is added to the list **as a half-gap**, with Prettier's actual treatment of it re-checked rather than cited, and with `actionlint` recorded as declined rather than unconsidered
 - The link-check question is answered in writing; if built, it is a `verify` step and it was made to fail first
 - `shellcheck` is still not installed, and the reason is dated
+- The derived per-step split is recorded as diagnostics rather than a check, with its dependence on pnpm's output format stated and re-read from a real run
 - Nothing in the repository implies CI covers any of the five
 
 ## Notes

@@ -1,10 +1,19 @@
 # The pipeline. Story 1.10 — see planning/epic-01-application-foundation/story-10-*.
 #
-# Task 1.10.1 installs and stops, deliberately: everything genuinely new is the
-# ten lines above `pnpm install`, and they are the only part of CI that can be
-# wrong in a way a developer's machine cannot reproduce. Task 1.10.2 adds
-# `pnpm verify` to this job — the acceptance command by name, never a re-listing
-# of the tools it runs, because that would fork the definition of "verified".
+# THE VERIFICATION STEP IS `pnpm verify` AND NOTHING ELSE. Not
+# `pnpm build && pnpm lint && ...`, not a matrix of one job per step, not a
+# "faster" reordering. Story 1.1 built that chain to be the single acceptance
+# command precisely so CI and a developer's machine cannot disagree about what
+# green means; re-listing the tools here forks that definition, which is the
+# specific failure this story exists to prevent. The payoff has already happened
+# twice: `stories` (Task 1.4.5) and `env:check` (Task 1.6.6) both reached CI
+# without a workflow existing to update. If a later task cannot be done without
+# changing what `pnpm verify` means, the change belongs in the chain.
+#
+# Per-step visibility is bought by reading the chain's OWN output rather than by
+# forking it: pnpm announces each step as a `$ pnpm run <name>` line, every line
+# is stamped with milliseconds since the step started, and the summary at the
+# end is derived from those announcements. Nothing here knows the step names.
 #
 # `pnpm verify` half-covers this file, and the half it covers is the one people
 # assume it does not: Prettier ships a YAML parser and `prettier --check .`
@@ -16,23 +25,47 @@
 # `rm -rf` fragments in `clean` scripts, the unenforced-invariant class, and
 # README.md's prose figures) and it is new as of 2026-09-03. Task 1.10.7 re-dates
 # the set; do not let it read as "CI checks its own definition".
-name: CI
+# Named for the command it runs, not for the category it belongs to. `CI` is
+# generic and anything containing "tests" or "coverage" would be dishonest: the
+# chain is six steps of which `test` is one, and coverage is deliberately not
+# gated. This name and the job name below are settled here rather than in Task
+# 1.10.6, because a badge and a required status check are both keyed on them and
+# a rename silently un-requires a check.
+name: verify
 
-# Task 1.10.2 owns the trigger set (push and pull_request). A bare `push` is
-# what this task needs and nothing more.
+# `push` is restricted to `main`; every other branch is verified through its
+# pull request. A pull request from a branch in this repository fires BOTH
+# events, so a bare `push:` beside `pull_request:` runs the whole chain twice
+# for one change and the answer arrives from whichever finishes first. The
+# restriction is the better half of that trade for a second reason: a
+# `pull_request` run verifies the merge commit (`refs/pull/N/merge`), which is
+# what would land on `main`, while a push run verifies the branch tip, which is
+# not. The cost is that a branch with no pull request open is not verified —
+# `workflow_dispatch` covers that case deliberately, and it is also what made
+# Task 1.10.1's second cold-install reading possible without an empty commit.
 on:
   push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
+
+# Three pushes in a minute otherwise means three full chains and the answer
+# arrives from the wrong one. `main` is exempt on purpose: a run there is the
+# record of what that commit does, and a cancelled run leaves a commit on the
+# default branch with no verdict against it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # This job reads the repository and nothing else.
 permissions:
   contents: read
 
 jobs:
-  install:
-    # Named for what it does. Task 1.10.2 renames it once it verifies as well;
-    # nothing depends on the name yet, and Task 1.10.6 owns the day one does.
-    name: install
+  verify:
+    # The check name a required status check would be keyed on. Settled here,
+    # with the workflow name above; Task 1.10.6 points a badge at it.
+    name: verify
     # GitHub's own image, on the floating label rather than a pinned one: a
     # pinned image ages out of support and fails hard, and this is not
     # third-party code with the repository checked out. The two actions below
@@ -127,3 +160,59 @@ jobs:
           esbuild_bin="$(printf '%s' node_modules/.pnpm/esbuild@*/node_modules/esbuild/bin/esbuild)"
           echo "esbuild binary: $esbuild_bin"
           "$esbuild_bin" --version
+
+      # The acceptance command, by name, once. `pnpm run` waits for the script
+      # and propagates the child's exit code at any nesting depth — measured in
+      # Tasks 1.2.5 and 1.2.6 — and the chain is `&&`-joined, so the first
+      # failure is the exit code and it reaches the runner intact. That is the
+      # one claim this whole story leans on, and it is confirmed here rather
+      # than cited from a laptop.
+      #
+      # The chain orders `build` before `test` and that ordering is load-bearing:
+      # `packages/shared` is consumed as built output, so a workflow that runs
+      # `pnpm test` on its own reports a partial pass (16 backend tests, which
+      # import nothing shared) with `dist` missing, and 13 silent failures with
+      # `dist` stale. Nothing here runs a chain step on its own, and nothing
+      # here caches `dist/` — Task 1.10.3 inherits that constraint.
+      #
+      # Nothing here starts a server. `pnpm ready` is not a step and must not
+      # become one: `verify` runs with no servers up, where "nothing is running"
+      # is the honest answer rather than a failure. `pnpm coverage` is not a step
+      # here either; Task 1.10.4 owns it as a separate, non-gating one.
+      - name: Verify
+        run: |
+          set -euo pipefail
+          tmp="${RUNNER_TEMP:-/tmp}"
+          start=$(date +%s%N)
+          status=0
+          pnpm verify 2>&1 | while IFS= read -r line; do
+            printf '[%6d ms] %s\n' "$(( ($(date +%s%N) - start) / 1000000 ))" "$line"
+          done | tee "$tmp/verify.log" || status=$?
+          total=$(( ($(date +%s%N) - start) / 1000000 ))
+
+          # The split is DERIVED, never declared. The step names come out of the
+          # chain's own first line (`$ pnpm run build && pnpm run lint && ...`)
+          # and the boundaries are the timestamps of the root-level `$ ` lines
+          # pnpm prints as each one starts — the first of which is `verify`
+          # announcing itself and is dropped. So this block knows no step names,
+          # and a step added to `verify` appears here without an edit. On a
+          # failure the chain stops, the stamps run out, and the last name
+          # printed is the step it died in.
+          sed -n '1s/.*\$ //p' "$tmp/verify.log" \
+            | tr '&' '\n' \
+            | sed -nE 's/.*pnpm run ([a-z:]+).*/\1/p' > "$tmp/names"
+          grep -E '^\[[[:space:]]*[0-9]+ ms\] \$ ' "$tmp/verify.log" \
+            | sed -E 's/^\[[[:space:]]*([0-9]+) ms\].*/\1/' \
+            | tail -n +2 > "$tmp/stamps"
+
+          echo
+          echo "per-step split (derived from pnpm's own output):"
+          paste "$tmp/names" "$tmp/stamps" | awk -v total="$total" '
+            $2 == "" { exit }
+            NR > 1   { printf "  %-13s %6d ms\n", pname, $2 - pt }
+                     { pname = $1; pt = $2 }
+            END      { if (pname != "") printf "  %-13s %6d ms\n", pname, total - pt }
+          '
+          echo "  ------------------------"
+          printf '  %-13s %6d ms\n' TOTAL "$total"
+          exit "$status"

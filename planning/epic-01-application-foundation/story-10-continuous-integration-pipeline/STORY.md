@@ -1,6 +1,6 @@
 # Story 1.10 — Continuous Integration Pipeline
 
-**Status:** In progress — eight tasks, one complete
+**Status:** In progress — eight tasks, two complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.9
 **Epic scope covered:** CI pipeline
@@ -73,6 +73,15 @@ Story 1.9 is complete (2026-09-03) and recorded in `docs/adr/0009-the-test-runne
 - **Rolldown's platform-specific native binding is still the thing most likely to differ on a Linux runner**, and this story added nothing of that kind: a full sweep of the installed tree still finds **`esbuild@0.28.2` and nothing else** with an install script, and `pnpm-workspace.yaml` is byte-unchanged with one `allowBuilds` entry
 - **The `pnpm verify` gaps are unchanged in kind and one of them grew.** `apps/backend/scripts/dev.sh` is still read by nothing and carries the one configuration value `pnpm env:check` cannot see; the two `clean` scripts still carry `rm -rf` inside JSON strings; and the prose-figures gap that Story 1.8 recorded got **bigger twice** in this story — a three-row coverage table in two documents, and a whole section of executed command forms in the README. All were re-taken rather than cited in Task 1.9.7 and all reproduced, and they go stale the moment a test is added. A checker was rejected a second time as scaffolding ahead of the iteration that needs it. **If it belongs anywhere, it belongs here** — but read Story 1.8's argument first: the links are cheaply checkable and a figure in a sentence has nothing to compare itself against
 
+### What Task 1.10.2 hands the remaining tasks
+
+Four things landed in 1.10.2 that every later task in this story has to work with rather than rediscover.
+
+- **A push to a branch no longer runs anything.** `push` is restricted to `main` and everything else is verified through its pull request, because a pull request from a branch here fires both events and because a `pull_request` run verifies the merge commit rather than the branch tip. Measured rather than assumed: pushing the task's own branch produced **no run at all**, since the trigger is read from the workflow file **on the pushed ref**. So any later task that needs a run against a work-in-progress branch — a cache-key probe, a red-run re-proof, a process-suite flake hunt — needs an open pull request or `workflow_dispatch`, and a throwaway branch on its own is silent
+- **The runner-to-runner spread is larger than anything the remaining tasks can save.** The same commit measured **31,075 ms** and **21,989 ms** on two runners, and a warm second run inside one job was 18,953 ms, where **only `build` moves** (6,010 → 3,477 ms). Cold install is 5,606 ms. So a 9 s spread on identical work sits underneath a cache that can save at most ~5.6 s and a build cache that could save ~2.5 s. **Read the install figure and the per-step split separately, and never conclude anything from a single pair of readings** — the workflow prints them separately for exactly that reason
+- **The per-step split already exists and is derived, not declared.** The step names come out of pnpm's own first announcement line and the boundaries are the timestamps of its root-level `$ ` lines, so the workflow names no step. Anything later that wants to report per-step timings — a job summary, an artefact — reuses that block's output and must not become a second, hand-written list of the steps, which is the thing this story exists to prevent
+- **The names are settled: workflow `verify`, job `verify`.** A badge and a required status check are keyed on them and a rename silently un-requires a check, so 1.10.6 points a badge at a stable name rather than choosing one. The file is still `.github/workflows/ci.yml`, which no longer matches the workflow name — 1.10.6 owns that mismatch, because a badge URL is keyed on the **file name**
+
 ## Acceptance criteria
 
 - Pipeline runs on push and on pull request
@@ -106,7 +115,7 @@ Tackled in order. The story is complete when all eight are done.
 | #      | Task                                                                                                           | Status      |
 | ------ | -------------------------------------------------------------------------------------------------------------- | ----------- |
 | 1.10.1 | [Choose the provider and prove the toolchain pins on Linux](TASK-01-choose-provider-and-pin-the-runner.md)     | Complete    |
-| 1.10.2 | [Run `pnpm verify` on push and on pull request](TASK-02-run-verify-on-push-and-pull-request.md)                | Not started |
+| 1.10.2 | [Run `pnpm verify` on push and on pull request](TASK-02-run-verify-on-push-and-pull-request.md)                | Complete    |
 | 1.10.3 | [Cache the pnpm store, and decide what must never be cached](TASK-03-cache-the-pnpm-store.md)                  | Not started |
 | 1.10.4 | [Coverage as its own step, the threshold, and what CI publishes](TASK-04-coverage-threshold-and-artefacts.md)  | Not started |
 | 1.10.5 | [The backend's process half: a child-process test suite](TASK-05-backend-process-tests.md)                     | Not started |

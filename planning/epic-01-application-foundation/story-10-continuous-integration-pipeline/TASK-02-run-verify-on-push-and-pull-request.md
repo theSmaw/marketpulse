@@ -1,6 +1,6 @@
 # Task 1.10.2 — Run `pnpm verify` on push and on pull request
 
-**Status:** Not started
+**Status:** Complete (2026-09-03)
 **Story:** [1.10 Continuous Integration Pipeline](STORY.md)
 **Depends on:** Task 1.10.1
 
@@ -35,3 +35,14 @@ Make the pipeline do the one thing the story is for: run `pnpm verify`, on every
 ## Notes
 
 Everything after this task is around this one command — caching, coverage, artefacts, visibility. If a later task cannot be done without changing what `pnpm verify` means, that is a signal the change belongs in the chain rather than in the workflow.
+
+## Outcome (2026-09-03)
+
+The pipeline is workflow **`verify`**, job **`verify`**, running one step — `pnpm verify` — on pushes to `main`, on every pull request, and on `workflow_dispatch`. The file contains no second copy of the chain.
+
+- **Per-step visibility without forking the definition.** Neither honest option in the brief was taken literally: rather than a second redundant job, the step reads the chain's _own_ output. Every line is stamped with milliseconds since the step began, the step names are parsed out of pnpm's first announcement line and the boundaries are the timestamps of its root-level `$ ` lines — so the workflow names no step, and a step added to `verify` appears in the split with no workflow edit. On a failure the stamps run out and the last name printed is the step it died in.
+- **Triggers.** `push` restricted to `main`; everything else verified through its pull request. A pull request from a branch here fires both events, and beyond the duplicate run they are not the same check: `pull_request` verifies the merge commit, `push` verifies the branch tip. The cost is stated — a branch with no pull request open is not verified, measured rather than assumed (pushing this task's branch produced no run, because the trigger is read from the file on the pushed ref). `workflow_dispatch` was kept for that case.
+- **Concurrency.** `${{ github.workflow }}-${{ github.ref }}`, `cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}`. Confirmed by pushing twice in six seconds: the first run's conclusion is `cancelled`. `main` is exempt because a run there is the record of what that commit does.
+- **Four failure classes, all made to happen on the runner, all with a run conclusion of `failure`:** unformatted Markdown in `planning/` → `format:check`, exit 1; a type error in `packages/shared` → `build`, **exit 2** (tsc's own code, so the child's code and not a flattened 1); a stories file moved aside → `stories`, exit 1, `1 of 9 components have no stories.`; a deliberately failing test → `test`, exit 1, carrying `[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL]` from the deepest nesting this repository has. Tasks 1.2.5/1.2.6's exit-code propagation is now confirmed **on the runner**.
+- **Timings.** Cold: install 5,606 ms, chain 31,075 ms — build 8,527 / lint 8,116 / `format:check` 6,186 / `stories` 466 / `env:check` 476 / `test` 6,437. A second runner, same commit, was 21,989 ms cold; warm in that same job (build outputs present) 18,953 ms, where **only `build` moves** (6,010 → 3,477 ms). The runner-to-runner spread is larger than the warm/cold difference — Task 1.10.3 has to measure against that spread, not a single reading.
+- The probe branch and its draft pull request were deleted.
