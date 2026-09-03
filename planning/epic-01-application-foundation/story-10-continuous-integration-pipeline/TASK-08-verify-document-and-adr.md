@@ -1,6 +1,6 @@
 # Task 1.10.8 — Verify the pipeline end to end, document it, and record the decisions as ADR 0010
 
-**Status:** Not started
+**Status:** Complete (2026-09-03)
 **Story:** [1.10 Continuous Integration Pipeline](STORY.md)
 **Depends on:** Tasks 1.10.1–1.10.7
 
@@ -57,3 +57,16 @@ Re-run every claim this story made rather than reading the task write-ups, take 
 ## Notes
 
 This story is unusual in that its acceptance test _is_ the deliverable: the pipeline verifies itself every time it runs. What that hides is everything the pipeline does not check, which is why Task 1.10.7 comes before this one and why its list belongs in the ADR rather than in a task file that stops being read once the story closes.
+
+## What this task found
+
+Re-executing rather than citing caught four things, and two of them are corrections to figures recorded one task earlier.
+
+- **The badge's third state has expired.** Task 1.10.6 measured `ci.yml/badge.svg` answering 200 `verify - passing` after the file was gone — "freezes green forever". It answers **`404 text/plain`** now, and GitHub's workflow list holds exactly one entry (`verify.yml`, id 348954620). So an unmigrated badge goes stale-green for a window and **then** breaks, which is worse than either alone because the wrong signal arrives first. The rename rule is unchanged; its reason is sharper
+- **The seven-step chain's spread is ~9.0 s over five complete readings**, not the ~3.8 s over three Task 1.10.7 flagged as n=3. 43,263 / 42,664 / 41,019 / 39,441 / **34,278 ms**. The six-step chain's 13.6 s over nine is still the shape, and the pipeline is not settling down
+- **Eight `Conventions from Story 1.1` blocks still carried a claim Task 1.10.5 falsified** — that the backend's process half is unreachable by any runner. Nine of the eleven blocks are byte-identical (Stories 1.2 and 1.3 carry their own historical strike-throughs), so the comparison that finds this is a hash across all eleven and not a diff. All eight are amended. **An amendment made in the copy you are editing is not an amendment to the convention** — the fourth time this epic has arrived at that from a new direction
+- **The link-check figures rotted inside the paragraph that says figures rot.** Task 1.10.7's reading was 210 cross-file and 13 anchor links; this task's own edits took it to **214 and 22**, still **0 broken** over 110 documents. Both figures are updated and the sentence now says so
+
+Five failure classes were made red on the shipping workflow, on a throwaway branch with its own draft pull request — **including `test:process`, red on a runner for the first time**. The accidental one taught the most: the first `test` probe was a failing test that was also unformatted, and it died at `format:check` without ever reaching `test`. A chain reports its first failure and nothing after it, so a probe has to be surgical or it proves the wrong step.
+
+Everything else re-ran and reproduced: all eight acceptance criteria, the cache categorically (`cache-hit: true`, `reused 397, downloaded 0`), the coverage figures to the digit from the runner, the entrypoint assertion, the ruleset field by field, the four pinned actions, both `prettier --file-info` gap one-liners — and the frontend artefact, which matches macOS on **all three files** rather than only the bundle.

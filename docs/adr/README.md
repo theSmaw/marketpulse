@@ -28,3 +28,4 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0007](0007-logging-the-error-contract-and-failure-containment.md)            | Logging, the error contract, and failure containment                              | Accepted |
 | [0008](0008-the-local-development-loop.md)                                    | The local development loop: legibility, the browser boundary, ports and readiness | Accepted |
 | [0009](0009-the-test-runner-conventions-and-coverage.md)                      | The test runner, where tests live, and coverage on demand                         | Accepted |
+| [0010](0010-continuous-integration-what-the-tick-certifies.md)                | Continuous integration: one command, and what the green tick certifies            | Accepted |
