@@ -1,0 +1,33 @@
+# Task 1.10.2 — Run `pnpm verify` on push and on pull request
+
+**Status:** Not started
+**Story:** [1.10 Continuous Integration Pipeline](STORY.md)
+**Depends on:** Task 1.10.1
+
+## Objective
+
+Make the pipeline do the one thing the story is for: run `pnpm verify`, on every push and every pull request, and fail visibly when it fails.
+
+## Work
+
+- **The verification step is `pnpm verify` and nothing else.** Not `pnpm build && pnpm lint && …`, not a matrix of one job per step, not a "faster" reordering. Story 1.1 built the chain to be the single acceptance command precisely so CI and a developer's machine cannot disagree about what green means, and re-listing the tools in a workflow forks that definition — which is the specific failure this story exists to prevent. The payoff is concrete and has already happened twice: `stories` (Task 1.4.5) and `env:check` (Task 1.6.6) both reached the chain without a workflow existing to update. Write the rule down in the workflow file as a comment, because the pressure to split the steps for a prettier UI is real and the answer to it is a decision rather than a preference
+- **If per-step visibility is wanted anyway, get it without forking the definition.** The honest options are: read the chain's own output (each step already announces itself), or add a _second_, clearly-labelled job that is allowed to be redundant. What is not acceptable is a workflow whose steps are the authoritative list. Say which was chosen
+- **Triggers: push and pull request, and say what happens on both.** A pull request from a branch in this repository fires both events, so the naive configuration runs everything twice and doubles the runner time for nothing. Decide — restrict `push` to `main`, or accept the duplicate and say why — and record the reasoning rather than the setting
+- **Add a concurrency group that cancels superseded runs**, keyed on the ref. Without one, three pushes in a minute means three full chains and the answer arrives from the wrong one. Note the exception: a run on `main` is a record of what that commit does, so decide deliberately whether `main` is exempt from cancellation
+- **`&&` chaining plus pnpm's exit-code propagation is the whole mechanism, and it has been measured rather than assumed.** `pnpm run` waits for the script and propagates the child's exit code at any nesting depth — 7 from a probe, 1 from a real server on a busy port (Tasks 1.2.5 and 1.2.6) — printing `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL` beside it. So a failure anywhere inside the fan-out reaches the runner intact. Confirm it _on the runner_ rather than citing the laptop measurement, because that is the one claim this whole story leans on
+- **Make it go red on purpose, once per failure class, and keep the evidence.** A pipeline that has only ever been green is a pipeline nobody has tested. Four cheap classes, each failing in a different step: an unformatted Markdown file (`format:check` — and Prettier owns `planning/`, so this is not a hypothetical), a type error (`build`), a component with its stories file moved aside (`stories`), and a deliberately broken test (`test`, exit 1 from the package and 1 from the root). Record which step reported each, and that the run's conclusion was failure rather than a green tick with red text inside it
+- **The build has to come before the tests and `verify` already orders it — do not undo that.** Story 1.9 measured both ways a workflow gets this wrong. With `packages/shared/dist` **missing**, both apps fail naming the package (exit 1, the loud case) while the backend still reports **16 passed**, because `config.test.ts` imports nothing shared — so a partial pass is what a missing build looks like from a distance. With `dist` **stale** it is silent and worse: 13 failing backend tests whose messages name nothing about staleness. Any future step that runs `pnpm test` on its own, or that restores a cached `dist/`, reintroduces one of those; Task 1.10.3 has to keep that in view when it chooses what to cache
+- **Nothing here starts a server.** `pnpm ready` is not a step and must not become one — `verify` runs with no servers up, where "nothing is running" is the honest answer rather than a failure, and getting this backwards turns every run red for a correct reason. `pnpm coverage` is not a step here either; Task 1.10.4 owns it as a separate, non-gating one
+- **Take the runner's timings and compare shapes, not totals.** Locally the chain is 11.78 s warm — build 2.44 / lint 3.66 / `format:check` 2.79 / `stories` 0.25 / `env:check` 0.25 / `test` 2.36 — and 16.41 s cold from a clean clone. **Five consecutive stories have measured the total moving in both directions while the tree only grew**, so the total is variance and the per-step split is the number worth recording. The runner is a different machine with different cores; expect the split to have a different shape and record it as a first reading rather than as a regression against a laptop
+
+## Done when
+
+- The workflow runs `pnpm verify` as a single step and the workflow file contains no second copy of the chain
+- It runs on push and on pull request, with the duplicate-run question decided rather than defaulted
+- Superseded runs are cancelled, with `main`'s treatment decided explicitly
+- Each of the four failure classes was made to fail on the runner and the run's conclusion was failure
+- The runner's per-step timings are recorded, cold and warm
+
+## Notes
+
+Everything after this task is around this one command — caching, coverage, artefacts, visibility. If a later task cannot be done without changing what `pnpm verify` means, that is a signal the change belongs in the chain rather than in the workflow.
