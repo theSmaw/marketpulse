@@ -260,14 +260,36 @@ jobs:
       # only as prose in a task write-up. Read back FROM THE REGISTRY rather than
       # from the build, so it describes what the platform will pull.
       #
-      # Which digest: HOSTING.md settles it. The image is an OCI index carrying
-      # the linux/amd64 manifest plus a buildx attestation at unknown/unknown,
-      # the attestations are kept deliberately, and THE INDEX DIGEST IS THE
-      # PROVENANCE RECORD — it is what `repo@sha256:...` resolves, it is the only
-      # one of the two that covers the attestations, and the platform manifest
-      # stays reachable from it. Both are printed, because the index digest moves
-      # when attestation content moves even if the image bytes do not: to answer
-      # "did the image change", compare the PLATFORM digest.
+      # WHICH DIGEST, and the answer measured here is not the one HOSTING.md
+      # predicted. Task 1.11.3 recorded the image as an OCI index carrying the
+      # linux/amd64 manifest plus a buildx provenance/SBOM attestation at
+      # unknown/unknown, and named THE INDEX DIGEST as the provenance record.
+      # That is true of a local `pnpm image`. It is NOT true here: the first
+      # pipeline build pushed
+      # `application/vnd.docker.distribution.manifest.v2+json` with no index and
+      # no attestations, read back from the registry rather than inferred from a
+      # green push.
+      #
+      # The cause is the image store and not the recipe. `pnpm image` runs
+      # `docker build -t`, which uses the `docker` exporter; attestations need an
+      # exporter that can carry them, which on the development machine is Docker
+      # Desktop's containerd image store and on `ubuntu-latest` is not
+      # available. Same Dockerfile, same build arguments, same runnable bytes —
+      # a different envelope around them.
+      #
+      # Nothing REFUSED the index, which was the reversal trigger HOSTING.md
+      # stated, so that trigger did not fire and this is a different case: the
+      # builder never made one. It is accepted and recorded rather than chased,
+      # because the alternatives all cost more than the claim is currently
+      # worth — a sixth pinned action (`docker/setup-buildx-action`) plus a
+      # `--push` mode on a recipe whose "this pushes nothing" is a stated
+      # property, or reconfiguring the runner's Docker daemon. The reversal
+      # trigger is anything that actually consumes the attestations.
+      #
+      # So the digest printed is THE ONE THE TAG RESOLVES TO — which is what the
+      # platform pulls in either shape — and the platform manifest digest is
+      # printed beside it when there is an index, because that is the one to
+      # compare to answer "did the image change".
       #
       # This is a RECORD and not a check, exactly as the frontend's is. Nothing
       # asserts a digest, because the image is supposed to change.
@@ -318,20 +340,33 @@ jobs:
             echo "| | |"
             echo "| --- | --- |"
             echo "| Tag | \`${{ steps.commit.outputs.short }}\` |"
-            echo "| Index digest — the provenance record | \`$index_digest\` |"
-            echo "| Index media type | \`$media_type\` |"
+            echo "| Digest the tag resolves to — what the platform pulls | \`$index_digest\` |"
+            echo "| Media type | \`$media_type\` |"
             echo "| Manifests in the index | $child_count |"
-            echo "| Platform manifest (\`linux/amd64\`) | \`${platform_digest:-none — this is not an index}\` |"
+            echo "| Platform manifest (\`linux/amd64\`) | \`${platform_digest:-not an index — the digest above IS the platform manifest}\` |"
             echo "| Layers + config, as the registry stores them | $layer_bytes B |"
             echo "| \`/app\` inside the image | $app_kb KB |"
             echo "| \`/app/dist\` files | $dist_files |"
             echo
-            echo "The index digest is what the platform pulls and the only one that covers the"
-            echo "buildx attestations, so it is the provenance record. It moves when attestation"
-            echo "content moves even if the image bytes do not — to answer *did the image change*,"
-            echo "compare the platform manifest digest. This is a record, not a check."
+            if [ "$child_count" -eq 0 ]; then
+              echo "**No index and therefore no attestations.** A local \`pnpm image\` on Docker"
+              echo "Desktop produces an OCI index carrying the \`linux/amd64\` manifest plus a"
+              echo "buildx provenance/SBOM attestation at \`unknown/unknown\`; this runner's Docker"
+              echo "uses the classic image store, where the \`docker\` exporter cannot carry them,"
+              echo "so the same recipe yields a plain manifest. The runnable bytes are the same"
+              echo "thing built the same way — what is missing is the provenance claim, not the"
+              echo "image. See HOSTING.md."
+            else
+              echo "The index digest is what the platform pulls and the only one that covers the"
+              echo "buildx attestations, so it is the provenance record. It moves when attestation"
+              echo "content moves even if the image bytes do not — to answer *did the image"
+              echo "change*, compare the platform manifest digest."
+            fi
             echo
-          } >> "$GITHUB_STEP_SUMMARY"
+            echo "This is a record, not a check: nothing asserts a digest, because the image is"
+            echo "supposed to change."
+            echo
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       # `update`, never `create`. The ingress, the probes, the scale rule, the
       # environment variables and the managed identity are all already set on
@@ -442,7 +477,7 @@ jobs:
             echo
             echo "$(find "$dist" -type f | wc -l) files, $total B total."
             echo
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       # The deployment token is fetched AT THE MOMENT OF USE with the federated
       # credential above and passed to one command through its environment. It
@@ -509,4 +544,4 @@ jobs:
             echo
             echo "Nothing here checks that the deployed site works — that is Task 1.11.7's."
             echo
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
