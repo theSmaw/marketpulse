@@ -90,25 +90,39 @@ import styles from "./App.module.css";
 const FEED_DETAIL = "No market data until Epic 3";
 
 export function App() {
-  // The backend health poll, started here and rendered nowhere yet
-  // (Task 1.12.3).
+  // The backend health poll, and since Task 1.12.5 its result has a consumer:
+  // the chrome's backend indicator, four fields below.
   //
-  // **The value is deliberately unused for exactly one task.** Task 1.12.4
-  // builds the indicator and Task 1.12.5 gives this result a consumer in
-  // `AppHeader`; what this line is doing in the meantime is keeping the
-  // deployed frontend calling the deployed backend, which is Story 1.11's
-  // criterion and which `health-probe.ts` held until this change deleted it.
-  // Deleting the probe without starting this loop would leave a merge window
-  // with no call at all, and starting the loop from a component that does not
-  // exist yet is not available.
+  // **The call site is inherited rather than chosen, and it is worth not
+  // undoing.** Task 1.12.3 put it here and this task kept it. `AppHeader` sits
+  // inside its own `ErrorBoundary`, so calling the hook there would mean a
+  // header that throws takes the health check down with it — the state would
+  // stop updating at the moment it became most interesting, and the fallback
+  // that replaced the header would be reporting nothing about the backend
+  // while claiming to be the chrome. Here, the poll outlives the thing that
+  // displays it.
   //
-  // It lives in `App` rather than in `AppHeader` because the poll is a property
-  // of the application rather than of the chrome: `AppHeader` sits inside its
-  // own `ErrorBoundary`, and a header that throws would otherwise take the
-  // health check down with it — the state would stop updating at the moment it
-  // became most interesting. Task 1.12.5 can pass this value down; it should
-  // not move the call.
-  useBackendHealth();
+  // A prop from here is the smallest thing that works and needs no context:
+  // `AppHeader` is rendered once, directly below, outside `<Routes>`. A context
+  // provider is the alternative and its cost is that `test-render.tsx` becomes
+  // the place every test gets the value from — the third and last description
+  // of the application's context, which Story 1.9 named deliberately. Take that
+  // when a second consumer exists.
+  //
+  // **The per-poll re-render is accepted, and it was measured rather than
+  // assumed.** Every poll produces a new state object — a successful one writes
+  // a fresh `lastSuccessAt`, so React cannot bail out — and `App` is the
+  // router's host, so every 30 seconds re-renders `AppHeader`, `<Routes>`, the
+  // current route, all four `Region`s and the render check's 36-row table.
+  // Task 1.12.3 measured 4 polls producing 5 renders. At this size that costs
+  // nothing and it is not a performance target; what it is is the shape Epic 3
+  // inherits at a much higher rate. The two fixes both cost more than they buy
+  // today: a provider sited around the header alone confines the re-render and
+  // brings the `test-render.tsx` dependency above, and memoising the subtree
+  // trades one decision for a second one nothing checks. **The reversal trigger
+  // is a second consumer, or a render rate that is no longer a poll** — which
+  // is Epic 3, not this story.
+  const backend = useBackendHealth();
 
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
@@ -135,7 +149,20 @@ export function App() {
           detail="Navigation is unavailable; the page below is unaffected."
           compact
         >
-          <AppHeader feedStatus="disconnected" feedDetail={FEED_DETAIL} />
+          {/*
+           * Four props rather than `health={backend}`, deliberately — see
+           * `AppHeaderProps`. The fifth field, `lastSuccess`, is not passed:
+           * its only interesting member is `version`, which is `"0.0.0"` on
+           * purpose.
+           */}
+          <AppHeader
+            feedStatus="disconnected"
+            feedDetail={FEED_DETAIL}
+            backendStatus={backend.status}
+            backendDegradedCause={backend.degradedCause}
+            backendLastSuccessAt={backend.lastSuccessAt}
+            backendHasChecked={backend.hasChecked}
+          />
         </ErrorBoundary>
 
         <main className={styles.main}>
