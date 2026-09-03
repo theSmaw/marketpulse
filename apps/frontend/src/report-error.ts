@@ -3,8 +3,9 @@
 //
 // **There is nowhere to send it.** The backend writes structured JSON to
 // stdout and an aggregator collects it; a browser has the console and nothing
-// else until something on the server is listening, which is Story 1.12 at the
-// earliest. `console.error` with the component stack is the honest stopping
+// else until something on the server is listening, and nothing is — re-checked
+// in Task 1.12.2, see the reversal trigger at the foot of this comment.
+// `console.error` with the component stack is the honest stopping
 // point, and this module exists so that when there *is* a destination there is
 // one function to change rather than three call sites and a class.
 //
@@ -57,8 +58,30 @@
 // second stream: an uncaught error already arrives in the console with its
 // stack, which is the same destination this function writes to, so a listener
 // would re-report what is already there while also catching every browser
-// extension and third-party script on the page. It becomes worth having the day
-// there is a server endpoint to send it to, and that day is Story 1.12's.
+// extension and third-party script on the page.
+//
+// **Re-taken in Task 1.12.2, and the answer is still no.** Story 1.12 was named
+// as the reversal trigger and that story is now most of the way through, so the
+// note is settled here rather than left pointing at something that has closed.
+// The trigger was never "Story 1.12" — it was *a server endpoint to send a
+// report to*, and this story does not build one. It builds a client that
+// **reads** `GET /health`; the backend's whole surface is still that one route,
+// there is nothing that accepts a report, and inventing one to justify a
+// listener would be scaffolding ahead of the iteration that needs it.
+//
+// One thing this story did change, and it is worth knowing because it looks
+// like it should count and does not. `apps/frontend/src/api-client.ts` now
+// turns every transport failure into a *result* rather than a thrown error, so
+// the class of failure a `window` listener would most plausibly have caught
+// here — an unhandled rejection from a request nobody awaited — is structurally
+// gone from this application rather than merely unreported. That narrows what a
+// listener would add to third-party scripts and genuinely unhandled application
+// bugs, which weakens the case rather than strengthening it.
+//
+// The reversal trigger is restated so the next reader inherits a condition
+// rather than a story number: **an endpoint that accepts a client error
+// report**. Epic 10's agent event stream is the first thing that plausibly
+// brings one.
 
 export type RenderErrorKind = "caught" | "uncaught" | "recoverable";
 

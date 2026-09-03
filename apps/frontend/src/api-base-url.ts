@@ -13,6 +13,14 @@
 // A deploy pipeline therefore has to set this variable at build time or it
 // ships a bundle that dials localhost.
 //
+// **It is a separate file from `api-client.ts` deliberately (Task 1.12.2).**
+// This answers *where is the API*, which is a build-time fact; that answers
+// *how do we talk to it*. Folding this in would put a module-load-time
+// `import.meta.env` read inside the module every test of the client imports,
+// and it would cost `resolveApiBaseUrl` the property the whole file is shaped
+// around — being a pure function of one argument, testable without a build,
+// exactly as `loadConfig(env)` is on the backend.
+//
 // The escape hatch, if a rebuild per environment ever becomes genuinely
 // painful, is recorded in ADR 0006 §6 and is a small run-time configuration
 // endpoint or a generated `config.js` fetched before boot. It is **not**

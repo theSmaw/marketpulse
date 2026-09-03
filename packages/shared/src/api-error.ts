@@ -173,3 +173,55 @@ export function apiError(
     ? { code, message, requestId }
     : { code, message, requestId, details };
 }
+
+/**
+ * Is this parsed JSON an {@link ApiError}?
+ *
+ * It is here for the reason {@link isHealthResponse} is here rather than in the
+ * client that calls it: a validator written anywhere but beside the shape it
+ * validates is the copy that drifts first. Task 1.7.3 shipped this contract
+ * without one because nothing read it yet — the backend *writes* this shape and
+ * needs no predicate for it — and Task 1.12.2 is the first reader, so this is
+ * the first task that has anything to check.
+ *
+ * It takes `unknown` because that is what `response.json()` honestly returns.
+ * The bytes on a failed request are the *least* trustworthy in the system: a
+ * non-2xx at the API's address may have come from a proxy, an ingress or a
+ * static host that has never heard of this contract, which is exactly the case
+ * `apps/frontend/src/api-client.ts` has to tell apart from a real one.
+ *
+ * It differs from {@link isHealthResponse} in one way, and the difference is
+ * deliberate: this **does** check that `code` is a member of
+ * {@link API_ERROR_CODES}, where the health predicate accepts a `status` it has
+ * not been taught. The asymmetry is not an inconsistency — `code` is a
+ * discriminator a caller switches on, so an unrecognised value is one this
+ * client cannot act on and is better treated as "not an ApiError" than admitted
+ * into a union it does not belong to. `status` is a value the interface
+ * renders, and a newer server reporting a newer one is a version skew a client
+ * can still display.
+ *
+ * `details` is checked only when present, and `exactOptionalPropertyTypes` is
+ * why the absent case has to be a separate branch rather than a comparison
+ * against `undefined`.
+ */
+export function isApiError(value: unknown): value is ApiError {
+  if (typeof value !== "object" || value === null) return false;
+
+  const candidate = value as Record<string, unknown>;
+
+  if (
+    typeof candidate.message !== "string" ||
+    typeof candidate.requestId !== "string"
+  ) {
+    return false;
+  }
+
+  if (!API_ERROR_CODES.some((code) => code === candidate.code)) return false;
+
+  if (candidate.details === undefined) return true;
+
+  return (
+    Array.isArray(candidate.details) &&
+    candidate.details.every((entry) => typeof entry === "string")
+  );
+}

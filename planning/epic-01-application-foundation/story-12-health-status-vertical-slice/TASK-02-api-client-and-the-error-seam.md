@@ -1,6 +1,6 @@
 # Task 1.12.2 — Build the API client and decide what a user sees of a failure
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.12 Health & Status Vertical Slice](STORY.md)
 **Depends on:** Task 1.12.1
 
