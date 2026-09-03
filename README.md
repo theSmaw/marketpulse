@@ -1,5 +1,28 @@
 # MarketPulse
 
+[![verify](https://github.com/theSmaw/marketpulse/actions/workflows/verify.yml/badge.svg)](https://github.com/theSmaw/marketpulse/actions/workflows/verify.yml)
+
+**Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
+cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
+over the whole tree, every component has a stories file, both `.env.example`
+files still agree with the configuration table, all 103 fast tests passed, and
+the 10-test process suite spawned a real server on a real port, drained it on
+`SIGTERM` and watched it exit 0. It is the same command and the same seven steps
+this README documents, run by name — CI does not keep its own list of what
+"verified" means.
+
+**Green does not mean the coverage figures are good.** The pipeline publishes a
+per-package coverage table in every run's summary and uploads the three HTML
+reports, and it gates on neither: there is no threshold, the coverage step
+cannot fail the job, and both application entrypoints sit in that table at 0%
+on purpose — see [`pnpm coverage`](#pnpm-coverage--on-demand-and-never-in-verify).
+More generally, a green tick means every **check** passed, not that every
+**claim** in this README holds — the figures in this document are prose, and
+nothing reads them. The badge is documented as reporting the default branch, but do not read it as
+a statement about `main` alone: it was watched turning from `no status` to
+`passing` on a **pull request** run, before this workflow file had ever existed
+on `main`. Follow the link for the run it is actually reporting.
+
 AI-assisted situational awareness for US equities. MarketPulse detects
 statistically unusual market behaviour and lets a human — or an AI agent —
 investigate it against primary-source evidence.

@@ -1,6 +1,6 @@
 # Task 1.10.6 — Make the status visible from the repository
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.10 Continuous Integration Pipeline](STORY.md)
 **Depends on:** Tasks 1.10.2, 1.10.4 — read 1.10.2's hand-off in [STORY.md](STORY.md#what-task-1102-hands-the-remaining-tasks) first
 

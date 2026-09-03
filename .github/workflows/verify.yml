@@ -35,6 +35,23 @@
 # not gated. This name and the job name below are settled here rather than in Task
 # 1.10.6, because a badge and a required status check are both keyed on them and
 # a rename silently un-requires a check.
+#
+# THE FILE NAME IS PART OF THE PUBLIC INTERFACE NOW. Task 1.10.6 renamed this
+# file from `ci.yml` to `verify.yml` so the three identifiers agree, and it did
+# so BEFORE publishing the badge, because a badge URL is keyed on the FILE name
+# (`/actions/workflows/verify.yml/badge.svg`) while a required status check is
+# keyed on the JOB name. The two are independent and both are silent when
+# broken. The badge endpoint has THREE states and all three were measured
+# anonymously rather than assumed. A file GitHub has never seen answers
+# `404 text/plain`, which is a broken image in README.md. A file that exists but
+# has no run on the tracked branch answers `200` with a `verify - no status`
+# badge. And the dangerous one: the OLD path keeps answering `200` with
+# `verify - passing` after the file is gone, serving the last conclusion it ever
+# had — so a badge left pointing at a renamed file does not break, it FREEZES
+# GREEN. Renaming this file means editing the badge URL in README.md in the same
+# commit, and the reason is not that the badge would go red. The badge's own
+# label comes from `name:` above rather than from the file, which is why it read
+# `verify - passing` for four tasks while the file was still `ci.yml`.
 name: verify
 
 # `push` is restricted to `main`; every other branch is verified through its
@@ -297,6 +314,16 @@ jobs:
       # become one: `verify` runs with no servers up, where "nothing is running"
       # is the honest answer rather than a failure. `pnpm coverage` is not a step
       # here either; Task 1.10.4 owns it as a separate, non-gating one.
+      #
+      # THE JOB SUMMARY HAS THREE SECTIONS AND THEIR ORDER IS THE STEP ORDER,
+      # which is deliberate rather than incidental (Task 1.10.6). What the tick
+      # certifies comes first: the per-step split below IS the chain, so a
+      # reader who opens a run meets the thing the badge is a claim about. The
+      # frontend fingerprint is second, because it is a record of what the run
+      # produced. Coverage is last, because it is the only section the tick does
+      # not certify, and a figure that gates nothing should not be the first
+      # number a reader sees under a green tick. Anything added later goes after
+      # the split and before coverage, or after coverage; nothing goes above it.
       - name: Verify
         run: |
           set -euo pipefail
@@ -323,16 +350,59 @@ jobs:
             | sed -E 's/^\[[[:space:]]*([0-9]+) ms\].*/\1/' \
             | tail -n +2 > "$tmp/stamps"
 
-          echo
-          echo "per-step split (derived from pnpm's own output):"
           paste "$tmp/names" "$tmp/stamps" | awk -v total="$total" '
             $2 == "" { exit }
-            NR > 1   { printf "  %-13s %6d ms\n", pname, $2 - pt }
+            NR > 1   { printf "%s\t%d\n", pname, $2 - pt }
                      { pname = $1; pt = $2 }
-            END      { if (pname != "") printf "  %-13s %6d ms\n", pname, total - pt }
-          '
+            END      { if (pname != "") printf "%s\t%d\n", pname, total - pt }
+          ' > "$tmp/split"
+
+          echo
+          echo "per-step split (derived from pnpm's own output):"
+          awk -F'\t' '{ printf "  %-13s %6d ms\n", $1, $2 }' "$tmp/split"
           echo "  ------------------------"
           printf '  %-13s %6d ms\n' TOTAL "$total"
+
+          # The same split, into the job summary. This is a REDIRECT of output
+          # that already exists, not a second report: it reads $tmp/split, which
+          # the derivation above produced from pnpm's own announcements, so a
+          # step added to `verify` appears here for no edit — as `test:process`
+          # did in Task 1.10.5, in a run where this file was not touched. A
+          # summary that hand-listed the steps, or wrote a step count into a
+          # sentence, would be the fork this whole workflow exists to prevent
+          # wearing a nicer typeface. There is no count here for that reason.
+          #
+          # The spread note beside it is not decoration. Two runners measured
+          # 31,075 ms and 21,989 ms on the same commit (Task 1.10.2) and nine
+          # runs of one tree spanned 18,589-32,210 ms (Task 1.10.3), both on the
+          # six-step chain; the seven-step chain's first reading was 43,263 ms.
+          # Without that sentence a reviewer reads a normal run as a regression,
+          # and blames the cache for a slow one.
+          {
+            if [ "$status" -eq 0 ]; then
+              echo "### \`pnpm verify\` — passed in ${total} ms"
+            else
+              echo "### \`pnpm verify\` — FAILED (exit ${status}) after ${total} ms"
+              echo
+              echo "The chain stops at the first failure, so the last step below is"
+              echo "the one it died in and the steps after it did not run."
+            fi
+            echo
+            echo "| Step | Duration |"
+            echo "| --- | ---: |"
+            awk -F'\t' '{ printf "| `%s` | %s ms |\n", $1, $2 }' "$tmp/split"
+            printf '| **total** | **%s ms** |\n' "$total"
+            echo
+            echo "Step names are read out of pnpm's own announcement lines, so this"
+            echo "table is whatever \`pnpm verify\` currently chains — nothing here"
+            echo "lists the steps."
+            echo
+            echo "Runner-to-runner spread on identical work is larger than anything"
+            echo "in this table: 31,075 ms against 21,989 ms for one commit on two"
+            echo "runners, and 18,589-32,210 ms over nine runs of one tree. **Do not"
+            echo "read a single total as a regression.**"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
           exit "$status"
 
       # ------------------------------------------------------------------
@@ -481,10 +551,11 @@ jobs:
           {
             echo "### Coverage — reported, gates nothing"
             echo
-            echo "The green tick on this job certifies \`pnpm verify\`: build, lint,"
-            echo "format:check, stories, env:check, 103 tests and the 10-test"
-            echo "process suite (Task 1.10.5). It does **not**"
+            echo "The green tick on this job certifies \`pnpm verify\` — the chain in"
+            echo "the table above, whatever it currently contains. It does **not**"
             echo "certify these figures, and there is no threshold — see the workflow."
+            echo "This step is \`continue-on-error\`, so no coverage outcome can turn"
+            echo "the tick red, and its \`conclusion\` reads \`success\` however it exited."
             echo
             echo "| Package | % Stmts | % Branch | % Funcs | % Lines |"
             echo "| --- | ---: | ---: | ---: | ---: |"
