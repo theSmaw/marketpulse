@@ -34,6 +34,22 @@ export default defineConfig({
     // the entry nobody added.
     include: ["src/**/*.test.ts"],
 
+    // The one exclude in this file, and it is the complement of an allowlist
+    // rather than a denylist (Task 1.10.5). The process suite is
+    // `src/**/*.process.test.ts` and runs under `vitest.process.config.ts`,
+    // whose `include` is that same glob — the two configs partition
+    // `src/**/*.test.ts` between them, and the pair has to be read as one
+    // decision. It is here rather than as a narrower `include` because a
+    // narrower include is the trap Task 1.9.4 measured: `apps/frontend`'s glob
+    // silently skipped every `.tsx` test, and a shallow `src/*.test.ts` here
+    // would silently skip the first nested one.
+    //
+    // What this protects is this suite's speed. It is 49 tests in a few hundred
+    // milliseconds, it needs no build and no socket, and it is the one
+    // developers run all day; the process suite spawns real processes, binds
+    // real ports, and spends five seconds proving the shutdown ceiling.
+    exclude: ["src/**/*.process.test.ts"],
+
     // Coverage (Task 1.9.5). Same shape as `packages/shared`'s and for the same
     // reasons; only the honest hole below is this package's own. Runs under
     // `pnpm coverage` only — never in `test`, never in `verify`.
