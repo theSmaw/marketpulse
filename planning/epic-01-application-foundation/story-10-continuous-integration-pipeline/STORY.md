@@ -1,6 +1,6 @@
 # Story 1.10 — Continuous Integration Pipeline
 
-**Status:** Not started
+**Status:** Not started — eight tasks
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.9
 **Epic scope covered:** CI pipeline
@@ -96,6 +96,27 @@ Story 1.9 is complete (2026-09-03) and recorded in `docs/adr/0009-the-test-runne
 Story 1.9 is a dependency for exactly this reason, so by the time the badge exists the tick should be real. If this story ships first for any reason, say so on the badge or in the workflow name — do not let a placeholder read as coverage.
 
 Note also that `verify` covers three packages, not two: `apps/backend`, `apps/frontend` and `packages/shared`. The wording "both packages" predates `packages/shared` existing.
+
+## Tasks
+
+Tackled in order. The story is complete when all eight are done.
+
+1.10.1 installs and stops, deliberately — it is the only task whose subject is the ten lines _above_ `pnpm verify`, and it exists so the repository's first red run has exactly one possible cause. 1.10.2 is the story: the chain runs, on both triggers, and is made to fail four ways. 1.10.3 and 1.10.4 are both "around that one command" and can be done in either order; 1.10.3 is numbered first because a slow pipeline is felt on every subsequent task. 1.10.5 is the one task here that is not pipeline work at all — it is the backend's process half, which Story 1.9 recorded as out of scope with this story named as owner — and it comes after the pipeline exists because a shared runner is the environment it has to be designed for. 1.10.6 is the only user-visible deliverable. 1.10.7 states what the tick does not cover, which is why it comes before 1.10.8 rather than being folded into it. 1.10.8 closes the story.
+
+| #      | Task                                                                                                           | Status      |
+| ------ | -------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1.10.1 | [Choose the provider and prove the toolchain pins on Linux](TASK-01-choose-provider-and-pin-the-runner.md)     | Not started |
+| 1.10.2 | [Run `pnpm verify` on push and on pull request](TASK-02-run-verify-on-push-and-pull-request.md)                | Not started |
+| 1.10.3 | [Cache the pnpm store, and decide what must never be cached](TASK-03-cache-the-pnpm-store.md)                  | Not started |
+| 1.10.4 | [Coverage as its own step, the threshold, and what CI publishes](TASK-04-coverage-threshold-and-artefacts.md)  | Not started |
+| 1.10.5 | [The backend's process half: a child-process test suite](TASK-05-backend-process-tests.md)                     | Not started |
+| 1.10.6 | [Make the status visible from the repository](TASK-06-make-status-visible.md)                                  | Not started |
+| 1.10.7 | [The `pnpm verify` gaps, re-dated, and the link-check decision](TASK-07-the-verify-gaps-and-the-link-check.md) | Not started |
+| 1.10.8 | [Verify, document, and record the decisions as ADR 0010](TASK-08-verify-document-and-adr.md)                   | Not started |
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify` — the same rule Stories 1.1 to 1.9 followed. This story adds one clause to it: **each task also leaves the pipeline green**, and the two are not the same claim, because the pipeline runs on Linux from a clean environment and the working tree does not.
+
+**Two things this split deliberately does not do.** There is **no task that changes what `pnpm verify` means.** If one of these tasks cannot be done without adding a step to the chain, that is a signal the change belongs in the chain and reaches CI for free — which is the property Story 1.1 built and which `stories` and `env:check` have both already exercised. The one candidate is Task 1.10.7's link check, and that task states the constraint explicitly: if it is built, it is a seventh `verify` step and not a workflow step, because a CI-only check forks the definition of "verified" and that is the exact failure this story exists to prevent. And there is **no task for deployment.** Story 1.11 owns hosting, container signal delivery, `CORS_ORIGIN` in a real environment and whether `storybook-static/` is published as a site; this story decides only whether it is kept as a build artefact.
 
 ## Open decisions
 
