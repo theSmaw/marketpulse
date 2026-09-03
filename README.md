@@ -18,7 +18,9 @@ cannot fail the job, and both application entrypoints sit in that table at 0%
 on purpose — see [`pnpm coverage`](#pnpm-coverage--on-demand-and-never-in-verify).
 More generally, a green tick means every **check** passed, not that every
 **claim** in this README holds — the figures in this document are prose, and
-nothing reads them. The badge is documented as reporting the default branch, but do not read it as
+nothing reads them. Five things sit outside the net on purpose, and they are
+listed in [what `pnpm verify` does not
+cover](#what-pnpm-verify-does-not-cover). The badge is documented as reporting the default branch, but do not read it as
 a statement about `main` alone: it was watched turning from `no status` to
 `passing` on a **pull request** run, before this workflow file had ever existed
 on `main`. Follow the link for the run it is actually reporting.
@@ -1284,6 +1286,148 @@ still the only package here with an install script.
 
 The rule is unchanged for the next one: allowlist that specific package by name
 — never disable the check.
+
+## What `pnpm verify` does not cover
+
+A green tick means every **check** passed. It does not mean every **claim** in
+this repository holds. Five things sit outside the net, deliberately, and they
+are listed here rather than left for a reader to assume the badge covers them.
+Last re-checked 2026-09-03, by measurement rather than by reading this list.
+
+**1. `apps/backend/scripts/dev.sh`.** ESLint sees only JavaScript and
+TypeScript, Prettier has no shell parser, and `tsc` has no view of it —
+`prettier --file-info` reports `"inferredParser": null` for it and ESLint
+reports `File ignored because no matching configuration was supplied`. It is
+the file that starts the development loop, and since Story 1.7 it carries
+`export LOG_FORMAT="${LOG_FORMAT:-pretty}"`, the one configuration value
+[`pnpm env:check`](#pnpm-envcheck) cannot see. A typo there is not an error; it
+is a silent fallback to JSON logs in the dev loop.
+
+**2. The `rm -rf` fragments in two `clean` scripts** — the root's and
+`apps/frontend`'s — unchecked shell inside a JSON string. The other two
+packages' `clean` is a bare `tsc -b --clean` and is not a third.
+
+**`shellcheck` is not installed and that is a decision, not an oversight.** One
+small shell file and two short strings do not justify a new root dependency and
+another step in the chain. If a third shell file appears, revisit it.
+
+**3. A stated invariant that has quietly stopped being enforced.** This is the
+one CI structurally cannot help with, and the only kind that has actually
+caused a wrong claim to stand. `apps/frontend`'s explicit `types` array was
+documented in three places as making `process` a compile error in browser code;
+it stopped being one when `.stories.tsx` files entered the program and dragged
+`@types/node` in through a triple-slash reference, and it stayed wrong for two
+stories with every tool green. Re-measured today and still true: a probe under
+`apps/frontend/src/` reading `process.env` and importing `node:path`
+typechecks at exit 0, and **only ESLint reports it** — `no-restricted-globals`
+and `no-restricted-imports`, both of which exist because of this. Two of the
+repository's own checks were built for this reason and both were made to fail
+before they were trusted.
+
+Story 1.10 added two more of this kind, inside the test suites:
+
+- **The two-runner partition in `apps/backend` is a naming convention with
+  nothing behind it.** Two Vitest configs split `src/**/*.test.ts` between
+  them — the unit config excludes `*.process.test.ts`, the process config
+  includes exactly that. A process-style test named `src/thing.test.ts` runs in
+  the **fast** suite instead, making it conditional on a build; a
+  `*.process.test.ts` file added to another package runs **nowhere at all**,
+  because no other package has a second config. Both are green
+- **[`pnpm test:process`](#pnpm-testprocess--the-backends-process-half) on a
+  stale `dist/` tests the previous commit and passes.** What guards it is
+  `pnpm verify`'s ordering plus an existence check naming `pnpm build` —
+  presence, not freshness. A staleness check was built for this and removed
+  after it was measured: `tsc -b` re-emits from content hashes, so a
+  `git checkout` makes every source newer than every output without changing a
+  byte, and the mtime comparison failed a correct tree on its first run
+
+**4. The figures in this document, and its internal links.** Nothing reads
+either. The two halves are not alike, and the decision differs between them.
+The links **are** cheap to check and have been checked five times: 110 tracked
+Markdown files, 210 cross-file links, 13 anchor links (12 distinct), **0
+broken** — with a slugger that does not collapse whitespace, or the correct
+double-hyphen anchors in this document read as broken. **The figures cannot be
+checked at all**, and they are the half that goes wrong: a stylesheet size
+stood stale for two stories, three more figures were wrong in a single reading,
+and the heading count recorded for this file one task ago was 42 against an
+actual 36 — six `#` comment lines inside fenced code blocks.
+
+**A link checker was built, run and declined.** It would be a gating step
+guarding the one thing that has never rotted, while the half that rots every
+story stayed open — and its presence in the chain is what would make this
+section look covered. The reversal trigger is a broken link actually shipping,
+or documentation gaining generated content whose links are not hand-written. If
+it is ever built it is an eighth `pnpm verify` step and a script under
+`scripts/`, never a CI-only step: a check CI runs and your machine does not
+forks the definition of "verified", which is the whole reason the pipeline runs
+`pnpm verify` by name.
+
+**5. The workflow file's schema — and this one is only half a gap.**
+`.github/workflows/verify.yml` is YAML, and Prettier **does** read it:
+`prettier --file-info` infers the `yaml` parser, and a badly-formatted probe
+workflow dropped into that directory fails `pnpm format:check` by name. So its
+formatting is inside the net. Its **schema** is not — a misspelled key, an
+action reference that does not resolve, or a `runs-on` label GitHub retires are
+all green locally and red only on the runner. `actionlint` would close it and
+is declined for the same reason `shellcheck` is: one file.
+
+**Inside that half-gap is the part nothing watches at all.** The workflow pins
+four third-party actions to commit SHAs — `actions/checkout`,
+`actions/setup-node`, `actions/cache` and `actions/upload-artifact` — and every
+one is bumped by hand, because a SHA does not follow security releases, which
+is the point of pinning it. `pnpm outdated` has no view of a YAML file and the
+lockfile has no view of GitHub, so a stale pin is invisible in every way a
+stale dependency is not. Dependabot is the tool that closes it and is a
+repository setting rather than a file; it is not enabled. Count the actions in
+the file rather than trusting this paragraph — the number grows whenever a step
+is added.
+
+### Two things that read like gaps and are not
+
+**The pipeline's per-step split and its coverage table are diagnostics, not
+checks.** Both are _derived_ from pnpm's own output — the step names come from
+the `$ pnpm run build && pnpm run lint && …` line the chain announces, and the
+per-package coverage rows from `pnpm -r`'s line prefixes. That is what lets a
+new step appear in CI with no workflow edit, and the cost is that a pnpm
+upgrade changing either format prints nothing, or the wrong names, **on a run
+that is still green**. It is harmless by construction: the exit code is the
+chain's and never the parser's. A silently empty split is not a failing build.
+
+The one real assertion in the coverage step is that both 0% entrypoints are
+still **present** in the report — presence rather than a percentage, so the
+task that makes one of them reachable does not fail it.
+
+**A `continue-on-error` step reports `conclusion: success` however it exited.**
+The coverage step is marked that way on purpose, so that no coverage outcome
+can turn the badge red; the real result is `steps.<id>.outcome`, and a failure
+shows up as an annotation rather than a red tick. This looks exactly like CI
+swallowing a failure and is not. Two rules follow: never write a later step's
+`if:` against a `continue-on-error` step's `conclusion`, and never read the
+absence of an annotation as "coverage was fine".
+
+### The gate itself is configuration, and no file here can hold it
+
+`verify` is a **required status check on `main`**, through repository ruleset
+`main` (id 22160620). It requires a pull request and that check. Nothing in
+this repository records it, no tool reads it, and `pnpm verify` cannot see it —
+so **the repository has no way to detect its own gate being switched off**, and
+a reader who finds it absent cannot tell whether it was removed or never set.
+Four things about it are worth knowing:
+
+- It keys on the **job** name, so renaming the job in `verify.yml` un-requires
+  it silently. The workflow, its job and its file are all called `verify` for
+  exactly this reason
+- **Admin bypass is retained**, so a red run is a decision to override rather
+  than a wall — and a merged red run leaves no trace in any file
+- `require_extra_approval_for_unattributed_changes` is **off**, against
+  GitHub's default of on: with no required approvals it would otherwise block
+  the maintainer's own pull request over a co-author trailer that resolves to
+  no account
+- `strict_required_status_checks_policy` is **off**, because a `pull_request`
+  run already verifies the merge commit rather than the branch tip
+
+What it binds is the chain, and **nothing about coverage** — the job is green
+whatever the coverage step did.
 
 ## Editor setup
 

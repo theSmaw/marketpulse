@@ -1,6 +1,6 @@
 # Task 1.10.7 — The `pnpm verify` gaps, re-dated, and the README link-check decision
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.10 Continuous Integration Pipeline](STORY.md)
 **Depends on:** Task 1.10.2 — read its hand-off in [STORY.md](STORY.md#what-task-1102-hands-the-remaining-tasks) first
 
@@ -46,3 +46,80 @@ State plainly, in the one story whose deliverable is a green tick, everything th
 ## Notes
 
 The list is the deliverable. Three stories in a row have chosen to record these rather than close them, and each time the record was worth more than a partial fix would have been — because the gaps are the places where a reader would otherwise assume coverage from a green badge.
+
+## Outcome
+
+Delivered 2026-09-03. The list is in `README.md` (a new
+`What \`pnpm verify\` does not cover`section, linked from the badge paragraph
+at the top) and in`CLAUDE.md`, in the same terms. **ADR 0010 does not exist
+yet and was deliberately not stubbed here** — Task 1.10.8 owns writing it and
+already lists _"the five things `pnpm verify` does not cover"_ as one of its
+numbered sections, so a stub written now would fork the record it is meant to
+be. This task's list is the input; 1.10.8 carries it across.
+
+**Every claim was re-measured rather than cited, and one of them was wrong.**
+
+- **`scripts/dev.sh` is still read by nothing**, and the cheapest proof is a
+  one-liner rather than a probe: `prettier --file-info` reports
+  `"inferredParser": null` for it and `"inferredParser": "yaml"` for
+  `.github/workflows/verify.yml` — the same command separating the two gaps.
+  ESLint reports `File ignored because no matching configuration was supplied`
+- **Prettier really does reach `.github/workflows/`.** Re-proved end to end: a
+  badly-formatted probe workflow dropped into the directory failed
+  `pnpm format:check` by name at exit 1, and the failure went away when it did
+- **The invariant of the third kind is still where Task 1.6.4 left it.** A
+  probe under `apps/frontend/src/` reading `process.env` and importing
+  `node:path` typechecks at **exit 0**; only ESLint reports it, by name, on
+  both rules
+- **Four pinned actions**, counted from the file: `actions/checkout`,
+  `actions/setup-node`, `actions/cache`, `actions/upload-artifact`. No
+  `.github/dependabot.yml` exists
+- **The ruleset was read from the API**, not from Task 1.10.6's write-up: id
+  22160620, `enforcement: active`, `~DEFAULT_BRANCH`, one `pull_request` rule
+  with `required_approving_review_count: 0` and
+  `require_extra_approval_for_unattributed_changes: false`, one
+  `required_status_checks` rule with `strict_required_status_checks_policy:
+false` and context `verify`, `bypass_actors` RepositoryRole 5 at
+  `bypass_mode: always`
+- **The derived split was read off a real run** (`main`, run 33709042823),
+  which is its third sighting and its second on a chain the workflow file has
+  never heard of: build 8,281 / lint 7,715 / `format:check` 6,307 /
+  `stories` 446 / `env:check` 448 / `test` 6,429 / **`test:process` 8,910**,
+  TOTAL **39,441 ms**. The coverage table and both
+  `in the denominator: …` assertion lines were read off the same run
+
+**The one thing that had rotted was a prose figure, which is the argument the
+task is about.** Task 1.10.6 recorded `README.md` at **42 headings**; it has
+**36**. The six-heading difference is `#` comment lines inside fenced code
+blocks — a naive `grep -cE '^#{1,6} '` counts them and a correct slugger does
+not, so the figure was a count of the wrong thing rather than one that went
+stale. The link figures from the same reading reproduced exactly, and the
+double-hyphen trap reproduced a fourth time.
+
+## The link check: declined, with the evidence that had not existed before
+
+The checker was **built and run before the decision was taken**, over every
+tracked Markdown file rather than `README.md` alone, because a checker confined
+to one document in a repository holding 110 of them would be an odd artefact.
+The result: **110 files, 210 cross-file links, 13 anchor links (12 distinct),
+0 broken.**
+
+That number is the decision. Across ten stories, **the half that is cheap to
+check has never once been wrong, and the half that cannot be checked at all is
+wrong nearly every time anybody reads it** — the 9.82 kB stylesheet stale for
+two stories, three more figures wrong in one reading in Task 1.8.6, and the 42
+headings above. A link checker in `pnpm verify` would be a gating step guarding
+the one thing that has never rotted, and its presence is precisely what would
+make the section _look_ covered while the expensive half stayed open. That is
+Story 1.8's argument, now with numbers under it rather than intuition.
+
+**Reversal trigger:** a broken link actually shipping — found by a reader
+rather than by a task — or documentation gaining generated content whose links
+are not hand-written. If it is built then, it is an **eighth `pnpm verify`
+step** and a plain-JavaScript file under `scripts/` beside `check-stories.mjs`
+and `check-env-example.mjs`, never a workflow step; and the double-hyphen
+anchors are a ready-made failure case, so the "made to fail first" rule costs
+nothing.
+
+`shellcheck` is still not installed. `actionlint` is declined for the same
+reason. Both dated 2026-09-03.
