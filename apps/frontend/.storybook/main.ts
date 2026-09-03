@@ -49,12 +49,33 @@ const config: StorybookConfig = {
     disableTelemetry: true,
   },
 
-  // There is deliberately no `viteFinal`. The builder loads
-  // apps/frontend/vite.config.ts on its own, which is the point: one
-  // `build.target`, one React plugin, one place where the browser baseline is
-  // decided. A Storybook-only override would be a second answer to a question
-  // that already has one, and if it ever becomes necessary it is a divergence
-  // to record rather than a config to fork.
+  // The workshop copies nothing static, and this is a DIVERGENCE with a reason
+  // rather than a tidy-up (Task 1.11.6).
+  //
+  // The builder loads apps/frontend/vite.config.ts, and it inherits its
+  // `publicDir` along with everything else — so `apps/frontend/public/` is
+  // copied into `storybook-static/` too. That directory holds exactly one file,
+  // `staticwebapp.config.json`, which is the DEPLOYED FRONTEND's host
+  // configuration and means nothing to a component workshop.
+  //
+  // It is not merely redundant. The Static Web Apps deploy client GLOBS the
+  // working directory for that filename, and both by hand (Task 1.11.4) and in
+  // the pipeline (Task 1.11.6, run 33731233275) it reported finding the
+  // workshop's copy — `apps/frontend/storybook-static/staticwebapp.config.json`
+  // — rather than the one inside the directory being deployed. That was
+  // harmless only because the two files were byte-identical, which is a
+  // property of today and not of the arrangement: the day somebody edits
+  // `public/staticwebapp.config.json` and the workshop has not been rebuilt,
+  // the deploy picks up a stale routing and cache policy from a build artefact
+  // of a different application, silently.
+  //
+  // `staticDirs: []` is the narrow fix and it does not work — Storybook honours
+  // vite's own `publicDir` regardless, measured rather than assumed. Turning
+  // `publicDir` off in a `viteFinal` is what does, and it is the smallest
+  // possible override: one key, on the workshop's build only, leaving
+  // `build.target`, the React plugin and the browser baseline exactly where
+  // they are decided.
+  viteFinal: (config) => ({ ...config, publicDir: false as const }),
 };
 
 export default config;
