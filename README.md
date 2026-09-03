@@ -216,12 +216,17 @@ deployment.
 
 ### What looks broken on a correct first run
 
-Five things. None of them is a fault.
+~~Five things.~~ **Six**, since Task 1.12.3 gave the page a reason to talk to
+the backend. None of them is a fault.
 
 - **The feed indicator says `DISCONNECTED`.** It is the most prominent thing in
   the chrome and it is honest: there is no market feed until Epic 3, which is
   what the smaller line beside it says. It reports the **market feed**, not the
-  backend — the frontend does not call the backend at all yet (Story 1.12)
+  backend — ~~the frontend does not call the backend at all yet (Story 1.12)~~
+  **and since Task 1.12.3 the frontend does call the backend, every 30 seconds,
+  but nothing renders the result yet.** Task 1.12.4 builds that indicator and
+  1.12.5 puts it in the chrome, which is also where the question of whether this
+  indicator's meaning widens or a second one appears beside it gets answered
 - **The market clock reads `--:--:-- ET`.** It is a reserved region rather than
   a stopped clock. Epic 3 supplies the live market clock; `--:--:--` is used in
   preference to a plausible `00:00:00`, which would be a fake time
@@ -236,6 +241,14 @@ Five things. None of them is a fault.
 - **Ctrl-C is noisy.** See [What `pnpm dev` does at the root](#what-pnpm-dev-does-at-the-root)
   — the `Failed` line and the `node_modules missing` warning on the way out are
   what stopping several watchers at once looks like, and nothing is missing
+- **The backend logs a `GET /health` every 30 seconds while a page is open**,
+  two rendered lines a time, from nobody you can see. That is the frontend's
+  health poll (Task 1.12.3) and it starts on mount: `useBackendHealth` in
+  `App.tsx`, at `HEALTH_POLL_INTERVAL_MS`. It is per open tab, and a **hidden**
+  tab does not poll at all — so the lines stop when you switch away and one
+  arrives immediately when you switch back, which reads like a coincidence and
+  is the design. The interval has a floor it must stay above: `API_TIMEOUT_MS`,
+  5 s, in `api-client.ts`
 
 If a **box with a heading and a "Try again" button** appears where content
 should be, that is different: something failed to render and was contained to

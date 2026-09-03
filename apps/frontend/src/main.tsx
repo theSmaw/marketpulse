@@ -7,7 +7,6 @@ import { createRoot } from "react-dom/client";
 // the backend and shared package already follow, one step further because the
 // source extension here is `.tsx` rather than `.ts`.
 import { App } from "./App.js";
-import { probeBackendHealth } from "./health-probe.js";
 import { reportRenderError } from "./report-error.js";
 import { getTokens } from "./styles/tokens.js";
 
@@ -39,19 +38,20 @@ import "./styles/base.css";
 // non-React consumers that will need it from Epic 2 onward.
 getTokens();
 
-// One request to the API, fired and not awaited (Task 1.11.5).
+// There is deliberately no network call in this file any more (Task 1.12.3).
 //
-// It is here rather than inside the tree on purpose: it is the smallest thing
-// that proves Story 1.11's "the deployed frontend communicates with the
-// deployed backend" criterion, and it deliberately does not build any of
-// Story 1.12 — no state, no effect, no component, no client. Keeping it out of
-// React is what leaves the React Compiler rules' first real test to 1.12's
-// polling effect rather than spending it on throwaway code.
+// Task 1.11.5 put `void probeBackendHealth()` here — one request to `/health`
+// at startup, outside React on purpose, so that Story 1.11's "the deployed
+// frontend communicates with the deployed backend" criterion had something
+// proving it while Story 1.12's client did not exist. Task 1.12.3 deleted both
+// the line and the module: `useBackendHealth`, called from `App`, now makes
+// that call and keeps making it, so the criterion is met by the thing that
+// replaces it rather than by a probe running beside it. Two callers of
+// `/health` would be two answers to "is the backend up" on one page.
 //
-// `void` because the promise is deliberately not awaited: the probe reports to
-// the console and never rejects, and the mount below must not wait on a network
-// call to render. **Story 1.12 replaces this line**, and the module with it.
-void probeBackendHealth();
+// Keeping the mount free of network calls is worth stating rather than
+// inheriting: nothing below waits on anything, so an unreachable backend cannot
+// delay or prevent the first render.
 
 // createRoot, not the legacy ReactDOM.render — the legacy entry point is gone
 // in React 19 and `react-dom/client` is the only mount API.
