@@ -437,6 +437,18 @@ jobs:
           {
             echo "### Frontend artefact"
             echo
+            # THIS IS NOT THE DEPLOYED ARTEFACT, and saying so here is the
+            # cheaper half of Task 1.11.6's answer to it. `VITE_API_BASE_URL` is
+            # substituted into the bundle at build time and this chain does not
+            # set it, so what this table describes is a bundle dialling
+            # http://localhost:3000. Task 1.11.5 measured the gap at 72 bytes
+            # and one string literal (344,537 B / 3c886f88... here, against
+            # 344,609 B / 7654c2e0... deployed). The deploy workflow builds WITH
+            # the variable and prints that build's fingerprint, which is the
+            # table to compare against production.
+            echo "Built without \`VITE_API_BASE_URL\`, so this is **not** the deployed"
+            echo "artefact — see the deploy workflow's summary for that one."
+            echo
             echo "| File | Bytes | md5 |"
             echo "| --- | ---: | --- |"
             find "$dist" -type f | sort | while IFS= read -r f; do

@@ -1,0 +1,40 @@
+# Dependabot, for GitHub Actions only.
+#
+# Task 1.10.7 recorded the four pinned actions in `verify.yml` as the one thing
+# nothing in or out of this repository watches: every one is pinned to a commit
+# SHA precisely so a mutable tag cannot move under us, and the cost of that is
+# that a SHA does not follow security releases. `pnpm outdated` has no view of a
+# YAML file and the lockfile has no view of GitHub, so a stale pin is invisible
+# in every way a stale dependency is not. It declined Dependabot on a one-file
+# argument and stated the reversal trigger explicitly: **a fifth action**.
+#
+# Task 1.11.6 is the fifth action. `deploy.yml` adds `azure/login`, taking the
+# count to five across two files — checkout, setup-node, cache, upload-artifact
+# and login — counted out of the files rather than copied from a sentence, which
+# is the instruction, because this number has been wrong once before.
+#
+# So the trigger fired and this is the decision being taken rather than the
+# count drifting past its own trigger unremarked. The alternative was to
+# re-decline it with the new number stated, and it lost on what the fifth action
+# is: `azure/login` is the one action here that mints a credential, and a stale
+# pin on it is a different class of stale from a stale checkout.
+#
+# It opens pull requests; it does not merge them. Every bump still goes through
+# `verify` and through a human, and the commit-SHA pinning is unchanged —
+# Dependabot rewrites the SHA and the `# vX.Y.Z` comment together.
+#
+# Deliberately NOT enabled for npm. The pnpm workspace is a different question
+# with a lockfile, an `allowBuilds` policy and a TypeScript pin held back on
+# purpose (typescript-eslint's peer range), and a bot opening pull requests
+# against that is a decision Story 1.10 did not take and this task is not the
+# place to take it. The reversal trigger is a dependency here gaining a
+# published advisory.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"
