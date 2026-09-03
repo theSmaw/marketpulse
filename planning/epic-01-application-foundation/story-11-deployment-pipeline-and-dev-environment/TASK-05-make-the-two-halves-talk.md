@@ -1,0 +1,33 @@
+# Task 1.11.5 — Make the deployed frontend talk to the deployed backend
+
+**Status:** Not started
+**Story:** [1.11 Deployment Pipeline & Development Environment](STORY.md)
+**Depends on:** Tasks 1.11.3, 1.11.4
+
+## Objective
+
+Meet the criterion that the deployed frontend communicates with the deployed backend, decide how much of Story 1.12 that requires, and prove the cross-origin path in the only instrument that can judge it — a browser.
+
+## Work
+
+- **Decide the scope you take, and say what you leave to Story 1.12.** Nothing in the frontend calls the backend today, and Story 1.12 owns the API client and `VITE_API_BASE_URL`. This criterion cannot be met without _something_ crossing the boundary, so the decision to take here is the smallest thing that genuinely proves the criterion — a single request from the deployed page whose result is visible — against pre-building 1.12's client, which would land a data layer in a deployment story. Record what was taken and what was left, so 1.12 inherits a stated boundary rather than a surprise
+- **Whatever lands, the API's address is a build-time literal.** Frontend configuration is statically substituted, measured against the artefact: a prefixed value is a string literal in the bundle and a non-prefixed read compiles to `void 0`. So **one artefact cannot be promoted from one environment to another — each environment is its own build**, and that is the sentence this story's documentation has to carry. Do not widen `envPrefix` and do not reach for `define`; ADR 0006 §6 records the escape hatch if a rebuild per environment turns out to be genuinely painful, and it is a small run-time config endpoint or a generated `config.js` fetched before boot, not either of those two
+- **If a variable is added, it goes through the existing conventions.** `apps/frontend/.env.example` documents nothing today and exists precisely so it is the file open in front of whoever adds the first one; `pnpm env:check` enforces the `VITE_` prefix on every name there. A non-prefixed name is not a leak, it is a variable that **silently never arrives**
+- **Point `CORS_ORIGIN` at the deployed frontend's exact origin** — scheme, host and port, matched as a string. This is the value Task 1.11.3 left as a placeholder, and closing it here is the reason these two tasks are ordered this way
+- **`curl` cannot test any of this, and the failure is designed to mislead.** With a string origin `@fastify/cors` asserts `access-control-allow-origin` **unconditionally** — an unlisted origin and a request with no `Origin` at all both get a 200 carrying the allowed origin — so the server never sees the check fail and its log shows a healthy request. The **browser** is the only party that compares, and it reports `TypeError: Failed to fetch`, which names neither CORS nor the origin. Verify in a browser, and **make it fail once**: set `CORS_ORIGIN` to something else, watch the page fail while the server logs another 200, then put it back. That pairing is the whole diagnostic and it is worth having seen
+- **Confirm `x-request-id` reads back cross-origin.** It is exposed through `exposedHeaders` because the CORS safelist is short and this header is not on it; a same-origin setup exposes every header and would hide the requirement entirely. So this is the first environment in which that configuration is actually load-bearing, and reading the id in the browser is the proof
+- **Note the method allowlist before Epic 2 meets it.** `@fastify/cors`'s `methods` defaults to `GET,HEAD,POST` — read out of the package, not assumed — so the first route taking a `PUT` or `DELETE` is refused at preflight while answering `curl` perfectly
+- **A simple `GET` is not preflighted**, so the healthy case is one request and one pair of log lines. If an `OPTIONS` appears in the log, something about the request made it non-simple, and that is worth noticing rather than ignoring
+
+## Done when
+
+- A request initiated by the deployed page reaches the deployed backend and its result is visible on the page or in the browser console
+- The allowlist was made to fail once and restored, with both the browser error and the server's 200 observed together
+- `x-request-id` was read from the response in the browser
+- The scope taken from Story 1.12 is written down, and so is what was left
+- Any variable added is documented in `apps/frontend/.env.example` and `pnpm env:check` passes
+- The per-environment-build consequence is written down somewhere a person deploying will read it
+
+## Notes
+
+Story 1.8 built this boundary and deliberately rejected a Vite proxy for it, because a proxy hides two things at once: the allowlist itself, and the fact that the correlation id needs a server to expose it. This task is where that decision is collected — it is the first time the allowlist has had a second origin to be right or wrong about.
