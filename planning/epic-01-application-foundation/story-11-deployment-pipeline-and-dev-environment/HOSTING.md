@@ -53,6 +53,8 @@ Story 1.5 requires three things of a history-API fallback: `index.html` with a *
 
 That table is Story 1.5's three constraints and Task 1.6.5's hand-built fallback, as a supported product feature. `exclude: ["/assets/*"]` is the whole configuration, and Task 1.11.4 owns writing and **verifying** it — including against a made-up asset, which is the check that distinguishes this from a catch-all.
 
+**And it costs the artefact its three-file shape, which is the one concrete consequence of this decision that reaches the repository.** The file's location is not optional: "if there's a build step, you must ensure that the build step outputs the file to the root of the output\_location". So `staticwebapp.config.json` is a **fourth file in `dist/`**, and the 355,685 B / three-file / md5 `cba2825c…` fingerprint that has reproduced byte-for-byte since Task 1.7.7 — across two clean clones, both platforms and five stories — stops being true the moment Task 1.11.4 lands. Unlike the backend, whose configuration lives in a platform panel, **the frontend's host configuration is part of its artefact**. That figure is quoted in `README.md`, in `CLAUDE.md` and in several planning documents, so Task 1.11.8 owes a `grep` for it rather than a memory of where it appears.
+
 The rejected alternatives were rejected on that one property, having been checked rather than assumed:
 
 - **Azure Storage static website hosting** — a different product from Static Web Apps, and its `404` document is a single global setting with no notion of excluding a path. Blanket or nothing.
@@ -137,7 +139,17 @@ Two things follow, and the second is the useful one. WebSocket and gRPC are supp
 
 The premium minimum of 4 minutes **is** the default's 240 seconds, named as idle. **Epic 10's constraint, stated now rather than discovered then: an SSE stream must emit something at least every four minutes or the ingress will close it.** That is a keep-alive comment on the stream — a line of code — and it is a cheap constraint precisely because it was written down before the stream existed. The expensive alternative is on record too: premium ingress raises the idle timeout to 30 minutes, but requires a **dedicated workload profile** (D4–D32, "The minimum number of node instances is two", billed at the profile rate), which is a large bill for a development environment. Not taken; recorded so nobody re-derives it.
 
-**The shutdown ceiling fits.** Story 1.2 chose a 5-second `SHUTDOWN_TIMEOUT_MS` to sit inside Docker's 10 s stop grace and Kubernetes' 30 s `terminationGracePeriodSeconds`, and this story owed the comparison against the orchestrator actually chosen. Container Apps' per-app `terminationGracePeriodSeconds` defaults to 30 seconds, so the 5 s ceiling and the ten tests behind it (Task 1.10.5) sit comfortably inside it. **Task 1.11.2 owns confirming the container gets `SIGTERM` as PID 1** — the one container question Story 1.2 could not close — and this platform choice does not close it either.
+**The shutdown ceiling fits, and the number is quoted rather than asserted.** Story 1.2 chose a 5-second `SHUTDOWN_TIMEOUT_MS` to sit inside Docker's 10 s stop grace and Kubernetes' 30 s `terminationGracePeriodSeconds`, and this story owed the comparison against the orchestrator actually chosen. From [Application lifecycle management in Azure Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/application-lifecycle-management):
+
+> When a shutdown starts, the container host sends a SIGTERM message to your container. The code in the container can respond to this operating system-level message to handle termination.
+>
+> If your application doesn't respond within 30 seconds to the `SIGTERM` message, then SIGKILL terminates your container.
+
+So the 5 s ceiling and the ten tests behind it (Task 1.10.5) sit inside it with 25 seconds to spare, and Story 1.2's guess about a plausible orchestrator turned out to be exactly right. (**This paragraph originally asserted the 30 seconds without a source** — correct, but a citation-shaped claim in a document whose whole premise is quotation. Re-read and quoted 2026-09-03, in the same change that amended Tasks 1.11.2–1.11.8.) **Task 1.11.2 owns confirming the container gets `SIGTERM` as PID 1** — the one container question Story 1.2 could not close — and this platform choice does not close it either.
+
+**Three container constraints that follow from the platform and are easy to meet only if known in advance.** The image must be `linux/amd64` — "Linux-based (`linux/amd64`) container images are required" — and the development machine is Apple Silicon, so the default local build is the wrong architecture and **runs perfectly in every local check before failing on the platform**. The Consumption plan takes fixed CPU/memory pairs rather than arbitrary values, starting at **`0.25` vCPU with `0.5Gi`**, which is the pair the cost arithmetic below assumes and the envelope the server has to start inside. And **Container Apps runs images from a registry and nothing else**, so a registry is a prerequisite of the first deploy: the choice is Azure Container Registry (Basic, roughly $0.167/day with 10 GiB included) against GitHub Container Registry, which is free for this repository — **Task 1.11.3 owns taking it**, with the note that ACR authenticates by managed identity and `acrPull` rather than by a stored password, and that Docker Hub is warned off by name on rate limits.
+
+**The platform's default health probes are TCP and never touch `/health`.** With ingress enabled the defaults are a Startup probe (TCP on the ingress target port, timeout 3 s, period 1 s, initial delay 1 s, failure threshold 240), a Liveness probe (TCP, same port) and a Readiness probe (TCP, timeout 5 s, period 5 s, initial delay 3 s, failure threshold 48). **A TCP probe passes on any process that binds the port**, which is exactly the case `/health` exists to distinguish, so configuring an HTTP probe is an action Task 1.11.3 has to take rather than a default it inherits. The readiness numbers matter again in Task 1.11.7: 48 failures at a 5-second period is about **four minutes** before a bad revision is declared unhealthy, and what the previous revision serves during that window is what the "a failed deployment does not take the environment down" criterion is actually about.
 
 ### What it beat, on Azure
 
@@ -237,16 +249,17 @@ with a pull request's temporary environment suffixed by its PR number, and branc
 
 This is the class of fact Story 1.10 recorded for its repository ruleset: real configuration that no file here can hold, where the write-up is the only copy a future reader gets.
 
-| Fact              | Value                                                                                   |
-| ----------------- | --------------------------------------------------------------------------------------- |
-| Cloud             | Microsoft Azure                                                                         |
-| Subscription type | Azure free account (12-month offers plus the always-free grants)                        |
-| Region            | East US, for both halves and the eventual database                                      |
-| Frontend service  | Azure Static Web Apps, **Free** plan                                                    |
-| Backend service   | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                            |
-| Database service  | Azure Database for PostgreSQL flexible server, Burstable B1MS — **not yet provisioned** |
-| Source repository | `github.com/theSmaw/marketpulse`                                                        |
-| Deploy trigger    | A merge to `main`, through the existing `verify` workflow's gate (Task 1.11.6)          |
+| Fact               | Value                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| Cloud              | Microsoft Azure                                                                                  |
+| Subscription type  | Azure free account (12-month offers plus the always-free grants)                                 |
+| Region             | East US, for both halves and the eventual database                                               |
+| Frontend service   | Azure Static Web Apps, **Free** plan                                                             |
+| Backend service    | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                                     |
+| Database service   | Azure Database for PostgreSQL flexible server, Burstable B1MS — **not yet provisioned**          |
+| Container registry | **Open — Task 1.11.3 decides.** ACR Basic (~$0.167/day) or GitHub Container Registry (free here) |
+| Source repository  | `github.com/theSmaw/marketpulse`                                                                 |
+| Deploy trigger     | A merge to `main`, through the existing `verify` workflow's gate (Task 1.11.6)                   |
 
 **Why East US.** Alpaca's market data endpoints are US-hosted, and Epic 3's WebSocket is the latency that matters; the frontend is a geo-distributed CDN on the production environment regardless of the app's region, so co-locating it costs nothing. The trade accepted is portal and log latency for a UK-based maintainer, which is a human cost paid once per session rather than per market tick.
 
@@ -254,7 +267,7 @@ This is the class of fact Story 1.10 recorded for its repository ruleset: real c
 
 **Rollback.** Container Apps keeps revisions, so a rollback is shifting traffic to the previous revision rather than re-running a deploy — Task 1.11.7 owns proving it. Static Web Apps has no equivalent revision history on the Free plan, so the frontend's rollback is **re-running the deploy from the previous commit**, which makes the frontend the slower half to recover and is worth knowing before it is needed.
 
-**Owed by Task 1.11.3, and this table is where they go.** The subscription id, the tenant id, the resource group name, the Container Apps environment name and its unique identifier, both published URLs, and the federated credential's subject — none of which exist yet, because this task deploys nothing. **A future reader finding this section still carrying this paragraph should read it as work not done rather than as facts that were never knowable.**
+**Owed by Task 1.11.3, and this table is where they go.** The subscription id, the tenant id, the resource group name, the Container Apps environment name and its unique identifier, **the container registry and its authentication method**, both published URLs, and the federated credential's subject — none of which exist yet, because this task deploys nothing. **A future reader finding this section still carrying this paragraph should read it as work not done rather than as facts that were never knowable.**
 
 ## What this task did not do
 
