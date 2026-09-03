@@ -1,6 +1,6 @@
 # Task 1.11.1 — Choose the hosting for both halves, and settle the database question
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.11 Deployment Pipeline & Development Environment](STORY.md)
 **Depends on:** nothing
 
@@ -30,3 +30,16 @@ Settle both of this story's open decisions before anything is deployed, so that 
 ## Notes
 
 Story 1.10's provider decision is the model: the answer was the obvious one, and it was still taken explicitly with the alternative named, because "we ended up on GitHub Actions" and "we chose GitHub Actions" are different records to inherit. The same applies here with more force, because this decision has a cost per month attached to it and a migration path that is not one file.
+
+## Outcome
+
+**Settled 2026-09-03 and recorded in full in [`HOSTING.md`](HOSTING.md).** Nothing was deployed, no Azure resource exists, no credential was created, and no file outside `planning/` was touched.
+
+- **Microsoft Azure, East US, one subscription.** Frontend on **Azure Static Web Apps** (Free plan); backend on **Azure Container Apps** (Consumption, `minReplicas: 1`). One provider serving both is a decision with three stated reasons — the database coupling, one identity boundary for the deploy credential, one free-tier envelope — and explicitly not one service, because the two halves share none.
+- **The frontend host was chosen on Story 1.5's fallback constraint, not on price or CDN.** Static Web Apps' `navigationFallback.exclude` is the non-catch-all fallback as a product feature, and the documentation carries the worked table: an unmatched path returns `index.html` with a `200` while a missing file under an excluded folder returns `404`. Cloudflare Pages was rejected because `_redirects` supports no 404 status, so its fallback is necessarily blanket; Netlify expresses it as cleanly and lost only to the one-provider decision.
+- **The two Epic requirements are constrained by different mechanisms, and conflating them is the trap.** The Alpaca socket is **outbound** — no ingress timeout reaches it, and what threatens it is scale-to-zero, which is the platform default and which `minReplicas: 1` turns off. Epic 10's SSE stream is **inbound**, so the documented 240-second idle request timeout applies: **the stream must emit inside four minutes.** Premium ingress raises that to 30 minutes and needs a dedicated workload profile at a minimum of two nodes; recorded and declined.
+- **Cost is a few dollars a month and the figure has a stated expiry.** The Consumption free grant is 180,000 vCPU-seconds and 360,000 GiB-seconds per subscription per month; an always-on 0.25 vCPU replica needs 648,000, so this is not a free deployment and what keeps it small is the idle rate. **Epic 3 breaks the idle conditions on purpose** — a replica holding a live feed fails "less than 1,000 bytes per second" during market hours — so the figure must be re-taken there rather than carried.
+- **The database is named and deferred.** Azure Database for PostgreSQL flexible server, Burstable B1MS, provisioned in Epic 2. The networking mode must be decided before creation because it cannot be changed after, and the cost of deferring is stated: the free account's 12-month offer starts at signup.
+- **The reversal cost is seven items, not one file**, and the two worth knowing are that `staticwebapp.config.json` is the least portable thing here — every host spells the same three intentions differently — and that repointing the frontend at a new backend is a **rebuild**, because `VITE_API_BASE_URL` is substituted at build time.
+- **The environment is public, deliberately.** IP restrictions are unavailable on the Static Web Apps Free plan, and anything standing between a browser and the frontend would make Task 1.11.5's cross-origin check unverifiable, since `curl` structurally cannot perform it. What makes that acceptable is that nothing deployed holds a credential — which stops being true when Epic 2's Alpaca key arrives.
+- **Owed by Task 1.11.3:** the subscription and tenant ids, the resource group and environment names, both published URLs, and the federated credential's subject. `HOSTING.md` names the table they go in and says that finding the paragraph still there means the work was not done.

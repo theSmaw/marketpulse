@@ -1,11 +1,11 @@
 Do we need to amend, add, delete or re-order any tasks in
-@planning/epic-01-application-foundation/story-10-continuous-integration-pipeline
+@planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment
  based on our implementation of
-@planning/epic-01-application-foundation/story-10-continuous-integration-pipeline/TASK-07-the-verify-gaps-and-the-link-check.md?
+@planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/TASK-01-choose-hosting-and-the-database-question.md?
 
 Do we need to amend, add, delete or re-order any stories in
 @planning/epic-01-application-foundation based on our implementation of
-@planning/epic-01-application-foundation/story-10-continuous-integration-pipeline
+@planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment
 
 
 Like we did with @planning/epic-01-application-foundation/story-01-repository-structure-and-toolchain,

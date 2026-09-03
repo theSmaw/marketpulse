@@ -11,8 +11,10 @@ Get a deployed, reachable development environment early, so deployment problems 
 
 ## Open decisions
 
-- Hosting for the frontend (static) and the backend (long-lived process). The backend eventually needs persistent WebSocket connections to Alpaca (Epic 3) and long-running agent execution (Epic 10) — hosting that sleeps idle instances or caps request duration will become a problem, so weigh that now.
-- Whether a managed PostgreSQL instance is provisioned now or in Epic 2
+**Both are settled as of 2026-09-03, by Task 1.11.1, and recorded in full in [`HOSTING.md`](HOSTING.md)** — which carries the quoted platform limits, the rejected alternatives, the cost envelope, the reversal cost and the account facts. The originals are kept below rather than deleted, per this repository's habit, with the answer beside each.
+
+- ~~Hosting for the frontend (static) and the backend (long-lived process). The backend eventually needs persistent WebSocket connections to Alpaca (Epic 3) and long-running agent execution (Epic 10) — hosting that sleeps idle instances or caps request duration will become a problem, so weigh that now.~~ **Microsoft Azure, East US, one subscription: Azure Static Web Apps (Free) for the frontend, Azure Container Apps (Consumption, `minReplicas: 1`) for the backend.** Both requirements were weighed against quoted documentation and they turn out to be constrained by _different_ mechanisms — the Alpaca socket is **outbound**, so no ingress timeout touches it and what threatens it is scale-to-zero, which `minReplicas: 1` turns off; Epic 10's SSE stream is **inbound**, so the documented 240-second idle request timeout applies to it and the stream must emit inside four minutes. Free-tier compute that sleeps was rejected on measurement rather than reputation: App Service F1 allows **5 web sockets per instance** and 60 CPU-minutes a day, and Render's Free tier spins down after "15 minutes without receiving any inbound traffic" — of which an outbound socket to Alpaca is none.
+- ~~Whether a managed PostgreSQL instance is provisioned now or in Epic 2~~ **Azure Database for PostgreSQL flexible server, named now and provisioned in Epic 2.** The provider half had to be answered here: deferring is only free because the backend's platform has a managed Postgres adjacent to it, and a backend chosen with no database in scope would have made Epic 2 a second vendor and a cross-network hop. What Epic 2 must do — including the networking mode, which the service "can't change after creation" — is written down, as is the cost of deferring: the free account's 12-month Postgres offer starts at signup, so the wait spends part of it.
 
 ## Conventions from Story 1.1
 
@@ -139,7 +141,7 @@ Tackled in order. The story is complete when all eight are done.
 
 | #      | Task                                                                                                                                                | Status      |
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1.11.1 | [Choose the hosting for both halves, and settle the database question](TASK-01-choose-hosting-and-the-database-question.md)                         | Not started |
+| 1.11.1 | [Choose the hosting for both halves, and settle the database question](TASK-01-choose-hosting-and-the-database-question.md)                         | Complete    |
 | 1.11.2 | [Produce the backend's deployable artefact and run it outside the workspace](TASK-02-backend-deployable-artefact.md)                                | Not started |
 | 1.11.3 | [Deploy the backend, configure it from the platform, and make `/health` the readiness check](TASK-03-deploy-the-backend-and-its-readiness-check.md) | Not started |
 | 1.11.4 | [Deploy the frontend, with a fallback that is not a catch-all and a stated cache policy](TASK-04-deploy-the-frontend-fallback-and-cache-policy.md)  | Not started |
