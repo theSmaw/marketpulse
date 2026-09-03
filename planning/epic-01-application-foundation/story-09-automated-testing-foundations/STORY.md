@@ -1,6 +1,6 @@
 # Story 1.9 — Automated Testing Foundations
 
-**Status:** Not started
+**Status:** Complete (2026-09-03) — all seven tasks; recorded in [ADR 0009](../../../docs/adr/0009-the-test-runner-conventions-and-coverage.md)
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Stories 1.2, 1.3
 **Epic scope covered:** unit/integration test foundations
@@ -18,7 +18,7 @@ Story 1.1 is complete, and these four bind this story. They are stated in every 
 - **Shared tooling lives at the workspace root; packages declare only what they actually import.** ESLint, Prettier and TypeScript are root-only devDependencies, and pnpm puts the root's `node_modules/.bin` on every package script's PATH. A library the code imports belongs in the package that imports it — `@types/node` in `apps/backend` is the counter-example that keeps the rule from being over-applied
 - **The module setup is ESM-only and single-file-safe** — `"type": "module"`, `module: nodenext`, `isolatedModules`, `verbatimModuleSyntax`, and relative imports carrying `.js` extensions from `.ts` files (TS2835 without one). `packages/shared` is consumed as **built output**, so it must be built before any consumer can be typechecked; `tsc -b` orders that itself, which is why `typecheck` and `build` are the same command
 
-One thing that is true today and will not be forever: until Story 1.9 lands, **`pnpm test` passes because there are no tests** — all three `test` scripts are `echo` placeholders that exit 0, and they are now the only placeholders left. The companion note about both apps' `dev` scripts being placeholders is **no longer true** — Stories 1.2 and 1.3 made all three real.
+~~One thing that is true today and will not be forever: until Story 1.9 lands, **`pnpm test` passes because there are no tests** — all three `test` scripts are `echo` placeholders that exit 0, and they are now the only placeholders left.~~ **No longer true as of Story 1.9 (2026-09-03)** — `pnpm test` runs **103 real tests** across 13 files (7 in `packages/shared`, 49 in `apps/backend`, 47 in `apps/frontend`) and there is no `echo` placeholder anywhere in this workspace. A green tick now means those 103 tests passed, and specifically **not** coverage: `pnpm coverage` is the separate command that measures that, and the backend's process half is unreachable by any runner here. The companion note about both apps' `dev` scripts being placeholders stopped being true earlier still — Stories 1.2 and 1.3 made all three real.
 
 ## What that means for this story
 
@@ -123,13 +123,15 @@ Every package has a real suite — **103 tests: 7 in `packages/shared`, 49 in `a
 
 ## Acceptance criteria
 
-- Unit test runner configured for **all three** packages — `apps/backend`, `apps/frontend` and `packages/shared` — running from the repository root. The original wording said "both packages" and predates `packages/shared`
-- Backend integration tests exercise the real HTTP layer, including `/health`
-- Frontend component tests render through the real component tree
-- Example tests of each kind exist and pass
-- Running a single test file, and a single test by name, is documented
-- Coverage reporting is available on demand
-- Test conventions documented — naming, location, what belongs at each level
+All seven were re-run on the shipping tree in Task 1.9.7 rather than ticked from the task write-ups, and the fifth was **re-executed** rather than read.
+
+- ~~Unit test runner configured for **all three** packages — `apps/backend`, `apps/frontend` and `packages/shared` — running from the repository root.~~ **Met.** Vitest 4.1.11, a root devDependency, one `vitest.config.ts` per package and no root config. `pnpm test` is `pnpm -r run test`: **13 files, 103 tests**, exit 0, and exit 1 when any package fails. The original wording said "both packages" and predates `packages/shared`
+- ~~Backend integration tests exercise the real HTTP layer, including `/health`~~ **Met.** 3 files, **49 tests**, all through `app.inject()` against the instance `buildServer()` returns — status codes, the body, `fast-json-stringify`'s stripping on the real route, both error handlers, the correlation id and the CORS headers
+- ~~Frontend component tests render through the real component tree~~ **Met.** 8 files, **47 tests** under jsdom 30.0.1, asserted on roles and accessible names; `App.test.tsx` drives the real `<BrowserRouter>` through `window.history` rather than a re-declared copy of the route table
+- ~~Example tests of each kind exist and pass~~ **Met.** Unit (`loadConfig(env)`, a function taking a plain argument), integration (`app.inject()`), component (`renderWithContext`). The **fourth** kind — the backend's process half — is out of scope with **Story 1.10** named as its owner, and its 0% on `index.ts` is that decision rendered as a figure
+- ~~Running a single test file, and a single test by name, is documented~~ **Met**, in `README.md` as a section and in `CLAUDE.md`'s Commands block. **Eight forms, every one executed in Task 1.9.6 and re-executed in Task 1.9.7.** Two of them fail **green** and are documented as such: `pnpm test -- -t "name"` runs all 49 backend tests at exit 0, and a non-matching `-t` reports `47 skipped` at exit 0
+- ~~Coverage reporting is available on demand~~ **Met.** `pnpm coverage`, `@vitest/coverage-v8`, three reports in 2.92 s, deliberately not in `test` and not a seventh `verify` step, and **no threshold** — Story 1.10 may set one against 30.00% / 64.33% / 68.25% of statements
+- ~~Test conventions documented — naming, location, what belongs at each level~~ **Met.** Eight rules in `CLAUDE.md`, the reasoning in ADR 0009 §§3–9, the commands in `README.md` — a three-way split taken deliberately, because a copy in three places is three things to keep in step
 
 ## Tasks
 
@@ -137,15 +139,15 @@ Tackled in order. The story is complete when all seven are done.
 
 1.9.1 is a decision task that changes nothing in the tree — the module setup constrains the choice hard enough that picking first and discovering second would mean rewriting whatever landed. 1.9.2 puts the runner in the workspace and proves it on the package with no DOM, no server and no framework, so the wiring is the only thing under test. 1.9.3 and 1.9.4 are the two halves of the tree and can be done in either order once 1.9.2 lands; they are numbered backend-first because the backend's subjects already exist and the frontend's need a second runtime chosen. 1.9.5 and 1.9.6 both need every test that will exist. 1.9.7 closes it.
 
-| #     | Task                                                                                         | Status      |
-| ----- | -------------------------------------------------------------------------------------------- | ----------- |
-| 1.9.1 | [Choose the test runner](TASK-01-choose-the-test-runner.md)                                  | Complete    |
-| 1.9.2 | [Wire the runner and prove it on `packages/shared`](TASK-02-wire-the-runner-on-shared.md)    | Complete    |
-| 1.9.3 | [Backend tests: the injected server and the configuration module](TASK-03-backend-tests.md)  | Complete    |
-| 1.9.4 | [Frontend component tests and the DOM environment](TASK-04-frontend-component-tests.md)      | Complete    |
-| 1.9.5 | [Coverage reporting on demand](TASK-05-coverage-on-demand.md)                                | Complete    |
-| 1.9.6 | [Test conventions, and running a single test](TASK-06-conventions-and-single-test.md)        | Not started |
-| 1.9.7 | [Verify, document, and record the decisions as ADR 0009](TASK-07-verify-document-and-adr.md) | Not started |
+| #     | Task                                                                                         | Status   |
+| ----- | -------------------------------------------------------------------------------------------- | -------- |
+| 1.9.1 | [Choose the test runner](TASK-01-choose-the-test-runner.md)                                  | Complete |
+| 1.9.2 | [Wire the runner and prove it on `packages/shared`](TASK-02-wire-the-runner-on-shared.md)    | Complete |
+| 1.9.3 | [Backend tests: the injected server and the configuration module](TASK-03-backend-tests.md)  | Complete |
+| 1.9.4 | [Frontend component tests and the DOM environment](TASK-04-frontend-component-tests.md)      | Complete |
+| 1.9.5 | [Coverage reporting on demand](TASK-05-coverage-on-demand.md)                                | Complete |
+| 1.9.6 | [Test conventions, and running a single test](TASK-06-conventions-and-single-test.md)        | Complete |
+| 1.9.7 | [Verify, document, and record the decisions as ADR 0009](TASK-07-verify-document-and-adr.md) | Complete |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, so the tree is never broken between tasks — the same rule Stories 1.1 to 1.8 followed. One consequence specific to this story: each of 1.9.2, 1.9.3 and 1.9.4 removes exactly one of the three `echo` placeholders, so between those tasks `pnpm test` is a mix of real suites and placeholders. That is expected, and it is also why the three "a green `pnpm test` means no tests exist" warnings are removed in **one** change rather than a third at a time. **That change turned out to be Task 1.9.4 rather than 1.9.7**, and the plan was wrong about the timing rather than about the rule: the three become false simultaneously when the last placeholder goes, which is 1.9.4, so removing them there is the one change — waiting would have left two false warnings standing for three more tasks.
 
@@ -155,6 +157,6 @@ Each task leaves the repository installable, typechecking and passing `pnpm veri
 
 The commands established here go into `CLAUDE.md`'s Commands section and `README.md`'s command table — both of which now exist and are current, so this is an edit rather than a fill-in. The note here used to say the Commands section was a placeholder; Task 1.1.7 wrote it and Task 1.1.8 verified every command in it from a clean clone.
 
-One item in it is explicitly outstanding and named as this story's to close: **how to run a single test file, and a single test by name.** `CLAUDE.md` says so at the end of its Commands section. It is also an acceptance criterion above.
+That item — **how to run a single test file, and a single test by name** — was the one thing `CLAUDE.md` carried as explicitly outstanding, and **Task 1.9.6 closed it**: the sentence at the end of its Commands section is gone because the thing it wanted exists. The forms live in `README.md` as a section and in `CLAUDE.md`'s Commands block as one line each, and every one of them was executed from both the root and a package directory before it was written down. Task 1.9.7 re-runs them rather than reading them.
 
 Both files carry the "a green `pnpm test` means no tests exist" warning, as does ADR 0001 §5. When this story lands, all three sentences become false and must be removed in the same change — leaving a stale warning is as misleading as the thing it was warning about.

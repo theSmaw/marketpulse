@@ -12,11 +12,11 @@ recommends trades, or produces target prices.
 
 ## What exists today
 
-**Epic 1 complete through Story 1.8 — the repository and its toolchain, a
+**Epic 1 complete through Story 1.9 — the repository and its toolchain, a
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
-error contract, and a development loop that takes a clean clone to a running
-pair.**
+error contract, a development loop that takes a clean clone to a running pair,
+and a test suite of 103 tests with coverage available on demand.**
 
 One command starts both halves:
 
@@ -326,6 +326,55 @@ half — signals, exit codes, the shutdown ceiling, `EADDRINUSE`, the two crash
 handlers — because `app.inject()` drives a server with no socket and that
 whole class needs a child process against a built tree. Story 1.10 owns it.
 
+### Running one file, or one test
+
+The `test` script takes arguments straight through, from the repository root
+with a filter or from the package directory without one. **The path is relative
+to the package**, not to the repository root.
+
+```sh
+# One file
+pnpm --filter @marketpulse/backend test src/config.test.ts
+pnpm --filter @marketpulse/frontend test src/components/PriceChange/PriceChange.test.tsx
+
+# Any substring of the path — usually what you want
+pnpm --filter @marketpulse/frontend test PriceChange
+
+# One test by name
+pnpm --filter @marketpulse/backend test -t "freezes what it returns"
+
+# The names to match against
+pnpm --filter @marketpulse/shared test --reporter=verbose
+
+# Watch mode — `--watch` is required; see below
+pnpm --filter @marketpulse/frontend exec vitest --watch
+```
+
+From inside a package directory the filter comes off and everything else is the
+same — `pnpm test src/config.test.ts`, and `pnpm t` is the same command again.
+
+**Do not write `--` before the arguments.** `pnpm test -- -t "name"` looks
+right, forwards the `--` to Vitest literally, and Vitest then ignores the
+filter: all 49 backend tests run and it exits **0**, so a command that reads as
+a narrow run is a full one. Nothing here needs `--`, `--reporter=verbose`
+included, even though `--reporter` is also one of pnpm's own flags.
+
+**A `-t` that matches nothing is also green.** It reports `47 skipped` and exits
+**0** — a typo in a test name looks like a pass, so read the skipped count
+rather than the exit code. A path that matches nothing is the loud case:
+`No test files found`, exit 1.
+
+**Root `pnpm test <path>` is not the way to narrow it.** Root `test` is
+`pnpm -r run test`, so the path goes to all three packages and the two that do
+not have that file fail. Use `--filter`.
+
+**Watch mode needs an explicit `--watch`.** A bare `vitest` runs once and exits,
+the same as `vitest run` — that changed in Vitest 4, and the old habit reads as
+watch mode being broken. With `--watch` you get a `DEV` banner,
+`PASS Waiting for file changes...`, and a saved file re-runs only that file.
+There is no `test:watch` script on purpose: it would be a seventh verb in three
+packages for something `exec` already spells.
+
 ### `pnpm coverage` — on demand, and never in `verify`
 
 ```sh
@@ -342,11 +391,18 @@ every developer and every CI run for a figure nobody is reading.
 
 Each run writes a terminal table and a browsable HTML report to that package's
 `coverage/`, which is already ignored by git, Prettier and ESLint. Note the
-terminal table lists only files that are **not** fully covered; open
+terminal table lists only files that are **not** fully covered — for
+`packages/shared` that is three of its six sources; open
 `<package>/coverage/index.html` for every file, and for the lines behind a
 number.
 
-The first figures, measured on the tree Task 1.9.5 shipped:
+Narrowing a coverage run to one test file gives a misleading number rather than
+that file's coverage: `coverage.include` fixes the denominator while the
+numerator shrinks, so `pnpm --filter @marketpulse/shared coverage
+src/api-error.test.ts` reports 20% where the full run reports 30%.
+
+The figures below were taken in Task 1.9.5 and **re-taken in Task 1.9.7**,
+where all twelve reproduced to the digit:
 
 | Package           | Statements      | Branches | Functions | Lines           |
 | ----------------- | --------------- | -------- | --------- | --------------- |
@@ -1164,11 +1220,16 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 ## Documentation
 
 - [`docs/adr/`](docs/adr/) — architecture decision records, newest last;
-  [0008](docs/adr/0008-the-local-development-loop.md) is the most recent and
-  covers this page's subject: how the pair was made legible in one terminal, why
-  the browser talks to the API through real CORS rather than a Vite proxy, why
-  the frontend's ports are literals, and why `pnpm ready` is a script and
-  deliberately not a `pnpm verify` step.
+  [0009](docs/adr/0009-the-test-runner-conventions-and-coverage.md) is the most
+  recent and covers the two testing sections above: why the runner is Vitest,
+  why test files sit beside their subject inside `src/`, why there is one
+  config per package and no root one, why the DOM environment is jsdom when
+  every measurement favoured happy-dom, and why coverage is on demand with no
+  threshold. [0008](docs/adr/0008-the-local-development-loop.md) covers how the
+  pair was made legible in one terminal, why the browser talks to the API
+  through real CORS rather than a Vite proxy, why the frontend's ports are
+  literals, and why `pnpm ready` is a script and deliberately not a
+  `pnpm verify` step.
   [0007](docs/adr/0007-logging-the-error-contract-and-failure-containment.md)
   covers structured logging, the correlation id, the `ApiError` wire contract,
   the crash handlers and the frontend's error boundaries — including why the
