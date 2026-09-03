@@ -29,33 +29,27 @@ import type { FastifyPluginCallback } from "fastify";
 // no runtime shape check to write.
 import manifest from "../../package.json" with { type: "json" };
 
+// The response shape and its status union. They were declared in this file
+// until Task 1.12.1 and now live in packages/shared, because Story 1.12's
+// frontend has to compile against the same definition rather than a second
+// copy of it — and because this import is what makes apps/backend's declared
+// dependency on that package honest for the first time.
+//
+// Only the *type* moved. The schema below and its guard stay here:
+// JsonSchemaProperty is deliberately not in packages/shared, since nothing
+// outside this application declares a response schema.
+import { HEALTH_STATUSES } from "@marketpulse/shared";
+import type { HealthResponse } from "@marketpulse/shared";
+
 import { apiErrorSchema } from "../errors.js";
 import type { JsonSchemaProperty } from "../json-schema.js";
 
-// A string literal union, not a boolean and not a free string. Today it only
-// ever emits "ok": there is no dependency for this server to be degraded about
-// until Epic 2 adds one, and "unreachable" is the absence of a response, which
-// no server can report about itself (Story 1.12 decides that client-side).
-// Epic 3 adds market-feed state here, and the union is what makes that an
-// addition rather than a breaking change.
-export type HealthStatus = "ok";
-
-export interface HealthResponse {
-  status: HealthStatus;
-
-  // apps/backend's package.json version. Not the git SHA and not a build
-  // stamp — Story 1.11 can decide it wants one of those.
-  version: string;
-
-  // *Process* uptime, not time since the server started listening. They differ
-  // by milliseconds today and could differ by more once startup does real
-  // work, so the field says which one it is, and the unit is in the name
-  // rather than in a comment nobody reads over the wire.
-  uptimeSeconds: number;
-}
-
-// The response schema, and the guard that keeps it in step with the interface
-// above.
+// The response schema, and the guard that keeps it in step with the
+// `HealthResponse` interface — which now lives in packages/shared, so the guard
+// is checking one package's object against another package's type. That is the
+// arrangement working rather than a smell: the wire shape is the contract and
+// the schema is this server's rendering of it, and TS1360 fires across the
+// package boundary exactly as it did within the file.
 //
 // Fastify serialises a schema'd response through `fast-json-stringify`, which
 // **strips every property the schema does not declare**. That is the mechanism
@@ -89,7 +83,12 @@ export interface HealthResponse {
 // ../json-schema.ts, because the error contract's schema needs the same guard
 // and two copies of the type is how the two schemas stop agreeing.
 const healthProperties = {
-  status: { type: "string", enum: ["ok"] },
+  // `enum: HEALTH_STATUSES` rather than a literal `["ok"]`, so the union is
+  // enforced by the serialiser and the compiler from one source and the two
+  // cannot disagree — the shape apiErrorSchema already has with
+  // API_ERROR_CODES. Epic 3 widening HealthStatus reaches the wire without an
+  // edit here.
+  status: { type: "string", enum: HEALTH_STATUSES },
   version: { type: "string" },
   uptimeSeconds: { type: "number" },
 } satisfies Record<keyof HealthResponse, JsonSchemaProperty>;

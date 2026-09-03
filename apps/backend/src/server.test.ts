@@ -16,11 +16,12 @@
 // What this file cannot reach is stated once, at the bottom.
 
 import { REQUEST_ID_HEADER } from "@marketpulse/shared";
+import type { HealthResponse } from "@marketpulse/shared";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { apiErrorSchema } from "./errors.js";
-import type { HealthResponse } from "./routes/health.js";
+
 import { buildServer } from "./server.js";
 
 const CORS_ORIGIN = "http://localhost:5173";
