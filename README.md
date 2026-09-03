@@ -259,6 +259,7 @@ Run from the repository root:
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
 | `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
+| `pnpm image`        | Builds the backend's `linux/amd64` container image — see below        |
 | `pnpm clean`        | `tsc -b --clean`, plus the frontend's `dist/` and `storybook-static/` |
 
 Working on a single package uses the same six verbs, meaning the same thing:
@@ -688,6 +689,107 @@ curl http://localhost:5173/           # dev server: IPv6 only — 127.0.0.1 is r
 
 The second of those is the false positive described above; it tells you a server
 is listening and nothing about whether the application resolves.
+
+### `pnpm image` — the backend's container image
+
+The backend deploys as a container. `pnpm image` builds it:
+
+```sh
+pnpm image     # -> marketpulse-backend:<short commit sha>
+```
+
+That is one command rather than a documented incantation because three of its
+arguments are load-bearing and all three are easy to leave off:
+
+```sh
+docker build -f apps/backend/Dockerfile \
+  --platform linux/amd64 \
+  --build-arg NODE_VERSION="$(cat .nvmrc)" \
+  -t marketpulse-backend:"$(git rev-parse --short HEAD)" .
+```
+
+- **`--platform linux/amd64`** because Azure Container Apps requires it and this
+  is an Apple Silicon machine, so a plain `docker build` produces an `arm64`
+  image that runs perfectly here and cannot run there at all. It is the one
+  thing about the image that a local run will not catch.
+- **`--build-arg NODE_VERSION`** from `.nvmrc`, so the runtime Node major is
+  written down once in the repository rather than twice. The Dockerfile
+  deliberately gives that `ARG` **no default** — a default would silently win
+  whenever the flag was forgotten, which is the drift the arrangement exists to
+  prevent. Without it the build fails immediately on `node:-alpine`. BuildKit
+  warns `InvalidDefaultArgInFrom` on every build; that warning is the
+  arrangement working. A wrong major fails later and louder, at
+  `pnpm install` in the builder, with `ERR_PNPM_UNSUPPORTED_ENGINE` — that is
+  `engineStrict`, and it is a backstop rather than the tie, because it reads the
+  `engines` range and would not catch a wrong patch.
+- **A commit SHA and never `latest`.** The platform's own guidance is that
+  static tags "can lead to caching problems and can make your app difficult to
+  troubleshoot".
+
+The build context is the repository root, because pnpm needs the workspace
+manifest and the lockfile and neither is in `apps/backend`. `.dockerignore` at
+the root is what keeps `node_modules`, every build output, `apps/frontend` and
+**`.env`** out of it — that last one matters, because a build context is
+assembled from the working tree and not from git, so being gitignored is not
+enough.
+
+Running it, the way the platform will:
+
+```sh
+docker run --rm -p 3000:3000 \
+  -e HOST=0.0.0.0 \
+  -e CORS_ORIGIN=https://your-frontend.example \
+  --memory 512m --cpus 0.25 \
+  marketpulse-backend:$(git rev-parse --short HEAD)
+```
+
+`HOST=0.0.0.0` is required in a container and **the startup line will not tell
+you whether it took**. Fastify logs one `Server listening at …` line per bound
+interface address with loopback first, so the first line reads `127.0.0.1`
+whichever value you set, and the line count follows the machine's interfaces
+rather than the setting. Read the socket:
+
+```sh
+docker exec <container> cat /proc/net/tcp    # 00000000:0BB8 … 0A  = 0.0.0.0:3000 LISTEN
+```
+
+`docker stop` sends `SIGTERM` to PID 1, which is `node` itself — the `CMD` is
+the exec form and that is deliberate. A clean stop drains in about 4 ms and
+exits 0; a held-open connection hits the server's own 5-second ceiling, logs
+`shutdown timed out, forcing exit` at level 50 and exits 1. Both are well inside
+Container Apps' 30-second grace, so the container always exits on its own rather
+than being killed.
+
+Some figures, so a change that doubles something is visible. Uncompressed
+rootfs **188,920 KB**, of which the Node base image is 151.6 M and the artefact
+`/app` is **16.3 M** — `dist/` is 196 K over 32 files and the rest is the
+production dependency graph. Compressed, which is what a registry stores and the
+platform pulls, **60,266,496 B**. Cold build 45.3 s, cached 25.3 s. Resident
+memory is **62.0 MiB** idle and **70.6 MiB** after 500 requests, measured as the
+cgroup working set against a 512 MiB limit — 13.8% of Container Apps'
+smallest allocation.
+
+Note that `docker images` and `docker image inspect` reported wildly different
+sizes for the same content (254 MB and 60.3 MB) because buildx and the
+containerd store mix compressed and uncompressed views. `du -sx /` inside the
+container and `docker save | wc -c` are the two that reproduce.
+
+What ships is produced by `pnpm deploy --filter @marketpulse/backend --prod
+--legacy`, which copies the **package directory** — `dist/`, `package.json` and
+`node_modules/` — and not `dist/` alone. Both halves of that matter: `dist/` on
+its own dies at import time on `fastify`, and once `node_modules` is reachable
+it dies again on the health route's read of `../../package.json`, so fixing the
+obvious failure does not produce a working artefact. `--legacy` is required
+because pnpm 10 and later refuse a non-injected workspace deploy; the
+alternative, `injectWorkspacePackages: true`, would turn `@marketpulse/shared`
+into a hard-linked copy for every developer and break `pnpm dev`'s watch loop.
+
+Each package's `files` field is what keeps its `src/`, its `coverage/` report,
+its Vitest configs and its compiled test files out of the artefact — `pnpm
+deploy` copies the whole directory otherwise. `files` affects `pnpm deploy` and
+`pnpm pack` only; the workspace symlink `pnpm dev` relies on is untouched.
+
+Nothing is pushed anywhere. `pnpm image` builds and tags locally.
 
 ### `typecheck` and `build` are the same command
 

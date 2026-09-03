@@ -5,6 +5,10 @@
   "description": "Domain types shared by the MarketPulse backend and frontend",
   "license": "UNLICENSED",
   "type": "module",
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
