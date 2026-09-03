@@ -1,6 +1,6 @@
 # Story 1.10 — Continuous Integration Pipeline
 
-**Status:** In progress — eight tasks, one complete
+**Status:** In progress — eight tasks, two complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.9
 **Epic scope covered:** CI pipeline
@@ -106,7 +106,7 @@ Tackled in order. The story is complete when all eight are done.
 | #      | Task                                                                                                           | Status      |
 | ------ | -------------------------------------------------------------------------------------------------------------- | ----------- |
 | 1.10.1 | [Choose the provider and prove the toolchain pins on Linux](TASK-01-choose-provider-and-pin-the-runner.md)     | Complete    |
-| 1.10.2 | [Run `pnpm verify` on push and on pull request](TASK-02-run-verify-on-push-and-pull-request.md)                | Not started |
+| 1.10.2 | [Run `pnpm verify` on push and on pull request](TASK-02-run-verify-on-push-and-pull-request.md)                | Complete    |
 | 1.10.3 | [Cache the pnpm store, and decide what must never be cached](TASK-03-cache-the-pnpm-store.md)                  | Not started |
 | 1.10.4 | [Coverage as its own step, the threshold, and what CI publishes](TASK-04-coverage-threshold-and-artefacts.md)  | Not started |
 | 1.10.5 | [The backend's process half: a child-process test suite](TASK-05-backend-process-tests.md)                     | Not started |
