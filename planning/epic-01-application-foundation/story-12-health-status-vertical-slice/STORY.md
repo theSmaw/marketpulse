@@ -70,6 +70,36 @@ The frontend reads **no** configuration today, and this story brings the first v
 - **CORS is pinned to 5173, and that is why the frontend's ports are literals.** Task 1.6.4 closed the "should the frontend's ports be configurable" question against making them so, partly on this story's allowlist: a silently moved port fails as a browser error naming neither the port nor the cause, which is why `strictPort` is on. If this story needs a second origin, it is `loadEnv()` in `vite.config.ts` rather than `process.env`
 - **The backend's URL is the first thing that will want to differ between environments, and nothing branches on the environment today.** ADR 0006 §4 made that a decision rather than an omission. Read it before adding an `APP_ENV`; the answer is very likely one more value, not a name for the environment
 
+### What Story 1.11 hands this story — read this before the sections above
+
+**Task 1.11.5 took a bite out of this story, deliberately and with a stated line, because Story 1.11's "the deployed frontend communicates with the deployed backend" criterion could not be met without one.** Several of the sections below were written when nothing crossed the boundary and are now one step out of date; this section is the correction, and where it disagrees with them it wins.
+
+**What was taken, and it is small:**
+
+- **`apps/frontend/src/health-probe.ts`** — one `fetch` of `/health` at startup, reported to the console, called as `void probeBackendHealth()` from `main.tsx` **before the tree mounts and outside React entirely**. No state, no effect, no polling, no component, no retry, no timeout, no abort.
+- **`VITE_API_BASE_URL`**, with `apps/frontend/src/api-base-url.ts` resolving it. Optional, defaulting to `http://localhost:3000`, documented in `apps/frontend/.env.example`.
+- **`apps/frontend/src/vite-env.d.ts`**, which declares Vite's `strictImportMetaEnv` so a misspelled `VITE_` name is **TS2551** rather than an `any` evaluating to `undefined`.
+- **15 tests** across `api-base-url.test.ts` and `health-probe.test.ts`, taking `apps/frontend` from 47 to 62.
+
+**What was deliberately left, all of it still this story's:**
+
+- **The API client.** What exists is one `fetch` with no shared transport and no error policy.
+- **Promoting `HealthResponse` into `packages/shared`.** The probe types its body as `unknown` on purpose — that promotion is this story's stated payoff for creating the package in Story 1.1, and spending it in a deployment task would have been the wrong trade.
+- **All state, every effect, the polling, and the status indicator** — including the vocabulary decision Story 1.4 posed and Story 1.5 sharpened. **Nothing rendered changed**, so `AppHeader` still hard-codes `feedStatus="disconnected"` and the two-indicators-or-one question is exactly as open as it was.
+- **The `ApiError` seam and the `requestId` question.** The probe shows a _developer_ an id in a console and shows a _user_ nothing.
+- **The React Compiler rules' first real test.** Keeping the probe out of React is precisely what preserved that for this story's polling effect. It is still true that fifteen error-level rules have never fired on shipped code.
+
+**`main.tsx`'s `void probeBackendHealth();` and the module behind it are meant to be deleted by this story**, and both say so in their own comments. Deleting them is the expected shape, not a regression.
+
+**Four things it measured that this story would otherwise rediscover:**
+
+- **`exposedHeaders` is load-bearing and now proven.** The `x-request-id` the browser reads is the `reqId` in the backend's Log Analytics records for the same request — end to end, across an origin boundary. This is the payoff of Story 1.8 rejecting a Vite proxy, which would have exposed every header and hidden the requirement.
+- **The cross-origin failure was made to happen and both halves were observed together.** The browser reports `TypeError: Failed to fetch`; `curl` with the same `Origin` gets a **200 with a full body**; the server logs `statusCode: 200`. Every piece of server-side evidence says the system is healthy. Do not debug this story's fetch failures from the server log.
+- **The address is a build-time literal and the numbers now exist.** A build without the variable is 344,537 B and the deployed build is 344,609 B — **different artefacts**. One cannot be promoted across environments, and a build that forgets the variable does not fail: it ships a page dialling `http://localhost:3000`, which an HTTPS page blocks as mixed content and which reads as an unreachable backend.
+- **The two local defaults are a matched pair.** `VITE_API_BASE_URL`'s `http://localhost:3000` and `CORS_ORIGIN`'s `http://localhost:5173` point at each other, verified on a tree with no `.env` file at all. Change one without the other and the local loop fails in a browser while every server log stays green.
+
+**One thing this story now owes that nobody owed before:** a variable is declared in **two** places — `apps/frontend/.env.example` and `apps/frontend/src/vite-env.d.ts` — and **nothing checks that pair**. `scripts/check-env-example.mjs` reads the example and has no view of the declarations. This story brings the second variable, which is where a pair becomes a set; extending that script is the obvious move and is deliberately not made in advance.
+
 ### What Story 1.7 hands this story
 
 Story 1.7 is complete and `docs/adr/0007-*` records it. This story is its main consumer, and it owns three of its open questions.

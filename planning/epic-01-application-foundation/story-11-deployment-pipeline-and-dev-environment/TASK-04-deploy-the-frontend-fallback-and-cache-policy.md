@@ -1,6 +1,6 @@
 # Task 1.11.4 — Deploy the frontend, with a fallback that is not a catch-all and a stated cache policy
 
-**Status:** Not started
+**Status:** Complete — 2026-09-03
 **Story:** [1.11 Deployment Pipeline & Development Environment](STORY.md)
 **Depends on:** Task 1.11.1, and — for everything that touches the host — the Azure subscription Task 1.11.3 owns creating
 
@@ -40,3 +40,32 @@ Serve `apps/frontend/dist` from a real static host, close the two Story 1.5 acce
 ## Notes
 
 This task closes two acceptance criteria belonging to a story that has been complete since 2026-08-31. Task 1.5.5 declined to tick them on local evidence and said why; the deliberate consequence is that they can only be ticked here, against a real host, and they should be re-checked here rather than inherited from that reasoning.
+
+## Outcome — 2026-09-03
+
+**The frontend is deployed at <https://red-smoke-029583a0f.5.azurestaticapps.net> and both halves of this task were done in one sitting**, because the Azure subscription that blocked Task 1.11.3 now exists. The full record is the _What the frontend deploy measured_ section of [`HOSTING.md`](HOSTING.md); this is the summary and the "done when" list answered item by item.
+
+- **The URL is written down** — in `HOSTING.md`'s account-facts table, in `README.md` and in `CLAUDE.md`.
+- **The artefact is four files and 355,985 B.** `staticwebapp.config.json` (300 B) joins the three that have been byte-identical since Task 1.7.7, and those three did not move: `index.html` 1,101 B / `eab270a4…`, `assets/index-C-Puqfnm.js` 343,658 B / `cba2825c…`, `assets/index-DFxUCjbx.css` 10,926 B / `f98519e3…`. It gets there through Vite's `publicDir` — `apps/frontend/public/` — which keeps it in the repository where Prettier reads it.
+- **The served files match a local build byte for byte**, downloaded from the CDN and hashed.
+- **All four routes deep-load cold and render, and `/a-path-that-does-not-exist` renders `NotFound`** — checked in a browser, not inferred from a 200. `/assets/nope.js` is a **404**. That closes the two Story 1.5 acceptance criteria that were deliberately left open, and Story 1.5's `STORY.md` is amended rather than inherited.
+- **The cache headers were read from the deployed site**, including on a fallback-served path: `no-cache` on `/` and on `/investigations`, `public, max-age=31536000, immutable` on both hashed assets. The document default is a `globalHeaders` entry precisely because a route rule would not have reached the fallback.
+- **Preview-environment origins were measured rather than predicted**, by deploying one and deleting it. Both documented hostname patterns were wrong and the environment name is normalised, so a preview origin cannot be derived from a branch name — and every preview environment therefore fails cross-origin against the one `CORS_ORIGIN` the backend takes.
+- **`storybook-static/` is absent from the deployed site**, confirmed by requesting seven of its paths and getting the fallback's `index.html` rather than its content.
+- **The workshop is not published**, decided here with a reversal trigger.
+- **Uploads are not atomic**, and this is the finding worth carrying: the old asset is withdrawn while the old `index.html` is still being served, so a deploy has a **~1.5-second window in which a cold load is broken**. Reproduced on two deploys.
+
+### Four things this task found that its own brief did not anticipate
+
+1. **Static Web Apps is not offered in East US.** The app is in **East US 2**, and `HOSTING.md`'s "East US, for both halves" is corrected rather than quietly left standing.
+2. **`Microsoft.Web` had never been registered on this subscription**, so the first create failed with `MissingSubscriptionRegistration` — while the region query that preceded it succeeded, because provider metadata is readable when the namespace is not registered.
+3. **Storybook's build copies `public/` too**, so the configuration file lands in `storybook-static/` as well — and the SWA CLI globbed the working directory and reported finding _that_ copy rather than the one in `dist/`. Harmless only because they are identical bytes.
+4. **The `exclude` array covers `/assets/*` and nothing else**, which is exact today and is a live trap for the first file anybody adds to `public/`: it lands at the artefact's root, outside the exclude, and a missing one is answered with `index.html` and a 200.
+
+### What was deliberately not done
+
+**The `swa` emulator was not used.** The account exists, so a local pass would have been evidence about the configuration file and never about the host — the same distinction Task 1.5.5 drew when it refused to tick a criterion against `vite preview`. The CLI was used only as a deploy client, pinned at `@azure/static-web-apps-cli@2.0.10` through `npx`, and is deliberately not a dependency of this workspace.
+
+**The deploy used the app's deployment token, and that is a divergence from the intended federated credential** — recorded in `HOSTING.md` with its reason. It is not stored anywhere: it is fetched with `az` at the moment of use and passed through the environment of one command. **Task 1.11.6 still owes the federated identity credential**, and must not reach for the usual `AZURE_STATIC_WEB_APPS_API_TOKEN` repository secret by default.
+
+**`base` stays `/`.** The host did not force a subpath, so no rebuild and no per-environment artefact.

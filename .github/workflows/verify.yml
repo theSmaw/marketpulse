@@ -422,7 +422,11 @@ jobs:
       # decision.
       #
       # It walks whatever `dist/` holds rather than naming the three files, so
-      # a fourth file appears here on its own. This is deliberately NOT a check:
+      # a fourth file appears here on its own. That happened one story later:
+      # Task 1.11.4 added `staticwebapp.config.json` — Azure Static Web Apps
+      # wants its configuration at the root of the deployed output — and this
+      # step needed no edit, taking the artefact to four files and 355,985 B.
+      # This is deliberately NOT a check:
       # nothing asserts the hash, because the artefact is supposed to change
       # when the frontend changes and a pinned hash would be a check that fails
       # for the right reason. It is a record.

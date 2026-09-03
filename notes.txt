@@ -1,7 +1,7 @@
 Do we need to amend, add, delete or re-order any tasks in
 @planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment
  based on our implementation of
-@planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/TASK-01-choose-hosting-and-the-database-question.md?
+@planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/TASK-05-make-the-two-halves-talk.md?
 
 Do we need to amend, add, delete or re-order any stories in
 @planning/epic-01-application-foundation based on our implementation of
