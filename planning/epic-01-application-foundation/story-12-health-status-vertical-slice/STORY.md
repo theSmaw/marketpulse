@@ -164,6 +164,27 @@ Story 1.10 is complete (2026-09-03) and recorded in `docs/adr/0010-continuous-in
 - Behaviour is verified against the deployed environment, not only locally
 - Polling is deliberate about frequency and does not spam logs
 
+## Tasks
+
+Tackled in order. The story is complete when all eight are done. ~~And so, with them, is Epic 1.~~ **Story 1.13 was added after this split (2026-09-03) and is now the epic's last story** — 1.12 still meets the epic's fourth exit criterion, and 1.13 closes the epic. See [Story 1.13](../story-13-end-to-end-browser-testing/STORY.md) for why it exists and why it depends on this one.
+
+1.12.1 promotes the health contract into `packages/shared` and names the three states in types before anything renders, because "degraded" is a client-side judgement with no producible cause unless somebody defines one. 1.12.2 turns Task 1.11.5's one bare `fetch` into a real transport and takes the two seam decisions Story 1.7 left here. 1.12.3 is the first stateful code in the repository and the React Compiler rules' first real test; it is also where the interval is chosen, against a cost that is now three costs rather than one. 1.12.4 builds what the states look like in the workshop, knowing nothing about the backend, and answers the one-indicator-or-two question Story 1.4 posed and Story 1.5 put on screen. 1.12.5 wires the two together into the chrome. 1.12.6 makes every state happen locally from a named cause and puts numbers under the polling criterion. 1.12.7 does it again against the deployed environment, where two of the three states can only be produced by causes the platform does not heal around and are invisible to every piece of server-side evidence. 1.12.8 closes the story and writes ADR 0012.
+
+| #      | Task                                                                                                                                         | Status      |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1.12.1 | [Promote the health contract into `packages/shared` and name the three states](TASK-01-promote-the-health-contract-and-name-the-states.md)   | Not started |
+| 1.12.2 | [Build the API client and decide what a user sees of a failure](TASK-02-api-client-and-the-error-seam.md)                                    | Not started |
+| 1.12.3 | [Poll the backend: the first state, the first effect and the first network loop](TASK-03-polling-state-and-the-first-effect.md)              | Not started |
+| 1.12.4 | [Build the status indicator, and settle the one-indicator-or-two question](TASK-04-the-status-indicator-component.md)                        | Not started |
+| 1.12.5 | [Wire the indicator into the chrome, on every route](TASK-05-wire-the-indicator-into-the-chrome.md)                                          | Not started |
+| 1.12.6 | [Make all three states happen locally, prove recovery, and measure the poll](TASK-06-make-the-states-happen-locally-and-measure-the-poll.md) | Not started |
+| 1.12.7 | [Verify against the deployed environment, including the states you cannot fake there](TASK-07-verify-against-the-deployed-environment.md)    | Not started |
+| 1.12.8 | [Verify, document, and record ADR 0012](TASK-08-verify-document-and-adr.md)                                                                  | Not started |
+
+The split is by **what is being decided**, not by layer, which is why the contract and the vocabulary come before any code that uses them and why the component is built before it is connected to anything. Three decisions that could have been made by reflex are each given a task that owns them: what "degraded" means (1.12.1), one indicator or two (1.12.4), and whether the declined browser smoke check gets built now that this story is its stated reversal trigger (1.12.7) — **that third one has since been taken: it is built, by [Story 1.13](../story-13-end-to-end-browser-testing/STORY.md), which exists because this story is what makes the failure shippable.** 1.12.7 still owns saying so rather than silently deferring.
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify`, leaves the pipeline green, and — from 1.12.3 onwards, where the probe is deleted and replaced — leaves the deployed frontend still talking to the deployed backend. The last of those is the clause a mid-story merge can break without anything here noticing.
+
 ## Notes
 
 This is the first appearance of PRODUCT_SPEC.md §36's core principle: report what is known and when it was known, and degrade locally. The eventual live-feed equivalent is "Live feed disconnected — displaying data through 10:42:17".

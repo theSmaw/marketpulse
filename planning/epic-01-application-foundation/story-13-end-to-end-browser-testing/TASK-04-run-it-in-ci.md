@@ -1,0 +1,33 @@
+# Task 1.13.4 — Run it in CI, and settle where it sits relative to `pnpm verify`
+
+**Status:** Not started
+**Story:** [1.13 End-to-End Browser Testing](STORY.md)
+**Depends on:** Task 1.13.3
+
+## Objective
+
+Get the suite running on a clean Linux runner, and resolve the first genuine tension with the pipeline's founding rule rather than sidestepping it.
+
+## Work
+
+- **Take the position question head-on and write the argument in the workflow file, beside the step.** The rule is that the pipeline runs `pnpm verify` **by name** and defines nothing of its own, so CI cannot become a second definition of "verified" — `stories`, `env:check` and `test:process` all arrived in the chain for that reason. E2E strains it, because `verify` runs with no servers up, which is exactly why `pnpm ready` is not a step. The three shapes and their stated costs are in `STORY.md`; pick one, and note that `deploy.yml` is the precedent for the third — a separate workflow, with three reasons written at the top of the file, all of them properties of a workflow rather than of a job
+- **Whatever the position, the chain must stay runnable from a cold tree with no ports free.** If E2E becomes a `verify` step, that property is gone and the loss is larger than it looks: every `pnpm verify` this repository has measured, from eight clean clones, ran with nothing listening
+- **Cache the browser binaries deliberately, as a third category.** The cache rule is written beside the existing step: the pnpm **store** is cached and nothing else, because a restored `dist/` is a correctness risk taken for ~2.5 s against a **13.6 s runner-to-runner spread**. Browser binaries are a downloaded **tool** rather than a build output, so the risk is different and the decision is new. The key must carry the runner OS — one lockfile installs 397 packages on Linux and 398 on macOS — and the manual bust is a version prefix in both the key and the restore-key
+- **Know what `actions/cache` will and will not tell you.** It declares `cache-hit` and nothing else; `cache-matched-key` belongs to `actions/cache/restore` and reads as the empty string here. So a restore-key hit and a total miss are both `cache-hit: false`, and only the tool's own download output separates them. And a cache saved on a `pull_request` run is invisible to a `workflow_dispatch` run on the same branch
+- **Any new action is pinned to a 40-character commit SHA and counted.** There are **five distinct actions across eight uses** today — count them out of `.github/workflows/` rather than copying the number, because it has been wrong once. `.github/dependabot.yml` watches `github-actions` weekly, so a sixth action is covered automatically rather than being a new reversal trigger
+- **Decide whether it gates a merge, and know that the answer is invisible in a diff.** The required check is repository ruleset `main` (id 22160620), keyed on the **job name** `verify`, with admin bypass retained. A new job that should gate is a ruleset change nothing in this tree records, so this task's write-up and ADR 0013 become the only durable copy — the same shape Story 1.10 accepted rather than worked around. A new job that should **not** gate is also a decision and should be stated, so a future reader finding it unrequired can tell that from an omission
+- **Upload failure artefacts with a retention number and a reason.** The three coverage reports go at **7 days** rather than the 90-day default, `storybook-static/` was declined at 9.3 MB per push, and `dist/` was declined in favour of a fingerprint. Traces and video are the largest thing this repository would produce and are worth nothing on a green run — upload on failure only, and say how large a failure's artefact actually was rather than estimating
+- **Measure it against the right baseline.** The seven-step chain has five complete readings spanning ~9 s and the install spread overlaps its own cache saving, so a single reading proves nothing. Take the runner's figure more than twice and report it beside the install summary and the per-step split, never as a chain total
+- **Make it go red on the runner before believing it is wired up.** Every failure class in Story 1.10 was made to happen rather than reasoned about, and the fifth one — `test:process` — went red on a runner for the first time in Task 1.10.8. Do the same here, on a throwaway branch with its own draft pull request, because `push` is restricted to `main` so a bare branch push runs nothing. One thing that pass taught: a chain reports its first failure and nothing after it, so a probe has to be surgical or it proves the wrong step
+
+## Done when
+
+- The suite runs on a clean Ubuntu runner and has been seen both green and red there
+- Its position relative to `pnpm verify` is a written decision with its argument beside the step
+- Browser binaries are cached or deliberately not, with the reason and the OS-scoped key
+- The gating decision is recorded, including if the answer is "it does not gate"
+- Failure artefacts have a retention and a measured size; a green run uploads nothing
+
+## Approach note
+
+The rule this task strains is worth restating before bending it: `stories`, `env:check` and `test:process` all became `verify` steps rather than workflow steps **because a CI-only check forks the definition of "verified"**. E2E is the first check with a real reason not to be in the chain — it needs a running system — so whichever way it goes, the answer belongs in ADR 0013 next to Story 1.10's rule rather than quietly beside it.
