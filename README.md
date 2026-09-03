@@ -5,7 +5,7 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all 137 fast tests passed, and
+files still agree with the configuration table, all 160 fast tests passed, and
 the 10-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
@@ -47,7 +47,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of 137 fast tests plus a 10-test process suite, with
+and a test suite of 160 fast tests plus a 10-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -362,7 +362,7 @@ Run from the repository root:
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Every package's tests — 137 across the workspace — see below          |
+| `pnpm test`         | Every package's tests — 160 across the workspace — see below          |
 | `pnpm test:process` | The backend's process half — 10 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
@@ -449,8 +449,8 @@ the same second half for the same reason.
 ### What `pnpm test` covers
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
-in this workspace. `packages/shared` runs 26 tests across 4 files,
-`apps/backend` 49 across 3, and `apps/frontend` 62 across 10 — 137 in total,
+in this workspace. `packages/shared` runs 37 tests across 4 files,
+`apps/backend` 49 across 3, and `apps/frontend` 74 across 11 — 160 in total,
 and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -556,7 +556,7 @@ pnpm coverage                                   # all three packages
 pnpm --filter @marketpulse/backend coverage     # one of them
 ```
 
-It is the same 137 tests with `--coverage` added, fanning out through
+It is the same 160 tests with `--coverage` added, fanning out through
 `pnpm -r` exactly as `pnpm test` does, so there are **three reports and no
 merged one** — each package answers for its own sources. It is deliberately
 not part of `pnpm test` and not a `pnpm verify` step of its own: nothing gates

@@ -20,7 +20,7 @@ export type { FeedStatus } from "./feed-status.js";
 // are here for the same reason — the backend writes them and Story 1.12's
 // frontend reads them, and a wire format described in two places is a wire
 // format that will disagree with itself.
-export { API_ERROR_CODES, apiError } from "./api-error.js";
+export { API_ERROR_CODES, apiError, isApiError } from "./api-error.js";
 export type { ApiError, ApiErrorCode } from "./api-error.js";
 export { REQUEST_ID_HEADER } from "./request-id.js";
 
