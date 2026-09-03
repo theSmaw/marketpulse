@@ -1,0 +1,512 @@
+# The deploy. Story 1.11, Task 1.11.6 — see
+# planning/epic-01-application-foundation/story-11-*.
+#
+# THIS FILE DEPLOYS WHAT THE CHAIN PRODUCES AND DEFINES NO BUILD OF ITS OWN.
+# Story 1.10 spent eight tasks on one rule — the pipeline runs `pnpm verify` by
+# name and defines nothing of its own — and a deploy is the first thing that
+# legitimately has to do something the chain does not. The line held here is
+# that every build below is invoked BY NAME: `pnpm build` for the frontend and
+# `pnpm image` for the backend, exactly as a developer would run them. There is
+# no `tsc`, no `vite build`, no `docker build` and no `--build-arg` anywhere in
+# this file. If a build needs to change, it changes in the chain.
+#
+# WHY THIS IS A SEPARATE WORKFLOW AND NOT A JOB IN verify.yml. Three reasons,
+# in order of weight.
+#
+#   1. The badge. README.md's badge paragraph says in as many words that green
+#      certifies the chain and NOT coverage. A deploy job inside `verify` would
+#      make the badge report the deployment too, so a registry outage or an
+#      expired credential would turn the tick red for something the paragraph
+#      beside it says it does not certify. The workflow name is what the badge
+#      keys on, so this is a property of the file, not of the job.
+#   2. Concurrency. `verify`'s group is per-ref with cancellation ON everywhere
+#      except `main`, because a cancelled verify leaves a commit with no
+#      verdict. A cancelled DEPLOY is worse than no verdict: it is a half-done
+#      rollout. This workflow needs cancellation off and a group of its own, and
+#      concurrency is a property of the workflow.
+#   3. The required status check keys on the JOB name `verify`. Adding a job to
+#      that workflow leaves the gate keyed on a job that no longer describes the
+#      whole run, and inviting somebody to "fix" that by adding this job to the
+#      ruleset would make a deploy gate a merge — which is backwards, since the
+#      deploy happens after one. See the ruleset note in HOSTING.md.
+#
+# The cost of the separation, stated rather than discovered: this workflow has
+# to be told what to check out (`workflow_run` does not check out the commit
+# that was verified), and it repeats the toolchain and install steps. It does
+# NOT repeat the frontend build wastefully, because the deployed build is a
+# different build — see the VITE_API_BASE_URL block below.
+name: deploy
+
+# `workflow_run` on `verify` completing. This is the gate, and it is a
+# CONCLUSION on a workflow run rather than a step's `conclusion` — Story 1.10
+# recorded that a step marked `continue-on-error` reports `conclusion: success`
+# however it exited, so a deploy gate written against a step would be a gate
+# against nothing. A workflow run's conclusion has no such trap: the coverage
+# step cannot turn `verify` red, and `verify` going red is exactly what stops
+# this workflow.
+#
+# `branches: [main]` filters on the TRIGGERING run's head branch, which is not
+# by itself enough: a pull request from a fork whose source branch is called
+# `main` produces a `verify` run with `head_branch: main`. The `event == 'push'`
+# clause in the job's `if:` is what closes that, because `verify`'s own `push`
+# trigger is restricted to this repository's `main`.
+#
+# `workflow_dispatch` is here for the same reason it is in `verify.yml`: a way
+# to run this without inventing a commit. It is also the only way to re-deploy
+# an unchanged `main`, which is the frontend's rollback mechanism (the Free plan
+# has no revision history) and is what Task 1.11.7 will need.
+on:
+  workflow_run:
+    workflows: [verify]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# ONE deploy at a time, and cancellation OFF. Two merges in quick succession
+# must not interleave two uploads or two rollouts; with `cancel-in-progress`
+# false a second run queues behind the first rather than racing it or replacing
+# it. The group is a literal rather than `${{ github.ref }}`: every run of this
+# workflow targets the same two live resources, so they all belong in one queue.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+# `id-token: write` is what mints the OIDC token azure/login exchanges. It is
+# the whole reason there is no stored credential — see the login step.
+permissions:
+  contents: read
+  id-token: write
+
+# The frontend's API address, in the workflow file where it is reviewable.
+#
+# THIS IS THE MOST DANGEROUS LINE IN THIS FILE and it is dangerous by being
+# absent rather than by being wrong. `VITE_API_BASE_URL` is substituted into the
+# bundle at BUILD time (Story 1.6's finding, arriving in production). A build
+# that forgets it does not warn and does not fail: it produces a valid artefact
+# that dials `http://localhost:3000`, which an HTTPS page blocks as mixed
+# content. `verify` stays green, the deploy succeeds, the platform reports
+# success, `/health` is up and the site serves — and the page cannot reach the
+# backend. Only a browser on the deployed page can tell. That is why the value
+# is here, in a file a reviewer reads, and not inherited from a secret, a
+# variable or somebody's shell.
+env:
+  VITE_API_BASE_URL: https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io
+  # Identifiers, not credentials, and deliberately not repository secrets. An
+  # application id, a tenant id and a subscription id are public facts — all
+  # three are already published in HOSTING.md, in this repository, which is
+  # public — and none of them authorises anything on its own. What authorises
+  # this workflow is the FEDERATED CREDENTIAL on the app registration, whose
+  # subject is `repo:theSmaw/marketpulse:ref:refs/heads/main`; a token is issued
+  # only to a run whose OIDC claims match it. There is no secret to leak, to
+  # rotate or to forget. See "Secrets" in HOSTING.md.
+  AZURE_CLIENT_ID: 1bb765eb-fff3-4aed-80f2-90796c2fbcfb
+  AZURE_TENANT_ID: 6069915b-5bf2-4e36-8b25-8ffb25b5fdd1
+  AZURE_SUBSCRIPTION_ID: 5104e168-b3de-41c2-92a8-c68d28bd4d16
+  AZURE_RESOURCE_GROUP: rg-marketpulse-dev
+  AZURE_REGISTRY: crmarketpulse
+  AZURE_CONTAINER_APP: marketpulse-backend
+  AZURE_STATIC_WEB_APP: marketpulse-frontend
+  IMAGE_REPOSITORY: marketpulse-backend
+
+jobs:
+  deploy:
+    name: deploy
+    # The gate, in three clauses, and the second and third are not padding.
+    # `conclusion == 'success'` is the criterion. `event == 'push'` restricts
+    # this to `verify`'s own push trigger, which is restricted to `main` — so a
+    # pull request run can never reach here, fork branch names included.
+    # `head_branch == 'main'` is belt and braces on the same point.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    steps:
+      # `workflow_run` does not check anything out and does not default to the
+      # commit that was verified — it defaults to the tip of the default branch,
+      # which is a different commit the moment two merges land close together.
+      # Checking out `head_sha` is what makes "this deploy is that verify run"
+      # true rather than usually true.
+      - name: Check out the verified commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
+
+      # The commit being deployed, resolved once and read by everything below.
+      # The image tag comes from THIS and not from `git rev-parse HEAD` inside
+      # the recipe: they agree on a push to `main` and they do not agree on a
+      # merge-commit checkout, which is the case the rule exists for.
+      - name: Resolve the commit being deployed
+        id: commit
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          short="$(git rev-parse --short HEAD)"
+          echo "deploying $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "short=$short" >> "$GITHUB_OUTPUT"
+          # A clean CI checkout cannot be dirty, so `pnpm image` cannot produce
+          # a `-dirty` tag here. Asserted rather than assumed: one appearing
+          # means a step above wrote into the working tree, and that is a
+          # different bug from anything this file is about.
+          dirt="$(git status --porcelain)"
+          if [ -n "$dirt" ]; then
+            echo "::error::the checkout is dirty before any build ran; a -dirty tag must never reach the registry"
+            printf '%s\n' "$dirt"
+            exit 1
+          fi
+
+      # The toolchain, identical in shape to verify.yml's and for the identical
+      # reasons: Node from .nvmrc with no literal here, pnpm from
+      # `packageManager` through Corepack with no pnpm install step and no pnpm
+      # action, Corepack after setup-node so the shims land in the pinned Node.
+      - name: Set up Node from .nvmrc
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Resolve the pnpm store path
+        id: store
+        run: |
+          set -euo pipefail
+          path="$(pnpm store path)"
+          echo "pnpm store path: $path"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          echo "node-major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+
+      # The SAME key `verify` writes, so this reads the store that run already
+      # populated rather than paying for a second cold install. Bump `v1` in
+      # BOTH files together if it is ever busted by hand.
+      - name: Cache the pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # OIDC. No client secret, no service-principal password, no deployment
+      # token in a repository secret — a federated identity credential scoped to
+      # `repo:theSmaw/marketpulse:ref:refs/heads/main`, which is the shape
+      # HOSTING.md decided in Task 1.11.1 and the shape Task 1.11.4 diverged
+      # from by hand. A credential that cannot be replayed is worth more than
+      # one that is merely rotated; that is the same argument that pins every
+      # action in this file to a commit SHA.
+      #
+      # This is the FIFTH pinned action in this repository. Task 1.10.7 named a
+      # fifth action as Dependabot's reversal trigger, and .github/dependabot.yml
+      # is that decision being taken rather than drifting past its own trigger.
+      - name: Sign in to Azure
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      # `az containerapp` is an extension. Installed explicitly rather than left
+      # to the CLI's dynamic install, which prints a prompt-shaped message and
+      # is one behaviour change away from being a hang in a runner.
+      - name: Add the containerapp CLI extension
+        run: az extension add --name containerapp --upgrade --allow-preview true --only-show-errors
+
+      # ---------------------------------------------------------------------
+      # The backend goes first, deliberately. Its contract (`GET /health`) is
+      # unchanged by a frontend deploy, so the currently-published page keeps
+      # working against the new revision; the reverse — publishing a page that
+      # needs an API that is not there yet — is the order that has a broken
+      # window in it.
+      # ---------------------------------------------------------------------
+
+      # `pnpm image` by name. The three load-bearing build arguments
+      # (--platform linux/amd64, --build-arg NODE_VERSION from .nvmrc, and the
+      # repository root as the context) live in scripts/build-image.mjs and are
+      # deliberately not repeated here. MARKETPULSE_IMAGE_TAG is the door that
+      # script opened for this task: the pipeline knows the commit it was
+      # triggered for and tags from that.
+      - name: Build the backend image
+        env:
+          MARKETPULSE_IMAGE_TAG: ${{ steps.commit.outputs.short }}
+        run: pnpm image
+
+      - name: Sign in to the registry
+        run: az acr login --name "$AZURE_REGISTRY"
+
+      - name: Push the backend image
+        id: push
+        run: |
+          set -euo pipefail
+          tag="${{ steps.commit.outputs.short }}"
+          local="$IMAGE_REPOSITORY:$tag"
+          remote="$AZURE_REGISTRY.azurecr.io/$IMAGE_REPOSITORY:$tag"
+          case "$tag" in
+            *-dirty)
+              echo "::error::refusing to push a -dirty tag"
+              exit 1
+              ;;
+          esac
+          docker tag "$local" "$remote"
+          docker push "$remote"
+          echo "remote=$remote" >> "$GITHUB_OUTPUT"
+
+      # The backend's answer to the frontend's four-file fingerprint, which has
+      # existed since Task 1.10.4 while the backend's equivalent figures existed
+      # only as prose in a task write-up. Read back FROM THE REGISTRY rather than
+      # from the build, so it describes what the platform will pull.
+      #
+      # Which digest: HOSTING.md settles it. The image is an OCI index carrying
+      # the linux/amd64 manifest plus a buildx attestation at unknown/unknown,
+      # the attestations are kept deliberately, and THE INDEX DIGEST IS THE
+      # PROVENANCE RECORD — it is what `repo@sha256:...` resolves, it is the only
+      # one of the two that covers the attestations, and the platform manifest
+      # stays reachable from it. Both are printed, because the index digest moves
+      # when attestation content moves even if the image bytes do not: to answer
+      # "did the image change", compare the PLATFORM digest.
+      #
+      # This is a RECORD and not a check, exactly as the frontend's is. Nothing
+      # asserts a digest, because the image is supposed to change.
+      - name: Fingerprint the backend image
+        id: image
+        run: |
+          set -euo pipefail
+          remote='${{ steps.push.outputs.remote }}'
+          repo="$IMAGE_REPOSITORY:${{ steps.commit.outputs.short }}"
+
+          # `show-metadata` is the only thing that reports the digest a TAG
+          # resolves to; it does not report the media type, so the body is read
+          # separately rather than assumed to be an index. Written to survive
+          # either answer: HOSTING.md records an OCI index here, and a runner
+          # whose Docker produces a plain single-platform manifest instead is a
+          # finding rather than a crash.
+          index_digest="$(az acr manifest show-metadata --registry "$AZURE_REGISTRY" --name "$repo" -o json | jq -r '.digest')"
+          body="$(az acr manifest show --registry "$AZURE_REGISTRY" --name "$IMAGE_REPOSITORY@$index_digest" -o json)"
+          media_type="$(printf '%s' "$body" | jq -r '.mediaType')"
+          child_count="$(printf '%s' "$body" | jq -r '(.manifests // []) | length')"
+          platform_digest="$(printf '%s' "$body" | jq -r '[(.manifests // [])[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest] | first // ""')"
+
+          if [ -n "$platform_digest" ]; then
+            platform_body="$(az acr manifest show --registry "$AZURE_REGISTRY" --name "$IMAGE_REPOSITORY@$platform_digest" -o json)"
+          else
+            # Not an index: the tag resolves straight to the platform manifest,
+            # and the provenance claim is weaker because there are no
+            # attestations to cover. Say so rather than printing a blank cell.
+            platform_body="$body"
+          fi
+          layer_bytes="$(printf '%s' "$platform_body" | jq '[(.layers // [])[].size] + [(.config.size // 0)] | add')"
+
+          # /app and dist/ come from inside the image, which is native here:
+          # the runner is amd64 and the image is linux/amd64, so this is a real
+          # run rather than an emulated one.
+          # `du -sk`, not `du -sb`: this is busybox, whose `du` has no `-b`, and
+          # a flag GNU coreutils accepts and busybox does not is a step that
+          # fails on the runner and passes in every local rehearsal.
+          inside="$(docker run --rm --entrypoint sh "$remote" -c 'du -sxk /app | cut -f1; find /app/dist -type f | wc -l')"
+          app_kb="$(printf '%s' "$inside" | sed -n 1p | tr -d '[:space:]')"
+          dist_files="$(printf '%s' "$inside" | sed -n 2p | tr -d '[:space:]')"
+
+          echo "digest=$index_digest" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Backend image"
+            echo
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Tag | \`${{ steps.commit.outputs.short }}\` |"
+            echo "| Index digest — the provenance record | \`$index_digest\` |"
+            echo "| Index media type | \`$media_type\` |"
+            echo "| Manifests in the index | $child_count |"
+            echo "| Platform manifest (\`linux/amd64\`) | \`${platform_digest:-none — this is not an index}\` |"
+            echo "| Layers + config, as the registry stores them | $layer_bytes B |"
+            echo "| \`/app\` inside the image | $app_kb KB |"
+            echo "| \`/app/dist\` files | $dist_files |"
+            echo
+            echo "The index digest is what the platform pulls and the only one that covers the"
+            echo "buildx attestations, so it is the provenance record. It moves when attestation"
+            echo "content moves even if the image bytes do not — to answer *did the image change*,"
+            echo "compare the platform manifest digest. This is a record, not a check."
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # `update`, never `create`. The ingress, the probes, the scale rule, the
+      # environment variables and the managed identity are all already set on
+      # this app and are deliberately NOT re-specified here: a deploy step that
+      # restated them would be a second definition of the app's configuration,
+      # which is the same failure Story 1.10 forbids for the build.
+      #
+      # By DIGEST rather than by tag, and by the index digest. A tag is a
+      # pointer that can be moved; a digest is the thing. The tag is still
+      # pushed and still means "the tree is exactly that commit" — it is how a
+      # human finds this image — but what the revision records is the digest.
+      #
+      # No registry credential appears here or on the app: the container app
+      # pulls with its own SYSTEM-ASSIGNED managed identity holding `AcrPull`,
+      # which is the whole payoff of choosing ACR over the free GHCR in Task
+      # 1.11.3. This workflow's own identity needs AcrPush and nothing else on
+      # the registry — it never needs pull credentials at all.
+      - name: Deploy the backend
+        run: |
+          set -euo pipefail
+          ref="$AZURE_REGISTRY.azurecr.io/$IMAGE_REPOSITORY@${{ steps.image.outputs.digest }}"
+          echo "updating $AZURE_CONTAINER_APP to $ref"
+          az containerapp update \
+            --name "$AZURE_CONTAINER_APP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --image "$ref" \
+            --output none
+
+      # A rollout takes 20-25 seconds and the OLD revision serves the old
+      # bytes throughout — measured three times in Task 1.11.5. So `az
+      # containerapp update` returning is not the deploy being live, and a check
+      # written immediately after it confirms whatever was there before. This
+      # waits for the new revision to be the running one.
+      #
+      # It is deliberately NOT a smoke check. Task 1.11.7 owns whether the
+      # deployed thing actually works; this only makes this step's success mean
+      # "the rollout completed" rather than "the API call was accepted".
+      - name: Wait for the new revision to be running
+        run: |
+          set -euo pipefail
+          revision="$(az containerapp show --name "$AZURE_CONTAINER_APP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query "properties.latestRevisionName" -o tsv)"
+          echo "waiting on $revision"
+          # `runningState` is NOT simply `Running`: a healthy replica at
+          # minReplicas 1 reports `RunningAtMaxScale`, read off the live app
+          # rather than guessed, so a loop matching `Running` exactly waits out
+          # its whole deadline on a perfectly good deploy. Match the family.
+          deadline=$(( $(date +%s) + 300 ))
+          while :; do
+            state="$(az containerapp revision show --name "$AZURE_CONTAINER_APP" \
+              --resource-group "$AZURE_RESOURCE_GROUP" --revision "$revision" \
+              --query "properties.runningState" -o tsv)"
+            echo "  $(date -u +%H:%M:%S)  $state"
+            case "$state" in
+              Running*) echo "$revision is $state"; break ;;
+              *Failed*|Degraded|Stopped)
+                echo "::error::$revision reached $state"
+                exit 1
+                ;;
+            esac
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::$revision was still $state after 300 s"
+              exit 1
+            fi
+            sleep 5
+          done
+
+      # ---------------------------------------------------------------------
+      # The frontend. Its artefact is NOT the one `verify` fingerprinted, and
+      # this is where that gets closed rather than implied.
+      # ---------------------------------------------------------------------
+
+      # `pnpm build` by name — the same command a developer runs and the same
+      # one `pnpm verify` runs as its first step. The only difference is the
+      # environment, and that difference is the whole point: Task 1.11.5
+      # measured a build without VITE_API_BASE_URL at 344,537 B / 3c886f88...
+      # against the deployed 344,609 B / 7654c2e0..., 72 bytes and one string
+      # literal apart. So the fingerprint `verify` prints describes an artefact
+      # that is NOT deployed, and the honest resolution is this one: the deploy
+      # builds with the variable and prints THAT build's fingerprint, so the
+      # summary a reader opens describes the thing that is live.
+      - name: Build the frontend for deployment
+        run: pnpm build
+
+      - name: Fingerprint the deployed frontend artefact
+        run: |
+          set -euo pipefail
+          dist=apps/frontend/dist
+          {
+            echo "### Frontend artefact (as deployed)"
+            echo
+            echo "Built with \`VITE_API_BASE_URL=$VITE_API_BASE_URL\`, which is"
+            echo "substituted into the bundle at build time. This is **not** the artefact"
+            echo "\`verify\` fingerprints — that run builds without the variable and ships a"
+            echo "bundle dialling \`http://localhost:3000\`. The two differ by one string"
+            echo "literal, and this table is the one that describes what is live."
+            echo
+            echo "| File | Bytes | md5 |"
+            echo "| --- | ---: | --- |"
+            total=0
+            while IFS= read -r f; do
+              size="$(stat -c %s "$f")"
+              total=$(( total + size ))
+              printf '| `%s` | %s | `%s` |\n' \
+                "${f#"$dist"/}" "$size" "$(md5sum "$f" | cut -d' ' -f1)"
+            done < <(find "$dist" -type f | sort)
+            echo
+            echo "$(find "$dist" -type f | wc -l) files, $total B total."
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The deployment token is fetched AT THE MOMENT OF USE with the federated
+      # credential above and passed to one command through its environment. It
+      # is never stored: not in a file, not in a keychain (`--no-use-keychain`
+      # is passed for exactly that reason) and — the part that matters — not in
+      # a repository secret.
+      #
+      # That last clause is the decision in this step. The official
+      # Azure/static-web-apps-deploy action declares
+      # `azure_static_web_apps_api_token` as `required: true` and offers NO
+      # Azure-credential input at all — read out of the action's own action.yml,
+      # not recalled — so it cannot take an OIDC login, and using it would mean
+      # pasting a long-lived token into AZURE_STATIC_WEB_APPS_API_TOKEN, which
+      # is the shape this repository has now declined four times. The CLI can be
+      # handed a token the workflow just minted for itself, so the CLI is what
+      # is used and the action is declined with a reason.
+      #
+      # It also means the platform's own generated workflow is not used at all.
+      # That workflow takes an `app_location` and an `output_location` and
+      # BUILDS THE SITE ON THE DEPLOY SIDE, which is a second definition of the
+      # artefact wearing a different hat. `swa deploy <dir>` uploads a directory
+      # and builds nothing, so `skip_app_build` has no equivalent here: there is
+      # no build to skip.
+      #
+      # `--env production` is the decision in the command line: the CLI's
+      # default is a PREVIEW environment, so omitting it deploys somewhere
+      # nobody is looking.
+      #
+      # Preview environments are declined for this repository, and the reason is
+      # measured rather than aesthetic: every preview gets its own origin
+      # (Task 1.11.4 deployed one and deleted it —
+      # red-smoke-029583a0f-previewprobe.eastus2.5.azurestaticapps.net) and
+      # CORS_ORIGIN holds exactly one string, so a preview environment is a page
+      # that loads perfectly and cannot call the backend. Nothing here creates
+      # one, which is what declining looks like.
+      - name: Deploy the frontend
+        run: |
+          set -euo pipefail
+          token="$(az staticwebapp secrets list \
+            --name "$AZURE_STATIC_WEB_APP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query "properties.apiKey" -o tsv)"
+          SWA_CLI_DEPLOYMENT_TOKEN="$token" npx -y @azure/static-web-apps-cli@2.0.10 \
+            deploy apps/frontend/dist --env production --no-use-keychain
+
+      - name: Record what was deployed
+        run: |
+          set -euo pipefail
+          {
+            echo "### Deployed"
+            echo
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Commit | \`${{ steps.commit.outputs.sha }}\` |"
+            echo "| Verified by | ${{ github.event_name == 'workflow_dispatch' && 'a manual dispatch — see the gate note below' || format('[verify run {0}]({1})', github.event.workflow_run.id, github.event.workflow_run.html_url) }} |"
+            echo "| Backend | <https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io> |"
+            echo "| Backend image | \`$AZURE_REGISTRY.azurecr.io/$IMAGE_REPOSITORY@${{ steps.image.outputs.digest }}\` |"
+            echo "| Frontend | <https://red-smoke-029583a0f.5.azurestaticapps.net> |"
+            echo
+            echo "A frontend upload is **not atomic** on this platform: Task 1.11.4 reproduced a"
+            echo "~1.5-second window in which the outgoing \`index.html\` is still served while its"
+            echo "hashed asset has already been withdrawn, so a cold load in that window is broken."
+            echo "There is no flag that removes it. It is accepted, once per merge to \`main\`."
+            echo
+            echo "Nothing here checks that the deployed site works — that is Task 1.11.7's."
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
