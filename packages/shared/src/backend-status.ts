@@ -36,10 +36,16 @@
  * ## The visual language is a separate decision
  *
  * These are names, not colours, exactly as {@link FeedStatus} and
- * {@link AnomalyBand} are. Nothing here says whether this reuses
- * `FeedIndicator`, widens it or gets an indicator of its own — that is Task
- * 1.12.4's, and it is a real question because `FeedStatus` means the *market
- * feed* and this means the *backend service*. What is settled already, by the
+ * {@link AnomalyBand} are. ~~Nothing here says whether this reuses
+ * `FeedIndicator`, widens it or gets an indicator of its own.~~ **Task 1.12.4
+ * answered that and it is an indicator of its own** —
+ * `apps/frontend/src/components/BackendIndicator/` — beside `FeedIndicator`
+ * rather than a widening of it, because `FeedStatus` is a fact the backend
+ * *reports* about the market feed and this is one a client *concludes* about
+ * whether the backend answered at all. They fail independently, and a live feed
+ * behind an unreachable backend is a real state one indicator would have to
+ * pick between. What the two share is the marker language — a shape plus a
+ * word — and not the component. What was settled before either of them, by the
  * token layer and by PRODUCT_SPEC.md §36: a degraded or unreachable backend is
  * a **product state, not a failure**, and must not be rendered in
  * `--status-error` red.

@@ -175,6 +175,32 @@
   --feed-disconnected: var(--ink-secondary);
 
   /*
+   * --- Backend service status ---
+   *
+   * What a *client* concludes about whether the backend answered at all —
+   * `BackendStatus` in `@marketpulse/shared`, which is deliberately a second
+   * type rather than three more members on `FeedStatus`. These are here beside
+   * `--status-error` on the same footing: this file is the chromatic and
+   * semantic layer, and two of its blocks are already not about the market.
+   *
+   * They resolve to exactly the same two values the feed tokens do, and that
+   * duplication is deliberate rather than an oversight. The feed indicator and
+   * the backend indicator report two different facts that fail independently,
+   * so the day one of them changes colour the other must not follow — which is
+   * the whole reason `--price-unchanged` is its own name for `--ink-secondary`
+   * one block above.
+   *
+   * Two of the three are achromatic and are told apart by the **shape** of the
+   * marker, exactly as `live` and `disconnected` are. Amber marks `degraded`
+   * because it is the one of the three a glance should land on. **None of them
+   * is `--status-error` red**: PRODUCT_SPEC.md §36 makes a lost connection a
+   * product state, and this is the first thing in the product to render one.
+   */
+  --service-healthy: var(--ink-secondary);
+  --service-degraded: var(--palette-amber);
+  --service-unreachable: var(--ink-secondary);
+
+  /*
    * --- Error ---
    *
    * The minimum needed to make "stale is not an error" a visible claim rather

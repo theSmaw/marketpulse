@@ -83,8 +83,10 @@ import styles from "./App.module.css";
 // The feed's state, hard-coded, and `disconnected` is the honest value: there
 // is no market data in this application until Epic 3, and rendering `live`
 // because §9's sketch shows it would be a green tick that means nothing. The
-// detail line says which epic changes it. Story 1.12 decides whether the
-// backend connection is this same fact or a second indicator beside it.
+// detail line says which epic changes it. It is **not** the backend
+// connection's state: Task 1.12.4 took that decision and the backend service
+// gets its own indicator beside this one — `components/BackendIndicator` —
+// which Task 1.12.5 passes `useBackendHealth()` into.
 const FEED_DETAIL = "No market data until Epic 3";
 
 export function App() {

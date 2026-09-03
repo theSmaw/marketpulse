@@ -32,8 +32,16 @@ import styles from "./AppHeader.module.css";
 export interface AppHeaderProps {
   /**
    * The **market feed's** state, not the backend service's. Hard-coded by the
-   * caller until Epic 3 supplies a feed; Story 1.12 decides whether the
-   * backend connection is the same fact or a second indicator beside it.
+   * caller until Epic 3 supplies a feed.
+   *
+   * Task 1.12.4 answered the question this comment used to point at: the
+   * backend connection is **not** the same fact, and it gets a second
+   * indicator — `components/BackendIndicator` — beside this one rather than
+   * widening `FeedStatus`. The reasoning is written out there; the short form
+   * is that `FeedStatus` is something the backend *reports* about the market
+   * data and `BackendStatus` is something this client *concludes* about
+   * whether the backend answered at all, they fail independently, and a user
+   * needs both answers. Task 1.12.5 is what puts the second one in this file.
    */
   readonly feedStatus: FeedStatus;
 
@@ -71,6 +79,12 @@ export function AppHeader({ feedStatus, feedDetail }: AppHeaderProps) {
           of its three states is an error — §36 makes stale and disconnected
           product states — so this is a placement, not a coloured dot invented
           here.
+
+          It is the **market feed's** indicator and it stays that way. The
+          backend service's state is a second indicator beside it
+          (`components/BackendIndicator`, Task 1.12.4), wired in by Task
+          1.12.5 — two indicators sharing one marker language rather than one
+          indicator carrying two vocabularies.
 
           This region is also where invariant 6's provenance label belongs
           ("Market feed: IEX", because the free tier is not consolidated SIP).
