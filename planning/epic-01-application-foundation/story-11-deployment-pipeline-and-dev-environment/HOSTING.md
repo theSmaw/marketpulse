@@ -332,14 +332,15 @@ This is the class of fact Story 1.10 recorded for its repository ruleset: real c
 | Subscription id            | `5104e168-b3de-41c2-92a8-c68d28bd4d16`                                                                                                                   |
 | Tenant id                  | `6069915b-5bf2-4e36-8b25-8ffb25b5fdd1`                                                                                                                   |
 | Subscription type          | Azure free account (12-month offers plus the always-free grants)                                                                                         |
-| Region                     | East US, for both halves and the eventual database                                                                                                       |
+| Region                     | East US for the backend, the registry and the eventual database. **The frontend is East US 2** — see below; Static Web Apps is not offered in East US    |
 | Resource group             | `rg-marketpulse-dev` (East US)                                                                                                                           |
 | Container Apps environment | `cae-marketpulse-dev`, unique id **`blackgrass-e682fefb`**, `WorkloadProfiles` mode with a **Consumption profile only**, no VNet                         |
 | Backend URL                | **<https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io>**                                                                       |
 | Backend identity           | System-assigned, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`, `AcrPull` on the registry                                                             |
 | Log destination            | Log Analytics workspace `log-marketpulse-dev`, **30-day retention**, `PerGB2018` — $2.30/GB ingested, $0.10/GB/month retained beyond the included period |
 | Budget                     | `marketpulse-monthly`, **$20/month**, actual-cost alerts at 50 / 80 / 100% to the account owner                                                          |
-| Frontend service           | Azure Static Web Apps, **Free** plan                                                                                                                     |
+| Frontend service           | Azure Static Web Apps, **Free** plan, app `marketpulse-frontend` in **East US 2**                                                                        |
+| Frontend URL               | **<https://red-smoke-029583a0f.5.azurestaticapps.net>**                                                                                                  |
 | Backend service            | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                                                                                             |
 | Database service           | Azure Database for PostgreSQL flexible server, Burstable B1MS — **not yet provisioned**                                                                  |
 | Container registry         | **`crmarketpulse.azurecr.io`** — ACR Basic, East US, $0.1666/day, 10 GB included, **admin user disabled**. Pulled by managed identity with `AcrPull`     |
@@ -350,9 +351,11 @@ This is the class of fact Story 1.10 recorded for its repository ruleset: real c
 
 **Deploy credential — the intended shape, decided here and created in Task 1.11.3.** A **federated identity credential** (OpenID Connect) scoped to this repository, with a role assignment on the resource group, rather than a long-lived service-principal secret or a per-service deployment token. The reasoning is the one this repository already applies to third-party actions: a credential that cannot be replayed is worth more than one that is merely rotated, and Story 1.10 already pins every action to a commit SHA on the same principle. Static Web Apps' default GitHub integration issues a long-lived **deployment token** instead; if that is what Task 1.11.4 ends up using, it must be recorded here as a divergence with its reason, not adopted silently because it was the default the portal offered.
 
+**It is, and here is the divergence with its reason (Task 1.11.4, 2026-09-03).** The frontend's first deploy used the app's **deployment token**, read at the moment of use with `az staticwebapp secrets list` and passed to the CLI through `SWA_CLI_DEPLOYMENT_TOKEN` in the environment of a single command. Two things make that acceptable here and neither generalises. It is **not stored**: nothing was written to a file, to a keychain (`--no-use-keychain` is passed for exactly that reason) or to a repository secret, so there is no long-lived copy to leak or rotate — the token is the app's, it is fetched by the operator's own Azure credential, and each deploy fetches it again. And it is **a hand deploy, not the pipeline**: Task 1.11.6 is where a credential is genuinely persisted, and the federated identity credential above is still what that task owes. The trap this leaves is worth naming — the default advice everywhere is to paste this token into `AZURE_STATIC_WEB_APPS_API_TOKEN` as a repository secret, which is precisely the long-lived-secret shape this document has now declined three times. **Task 1.11.6 must not take that path by default**; if it does, it is a second divergence needing its own reason here.
+
 **Rollback.** Container Apps keeps revisions, so a rollback is shifting traffic to the previous revision rather than re-running a deploy — Task 1.11.7 owns proving it. Static Web Apps has no equivalent revision history on the Free plan, so the frontend's rollback is **re-running the deploy from the previous commit**, which makes the frontend the slower half to recover and is worth knowing before it is needed.
 
-**The table above is filled in, and Task 1.11.3's deploy half is done (2026-09-03).** What is still owed is the **frontend URL** (Task 1.11.4) and the **federated credential's subject** (Task 1.11.6), neither of which exists yet.
+**The table above is filled in, both halves are deployed, and the only row still owed is the federated credential's subject (Task 1.11.6), which does not exist yet.** Task 1.11.3 deployed the backend and Task 1.11.4 the frontend, both on 2026-09-03.
 
 ## What the first deploy measured
 
@@ -407,6 +410,121 @@ An invalid `PORT=0` was deployed on purpose and the environment was polled by re
 ### `version` reports `0.0.0`, and it is left that way deliberately
 
 `/health` returns the deployed manifest's version, every package here is `0.0.0`, and nothing sets it. Leaving it is a decision with a reason rather than an omission: **the image tag and the index digest already answer "what is deployed", precisely and immutably**, and the obvious fix conflicts with the mechanism that makes them trustworthy — writing a version into `package.json` at build time dirties the working tree, which is exactly what `scripts/build-image.mjs` refuses to tag as a clean commit. Any future version reporting therefore has to come through a build argument that does not mutate a tracked file. The reversal trigger is a second deployed environment, where "which build is this" stops being answerable from the one URL.
+
+## What the frontend deploy measured (Task 1.11.4)
+
+Everything here was read back from the deployed site by request rather than from the command that produced it, and four of the readings correct something this document or `CLAUDE.md` already said.
+
+### Static Web Apps is not offered in East US, so the two halves are not co-located
+
+The provider's own region list for `Microsoft.Web/staticSites` is **Central US, East US 2, West US 2, West Europe, East Asia** — read from `az provider show` rather than from a pricing page. East US is not on it, so "East US, for both halves" was never achievable and the table above has been corrected. The app is in **East US 2**.
+
+It costs nothing that matters, and saying why is better than saying it is fine: the production environment is served from a geo-distributed CDN regardless of the app's region, so a US user's latency is a property of the edge and not of East US 2. What the region does decide is where **preview environments** live, and those are documented as _not_ geo-distributed — so a preview environment is genuinely an East US 2 origin. The backend, the registry and the eventual database are unaffected and stay in East US, which is where the Alpaca latency argument actually applies.
+
+**One prerequisite that is invisible until it fires:** the subscription had never used `Microsoft.Web`, so the first `az staticwebapp create` failed with `MissingSubscriptionRegistration`. `az provider register -n Microsoft.Web --wait` is the fix and it is a one-time, subscription-wide action. Note the region list above answered _before_ registration — provider metadata is readable while the namespace is unregistered, so a successful region query is not evidence that a create will succeed.
+
+### Both hostname patterns in this document were wrong, and the preview one mangles its own input
+
+Measured, against the documented forms quoted above:
+
+| Environment         | Documented form                                             | What was actually issued                                            |
+| ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- |
+| Production          | the app's default hostname                                  | `red-smoke-029583a0f.5.azurestaticapps.net` — **no region segment** |
+| Preview / named env | `<DEFAULT_HOST_NAME>-<NAME>.<LOCATION>.azurestaticapps.net` | `red-smoke-029583a0f-previewprobe.eastus2.5.azurestaticapps.net`    |
+
+Three things follow. There is an undocumented **`.5.`** segment in both. The **location appears in the preview hostname and not in the production one**, which is the opposite of what the single documented pattern implies. And the environment name is **normalised** — a probe environment deployed as `preview-probe` came back as `previewprobe`, with the hyphen removed — so a preview origin **cannot be derived from a branch name by substitution**. Anything that needs to know a preview origin in advance has to read it back from `az staticwebapp environment list`, which reports `name` and `hostname` per environment. The probe environment was deleted afterwards; only `default` remains.
+
+**The consequence for `CORS_ORIGIN` is now concrete rather than predicted.** The backend takes exactly one origin, the production origin is `https://red-smoke-029583a0f.5.azurestaticapps.net`, and every preview environment is a different origin — so **every preview environment fails cross-origin against the deployed backend, by construction.** That is not a bug and the fix is not to widen the allowlist: an allowlist that admits `*-*.eastus2.5.azurestaticapps.net` admits every Static Web App anybody deploys in that region. Task 1.11.6 decides whether preview environments are wanted at all, and this is the cost it weighs; the Free plan allows 3 of them, and `stagingEnvironmentPolicy` is `Enabled` on this app today.
+
+### The fallback behaves exactly as the documentation's table promised, and the check that separates it from a catch-all passes
+
+`apps/frontend/public/staticwebapp.config.json` is `navigationFallback` with `rewrite: "/index.html"` and `exclude: ["/assets/*"]`. Read from the deployed site:
+
+| Request                       | Status  | Body                             |
+| ----------------------------- | ------- | -------------------------------- |
+| `/`                           | 200     | `index.html`, 1,101 B            |
+| `/investigations`             | 200     | `index.html`, 1,101 B            |
+| `/securities`                 | 200     | `index.html`, 1,101 B            |
+| `/replay`                     | 200     | `index.html`, 1,101 B            |
+| `/a-path-that-does-not-exist` | 200     | `index.html`, 1,101 B            |
+| `/assets/nope.js`             | **404** | the platform's 404 page, 2,400 B |
+
+**200 and not a redirect** on every route — checked without `-L`, so a 302 would have shown as a 302. And the two Story 1.5 criteria were closed in a **browser** rather than by inference: all four routes deep-load cold and render their real content, and `/a-path-that-does-not-exist` renders the application's own `NotFound` — "No such page … That address does not match anything in MarketPulse" — with an empty console. Serving `index.html` with a 200 is what the host does; `NotFound` rendering is what proves the router got the chance to.
+
+**`/staticwebapp.config.json` is not served.** Requesting it returns the fallback's `index.html` at 200, so the configuration file is consumed by the platform rather than published as content — which is worth knowing before anybody concludes the artefact leaks its own routing rules.
+
+**The `exclude` covers `/assets/*` and nothing else, and that is a real limitation rather than a tidy default.** Vite emits every hashed asset under `/assets/`, so today the scope is exact. But a file added to `apps/frontend/public/` lands at the **root** of the artefact, outside the exclude — measured by probing paths that do not exist there: `/favicon.svg` and `/nunito-sans-regular.woff2` both come back as `index.html` at 200 rather than as a 404. That is the `vite preview` trap, alive at the root of a production deployment. **Anything added to `public/` needs an `exclude` entry in the same change**, and this paragraph is the only thing that says so. It was left at one entry rather than pre-emptively widened because a pattern with no file behind it is scaffolding, and a wrong guess about the eventual filenames is worse than an entry that is added when the file is.
+
+### The cache policy is two mechanisms, and the ordering trap was confirmed in the direction that matters
+
+`globalHeaders` sets `Cache-Control: no-cache` and a route rule on `/assets/*` sets `public, max-age=31536000, immutable`. Read back:
+
+| Path                                           | `Cache-Control`                       |
+| ---------------------------------------------- | ------------------------------------- |
+| `/`                                            | `no-cache`                            |
+| `/investigations` (**served by the fallback**) | `no-cache`                            |
+| `/assets/index-C-Puqfnm.js`                    | `public, max-age=31536000, immutable` |
+| `/assets/index-DFxUCjbx.css`                   | `public, max-age=31536000, immutable` |
+
+The second row is the whole reason the document default is a `globalHeaders` entry rather than a route rule: **"Route rules aren't applied on requests that trigger `navigationFallback`"**, so a `Cache-Control` hung on a route would have applied to `/` and to nothing else — configured-looking and inert on four of the five addresses a user can land on. It is the right way round here, checked rather than reasoned about.
+
+`no-cache` rather than `no-store`: the document is 1,101 B and the platform serves an `ETag`, so revalidation is a conditional request rather than a re-download, and a returning user still gets the new build the moment one is deployed. The hashed assets can be immutable precisely because the filename changes when the bytes do — get these two backwards and a deploy is invisible for a year.
+
+### HTTPS, compression, and the byte figure that is easy to quote wrongly
+
+`http://` answers **301** to the `https://` origin, and every response carries `strict-transport-security: max-age=10886400; includeSubDomains; preload` along with `x-content-type-options: nosniff` and `referrer-policy: same-origin` — none of which this repository configured. TLS and the redirect are the platform's, not ours.
+
+Compression is negotiated and **brotli is preferred**: the 343,658 B bundle arrives as **111,753 B** with `Accept-Encoding: br` and **140,890 B** with `gzip` alone, `vary: Accept-Encoding` on both. That is the figure to be careful with. `CLAUDE.md` records "about 111 kB gzipped" from Vite's own build report, and the number the wire actually produces for gzip is 140,890 B — the coincidence is that the host's **brotli** happens to land where Vite's gzip did. **A build-report compression figure is not a wire figure**, because the encoder and its level belong to the host. Quote 343,658 B, which is what both agree on.
+
+### Uploads are not atomic, and the window is long enough to break a cold load
+
+This was the one item on the task's list that could only be answered by making it happen, so it was made to happen twice. A synthetic second artefact was built by renaming both hashed assets and rewriting `index.html` to match, then deployed while the site was polled continuously for three things: which asset `index.html` referenced, and the status of the old and new asset URLs.
+
+Both runs showed the same ordering, and it is the wrong way round:
+
+| Run | Old asset gone, old `index.html` still served | Broken window |
+| --- | --------------------------------------------- | ------------- |
+| 1   | observed                                      | ~1–2 s        |
+| 2   | 14:12:00.5 → 14:12:02.0                       | **~1.5 s**    |
+
+So the new asset appears first (harmless), then **the old asset is withdrawn while the old `index.html` is still being served** — a document whose `<script>` is a 404 — and only then does the new `index.html` appear. Run 2 also showed the old asset flicking back to 200 _after_ the new document was live, so propagation is not even monotonic across edges.
+
+Three things follow. **A deploy has a ~1.5-second window in which a cold load is broken**, and the failure is the `/assets/nope.js` 404 arriving as a missing script rather than as anything a user could interpret. Nobody already on the page is affected — the assets they hold are already fetched, and `no-cache` on the document means their next navigation revalidates. And **this is a property of the host, not of the deploy command**: there is no flag here to make it atomic, so the honest mitigations are to deploy rarely and off-hours, or to accept it, which is what a development environment does. Task 1.11.7 owns "a failed deployment does not take the environment down" and should read this as the shape of the answer for the frontend half: the backend has revisions and a traffic weight, and the frontend has a directory that is replaced in place.
+
+**Uploads replace rather than merge**, which is the other half of the same measurement: after redeploying the real artefact, the synthetic assets 404 and only the three real files remain. A deploy is not additive, so a file deleted from the build is gone from the site.
+
+### The deployed files are byte-identical to a local build
+
+`index.html` 1,101 B / `eab270a4…`, `assets/index-C-Puqfnm.js` 343,658 B / `cba2825c…`, `assets/index-DFxUCjbx.css` 10,926 B / `f98519e3…` — downloaded from the site and hashed, matching `apps/frontend/dist` exactly. The frontend artefact's identity, unchanged since Task 1.7.7 across two clean clones and both platforms, now also holds through a CDN.
+
+**And the artefact is four files now, not three** — `staticwebapp.config.json` at 300 B takes it to **355,985 B over four files**. The three original files did not move; the artefact gained one. That is the concrete cost this document predicted: unlike the backend, whose configuration lives in a platform panel, the frontend's host configuration is part of what ships.
+
+### The configuration file reaches two artefacts, and the CLI found the wrong one
+
+It lives in `apps/frontend/public/`, which Vite copies to the root of `dist/` untouched. **Storybook's build copies it too** — `apps/frontend/storybook-static/staticwebapp.config.json` exists after `pnpm build`, because `.storybook/main.ts` deliberately reuses `vite.config.ts` and therefore inherits its `publicDir`. That was not anticipated and it had a visible consequence on the very first deploy: the SWA CLI printed `Found configuration file: .../apps/frontend/storybook-static/staticwebapp.config.json` — it globs the working directory and picked the **workshop's** copy, not the one in the directory being deployed. Harmless here only because the two are the same bytes. If the workshop is ever published with a different configuration, or if `public/` gains a file the workshop should not carry, this is where it bites. The platform reads the copy inside the deployed directory; the CLI's line is about the CLI.
+
+Unlike `apps/backend/Dockerfile` and the root `.dockerignore`, this file **is** inside `pnpm verify`'s net: `prettier --file-info` reports `"inferredParser": "json"` for it, so a malformed edit fails `format:check`. Formatting only — nothing validates the schema, so a misspelled `navigationFallback` or an `exclude` that matches nothing is green locally and silent in production, in the same class as the workflow's unchecked schema.
+
+### The workshop is not published, and that is a decision
+
+Story 1.10 declined `storybook-static/` as a CI artefact and explicitly left "is the workshop a published site" to this story. The answer is **no**, taken in one place so it is not re-opened by default. The Free plan allows 10 apps per subscription and 9.3 MB is nothing against a 250 MB cap, so this is not a cost decision: it is a second URL, a second deploy job, a second thing that goes stale silently, and — per the paragraph above — a second artefact carrying a routing configuration written for the application rather than for it. Nobody outside this repository reviews components today, and anybody inside it can run `pnpm --filter @marketpulse/frontend storybook`. **The reversal trigger is a reviewer without a checkout** — Epic 15's accessibility review is the likely one — at which point it is a second Static Web App and this paragraph is the record that it was considered rather than forgotten.
+
+### The Static Web Apps CLI emulator was not used, and the reason is that it was not needed
+
+The task asked whether `swa` emulates `navigationFallback` locally, because that would move the line between its blocked and unblocked halves. The account exists, so the question is moot in the direction that matters: **a local pass would have been evidence about the configuration file and never about the host**, which is exactly the distinction Task 1.5.5 drew when it refused to tick a criterion against `vite preview`. Everything above was read from the deployed site. The CLI was used only as a **deploy** client, pinned at `@azure/static-web-apps-cli@2.0.10` and run through `npx` — it is deliberately not a dependency of this workspace, because nothing in `pnpm verify` needs it and Task 1.11.6 will use a pinned GitHub Action instead.
+
+The deploy, in full, so it is reproducible and so Task 1.11.6 has the shape it is automating:
+
+```sh
+pnpm build
+TOKEN=$(az staticwebapp secrets list \
+  --name marketpulse-frontend --resource-group rg-marketpulse-dev \
+  --query "properties.apiKey" -o tsv)
+SWA_CLI_DEPLOYMENT_TOKEN="$TOKEN" npx -y @azure/static-web-apps-cli@2.0.10 \
+  deploy apps/frontend/dist --env production --no-use-keychain
+```
+
+`--env production` is the decision in that command: the default is a preview environment, so omitting it deploys somewhere nobody is looking. `--no-use-keychain` is what keeps the token out of the operator's keychain, which is the whole basis on which the divergence above is acceptable.
 
 ## What Task 1.11.1 did not do — kept as its own record
 

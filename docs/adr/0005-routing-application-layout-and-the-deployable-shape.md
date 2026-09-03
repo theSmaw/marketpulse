@@ -240,6 +240,25 @@ Task 1.5.6 built that host to confirm the constraint is implementable rather
 than merely stated — a `SimpleHTTPRequestHandler` falling back to `index.html`
 only for paths outside `/assets/`. Routes 200, `/assets/nope.js` 404.
 
+**Both criteria are now closed against the real host, and all three constraints
+held (Task 1.11.4, 2026-09-03).** The frontend is on Azure Static Web Apps, and
+the fallback is a `navigationFallback` with `rewrite: "/index.html"` and
+`exclude: ["/assets/*"]` — six lines of JSON expressing exactly what Task
+1.5.6's throwaway Python host proved was expressible. Every route deep-loads
+cold with a **200 and not a redirect**, a made-up path renders this
+application's own `NotFound` in a browser, `/assets/nope.js` is a **404**, and
+`base` is still `/` so no rebuild was needed.
+
+One consequence this ADR did not foresee, and it is a change to the shape this
+section is about: **the fallback lives inside the artefact.** Static Web Apps
+requires `staticwebapp.config.json` at the root of the deployed output, so
+`dist/` is **four files and 355,985 B** rather than three — the three original
+files unchanged and byte-identical since Task 1.7.7, plus 300 B of routing
+configuration. Unlike the backend, whose host configuration sits in a platform
+panel, the frontend's is part of what ships. It reaches `dist/` through Vite's
+`publicDir`, which also means Storybook's build copies it. The full record is in
+Story 1.11's `HOSTING.md`.
+
 ### A fallback drawn at the router blanks the page body, not a box
 
 Task 1.5.5 served the split build from a host delaying each chunk. The header

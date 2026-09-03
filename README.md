@@ -239,6 +239,34 @@ it is not local is the chrome itself — the header's own fallback replaces the
 `<header>`, so a broken chrome takes the navigation with it while everything
 below carries on working.
 
+## Deployed environment
+
+Both halves run on Microsoft Azure. The full record — the platform decision, the
+quoted limits, the cost envelope and everything the two deploys measured — is
+[`HOSTING.md`](planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md).
+
+| Half     | URL                                                                            | Service                                    |
+| -------- | ------------------------------------------------------------------------------ | ------------------------------------------ |
+| Frontend | <https://red-smoke-029583a0f.5.azurestaticapps.net>                            | Azure Static Web Apps, Free, East US 2     |
+| Backend  | <https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io> | Azure Container Apps, Consumption, East US |
+
+It is a **development environment and it is public** — no authentication, no
+user data, and a backend whose entire surface is `GET /health`. That is
+acceptable only for as long as nothing deployed holds a credential.
+
+Three things worth knowing before relying on it:
+
+- **Deploys are by hand today.** Task 1.11.6 automates them on a merge to
+  `main`; until then the deployed site is whatever was last pushed to it, which
+  is not necessarily `main`.
+- **A frontend deploy is not atomic.** Measured on two deploys: the outgoing
+  hashed asset is withdrawn while the outgoing `index.html` is still being
+  served, so there is a **~1.5-second window in which a cold page load is
+  broken**. Anyone already on the page is unaffected.
+- **The two halves do not talk yet.** `CORS_ORIGIN` on the backend is
+  `https://placeholder.invalid` on purpose. Task 1.11.5 replaces it with the
+  frontend's real origin.
+
 ## Commands
 
 Run from the repository root:
@@ -577,7 +605,7 @@ its last good render.
 The backend's port is configurable because it is a property of a **deployed
 process** — Story 1.11's container sets `PORT` and `HOST`, and nothing else
 can. Neither Vite port reaches a deployment at all: `apps/frontend/dist` is
-three static files served by somebody else's host, and both Vite servers are
+four static files served by somebody else's host, and both Vite servers are
 development tools. Symmetry with the backend is not on its own a reason to make
 them configurable, and they are not.
 
@@ -1257,15 +1285,26 @@ route at its own address, with every navigation link pointing off the
 deployment. Route paths are not part of this — the basename is a deployment
 fact and `paths.ts` is not configuration.
 
-**Deep-linking works locally for a reason that will not survive deployment.**
-`/replay` typed straight into the address bar works against `vite`, `vite
-preview` and nothing else — both answer any unmatched path with `index.html`
+**Deep-linking works locally for a reason that would not have survived
+deployment, so it was configured rather than inherited.** `/replay` typed
+straight into the address bar works against `vite` and `vite preview` for a
+reason that flatters them: both answer _any_ unmatched path with `index.html`
 and a 200. The same build served by a plain static host **404s** every route
-but `/`, and the not-found route rests on exactly the same property: it can
-only render if the host served `index.html` for the address that matched
-nothing. A history-API fallback is a hosting concern and Story 1.11 owns it.
-When it is configured, it must not be a blanket catch-all — one that answers
-_every_ unmatched path with `index.html` answers a missing asset that way too.
+but `/`, and the not-found route rests on exactly the same property — it can
+only render if the host served `index.html` for an address that matched
+nothing.
+
+The deployed host is configured for it, in
+**`apps/frontend/public/staticwebapp.config.json`**, and the configuration is
+deliberately **not** a blanket catch-all: `navigationFallback` rewrites to
+`/index.html` with `exclude: ["/assets/*"]`, so an unmatched route is a 200
+carrying the application and a missing asset is a **404 naming itself** rather
+than a MIME-type error. Both were read from the deployed site.
+
+**Anything added to `apps/frontend/public/` needs an `exclude` entry in the
+same change.** A file there lands at the root of the artefact, outside
+`/assets/*`, and a missing one is then answered with `index.html` and a 200 —
+the trap above, alive in production. Nothing checks this.
 
 ## When something fails to render
 
