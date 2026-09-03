@@ -23,3 +23,19 @@ export type { FeedStatus } from "./feed-status.js";
 export { API_ERROR_CODES, apiError } from "./api-error.js";
 export type { ApiError, ApiErrorCode } from "./api-error.js";
 export { REQUEST_ID_HEADER } from "./request-id.js";
+
+// The health endpoint's wire contract (Task 1.12.1). It lived in
+// apps/backend/src/routes/health.ts until this story needed the frontend to
+// compile against the same definition rather than a second copy of it — and
+// importing it back is what makes apps/backend's long-standing declared
+// dependency on this package honest.
+export { HEALTH_STATUSES, isHealthResponse } from "./health.js";
+export type { HealthResponse, HealthStatus } from "./health.js";
+
+// What a *client* concludes about the backend, which is a different fact from
+// what the backend said about itself: "unreachable" is the absence of a
+// response, which no server can report about itself, and "degraded" is a
+// judgement about an answer that did arrive. Two vocabularies, deliberately —
+// see backend-status.ts for why widening HealthStatus would have been wrong.
+export { BACKEND_DEGRADED_CAUSES, BACKEND_STATUSES } from "./backend-status.js";
+export type { BackendDegradedCause, BackendStatus } from "./backend-status.js";
