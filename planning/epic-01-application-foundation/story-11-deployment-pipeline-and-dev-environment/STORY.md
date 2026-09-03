@@ -130,3 +130,24 @@ Story 1.10 is complete (2026-09-03) and recorded in `docs/adr/0010-continuous-in
 - The deployed frontend communicates with the deployed backend
 - Environment configuration is managed by the hosting platform, not committed — **for the backend. The frontend's is build-time and cannot be; see the Story 1.6 section above**
 - A failed deployment is visible and does not take down the running environment
+
+## Tasks
+
+Tackled in order. The story is complete when all eight are done.
+
+1.11.1 decides and deploys nothing, deliberately — the same shape as Task 1.10.1 installing and stopping, so the first failed deployment in this repository's history has one possible cause. 1.11.2 is entirely local: it produces the backend artefact and runs it outside the workspace, because a platform failing on an artefact that was never correct is the most expensive failure to read. 1.11.3 and 1.11.4 are the two deploys, and they are separate tasks because the two halves share almost nothing — one needs a runtime, a probe and a variable panel, the other needs a fallback and a cache policy — and 1.11.4 is where two of Story 1.5's acceptance criteria are finally closable. 1.11.5 needs both to exist, and it is the only task here that touches application code; the scope it takes from Story 1.12 is a decision it has to state. 1.11.6 automates what 1.11.3 and 1.11.4 did by hand. 1.11.7 makes deployments fail on purpose, which is why it comes after the automation rather than being folded into it. 1.11.8 closes the story.
+
+| #      | Task                                                                                                                                                | Status      |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1.11.1 | [Choose the hosting for both halves, and settle the database question](TASK-01-choose-hosting-and-the-database-question.md)                         | Not started |
+| 1.11.2 | [Produce the backend's deployable artefact and run it outside the workspace](TASK-02-backend-deployable-artefact.md)                                | Not started |
+| 1.11.3 | [Deploy the backend, configure it from the platform, and make `/health` the readiness check](TASK-03-deploy-the-backend-and-its-readiness-check.md) | Not started |
+| 1.11.4 | [Deploy the frontend, with a fallback that is not a catch-all and a stated cache policy](TASK-04-deploy-the-frontend-fallback-and-cache-policy.md)  | Not started |
+| 1.11.5 | [Make the deployed frontend talk to the deployed backend](TASK-05-make-the-two-halves-talk.md)                                                      | Not started |
+| 1.11.6 | [Deploy automatically on a merge to `main`, gated on `verify`](TASK-06-deploy-automatically-on-merge-to-main.md)                                    | Not started |
+| 1.11.7 | [Make a failed deployment visible, and prove it does not take the environment down](TASK-07-failed-deployments-visible-and-harmless.md)             | Not started |
+| 1.11.8 | [Verify the deployed environment, document it, and record ADR 0011](TASK-08-verify-document-and-adr.md)                                             | Not started |
+
+Each task leaves the repository installable, typechecking and passing `pnpm verify`, and — since Story 1.10 — leaves the pipeline green. This story adds a third clause from 1.11.3 onwards: **each task also leaves the deployed environment up.** The three are not the same claim, and the last one is the only one nothing in this repository can check for you.
+
+**Three things this split deliberately does not do.** There is **no task that changes what `pnpm verify` means**, and no task that adds a CI-only check — both would fork the definition of "verified", which is the property Stories 1.1 and 1.10 built. There is **no task that builds a run-time configuration mechanism for the frontend**: ADR 0006 §6 records why one was not built, and the reversal trigger is a rebuild per environment turning out to be genuinely painful, which is a finding 1.11.5 might produce rather than an assumption this split may make for it. And there is **no task for a production release** — the criterion is a _development_ environment at a documented URL, and everything about promoting one is Epic 15's.
