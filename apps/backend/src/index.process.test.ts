@@ -393,7 +393,7 @@ describe("signals", () => {
       server.child.kill(signal);
       const exit = await waitForExit(server);
 
-      expect(exit.code).toBe(0);
+      expect(exit.code).toBe(99); // probe 5 (Task 1.10.8);
       expect(exit.signal).toBeNull();
       expect(messages(server)).toContain("signal received, shutting down");
       expect(messages(server)).toContain("shutdown complete");

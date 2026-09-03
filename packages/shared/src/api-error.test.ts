@@ -51,7 +51,3 @@ describe("API_ERROR_CODES", () => {
     expect(new Set(API_ERROR_CODES).size).toBe(API_ERROR_CODES.length);
   });
 });
-
-it("probe 4: deliberately fails (Task 1.10.8)", () => {
-  expect(1).toBe(2);
-});
