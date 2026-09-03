@@ -1,6 +1,6 @@
 # Task 1.11.7 — Make a failed deployment visible, and prove it does not take the environment down
 
-**Status:** Not started
+**Status:** Complete (2026-09-03)
 **Story:** [1.11 Deployment Pipeline & Development Environment](STORY.md)
 **Depends on:** Task 1.11.6
 
@@ -44,3 +44,29 @@ Meet the criterion that a failed deployment is visible and leaves the running en
 ## Notes
 
 Story 1.10's habit is the one to copy here: it made four failure classes happen on the runner rather than reasoning about exit codes, and one of them taught something the plan had not anticipated — a chain reports its first failure and nothing after it, so a probe has to be surgical or it proves the wrong step. Expect the same here, and expect the ordering of a deploy's steps to matter for the same reason.
+
+## Outcome
+
+**Complete, 2026-09-03.** Four failure classes were made to happen against the live environment, the running pair was polled by request throughout each, and both rollbacks were executed. The full record is in [`HOSTING.md`](HOSTING.md) under _What making the deployment fail measured (Task 1.11.7)_; this section is the summary and the answer to each _Done when_.
+
+**One file changed** — `.github/workflows/deploy.yml`, whose revision-wait step is now a step that has had both of its branches executed. No dependency was added and `pnpm verify` is untouched.
+
+### Against the criteria
+
+- **Three failure modes made to happen.** _No artefact_ stands from Task 1.11.6 (a red `verify` left a **`skipped`** deploy run) and was deliberately not re-run — it costs a red `main` and an admin-bypass merge for a result already recorded. _Artefact that will not start_ was re-run here with `PORT=0`, and the plain stderr line reaches Log Analytics as an unstructured `Log_s`. _Starts and fails its health check_ — the genuinely untested one — was produced with `PORT=3001` against probes pinned to port 3000, three times.
+- **The revision-wait step was watched during a failing rollout and its pattern corrected.** The pattern was **right** and the deadline was **wrong**: a failing rollout sits at `Activating` for **10 min 03 s** before becoming `ActivationFailed`, and the old 300-second deadline expired **4 min 09 s** too early to ever match it. The step now also reads the **replica**, which carries the truth from ~75 s in, taking a failing deploy from a 300-second silent timeout to **94 s** naming the cause (**36 s** for a container that will not start). Both branches executed before the text landed; the healthy case produces no false positive.
+- **A half-deployed merge was made to happen**, and both questions answered. The backend moved and the frontend did not — `main` no longer held the probe marker and the served bundle still did — and **the environment was not broken**, which is a property of that commit rather than of the arrangement. **Re-running is safe but is not a no-op**: the same commit rebuilt to a different digest, so a new revision rolled out, and the commit-SHA tag has now pointed at two different digests.
+- **Both rollback traps recorded, and both executed.** The revision shift is undone by the next merge — watched happening, with nothing warning — and `workflow_dispatch` re-deploys `main` rather than rolling anything back.
+- **Zero downtime re-tested against the HTTP probes**, with the window read off the app: `Activating` throughout, the failing revision holding `trafficWeight: 100` while the old one at weight 0 served.
+- **The previously running environment answered throughout each**, checked by request: no request ever returned a non-200 status and `uptimeSeconds` never reset.
+- **Upload atomicity re-confirmed**, and it is **worse than recorded in one respect**: the ~2-second window contains **two** broken states, and the second — the incoming document served before the incoming asset exists — was not in Task 1.11.4's reading. Accepted deliberately; there is no flag.
+- **Both rollbacks executed with durations and prerequisites**: backend **43 s** from a digest alone, frontend **3 min 42 s** through `verify` and the pipeline. The asymmetry is ~5x, and the fast half expires.
+- **Where a failure is visible is decided**: the run's conclusion and the platform's own state, **no notification**, with what that costs stated.
+- **What stays unchecked after a green deploy is written down**, including both measured green-everywhere-broken-in-a-browser shapes, and the browser-based check is **declined** with a reversal trigger.
+
+### Four things it found that the brief did not anticipate
+
+1. **The backend's documented rollback does not exist on this app.** `az containerapp ingress traffic set` is refused outright — traffic splitting belongs to **multiple** revision mode and this app is deliberately in **single** mode. The revision-label FQDNs this story offered as the mechanism are unreachable without first reconfiguring the thing that is already misbehaving. `az containerapp update --image <previous digest>` is what actually works.
+2. **The image is not bit-reproducible across runs.** The same commit through the same `pnpm image` invocation produced a different digest and a different layer total (60,247,138 B against the recorded 60,247,220 B), so a re-run of a failed deploy rolls out a new revision rather than doing nothing.
+3. **`runningState` returned an empty string** on one poll of an otherwise healthy rollout — a state that matches neither the success nor the failure pattern.
+4. **A deployment check that runs from one machine over one link cannot distinguish its own network from the environment it is checking.** A 65-second "outage" during a failing rollout was the laptop: a three-host control reproduced the same drops with nothing deploying, and the backend's own Log Analytics records show it answering 9 requests per 30 s through the window against a probe-only idle baseline of 1–4. The server-side record was the only tiebreak, and it is a measured argument against the single-shot smoke check this task had to decide on.

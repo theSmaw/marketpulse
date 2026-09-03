@@ -358,7 +358,7 @@ This is the class of fact Story 1.10 recorded for its repository ruleset: real c
 
 **And the "does the deploy action accept OIDC" question was established rather than assumed, which is what made that possible.** `Azure/static-web-apps-deploy`'s own `action.yml`, read from the repository rather than recalled, declares `azure_static_web_apps_api_token` as **`required: true`** and offers **no** Azure-credential input of any kind. So the action genuinely cannot take an OIDC login, and using it would have meant creating `AZURE_STATIC_WEB_APPS_API_TOKEN` — the fourth time this document would have declined that shape and the first time it would have lost. The CLI can be handed a token the workflow mints for itself, so the CLI is what the pipeline uses and the **action is declined with a reason**. That also disposes of the platform's generated workflow entirely: it takes an `app_location` and an `output_location` and builds the site on the deploy side, which is a second definition of the artefact; `swa deploy <dir>` uploads a directory and builds nothing, so `skip_app_build` has no equivalent here — there is no build to skip.
 
-**Rollback.** Container Apps keeps revisions, so a rollback is shifting traffic to the previous revision rather than re-running a deploy — Task 1.11.7 owns proving it. Static Web Apps has no equivalent revision history on the Free plan, so the frontend's rollback is **re-running the deploy from the previous commit**, which makes the frontend the slower half to recover and is worth knowing before it is needed.
+**Rollback. ~~Container Apps keeps revisions, so a rollback is shifting traffic to the previous revision rather than re-running a deploy.~~ Task 1.11.7 tried to prove that and it is wrong for this app: `az containerapp ingress traffic set` is refused outright** — _"Containerapp 'marketpulse-backend' is configured for single revision. Set revision mode to multiple in order to set ingress traffic."_ Traffic splitting is a property of **multiple** revision mode, and this app is deliberately in **single** mode, so the mechanism this paragraph named is unavailable without first changing the app's configuration. What actually rolls the backend back is **`az containerapp update --image <the previous digest>`**, which needs no repository, no build and no pipeline — only a digest, which every deploy run prints into its own summary — and which was executed in **43 seconds**. It creates a _new_ revision rather than reactivating the old one. **And it is undone by the next merge, silently**: that was executed too, one minute later. Static Web Apps has no revision history at all on the Free plan, so the frontend's rollback is **a revert commit through `verify` and the pipeline**, measured at **3 min 42 s** from pressing merge. The asymmetry is the thing to carry: the half that looks trivially recoverable is ~5x slower, and the fast half expires. See _What making the deployment fail measured (Task 1.11.7)_ below.
 
 **The table above is filled in and nothing in it is owed.** Task 1.11.3 deployed the backend, Task 1.11.4 the frontend and Task 1.11.6 automated both, all on 2026-09-03. The federated credential's subject — the one row that was still owed — is in the identities section below, and it is **not** the subject the documentation predicts.
 
@@ -804,6 +804,136 @@ Ruleset `main` (id 22160620) is **unchanged**: it requires a pull request and th
 The whole deploy is **~2 min 50 s** on the runner: run 33731233275 took 151 s and 33732695554 about 165 s, including a warm install from the cache `verify` wrote, a native `linux/amd64` image build (no emulation, unlike the 45.3 s Apple Silicon figure Task 1.11.2 measured as an upper bound), the registry push, a 20–25-second rollout wait, a full `pnpm build` and the upload. It runs after `verify`, so a merge is green in ~90 s and live in ~4 min 20 s.
 
 `pnpm build` builds Storybook too, which is time spent on an artefact this workflow does not publish. It was **not** narrowed to `vite build`: that would be this file defining its own build, which is the one rule it exists not to break.
+
+## What making the deployment fail measured (Task 1.11.7)
+
+Four failure classes were made to happen against the live environment on 2026-09-03, the running pair was polled by request throughout each, and both rollbacks were executed rather than described. The headline is that **the one step written to catch a failing deployment had never run its failure branch, and running it changed the step**.
+
+### The probes, read off the deployed app rather than from memory
+
+| Probe     | Path      | Failures | Period | Grace                                   |
+| --------- | --------- | -------- | ------ | --------------------------------------- |
+| Startup   | `/health` | 30       | 2 s    | **60 s** before the container is killed |
+| Readiness | `/health` | 3        | 10 s   | 30 s                                    |
+| Liveness  | `/health` | 3        | 30 s   | 90 s                                    |
+
+All three are HTTP against **port 3000**, pinned in the probe definition rather than derived from `PORT`. That is what makes the third failure mode cheap to produce: set `PORT=3001` and the server starts perfectly and answers nothing the platform asks.
+
+### A failing rollout sits at `Activating` for ten minutes, and the wait step gave up four minutes too early
+
+This is the measurement the task called its most valuable, and it is the one that changed shipped code. `deploy.yml`'s revision-wait step was written in Task 1.11.6 with a failure pattern of `*Failed*|Degraded|Stopped` and a 300-second deadline, and **only its success branch had ever executed**.
+
+Deploying `PORT=3001`, watched off the live app:
+
+|                                                                              |                                           |
+| ---------------------------------------------------------------------------- | ----------------------------------------- |
+| `az containerapp update` returned                                            | 09:08:58                                  |
+| Replica reports `ready: false`, rising `restartCount`, `CrashLoopBackOff`    | from ~09:10:1x                            |
+| Old wait step gave up on its 300 s deadline                                  | **09:14:52**                              |
+| Revision left `Activating` for `ActivationFailed` / `healthState: Unhealthy` | **09:19:01 — 10 m 03 s after the update** |
+
+So **the pattern was right and the deadline was wrong.** `ActivationFailed` matches `*Failed*`, and the step expired **4 min 09 s before it could ever match** — going red for the right reason by accident, with a message that said `still Activating after 300 s` rather than naming a health-check failure. The platform's own event stream is unambiguous meanwhile: `Probe of StartUp failed` every 2 s to a count of 120, then `Container marketpulse-backend failed startup probe, will be restarted` and `Container 'marketpulse-backend' was terminated with exit code '' and reason 'ProbeFailure'`.
+
+**The replica knows first and knows why, and that is now what the step checks.** While the revision says `Activating`, the replica already carries the truth. The step now fails on any container that has restarted during a rollout — a healthy one reaches `RunningAtMaxScale` in 20–25 s having never restarted — and both branches were executed against the live app before the text landed in the file:
+
+| Failure                                      | Old step                     | New step                              |
+| -------------------------------------------- | ---------------------------- | ------------------------------------- |
+| Starts, fails its health check (`PORT=3001`) | 300 s timeout, wrong message | **94 s**, names the restart           |
+| Will not start at all (`PORT=0`)             | —                            | **36 s**, names `CrashLoopBackOff`    |
+| Healthy rollout                              | success in 20–30 s           | success in 20–30 s, no false positive |
+
+The deadline is now 600 s rather than 300 so `ActivationFailed` stays reachable as a backstop; it should never be what fires. One more thing that only appears by running it: **`runningState` returned an empty string on one poll of an otherwise healthy rollout**, so the loop prints `<empty>` and treats an unknown state as "keep waiting" rather than as a failure.
+
+### The environment survived every one of them, and proving that needed a control
+
+Across five rollouts — three failing, two healthy — **no request ever returned a non-200 HTTP status**, and the serving process's `uptimeSeconds` never reset.
+
+That sentence took three attempts to be able to write honestly. Polling from a laptop produced runs of complete timeouts (curl exit 28), including one contiguous **65-second** run during a failing rollout, which reads exactly like the platform dropping traffic. Two controls settle it. A probe of **three hosts at the same instant on a steady system with nothing deploying** reproduced the same drops, twice hitting the backend and the frontend — two different Azure services in two different regions — in the same second. And decisively, the backend's own Log Analytics records show it answering **9 requests per 30 s during the window the laptop saw as a blackout**, against a probe-only idle baseline of **1–4 per 30 s**. The server never went quiet; the measuring path did.
+
+**The lesson is worth more than the numbers: a deployment check that runs from one machine over one link cannot distinguish its own network from the environment it is checking, and the server-side record is the only tiebreak.** It is also a measured argument against a naive post-deploy smoke check — see below.
+
+### Traffic weight is not what serves, for the fourth time, and there is a better field
+
+The failing revision held **`trafficWeight: 100` while still `Activating`**, with the old revision at **weight 0** actually serving. A check written against traffic weight reports the opposite of the truth. Two fields do not lie: **`healthState`** reads `Healthy` on the serving revision and `None` (then `Unhealthy`) on the failing one, and **`/health`'s own `uptimeSeconds`** identifies the serving process from outside the platform entirely — it read 1,499 s while the new revision had existed for ten minutes.
+
+### A half-deployed merge, and both questions it raises
+
+The backend is deployed before the frontend deliberately, so a failure between them leaves a green `verify`, a red deploy and a site that works. Made to happen with a step that exits 1 between the halves (PR #134, deploy run 33743757931, red at 10:22:29):
+
+- The backend image **moved** (`55d64495…` → `549b0888…`); the frontend did not deploy at all.
+- `main` no longer contained the probe marker and **the served bundle still did** — the frontend was a commit behind, visibly.
+- **Both halves answered 200. The environment was not broken** — and that is a property of _this commit_, not of the arrangement: `/health`'s contract did not change, so a page built against the old one still worked. A commit that changes the contract in the direction the page depends on would break it.
+
+**Re-running the failed deploy is safe but is not a no-op, which is the opposite of what "idempotent update" suggests.** 202 probes across the re-run, all 200, no downtime. But the same commit through the same `pnpm image` invocation produced a **different digest** — `549b0888…` became `bf2007d5…`, layer bytes 60,247,138 against the 60,247,220 recorded in Task 1.11.6 — so the image is **not bit-reproducible across runs**, `az containerapp update` saw a genuine template change, and a **new revision was rolled out**. The consequence to carry: **the commit-SHA tag has now pointed at two different digests.** It still means "the tree is that commit", which is all `scripts/build-image.mjs` ever claimed; it does not mean "these exact bytes".
+
+### The frontend's upload is still not atomic, and there is a second broken state nobody had recorded
+
+Re-confirmed on the shipping pipeline, on a deploy whose hashed asset actually changed (deploy run 33743081928 — a deploy of identical bytes uploads the same filenames and withdraws nothing, which is why this needed a deliberate bundle change):
+
+```
+10:15:42  doc=200  asset=/assets/index-BuDdAKpl.js:200     <- old document, old asset
+10:15:43  doc=200  asset=/assets/index-D8nQYqQm.js:404     <- NEW document, new asset MISSING
+10:15:44  doc=200  asset=/assets/index-BuDdAKpl.js:200     <- old document again (non-monotonic)
+10:15:44  doc=200  asset=/assets/index-BuDdAKpl.js:404     <- old document, old asset WITHDRAWN
+10:15:45  doc=200  asset=/assets/index-D8nQYqQm.js:200     <- settled
+```
+
+About **two seconds**, and it contains **two distinct broken states rather than one**. Task 1.11.4 recorded the second — the outgoing asset withdrawn while the outgoing document is still served. The first is new: **the incoming document is served before the incoming asset exists.** Both hand a cold load a document whose `<script>` is a 404, which is exactly the failure `exclude: ["/assets/*"]` turns into a 404 naming the file rather than a MIME-type error naming nothing. Non-monotonic propagation is confirmed a third time and now in both directions. It reproduced again on the rollback deploy at 10:33:24.
+
+**The timing is the part that matters for anything built on top of this: the window begins at the exact second the `Deploy the frontend` step reports success.** The step completed at 10:15:43 and the first broken observation is 10:15:43.
+
+**What stands in for atomicity is a deliberate acceptance, not a mechanism.** There is no flag. Nobody already on the page is affected — their assets are fetched, and `no-cache` on the document means their next navigation revalidates. Only a cold load landing inside the window is broken, once per merge to `main`, for about two seconds. Deploying the frontend only when `apps/frontend` changed was already rejected in Task 1.11.6 on correctness, and that argument is unchanged: a bounded two-second window beats an unbounded silent staleness.
+
+### Both rollbacks, executed — and the intuition is backwards twice over
+
+**The backend's documented rollback does not exist on this app.** `az containerapp ingress traffic set` is refused: _"Containerapp 'marketpulse-backend' is configured for single revision. Set revision mode to multiple in order to set ingress traffic."_ Traffic splitting belongs to multiple revision mode. So the revision-label FQDNs this document offered as the mechanism are not reachable either without changing the app's configuration first — which is a change, made during an incident, to the thing that is already misbehaving.
+
+What actually works, and was executed:
+
+| Rollback | Mechanism                                          | Needs                                             | Measured                             |
+| -------- | -------------------------------------------------- | ------------------------------------------------- | ------------------------------------ |
+| Backend  | `az containerapp update --image <previous digest>` | a digest, from any past deploy run's summary      | **43 s** (10:26:37 → 10:27:20)       |
+| Frontend | a revert commit through `verify` and the pipeline  | the repository, a green chain, ~3 min of pipeline | **3 min 42 s** (10:29:42 → 10:33:24) |
+
+**Two traps, both executed rather than asserted.** The backend's rollback creates a _new_ revision rather than reactivating the old one — and **the next merge silently undoes it**: the image went from the rolled-back `55d64495…` to the merge's `28432d57…` with nothing warning anywhere. It buys time; the durable fix is a revert commit through the pipeline, exactly as the frontend's is. And **`workflow_dispatch` on `deploy.yml` is a re-deploy, not a rollback** — it checks out `main`, so pressing it after a bad merge deploys the bad merge again. It exists for the frontend's genuine use, re-uploading an unchanged `main` after a partial upload, and it is exactly the button somebody will press in an incident.
+
+The asymmetry to carry: **the half with no revision history at all recovers ~5x slower, and the fast half expires at the next merge.**
+
+### Where a failure is visible, decided
+
+**Adopted: the workflow run's conclusion and the platform's own state. No notification.** A failed deploy is a red run in the Actions tab, in `gh run list`, and — because the gate leaves a `skipped` run rather than a silence — even a deploy that never started has a visible record. The platform holds the other half: a failed revision is `ActivationFailed`/`Unhealthy` with the probe events beside it.
+
+**What that costs, stated rather than glossed:** it is visible only to somebody looking at the repository. Checked rather than assumed — **the GitHub notifications inbox held no entry for the failed deploy run.** The badge cannot report it either, and that is by construction: `deploy` is a separate workflow precisely so the badge keeps certifying the chain and not the deployment. For a repository with one maintainer, where the deploy runs seconds after that maintainer pressed merge, that is enough — and it is the same argument Story 1.10 used to decline comment bots and coverage services. **The reversal trigger is a second maintainer, or any deploy that can fire when nobody is watching** (a schedule, a dependency bot merging on its own).
+
+### The post-deploy smoke check: declined, with the gap named precisely
+
+Nothing checks that the deployed application _works_ after the deploy step returns. The deploy asserts that the **revision is running**, which is the platform's view, and nothing anywhere loads the page.
+
+Two measured shapes go straight through that gap, and both are green everywhere:
+
+1. **A wrong `CORS_ORIGIN`** (Task 1.11.5): the browser gets `TypeError: Failed to fetch` while `curl` with the same `Origin` gets a **200 with a full body** and the server logs `statusCode: 200`.
+2. **A frontend build with no `VITE_API_BASE_URL`** (Task 1.11.6): no warning, no failure, and a page dialling `http://localhost:3000` that an HTTPS page blocks as mixed content.
+
+**So the only check that would catch either is one that loads the deployed page in a real browser and asserts the cross-origin call succeeded.** A status code cannot do it and `curl` is structurally incapable of it — that is the whole finding of Task 1.11.5's allowlist experiment. A `curl`-based smoke check would therefore be a step that _looks_ like coverage of this gap and covers none of it, which is the shape this repository has now declined three times.
+
+**Declined**, for a headless browser plus its download in every deploy, against a two-page application whose entire backend surface is `GET /health`. And this task adds two arguments the decision did not previously have, both measured here:
+
+- **It would have to poll, not check.** The frontend's broken window opens at the exact second the upload step succeeds, and a backend rollout takes 20–25 s. A check that fires once immediately after the deploy step is red for reasons that are not faults.
+- **Single-shot checks are flaky for reasons that have nothing to do with the deployment.** ~1% of requests from one machine over one link timed out with nothing deploying at all.
+
+**The reversal trigger is a second environment to promote between, or this failure actually shipping** — a deploy that is green everywhere and broken in a browser, found by a person rather than by a task. If it is ever built, it belongs as a final step in `deploy.yml` after the upload, it polls with retries, and it asserts the cross-origin call rather than a status code.
+
+### The fourth failure mode, named rather than reproduced
+
+Task 1.11.2 measured what a start command that does not `exec` does: PID 1 is a shell, `SIGTERM` is swallowed, the platform waits out its **30-second** grace and then `SIGKILL`s, with no `signal received` and no `shutdown complete`. That is a successful-looking deploy whose every revision change costs 30 seconds per replica and reads as slowness rather than as an error — the same shape as the frontend's partial upload, a failure with no failure anywhere. It cannot arise from the current `Dockerfile`, whose `CMD` is the exec form. **It is the regression to watch for**, and the symptom to recognise is a rollout that suddenly takes 30 s longer per revision with nothing in the log.
+
+### The platform's own restart behaviour, recorded beside all of this
+
+An instance that crash-loops **after** a successful deploy is a failed environment produced by a successful deployment, and it is visible in exactly the places above and nowhere else: the replica's `restartCount` and `runningStateDetails`, the revision's `healthState`, and the platform's probe events. No workflow run is red, because none is running. That is the same gap the smoke-check decision leaves open, one step later in time, and the same reversal trigger applies.
+
+### A configuration failure is visible, and unstructured — re-confirmed
+
+Re-run here rather than cited. `PORT=0` exits before the logger exists and writes a plain stderr line, and Container Apps collects stdout and stderr together, so `PORT must be an integer between 1 and 65535, received "0"` **does** reach Log Analytics — as a bare `Log_s` string rather than as a structured record. Visible; not queryable as data.
 
 ## What Task 1.11.1 did not do — kept as its own record
 
