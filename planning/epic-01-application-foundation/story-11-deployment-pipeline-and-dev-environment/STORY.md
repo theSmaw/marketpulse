@@ -1,6 +1,6 @@
 # Story 1.11 — Deployment Pipeline & Development Environment
 
-**Status:** In progress — 6 of 8 tasks complete (1.11.1–1.11.6), plus the account prerequisite
+**Status:** In progress — 7 of 8 tasks complete (1.11.1–1.11.7), plus the account prerequisite
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Stories 1.6, 1.10
 **Epic scope covered:** initial deployment pipeline
@@ -148,7 +148,7 @@ Tackled in order. The story is complete when all eight are done — after the pr
 | 1.11.4 | [Deploy the frontend, with a fallback that is not a catch-all and a stated cache policy](TASK-04-deploy-the-frontend-fallback-and-cache-policy.md)  | Complete    |
 | 1.11.5 | [Make the deployed frontend talk to the deployed backend](TASK-05-make-the-two-halves-talk.md)                                                      | Complete    |
 | 1.11.6 | [Deploy automatically on a merge to `main`, gated on `verify`](TASK-06-deploy-automatically-on-merge-to-main.md)                                    | Complete    |
-| 1.11.7 | [Make a failed deployment visible, and prove it does not take the environment down](TASK-07-failed-deployments-visible-and-harmless.md)             | Not started |
+| 1.11.7 | [Make a failed deployment visible, and prove it does not take the environment down](TASK-07-failed-deployments-visible-and-harmless.md)             | Complete    |
 | 1.11.8 | [Verify the deployed environment, document it, and record ADR 0011](TASK-08-verify-document-and-adr.md)                                             | Not started |
 
 **This story has an out-of-band prerequisite that no task owned, and Task 1.11.3 found it by stopping on it (2026-09-03).** Task 1.11.1 chose the platform and deliberately created nothing — no account, no resource, no credential — and Task 1.11.3 assumed a subscription existed. **Nothing between them owns creating one**, and it is not work this repository can do to itself: an Azure free account needs a payment card and a human at a browser. It blocks the deploy half of 1.11.3 and the whole of 1.11.4–1.11.8, which is five and a half of eight tasks.
