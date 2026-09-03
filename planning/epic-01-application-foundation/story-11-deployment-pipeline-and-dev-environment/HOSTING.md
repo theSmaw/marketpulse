@@ -329,6 +329,8 @@ This is the class of fact Story 1.10 recorded for its repository ruleset: real c
 | Fact               | Value                                                                                                                                                             |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Cloud              | Microsoft Azure                                                                                                                                                   |
+| Subscription id    | `5104e168-b3de-41c2-92a8-c68d28bd4d16`                                                                                                                            |
+| Tenant id          | `6069915b-5bf2-4e36-8b25-8ffb25b5fdd1`                                                                                                                            |
 | Subscription type  | Azure free account (12-month offers plus the always-free grants)                                                                                                  |
 | Region             | East US, for both halves and the eventual database                                                                                                                |
 | Frontend service   | Azure Static Web Apps, **Free** plan                                                                                                                              |

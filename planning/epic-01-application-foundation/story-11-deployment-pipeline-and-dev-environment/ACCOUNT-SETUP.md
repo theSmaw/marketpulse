@@ -1,6 +1,6 @@
 # Account setup — the manual prerequisite
 
-**Status:** Not started
+**Status:** In progress — account created and ids recorded 2026-09-03; CLI installed (2.90.0); `az login` outstanding
 **Story:** [1.11 Deployment Pipeline & Development Environment](STORY.md)
 **Owner:** the maintainer, at a browser. This is the one piece of Story 1.11 that cannot be done from this repository.
 **Blocks:** the deploy half of [Task 1.11.3](TASK-03-deploy-the-backend-and-its-readiness-check.md), and Tasks 1.11.4–1.11.8 entirely.

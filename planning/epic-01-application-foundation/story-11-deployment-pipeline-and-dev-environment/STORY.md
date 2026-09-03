@@ -141,7 +141,7 @@ Tackled in order. The story is complete when all eight are done — after the pr
 
 | #      | Task                                                                                                                                                | Status                                                          |
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| **P**  | [**Create the Azure account** — the manual prerequisite, yours rather than an agent's](ACCOUNT-SETUP.md)                                            | Not started                                                     |
+| **P**  | [**Create the Azure account** — the manual prerequisite, yours rather than an agent's](ACCOUNT-SETUP.md)                                            | **In progress** — ids recorded, `az login` outstanding          |
 | 1.11.1 | [Choose the hosting for both halves, and settle the database question](TASK-01-choose-hosting-and-the-database-question.md)                         | Complete                                                        |
 | 1.11.2 | [Produce the backend's deployable artefact and run it outside the workspace](TASK-02-backend-deployable-artefact.md)                                | Complete                                                        |
 | 1.11.3 | [Deploy the backend, configure it from the platform, and make `/health` the readiness check](TASK-03-deploy-the-backend-and-its-readiness-check.md) | **Partially complete** — offline half done, deploy half blocked |
