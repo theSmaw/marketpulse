@@ -1,6 +1,6 @@
 # Task 1.11.3 — Deploy the backend, configure it from the platform, and make `/health` the readiness check
 
-**Status:** Partially complete — offline half done 2026-09-03, deploy half blocked on an Azure subscription
+**Status:** Complete — 2026-09-03
 **Story:** [1.11 Deployment Pipeline & Development Environment](STORY.md)
 **Depends on:** Task 1.11.2
 
@@ -27,20 +27,28 @@ Get the backend running on the chosen host at a documented URL, with every value
 - **Write down the third failure experience before somebody meets it.** A crash detached from the request that caused it answers **200 with a valid `x-request-id`** and then dies, so the id a user quotes points at a record correctly saying their request succeeded, and the level-60 record beside it carries no id at all. A crash with a request in flight is `curl: (52) Empty reply from server` — no body, no headers, not even an id to quote. "Quote the id and find the entry" is a rule with a stated exception
 - **Decide what `version` should report.** `/health` returns whatever the deployed manifest carries, which is free version reporting if the release process sets it and a permanently `0.0.0` endpoint if it does not
 
-## Progress — 2026-09-03
+## Outcome — 2026-09-03
 
-**Done, and recorded in [`HOSTING.md`](HOSTING.md):**
+**Complete.** The backend is live at **<https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io>**, answering `/health` with a 200 over HTTPS. The full record — every resource, every measured figure and every finding — is in [`HOSTING.md`](HOSTING.md); this is the summary.
 
-- The registry is **Azure Container Registry, Basic**, chosen on managed identity with `acrPull` rather than on price. Rates read from the Azure Retail Prices API rather than the pricing page, which renders its numbers in JavaScript: **$0.1666/day**, 10 GB included, $0.10/GB/month beyond. The finding worth carrying is that at $5.00/month the registry is **54% of the bill** and costs more than the always-on replica it serves ($4.21/month) — recorded rather than quietly reversed, with the reversal trigger named.
-- The cost arithmetic HOSTING.md left as "a few dollars a month" is now done, and it corrects that section: **the idle rate is a vCPU discount only** — memory bills identically idle or active — so idling saves $9.83/month rather than most of the bill. The `Environment Management Hour` meter ($73/month) does not apply on Consumption, quoted.
-- The image's manifest shape is read out of the artefact: an OCI **image index** holding the `linux/amd64` manifest plus a buildx attestation at `platform: unknown/unknown`. The attestations are **kept deliberately**, and **the index digest is the provenance record** — with the cost of that choice stated.
-- The commit-SHA tag rule is decided **and implemented**: `pnpm image` is now `scripts/build-image.mjs`, which tags a clean tree with the bare short SHA, a dirty tree with a `-dirty` suffix and a warning not to push it, and honours `MARKETPULSE_IMAGE_TAG` for Task 1.11.6. All three branches were exercised, along with the empty-`.nvmrc` guard. Moving the recipe out of `package.json` also puts it inside ESLint's and Prettier's net, which `apps/backend/Dockerfile` and the root `.dockerignore` are still outside.
+Done in two sittings. The first took the decisions that needed no account: the registry (**ACR Basic**, on managed identity rather than price, with the finding that at $5.00/month it costs *more* than the $4.21 replica it serves), the cost arithmetic (**the idle rate is a vCPU discount only** — memory bills the same idle or active), the image's manifest shape, **the index digest as the provenance record**, and the commit-SHA tag rule implemented in `scripts/build-image.mjs`. The second, once the account existed, deployed it.
 
-**Not started, and why.** Everything from "deploy it by hand first" onward needs an **Azure subscription, which does not exist** — signup requires a payment card and a human. So there is no resource group, no registry, no container app, no credential, no URL and no log destination, and no criterion below that begins "the backend answers" is met. Nothing was faked and no untested command was written down as a recipe: a deploy transcript nobody ran is the exact failure this task's own "deploy it by hand first" instruction exists to prevent.
+**What the deploy corrected or confirmed, none of it inherited:**
 
-**The one thing the offline half could not settle:** whether ACR accepts an OCI image index. It is documented and unconfirmed, and flagged as unconfirmed where it is stated.
+- **ACR accepts an OCI image index** — the one question the offline half could not settle, now measured, `unknown/unknown` attestation included.
+- **`HOST=0.0.0.0` is mandatory.** The `127.0.0.1` default binds the container's own loopback, unreachable by the ingress proxy, and would look healthy from inside.
+- **The listening-line trap, confirmed in production and sharper than recorded**: the replica logs _two_ lines, loopback first, with `HOST=0.0.0.0` set. Grepping the first line gets the wrong answer.
+- **`pid` is 1** in every record, so the exec-form `CMD` holds on the platform that actually sends `SIGTERM`.
+- **No platform secret was needed**, and the `secrets` array is empty — the mechanism is identified for Epic 2's Alpaca key rather than created for symmetry.
+- **The configuration-failure prediction was half wrong, usefully.** It does write a bare line rather than a structured record — but Container Apps collects stdout and stderr together, so it _is_ visible at the log destination. The worry was that it would not be.
+- **Zero downtime was tested, not cited**: a deliberate `PORT=0` revision crash-looped and was deprovisioned while `/health` returned 200 on all 19 polls. The mechanism reads backwards from the API — the failing revision held `trafficWeight: 100` while `Activating`, and the old revision at weight 0 kept serving.
+- **The probes are the entire traffic and log volume of an idle deployment** — about 16 records a minute. Whether that also breaks the idle _billing_ condition is left open for the bill to answer rather than asserted.
+
+**One thing deliberately left as it is:** `/health` reports `version: "0.0.0"`, because the tag and digest already answer "what is deployed" and the obvious fix — writing a version into `package.json` at build time — would dirty the tree that the tag rule depends on being clean.
 
 ## Done when
+
+All met.
 
 - The subscription, the resource group, the budget and the cost alert exist, and `HOSTING.md`'s account-facts table is filled in rather than still carrying its "work not done" paragraph
 - The registry is chosen, with its cost and authentication method recorded, and the image Task 1.11.2 built is in it

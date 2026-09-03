@@ -1,6 +1,6 @@
 # Story 1.11 — Deployment Pipeline & Development Environment
 
-**Status:** In progress — 2 of 8 tasks complete (1.11.1, 1.11.2)
+**Status:** In progress — 3 of 8 tasks complete (1.11.1, 1.11.2, 1.11.3), plus the account prerequisite
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Stories 1.6, 1.10
 **Epic scope covered:** initial deployment pipeline
@@ -139,17 +139,17 @@ Tackled in order. The story is complete when all eight are done — after the pr
 
 1.11.1 decides and deploys nothing, deliberately — the same shape as Task 1.10.1 installing and stopping, so the first failed deployment in this repository's history has one possible cause. 1.11.2 is entirely local: it produces the backend artefact and runs it outside the workspace, because a platform failing on an artefact that was never correct is the most expensive failure to read. 1.11.3 and 1.11.4 are the two deploys, and they are separate tasks because the two halves share almost nothing — one needs a runtime, a probe and a variable panel, the other needs a fallback and a cache policy — and 1.11.4 is where two of Story 1.5's acceptance criteria are finally closable. 1.11.5 needs both to exist, and it is the only task here that touches application code; the scope it takes from Story 1.12 is a decision it has to state. 1.11.6 automates what 1.11.3 and 1.11.4 did by hand. 1.11.7 makes deployments fail on purpose, which is why it comes after the automation rather than being folded into it. 1.11.8 closes the story.
 
-| #      | Task                                                                                                                                                | Status                                                          |
-| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| **P**  | [**Create the Azure account** — the manual prerequisite, yours rather than an agent's](ACCOUNT-SETUP.md)                                            | Not started                                                     |
-| 1.11.1 | [Choose the hosting for both halves, and settle the database question](TASK-01-choose-hosting-and-the-database-question.md)                         | Complete                                                        |
-| 1.11.2 | [Produce the backend's deployable artefact and run it outside the workspace](TASK-02-backend-deployable-artefact.md)                                | Complete                                                        |
-| 1.11.3 | [Deploy the backend, configure it from the platform, and make `/health` the readiness check](TASK-03-deploy-the-backend-and-its-readiness-check.md) | **Partially complete** — offline half done, deploy half blocked |
-| 1.11.4 | [Deploy the frontend, with a fallback that is not a catch-all and a stated cache policy](TASK-04-deploy-the-frontend-fallback-and-cache-policy.md)  | Not started                                                     |
-| 1.11.5 | [Make the deployed frontend talk to the deployed backend](TASK-05-make-the-two-halves-talk.md)                                                      | Not started                                                     |
-| 1.11.6 | [Deploy automatically on a merge to `main`, gated on `verify`](TASK-06-deploy-automatically-on-merge-to-main.md)                                    | Not started                                                     |
-| 1.11.7 | [Make a failed deployment visible, and prove it does not take the environment down](TASK-07-failed-deployments-visible-and-harmless.md)             | Not started                                                     |
-| 1.11.8 | [Verify the deployed environment, document it, and record ADR 0011](TASK-08-verify-document-and-adr.md)                                             | Not started                                                     |
+| #      | Task                                                                                                                                                | Status      |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| **P**  | [**Create the Azure account** — the manual prerequisite, yours rather than an agent's](ACCOUNT-SETUP.md)                                            | Complete    |
+| 1.11.1 | [Choose the hosting for both halves, and settle the database question](TASK-01-choose-hosting-and-the-database-question.md)                         | Complete    |
+| 1.11.2 | [Produce the backend's deployable artefact and run it outside the workspace](TASK-02-backend-deployable-artefact.md)                                | Complete    |
+| 1.11.3 | [Deploy the backend, configure it from the platform, and make `/health` the readiness check](TASK-03-deploy-the-backend-and-its-readiness-check.md) | Complete    |
+| 1.11.4 | [Deploy the frontend, with a fallback that is not a catch-all and a stated cache policy](TASK-04-deploy-the-frontend-fallback-and-cache-policy.md)  | Not started |
+| 1.11.5 | [Make the deployed frontend talk to the deployed backend](TASK-05-make-the-two-halves-talk.md)                                                      | Not started |
+| 1.11.6 | [Deploy automatically on a merge to `main`, gated on `verify`](TASK-06-deploy-automatically-on-merge-to-main.md)                                    | Not started |
+| 1.11.7 | [Make a failed deployment visible, and prove it does not take the environment down](TASK-07-failed-deployments-visible-and-harmless.md)             | Not started |
+| 1.11.8 | [Verify the deployed environment, document it, and record ADR 0011](TASK-08-verify-document-and-adr.md)                                             | Not started |
 
 **This story has an out-of-band prerequisite that no task owned, and Task 1.11.3 found it by stopping on it (2026-09-03).** Task 1.11.1 chose the platform and deliberately created nothing — no account, no resource, no credential — and Task 1.11.3 assumed a subscription existed. **Nothing between them owns creating one**, and it is not work this repository can do to itself: an Azure free account needs a payment card and a human at a browser. It blocks the deploy half of 1.11.3 and the whole of 1.11.4–1.11.8, which is five and a half of eight tasks.
 
