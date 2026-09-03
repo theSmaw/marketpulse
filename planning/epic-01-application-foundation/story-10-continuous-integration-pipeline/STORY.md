@@ -1,6 +1,6 @@
 # Story 1.10 — Continuous Integration Pipeline
 
-**Status:** In progress — eight tasks, three complete
+**Status:** In progress — eight tasks, four complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.9
 **Epic scope covered:** CI pipeline
@@ -90,6 +90,15 @@ Four things landed in 1.10.2 that every later task in this story has to work wit
 - **`actions/cache` declares `cache-hit` and nothing else.** `cache-matched-key` belongs to `actions/cache/restore` and reads empty here — it was printed three times before being read out of the action's own `action.yml`. A restore-key hit and a total miss are both `cache-hit: false`; pnpm's `reused`/`downloaded` counts separate them
 - **Three pinned actions now.** `actions/checkout`, `actions/setup-node` and `actions/cache`, all on commit SHAs and all bumped by hand. Task 1.10.6 adds nothing here unless a badge needs one
 
+### What Task 1.10.4 hands the remaining tasks
+
+- **There is no coverage threshold, and Task 1.10.5 is the reason it is not set yet rather than the reason it never will be.** The decision is argued in the workflow beside the step. If 1.10.5 makes the backend's process half reachable, **take the baseline again before anyone reaches for a number** — 64.33% is a figure about a tree where `index.ts` is unreachable, and a threshold set against it would be re-set a task later, which is a threshold that tracks the number rather than constraining it
+- **`continue-on-error` makes a step's `conclusion` read `success` however it exited**, so the coverage step's failure is visible only as annotations — its own `::error::` and `Process completed with exit code 1`. The real result is `steps.<id>.outcome`, which this step has no id for. **Do not write a later step's `if:` against a `continue-on-error` step's `conclusion`**, and do not read the absence of a marked step as "coverage was fine". Measured by making the assertion fail on a throwaway commit
+- **One invariant is now checked rather than stated**: `apps/backend/src/index.ts` and `apps/frontend/src/main.tsx` are asserted to be **present in the coverage report**, not to be at 0%. That distinction is 1.10.5's — a check pinned to 0% would fail on the task that fixes it. Excluding just the backend entrypoint was measured at **64.33% → 91.08%**, which is what "a threshold met by excluding them measures less than no threshold at all" costs in points
+- **The frontend artefact is byte-identical on Linux**, proved rather than assumed for the first time: the fingerprint step reports `index-C-Puqfnm.js` at 343,658 B, md5 `cba2825c…`, 355,685 B over three files, matching the laptop and the clean-clone figure that has stood since Task 1.7.7. Five stories of clean-clone re-measurement had only ever run on macOS. Task 1.10.8 can cite the run rather than rebuilding by hand
+- **One artefact is uploaded and two are declined, all three with a number.** The three `coverage/` directories at 211,427 B and **7 days**; `storybook-static/` declined at 9.3 MB per push, with publishing it _as a site_ left to Story 1.11; `apps/frontend/dist/` declined in favour of the fingerprint. Task 1.10.6's badge adds nothing here
+- **Four pinned actions now.** `actions/upload-artifact@043fb46d…` (v7.0.1) joins checkout, setup-node and cache, and is bumped by hand like the others
+
 ## Acceptance criteria
 
 - Pipeline runs on push and on pull request
@@ -125,7 +134,7 @@ Tackled in order. The story is complete when all eight are done.
 | 1.10.1 | [Choose the provider and prove the toolchain pins on Linux](TASK-01-choose-provider-and-pin-the-runner.md)     | Complete    |
 | 1.10.2 | [Run `pnpm verify` on push and on pull request](TASK-02-run-verify-on-push-and-pull-request.md)                | Complete    |
 | 1.10.3 | [Cache the pnpm store, and decide what must never be cached](TASK-03-cache-the-pnpm-store.md)                  | Complete    |
-| 1.10.4 | [Coverage as its own step, the threshold, and what CI publishes](TASK-04-coverage-threshold-and-artefacts.md)  | Not started |
+| 1.10.4 | [Coverage as its own step, the threshold, and what CI publishes](TASK-04-coverage-threshold-and-artefacts.md)  | Complete    |
 | 1.10.5 | [The backend's process half: a child-process test suite](TASK-05-backend-process-tests.md)                     | Not started |
 | 1.10.6 | [Make the status visible from the repository](TASK-06-make-status-visible.md)                                  | Not started |
 | 1.10.7 | [The `pnpm verify` gaps, re-dated, and the link-check decision](TASK-07-the-verify-gaps-and-the-link-check.md) | Not started |

@@ -411,9 +411,23 @@ jobs:
       #    can infer coverage from it. README.md and CLAUDE.md both make that
       #    claim, and Story 1.1 spent three documents warning about a green tick
       #    that means less than it looks like, back when `test` was an `echo`.
-      #    A failure here still shows: the step is marked and the job carries an
-      #    annotation, which is the right weight for "look at the coverage run",
-      #    and it is the only thing this step's own assertion below can do.
+      #    Both halves were made to happen rather than assumed, by temporarily
+      #    adding `src/index.ts` to the backend's `coverage.exclude` on a throwaway
+      #    commit — which is exactly the violation the assertion below exists for.
+      #    The backend went 64.33% -> 91.08%, which is the flattering number the
+      #    threshold argument predicts, the assertion fired with a named error,
+      #    and the RUN CONCLUSION WAS STILL `success`. That is the decision
+      #    working.
+      #
+      #    HOW A FAILURE HERE ACTUALLY SHOWS, because the obvious answer is
+      #    wrong: the run carries two `failure` annotations — this step's own
+      #    `::error::` naming the file, and `Process completed with exit code 1`
+      #    — and THAT is the visible evidence. The step's `conclusion` reads
+      #    `success` in the API and the UI, because `continue-on-error` swallows
+      #    it; the real result is in `steps.<id>.outcome`, which this step has no
+      #    id for and nothing reads. So do not look for a marked step, and do not
+      #    write a later step's `if:` against this one's `conclusion` — it is
+      #    `success` whatever happened.
       #
       # 3. THERE IS NO THRESHOLD. This is the first story that could set one and
       #    it declines, in writing rather than by omission. The baseline is
