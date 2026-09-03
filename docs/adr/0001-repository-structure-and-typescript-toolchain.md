@@ -130,6 +130,13 @@ convenience with no root fan-out and no place in `verify`.
 first failure is the exit code, and building first so that lint and test see
 current declarations.
 
+**Amended 2026-09-03, Story 1.9:** the chain has since gained a sixth step —
+`env:check`, added by Task 1.6.6 between `stories` and `test` — so it now reads
+`build && lint && format:check && stories && env:check && test`. Building first
+stopped being merely convenient in this story and became load-bearing: with
+`packages/shared/dist` missing, both apps' tests fail naming the package, and
+with it **stale** they fail on values, naming nothing. See ADR 0009 §2.
+
 **Consequence, as recorded when this ADR was written (2026-08-29):** `pnpm test`
 and both apps' `pnpm dev` were `echo` placeholders that exited 0, so **a green
 `pnpm test` meant "no tests exist", not "tests pass"** — and Story 1.10 was
@@ -142,7 +149,18 @@ became real across Tasks 1.9.2, 1.9.3 and 1.9.4 — 103 tests in total. The
 record of what was true then is kept above rather than rewritten; what changed
 is that the green tick now means precisely what it says, and no more. It is
 still not a coverage claim: the backend's process half is unreachable by any
-runner in this workspace, and Story 1.10 owns it.
+runner in this workspace, and Story 1.10 owns it. The runner, where tests live,
+and the coverage command that measures what the tick does not are recorded in
+ADR 0009.
+
+**One correction to that amendment, made in Task 1.9.7.** It named three places
+carrying the warning — `README.md`, `CLAUDE.md` and this section. There were
+**thirteen**: the eleven verbatim "Conventions from Story 1.1" blocks in Epic
+1's story files carried it too, along with `EPIC.md` itself and Story 1.10's own
+notes. All of them have been amended in the same change. The lesson is the one
+this epic keeps re-learning from a different direction: **a sentence duplicated
+for legibility is a sentence that has to be counted before it can be corrected**,
+and counting it means a grep rather than a memory.
 
 ### 6. Shared tooling lives at the workspace root; packages declare only what they import
 

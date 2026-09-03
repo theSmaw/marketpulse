@@ -1,6 +1,6 @@
 # Task 1.9.7 — Verify, document, and record the decisions as ADR 0009
 
-**Status:** Not started
+**Status:** Complete (2026-09-03)
 **Story:** [1.9 Automated Testing Foundations](STORY.md)
 **Depends on:** Tasks 1.9.1–1.9.6
 
@@ -54,3 +54,19 @@ Close the story: re-run every acceptance criterion from a clean tree rather than
 ## Notes
 
 The two things most likely to be got wrong here are citing a figure instead of re-taking it, and ticking a criterion an earlier story annotated. Both have precedent in this epic and both were caught late. The third, specific to this story: writing "tests pass" where the honest sentence is which tests exist. The whole point of removing the placeholder warning is that the green tick now means something — it means precisely what was written, and no more.
+
+## What actually happened
+
+Every criterion was re-run and every figure re-taken. Nothing was ticked from a task file, and the eight command forms were re-executed rather than read. Six things are worth carrying forward.
+
+**The three dead sentences were thirteen.** The brief said to verify that `README.md`, `CLAUDE.md` and ADR 0001 §5 no longer carry the "a green `pnpm test` means no tests exist" warning, and they do not — Task 1.9.4 removed all three correctly, and §5 was amended and dated rather than rewritten. A grep found **ten more**: the eleven verbatim "Conventions from Story 1.1" blocks in Epic 1's story files, `EPIC.md` itself, and Story 1.10's own notes. All ten are amended here, struck through rather than deleted, exactly as Task 1.3.3 handled the `dev`-placeholder correction. **The recorded count was of the places somebody remembered**, and the verbatim-duplication convention failed for the third time to surface drift in a diff.
+
+**Every figure reproduced.** All twelve coverage percentages to the digit, all eight command forms including both green failures, the 20%-against-30% narrowing trap, the bare-`vitest`-does-not-watch result under a real pty, the `ERR_PACKAGE_PATH_NOT_EXPORTED` on an emitted test file, and the two pre-build failure modes — including the detail that the missing-`dist` backend run still reports **16 passed**. The frontend artefact is byte-identical for the fifth story running.
+
+**One figure was corrected rather than reproduced, and it is in ADR 0001.** §5 stated `verify` as five steps; it has been six since Task 1.6.6. Amended and dated in place.
+
+**The `test` step is the only one that genuinely moved.** 0.45 s → 2.36 s, on a chain of 11.78 s. Four other steps are inside their own run-to-run variance, and five consecutive stories have now measured the total moving in both directions while the tree only grew.
+
+**One gap closed by a test, one enlarged, one opened.** The route-schema audit closed a gap no `verify` step could — the model for the rest. The prose-figures gap grew twice inside this story and is re-dated 2026-09-03 rather than pretended away. And the emitted `dist/*.test.js` copies are a new one, recorded here rather than left to be discovered.
+
+**Nothing was added, deleted or re-ordered in the epic.** Two candidates for a new story were considered — a process-level test suite and a checker for the prose figures — and both belong to Story 1.10, which needs the built tree and the port discipline for the first and owns CI for the second.

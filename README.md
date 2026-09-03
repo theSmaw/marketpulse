@@ -12,11 +12,11 @@ recommends trades, or produces target prices.
 
 ## What exists today
 
-**Epic 1 complete through Story 1.8 — the repository and its toolchain, a
+**Epic 1 complete through Story 1.9 — the repository and its toolchain, a
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
-error contract, and a development loop that takes a clean clone to a running
-pair.**
+error contract, a development loop that takes a clean clone to a running pair,
+and a test suite of 103 tests with coverage available on demand.**
 
 One command starts both halves:
 
@@ -401,7 +401,8 @@ that file's coverage: `coverage.include` fixes the denominator while the
 numerator shrinks, so `pnpm --filter @marketpulse/shared coverage
 src/api-error.test.ts` reports 20% where the full run reports 30%.
 
-The first figures, measured on the tree Task 1.9.5 shipped:
+The figures below were taken in Task 1.9.5 and **re-taken in Task 1.9.7**,
+where all twelve reproduced to the digit:
 
 | Package           | Statements      | Branches | Functions | Lines           |
 | ----------------- | --------------- | -------- | --------- | --------------- |
@@ -1219,11 +1220,16 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 ## Documentation
 
 - [`docs/adr/`](docs/adr/) — architecture decision records, newest last;
-  [0008](docs/adr/0008-the-local-development-loop.md) is the most recent and
-  covers this page's subject: how the pair was made legible in one terminal, why
-  the browser talks to the API through real CORS rather than a Vite proxy, why
-  the frontend's ports are literals, and why `pnpm ready` is a script and
-  deliberately not a `pnpm verify` step.
+  [0009](docs/adr/0009-the-test-runner-conventions-and-coverage.md) is the most
+  recent and covers the two testing sections above: why the runner is Vitest,
+  why test files sit beside their subject inside `src/`, why there is one
+  config per package and no root one, why the DOM environment is jsdom when
+  every measurement favoured happy-dom, and why coverage is on demand with no
+  threshold. [0008](docs/adr/0008-the-local-development-loop.md) covers how the
+  pair was made legible in one terminal, why the browser talks to the API
+  through real CORS rather than a Vite proxy, why the frontend's ports are
+  literals, and why `pnpm ready` is a script and deliberately not a
+  `pnpm verify` step.
   [0007](docs/adr/0007-logging-the-error-contract-and-failure-containment.md)
   covers structured logging, the correlation id, the `ApiError` wire contract,
   the crash handlers and the frontend's error boundaries — including why the
