@@ -1,6 +1,6 @@
 # Task 1.9.4 — Frontend component tests and the DOM environment
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.9 Automated Testing Foundations](STORY.md)
 **Depends on:** Task 1.9.2
 
