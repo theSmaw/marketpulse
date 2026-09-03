@@ -22,7 +22,7 @@ Add the polling behaviour behind Task 1.12.1's three states: an interval chosen 
 
 ## Done when
 
-- The three states are produced by real conditions rather than by a switch: healthy from a successful poll, degraded from the cause Task 1.12.1 defined, unreachable from a transport failure or timeout
+- The three states are produced by real conditions rather than by a switch: `healthy` from a successful poll, `degraded` from one of the two causes Task 1.12.1 named in `BACKEND_DEGRADED_CAUSES`, `unreachable` from a transport failure **or a timeout** — the hook derives `BackendStatus` from `packages/shared` and does not invent a fourth name for anything
 - A failed poll leaves the last successful check time intact; a successful poll after a failure returns the state to healthy with no reload
 - The interval and the visibility decision each carry their reason in the code
 - `health-probe.ts` and its call site are gone
