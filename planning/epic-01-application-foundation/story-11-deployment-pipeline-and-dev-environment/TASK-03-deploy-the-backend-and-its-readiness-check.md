@@ -1,6 +1,6 @@
 # Task 1.11.3 — Deploy the backend, configure it from the platform, and make `/health` the readiness check
 
-**Status:** Not started
+**Status:** Partially complete — offline half done 2026-09-03, deploy half blocked on an Azure subscription
 **Story:** [1.11 Deployment Pipeline & Development Environment](STORY.md)
 **Depends on:** Task 1.11.2
 
@@ -25,6 +25,19 @@ Get the backend running on the chosen host at a documented URL, with every value
 - **Verify `/health` over the public URL**: a 200, the schema-stripped body, and an `x-request-id` header on the response. Then verify a 404 on a made-up path carries the `ApiError` shape and its own id, because the not-found path is the one with no route and no response schema behind it
 - **Write down the third failure experience before somebody meets it.** A crash detached from the request that caused it answers **200 with a valid `x-request-id`** and then dies, so the id a user quotes points at a record correctly saying their request succeeded, and the level-60 record beside it carries no id at all. A crash with a request in flight is `curl: (52) Empty reply from server` — no body, no headers, not even an id to quote. "Quote the id and find the entry" is a rule with a stated exception
 - **Decide what `version` should report.** `/health` returns whatever the deployed manifest carries, which is free version reporting if the release process sets it and a permanently `0.0.0` endpoint if it does not
+
+## Progress — 2026-09-03
+
+**Done, and recorded in [`HOSTING.md`](HOSTING.md):**
+
+- The registry is **Azure Container Registry, Basic**, chosen on managed identity with `acrPull` rather than on price. Rates read from the Azure Retail Prices API rather than the pricing page, which renders its numbers in JavaScript: **$0.1666/day**, 10 GB included, $0.10/GB/month beyond. The finding worth carrying is that at $5.00/month the registry is **54% of the bill** and costs more than the always-on replica it serves ($4.21/month) — recorded rather than quietly reversed, with the reversal trigger named.
+- The cost arithmetic HOSTING.md left as "a few dollars a month" is now done, and it corrects that section: **the idle rate is a vCPU discount only** — memory bills identically idle or active — so idling saves $9.83/month rather than most of the bill. The `Environment Management Hour` meter ($73/month) does not apply on Consumption, quoted.
+- The image's manifest shape is read out of the artefact: an OCI **image index** holding the `linux/amd64` manifest plus a buildx attestation at `platform: unknown/unknown`. The attestations are **kept deliberately**, and **the index digest is the provenance record** — with the cost of that choice stated.
+- The commit-SHA tag rule is decided **and implemented**: `pnpm image` is now `scripts/build-image.mjs`, which tags a clean tree with the bare short SHA, a dirty tree with a `-dirty` suffix and a warning not to push it, and honours `MARKETPULSE_IMAGE_TAG` for Task 1.11.6. All three branches were exercised, along with the empty-`.nvmrc` guard. Moving the recipe out of `package.json` also puts it inside ESLint's and Prettier's net, which `apps/backend/Dockerfile` and the root `.dockerignore` are still outside.
+
+**Not started, and why.** Everything from "deploy it by hand first" onward needs an **Azure subscription, which does not exist** — signup requires a payment card and a human. So there is no resource group, no registry, no container app, no credential, no URL and no log destination, and no criterion below that begins "the backend answers" is met. Nothing was faked and no untested command was written down as a recipe: a deploy transcript nobody ran is the exact failure this task's own "deploy it by hand first" instruction exists to prevent.
+
+**The one thing the offline half could not settle:** whether ACR accepts an OCI image index. It is documented and unconfirmed, and flagged as unconfirmed where it is stated.
 
 ## Done when
 

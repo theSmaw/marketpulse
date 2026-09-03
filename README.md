@@ -698,6 +698,20 @@ The backend deploys as a container. `pnpm image` builds it:
 pnpm image     # -> marketpulse-backend:<short commit sha>
 ```
 
+**The tag tells the truth about what is inside the image**, which took a rule
+because it was got wrong once: Task 1.11.2 built before committing, so its image
+is tagged with the _parent_ commit while the tree inside it is the child's. So:
+
+| Working tree                     | Tag             | Note                                      |
+| -------------------------------- | --------------- | ----------------------------------------- |
+| clean                            | `b103e6c`       | the tag means the tree **is** that commit |
+| dirty (tracked **or** untracked) | `b103e6c-dirty` | prints a line saying not to push it       |
+| `MARKETPULSE_IMAGE_TAG` set      | that value      | for CI, which knows its own commit        |
+
+A dirty tree is never refused — building a throwaway image while editing the
+`Dockerfile` is the normal case, and a recipe that blocks it just teaches people
+to bypass the recipe.
+
 That is one command rather than a documented incantation because three of its
 arguments are load-bearing and all three are easy to leave off:
 
@@ -705,7 +719,7 @@ arguments are load-bearing and all three are easy to leave off:
 docker build -f apps/backend/Dockerfile \
   --platform linux/amd64 \
   --build-arg NODE_VERSION="$(cat .nvmrc)" \
-  -t marketpulse-backend:"$(git rev-parse --short HEAD)" .
+  -t marketpulse-backend:"<tag>" .
 ```
 
 - **`--platform linux/amd64`** because Azure Container Apps requires it and this

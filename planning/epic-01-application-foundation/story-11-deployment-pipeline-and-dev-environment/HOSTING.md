@@ -147,7 +147,7 @@ The premium minimum of 4 minutes **is** the default's 240 seconds, named as idle
 
 So the 5 s ceiling and the ten tests behind it (Task 1.10.5) sit inside it with 25 seconds to spare, and Story 1.2's guess about a plausible orchestrator turned out to be exactly right. (**This paragraph originally asserted the 30 seconds without a source** — correct, but a citation-shaped claim in a document whose whole premise is quotation. Re-read and quoted 2026-09-03, in the same change that amended Tasks 1.11.2–1.11.8.) **Task 1.11.2 owns confirming the container gets `SIGTERM` as PID 1** — the one container question Story 1.2 could not close — and this platform choice does not close it either.
 
-**Three container constraints that follow from the platform and are easy to meet only if known in advance.** The image must be `linux/amd64` — "Linux-based (`linux/amd64`) container images are required" — and the development machine is Apple Silicon, so the default local build is the wrong architecture and **runs perfectly in every local check before failing on the platform**. The Consumption plan takes fixed CPU/memory pairs rather than arbitrary values, starting at **`0.25` vCPU with `0.5Gi`**, which is the pair the cost arithmetic below assumes and the envelope the server has to start inside. And **Container Apps runs images from a registry and nothing else**, so a registry is a prerequisite of the first deploy: the choice is Azure Container Registry (Basic, roughly $0.167/day with 10 GiB included) against GitHub Container Registry, which is free for this repository — **Task 1.11.3 owns taking it**, with the note that ACR authenticates by managed identity and `acrPull` rather than by a stored password, and that Docker Hub is warned off by name on rate limits.
+**Three container constraints that follow from the platform and are easy to meet only if known in advance.** The image must be `linux/amd64` — "Linux-based (`linux/amd64`) container images are required" — and the development machine is Apple Silicon, so the default local build is the wrong architecture and **runs perfectly in every local check before failing on the platform**. The Consumption plan takes fixed CPU/memory pairs rather than arbitrary values, starting at **`0.25` vCPU with `0.5Gi`**, which is the pair the cost arithmetic below assumes and the envelope the server has to start inside. And **Container Apps runs images from a registry and nothing else**, so a registry is a prerequisite of the first deploy: the choice was Azure Container Registry against GitHub Container Registry, and **Task 1.11.3 took ACR Basic** on the managed-identity argument — see _The container registry_ below, which carries the measured rates, the finding that the registry costs more than the compute it serves, and the image, digest and tag rules that go with it.
 
 **The platform's default health probes are TCP and never touch `/health`.** With ingress enabled the defaults are a Startup probe (TCP on the ingress target port, timeout 3 s, period 1 s, initial delay 1 s, failure threshold 240), a Liveness probe (TCP, same port) and a Readiness probe (TCP, timeout 5 s, period 5 s, initial delay 3 s, failure threshold 48). **A TCP probe passes on any process that binds the port**, which is exactly the case `/health` exists to distinguish, so configuring an HTTP probe is an action Task 1.11.3 has to take rather than a default it inherits. The readiness numbers matter again in Task 1.11.7: 48 failures at a 5-second period is about **four minutes** before a bad revision is declared unhealthy, and what the previous revision serves during that window is what the "a failed deployment does not take the environment down" criterion is actually about.
 
@@ -193,6 +193,27 @@ The subscription is a **new Azure free account**, so two distinct things are in 
 > - The replica is using less than 0.01 vCPU cores.
 > - The replica is receiving less than 1,000 bytes per second of network traffic.
 
+**Task 1.11.3 did the arithmetic, and it corrects the framing above in one respect that matters.** Rates from the Azure Retail Prices API, East US, USD, 2026-09-03:
+
+| Meter                      | Rate                       |
+| -------------------------- | -------------------------- |
+| Standard vCPU Active Usage | $0.000024 / vCPU-second    |
+| Standard vCPU Idle Usage   | $0.000003 / vCPU-second    |
+| Standard Memory Active     | $0.000003 / GiB-second     |
+| Standard Memory Idle       | **$0.000003 / GiB-second** |
+| Standard Requests          | $0.40 / million            |
+
+**The idle rate is a vCPU discount and nothing else — memory bills at the same rate idle or active.** That is read off the price list rather than inferred, and it is the correction: the section above reads as though the idle rate is what keeps the whole bill small, and it keeps _part_ of it small. Over a 30-day month a 0.25 vCPU / 0.5 GiB replica is 648,000 vCPU-seconds and 1,296,000 GiB-seconds; net of the 180,000 and 360,000 free grants that is 468,000 and 936,000 billable:
+
+|                         | vCPU   | Memory | Total      |
+| ----------------------- | ------ | ------ | ---------- |
+| Always-on, fully idle   | $1.40  | $2.81  | **$4.21**  |
+| Always-on, fully active | $11.23 | $2.81  | **$14.04** |
+
+So idling saves **$9.83/month, not the bill** — and memory is the larger half of the idle figure. With ACR Basic at $5.00 the expected total is about **$9.21/month**, of which the registry is 54%.
+
+**One charge that would dwarf all of it does not apply, and it is worth naming because the meter exists and looks alarming.** There is an `Environment Management Hour` meter at $0.10/hour — $73/month — and it is not charged here: "You aren't billed any plan management charges unless you use a Dedicated workload profile in your environment." The same doc adds that **private endpoints and planned maintenance trigger that charge regardless of plan**, which is a second reason beyond the Free plan's limits not to reach for a private endpoint on this environment.
+
 So the expected bill for this story is a **few dollars a month**, and the estimate carries a stated expiry: **Epic 3 breaks the idle conditions on purpose.** A replica holding a live Alpaca feed is processing traffic during market hours and will not meet "less than 1,000 bytes per second", so it bills at the active rate for part of every weekday. **Do not carry this figure into Epic 3 — re-take it there.** That is the same rule this repository applies to every other measurement, and it is easier to obey when the trigger is named in advance. Health probe requests are not billable, which matters because Task 1.11.3 adds one.
 
 **Static Web Apps** — Free, with the caps in the table above and no overage billing.
@@ -200,6 +221,62 @@ So the expected bill for this story is a **few dollars a month**, and the estima
 **Azure Database for PostgreSQL flexible server** — free for 12 months on a free account, at "up to 750 hours of Burstable B1MS instance", plus "32 GB storage and 32 GB backup storage". 750 hours is continuous operation for a month.
 
 **The bill to watch is Container Apps, and the trigger to re-take it is Epic 3.** A budget and a cost alert on the subscription are the mitigation; Task 1.11.3 is where they get set, because that is the first task that creates a billable resource.
+
+## The container registry — Azure Container Registry, Basic
+
+**Decided 2026-09-03 by Task 1.11.3, which created nothing.** Container Apps runs images from a registry and nothing else, so this is a prerequisite of the first deploy rather than a detail of it.
+
+**The choice is ACR Basic over GitHub Container Registry, and it was taken on the authentication mechanism rather than on price — which is just as well, because on price it loses.** ACR authenticates from Container Apps by **managed identity with the `acrPull` role**: there is no password, no token and nothing in the app's `secrets` array, and a credential that cannot be replayed is worth more than one that is merely rotated. That is the same principle that pins every GitHub Action to a commit SHA (Story 1.10) and that chose a federated identity credential over a service-principal secret above. GHCR is free for this repository and sits beside the source, and Container Apps would pull from it with a **stored personal access token** — a long-lived secret in the app's configuration, which is the shape this repository has now declined three times.
+
+**Docker Hub is disqualified rather than merely rejected**, and the documentation warns it off by name: rate limits are enforced against anonymous pulls, and "When the limit is reached, containers in your app fail to start". That is a failure that arrives on a scale-out or a restart, long after the deploy that introduced it went green — the worst available shape.
+
+### What it costs, and the finding is that the registry outweighs the thing it serves
+
+Every figure below is read from the **Azure Retail Prices API** (`prices.azure.com/api/retail/prices`, `armRegionName eq 'eastus'`, USD, 2026-09-03) rather than from the pricing page, which renders its numbers in JavaScript and shows `$-` to a fetch. That is the difference between a quotation and a citation, which is this document's whole premise.
+
+| Meter                      | Rate               |
+| -------------------------- | ------------------ |
+| Basic Registry Unit        | **$0.1666 / day**  |
+| Data Stored (beyond 10 GB) | $0.10 / GB / month |
+
+So the registry is **$5.00 in a 30-day month**, and the 60,266,496 B compressed image Task 1.11.2 produced uses 0.6% of the included 10 GB — storage will not be the variable.
+
+**Put beside the compute it exists to serve, that is 54% of the bill for the least interesting resource in the deployment.** The arithmetic is in the cost section above and comes to $4.21/month for the always-on replica. **This was not known when the choice was made, and it is recorded here rather than quietly reversed**: the managed-identity argument is still the argument, and $5/month is a defensible price for removing a long-lived secret from the platform. **The reversal trigger is the bill mattering** — if the subscription's total becomes a reason to economise, GHCR is the first thing to move, it is free, and the cost of moving is one image reference and one pull secret.
+
+### The image is an index, not a manifest, and the provenance record is the index digest
+
+Read out of the image Task 1.11.2 built rather than assumed. `index.json` holds one `application/vnd.oci.image.index.v1+json`, and inside it are **two** manifests:
+
+| Manifest                                 | Media type                                              | Platform          |
+| ---------------------------------------- | ------------------------------------------------------- | ----------------- |
+| the real image                           | `application/vnd.oci.image.manifest.v1+json`            | `linux/amd64`     |
+| a buildx attestation (provenance + SBOM) | same, `vnd.docker.reference.type: attestation-manifest` | `unknown/unknown` |
+
+Three things follow, and the third is the one Task 1.11.6 needs settled.
+
+**The attestations are kept, deliberately.** `--provenance=false --sbom=false` is the alternative shape and produces a plain single-platform manifest with no `unknown/unknown` entry; it was not taken, because the attestations are what make a provenance claim mean anything and they cost a manifest nobody reads. The `unknown/unknown` entry is what older tooling chokes on, and **the reversal trigger is any tool in the deploy path refusing the index** — at which point the two flags are the fix and the claim gets weaker.
+
+**Whether ACR accepts an index is not confirmed.** The documentation says so and this task could not test it, because no registry exists. **The deploy half of Task 1.11.3 is where that gets proved, and a future reader finding this sentence still here should read it as untested.**
+
+**The provenance record is the _index_ digest, not the platform image's.** There are two, and "pin the digest" is ambiguous without this sentence. The index digest is what a `repo@sha256:...` reference resolves, so it is what the platform actually pulls; it is the only one of the two that **covers the attestations**, so pinning the platform manifest would pin the image while discarding the provenance it is supposed to evidence; and the platform digest stays reachable from the index, so pinning the index loses nothing. The cost is stated rather than hidden: **the index digest moves when the attestation content moves even if the image bytes do not**, so it identifies the build rather than only the runnable artefact. That is the right thing to pin for provenance and the wrong thing to compare two builds' outputs with — for that, read the platform manifest digest.
+
+### What a commit-SHA tag is allowed to mean
+
+**A commit-SHA tag means the tree is exactly that commit.** Nothing else may wear one.
+
+The rule exists because it was already broken once. Task 1.11.2 built its image before committing, so it is tagged `03a3b63` — the **parent** commit — while the tree inside it is `de960ce`. The tag names a commit that does not describe the image, which is precisely the one question a registry tag exists to answer.
+
+`scripts/build-image.mjs` is what enforces it, and `pnpm image` is now that script rather than a one-line recipe in `package.json` — which also puts the logic inside ESLint's and Prettier's net, unlike `apps/backend/Dockerfile` and the root `.dockerignore`, which no tool in `pnpm verify` reads. Three behaviours, all exercised rather than described:
+
+- **Clean tree** → the bare short SHA (`b103e6c`).
+- **Dirty tree** → the same SHA with a **`-dirty`** suffix (`b103e6c-dirty`), plus a line saying the tag names a tree that is not any commit and must not be pushed. Refusing outright was the alternative and was rejected on what it costs: iterating on a `Dockerfile` from a work-in-progress tree is the normal case, and a recipe that blocks it teaches people to bypass the recipe. A suffix is loud where it matters and absent where it does not.
+- **`MARKETPULSE_IMAGE_TAG` set** → that tag verbatim. This is Task 1.11.6's door: a pipeline knows the commit it was triggered for and should tag from that rather than from whatever `HEAD` resolves to inside a checkout step — usually the same, and **not** the same for a `pull_request` run, which checks out the merge commit.
+
+**The one hole in that rule was looked for and is closed by something else, which is worth knowing because it is what keeps the rule sound rather than merely plausible.** The dirty check keys on git's view of the tree and the build context keys on `.dockerignore`'s, and **those are not the same list** — `.gitignore` alone carries `tmp/`, `.tmp/` and `temp/`, so a file there is invisible to the tag and would, in principle, be a change to the image that the tag does not name. It cannot be, because **`apps/backend/Dockerfile` copies named paths rather than the context**: four root files, `packages/shared` and `apps/backend`, and nothing else. Everything gitignored _inside_ those paths — `node_modules/`, `dist/`, `coverage/`, `*.tsbuildinfo`, `.env` — is dockerignored too. So the selective `COPY` is load-bearing for the tag's honesty as well as for the build, and replacing it with a `COPY . .` would quietly reopen this.
+
+(Found by tripping over it: a throwaway `git rev-parse --git-path info/exclude` written while testing the clean-tree branch resolved to the **common** git directory rather than the linked worktree's, so a test-setup line landed in the main repository's `.git/info/exclude` and made a new source file invisible to `git status`. Harmless and reverted, and a fair demonstration of the class — an exclude mechanism that hides a file from git hides it from this check too.)
+
+**What counts as dirty is the working tree, not the index**, and this is the half that is easy to get wrong. A build context is assembled from the working tree rather than from git — the same property that makes the root `.dockerignore`'s `.env` entry load-bearing — so an **untracked** file is as much a part of what got built as a modified tracked one. `git status --porcelain` reports both and honours `.gitignore`, which is why it is the check rather than `git diff --quiet`.
 
 ## The database — named now, provisioned in Epic 2
 
@@ -249,17 +326,17 @@ with a pull request's temporary environment suffixed by its PR number, and branc
 
 This is the class of fact Story 1.10 recorded for its repository ruleset: real configuration that no file here can hold, where the write-up is the only copy a future reader gets.
 
-| Fact               | Value                                                                                            |
-| ------------------ | ------------------------------------------------------------------------------------------------ |
-| Cloud              | Microsoft Azure                                                                                  |
-| Subscription type  | Azure free account (12-month offers plus the always-free grants)                                 |
-| Region             | East US, for both halves and the eventual database                                               |
-| Frontend service   | Azure Static Web Apps, **Free** plan                                                             |
-| Backend service    | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                                     |
-| Database service   | Azure Database for PostgreSQL flexible server, Burstable B1MS — **not yet provisioned**          |
-| Container registry | **Open — Task 1.11.3 decides.** ACR Basic (~$0.167/day) or GitHub Container Registry (free here) |
-| Source repository  | `github.com/theSmaw/marketpulse`                                                                 |
-| Deploy trigger     | A merge to `main`, through the existing `verify` workflow's gate (Task 1.11.6)                   |
+| Fact               | Value                                                                                                                                                             |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloud              | Microsoft Azure                                                                                                                                                   |
+| Subscription type  | Azure free account (12-month offers plus the always-free grants)                                                                                                  |
+| Region             | East US, for both halves and the eventual database                                                                                                                |
+| Frontend service   | Azure Static Web Apps, **Free** plan                                                                                                                              |
+| Backend service    | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                                                                                                      |
+| Database service   | Azure Database for PostgreSQL flexible server, Burstable B1MS — **not yet provisioned**                                                                           |
+| Container registry | **Azure Container Registry, Basic** — $0.1666/day in East US, 10 GB included. Authenticated by managed identity with `acrPull`. **Not yet created** (Task 1.11.3) |
+| Source repository  | `github.com/theSmaw/marketpulse`                                                                                                                                  |
+| Deploy trigger     | A merge to `main`, through the existing `verify` workflow's gate (Task 1.11.6)                                                                                    |
 
 **Why East US.** Alpaca's market data endpoints are US-hosted, and Epic 3's WebSocket is the latency that matters; the frontend is a geo-distributed CDN on the production environment regardless of the app's region, so co-locating it costs nothing. The trade accepted is portal and log latency for a UK-based maintainer, which is a human cost paid once per session rather than per market tick.
 
@@ -267,7 +344,9 @@ This is the class of fact Story 1.10 recorded for its repository ruleset: real c
 
 **Rollback.** Container Apps keeps revisions, so a rollback is shifting traffic to the previous revision rather than re-running a deploy — Task 1.11.7 owns proving it. Static Web Apps has no equivalent revision history on the Free plan, so the frontend's rollback is **re-running the deploy from the previous commit**, which makes the frontend the slower half to recover and is worth knowing before it is needed.
 
-**Owed by Task 1.11.3, and this table is where they go.** The subscription id, the tenant id, the resource group name, the Container Apps environment name and its unique identifier, **the container registry and its authentication method**, both published URLs, and the federated credential's subject — none of which exist yet, because this task deploys nothing. **A future reader finding this section still carrying this paragraph should read it as work not done rather than as facts that were never knowable.**
+**Owed by Task 1.11.3, and this table is where they go.** The subscription id, the tenant id, the resource group name, the Container Apps environment name and its unique identifier, both published URLs, and the federated credential's subject. **A future reader finding this section still carrying this paragraph should read it as work not done rather than as facts that were never knowable.**
+
+**Task 1.11.3 was split across two sittings, and this is the record of where the line fell (2026-09-03).** Its offline half is done: the registry is chosen with its rates measured, the image's manifest shape is read out of the artefact, the provenance digest is named, and the commit-SHA tag rule is implemented and exercised in `scripts/build-image.mjs`. **Its deploy half is not started, and the reason is that no Azure subscription exists** — signup needs a payment card and a human, which is not a thing this repository can do to itself. So there is still **no resource, no registry, no credential and no URL**, the container registry row above says `Not yet created`, and every criterion that begins "the backend answers" remains open. The one claim that half would have tested and this one could not is whether ACR accepts an OCI image index; it is documented and unconfirmed, and flagged as such where it is stated.
 
 ## What this task did not do
 
