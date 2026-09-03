@@ -66,16 +66,16 @@ The rejected alternatives were rejected on that one property, having been checke
 
 From [Quotas in Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/quotas), Free plan column:
 
-| Limit                              | Free plan   | Our position                                          |
-| ---------------------------------- | ----------- | ----------------------------------------------------- |
-| Included bandwidth (per month)     | 100 GB      | The artefact is 355,685 B over three files            |
-| Overage bandwidth                  | Unavailable | So the failure mode is a **cut-off**, not a bill      |
-| Apps (per subscription)            | 10          | One                                                   |
-| Preview environments               | 3           | Task 1.11.6 decides whether to use them               |
-| Storage (single environment)       | 250 MB      | 355,685 B — 0.14% of it                               |
-| File count                         | 15,000      | Three                                                 |
-| Custom domains                     | 2           | None planned in this story                            |
-| Private endpoint / IP restrictions | Unavailable | **The environment is public.** See _Protection_ below |
+| Limit                              | Free plan   | Our position                                           |
+| ---------------------------------- | ----------- | ------------------------------------------------------ |
+| Included bandwidth (per month)     | 100 GB      | The artefact is **356,936 B over four files** (1.11.8) |
+| Overage bandwidth                  | Unavailable | So the failure mode is a **cut-off**, not a bill       |
+| Apps (per subscription)            | 10          | One                                                    |
+| Preview environments               | 3           | **Declined** by Task 1.11.6 — see ADR 0011 §21         |
+| Storage (single environment)       | 250 MB      | **356,936 B — 0.14% of it**                            |
+| File count                         | 15,000      | **Four**                                               |
+| Custom domains                     | 2           | None planned in this story                             |
+| Private endpoint / IP restrictions | Unavailable | **The environment is public.** See _Protection_ below  |
 
 "Overage bandwidth: Unavailable" on Free is the one to know: the Free plan does not bill for excess, so exceeding 100 GB stops service rather than producing an invoice. At 355 KB per cold load that is not a near-term risk, and it is written down because it is a _different_ failure shape from the paid plans.
 

@@ -1,6 +1,6 @@
 # Story 1.11 — Deployment Pipeline & Development Environment
 
-**Status:** In progress — 7 of 8 tasks complete (1.11.1–1.11.7), plus the account prerequisite
+**Status:** Complete (2026-09-03) — all 8 tasks, plus the account prerequisite
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Stories 1.6, 1.10
 **Epic scope covered:** initial deployment pipeline
@@ -133,23 +133,40 @@ Story 1.10 is complete (2026-09-03) and recorded in `docs/adr/0010-continuous-in
 - Environment configuration is managed by the hosting platform, not committed — **for the backend. The frontend's is build-time and cannot be; see the Story 1.6 section above**
 - A failed deployment is visible and does not take down the running environment
 
+**All six were re-run against the deployed environment by Task 1.11.8 on 2026-09-03**, rather than inherited from the tasks that built them, together with the two Story 1.5 criteria this story took on. The full readings are in [ADR 0011](../../../docs/adr/0011-deploying-both-halves-and-what-a-green-deploy-certifies.md).
+
+| Criterion                                         | Re-run result                                                                                                      |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Merging to `main` deploys automatically           | Met — re-run by merging this task's own work; `verify` → `deploy` on `workflow_run`, gated on the run's conclusion |
+| Reachable at a documented URL                     | Met — both URLs in `README.md`; four routes and a made-up path all 200 with the 1,101 B document                   |
+| Backend `/health` responds successfully           | Met — HTTP/2 200 with `x-request-id`; a made-up path answers the `ApiError` shape with a matching id               |
+| The deployed halves communicate                   | Met — browser console read `x-request-id: 9f678535-…`; the same id is the `reqId` in two Log Analytics rows        |
+| Configuration managed by the platform             | Met **for the backend** — five env values, `secrets` empty. The frontend's is build-time and cannot be             |
+| A failed deployment is visible and harmless       | Met — four failure classes, no non-200 through any of them, the old revision serving at weight 0                   |
+| _(Story 1.5)_ Deep-linking works on the real host | Met — all four routes deep-load cold; `/replay` renders styled with one navigation entry                           |
+| _(Story 1.5)_ The not-found route renders         | Met — a made-up path renders `No such page` in a browser; `/assets/nope.js` is a 404                               |
+
+**Two things were deliberately left open, each with an owner.** Whether continuous health probing breaks the Consumption plan's **idle-billing** condition is unanswered, because both billing APIs refuse this subscription's offer type and the environment is under six hours old against cost data that lags 8–24 hours — **Epic 2 re-reads it** before adding a database, and **Epic 3 must re-take it regardless**, since a replica holding a live feed bills at the active rate. And **image retention is deferred rather than unconsidered**, on re-taken arithmetic: layers are shared, so the registry sits at **0.71% of its 10 GB** after 13 manifests and each build costs ~1.75 MB rather than 60 MB — the trigger is usage passing 5 GB.
+
+**What Story 1.12 inherits.** It lands the first real frontend-to-backend call, and the thing that would have been a discovery is already closed: Task 1.11.2 verified inside the image that `@marketpulse/shared` arrives as **real file content** behind a relative symlink, so 1.12 confirms rather than discovers. The sentence to carry: **the one dangling link in the artefact — `.pnpm/node_modules/@marketpulse/backend`, pointing at the builder stage's `/repo` — is inert and expected**, because nothing resolves that package by name. 1.12 also inherits `apps/frontend/src/health-probe.ts`, which is **meant to be deleted** and says so; the second `VITE_` variable, which is where the two-declaration-sites gap stops being one variable long; and the first real test of the React Compiler rules, which nothing shipped here has yet provoked because nothing shipped here has state.
+
 ## Tasks
 
 Tackled in order. The story is complete when all eight are done — after the prerequisite below, which is not one of the eight and is not an agent's to do.
 
 1.11.1 decides and deploys nothing, deliberately — the same shape as Task 1.10.1 installing and stopping, so the first failed deployment in this repository's history has one possible cause. 1.11.2 is entirely local: it produces the backend artefact and runs it outside the workspace, because a platform failing on an artefact that was never correct is the most expensive failure to read. 1.11.3 and 1.11.4 are the two deploys, and they are separate tasks because the two halves share almost nothing — one needs a runtime, a probe and a variable panel, the other needs a fallback and a cache policy — and 1.11.4 is where two of Story 1.5's acceptance criteria are finally closable. 1.11.5 needs both to exist, and it is the only task here that touches application code; the scope it takes from Story 1.12 is a decision it has to state. 1.11.6 automates what 1.11.3 and 1.11.4 did by hand. 1.11.7 makes deployments fail on purpose, which is why it comes after the automation rather than being folded into it. 1.11.8 closes the story.
 
-| #      | Task                                                                                                                                                | Status      |
-| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| **P**  | [**Create the Azure account** — the manual prerequisite, yours rather than an agent's](ACCOUNT-SETUP.md)                                            | Complete    |
-| 1.11.1 | [Choose the hosting for both halves, and settle the database question](TASK-01-choose-hosting-and-the-database-question.md)                         | Complete    |
-| 1.11.2 | [Produce the backend's deployable artefact and run it outside the workspace](TASK-02-backend-deployable-artefact.md)                                | Complete    |
-| 1.11.3 | [Deploy the backend, configure it from the platform, and make `/health` the readiness check](TASK-03-deploy-the-backend-and-its-readiness-check.md) | Complete    |
-| 1.11.4 | [Deploy the frontend, with a fallback that is not a catch-all and a stated cache policy](TASK-04-deploy-the-frontend-fallback-and-cache-policy.md)  | Complete    |
-| 1.11.5 | [Make the deployed frontend talk to the deployed backend](TASK-05-make-the-two-halves-talk.md)                                                      | Complete    |
-| 1.11.6 | [Deploy automatically on a merge to `main`, gated on `verify`](TASK-06-deploy-automatically-on-merge-to-main.md)                                    | Complete    |
-| 1.11.7 | [Make a failed deployment visible, and prove it does not take the environment down](TASK-07-failed-deployments-visible-and-harmless.md)             | Complete    |
-| 1.11.8 | [Verify the deployed environment, document it, and record ADR 0011](TASK-08-verify-document-and-adr.md)                                             | Not started |
+| #      | Task                                                                                                                                                | Status   |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| **P**  | [**Create the Azure account** — the manual prerequisite, yours rather than an agent's](ACCOUNT-SETUP.md)                                            | Complete |
+| 1.11.1 | [Choose the hosting for both halves, and settle the database question](TASK-01-choose-hosting-and-the-database-question.md)                         | Complete |
+| 1.11.2 | [Produce the backend's deployable artefact and run it outside the workspace](TASK-02-backend-deployable-artefact.md)                                | Complete |
+| 1.11.3 | [Deploy the backend, configure it from the platform, and make `/health` the readiness check](TASK-03-deploy-the-backend-and-its-readiness-check.md) | Complete |
+| 1.11.4 | [Deploy the frontend, with a fallback that is not a catch-all and a stated cache policy](TASK-04-deploy-the-frontend-fallback-and-cache-policy.md)  | Complete |
+| 1.11.5 | [Make the deployed frontend talk to the deployed backend](TASK-05-make-the-two-halves-talk.md)                                                      | Complete |
+| 1.11.6 | [Deploy automatically on a merge to `main`, gated on `verify`](TASK-06-deploy-automatically-on-merge-to-main.md)                                    | Complete |
+| 1.11.7 | [Make a failed deployment visible, and prove it does not take the environment down](TASK-07-failed-deployments-visible-and-harmless.md)             | Complete |
+| 1.11.8 | [Verify the deployed environment, document it, and record ADR 0011](TASK-08-verify-document-and-adr.md)                                             | Complete |
 
 **This story has an out-of-band prerequisite that no task owned, and Task 1.11.3 found it by stopping on it (2026-09-03).** Task 1.11.1 chose the platform and deliberately created nothing — no account, no resource, no credential — and Task 1.11.3 assumed a subscription existed. **Nothing between them owns creating one**, and it is not work this repository can do to itself: an Azure free account needs a payment card and a human at a browser. It blocks the deploy half of 1.11.3 and the whole of 1.11.4–1.11.8, which is five and a half of eight tasks.
 

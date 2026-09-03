@@ -277,10 +277,16 @@ Five things worth knowing before relying on it:
   prints the fingerprint of what it actually uploaded. The two differ in the
   JavaScript bundle **and** in `index.html`, which changes at identical length
   because it carries the hashed script filename.
-- **A frontend deploy is not atomic.** Measured on two deploys: the outgoing
-  hashed asset is withdrawn while the outgoing `index.html` is still being
-  served, so there is a **~1.5-second window in which a cold page load is
-  broken**. Anyone already on the page is unaffected.
+- **A frontend deploy is not atomic.** Measured on four deploys, and the window
+  holds **two** broken states rather than one: first the incoming `index.html`
+  is served while the incoming asset is still a 404, then the outgoing asset is
+  withdrawn while the outgoing `index.html` is still being served. The document
+  moves ahead of its own asset in both directions, over about **two seconds**,
+  and **the window opens at the exact second the deploy step reports success** —
+  so anything checking the deployed page after a deploy has to poll rather than
+  check once. Anyone already on the page is unaffected, and `no-cache` on the
+  document means their next navigation revalidates. There is no flag that
+  removes it.
 - **The two halves talk.** The deployed page calls the deployed `/health` on
   load and reports the result to the browser console, including the
   `x-request-id` that appears in the backend's own log for the same request.
@@ -293,6 +299,53 @@ Five things worth knowing before relying on it:
   forgets the variable does not fail — it ships a page dialling
   `http://localhost:3000`, which an HTTPS page blocks as mixed content and
   which reads as an unreachable backend.
+
+### Rolling back
+
+The two halves roll back by different mechanisms, they are about **5× apart in
+speed**, and the fast one is the one that expires. All three figures were
+measured rather than reasoned about.
+
+| Half     | How                                                | Takes          |
+| -------- | -------------------------------------------------- | -------------- |
+| Backend  | `az containerapp update --image <previous digest>` | **43 s**       |
+| Frontend | A revert commit, merged, through `verify`          | **3 min 42 s** |
+
+Every deploy run prints the digest it rolled out into its own job summary, so
+the argument to that command is already written down. Note the shape of it:
+
+- **It is not a traffic shift.** `az containerapp ingress traffic set` is
+  refused on this app — _"configured for single revision. Set revision mode to
+  multiple in order to set ingress traffic"_ — so traffic splitting and the
+  revision-label FQDNs both need the app reconfigured first, during an incident,
+  on the thing that is already misbehaving.
+- **The backend rollback expires.** It creates a new revision rather than
+  reactivating an old one, so **the next merge to `main` silently undoes it**.
+  It buys time; the durable fix is a revert commit, exactly as the frontend's
+  is.
+- **`workflow_dispatch` on `deploy.yml` is a re-deploy, not a rollback.** It
+  checks out `main`, so pressing it after a bad merge deploys the bad merge
+  again. Re-running a failed deploy is safe but not a no-op either: the same
+  commit rebuilds to a different image digest, so a new revision rolls out.
+
+### Where the configuration lives
+
+**The backend's is in the platform**, and nothing in this repository holds it:
+`PORT`, `HOST`, `LOG_LEVEL`, `LOG_FORMAT` and `CORS_ORIGIN` are set on the
+container app, its `secrets` array is empty because none of them is a
+credential, and the three health probes, `minReplicas: 1` and the ingress target
+port are platform configuration too. `deploy.yml` uses `update` and never
+`create`, so it does not restate any of it. That is the criterion working — and
+it means `pnpm verify` cannot see any of it, and a future reader finding one of
+these changed cannot tell whether it was deliberate. ADR 0011 and `HOSTING.md`
+are the only durable copy.
+
+**The frontend's cannot live there.** `VITE_API_BASE_URL` is substituted into
+the bundle at build time, so by the time the platform sees the artefact the
+value is a string literal inside it. There is no panel that could change it;
+pointing the deployed frontend at a different backend is a rebuild. `README`
+says this twice on purpose — it is the single most re-litigated consequence of
+the frontend's build.
 
 ## Commands
 
