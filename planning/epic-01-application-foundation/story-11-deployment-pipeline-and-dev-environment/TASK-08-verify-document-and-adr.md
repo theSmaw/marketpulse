@@ -1,6 +1,6 @@
 # Task 1.11.8 — Verify the deployed environment, document it, and record ADR 0011
 
-**Status:** Not started
+**Status:** Complete (2026-09-03)
 **Story:** [1.11 Deployment Pipeline & Development Environment](STORY.md)
 **Depends on:** Task 1.11.7
 
@@ -35,3 +35,19 @@ Close the story: re-run all six acceptance criteria against the deployed environ
 ## Notes
 
 Epic 1's exit criterion is a deployed, verified foundation, and this is the task that gets to claim it. The claim is only worth anything if it was re-measured here: five of the last six closing tasks in this epic found at least one recorded figure that had stopped being true, and every one of them was found by re-running rather than by reading.
+
+## Outcome (2026-09-03)
+
+Story closed. `docs/adr/0011-deploying-both-halves-and-what-a-green-deploy-certifies.md` is written; `README.md` gained a rollback section and a "where the configuration lives" section; `CLAUDE.md`'s current state, file tree, ADR count and gap list are updated.
+
+**Three recorded claims had stopped being true, and all three were found by re-running rather than by reading.**
+
+1. **`CLAUDE.md`'s artefact paragraph contradicted itself.** It said the JavaScript moved at Task 1.11.5 and then that the three original files were "unchanged since Task 1.7.7". Two of the three had moved, and **`index.html`'s hash is the one nobody re-took** — it changes at an identical 1,101 B, because it carries the hashed script filename, so a size comparison reports it unchanged. Corrected by measurement: a worktree built at `ce490e9` reproduces `eab270a4…` exactly, so the figure was right when taken and wrong one task later.
+2. **The image-retention arithmetic was wrong by ~35×.** Manifests share layers. 13 manifests occupy **76,112,906 B (0.71% of the 10 GB included)**, not the 574.5 MiB their `imageSize` values sum to; two pipeline builds share four identical layer digests totalling 58,486,244 B, so each build costs **~1.75 MB**, giving ~6,000 deploy attempts of headroom rather than ~170. Also: only **one** of the three untagged manifests is a genuine orphan — the other two are the OCI image manifest and attestation beneath the local build's index, which are referenced rather than waste.
+3. **`HOSTING.md`'s Static Web Apps quota table still described a three-file artefact.** Corrected to four files / 356,936 B.
+
+**The cost bullet's premise was false and that is the answer.** "By now there is one [bill]" — there is not. Both billing APIs refuse this subscription with _"Given subscription … doesn't have valid WebDirect/AIRS offer type"_ (reproduced across six attempts), the portal's Cost analysis blade rendered no data, and decisively **the entire environment is under six hours old** (first resource `2026-09-03T05:32:32Z`) against Azure cost data that lags 8–24 hours. The idle-billing question is therefore **still open, owned by Epic 2 and re-taken by Epic 3**. What did reproduce exactly, re-read from the Retail Prices API: $4.21 replica + $5.00 registry = **$9.21/month** at the idle rate, **$19.04** at the active rate, with memory billing identically idle or active. The $20 budget and its 50/80/100% alerts are in place — and sit just **above** the active-rate total, so they would not fire on the change that matters most.
+
+**Decisions taken here rather than left implied:** image retention **deferred** (trigger: registry usage past 5 GB); a `public/`-vs-`exclude` coverage check **declined** (trigger: a second file in `public/`); the `.env.example`-vs-`vite-env.d.ts` pair check **deferred to Story 1.12** (the pair is one variable long and agrees); a deployed-configuration diff script **declined** on the structural ground that it cannot be a `verify` step, because `verify` runs with no credentials; `hadolint` **declined**, the third tool decline after `shellcheck` and `actionlint`; and the four workflow/platform configuration files recorded as **one** gap-list entry rather than two, because the failure is identical in all four.
+
+**Everything else held**, re-read rather than cited: the three probes (startup 30 @ 2 s, readiness 3 @ 10 s, liveness 3 @ 30 s, all HTTP `/health` on pinned port 3000), `minReplicas: 1`, single revision mode, an empty `secrets` array, no repository secret at all, `pid` 1, zero `OPTIONS` records over three hours, 16 log records a minute at idle, the cache policy at both ends including a fallback-served route, five pinned actions across eight uses, `pnpm verify` green in 21 s with 118 + 10 tests, and the deployed bundle byte-identical on all three servable files to a local macOS build with `VITE_API_BASE_URL` set.
