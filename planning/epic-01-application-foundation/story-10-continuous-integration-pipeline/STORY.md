@@ -1,6 +1,6 @@
 # Story 1.10 — Continuous Integration Pipeline
 
-**Status:** In progress — eight tasks, seven complete
+**Status:** Complete (2026-09-03) — eight tasks
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.9
 **Epic scope covered:** CI pipeline
@@ -118,6 +118,17 @@ Four things landed in 1.10.2 that every later task in this story has to work wit
 - **The link check is answered: declined, with the number that decides it.** 110 tracked Markdown files, 210 cross-file links, 13 anchor links, **0 broken** — and the checker was built and run before the decision, so this is a measurement rather than a prediction. The ADR should carry the shape of the argument rather than the count: **the half that is cheap to check has never rotted and the half that cannot be checked rots constantly**, so a gating step there would guard the wrong half and make the section look covered. Reversal trigger, and the eighth-step constraint if it ever fires, are in TASK-07
 - **One prose figure was found wrong on this reading and it is the one to quote in the ADR's honest-framing sentence.** Task 1.10.6 recorded `README.md` at 42 headings; it has **36**, the difference being `#` comment lines inside fenced code blocks. The figure was not stale — it was a count of the wrong thing, which is a failure mode no checker in this repository would have caught either
 
+### What Task 1.10.8 found on closing
+
+- **All eight acceptance criteria were re-run against the shipped pipeline, and all eight hold.** `docs/adr/0010-continuous-integration-what-the-tick-certifies.md` is the record and carries the table
+- **Five failure classes were made red on the shipping workflow**, on a throwaway branch with its own draft pull request — build (**exit 2**, `TS2322`), `format:check`, `stories`, `test`, and **`test:process`, red on a runner for the first time**. All five ended as a run conclusion of `failure`, and the derived split named the step each died in. The probe that taught something new was the accidental one: a failing test that was _also_ unformatted died at `format:check` and never reached `test`, so a probe has to be surgical or it proves the wrong step
+- **The badge's "freezes green forever" state has expired, and only re-measuring found it.** `ci.yml/badge.svg` answered 200 `verify - passing` in Task 1.10.6 and answers **`404 text/plain`** now; GitHub's workflow list holds exactly one entry. The failure mode of an unmigrated badge is therefore stale green for a window and then a broken image, which is worse than either alone. The rule is unchanged
+- **The seven-step chain's spread is ~9.0 s over five complete readings** — 43,263 / 42,664 / 41,019 / 39,441 / 34,278 ms — so Task 1.10.7's ~3.8 s over three did not survive two more readings. The six-step chain's 13.6 s over nine is the shape, and `test:process` is the least runner-sensitive step at **1.08×** against 1.5–3.2× for everything else, because five of its seconds are `SHUTDOWN_TIMEOUT_MS` elapsing
+- **The Linux artefact matches macOS on all three files**, not just the bundle: 343,658 / `cba2825c…`, 10,926 / `f98519e3…`, 1,101 / `eab270a4…`, 355,685 B over three files. Coverage reproduces to the digit from the runner — 30% / 64.33% / 68.25% — and both entrypoint pages are still present in the denominator
+- **The store cache was re-confirmed categorically, not by timing**: `cache-hit: true`, `Cache restored from key: pnpm-store-v1-Linux-node24-…`, `reused 397, downloaded 0` on every run taken, with cached installs at 4,231 / 4,341 / 4,388 / 4,477 ms. The supply-chain check still costs 3.5–3.8 s on a full hit, because it verifies the lockfile rather than the store
+- **The `Conventions from Story 1.1` sweep caught the same drift one story later.** Nine of the eleven blocks are byte-identical (Stories 1.2 and 1.3 carry their own historical strike-throughs), and **eight still said the backend's process half is unreachable by any runner** — false since Task 1.10.5, amended at the time only in this story's own copy. All eight are amended now. The rule is proven twice: an amendment made in the copy you are editing is not an amendment to the convention
+- **Stories 1.11 and 1.12 were read against what landed. Nothing was added, deleted or re-ordered**; both gained a `What Story 1.10 hands this story` section
+
 ## Acceptance criteria
 
 - Pipeline runs on push and on pull request
@@ -148,16 +159,16 @@ Tackled in order. The story is complete when all eight are done.
 
 1.10.1 installs and stops, deliberately — it is the only task whose subject is the ten lines _above_ `pnpm verify`, and it exists so the repository's first red run has exactly one possible cause. 1.10.2 is the story: the chain runs, on both triggers, and is made to fail four ways. 1.10.3 and 1.10.4 are both "around that one command" and can be done in either order; 1.10.3 is numbered first because a slow pipeline is felt on every subsequent task. 1.10.5 is the one task here that is not pipeline work at all — it is the backend's process half, which Story 1.9 recorded as out of scope with this story named as owner — and it comes after the pipeline exists because a shared runner is the environment it has to be designed for. 1.10.6 is the only user-visible deliverable. 1.10.7 states what the tick does not cover, which is why it comes before 1.10.8 rather than being folded into it. 1.10.8 closes the story.
 
-| #      | Task                                                                                                           | Status      |
-| ------ | -------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1.10.1 | [Choose the provider and prove the toolchain pins on Linux](TASK-01-choose-provider-and-pin-the-runner.md)     | Complete    |
-| 1.10.2 | [Run `pnpm verify` on push and on pull request](TASK-02-run-verify-on-push-and-pull-request.md)                | Complete    |
-| 1.10.3 | [Cache the pnpm store, and decide what must never be cached](TASK-03-cache-the-pnpm-store.md)                  | Complete    |
-| 1.10.4 | [Coverage as its own step, the threshold, and what CI publishes](TASK-04-coverage-threshold-and-artefacts.md)  | Complete    |
-| 1.10.5 | [The backend's process half: a child-process test suite](TASK-05-backend-process-tests.md)                     | Complete    |
-| 1.10.6 | [Make the status visible from the repository](TASK-06-make-status-visible.md)                                  | Complete    |
-| 1.10.7 | [The `pnpm verify` gaps, re-dated, and the link-check decision](TASK-07-the-verify-gaps-and-the-link-check.md) | Complete    |
-| 1.10.8 | [Verify, document, and record the decisions as ADR 0010](TASK-08-verify-document-and-adr.md)                   | Not started |
+| #      | Task                                                                                                           | Status   |
+| ------ | -------------------------------------------------------------------------------------------------------------- | -------- |
+| 1.10.1 | [Choose the provider and prove the toolchain pins on Linux](TASK-01-choose-provider-and-pin-the-runner.md)     | Complete |
+| 1.10.2 | [Run `pnpm verify` on push and on pull request](TASK-02-run-verify-on-push-and-pull-request.md)                | Complete |
+| 1.10.3 | [Cache the pnpm store, and decide what must never be cached](TASK-03-cache-the-pnpm-store.md)                  | Complete |
+| 1.10.4 | [Coverage as its own step, the threshold, and what CI publishes](TASK-04-coverage-threshold-and-artefacts.md)  | Complete |
+| 1.10.5 | [The backend's process half: a child-process test suite](TASK-05-backend-process-tests.md)                     | Complete |
+| 1.10.6 | [Make the status visible from the repository](TASK-06-make-status-visible.md)                                  | Complete |
+| 1.10.7 | [The `pnpm verify` gaps, re-dated, and the link-check decision](TASK-07-the-verify-gaps-and-the-link-check.md) | Complete |
+| 1.10.8 | [Verify, document, and record the decisions as ADR 0010](TASK-08-verify-document-and-adr.md)                   | Complete |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify` — the same rule Stories 1.1 to 1.9 followed. This story adds one clause to it: **each task also leaves the pipeline green**, and the two are not the same claim, because the pipeline runs on Linux from a clean environment and the working tree does not.
 

@@ -1287,6 +1287,83 @@ still the only package here with an install script.
 The rule is unchanged for the next one: allowlist that specific package by name
 — never disable the check.
 
+## Continuous integration
+
+The pipeline is [`.github/workflows/verify.yml`](.github/workflows/verify.yml),
+one job on `ubuntu-latest`. **Its verification step is `pnpm verify` and nothing
+else** — the same command and the same seven steps this README documents, run by
+name. CI keeps no list of what "verified" means, which is why `stories`,
+`env:check` and `test:process` all reached the pipeline without a workflow edit.
+
+```
+Check out → Set up Node from .nvmrc → Enable Corepack → Record the toolchain
+  → Resolve the pnpm store path → Cache the pnpm store → Install
+  → Confirm the Rolldown binding by name → Confirm esbuild's install script ran
+  → Verify → Fingerprint the frontend artefact → Coverage → Upload the reports
+```
+
+**When it runs.** On `pull_request` for every branch, on `push` only to `main`,
+and on demand through `workflow_dispatch`. A pull request from a branch in this
+repository fires both events, so an unrestricted `push:` would run the whole
+chain twice for one change — and the two are not the same check: a
+`pull_request` run verifies the **merge commit**, which is what would land, and
+a push run verifies the branch tip, which is not. The cost is stated rather than
+hidden: **a branch with no pull request open is not verified at all.** Use
+`workflow_dispatch` for that case. Superseded runs are cancelled on every branch
+except `main`, where a run is the record of what that commit does.
+
+**The toolchain comes from the same two pins your machine uses.** Node from
+`.nvmrc`, pnpm from `packageManager` through `corepack enable`. There is no pnpm
+install step and no version literal in the workflow. `engineStrict` is what
+actually catches a wrong Node — the workflow's own version assertion cannot,
+because it only catches a runner that disagrees with the pin, never a pin that
+is wrong.
+
+**What is cached, and what must never be.** The pnpm **store**, keyed on the
+lockfile hash, the runner OS and the Node major. To bust it by hand, bump `v1`
+in both the key and the restore-key in the workflow — that is the whole
+procedure. Nothing under `dist/`, `storybook-static/` or any `.tsbuildinfo` is
+cached, ever: caching the build moves exactly one step by about 2.5 s, and buys
+a restored build directory that `tsc -b` may trust and
+[`pnpm test`](#what-pnpm-test-covers) will fail against silently. Judge the
+cache categorically rather than by the clock — `cache-hit: true` with
+`reused 397, downloaded 0` is a hit, `reused 0, downloaded 397` is a miss, and
+the runner-to-runner spread on identical work is larger than the whole install.
+
+**Do not read a total as a regression.** Two runners measured 31,075 ms and
+21,989 ms on the same commit, and nine runs of one tree spanned
+18,589–32,210 ms. Read the per-step split in the job summary and the install
+line, not the total.
+
+**What a run publishes.** Every run's summary carries three sections in a
+deliberate order: the per-step split of `pnpm verify`, then the frontend
+artefact's fingerprint (every file with its size and md5 — that is a record, not
+a check, so nothing asserts the hash), then the coverage table last, because it
+is the one section the tick does not certify. The three `coverage/` directories
+are uploaded as an artefact for **7 days**. `storybook-static/` is not uploaded,
+and neither is `dist/`.
+
+**Coverage runs in the pipeline and gates nothing.** It is a separate step,
+outside the chain, marked `continue-on-error` — so no coverage outcome can turn
+the badge red, and there is no threshold. The one thing it does assert is that
+both 0% entrypoints are still **present** in the report: presence, never a
+percentage, so a task that makes one of them reachable does not fail it. See
+[`pnpm coverage`](#pnpm-coverage--on-demand-and-never-in-verify) for what those
+figures do and do not mean.
+
+**The green tick is a required status check on `main`**, and that is repository
+configuration no file here can hold — see [the gate
+itself](#the-gate-itself-is-configuration-and-no-file-here-can-hold-it).
+
+**Renaming the workflow file means editing the badge URL in the same commit.**
+Three identifiers are independent: the badge URL keys on the **file** name, the
+required check on the **job** name, and the badge's label on `name:`. A badge
+left pointing at a renamed file does not go red — it serves the last conclusion
+it ever had for a while, and then becomes a broken image. Both were measured.
+
+The reasoning behind all of it, including what was rejected, is in
+[ADR 0010](docs/adr/0010-continuous-integration-what-the-tick-certifies.md).
+
 ## What `pnpm verify` does not cover
 
 A green tick means every **check** passed. It does not mean every **claim** in
@@ -1343,10 +1420,13 @@ Story 1.10 added two more of this kind, inside the test suites:
 
 **4. The figures in this document, and its internal links.** Nothing reads
 either. The two halves are not alike, and the decision differs between them.
-The links **are** cheap to check and have been checked five times: 110 tracked
-Markdown files, 210 cross-file links, 13 anchor links (12 distinct), **0
-broken** — with a slugger that does not collapse whitespace, or the correct
-double-hyphen anchors in this document read as broken. **The figures cannot be
+The links **are** cheap to check and have been checked six times, most recently
+on this document's own last edit: 110 tracked Markdown files, **214** cross-file
+links, **22** anchor links, **0 broken** — with a slugger that does not collapse
+whitespace, or the correct double-hyphen anchors in this document read as
+broken. Note the two counts moved between the fifth reading and the sixth, one
+task apart, which is the point of the sentence after this one rather than a
+contradiction of it. **The figures cannot be
 checked at all**, and they are the half that goes wrong: a stylesheet size
 stood stale for two stories, three more figures were wrong in a single reading,
 and the heading count recorded for this file one task ago was 42 against an
@@ -1439,8 +1519,14 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 ## Documentation
 
 - [`docs/adr/`](docs/adr/) — architecture decision records, newest last;
-  [0009](docs/adr/0009-the-test-runner-conventions-and-coverage.md) is the most
-  recent and covers the two testing sections above: why the runner is Vitest,
+  [0010](docs/adr/0010-continuous-integration-what-the-tick-certifies.md) is the
+  most recent and covers the section above: why the pipeline runs `pnpm verify`
+  by name and defines nothing of its own, why per-step timings are derived from
+  the chain's own output rather than declared, why the store is cached and the
+  build never is, why coverage runs in the pipeline and gates nothing, and what
+  the green tick does not certify.
+  [0009](docs/adr/0009-the-test-runner-conventions-and-coverage.md) covers the
+  two testing sections above: why the runner is Vitest,
   why test files sit beside their subject inside `src/`, why there is one
   config per package and no root one, why the DOM environment is jsdom when
   every measurement favoured happy-dom, and why coverage is on demand with no
