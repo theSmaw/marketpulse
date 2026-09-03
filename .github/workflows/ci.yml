@@ -1,0 +1,129 @@
+# The pipeline. Story 1.10 — see planning/epic-01-application-foundation/story-10-*.
+#
+# Task 1.10.1 installs and stops, deliberately: everything genuinely new is the
+# ten lines above `pnpm install`, and they are the only part of CI that can be
+# wrong in a way a developer's machine cannot reproduce. Task 1.10.2 adds
+# `pnpm verify` to this job — the acceptance command by name, never a re-listing
+# of the tools it runs, because that would fork the definition of "verified".
+#
+# `pnpm verify` half-covers this file, and the half it covers is the one people
+# assume it does not: Prettier ships a YAML parser and `prettier --check .`
+# reaches .github/workflows/ — measured, not assumed, by making it fail. ESLint
+# sees only JS and TS, so nothing checks the *schema*: a misspelled key, a job
+# that references an action that does not exist, or a `runs-on` label GitHub
+# retires are all green locally and red only on the runner. That is a narrower
+# gap than the four already recorded (apps/backend/scripts/dev.sh, the two
+# `rm -rf` fragments in `clean` scripts, the unenforced-invariant class, and
+# README.md's prose figures) and it is new as of 2026-09-03. Task 1.10.7 re-dates
+# the set; do not let it read as "CI checks its own definition".
+name: CI
+
+# Task 1.10.2 owns the trigger set (push and pull_request). A bare `push` is
+# what this task needs and nothing more.
+on:
+  push:
+  workflow_dispatch:
+
+# This job reads the repository and nothing else.
+permissions:
+  contents: read
+
+jobs:
+  install:
+    # Named for what it does. Task 1.10.2 renames it once it verifies as well;
+    # nothing depends on the name yet, and Task 1.10.6 owns the day one does.
+    name: install
+    # GitHub's own image, on the floating label rather than a pinned one: a
+    # pinned image ages out of support and fails hard, and this is not
+    # third-party code with the repository checked out. The two actions below
+    # are, and they are pinned differently for exactly that reason.
+    runs-on: ubuntu-latest
+    steps:
+      # Both actions are pinned to a commit SHA rather than a major tag. A tag
+      # is mutable and these run with the repository checked out; this is the
+      # same position `allowBuilds` takes one layer down, and taking a looser
+      # one here would need an argument. The cost is a manual bump: a SHA does
+      # not follow security releases, so read the release notes when bumping.
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Node comes from .nvmrc, never from a literal here. `engines` plus
+      # `engineStrict` makes pnpm refuse a different major outright, so a wrong
+      # Node is a hard install failure rather than a warning — the good case,
+      # and it was made to happen once rather than assumed.
+      - name: Set up Node from .nvmrc
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      # pnpm comes from package.json's `packageManager` field. There is
+      # deliberately no pnpm install step and no pnpm action: the pin is the
+      # point, and a workflow that installs 11.24.0 by hand is a second place
+      # the version lives. Corepack runs after setup-node so the shims land in
+      # the Node that setup-node put on the PATH.
+      #
+      # The ordering trap this avoids belongs to Task 1.10.3:
+      # actions/setup-node's `cache: pnpm` needs pnpm on the PATH *before*
+      # setup-node runs, which is the usual reason people reach for a separate
+      # install action. There is no caching here, so that question is answered
+      # on its merits there rather than under pressure.
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Record the toolchain
+        run: |
+          set -euo pipefail
+          node_expected="v$(tr -d '[:space:]' < .nvmrc)"
+          node_actual="$(node --version)"
+          pnpm_expected="$(node -p "require('./package.json').packageManager.split('@').pop().split('+')[0]")"
+          pnpm_actual="$(pnpm --version)"
+          echo "node: $node_actual   (.nvmrc pins $node_expected)"
+          echo "pnpm: $pnpm_actual   (packageManager pins $pnpm_expected)"
+          echo "runner: $(uname -srm)"
+          [ "$node_actual" = "$node_expected" ] || { echo "::error::Node is $node_actual, .nvmrc pins $node_expected"; exit 1; }
+          [ "$pnpm_actual" = "$pnpm_expected" ] || { echo "::error::pnpm is $pnpm_actual, packageManager pins $pnpm_expected"; exit 1; }
+
+      # --frozen-lockfile is CI's default and is asserted rather than relied on:
+      # a runner that silently updates the lockfile is a runner testing a
+      # different dependency tree from the one in the repository. Made to fail
+      # once, with a hand-edited lockfile, before being trusted.
+      - name: Install
+        run: |
+          set -euo pipefail
+          start=$(date +%s%N)
+          pnpm install --frozen-lockfile
+          end=$(date +%s%N)
+          echo "cold install: $(( (end - start) / 1000000 )) ms"
+
+      # This repository's first platform-specific native binding. Rolldown
+      # resolves @rolldown/binding-darwin-arm64 on the development machine and
+      # something else here; the lockfile records all fifteen variants as
+      # optional dependencies. Read the installed one by name rather than
+      # inferring it from a green install — if the first pipeline failure in
+      # this repository's history is an install or a `vite build` that has never
+      # failed locally, this is the first place to look.
+      - name: Confirm the Rolldown binding by name
+        run: |
+          set -euo pipefail
+          bindings="$(ls node_modules/.pnpm | grep '^@rolldown+binding-' || true)"
+          echo "installed rolldown bindings:"
+          echo "${bindings:-<none>}"
+          [ "$(printf '%s\n' "$bindings" | grep -c .)" -eq 1 ] || { echo "::error::expected exactly one rolldown binding"; exit 1; }
+          case "$bindings" in
+            @rolldown+binding-linux-x64-gnu@*) ;;
+            *) echo "::error::unexpected rolldown binding: $bindings"; exit 1 ;;
+          esac
+          find "node_modules/.pnpm/$bindings" -name '*.node' -printf '%p  %s bytes\n'
+
+      # allowBuilds has exactly one entry and it has to run here: esbuild is the
+      # only package in the installed tree with an install script, and that
+      # script fetches a platform binary — so this is the first place it fetches
+      # a different one. Running the binary is the test; a skipped install
+      # script leaves a shim that cannot answer.
+      - name: Confirm esbuild's install script ran
+        run: |
+          set -euo pipefail
+          ls node_modules/.pnpm | grep -E '^(esbuild@|@esbuild\+)'
+          esbuild_bin="$(printf '%s' node_modules/.pnpm/esbuild@*/node_modules/esbuild/bin/esbuild)"
+          echo "esbuild binary: $esbuild_bin"
+          "$esbuild_bin" --version
