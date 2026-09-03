@@ -17,3 +17,9 @@ describe("REQUEST_ID_HEADER", () => {
     expect(REQUEST_ID_HEADER).toBe(REQUEST_ID_HEADER.toLowerCase());
   });
 });
+
+describe("probe", () => {
+  it("fails on purpose, to make the runner go red in the test step", () => {
+    expect(1).toBe(2);
+  });
+});
