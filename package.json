@@ -13,6 +13,7 @@
     "dev": "pnpm -r --parallel run dev",
     "build": "tsc -b && pnpm --filter @marketpulse/frontend exec vite build && pnpm --filter @marketpulse/frontend exec storybook build",
     "test": "pnpm -r run test",
+    "test:process": "pnpm -r run test:process",
     "coverage": "pnpm -r run coverage",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",
@@ -23,7 +24,7 @@
     "stories": "node scripts/check-stories.mjs",
     "env:check": "node scripts/check-env-example.mjs",
     "ready": "node scripts/check-ready.mjs",
-    "verify": "pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run test"
+    "verify": "pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run test && pnpm run test:process"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -16,7 +16,8 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of 103 tests with coverage available on demand.**
+and a test suite of 103 fast tests plus a 10-test process suite, with
+coverage available on demand.**
 
 One command starts both halves:
 
@@ -102,7 +103,8 @@ pnpm verify
 ```
 
 `pnpm verify` is the whole acceptance check: `build && lint && format:check &&
-stories && env:check && test`, in that order, stopping at the first failure.
+stories && env:check && test && test:process`, in that order, stopping at the
+first failure.
 (`stories` fails if a component has no stories file — see
 [The component workshop](#the-component-workshop); `env:check` fails if the
 `.env.example` files and the code have drifted apart — see
@@ -218,7 +220,7 @@ Run from the repository root:
 
 | Command             | What it does                                                          |
 | ------------------- | --------------------------------------------------------------------- |
-| `pnpm verify`       | `build && lint && format:check && stories && env:check && test` — CI  |
+| `pnpm verify`       | The seven steps below, chained — this is what CI runs, by name        |
 | `pnpm build`        | `tsc -b` over the solution, then the frontend bundle, then Storybook  |
 | `pnpm typecheck`    | The same command as `build`, deliberately — see below                 |
 | `pnpm lint`         | `eslint .` over the whole workspace in one process                    |
@@ -228,6 +230,7 @@ Run from the repository root:
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
 | `pnpm test`         | Every package's tests — 103 across the workspace — see below          |
+| `pnpm test:process` | The backend's process half — 10 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
 | `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
@@ -276,7 +279,10 @@ pnpm --filter @marketpulse/frontend storybook:build  # static build into storybo
 ```
 
 None is a seventh verb: no root fan-out, no place in `verify`, and
-`packages/shared` is not obliged to have one. Both exist because "production
+`packages/shared` is not obliged to have one. `test:process` is a third case
+again — it _does_ fan out from the root and it _is_ in `verify`, but it exists
+in one package and a package added tomorrow owes `test`, not `test:process`
+(the same status `coverage` has). Both exist because "production
 build emits runnable output" needs a documented way to run it, and **both run
 the already-built output and build nothing themselves** — so `pnpm build`
 first, or an empty or stale `dist/` gives you a missing server and a stale
@@ -321,10 +327,44 @@ They are three different kinds of test:
 | `apps/backend`    | The assembled Fastify server through `app.inject()` — no listening socket, both error handlers, CORS |
 | `apps/frontend`   | The real component tree rendered under jsdom, asserted on roles and accessible names                 |
 
-**A green tick is not coverage.** Nothing here reaches the backend's process
-half — signals, exit codes, the shutdown ceiling, `EADDRINUSE`, the two crash
-handlers — because `app.inject()` drives a server with no socket and that
-whole class needs a child process against a built tree. Story 1.10 owns it.
+**A green tick is not coverage.** And what `pnpm test` does not reach at all
+is the backend's process half — signals, exit codes, the shutdown ceiling,
+`EADDRINUSE`, the two crash handlers — because `app.inject()` drives a server
+with no socket. That is `pnpm test:process`, below.
+
+### `pnpm test:process` — the backend's process half
+
+```sh
+pnpm test:process                                    # from the root
+pnpm --filter @marketpulse/backend run test:process   # the same suite
+```
+
+Ten tests in `apps/backend/src/index.process.test.ts`, run by a second runner
+config (`vitest.process.config.ts`) in the same package. They spawn
+`dist/index.js` as a real child process on a real port and assert on what it
+does: `SIGTERM` and `SIGINT` drain and exit 0 with the port released, a second
+signal during a shutdown exits 1 immediately, a drain that outlives the
+five-second ceiling is forced out at exit 1 with a level-50 record, a busy port
+exits 1 with the `EADDRINUSE` record intact, `PORT=0` is rejected before the
+logger exists, and both crash handlers write one level-60 record and exit 1 —
+including at `LOG_LEVEL=silent`, and including a crash _during_ a drain, which
+leaves the drain to finish and exit 0.
+
+Three things about it worth knowing before changing it.
+
+**It is a separate command because it is a separate cost.** `pnpm test` is 103
+tests in a few hundred milliseconds, needs no build and no socket, and is the
+one you run all day; this suite takes about 7.6 s, of which 5 s is the shutdown
+ceiling being what it says it is. Both are steps in `pnpm verify`, so both gate.
+
+**It needs a build.** `dist/index.js` is what has the process behaviour in it,
+so the suite fails with a message telling you to run `pnpm build` if it is
+missing. `pnpm verify` orders the build first, so the ordinary path is safe.
+
+**Nothing in it waits for a log line.** Readiness is a `GET /health` poll. At
+`LOG_LEVEL=warn` and above a healthy server writes no lines at all — its
+`Server listening at …` included — so a readiness grep would hang rather than
+fail.
 
 ### Running one file, or one test
 
@@ -385,9 +425,21 @@ pnpm --filter @marketpulse/backend coverage     # one of them
 It is the same 103 tests with `--coverage` added, fanning out through
 `pnpm -r` exactly as `pnpm test` does, so there are **three reports and no
 merged one** — each package answers for its own sources. It is deliberately
-not part of `pnpm test` and not a seventh `pnpm verify` step: nothing gates on
-the number yet, and an instrumentation pass on the acceptance command costs
-every developer and every CI run for a figure nobody is reading.
+not part of `pnpm test` and not a `pnpm verify` step of its own: nothing gates
+on the number yet, and an instrumentation pass on the acceptance command costs
+every developer and every CI run for a figure nobody is reading. CI runs it as
+a separate, non-gating step.
+
+**`pnpm test:process` is not in it either, and it would not help if it were.**
+V8 coverage accounts for the code the runner's own process loads; that suite's
+subject runs in a _child_ process the runner never instruments, and the file it
+runs is `dist/index.js` while `coverage.include` is `src/**/*.ts`. Measured:
+running the process suite under the backend's own coverage settings reports
+**0% of 354 statements** — it instruments nothing at all. So the backend stayed
+at **64.33%** with `src/index.ts` at 0% on the day that file got ten tests.
+**The testing hole and the coverage figure are two claims, not one**, and
+`src/index.ts` sitting at 0% now means "no runner instruments it", not "nothing
+tests it".
 
 Each run writes a terminal table and a browsable HTML report to that package's
 `coverage/`, which is already ignored by git, Prettier and ESLint. Note the

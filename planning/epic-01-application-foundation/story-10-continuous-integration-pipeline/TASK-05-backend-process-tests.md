@@ -1,6 +1,6 @@
 # Task 1.10.5 — The backend's process half: a child-process test suite
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.10 Continuous Integration Pipeline](STORY.md)
 **Depends on:** Task 1.10.2
 
@@ -42,3 +42,18 @@ Close the hole Story 1.9 handed this story by name: signals, exit codes, the shu
 ## Notes
 
 The story is right that this is not a pipeline task. It is in this story because CI is where its hazards live and where its value is realised — the process half of this backend has been verified exactly twice in the repository's history, both times by hand, both times by the person who had just written it.
+
+## Outcome
+
+**Ten tests in `apps/backend/src/index.process.test.ts`, run by `apps/backend/vitest.process.config.ts` under `pnpm test:process` — a seventh `pnpm verify` step.**
+
+- **Where it runs.** A second config and a second command in the same package, and a seventh step in the chain. Inside `pnpm test` was rejected on Story 1.9's own argument: the 49 injected tests need no build and no socket and must not become conditional on either. Beside the chain, as a CI step, was rejected on this story's central argument — the workflow runs `pnpm verify` **by name**, so a CI-only suite is a second definition of "verified". It cost the workflow **no edit**: the per-step split is derived from pnpm's `$ pnpm run <name>` announcements, so the seventh step appeared on its own. That is the third time that property has paid, after `stories` and `env:check`
+- **Port strategy.** `PORT=0` is rejected by `config.ts` (`MIN_PORT = 1`), and widening the range for a test's convenience was declined — 0 is a real value meaning "any free port" that a blank `.env` line must not produce. There is a test asserting the rejection, so the finding is an assertion rather than a comment. What replaces it is probe-bind-close, and the race it leaves is answered: `waitForReady` watches for the child's **exit** as well as the deadline, so a port held by a previous run fails immediately with the child's whole log attached and the port named
+- **Nothing waits on a log line.** Readiness is a `GET /health` poll at `127.0.0.1`. No timing is asserted anywhere
+- **Crashes are injected, because this application contains no way to crash it.** A two-line `node --input-type=module -e` wrapper imports the real `dist/index.js` and listens on an IPC channel for a message telling it to throw from a detached timer or float a rejection. Deterministic, ships nothing, leaves the real handlers in place — and avoids the temporary throwing route Tasks 1.7.5 and 1.9.3 both added
+- **A drain is held open by a connection with an incomplete request**, which is what makes the second-signal path, the ceiling and the crash-during-drain path reachable at all; an idle keep-alive connection does not delay `close()`. **A correction fell out of it**: completing that request after `close()` gets a **503** (`request aborted - refusing to accept new requests as server is closing`), not the 200 Task 1.7.5 recorded — that measurement was taken against a slow route it had added, and what holds the drain is the connection rather than a request in flight
+- **A staleness check was built and removed.** `tsc -b` re-emits from content hashes in `.tsbuildinfo`, so a `git checkout` makes every source newer than every output without changing a byte — the mtime comparison failed a correct tree on its first run. Existence, plus `pnpm verify`'s ordering, is what is left
+- **Every behaviour was seen to fail**, by ten deliberate breaks in `index.ts` and `config.ts`, one per test
+- **The coverage figure did not move, and that is the headline finding.** `apps/backend` is 64.33% with `src/index.ts` at 0%, identical to Task 1.9.5's to the digit. Running the process suite under the backend's own coverage settings reports **0% of 354 statements** — a spawned child is invisible to the runner's instrumentation, and the file it runs is built output. `NODE_V8_COVERAGE` plus a merge was weighed and declined. **The number and the coverage are two claims now**: 0% on `index.ts` means "no runner instruments it", not "nothing tests it"
+- **Task 1.10.4's threshold decision revisited: still no**, and the argument is now stronger — a threshold over this package would be a threshold over a number that is provably not a measure of what is tested here. `apps/backend/coverage/src/index.ts.html` still exists, so the workflow's denominator assertion still passes
+- **Cost.** `pnpm verify` went 11.78 s → **21.30 s** warm; `test:process` is **7.60 s**, of which **5 s is the shutdown ceiling being what `SHUTDOWN_TIMEOUT_MS` says it is**

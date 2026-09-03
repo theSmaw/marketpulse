@@ -6,8 +6,10 @@
 # command precisely so CI and a developer's machine cannot disagree about what
 # green means; re-listing the tools here forks that definition, which is the
 # specific failure this story exists to prevent. The payoff has already happened
-# twice: `stories` (Task 1.4.5) and `env:check` (Task 1.6.6) both reached CI
-# without a workflow existing to update. If a later task cannot be done without
+# three times: `stories` (Task 1.4.5) and `env:check` (Task 1.6.6) both reached
+# CI without a workflow existing to update, and `test:process` (Task 1.10.5)
+# reached it with this file open and untouched — a seventh step, in the split
+# below, for no workflow edit at all. If a later task cannot be done without
 # changing what `pnpm verify` means, the change belongs in the chain.
 #
 # Per-step visibility is bought by reading the chain's OWN output rather than by
@@ -27,8 +29,10 @@
 # the set; do not let it read as "CI checks its own definition".
 # Named for the command it runs, not for the category it belongs to. `CI` is
 # generic and anything containing "tests" or "coverage" would be dishonest: the
-# chain is six steps of which `test` is one, and coverage is deliberately not
-# gated. This name and the job name below are settled here rather than in Task
+# chain is seven steps of which `test` is one — `test:process` is a seventh,
+# added by Task 1.10.5 and picked up here with no edit to this file, which is
+# the third time the argument at the top has paid — and coverage is deliberately
+# not gated. This name and the job name below are settled here rather than in Task
 # 1.10.6, because a badge and a required status check are both keyed on them and
 # a rename silently un-requires a check.
 name: verify
@@ -406,7 +410,7 @@ jobs:
       #
       # 2. IT CANNOT FAIL THIS JOB, AND THAT IS THE POINT RATHER THAN A
       #    CONCESSION. `continue-on-error` is what keeps "the green tick
-      #    certifies 103 tests and not coverage" structurally true instead of
+      #    certifies 113 tests and not coverage" structurally true instead of
       #    documented: no coverage outcome can turn the tick red, so no reader
       #    can infer coverage from it. README.md and CLAUDE.md both make that
       #    claim, and Story 1.1 spent three documents warning about a green tick
@@ -478,7 +482,8 @@ jobs:
             echo "### Coverage — reported, gates nothing"
             echo
             echo "The green tick on this job certifies \`pnpm verify\`: build, lint,"
-            echo "format:check, stories, env:check and 103 tests. It does **not**"
+            echo "format:check, stories, env:check, 103 tests and the 10-test"
+            echo "process suite (Task 1.10.5). It does **not**"
             echo "certify these figures, and there is no threshold — see the workflow."
             echo
             echo "| Package | % Stmts | % Branch | % Funcs | % Lines |"

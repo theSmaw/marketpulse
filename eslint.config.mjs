@@ -280,6 +280,11 @@ export default tseslint.config(
       "packages/shared/vitest.config.ts",
       "apps/backend/vitest.config.ts",
       "apps/frontend/vitest.config.ts",
+      // The seventh, and the first that is a *second* config in one package:
+      // Task 1.10.5's process suite runs under its own runner, because it
+      // spawns real processes against the built tree and the fast suite must
+      // not become conditional on a build.
+      "apps/backend/vitest.process.config.ts",
     ],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
