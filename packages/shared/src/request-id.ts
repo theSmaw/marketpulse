@@ -27,5 +27,3 @@
  * is the same header whatever a proxy renders it as.
  */
 export const REQUEST_ID_HEADER = "x-request-id";
-
-export const probeTypeError: number = "not a number";
