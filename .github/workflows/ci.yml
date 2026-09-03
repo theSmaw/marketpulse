@@ -330,3 +330,232 @@ jobs:
           echo "  ------------------------"
           printf '  %-13s %6d ms\n' TOTAL "$total"
           exit "$status"
+
+      # ------------------------------------------------------------------
+      # The frontend artefact's fingerprint, printed rather than uploaded —
+      # and that is Task 1.10.4's decision on `apps/frontend/dist/`, not an
+      # omission.
+      #
+      # The candidate was an upload: three files, 343,658 B of JavaScript and
+      # 10,926 B of CSS, md5 `cba2825c...`, byte-identical from a clean clone
+      # for five stories running. Cheap to upload — and an upload does not
+      # actually answer the question anyone asks of it. "The artefact did not
+      # move" is currently re-measured by hand at every story close, and
+      # downloading two zips from two runs to diff them is the same manual
+      # comparison with more steps in front of it. A fingerprint in the job
+      # summary is the comparison: it is greppable across runs in the GitHub UI
+      # without downloading anything, and it costs no storage and no retention
+      # decision.
+      #
+      # It walks whatever `dist/` holds rather than naming the three files, so
+      # a fourth file appears here on its own. This is deliberately NOT a check:
+      # nothing asserts the hash, because the artefact is supposed to change
+      # when the frontend changes and a pinned hash would be a check that fails
+      # for the right reason. It is a record.
+      - name: Fingerprint the frontend artefact
+        run: |
+          set -euo pipefail
+          dist=apps/frontend/dist
+          {
+            echo "### Frontend artefact"
+            echo
+            echo "| File | Bytes | md5 |"
+            echo "| --- | ---: | --- |"
+            find "$dist" -type f | sort | while IFS= read -r f; do
+              printf '| `%s` | %s | `%s` |\n' \
+                "${f#"$dist"/}" "$(stat -c %s "$f")" "$(md5sum "$f" | cut -d' ' -f1)"
+            done
+            find "$dist" -type f -printf '%s\n' \
+              | awk '{ n++; b += $1 } END { printf "\n%d files, %d bytes total.\n", n, b }'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # ------------------------------------------------------------------
+      # COVERAGE. Read the three decisions before editing this step.
+      #
+      # 1. IT RUNS OUTSIDE `verify`, AND IT IS A STEP IN THIS JOB RATHER THAN A
+      #    SECOND JOB. Story 1.9 kept `pnpm coverage` out of the chain
+      #    deliberately — nothing gates on the number, and instrumenting every
+      #    run costs every developer for a figure nobody reads — and that
+      #    decision is unchanged here. Where it goes was measured rather than
+      #    assumed. A second JOB is a second runner: its own checkout, its own
+      #    setup-node, its own Corepack, its own cache restore, its own install
+      #    (3,895-4,597 ms on a cache hit) and then, unavoidably, its own
+      #    `pnpm build` — because `packages/shared` is consumed as built output
+      #    and Story 1.9 measured what `pnpm test` does without one (16 passed
+      #    with `dist` missing, 13 SILENT failures with it stale). `build` is
+      #    the most expensive step on this runner at 5,204-8,527 ms. So a
+      #    parallel coverage job is a near-duplicate of this one minus lint and
+      #    Prettier, it costs roughly a whole second job in runner minutes, and
+      #    it must not close that gap by caching `dist/` — the rule and the
+      #    number that decides it are beside the cache step above.
+      #
+      #    As a step here it reuses the build `verify` just did and costs only
+      #    the coverage run itself: 2.60-3.06 s locally (n=3), against a runner
+      #    measured at 2.2-3.5x the laptop per step. That lengthens the answer
+      #    everyone waits for by less than two runners already differ by — the
+      #    chain totals over seven runs of one tree were 18,589 / 18,612 /
+      #    24,450 / 24,568 / 24,693 / 31,274 / 32,210 ms, a 13.6 s spread on
+      #    identical work.
+      #
+      #    A second WORKFLOW was never a candidate. The triggers and the
+      #    concurrency group are properties of the workflow, so a second file
+      #    duplicates both — a second place the trigger set lives and a second
+      #    concurrency group that does not cancel with this one. That is the
+      #    forking failure this story exists to prevent, one level up from the
+      #    chain.
+      #
+      # 2. IT CANNOT FAIL THIS JOB, AND THAT IS THE POINT RATHER THAN A
+      #    CONCESSION. `continue-on-error` is what keeps "the green tick
+      #    certifies 103 tests and not coverage" structurally true instead of
+      #    documented: no coverage outcome can turn the tick red, so no reader
+      #    can infer coverage from it. README.md and CLAUDE.md both make that
+      #    claim, and Story 1.1 spent three documents warning about a green tick
+      #    that means less than it looks like, back when `test` was an `echo`.
+      #    Both halves were made to happen rather than assumed, by temporarily
+      #    adding `src/index.ts` to the backend's `coverage.exclude` on a throwaway
+      #    commit — which is exactly the violation the assertion below exists for.
+      #    The backend went 64.33% -> 91.08%, which is the flattering number the
+      #    threshold argument predicts, the assertion fired with a named error,
+      #    and the RUN CONCLUSION WAS STILL `success`. That is the decision
+      #    working.
+      #
+      #    HOW A FAILURE HERE ACTUALLY SHOWS, because the obvious answer is
+      #    wrong: the run carries two `failure` annotations — this step's own
+      #    `::error::` naming the file, and `Process completed with exit code 1`
+      #    — and THAT is the visible evidence. The step's `conclusion` reads
+      #    `success` in the API and the UI, because `continue-on-error` swallows
+      #    it; the real result is in `steps.<id>.outcome`, which this step has no
+      #    id for and nothing reads. So do not look for a marked step, and do not
+      #    write a later step's `if:` against this one's `conclusion` — it is
+      #    `success` whatever happened.
+      #
+      # 3. THERE IS NO THRESHOLD. This is the first story that could set one and
+      #    it declines, in writing rather than by omission. The baseline is
+      #    30.00% / 64.33% / 68.25% of statements for `packages/shared`,
+      #    `apps/backend` and `apps/frontend` — three separate reports, never
+      #    one merged number, because the three packages share no code and
+      #    Vitest configures coverage per package with no root config. Three
+      #    reasons, in order of weight:
+      #
+      #      - A minimum over nine components, one route table, one
+      #        configuration module and no application state is a number
+      #        invented before there is anything to hold it to, and the cheapest
+      #        way to meet it is to test what is easy. That makes the figure
+      #        worse as a description of the suite while making it larger.
+      #      - The denominator is about to move for a real reason. Task 1.10.5
+      #        makes the backend's process half reachable, and 64.33% is a
+      #        figure about a tree where it is not. A threshold set now would be
+      #        set against a stale denominator, and re-set a task later — which
+      #        is a threshold that tracks the number rather than constraining
+      #        it.
+      #      - The obvious way to meet any threshold here is to exclude the two
+      #        0% entrypoints, and a threshold met that way measures less than
+      #        no threshold at all. Hence the assertion below.
+      #
+      #    The reversal trigger is a number somebody would actually defend —
+      #    which means after Task 1.10.5, against a denominator that includes
+      #    the process half, and per package rather than globally.
+      #
+      # A coverage-reporting service is deliberately not used: a third-party
+      # uploader is a token, a second definition of the number and an external
+      # dependency for a repository whose whole coverage story is three local
+      # HTML reports. The reversal trigger is a reviewer needing per-PR diff
+      # coverage.
+      - name: Coverage (reported, never gating)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          tmp="${RUNNER_TEMP:-/tmp}"
+          pnpm coverage 2>&1 | tee "$tmp/coverage.log"
+
+          # Derived from the command's own output, exactly as the per-step split
+          # above is: `pnpm -r` prefixes every line with the package directory
+          # it came from, so the packages in this table are the packages that
+          # ran. Nothing here carries a hand-written list that can drift from
+          # them — a fourth package appears on its own, and a package whose
+          # `coverage` script disappears stops appearing.
+          {
+            echo "### Coverage — reported, gates nothing"
+            echo
+            echo "The green tick on this job certifies \`pnpm verify\`: build, lint,"
+            echo "format:check, stories, env:check and 103 tests. It does **not**"
+            echo "certify these figures, and there is no threshold — see the workflow."
+            echo
+            echo "| Package | % Stmts | % Branch | % Funcs | % Lines |"
+            echo "| --- | ---: | ---: | ---: | ---: |"
+            grep -E '^[^ ]+ coverage: All files' "$tmp/coverage.log" \
+              | awk -F'|' '
+                  { split($1, a, " ")
+                    for (i = 2; i <= 5; i++) gsub(/ /, "", $i)
+                    printf "| `%s` | %s%% | %s%% | %s%% | %s%% |\n", a[1], $2, $3, $4, $5 }
+                '
+            echo
+            echo "The terminal table in the log lists only files that are **not** fully"
+            echo "covered, so it is not the denominator. \`<package>/coverage/index.html\`"
+            echo "is, and it is in the uploaded artefact."
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+          # The one thing this step asserts, and it is not a percentage.
+          #
+          # `apps/backend/src/index.ts` and `apps/frontend/src/main.tsx` are the
+          # process and the mount. No runner here reaches either, and both are
+          # deliberately left IN the denominator so the hole is visible as a
+          # figure rather than as a caveat — excluding them would take two
+          # packages to a flattering number that describes less. That is a
+          # stated invariant, and CLAUDE.md's third class of `verify` gap is
+          # exactly the stated invariant that quietly stops being enforced, so
+          # it is checked here rather than asserted in prose.
+          #
+          # It checks PRESENCE in the report and not a percentage of 0, on
+          # purpose: Task 1.10.5 is expected to make the backend's process half
+          # reachable, and an assertion pinned to 0% would fail for the right
+          # reason on the task that fixes it.
+          missing=0
+          for page in apps/backend/coverage/src/index.ts.html \
+                      apps/frontend/coverage/src/main.tsx.html; do
+            if [ -f "$page" ]; then
+              echo "in the denominator: $page"
+            else
+              echo "::error::$page is missing — the entrypoint has left the coverage denominator"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      # The three `coverage/` directories, and nothing else.
+      #
+      # SIZE, measured: 956 KB across 73 files, 218 KB zipped. Useful on a run
+      # somebody is investigating, near-useless on a green one — which is why
+      # the retention is 7 days rather than the 90-day default. A coverage
+      # report is read within days of the run that produced it or it is not read
+      # at all, and 90 days of a per-push artefact is real storage for a
+      # portfolio repository.
+      #
+      # DECLINED, and recorded as declined rather than omitted:
+      #
+      #   - `apps/frontend/storybook-static/` — 299 modules, 59 files, 9.3 MB on
+      #     disk, produced by `pnpm build` on every run whether anyone wants it
+      #     or not. 9.3 MB per push, for a bundle nothing downstream consumes
+      #     and no user is ever shown. Publishing it AS A SITE is a different
+      #     question and belongs to Story 1.11; this is the upload question and
+      #     the answer is no.
+      #   - `apps/frontend/dist/` — three files, 352 KB. Declined in favour of
+      #     the fingerprint step above, which answers the question an upload
+      #     would be downloaded to answer.
+      #   - `node_modules`, the store, and any build state — see the cache step.
+      #
+      # `if-no-files-found: error`, so a report that stops being produced is
+      # loud here rather than silently uploading an empty artefact. This step
+      # runs only when the coverage step above ran, which runs only when
+      # `verify` passed: coverage of a tree that does not build is not a report
+      # worth keeping.
+      - name: Upload the coverage reports
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            packages/shared/coverage
+            apps/backend/coverage
+            apps/frontend/coverage
+          if-no-files-found: error
+          retention-days: 7

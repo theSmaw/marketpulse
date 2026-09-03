@@ -1,6 +1,6 @@
 # Task 1.10.4 — Coverage as its own step, the threshold decision, and what CI publishes
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.10 Continuous Integration Pipeline](STORY.md)
 **Depends on:** Task 1.10.2 — read its hand-off in [STORY.md](STORY.md#what-task-1102-hands-the-remaining-tasks) first
 
@@ -37,3 +37,35 @@ Run `pnpm coverage` in the pipeline without letting it become part of the accept
 ## Notes
 
 If Task 1.10.5 lands first, take the coverage baseline again before deciding the threshold — the backend's 64.33% is a figure about a tree where the process half is unreachable, and that task's whole purpose is to make it reachable.
+
+## Outcome
+
+`pnpm coverage` runs as a step in the `verify` job, after `Verify`, marked `continue-on-error`. Every decision is written in the workflow beside the step it governs; this section records the measurements behind them.
+
+**Where it runs, and why not a second job.** A step, reusing the build `verify` just did. A second job is a second runner — its own checkout, setup-node, Corepack, cache restore, install and then, unavoidably, its own `pnpm build`, because `packages/shared` is consumed as built output. A second _workflow_ was never a candidate: the triggers and the concurrency group are properties of the workflow, so a second file forks both. As a step, coverage cost **8,279 ms on the runner** against **2.60–3.06 s locally (n=3)** — 2.7–3.2×, squarely inside Task 1.10.2's 2.2–3.5× band, and well under the 13.6 s spread two runners already show on identical work.
+
+**It cannot fail the job, and that was made to happen rather than assumed.** A throwaway commit added `src/index.ts` to the backend's `coverage.exclude` — the exact violation the assertion exists for. Three things happened at once, all on run `33705215225`: the backend's statements went **64.33% → 91.08%**, which is the flattering number the threshold argument predicts; the assertion fired with `apps/backend/coverage/src/index.ts.html is missing — the entrypoint has left the coverage denominator`; and the **run conclusion was still `success`**. The commit was reverted and dropped from the branch.
+
+**How a failure here actually shows, which is not what it looks like.** The run carries two `failure` annotations — the step's own `::error::` naming the file, and `Process completed with exit code 1`. The step's `conclusion` reads **`success`** in the API and the UI, because `continue-on-error` swallows it; the real result lives in `steps.<id>.outcome`. So a later step's `if:` written against this step's `conclusion` would be `success` whatever happened, and the annotation is the evidence.
+
+**No threshold**, argued in the workflow in three parts: a number invented over nine components and no application state is met by testing what is easy; Task 1.10.5 is about to move the backend's denominator for a real reason, so a threshold set now would be set against a stale one; and the cheapest way to meet any threshold here is the exclusion just measured at +26.75 points. The reversal trigger is a number somebody would defend — after 1.10.5, against a denominator that includes the process half, and per package.
+
+**Both 0% entrypoints confirmed in the denominator**, on the runner and locally: `apps/backend/src/index.ts` (0% of 24–232) and `apps/frontend/src/main.tsx` (0% of 39–79). The assertion checks **presence in the report** rather than a percentage of 0, on purpose — an assertion pinned to 0% would fail on the very task that makes `index.ts` reachable.
+
+**Derived, never declared.** The per-package table comes out of `pnpm -r`'s own line prefixes, the same property Task 1.10.2's per-step split has. The runner reproduced the laptop's figures to the digit: `packages/shared` 30 / 50 / 33.33 / 30, `apps/backend` 64.33 / 75 / 72.72 / 63.82, `apps/frontend` 68.25 / 70.83 / 80.64 / 67.21.
+
+**What is uploaded, with a size and a retention beside it.**
+
+| Candidate                         | Decision                     | Size                                     | Retention             |
+| --------------------------------- | ---------------------------- | ---------------------------------------- | --------------------- |
+| the three `coverage/` directories | **uploaded**                 | 956 KB, 73 files, **211,427 B** uploaded | **7 days**, confirmed |
+| `apps/frontend/storybook-static/` | **declined**                 | 9.3 MB on disk, 59 files, per push       | —                     |
+| `apps/frontend/dist/`             | **declined** — fingerprinted | 3 files, 355,685 B                       | —                     |
+
+Seven days rather than the 90-day default: a coverage report is read within days of the run that produced it or it is not read at all. Confirmed on the runner — the artefact's `expires_at` is exactly seven days after upload. `storybook-static/` is declined as an _upload_; publishing it as a site is Story 1.11's question. `apps/frontend/dist/` is declined in favour of the fingerprint step, which answers the question an upload would be downloaded to answer.
+
+**The fingerprint found something the upload would not have.** It prints every file in `dist/` with its size and md5 into the job summary, and the Linux runner produced `index-C-Puqfnm.js` at **343,658 B**, md5 **`cba2825c87721779927b2f385df406e9`** — **byte-identical to the laptop's**, along with the 10,926 B stylesheet and the 1,101 B `index.html`, 355,685 B over three files. That identity has been re-measured across macOS clean clones for five stories and had **never** been checked across platforms; it now is, and it is checkable on every run without downloading anything. It is deliberately a record and not a check: nothing asserts the hash, because the artefact is supposed to change when the frontend changes.
+
+**Declined outright:** a coverage-reporting service. A third-party uploader is a token, a second definition of the number and an external dependency for a repository whose whole coverage story is three local HTML reports. The reversal trigger is a reviewer needing per-PR diff coverage.
+
+**The green run for the record:** `33705030662`, cache-hit `true`, `reused 397, downloaded 0`, install 5,081 ms, chain 32,795 ms — build 8,846 / lint 8,863 / `format:check` 6,391 / `stories` 488 / `env:check` 504 / `test` 6,757 — coverage 8,279 ms, artefact 211,427 B.
