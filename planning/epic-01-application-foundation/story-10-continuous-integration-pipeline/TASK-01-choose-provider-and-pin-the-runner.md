@@ -1,6 +1,6 @@
 # Task 1.10.1 — Choose the provider and prove the toolchain pins on Linux
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.10 Continuous Integration Pipeline](STORY.md)
 **Depends on:** nothing
 

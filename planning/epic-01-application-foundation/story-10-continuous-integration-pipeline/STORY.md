@@ -1,6 +1,6 @@
 # Story 1.10 — Continuous Integration Pipeline
 
-**Status:** Not started — eight tasks
+**Status:** In progress — eight tasks, one complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Story 1.9
 **Epic scope covered:** CI pipeline
@@ -105,7 +105,7 @@ Tackled in order. The story is complete when all eight are done.
 
 | #      | Task                                                                                                           | Status      |
 | ------ | -------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1.10.1 | [Choose the provider and prove the toolchain pins on Linux](TASK-01-choose-provider-and-pin-the-runner.md)     | Not started |
+| 1.10.1 | [Choose the provider and prove the toolchain pins on Linux](TASK-01-choose-provider-and-pin-the-runner.md)     | Complete    |
 | 1.10.2 | [Run `pnpm verify` on push and on pull request](TASK-02-run-verify-on-push-and-pull-request.md)                | Not started |
 | 1.10.3 | [Cache the pnpm store, and decide what must never be cached](TASK-03-cache-the-pnpm-store.md)                  | Not started |
 | 1.10.4 | [Coverage as its own step, the threshold, and what CI publishes](TASK-04-coverage-threshold-and-artefacts.md)  | Not started |
@@ -120,4 +120,4 @@ Each task leaves the repository installable, typechecking and passing `pnpm veri
 
 ## Open decisions
 
-- CI provider — GitHub Actions is the default assumption
+~~- CI provider — GitHub Actions is the default assumption~~ **Resolved in Task 1.10.1 (2026-09-03): GitHub Actions**, taken as a decision with the alternatives named — a provider-agnostic runner script, and GitLab/Circle — rather than arrived at by default. `origin` is `github.com/theSmaw/marketpulse` and every story since 1.1 shipped as a pull request against it, so either alternative is a second place the pipeline lives. The reversal cost is **one YAML file**, and it stays that way only while the workflow runs `pnpm verify` by name and defines nothing of its own. There are no open decisions left in this story.
