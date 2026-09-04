@@ -651,3 +651,293 @@ jobs:
             apps/frontend/coverage
           if-no-files-found: error
           retention-days: 7
+
+  # ===========================================================================
+  # The browser suite. Story 1.13, Task 1.13.4.
+  # ===========================================================================
+  #
+  # WHY THIS IS A SECOND JOB HERE AND NOT A `verify` STEP, AND NOT A SEPARATE
+  # WORKFLOW. Story 1.10's founding rule is that the pipeline runs `pnpm verify`
+  # BY NAME and defines nothing of its own, and `stories`, `env:check` and
+  # `test:process` all arrived in the chain rather than in this file for that
+  # reason. This is the first check with a real reason not to be in the chain,
+  # so the three shapes were weighed rather than one of them assumed.
+  #
+  #   1. A `verify` STEP. Rejected, and this is the load-bearing rejection.
+  #      `pnpm verify` runs with NOTHING LISTENING — that is why `pnpm ready` is
+  #      not a step, and it is a property eight clean-clone runs have measured
+  #      rather than an aspiration. A chain that needs two ports free stops
+  #      being runnable from a cold tree, on a laptop with a dev server already
+  #      up, and inside this job. The cost of keeping it out is real and is the
+  #      whole reason this comment exists: the browser suite is a check CI runs
+  #      that `pnpm verify` does not, which is the fork Story 1.10 spent eight
+  #      tasks preventing. What keeps it honest is that this job invokes
+  #      `pnpm build`, `pnpm dev` and `pnpm e2e` BY NAME and defines no browser
+  #      command, no port and no readiness rule of its own — the same line
+  #      `deploy.yml` holds for a deploy.
+  #   2. A SEPARATE WORKFLOW, which is what `deploy.yml` is. Rejected, because
+  #      all three of that file's reasons are properties of a DEPLOY rather than
+  #      of a second job, and two of them argue the other way here. The badge:
+  #      `deploy.yml` is separate so a registry outage cannot turn the tick red
+  #      for something README.md says it does not certify — but a browser
+  #      journey going red IS a claim about this commit, and the badge should
+  #      report it. Concurrency: a cancelled deploy is a half-done rollout and
+  #      needs a queue of its own; a cancelled browser run is a cancelled check,
+  #      which is exactly what `verify`'s per-ref group already does correctly.
+  #      Only the third reason survives, and it is answered below.
+  #   3. A SECOND JOB IN THIS FILE. Taken. It inherits the triggers, the
+  #      concurrency group and the badge, and it is a second runner rather than
+  #      a second definition of anything.
+  #
+  # IT RUNS IN PARALLEL WITH `verify` AND DELIBERATELY DOES NOT `needs:` IT.
+  # The two answer different questions — a green chain says nothing about
+  # whether the two halves talk across the origin boundary, which is the failure
+  # this whole story exists to catch — and serialising them would add the
+  # chain's ~40 s to a job that already takes ~2 min for feedback that is not
+  # better. The price is that a commit which fails to compile fails twice, in
+  # two places, which is legible rather than confusing because the jobs are
+  # named for what they check.
+  #
+  # IT GATES A MERGE, AND THAT SENTENCE IS THE ONLY DURABLE RECORD OF IT.
+  # Repository ruleset `main` (id 22160620) is where required status checks
+  # live, it is invisible in a diff, and Task 1.13.4 added `e2e` to it beside
+  # `verify` — so a future reader finding only `verify` required should read
+  # that as the gate having been REMOVED rather than never set. The argument is
+  # the one that separates this from coverage: coverage is non-gating because
+  # nobody can say which number is right, whereas this is a pass/fail assertion
+  # about the product working in a browser, and a check nothing gates on is a
+  # check nobody reads. It has zero retries here as it does locally, for the
+  # reason every failure in this repository is made to happen rather than
+  # retried away: a retry is how a suite stops being able to tell a flake from
+  # a defect. If this gate starts flaking, that is information and the answer is
+  # to fix the flake, not to add a retry.
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node from .nvmrc
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Resolve the pnpm store path
+        id: store
+        run: |
+          set -euo pipefail
+          path="$(pnpm store path)"
+          echo "pnpm store path: $path"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          echo "node-major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+
+      # RESTORE and never SAVE, which is the one difference from the `verify`
+      # job's step and it is deliberate. Both jobs run from the same commit and
+      # the same lockfile, so they would compute the same key; two `actions/cache`
+      # steps racing to save it is a "Cache already exists" warning on whichever
+      # loses, which reads like a fault and is not one. The `verify` job owns
+      # saving this cache. The consequence, stated rather than discovered: on the
+      # first run after a lockfile change this job installs cold, because the
+      # save it would have used has not happened yet.
+      - name: Restore the pnpm store
+        id: store-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-
+
+      - name: Install
+        run: |
+          set -euo pipefail
+          echo "cache-hit (exact key): ${{ steps.store-cache.outputs.cache-hit }}"
+          start=$(date +%s%N)
+          pnpm install --frozen-lockfile
+          end=$(date +%s%N)
+          echo "install: $(( (end - start) / 1000000 )) ms"
+
+      # The version comes out of the installed package, never a literal: the
+      # binaries are keyed to it, and a key carrying a number somebody typed is
+      # a key that goes on hitting after a bump and serves the wrong browser.
+      - name: Resolve the Playwright version
+        id: playwright
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('@playwright/test/package.json').version")"
+          echo "playwright: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # A THIRD CACHE CATEGORY, and the reason it is allowed where `dist/` is
+      # not. The rule beside the store cache above is that build OUTPUT is never
+      # cached: `tsc -b` decides what to rebuild from `.tsbuildinfo`, a restored
+      # `dist/` can carry orphans from a branch where a source was deleted, and
+      # the whole prize was measured at ~2.5 s against a 13.6 s runner-to-runner
+      # spread. None of that applies to a browser binary. It is a downloaded
+      # TOOL, like the pnpm store — immutable, addressed by version, and unable
+      # to make a build wrong by being stale, because a stale one is a different
+      # version and Playwright refuses to launch it.
+      #
+      # The key carries the runner OS for the reason the store's does — one
+      # lockfile installs 397 packages on Linux and 398 on macOS — and the
+      # Playwright version rather than the lockfile hash, so an unrelated
+      # dependency bump does not throw away 200 MB of download.
+      #
+      # NO RESTORE-KEY, which IS the difference from the store cache. A partial
+      # store is a correct store that installs the rest; a browser directory
+      # restored from a different Playwright version is a directory that LOOKS
+      # populated and holds the wrong build. `actions/cache` reports both a
+      # restore-key hit and a total miss as `cache-hit: false`, so there would
+      # be no way to tell them apart here. Exact key or nothing.
+      #
+      # TO BUST THIS CACHE BY HAND: bump `v1` in the key below.
+      - name: Cache the browser binary
+        id: browser-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-shell-v1-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # `--only-shell`, which is ~199 MB against 554 MB for `install chromium`
+      # (three artefacts: Chrome for Testing 356 MB, the headless shell 196 MB
+      # and FFmpeg 2.5 MB) and 1.1 GB for the bare default over five
+      # directories. Those are Task 1.13.1's macOS figures and the ones printed
+      # below are this runner's; they are not the same builds.
+      #
+      # It is not a downgrade to something the local suite has never run. Task
+      # 1.13.2 read the process table while a headless browser was open and a
+      # headless `chromium.launch()` spawns `chrome-headless-shell` — so the
+      # ~199 MB artefact is the binary a green local run already used. The
+      # obvious way of checking gets that backwards:
+      # `chromium.executablePath()` reports the 356 MB Chrome for Testing
+      # binary for the same launch. Read the process, not the path. The mirror
+      # of it is why the local install is the full 554 MB: `--only-shell`
+      # cannot serve `pnpm e2e --headed`, and CI never runs headed.
+      #
+      # THIS STEP RUNS ON A CACHE HIT TOO, deliberately. It is idempotent and it
+      # PRINTS what it did, which is the only thing that separates a restored
+      # cache from a silent re-download — `cache-hit` cannot, because a
+      # version mismatch inside a restored directory is invisible to it.
+      #
+      # Nothing here is fetched by `pnpm install`: Playwright ships no install
+      # script anywhere in its chain (read out of the published tarballs in Task
+      # 1.13.1, not inferred from a green install), which is why `allowBuilds`
+      # still has its single `esbuild` entry and why the browser download is an
+      # explicit command that can be cached, skipped and measured on its own.
+      - name: Install the browser
+        run: |
+          set -euo pipefail
+          echo "browser cache-hit (exact key): ${{ steps.browser-cache.outputs.cache-hit }}"
+          start=$(date +%s%N)
+          pnpm exec playwright install --only-shell chromium
+          end=$(date +%s%N)
+          echo "browser install: $(( (end - start) / 1000000 )) ms"
+          echo
+          echo "what is on disk:"
+          du -sh ~/.cache/ms-playwright 2>/dev/null || true
+          du -sh ~/.cache/ms-playwright/* 2>/dev/null || true
+
+      # BY NAME, and it has to come first for a reason that presents as a bug:
+      # `pnpm e2e` resolves BOTH addresses from the backend's BUILT
+      # `dist/config.js`, so on an unbuilt tree it exits 1 with "run `pnpm build`
+      # first" before a browser ever starts. `pnpm verify` orders this locally;
+      # a workflow orders nothing for free.
+      - name: Build
+        run: |
+          set -euo pipefail
+          start=$(date +%s%N)
+          pnpm build
+          end=$(date +%s%N)
+          echo "build: $(( (end - start) / 1000000 )) ms"
+
+      # `pnpm dev` BY NAME — the same three watchers a developer runs, not a
+      # CI-shaped pair assembled here. This is the largest single thing this job
+      # does that `pnpm e2e` deliberately does not do for itself, and the
+      # argument for that split is in e2e/playwright.config.ts: Playwright's own
+      # `webServer` judges readiness by ONE URL, and Task 1.8.4 measured that a
+      # busy 3000 leaves `pnpm dev` running and looking entirely healthy with
+      # nothing exiting non-zero — so a frontend probe passes against half a
+      # system, and the backend is the half this suite watches.
+      #
+      # Nothing here polls a port or sleeps. `pnpm e2e` gates on
+      # `scripts/check-ready.mjs` ITSELF, which judges both halves, waits out a
+      # startup and names which one is wrong — so the readiness rule is not
+      # written down a second time in this file, and a CI failure to start reads
+      # in the same words a developer already knows.
+      - name: Start the pair
+        run: |
+          set -euo pipefail
+          nohup pnpm dev > "${RUNNER_TEMP}/dev.log" 2>&1 &
+          echo "DEV_PID=$!" >> "$GITHUB_ENV"
+          echo "started \`pnpm dev\` as pid $!; readiness is \`pnpm e2e\`'s to judge"
+
+      # ALL TEN JOURNEYS, INCLUDING THE ONE-MINUTE RECOVERY ONE, and that is a
+      # decision rather than a consequence of running everything.
+      # `--grep-invert "recovers on the next poll"` is the lever and it is not
+      # pulled: that journey waits out TWO real 30 s poll intervals and is the
+      # only thing in the repository that asserts the interval the application
+      # actually polls at, that a failure does not clear the surviving
+      # timestamp, and that recovery happens without a page reload. Skipping it
+      # would leave the story's recovery criterion asserted on a laptop and not
+      # in CI, which is a thing ADR 0013 would then have to say. It costs about
+      # a minute of a job that already spends more than that installing, and the
+      # other nine run underneath it — though that arithmetic is worker-count
+      # dependent, so read the worker line the reporter prints rather than
+      # carrying a local total.
+      - name: Browser journeys
+        run: |
+          set -euo pipefail
+          start=$(date +%s%N)
+          status=0
+          pnpm e2e || status=$?
+          echo "e2e: $(( ($(date +%s%N) - start) / 1000000 )) ms"
+          exit $status
+
+      # The pair's own log, on failure only. It is the answer to the failure
+      # this job can produce that a laptop cannot: the suite never started
+      # because half the pair did not come up, in which case there are no
+      # Playwright artefacts at all and this is the only evidence there is.
+      - name: The pair's log
+        if: failure()
+        run: |
+          echo "::group::pnpm dev"
+          cat "${RUNNER_TEMP}/dev.log" || true
+          echo "::endgroup::"
+
+      # ON FAILURE ONLY, and the reason is a measurement rather than a
+      # principle: a green run leaves a 96-byte `.last-run.json` and one failed
+      # test leaves ~450 KB — a 318,749 B trace zip, a 121,570 B screenshot and
+      # an 11,318 B page snapshot (Task 1.13.2, locally). Video is `off` and no
+      # HTML reporter is enabled, so there is no `playwright-report/` to
+      # collect. Traces are the largest thing this repository would upload and
+      # they are worth exactly nothing on a green run.
+      #
+      # 7 days, for the reason the coverage reports get 7: a trace is opened
+      # within days of the run that produced it or it is not opened at all. Read
+      # one with `pnpm exec playwright show-trace <path>`.
+      #
+      # `if-no-files-found: warn` rather than `error`, unlike the coverage
+      # upload: this step runs on failures that produce no artefacts at all,
+      # and turning "the pair never started" into a second red step names the
+      # wrong thing.
+      - name: Upload the failure artefacts
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            e2e/test-results
+            ${{ runner.temp }}/dev.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      # Best effort, and it does not gate anything: the runner is torn down
+      # after this either way. It exists so a `pnpm dev` left running cannot
+      # hold the job open waiting on a process that never exits.
+      - name: Stop the pair
+        if: always()
+        run: kill "${DEV_PID:-0}" 2>/dev/null || true
