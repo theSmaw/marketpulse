@@ -376,6 +376,25 @@ found a real 2.09:1 violation on the very component these specs exercise.
 **Deployed it is a report rather than a gate**, and the asymmetry is argued in
 `support/axe.ts` and summarised under the post-deploy section above.
 
+**Both paths assert one thing about the instrument rather than the page**
+(Task 1.13.6). `expectTheRendererComputedStyles` checks that `color-contrast`
+appears in axe's `passes` with **more than zero nodes**, because a renderer that
+skipped style computation would report zero violations **by being blind** — the
+one failure a green run structurally cannot distinguish from success. It asserts
+presence-with-nodes rather than a node count, because the count is a property of
+the page and would fail on the next component. It is called from the gate **and**
+from the report: they inject the same axe into two different browsers, and a
+check on one leaves the other blind.
+
+**Two limits belong beside every figure here.** axe returns `color-contrast`
+**inconclusive** on exactly the non-text elements this product encodes with —
+the two `aria-hidden` direction arrows — so the one thing automation declines to
+judge is the thing Task 1.4.4 had to measure by hand. And **every axe figure in
+this repository was taken at one viewport**: the CI gate's first run found a real
+WCAG 2.1.1 defect that was invisible on the development machine and reproduced
+at a window 160 px shorter, so **0 violations at one viewport is not 0
+violations**.
+
 **Epic 15 still owns the accessibility review, and a green axe run is not one.**
 
 ## What a green run does not certify

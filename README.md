@@ -17,8 +17,8 @@ is the one exception to the paragraph above. `verify.yml` has a second job,
 runner and runs [`pnpm e2e`](#pnpm-e2e--the-browser-suite) — ten journeys in
 Chromium against a real pair, including an accessibility gate over two assembled
 pages. It is a job rather than a chain step because `pnpm verify` runs with
-nothing listening, which is a property eight clean-clone runs have measured and
-one this repository is not willing to lose. Both jobs are required checks on
+nothing listening, which is a property every clean-clone run in this repository
+has measured and one it is not willing to lose. Both jobs are required checks on
 `main`. Everything the browser suite does **not** certify is listed in
 [`e2e/README.md`](e2e/README.md).
 
@@ -464,10 +464,17 @@ first, or an empty or stale `dist/` gives you a missing server and a stale
 page.
 
 One warning about `preview`, because it is easy to mistake for a static host.
-Its SPA fallback answers _any_ unmatched path with `index.html` and a 200 — a
-**missing asset** included, which then arrives in the browser as a MIME-type
-error rather than a 404 naming the file. It is the right way to look at a
-production build and the wrong way to prove one works.
+Its SPA fallback answers _any_ unmatched path **a browser asks for** with
+`index.html` and a 200 — a **missing asset** included, which then arrives in the
+browser as a MIME-type error rather than a 404 naming the file. It is the right
+way to look at a production build and the wrong way to prove one works.
+
+**The fallback keys on the `Accept` header**, which matters the moment an API
+client points at it: `Accept: application/json` gets a **404** where
+`Accept: text/html` gets the page. Three hosts, three behaviours —
+`python3 -m http.server` 404s both, `vite preview` splits on `Accept`, and the
+deployed Azure Static Web App splits on **path**. Never say "the SPA fallback"
+without saying which host you mean.
 
 **`clean` is the one verb that needs an explicit `run` when filtered.**
 `pnpm clean` is also a built-in pnpm 11 command (alias `purge`) that removes
@@ -491,8 +498,8 @@ the same second half for the same reason.
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
 in this workspace. `packages/shared` runs 37 tests across 4 files,
-`apps/backend` 49 across 3, and `apps/frontend` 74 across 11 — 160 in total,
-and a failure in any package makes the root command exit 1.
+`apps/backend` 49 across 3, and `apps/frontend` 103 across 12 — **189 in
+total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
 
@@ -501,6 +508,22 @@ They are three different kinds of test:
 | `packages/shared` | Plain functions with plain arguments                                                                 |
 | `apps/backend`    | The assembled Fastify server through `app.inject()` — no listening socket, both error handlers, CORS |
 | `apps/frontend`   | The real component tree rendered under jsdom, asserted on roles and accessible names                 |
+
+**There are five levels of test here and `pnpm test` runs three of them.** The
+other two have their own commands, deliberately, because each needs something
+the fast suite must never need:
+
+| Level             | Command                  | What it needs that `pnpm test` must not           |
+| ----------------- | ------------------------ | ------------------------------------------------- |
+| Unit              | `pnpm test`              | —                                                 |
+| Integration       | `pnpm test`              | —                                                 |
+| Component (jsdom) | `pnpm test`              | —                                                 |
+| Process           | `pnpm test:process`      | A build, and a free port                          |
+| Browser           | `pnpm e2e` / `:deployed` | A build, two servers (or a deployment), a browser |
+
+The browser level is one level pointed at two targets rather than two levels:
+`pnpm e2e` drives a local pair and gates a merge, `pnpm e2e:deployed` drives the
+live environment after one and gates nothing. Both are below.
 
 **A green tick is not coverage.** And what `pnpm test` does not reach at all
 is the backend's process half — signals, exit codes, the shutdown ceiling,
@@ -808,6 +831,13 @@ with no servers up, where the honest answer to this question is "nothing is
 running" rather than a failure. It lives in `scripts/` so ESLint and Prettier
 read it.
 
+**It does not hold the pair's addresses itself.** Since the browser suite needed
+the same two, they moved into `scripts/pair-addresses.mjs`, which reads the
+backend's `PORT`/`HOST` out of its **built** `dist/config.js` and the frontend's
+origin out of `CORS_ORIGIN` rather than a second copy of `5173`. Two readers,
+one definition — a harness with its own copy of the port has forked the pair's
+definition on day one.
+
 Three things it deliberately does not do:
 
 - **It does not grep the log.** At `LOG_LEVEL=warn` and above a healthy server
@@ -854,12 +884,22 @@ The pair is up.
 
 Driving http://localhost:5173
 
-Running 1 test using 1 worker
+Running 10 tests using 4 workers
 
-  ✓  1 [chromium] › e2e/specs/landing-route.spec.ts:58:1 › the landing route serves the chrome and PRODUCT_SPEC §9's four regions (569ms)
+  ✓   3 [chromium] › e2e/specs/backend-health.spec.ts:46:1 › the page reaches the backend across the origin boundary and shows what it said (1.2s)
+  ✓   2 [chromium] › e2e/specs/landing-route.spec.ts:60:1 › the landing route serves the chrome and PRODUCT_SPEC §9's four regions (1.4s)
+  …
+  ✓   1 [chromium] › e2e/specs/backend-recovery.spec.ts:43:1 › the indicator recovers on the next poll, without the page reloading (1.0m)
 
-  1 passed (1.0s)
+  10 passed (1.0m)
 ```
+
+**Ten journeys across four spec files, and nine of them take 3.4 s.** The tenth
+is the recovery journey, which waits out two real 30-second poll intervals and
+is the whole cost of the run; `pnpm e2e --grep-invert "recovers on the next
+poll"` is the fast half. It is deliberately **not** skipped in CI, because
+skipping it would leave the recovery criterion asserted on a laptop and nowhere
+else.
 
 Playwright, in Chromium, against a pair **you** started. The specs live in
 `e2e/`, which is a fourth workspace package rather than a folder, so they lint,
@@ -905,12 +945,22 @@ with:
 pnpm exec playwright show-trace e2e/test-results/<the directory it named>/trace.zip
 ```
 
-**What a green run certifies** is that a real browser asked a real host for the
-landing route, the built module graph loaded over HTTP, the router resolved `/`,
-and the chrome and §9's four named regions are present and named. **What it does
-not** is anything about a host: the dev server never 404s, so deep-linking and
-`/assets/nope.js` cannot be asserted against it — those are properties of the
-deployed host, and `pnpm e2e:deployed` below is where they are now asserted.
+**Read `e2e/README.md` before writing a spec.** The rules live beside the specs
+rather than here — the must-not-assert list (colour, and `innerText()`, which
+reports the CSS-transformed `HEALTHY` where every matcher sees `healthy`), why
+no spec stops the backend, how waits are derived from the application's own
+constants, the axe decision, and the full statement of what a green run does and
+does not certify. ADR 0013 is why each of those is the way it is.
+
+In one paragraph: **a green run certifies** that a real browser loaded the real
+page, reached the backend **across the origin boundary**, read back the
+`x-request-id` the backend sent, rendered all three `BackendStatus` states from
+causes produced in the browser, recovered on the next poll without reloading,
+kept every route usable with the backend unreachable, and found zero axe
+violations on two pages. **What it does not** is anything about a host — the dev
+server never 404s, so deep-linking and `/assets/nope.js` cannot be asserted
+against it — or anything about the deployed system, whose three addresses it
+never sees. Those are `pnpm e2e:deployed`, below.
 
 ### `pnpm e2e:deployed` — the same browser against the live environment
 
@@ -974,7 +1024,26 @@ fetch` while `curl` with the real `Origin` gets a **200 with a full body** and
 It is deliberately **not** on a schedule. That would make it uptime monitoring,
 which nothing in the roadmap owns, and it has a bill attached — a whole green
 run costs the deployed backend **5 requests**, against an idle baseline of 4 per
-30 s, which is negligible once per merge and is not negligible on a timer.
+30 s, which is negligible once per merge and is not negligible on a timer. It is
+also deliberately not a required check: it runs after a merge, so requiring it
+would gate on something that cannot have happened yet.
+
+**It needs `packages/shared` built, and it says so rather than failing
+strangely.** It drives nothing local, so there is no `pnpm build` in its path —
+but the specs import the vocabulary they assert on, and that package is consumed
+as built output. From a fresh checkout it stops with a message naming
+`pnpm --filter @marketpulse/e2e typecheck`, which is `tsc -b` over exactly what
+the specs import. That is the one failure a laptop with a built tree structurally
+cannot reproduce and CI found on its first run. If you deleted `dist/` **by
+hand**, run `pnpm clean` first: `tsc -b` decides what to re-emit from
+`tsconfig.tsbuildinfo`, which still says the output is current.
+
+The full statement of what a green **deployed** run does and does not certify is
+in [`e2e/README.md`](e2e/README.md), and the sharpest limit is worth repeating
+here: it compares its two addresses against the live environment and **cannot
+detect both being wrong in the same direction.** Pointed at a stale frontend
+origin with a matching backend origin, it passes — green — against the wrong
+site entirely.
 
 ### `pnpm image` — the backend's container image
 
@@ -1582,8 +1651,9 @@ fact and `paths.ts` is not configuration.
 **Deep-linking works locally for a reason that would not have survived
 deployment, so it was configured rather than inherited.** `/replay` typed
 straight into the address bar works against `vite` and `vite preview` for a
-reason that flatters them: both answer _any_ unmatched path with `index.html`
-and a 200. The same build served by a plain static host **404s** every route
+reason that flatters them: both answer _any_ unmatched path **a browser asks
+for** with `index.html` and a 200 (`vite preview` 404s the same path under
+`Accept: application/json` — see the warning beside `pnpm preview`). The same build served by a plain static host **404s** every route
 but `/`, and the not-found route rests on exactly the same property — it can
 only render if the host served `index.html` for an address that matched
 nothing.
@@ -1818,7 +1888,7 @@ The reasoning behind all of it, including what was rejected, is in
 A green tick means every **check** passed. It does not mean every **claim** in
 this repository holds. Five things sit outside the net, deliberately, and they
 are listed here rather than left for a reader to assume the badge covers them.
-Last re-checked 2026-09-03, by measurement rather than by reading this list.
+Last re-checked **2026-09-04**, by measurement rather than by reading this list.
 
 **1. `apps/backend/scripts/dev.sh`.** ESLint sees only JavaScript and
 TypeScript, Prettier has no shell parser, and `tsc` has no view of it —
@@ -1867,6 +1937,46 @@ Story 1.10 added two more of this kind, inside the test suites:
   `git checkout` makes every source newer than every output without changing a
   byte, and the mtime comparison failed a correct tree on its first run
 
+**Story 1.13 added four more, and moved one of them out of this list by
+building a check for it.** The full argument — including what separates the ones
+worth checking from the ones worth writing down — is in
+[ADR 0013](docs/adr/0013-browser-testing-two-suites-and-what-a-green-run-certifies.md).
+
+- **The only thing keeping the browser suite out of `pnpm test` is that
+  `e2e/package.json` has no `test` script.** The package joins every `pnpm -r`
+  fan-out automatically — measured at "Scope: 4 of 5 workspace projects" — so
+  the day somebody adds one, `pnpm test` starts needing two servers, a build and
+  a browser binary on a clean clone, which is the outcome two earlier tasks
+  spent themselves preventing. Nothing checks the absence, and a manifest cannot
+  hold a comment saying why
+- **The two `axe-core` pins must match and there is no manifest for them to be
+  compared in.** `e2e` declares 4.13.0 to match the version
+  `@storybook/addon-a11y` resolves; `apps/frontend`'s arrives transitively. Two
+  versions would make the workshop and the browser suite report different
+  numbers for the same page, which makes both untrustworthy rather than one of
+  them wrong. The one-liner is `ls -d node_modules/.pnpm/axe-core@*`, which must
+  print exactly one entry
+- **Two jobs now restore the pnpm store or browser cache without saving it**,
+  because two savers race to a warning that reads like a fault. `verify`'s
+  `verify` job owns saving the store and its `e2e` job owns saving the browser —
+  remove either saver and the other jobs install cold forever, silently. The
+  ruleset likewise keys on **two** job names now, so renaming either
+  un-requires it with no error anywhere
+- **The deployed check cannot detect both its addresses being wrong in the same
+  direction.** Pointed at a stale frontend origin with a matching backend
+  origin, it passes green against the wrong site. The only check for it would be
+  a fourth independent copy of the address, which is the thing the two-inputs
+  design exists to avoid
+
+**And one that used to be prose and is a check now**, because unlike the four
+above it is reachable from an assembled instance. The axe gate's whole value
+depends on the browser having computed real styles: a renderer that skipped
+style computation reports **zero violations by being blind**, which a green run
+structurally cannot tell apart from success. `expectTheRendererComputedStyles`
+now asserts that `color-contrast` appears in axe's `passes` with more than zero
+nodes, in both the local gate and the deployed report, and it was made to fail
+before it was trusted.
+
 **4. The figures in this document, and its internal links.** Nothing reads
 either. The two halves are not alike, and the decision differs between them.
 The links **are** cheap to check and have been checked six times, most recently
@@ -1899,7 +2009,18 @@ workflow dropped into that directory fails `pnpm format:check` by name. So its
 formatting is inside the net. Its **schema** is not — a misspelled key, an
 action reference that does not resolve, or a `runs-on` label GitHub retires are
 all green locally and red only on the runner. `actionlint` would close it and
-is declined for the same reason `shellcheck` is: two small files.
+is declined for the same reason `shellcheck` is: a small number of small files.
+The same shape covers `.github/dependabot.yml` and
+`apps/frontend/public/staticwebapp.config.json`, whose formatting is checked and
+whose meaning is not.
+
+**Two files that were expected to join this entry and did not.**
+`e2e/playwright.config.ts` and `e2e/playwright.deployed.config.ts` are the first
+tool configuration files here that are **not a gap of any kind**: `e2e/tsconfig.json`'s
+`include` is `**/*.ts`, so they sit inside the project, `--print-config` reports
+the same 168 rules on them as on a source file, `no-floating-promises` applies,
+and Prettier formats them. Two instances make that a property of that one
+`include` line rather than a coincidence.
 
 **`deploy.yml` widens this half-gap rather than adding a sixth entry, and it is
 worth knowing which way.** Its schema is unchecked like `verify.yml`'s, and it
@@ -1911,7 +2032,9 @@ precisely so a human review is the check.
 
 **Inside that half-gap was the part nothing watched at all, and it is closed
 now.** The workflows pin **five** third-party actions to commit SHAs across
-eight uses — `actions/checkout`, `actions/setup-node`, `actions/cache`,
+**eighteen** uses and **six** distinct `uses:` references —
+`actions/checkout`, `actions/setup-node`, `actions/cache`,
+`actions/cache/restore` (a sub-action of `actions/cache`, at the same SHA),
 `actions/upload-artifact` and `azure/login` — and a SHA does not follow security
 releases, which is the point of pinning it. `pnpm outdated` has no view of a
 YAML file and the lockfile has no view of GitHub. Task 1.10.7 declined

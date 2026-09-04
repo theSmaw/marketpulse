@@ -160,9 +160,15 @@ The key is `pnpm-store-v1-<runner.os>-node<major>-<hashFiles(pnpm-lock.yaml)>`
 with a restore-key dropping the hash. The path comes from `pnpm store path`
 rather than a literal. **`v1` is the manual bust — bump it in both the key and
 the restore-key, and that is the whole procedure.** The OS component is
-load-bearing: 397 packages install on Linux against 398 on macOS from one
+load-bearing: ~~397 packages install on Linux against 398 on macOS from one
 lockfile, the difference being `fsevents@2.3.3` (`os: [darwin]`, optional, via
-Vite).
+Vite)~~ — **superseded 2026-09-04 (Story 1.13): it is 400 on Linux against 402
+on macOS, and the difference is now TWO darwin-only optional packages rather
+than one** — `fsevents@2.3.3` via Vite and `fsevents@2.3.2` reached through
+Playwright. Both figures were re-read rather than inferred: `Packages: +400`
+off a runner install, and 402 off a clean clone with an empty store. The point
+is unchanged and the numbers are not: quote them per platform, and re-read them
+rather than citing this line.
 
 **Nothing about the build is cached, and the number decides it rather than the
 principle.** Story 1.9 measured what a stale `packages/shared/dist` does; `tsc
