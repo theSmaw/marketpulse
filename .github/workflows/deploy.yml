@@ -107,6 +107,19 @@ env:
   AZURE_CONTAINER_APP: marketpulse-backend
   AZURE_STATIC_WEB_APP: marketpulse-frontend
   IMAGE_REPOSITORY: marketpulse-backend
+  # Where the deployed page is served from — the Static Web App's default
+  # hostname. Promoted from a string repeated in two summary steps to a named
+  # value in Task 1.13.5, because the post-deploy check needs it and a third
+  # copy of a hostname is how the copies start disagreeing.
+  #
+  # NOTE WHAT IS *NOT* DERIVED FROM IT. `CORS_ORIGIN` on the Container App has
+  # to name this same origin and is deliberately NOT set from here: it lives
+  # only in the platform, because this workflow uses `update` and never
+  # `create`. So these two values, plus VITE_API_BASE_URL above, are three
+  # independent facts in three different places that all have to agree, and
+  # nothing in this repository compares them. The `check-deployed` job below is
+  # the thing that finds out.
+  FRONTEND_ORIGIN: https://red-smoke-029583a0f.5.azurestaticapps.net
 
 jobs:
   deploy:
@@ -579,9 +592,9 @@ jobs:
             echo "| --- | --- |"
             echo "| Commit | \`${{ steps.commit.outputs.sha }}\` |"
             echo "| Verified by | ${{ github.event_name == 'workflow_dispatch' && 'a manual dispatch — see the gate note below' || format('[verify run {0}]({1})', github.event.workflow_run.id, github.event.workflow_run.html_url) }} |"
-            echo "| Backend | <https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io> |"
+            echo "| Backend | <$VITE_API_BASE_URL> |"
             echo "| Backend image | \`$AZURE_REGISTRY.azurecr.io/$IMAGE_REPOSITORY@${{ steps.image.outputs.digest }}\` |"
-            echo "| Frontend | <https://red-smoke-029583a0f.5.azurestaticapps.net> |"
+            echo "| Frontend | <$FRONTEND_ORIGIN> |"
             echo
             echo "A frontend upload is **not atomic** on this platform: Task 1.11.4 reproduced a"
             echo "~1.5-second window in which the outgoing \`index.html\` is still served while its"
@@ -594,3 +607,221 @@ jobs:
             echo "Nothing here checks that the deployed site works — that is Task 1.11.7's."
             echo
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # =========================================================================
+  # THE POST-DEPLOY BROWSER CHECK (Task 1.13.5)
+  #
+  # The check Task 1.11.7 declined. That decline was correct when it was taken —
+  # nothing could yet produce the failure — and Story 1.12 shipped a client that
+  # polls the backend on every page load, so the failure now exists.
+  #
+  # WHY IT IS A JOB IN THIS WORKFLOW AND NOT IN verify.yml. Task 1.13.4 settled
+  # the local suite's position with a three-way argument; this one is smaller,
+  # because the question answers itself. This check drives a LIVE URL that only
+  # exists after a deploy has happened, so it is keyed on the deploy or it is
+  # keyed on nothing. `needs: deploy` is what makes "the thing I am checking is
+  # the thing that was just deployed" true rather than usually true.
+  #
+  # WHY A SEPARATE JOB AND NOT A STEP AT THE END OF `deploy`. A red result here
+  # must not read as "the deploy failed", because the deploy did not fail: it
+  # succeeded and the deployed system is wrong, which is a different fact
+  # driving a different action. As a job it has its own conclusion, its own
+  # artefacts and its own name in the run's job list.
+  #
+  # IT IS NOT IN THE RULESET, AND THAT IS A DECISION RATHER THAN AN OMISSION.
+  # Ruleset `main` (id 22160620) requires `verify` and `e2e`. This runs AFTER a
+  # merge, so requiring it would gate on something that cannot have happened
+  # yet — the same reason `deploy` itself is not required. A future reader
+  # finding it unrequired cannot otherwise tell that from a forgotten step.
+  #
+  # IT IS NOT A MONITOR AND MUST NOT BECOME ONE. There is no `schedule:` here
+  # and adding one would quietly turn this into uptime monitoring, which is not
+  # this story's and has no owner anywhere in the roadmap. It also has a bill
+  # attached: the Consumption plan's idle rate is conditional on the replica
+  # receiving under 1,000 bytes per second, the idle baseline is a precise and
+  # explainable 4 requests per 30 s (liveness at 30 s is 1, readiness at 10 s is
+  # 3), and platform probes are not billable while these requests are. Once per
+  # merge is negligible. On a schedule it is a decision with an owner.
+  # =========================================================================
+  check-deployed:
+    name: check-deployed
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      # The SAME commit the deploy job checked out and deployed. Without the
+      # `ref` this checks out the tip of the default branch, which is a
+      # different commit the moment two merges land close together — and this
+      # job would then run a spec from one commit against a site built from
+      # another.
+      - name: Check out the deployed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
+
+      - name: Set up Node from .nvmrc
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Resolve the pnpm store path
+        id: store
+        run: |
+          set -euo pipefail
+          path="$(pnpm store path)"
+          echo "pnpm store path: $path"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          echo "node-major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+
+      # RESTORE and never SAVE, which is the rule Task 1.13.4 attached to this
+      # cache: exactly one job may save it, or two savers race to a
+      # `Cache already exists` warning that reads like a fault. The `verify` job
+      # owns saving this one.
+      - name: Restore the pnpm store
+        id: store-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Out of the installed package and never a literal — the binaries are
+      # keyed to it, and a key carrying a number somebody typed goes on hitting
+      # after a bump and serves the wrong browser.
+      - name: Resolve the Playwright version
+        id: playwright
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('@playwright/test/package.json').version")"
+          echo "playwright: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # RESTORE-ONLY here too, and for the cache's own rule rather than for this
+      # job's convenience: the `e2e` job in verify.yml computes this exact key
+      # and saves it. This workflow only ever runs after a `verify` that
+      # succeeded, so by the time this job runs the entry exists. The cost of
+      # being wrong about that is one 267 MB download, printed by the step
+      # below, and not a silently wrong browser.
+      #
+      # NO RESTORE-KEY, which is the difference from the store cache above and
+      # is the same reasoning Task 1.13.4 wrote down: a partial store is a
+      # correct store that installs the rest, where a browser directory restored
+      # from a different Playwright version LOOKS populated and holds the wrong
+      # build — and `actions/cache` reports a restore-key hit and a total miss
+      # identically. Exact key or nothing.
+      - name: Restore the browser binary
+        id: browser-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-shell-v1-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # Runs on a hit too and PRINTS what it did, which is the only thing that
+      # separates a restored cache from a silent re-download.
+      - name: Install the browser
+        run: |
+          set -euo pipefail
+          echo "browser cache-hit (exact key): ${{ steps.browser-cache.outputs.cache-hit }}"
+          start=$(date +%s%N)
+          pnpm exec playwright install --only-shell chromium
+          end=$(date +%s%N)
+          echo "browser install: $(( (end - start) / 1000000 )) ms"
+
+      # NO `pnpm build` AND NO PAIR, which is the whole difference from the
+      # `e2e` job. That job builds, starts three watchers and gates on
+      # `pnpm ready`, because it drives a pair it has to create. This drives a
+      # live URL that is already up, so the only thing it needs is the browser
+      # and the spec — the specs import `@marketpulse/shared` for the words they
+      # assert on, and `pnpm install` links that as a workspace package without
+      # anything being compiled.
+      #
+      # BOTH ADDRESSES PASSED EXPLICITLY, and neither derived from the other.
+      # That is the point of the check: `VITE_API_BASE_URL` is what the bundle
+      # was BUILT to dial, `FRONTEND_ORIGIN` is where the page is SERVED from,
+      # and `CORS_ORIGIN` — the third value, which is not here and cannot be —
+      # lives only on the Container App. Three facts that have to agree, held in
+      # three places, compared by nothing until now.
+      - name: Check the deployed environment in a browser
+        env:
+          E2E_DEPLOYED_BASE_URL: ${{ env.FRONTEND_ORIGIN }}
+          E2E_DEPLOYED_BACKEND_ORIGIN: ${{ env.VITE_API_BASE_URL }}
+        run: |
+          set -euo pipefail
+          start=$(date +%s%N)
+          status=0
+          pnpm e2e:deployed || status=$?
+          echo "e2e:deployed: $(( ($(date +%s%N) - start) / 1000000 )) ms"
+          exit $status
+
+      # WHAT A RED RESULT MEANS, WRITTEN WHERE THE PERSON SEEING IT WILL LOOK.
+      # Not in a task file and not only in e2e/README.md: in the summary of the
+      # run that just went red. By the time this fires the code has shipped, so
+      # the output is a rollback decision and the two rollbacks are asymmetric
+      # in a way nobody remembers under pressure.
+      - name: What to do about a red result
+        if: failure()
+        run: |
+          {
+            echo "### The deployed environment failed its browser check"
+            echo
+            echo "**The code has already shipped.** This runs after a merge — there is no"
+            echo "preview environment on this plan and deliberately never will be — so the"
+            echo "output of this job is a rollback decision rather than a gate."
+            echo
+            echo "**First, is it the environment or is it this runner?** A check that runs from"
+            echo "one machine over one link cannot tell the two apart, and Task 1.11.7 produced"
+            echo "a 65-second \"outage\" that turned out to be a laptop. The readiness probe above"
+            echo "prints per-half results and says so explicitly when BOTH halves are"
+            echo "unreachable, which is far more likely to be this runner than a simultaneous"
+            echo "outage of two independent Azure services in two regions. One half red with the"
+            echo "other green is a claim about that service."
+            echo
+            echo "**What it means, by which test failed.**"
+            echo
+            echo "| Failed test | What is wrong | Where the value lives |"
+            echo "| --- | --- | --- |"
+            echo "| \`dials the backend it was built to dial\` | the bundle was built against the wrong backend, or none | \`VITE_API_BASE_URL\` in this file |"
+            echo "| \`the two deployed halves talk\` (only) | the backend does not admit the origin the page is served from | \`CORS_ORIGIN\`, **on the Container App only** |"
+            echo "| \`admits the origin its page is served from\` too | the same, confirmed from the server side | as above |"
+            echo "| any \`deep-loads cold\` / \`not-found ROUTE\` | the host's \`navigationFallback\` | \`apps/frontend/public/staticwebapp.config.json\` |"
+            echo "| \`a missing file under /assets/\` | the \`exclude\` array no longer covers the assets | as above |"
+            echo
+            echo "**Rolling back, and it is asymmetric.**"
+            echo
+            echo "- **Backend** — \`az containerapp update --image <previous digest>\`, measured at"
+            echo "  **43 s**. Every deploy run prints its digest in its own summary. It creates a"
+            echo "  new revision rather than reactivating the old one, and **the next merge"
+            echo "  silently undoes it**, so it buys time and the durable fix is a revert commit."
+            echo "- **Frontend** — no revision history at all on the Free plan. The rollback is a"
+            echo "  **revert commit through \`verify\` and this pipeline**, measured at"
+            echo "  **3 min 42 s** from pressing merge."
+            echo "- **\`workflow_dispatch\` on this workflow is a RE-DEPLOY, not a rollback.** It"
+            echo "  checks out \`main\`, so pressing it after a bad merge deploys the bad merge"
+            echo "  again."
+            echo
+            echo "**If the cause is \`CORS_ORIGIN\`, no revert will fix it**, because that value is"
+            echo "not in this repository. It is an environment variable on the Container App and"
+            echo "the fix is \`az containerapp update --set-env-vars CORS_ORIGIN=...\`."
+            echo
+            echo "The browser's own evidence — trace, screenshot and page snapshot — is attached"
+            echo "to this run. Read a trace with \`pnpm exec playwright show-trace <path>\`."
+            echo
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # On failure only and 7 days, the shape Task 1.13.4 set and measured. One
+      # archive root: `upload-artifact` roots an archive at the common ancestor
+      # of its paths, and a single path has no ancestor to be surprised by.
+      - name: Upload the failure artefacts
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: check-deployed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: e2e/test-results/deployed
+          if-no-files-found: warn
+          retention-days: 7

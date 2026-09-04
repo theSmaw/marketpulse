@@ -6,9 +6,21 @@ decision with a measurement behind it, and every one of them was cheaper to take
 once than to rediscover.
 
 ```
-pnpm dev     # in another terminal — this suite does not start the servers
-pnpm e2e     # Chromium, against the origin CORS_ORIGIN names
+pnpm dev             # in another terminal — this suite does not start the servers
+pnpm e2e             # Chromium, against the origin CORS_ORIGIN names
+
+pnpm e2e:deployed    # the SAME browser against the LIVE environment (Task 1.13.5)
 ```
+
+There are **two** suites here and they are deliberately not one. `pnpm e2e` runs
+before a merge against a local pair and gates it; `pnpm e2e:deployed` runs after
+one against production and gates nothing. They share `support/app.ts` and
+`support/axe.ts` — the locators and the accessibility pass are about the
+application, so they transfer unchanged — and share neither their config, their
+target, nor how they learn where that target is. `support/pair.ts` explicitly
+does **not** transfer: it reads addresses resolved from a running pair's own
+configuration, which is the local harness's happy accident and the deployed
+environment's bug.
 
 Arguments are forwarded, so `pnpm e2e --headed`, `pnpm e2e --debug`,
 `pnpm e2e -g "recover"` and `pnpm e2e specs/backend-health.spec.ts` all work.
@@ -25,6 +37,9 @@ chromium`, ~554 MB, once per machine.
 | `specs/backend-failure-states.spec.ts` | the three states from named causes, and §36's "the rest still works" |
 | `specs/backend-recovery.spec.ts`       | recovery across a real poll interval, with no page reload            |
 | `support/`                             | locators, timings and the axe pass — not collected as tests          |
+| `playwright.deployed.config.ts`        | the post-deploy check's config — a second file, not a second project |
+| `specs-deployed/two-halves.spec.ts`    | the two failures no other instrument here can see                    |
+| `specs-deployed/host-routing.spec.ts`  | Story 1.5's deep-link and missing-asset criteria, at last            |
 
 ## Where it runs in CI
 
@@ -69,6 +84,174 @@ uploads nothing. Both shapes were made to happen on the runner: one failed
 assertion is **872,142 B** (trace, screenshot, error context and the pair's log)
 and a pair that never started is **577 B** — the log alone, which is the only
 evidence that failure produces.
+
+## The post-deploy check: `pnpm e2e:deployed`
+
+The check Task 1.11.7 declined, built now that its trigger has fired. **Read
+which half of that decline changed and which half still stands**, because the
+second half is what shapes everything about this check.
+
+- **What changed.** 1.11.7 named the gap exactly — only a real browser catches a
+  wrong `CORS_ORIGIN` or a missing `VITE_API_BASE_URL` — and declined to build
+  the check on the correct grounds at the time, which were that nothing could
+  yet produce the failure. Story 1.12 shipped a client that polls the backend on
+  every page load. The failure exists now.
+- **What still stands.** There is no preview environment and deliberately never
+  will be one on this plan, so this runs **after** a merge, against the live
+  environment. It cannot prevent anything.
+
+### Why the addresses are two inputs and not one
+
+Locally, `scripts/pair-addresses.mjs` resolves the frontend's origin **from**
+`CORS_ORIGIN`, so the allowlist and where-the-frontend-is cannot disagree — and
+`pnpm ready` reports `ENOTFOUND` and exits 1 before a browser starts. That is
+right locally and it is exactly what is unavailable here.
+
+Deployed, there are **three independent values in three different places, and
+nothing in this repository compares them**:
+
+| Value                         | Where it lives                                                  | What it decides                 |
+| ----------------------------- | --------------------------------------------------------------- | ------------------------------- |
+| `VITE_API_BASE_URL`           | a literal in `deploy.yml`, substituted at **build** time        | what the page dials             |
+| the Static Web App's hostname | a fact about an Azure resource                                  | where the page is served from   |
+| `CORS_ORIGIN`                 | an environment variable on the Container App, **platform-only** | which origin the backend admits |
+
+The third is the one no file can hold: `deploy.yml` uses `update` and never
+`create`, deliberately. So `support/deployed.ts` takes the first two as separate
+inputs and **must never derive one from another** — deriving would reproduce the
+local harness's happy accident in the one place where the accident is the bug.
+
+### The two failures, and why they need two different assertions
+
+They are **indistinguishable on screen** — watched, not assumed: both put
+`unreachable` and `No successful check yet.` in the status strip, which is also
+what a backend that is genuinely down looks like. So each is caught by its own
+instrument.
+
+- **A wrong `CORS_ORIGIN`** is caught by the `healthy` assertion. Nothing else
+  sees it: made to happen against the live backend, `curl` with the real
+  frontend `Origin` got a **200 with the full 62-byte contract body**, and the
+  backend's own log recorded **15 requests through the 65-second window, every
+  one `statusCode: 200`**.
+- **A missing or wrong `VITE_API_BASE_URL`** is caught at the **cause** — by
+  asserting the origin the page's own request went to. Caught with the real
+  artefact: a build with the variable unset succeeds, ships a bundle containing
+  `http://localhost:3000` and no mention of the deployed backend, and the check
+  goes red naming both origins. That assertion needs no response at all, which
+  is what makes it right: an HTTPS document blocks a `localhost` call as mixed
+  content, so there may never be one.
+
+**One recorded claim is corrected by having done this.** This repository says in
+several places that `curl` is _structurally_ incapable of catching a wrong
+allowlist. Sharper: the **status**, the **body** and the **log** genuinely
+cannot, but `access-control-allow-origin` is a readable copy of `CORS_ORIGIN` —
+`@fastify/cors` with a string origin asserts the configured value
+unconditionally — so an instrument **told the frontend's origin** can compare
+them. That value is precisely what no server-side instrument has, and the
+comparison is a proxy for the browser's verdict rather than the verdict: it says
+nothing at all about the second failure, where the backend is never asked.
+`two-halves.spec.ts` makes that comparison anyway, because two instruments
+disagreeing is diagnostic — both red is CORS, only the browser red is something
+else.
+
+### It polls rather than checking once
+
+`scripts/check-deployed.mjs` is the deployed counterpart of `pnpm ready` and it
+gates the browser. It polls for **coherence** rather than a status code: fetch
+the document, read every hashed asset out of it, and require all of them to be
+served together.
+
+That is the property the frontend's **non-atomic upload** violates, and the
+window opens **at the exact second the deploy step reports success**. Task
+1.12.7 scoped that finding rather than retiring it — the window is a property of
+the artefact _changing_, and a byte-identical rebuild showed zero broken states
+across 174 samples — but a merge that ships source does change it. A check that
+fires immediately and once is red for a reason that is not a defect, which is
+the fastest way to teach everybody to ignore the one check that sees what
+nothing else does.
+
+### It cannot tell its own network from the environment, so it says so
+
+Task 1.11.7 produced a 65-second "outage" that turned out to be a laptop. The
+control here is the structure the check already has rather than a third host:
+the two halves are **different Azure services in different regions on different
+infrastructure**. One red with the other green is a claim about that service;
+**both** red at once is far more likely to be the runner's link, and the probe
+prints that diagnosis rather than leaving it to be guessed. It decides nothing
+on that basis — it is a sentence beside a failure, so whoever acts on it starts
+from the right question.
+
+### Where a red result goes
+
+**The code has already shipped**, so the output is a rollback decision, and the
+`check-deployed` job writes the whole of the following into the summary of the
+run that went red — because a task file is not where somebody triaging a red
+production check looks.
+
+- **Backend rollback**: `az containerapp update --image <previous digest>`,
+  **43 s**; every deploy run prints its digest. It creates a new revision rather
+  than reactivating the old one, and **the next merge silently undoes it**.
+- **Frontend rollback**: there is no revision history on the Free plan. It is a
+  **revert commit through `verify` and the pipeline**, **3 min 42 s**.
+- **`workflow_dispatch` on `deploy.yml` is a re-deploy, not a rollback** — it
+  checks out `main`.
+- **If the cause is `CORS_ORIGIN`, no revert fixes it**, because that value is
+  not in this repository.
+
+### It is not required, and it is not a monitor
+
+**Not in the ruleset**, and that is a decision rather than an omission: ruleset
+`main` requires `verify` and `e2e`, and this runs after a merge, so requiring it
+would gate on something that cannot have happened yet — the same reason `deploy`
+itself is not required.
+
+**No `schedule:`, and adding one would quietly make this uptime monitoring**,
+which is not this story's and has no owner anywhere in the roadmap. It also has
+a bill: the Consumption plan's idle rate is conditional on the replica receiving
+under 1,000 bytes per second, and platform probes are not billable while these
+requests are. Measured against the log, **a whole green run costs the deployed
+backend 5 requests**, against an idle baseline of a precise 4 per 30 s. Once per
+merge is negligible; on a schedule it is a decision with an owner.
+
+### axe here is a REPORT, not a gate — the opposite of the local suite
+
+The question is not whether the deployed page deserves the check. It is what a
+**red** post-deploy result means, and here that is a rollback decision. A page
+that cannot reach its backend is a rollback; a contrast ratio is not, and mixing
+them makes the one signal that sees what nothing else does indistinguishable
+from the one nobody would act on immediately.
+
+What makes that affordable rather than a hole is that the same rules already
+gate the same source **before** the merge, on a real renderer, and the deployed
+artefact differs from the one that gate judged by exactly one string literal —
+`VITE_API_BASE_URL` — which cannot reach accessibility. So this is the
+**comparison**: the figures are printed beside the pre-merge baseline, and the
+reversal trigger is a **divergence**. Measured on the shipping deployment, the
+deployed landing route reports **0 violations / 37 passes / 1 inconclusive
+(`color-contrast`)** — the pre-merge gate's numbers exactly.
+
+The report also refuses to wait for `healthy`, and that is a correction the CORS
+break produced rather than a preference: written that way, a broken allowlist
+turned **three** tests red, one of them labelled accessibility, which tells a
+reader something false. It takes a reading in whichever state the page is in and
+names that state.
+
+### What a green DEPLOYED run does not certify
+
+- **Not that the deployed artefact is the artefact `verify` fingerprinted.** It
+  is not, and knowably so: the deploy builds with `VITE_API_BASE_URL` and
+  `verify` does not.
+- **Not accessibility.** axe reports here and gates before the merge, and every
+  axe figure this repository holds was taken at **one viewport** — which Task
+  1.13.4's defect proves is not the same as a page having no violations.
+- **Not the environment a minute later.** It is a reading at one moment from one
+  machine over one link, not a monitor, and deliberately so.
+- **Not any state it does not produce.** It produces none at all: unlike the
+  local suite it never intercepts a route, because everything it asserts is
+  about a real environment being really correct.
+- **Not recovery, not the poll interval, not the failure states.** Those are
+  asserted before the merge and are not re-asserted against production, because
+  they are properties of the application rather than of the deployment.
 
 ## Why no spec stops the backend
 
@@ -178,7 +361,7 @@ and does not transfer.** If a spec ever does see `hidden`, that is a harness
 regression to fix once and state — never a reason to weaken the application's
 visibility rule, which exists so a tab somebody forgot is not billed for.
 
-## The axe decision: it is a **gate**
+## The axe decision: locally it is a **gate**
 
 Zero violations, on two pages, asserted. `incomplete` results are attached to
 the test as an annotation and can never fail anything. The full argument, the
@@ -189,6 +372,9 @@ all — no stylesheet reaches the component tests — and the only level that ca
 judge whole-document rules, which the workshop's `#storybook-root` scoping
 structurally cannot. Contrast is not a hypothetical class here: Task 1.12.4
 found a real 2.09:1 violation on the very component these specs exercise.
+
+**Deployed it is a report rather than a gate**, and the asymmetry is argued in
+`support/axe.ts` and summarised under the post-deploy section above.
 
 **Epic 15 still owns the accessibility review, and a green axe run is not one.**
 
@@ -207,10 +393,12 @@ In the same shape ADR 0010 states it for the tick.
 - **Not a host's behaviour.** The target is the origin `CORS_ORIGIN` names,
   which today is the dev server, and it answers a deep link and
   `/assets/nope.js` with a 200. Story 1.5's two host-level criteria are **not
-  assertable here** and belong to the post-deploy check.
+  assertable here**; `specs-deployed/host-routing.spec.ts` is where they now
+  live.
 - **Not the deployed environment.** Nothing in this suite has ever spoken to
-  Azure. In CI it drives a pair the runner started, on that runner, and the
-  post-deploy check is a different thing.
+  Azure. In CI it drives a pair the runner started, on that runner. The
+  post-deploy check is a different suite with a different target, and it has its
+  own list above.
 - **Not that the artefact it drove is the artefact that ships.** The dev server
   does not typecheck and does not bundle; `pnpm verify` is what covers that.
 - **Not coverage, and not that a journey exists for a behaviour.** There are

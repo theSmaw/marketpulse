@@ -408,6 +408,7 @@ Run from the repository root:
 | `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
 | `pnpm image`        | Builds the backend's `linux/amd64` container image — see below        |
 | `pnpm e2e`          | The browser suite, against a pair you started — see below             |
+| `pnpm e2e:deployed` | The same browser against the **live** environment — see below         |
 | `pnpm clean`        | `tsc -b --clean`, plus the frontend's `dist/` and `storybook-static/` |
 
 Working on a single package uses the same six verbs, meaning the same thing:
@@ -909,7 +910,71 @@ landing route, the built module graph loaded over HTTP, the router resolved `/`,
 and the chrome and §9's four named regions are present and named. **What it does
 not** is anything about a host: the dev server never 404s, so deep-linking and
 `/assets/nope.js` cannot be asserted against it — those are properties of the
-deployed host and were closed by hand in Story 1.11.
+deployed host, and `pnpm e2e:deployed` below is where they are now asserted.
+
+### `pnpm e2e:deployed` — the same browser against the live environment
+
+```sh
+export E2E_DEPLOYED_BASE_URL=https://red-smoke-029583a0f.5.azurestaticapps.net
+export E2E_DEPLOYED_BACKEND_ORIGIN=https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io
+pnpm e2e:deployed
+```
+
+```
+Checking https://red-smoke-029583a0f.5.azurestaticapps.net
+
+  ✓ backend   https://marketpulse-backend.…/health  0.0.0, up 344.2s
+  ✓ frontend  https://red-smoke-029583a0f.5.azurestaticapps.net/  document and 2 assets served together
+
+The deployed pair is up and the artefact is coherent.
+
+Running 10 tests using 1 worker
+  …
+axe — the deployed landing route, backend healthy: 0 violations, 37 passes, 1 inconclusive (color-contrast)
+
+  10 passed (10.5s)
+```
+
+**This is the only check in the repository that can fail for a reason nothing
+else can see**, and it runs **after** a merge, so it gates nothing — its output
+is a rollback decision. `.github/workflows/deploy.yml` runs it as a
+`check-deployed` job once the deploy has finished; the two addresses come from
+that file and neither is derived from the other.
+
+Five things about it worth knowing:
+
+- **It catches two failures that leave every other instrument reporting
+  success.** A wrong `CORS_ORIGIN`: the browser reports `TypeError: Failed to
+fetch` while `curl` with the real `Origin` gets a **200 with a full body** and
+  the log records **15 requests, every one `statusCode: 200`** — made to happen
+  against the live backend, not reasoned about. And a missing
+  `VITE_API_BASE_URL`: the build does not fail, it ships a page dialling
+  `http://localhost:3000` that an HTTPS document blocks as mixed content. **The
+  two look identical on screen** — both read `unreachable` — so each has its own
+  assertion, and the second is caught at the cause, by checking which origin the
+  page's own request went to
+- **It also holds Story 1.5's two host-level criteria at last**: all four routes
+  deep-loaded cold as a 200 that is not a redirect, a made-up path rendering the
+  not-found **route**, and `/assets/nope.js` a genuine 404. None of them is
+  assertable against the dev server, which answers all three with a 200
+- **It polls before it starts.** The frontend's upload is not atomic and its
+  window opens at the exact second the deploy reports success, so the readiness
+  probe waits until the document and every hashed asset it names are served
+  **together**
+- **It says when it cannot trust itself.** A check running from one machine over
+  one link cannot tell its own network from the environment — Task 1.11.7
+  produced a 65-second "outage" that was a laptop — so when **both** halves fail
+  at once it says to suspect the link first
+- **axe runs here as a report rather than a gate**, the opposite of the local
+  suite, because a contrast ratio is not a rollback and the same rules already
+  gate the same source before the merge. The figures are printed so they can be
+  compared: the deployed landing route reads **0 / 37 / 1**, the pre-merge
+  gate's numbers exactly
+
+It is deliberately **not** on a schedule. That would make it uptime monitoring,
+which nothing in the roadmap owns, and it has a bill attached — a whole green
+run costs the deployed backend **5 requests**, against an idle baseline of 4 per
+30 s, which is negligible once per merge and is not negligible on a timer.
 
 ### `pnpm image` — the backend's container image
 

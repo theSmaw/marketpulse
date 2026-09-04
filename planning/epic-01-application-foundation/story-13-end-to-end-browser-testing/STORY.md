@@ -137,6 +137,44 @@ Task 1.12.7 recorded these as the specification for Tasks 1.13.3 and 1.13.5 — 
 - **The runner's shape, for anything that carries a figure forward.** `ubuntu-latest` reports **2 Playwright workers** where the laptop reports 4; `--only-shell chromium` is **267 MB on disk in two directories** on Linux (it still fetches FFmpeg) against ~199 MB on macOS; and `pnpm install` reads **`Packages: +400`**, which supersedes Task 1.10.1's 397-on-Linux/398-on-macOS pair
 - **Failure artefacts have a shape and a measured size.** On failure only, 7 days, one archive root — `upload-artifact` roots an archive at the **common ancestor** of its paths, so a `RUNNER_TEMP` log beside `e2e/test-results` produced an archive nested at `marketpulse/marketpulse/e2e/…`. One failed assertion is **872,142 B**; a pair that never started is **577 B**, the log alone
 
+## What Task 1.13.5 settled for Task 1.13.6
+
+**Written 2026-09-04.** The post-deploy check is in and the full record is in
+[Task 1.13.5's file](TASK-05-post-deploy-browser-check.md). Six things from it
+bind the closing task.
+
+- **The story's third acceptance criterion is now met deployed as well as
+  locally, and they are separate claims.** `CORS_ORIGIN` was broken on the live
+  Container App and the check went red at exit 1 while `curl` with the real
+  `Origin` got a **200 with a full body** and the log recorded **15 `/health`
+  requests, every one `statusCode: 200`**. Restored and read back from the
+  platform.
+- **One recorded claim is wrong and ADR 0013 must not repeat it.** `curl` is not
+  _structurally_ incapable of catching a wrong allowlist: the status, the body
+  and the log cannot, but `access-control-allow-origin` is a readable copy of
+  `CORS_ORIGIN` and can be compared **by an instrument told the frontend's
+  origin** — which no server-side instrument has. It is also only a proxy for
+  the browser's verdict, and says nothing about the second failure.
+- **Story 1.5's two host-level criteria are finally asserted by something**,
+  in `e2e/specs-deployed/host-routing.spec.ts`, against the only host that has
+  `navigationFallback` configured. The not-found case is asserted on what
+  **rendered** rather than on a status code, because a 200 is the correct answer
+  there and a 404 is the failure.
+- **The axe decision is asymmetric and stated**: a gate before the merge, a
+  **report** after it, because a red post-deploy result is a rollback decision
+  and a contrast ratio is not a rollback. Deployed it reads **0 violations / 37
+  passes / 1 inconclusive** — the pre-merge gate's numbers exactly — and the
+  reversal trigger is a divergence between them.
+- **The check gates nothing and is not in the ruleset**, which stays at `verify`
+  and `e2e`; and it has no `schedule:`, deliberately, because that would make it
+  uptime monitoring, which nothing in the roadmap owns. A whole green run costs
+  the deployed backend **+5 requests** against an idle baseline of 4 per 30 s.
+- **The `e2e` gate found a real flake in Task 1.13.3's health spec on its first
+  week**, and it was fixed rather than re-run: every page load makes two
+  `/health` requests and `StrictMode`'s cleanup **aborts one of them**, so
+  `waitForResponse` could match a response whose body was never retrievable.
+  That is the zero-retries policy paying for itself, and it belongs in ADR 0013.
+
 ## Acceptance criteria
 
 - One browser-driven test tool is chosen, with the alternative measured rather than dismissed, and the specs have one stated home
@@ -158,7 +196,7 @@ Tackled in order. The story is complete when all six are done, and it is the las
 | 1.13.2 | [Install it and make one journey real against a local pair](TASK-02-first-journey-against-a-local-pair.md)           | Complete    |
 | 1.13.3 | [Write the journeys worth having, and state the ones deliberately not written](TASK-03-the-journeys-worth-having.md) | Complete    |
 | 1.13.4 | [Run it in CI, and settle where it sits relative to `pnpm verify`](TASK-04-run-it-in-ci.md)                          | Complete    |
-| 1.13.5 | [Build the post-deploy browser check Task 1.11.7 declined](TASK-05-post-deploy-browser-check.md)                     | Not started |
+| 1.13.5 | [Build the post-deploy browser check Task 1.11.7 declined](TASK-05-post-deploy-browser-check.md)                     | Complete    |
 | 1.13.6 | [Verify, document, record ADR 0013, and close Epic 1](TASK-06-verify-document-adr-and-close-the-epic.md)             | Not started |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, leaves the pipeline green, and leaves the deployed environment up.
