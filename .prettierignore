@@ -17,6 +17,14 @@ coverage/
 # the entries above do not reach it. Mirrored in eslint.config.mjs.
 storybook-static/
 
+# The browser suite's failure artefacts (Task 1.13.2). Playwright writes a
+# trace zip, a screenshot and a `.last-run.json` here; the JSON is the only
+# thing Prettier would have an opinion about, and a formatter rewriting a
+# runner's own state file is a diff per run. Mirrored in .gitignore and
+# eslint.config.mjs.
+test-results/
+playwright-report/
+
 # Incremental build state. A single-line JSON blob that TypeScript rewrites on
 # every build and Prettier would otherwise expand into a formatted document,
 # producing a diff per build.

@@ -1,0 +1,16 @@
+{
+  "name": "@marketpulse/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-driven journeys against a running pair (Story 1.13)",
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc -b",
+    "clean": "tsc -b --clean && rm -rf test-results playwright-report"
+  },
+  "devDependencies": {
+    "@marketpulse/shared": "workspace:*",
+    "@types/node": "24.13.3"
+  }
+}

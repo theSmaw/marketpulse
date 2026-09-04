@@ -12,6 +12,17 @@ storybook-static/
 # rule above does not catch it.
 *.tsbuildinfo
 
+# The browser suite's failure artefacts (Task 1.13.2). `test-results/` is
+# Playwright's `outputDir` and holds a trace and a screenshot per failed test
+# and nothing at all on a green run; `playwright-report/` is the HTML reporter's
+# output, which this configuration does not currently enable. Both are named
+# here for the reason `coverage/` and `storybook-static/` are: a run must leave
+# nothing untracked behind it, and `git status` after a red run is how that was
+# checked rather than reasoned about. Mirrored in .prettierignore and
+# eslint.config.mjs.
+test-results/
+playwright-report/
+
 .env
 .env.*
 !.env.example

@@ -390,12 +390,13 @@ Run from the repository root:
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Every package's tests — 160 across the workspace — see below          |
+| `pnpm test`         | Every package's tests — 189 across the workspace — see below          |
 | `pnpm test:process` | The backend's process half — 10 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
 | `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
 | `pnpm image`        | Builds the backend's `linux/amd64` container image — see below        |
+| `pnpm e2e`          | The browser suite, against a pair you started — see below             |
 | `pnpm clean`        | `tsc -b --clean`, plus the frontend's `dist/` and `storybook-static/` |
 
 Working on a single package uses the same six verbs, meaning the same thing:
@@ -825,6 +826,73 @@ curl http://localhost:5173/           # dev server: IPv6 only — 127.0.0.1 is r
 
 The second of those is the false positive described above; it tells you a server
 is listening and nothing about whether the application resolves.
+
+### `pnpm e2e` — the browser suite
+
+```sh
+pnpm dev      # in one terminal
+pnpm e2e      # in another
+```
+
+```
+  ✓ backend   http://127.0.0.1:3000/health  0.0.0, up 4.6s
+  ✓ frontend  http://localhost:5173/src/routes/MarketOverview.tsx  module graph resolves
+
+The pair is up.
+
+Driving http://localhost:5173
+
+Running 1 test using 1 worker
+
+  ✓  1 [chromium] › e2e/specs/landing-route.spec.ts:58:1 › the landing route serves the chrome and PRODUCT_SPEC §9's four regions (569ms)
+
+  1 passed (1.0s)
+```
+
+Playwright, in Chromium, against a pair **you** started. The specs live in
+`e2e/`, which is a fourth workspace package rather than a folder, so they lint,
+format and typecheck like every other TypeScript file here and can `import` the
+vocabulary they assert on from `@marketpulse/shared` instead of writing the
+words out.
+
+Four things about it worth knowing before running it:
+
+- **It does not start the servers, and that is deliberate.** It gates on
+  `pnpm ready`, which judges **both** halves. Playwright's own `webServer` would
+  judge readiness by one URL, and a busy 3000 leaves `pnpm dev` running and
+  looking entirely healthy — so a frontend probe passes against half a system,
+  and the backend is the half this suite exists to watch
+- **It drives the origin `CORS_ORIGIN` names**, resolved from the running
+  backend's own configuration rather than from a port written down a second
+  time. That is forced rather than tidy: the allowlist holds exactly one origin,
+  so a suite pointed at `vite preview` on 4173 would drive a page every one of
+  whose backend calls the browser refuses while the server logs a 200
+- **Arguments are forwarded**, so `pnpm e2e --headed`, `pnpm e2e --debug` and
+  `pnpm e2e -g "regions"` work as Playwright documents them
+- **It is not part of `pnpm verify`**, for the same reason `pnpm ready` is not:
+  `verify` runs with no servers up
+
+The browsers are **not** installed by `pnpm install` — Playwright downloads them
+in an explicit command, which is why its cost is visible:
+
+```sh
+pnpm exec playwright install chromium    # ~554 MB, three artefacts, once per machine
+```
+
+A failed run leaves a trace, a screenshot and a page snapshot under
+`e2e/test-results/` — about 450 KB for one failure, all of it gitignored, and
+cleared at the start of the next run. Read the trace with:
+
+```sh
+pnpm exec playwright show-trace e2e/test-results/<the directory it named>/trace.zip
+```
+
+**What a green run certifies** is that a real browser asked a real host for the
+landing route, the built module graph loaded over HTTP, the router resolved `/`,
+and the chrome and §9's four named regions are present and named. **What it does
+not** is anything about a host: the dev server never 404s, so deep-linking and
+`/assets/nope.js` cannot be asserted against it — those are properties of the
+deployed host and were closed by hand in Story 1.11.
 
 ### `pnpm image` — the backend's container image
 

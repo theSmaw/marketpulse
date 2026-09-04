@@ -1,6 +1,6 @@
 # Task 1.13.2 — Install it, and make exactly one journey real against a local pair
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.13 End-to-End Browser Testing](STORY.md)
 **Depends on:** Task 1.13.1
 
@@ -36,3 +36,48 @@ Install the chosen tool for real, get one journey passing against a running pair
 ## Approach note
 
 The instruction to write one journey rather than five is the whole point of the task. Everything expensive about a browser suite — how servers start, what it runs against, what a failure leaves behind, how long it takes — is decided by the first test and inherited silently by every one after it. Getting those wrong once and finding out at the fifth spec is the failure this ordering exists to prevent.
+
+## Outcome
+
+**Done 2026-09-04.** One journey passes against a running pair from `pnpm e2e`, it has been seen to fail naming its cause at a non-zero exit code, a run leaves nothing untracked, `pnpm test` is unchanged at 189 tests and `pnpm verify` exits 0.
+
+### What shipped
+
+`@playwright/test@1.62.1` as a **root devDependency**; a fourth workspace package at **`e2e/`** holding `package.json`, `tsconfig.json`, `playwright.config.ts` and one spec; the **three** wirings Task 1.13.1 named — a `pnpm-workspace.yaml` glob, `{ "path": "e2e" }` in the root solution file, and nothing at all for ESLint or Prettier; a root script **`pnpm e2e`** (`scripts/run-e2e.mjs`); and **`scripts/pair-addresses.mjs`**, which is the one definition of where the pair is and is now shared by `check-ready.mjs` and the new runner. Three ignore entries for `test-results/` and `playwright-report/`, in `.gitignore`, `.prettierignore` and `eslint.config.mjs`.
+
+### Every prediction Task 1.13.1 made was re-measured, and all of them held
+
+- **The install reproduces to the byte.** From the shipping tree's **400 store entries / 272,316 KB / 4,591 lockfile lines**: **404 entries (+4)**, **+18,756 KB (+18.3 MB)**, **+38 lockfile lines**, `pnpm-workspace.yaml` **md5-unchanged**, exit 0 in 1.6 s.
+- **`allowBuilds` did not fire**, and the sweep of the installed store is a check rather than a formality now: `preinstall`/`install`/`postinstall` across the whole tree returns **`esbuild@0.28.2` and nothing else**. Task 1.4.5 is still the only time the policy has fired in the shipping tree.
+- **The browsers are an explicit command**, and this task's local install was **free — which is itself a hazard worth recording.** `playwright install chromium` completed silently in 1.1 s because Task 1.13.1's 1.1 GB survived its own revert: the binaries live in `~/Library/Caches/ms-playwright/` and a `node_modules` revert does not touch them. The three artefacts re-measured on disk are **356 MB + 196 MB + 2.5 MB = 554.5 MB**, exactly as recorded, and the pinned browser is **Chrome for Testing 151.0.7922.34**.
+- **`{ "path": "e2e" }` was made to matter rather than assumed to.** A deliberate `TS2322` in a spec fails `pnpm typecheck` at exit 1 naming the file; removing it is what makes the same error silent. Root `build` needed no edit.
+- **`playwright.config.ts` needs no `eslint.config.mjs` entry, checked rather than assumed.** `--print-config` reports **168 rules** on the config, on the spec and on `packages/shared/src/health.ts` alike, with `@typescript-eslint/no-floating-promises` at error on all three — so the trailing `disableTypeChecked` block still covers seven files. What buys that is `include: ["**/*.ts"]` in `e2e/tsconfig.json`, which is the one line to read before moving the config file anywhere.
+- **`no-floating-promises` was made to fire**: dropping the `await` from `page.goto()` is one error at exit 1 through the real root `eslint .`. That is the rule a browser suite needs most and it cannot fire without type information.
+- **`pnpm test` is untouched.** "Scope: 4 of 5 workspace projects", 37 + 49 + 103 = **189** tests, 3.83 s. The only thing keeping the browser suite out of it is the absent `test` script, and nothing checks that.
+
+### The decisions the first test settles for every test after it
+
+- **What it runs against is forced by the backend rather than chosen for the frontend.** The three candidates all have a stated cost, and the deciding one is not on that list: **`CORS_ORIGIN` holds exactly one origin.** `vite preview` is 4173 and a dumb static host is somewhere else again, so a suite pointed at either drives a page every one of whose backend calls the browser refuses while the server logs a 200 — the exact failure this story exists to catch, arriving as a property of the harness. So the suite drives **the origin `CORS_ORIGIN` names**, resolved from the backend's built `dist/config.js` through `pair-addresses.mjs`. **There is deliberately no default in `playwright.config.ts`**: a literal fallback is the second copy of the port the whole arrangement exists to prevent, and `playwright test` run by hand throws naming `pnpm e2e` instead.
+  - **The cost is stated rather than discovered later:** Story 1.5's two host-level criteria — a deep link and `/assets/nope.js` — **cannot be asserted against this target**, because the dev server answers both 200. They are properties of a host and belong to Task 1.13.5.
+- **The suite does not start the servers**, and Playwright's own `webServer` was rejected on two measured grounds rather than a preference: it judges readiness by **one URL**, and Task 1.8.4 measured that a busy 3000 leaves `pnpm dev` running and looking entirely healthy with nothing exiting non-zero — so a frontend probe passes against half a system, and the backend is the half this suite watches. `pnpm e2e` gates on **`check-ready.mjs` itself**, not a copy, so the diagnosis is the one a developer already knows. The cost is real: the suite cannot be run from a cold tree by one command, and CI is Task 1.13.4's.
+- **The assertion timeout is 10 s and the reason is Story 1.12's numbers, not caution.** Playwright's default `expect` timeout is 5 s, which lands exactly on the request deadline: the `checking` placeholder clears in 50.7 ms healthy and holds the **full 5 s** against a dead backend. A timeout picked from the healthy figure is red on the failing path, which is the path this suite exists for. The per-test timeout is left at its default and is deliberately **not** ample for anything asserting a 30 s poll cycle.
+- **Zero retries**, because a retry is how a suite stops being able to tell a flake from a defect. **Chromium only, and WebKit excluded rather than omitted** — it is frozen on macOS 14/arm64 and `newPage()` never returns, so an unsupported browser presents as a hanging test. Firefox is left out for a different reason: this suite exists to catch failures in how the two halves talk, which is not an engine difference.
+
+### It was made to fail, twice — and the first one was not planned
+
+- **Deliberately**: renaming a region to `Market brdth` fails at exit 1 with `Locator: getByRole('region', { name: 'Market breadth' })` / `element(s) not found`, and the **count** assertion still passes, which is the layering working — four regions exist, one is not the one it should be. Restored, and the file is byte-identical afterwards.
+- **Accidentally, and it is the finding worth keeping.** The first draft scoped the backend indicator with `toContainText(/\b(healthy|degraded|unreachable|checking)\b/)` on the region, and it fails: the region's text is **`Backend servicehealthy`** with no separator between the label and the word, so there is no word boundary to anchor to. That is Story 1.9's "do not assert on a single element's text where a component splits it" arriving **from the other direction** — the concatenation a screen reader is handed is not the string the elements read as. The assertion now matches an element whose whole text is the word.
+- **Exit codes propagate at every layer**: `pnpm run e2e`, `node scripts/run-e2e.mjs` and a bare `playwright test` with no base URL are all **1**. `run-e2e.mjs` also handles the signal case explicitly, because a child killed by a signal has a `null` status and reporting that as 0 is how an interrupted suite reads as a passing one.
+
+### What a run costs, and what it leaves behind
+
+- **Warm, `pnpm e2e` is 1.26–1.74 s wall** of which Playwright reports **677 ms–1.1 s**. The split: the readiness gate is **0.07 s** as `node scripts/check-ready.mjs` and **0.30 s** through `pnpm run ready` (the difference is pnpm's own startup — the recorded ~0.3 s figure is the pnpm one); **browser launch is 81–183 ms** and `newPage()` plus `goto` **124–294 ms**; the rest is the runner loading its config and transpiling the spec. So roughly **200 ms of a 700 ms suite is the browser**, and that floor does not shrink as specs are added.
+- **A green run leaves one 96-byte `.last-run.json`.** A failed one leaves **~450 KB** — a 318,749 B trace zip, a 121,570 B screenshot and an 11,318 B page snapshot — under `e2e/test-results/`, cleared at the start of the next run. All of it is ignored by all three tools, verified with `git status --porcelain --ignored=matching` rather than reasoned about. No HTML reporter is enabled, so `playwright-report/` never appears; it is ignored anyway because enabling one is the obvious next step and Task 1.13.4 may take it.
+- **`pnpm verify` is 23.20 s at exit 0** against Task 1.13.1's 22.4 s baseline and 24.8 s with the package present — inside variance, and the difference is one more `tsc` project. **The frontend artefact did not move, and that is the check rather than a coincidence**: 348,124 B `d280e167…`, 12,128 B `134d5dd8…`, 1,101 B `177df27d…`, 300 B — **361,653 B over four files**, reproducing Task 1.12.5's figures to the byte, because this task shipped no application source.
+
+### What Task 1.13.3 inherits
+
+- The target is the origin `CORS_ORIGIN` names, and the deep-link and missing-asset criteria are **not** assertable there.
+- `BACKEND_STATUSES` imports and resolves from a spec; the words render **lowercase** in the DOM and are uppercased by CSS.
+- The status strip's three cells are plain `<div>`s and **not** landmarks, so there is no role to scope a status word by — the label's own parent is what stands in for one, and matching a status word unscoped matches the wrong indicator half the time.
+- A spec asserting a poll cycle has to raise its own per-test timeout past Playwright's 30 s default, and should expect **30 s** rather than 31.
