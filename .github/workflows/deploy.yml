@@ -90,7 +90,16 @@ permissions:
 # is here, in a file a reviewer reads, and not inherited from a secret, a
 # variable or somebody's shell.
 env:
-  VITE_API_BASE_URL: https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io
+  # TEMPORARY PROBE — Task 1.12.7, reverted immediately after the reading.
+  # Pointed at the FRONTEND's own origin so the client's `/health` request is
+  # answered by Azure Static Web Apps' `navigationFallback` with 200
+  # `index.html`. Measured with curl before trusting a browser: SWA's fallback
+  # is a URL-pattern rule and NOT an `Accept` rule, so `Accept: application/json`
+  # gets the same 200 `text/html` a navigation gets — unlike `vite preview`,
+  # which 404s it. That makes `degraded` / `unreadable-body` reachable from a
+  # host this project did not write, the one state Story 1.12 had never
+  # produced that way. Same-origin, so no CORS is involved in the reading.
+  VITE_API_BASE_URL: https://red-smoke-029583a0f.5.azurestaticapps.net
   # Identifiers, not credentials, and deliberately not repository secrets. An
   # application id, a tenant id and a subscription id are public facts — all
   # three are already published in HOSTING.md, in this repository, which is
