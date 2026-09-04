@@ -48,11 +48,34 @@ test("the page reaches the backend across the origin boundary and shows what it 
 }) => {
   // Watched from the browser rather than assumed, so the assertion is about a
   // request this application made and not one the spec made on its behalf.
-  const healthResponse = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === "/health" &&
-      response.request().method() === "GET",
-  );
+  //
+  // **The `finished()` clause is not defensive padding — without it this test
+  // is a race, and the CI gate caught it going the wrong way** (found on the
+  // runner, reproduced here, Task 1.13.5). Every page load makes **two**
+  // `/health` requests and **one of them is aborted**: `StrictMode` mounts the
+  // hook twice in development, and the first mount's cleanup aborts its own
+  // in-flight request through the `AbortController` `api-client.ts` composes
+  // into every call. Measured 5/5 on this machine —
+  // `["request GET", "request GET", "FAILED net::ERR_ABORTED", "finished"]`.
+  //
+  // Locally the abort lands *before* the response headers do, so the aborted
+  // request produces no `response` event at all and the predicate below has
+  // only one candidate. On a loaded runner it can land *after* them, which
+  // produces a `response` event carrying a 200 whose body can never be
+  // retrieved — `Protocol error (Network.getResponseBody): No data found for
+  // resource with given identifier`, red on a healthy pair. So the predicate
+  // requires the response to have actually **finished**, and the `.catch()` is
+  // there because a predicate that throws fails the wait rather than skipping
+  // the candidate, which would reintroduce the flake in a new spelling.
+  const healthResponse = page.waitForResponse(async (response) => {
+    if (new URL(response.url()).pathname !== "/health") return false;
+    if (response.request().method() !== "GET") return false;
+
+    return await response
+      .finished()
+      .then((error) => error === null)
+      .catch(() => false);
+  });
 
   await page.goto("/");
 

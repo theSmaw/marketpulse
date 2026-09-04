@@ -1,6 +1,6 @@
 # Task 1.13.4 — Run it in CI, and settle where it sits relative to `pnpm verify`
 
-**Status:** Not started
+**Status:** Complete (2026-09-04)
 **Story:** [1.13 End-to-End Browser Testing](STORY.md)
 **Depends on:** Task 1.13.3
 
@@ -44,3 +44,185 @@ Get the suite running on a clean Linux runner, and resolve the first genuine ten
 ## Approach note
 
 The rule this task strains is worth restating before bending it: `stories`, `env:check` and `test:process` all became `verify` steps rather than workflow steps **because a CI-only check forks the definition of "verified"**. E2E is the first check with a real reason not to be in the chain — it needs a running system — so whichever way it goes, the answer belongs in ADR 0013 next to Story 1.10's rule rather than quietly beside it.
+
+## What happened
+
+### The position, and the argument for it
+
+The suite is a **second job named `e2e` in `.github/workflows/verify.yml`** —
+not a `pnpm verify` step, and not a separate workflow. All three shapes were
+weighed and the two rejections are written beside the job.
+
+- **A `verify` step is rejected on a measured property, not a preference.**
+  `pnpm verify` runs with **nothing listening** — that is why `pnpm ready` is
+  not a step — and eight clean-clone runs have relied on it. A chain that needs
+  two ports free stops being runnable from a cold tree, on a laptop with a dev
+  server already up, and inside the job itself.
+- **A separate workflow is rejected because `deploy.yml`'s three reasons are
+  properties of a deploy, and two argue the other way.** The badge: a deploy is
+  separate so a registry outage cannot turn the tick red for something
+  `README.md` disclaims — but a browser journey going red **is** a claim about
+  the commit and the badge should report it. Concurrency: a cancelled deploy is
+  a half-done rollout needing a queue of its own; a cancelled browser run is a
+  cancelled check, which `verify`'s per-ref group already handles correctly.
+  Only the job-name reason survived, and it is answered by adding the job to the
+  ruleset.
+- **What keeps it honest against Story 1.10's rule** is that the job invokes
+  `pnpm build`, `pnpm dev` and `pnpm e2e` **by name** and defines no port, no
+  browser command and no readiness rule of its own. The cost is stated rather
+  than hidden: the browser suite is a check CI runs that `pnpm verify` does not,
+  which is the fork Story 1.10 spent eight tasks preventing.
+
+It runs **in parallel** with `verify` rather than `needs:`-ing it — the two
+answer different questions, and serialising adds the chain's ~40 s for feedback
+that is not better.
+
+### It gates a merge
+
+Ruleset `main` (id 22160620) now requires **`verify` and `e2e`**. Everything
+else about it is unchanged and was re-read from the API: `enforcement: active`,
+`~DEFAULT_BRANCH`, admin bypass retained, both changed GitHub defaults still
+off. **This write-up, `README.md`, `CLAUDE.md` and ADR 0013 are the only durable
+record** — a reader finding only `verify` required should read that as the
+browser gate having been removed, not as it never having been set. Retries stay
+at **zero in CI**: a gate that retries cannot tell a flake from a defect.
+
+### The headline: the gate found a real defect on its first run
+
+The axe gate reported **`scrollable-region-focusable`** on the landing route —
+a WCAG 2.1.1 failure that had stood for five stories. A region is sized by the
+grid and takes its own overflow, and a scrolling container that cannot be
+reached by keyboard hides content from a keyboard user.
+
+It had never fired locally for a reason worth knowing: **the rule does not fire
+while the scrolling box happens to contain something focusable.** `Market
+topology` holds Story 1.4's render check, which holds a popover trigger, and it
+scrolls 1,196 px inside a 318 px box on the development machine without being
+reported. The runner reported it on `Current investigations`, which holds a
+heading and one sentence and nothing focusable at all.
+
+**It reproduces on the development machine at a viewport 160 px shorter** (0
+violations at 1280×720 and 1280×640; the violation at 1280×560 and 1280×480), so
+it is a real defect a taller window was hiding rather than a property of Linux.
+`tabIndex={0}` on every region is the fix — all four rather than the ones
+currently overflowing, because which one scrolls is a function of the viewport
+and of what Epics 4 to 7 put in them. The axe baseline is **unmoved at 0
+violations / 37 passes / 1 inconclusive** afterwards, at 720, 560 and 480 px.
+
+### The `--only-shell` control, taken rather than assumed
+
+A throwaway probe spec, since deleted, confirmed the shell build is not a lesser
+renderer: on the runner it reports the page ground exactly
+(`rgb(244, 243, 238)`) and axe's `color-contrast` rule passes on **65 nodes**,
+the same number as macOS. That was the one thing the axe gate needed checking,
+because a shell that skipped style computation would turn the gate green by
+making it **blind** — the one failure mode a green run cannot distinguish from
+success.
+
+### The browser cache, and the Linux figures
+
+`playwright install --only-shell chromium` on `ubuntu-latest` is **267 MB on
+disk in two directories** — `chromium_headless_shell` 262 MB and **`ffmpeg`
+4.9 MB, so `--only-shell` still fetches FFmpeg** — against Task 1.13.1's
+~199 MB single artefact on macOS. Compressed into the cache it is
+**108,075,781 B**, the largest single entry this repository stores against
+GitHub's 10 GB allowance (609,986,375 B across 9 entries when taken).
+
+It is cached, as a **third category**, and the reason it is allowed where
+`dist/` is not: a browser binary is a downloaded **tool**, immutable and
+addressed by version, and it cannot make a build wrong by being stale, because a
+stale one is a different version Playwright refuses to launch.
+
+- Key: `playwright-shell-v1-${{ runner.os }}-<playwright version>`. The OS
+  because one lockfile does not install the same tree on both; the version
+  rather than the lockfile hash, so an unrelated dependency bump does not throw
+  away 267 MB of download.
+- **No restore-key**, which is the deliberate difference from the store cache. A
+  partial store is a correct store that installs the rest; a browser directory
+  restored from another Playwright version **looks populated and holds the wrong
+  build**, and `actions/cache` reports a restore-key hit and a total miss
+  identically.
+- **The download step runs on a hit too and prints what it did**, which is the
+  only thing that separates a restored cache from a silent re-download.
+- Cold **5,582 ms**, hit **918–981 ms**. That is the whole saving: ~4.6 s of a
+  ~100 s job. It is here because a 267 MB download on every push is a poor
+  neighbour, not because it moves the clock.
+
+The **pnpm store cache is restored and never saved** in this job: both jobs
+compute the same key, and two savers race to a `Cache already exists` warning
+that reads like a fault. `verify` owns saving it. The consequence, stated: on
+the first run after a lockfile change this job installs cold.
+
+### Timings, taken more than twice
+
+Three green readings of the whole job: **103 / 102 / 99 s** — a 4 s spread where
+the seven-step chain has ~9 s over five readings, so this is so far the more
+repeatable half of the run. Its split, warm:
+
+| Step                 | Runner                          |
+| -------------------- | ------------------------------- |
+| `pnpm install`       | 4,677–5,035 ms, exact store hit |
+| `playwright install` | 918–981 ms hit / 5,582 ms cold  |
+| `pnpm build`         | 6,430–7,468 ms                  |
+| `pnpm e2e`           | 69,208–72,569 ms                |
+
+**`ubuntu-latest` reports 2 workers, not the laptop's 4** — Playwright's default
+is half the CPU count — so the nine short journeys stop overlapping four ways
+and still finish underneath the recovery journey: the suite is 69.2–72.6 s there
+against 62–64 s locally. The install reads **`Packages: +400`**, which
+supersedes Task 1.10.1's 397-on-Linux/398-on-macOS pair; Story 1.13's additions
+moved it.
+
+**All ten journeys run, the recovery one included, and that is a decision.**
+`--grep-invert "recovers on the next poll"` is the lever and it is not pulled:
+that journey is the only thing in the repository asserting the interval the
+application actually polls at, that a failure does not clear the surviving
+timestamp, and that recovery happens without a reload. Skipping it would leave
+the story's recovery criterion asserted on a laptop and not in CI.
+
+### Made to go red, three times
+
+1. **Unplanned, and the most valuable**: the axe violation above, on the very
+   first run.
+2. **A spec assertion.** Artefact **872,142 B** — a 755,894 B trace, a
+   117,923 B screenshot, a 10,212 B error context and the 7,080 B pair log.
+   Larger than the local ~450 KB because the axe journey's trace carries the
+   injected axe source.
+3. **The failure a laptop cannot produce**: a deliberate `PORT=0` on the pair.
+   `✗ backend … ECONNREFUSED` beside a ticked frontend, exit 1 in **15.7 s**,
+   the pair's log naming `PORT must be an integer between 1 and 65535, received
+"0"`, and an artefact of **577 B** — the log and nothing else, because there
+   is no Playwright output at all. This is the vindication of `pnpm e2e` gating
+   on `check-ready.mjs` itself: a one-URL `webServer` probe would have driven
+   the whole suite against a page with no backend.
+
+All three were on a throwaway branch with its own draft pull request, because
+`push` is restricted to `main`.
+
+Failure artefacts are **7 days**, on failure only, a green run uploads nothing —
+and the upload path was corrected by measurement: `upload-artifact` roots an
+archive at the **common ancestor** of its paths, so a `RUNNER_TEMP` log beside
+`e2e/test-results` produced an archive nested at `marketpulse/marketpulse/e2e/…`
+beside a stray `_temp/`. The log is copied into `e2e/test-results` so there is
+one root.
+
+### What was deliberately not done
+
+- **WebKit and Firefox stay unmeasured on Linux.** The job installs
+  `--only-shell chromium` and nothing else. Naming an engine that has never been
+  seen green here means a second browser in the cache and roughly a doubling of
+  the run, and Task 1.13.1's WebKit failure mode is a **hanging** test rather
+  than an error.
+- **No new action.** The job reuses `actions/checkout`, `actions/setup-node`,
+  `actions/cache`, `actions/cache/restore` (the same repository at the same SHA)
+  and `actions/upload-artifact` — still **five distinct actions**, now across
+  **thirteen uses** and six distinct `uses:` references. `allowBuilds` did not
+  fire, as Task 1.13.1 predicted.
+
+### The artefact moved by eleven bytes
+
+`tabIndex={0}` took the JavaScript 348,124 → **348,135 B** (`b98aeaa5…`) on an
+unchanged 12,128 B / `134d5dd8…` stylesheet, with `index.html` 1,101 B at a new
+hash (`07983678…`) and `staticwebapp.config.json` 300 B — **361,664 B over four
+files at 278 modules**. The runner's fingerprint and a local build agree to the
+byte, so a Linux build reproduces a Mac one for the second story running.

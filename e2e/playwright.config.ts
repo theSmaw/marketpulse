@@ -70,8 +70,17 @@ import { defineConfig, devices } from "@playwright/test";
 //
 // So `pnpm e2e` requires a running pair and gates on `pnpm ready`, which judges
 // **both** halves and diagnoses which one is wrong. That is a real cost — the
-// suite cannot be run from a cold tree by one command — and it is Task 1.13.4's
-// to answer for CI, where nothing is running and something has to start it.
+// suite cannot be run from a cold tree by one command.
+//
+// **CI answers it by starting `pnpm dev` itself (Task 1.13.4).** The `e2e` job
+// in `.github/workflows/verify.yml` runs `pnpm build`, backgrounds `pnpm dev`
+// and then runs `pnpm e2e` — three commands by name, and no port, browser
+// command or readiness rule of its own. The split earns its keep there rather
+// than only here: a deliberate `PORT=0` on the runner produced
+// `✗ backend … ECONNREFUSED` beside a ticked frontend and exit 1 in 15.7 s,
+// with the diagnosis in the words a developer already knows, where a one-URL
+// `webServer` probe would have driven the whole suite against a page with no
+// backend.
 //
 // ---------------------------------------------------------------------------
 // Timeouts, and why the healthy figure is the wrong one to pick from
@@ -104,15 +113,21 @@ export default defineConfig({
   // Everything this repository writes about failures applies here: a check
   // that has never failed has never been tested, and a retry is how a suite
   // stops being able to tell a flake from a defect. Zero retries locally, and
-  // whether CI gets any is Task 1.13.4's decision to take out loud.
+  // **zero in CI too — taken out loud in Task 1.13.4 rather than left at the
+  // default.** The `e2e` job gates a merge, which is exactly the situation a
+  // retry is usually bought for, and that is the argument against it: a gate
+  // that retries cannot tell a flake from a defect, and this repository has
+  // never once responded to a failure by re-running it.
   retries: 0,
 
   // Raised clear of the 5 s request deadline — see above.
   expect: { timeout: 10_000 },
 
   // One line per test, no HTML report and so no `playwright-report/` unless
-  // somebody asks for one. The failure artefacts below are the diagnostic;
-  // what CI keeps and for how long is Task 1.13.4's.
+  // somebody asks for one. The failure artefacts below are the diagnostic, and
+  // CI keeps them **on failure only, for 7 days** (Task 1.13.4) — measured
+  // there rather than estimated: 872,142 B for one failed assertion, 577 B when
+  // the pair never started, and nothing at all on a green run.
   reporter: "list",
 
   // Failure artefacts, and nothing on success. A trace is the answer to what
@@ -135,6 +150,13 @@ export default defineConfig({
   // is left out for a different reason: this suite exists to catch failures in
   // how the two halves talk, which is not an engine difference, and a second
   // engine doubles the run for a class of finding nothing here has produced.
-  // Whether either is real on `ubuntu-latest` is Task 1.13.4's to find out.
+  // **Task 1.13.4 left both unmeasured on `ubuntu-latest` deliberately**: the
+  // job installs `--only-shell chromium` and nothing else, so naming a second
+  // engine would mean a second browser in the cache and roughly a doubling of
+  // the run before anything had been seen green. What it did confirm there is
+  // that the shell build is not a lesser renderer — it reports the page ground
+  // exactly and axe's `color-contrast` rule passes on **65 nodes**, the same
+  // number as macOS, which is the control the axe gate needed: a shell that
+  // skipped style computation would turn that gate green by making it blind.
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });
