@@ -72,6 +72,105 @@ const MAX_PORT = 65535;
 // prints in the terminal and what the browser puts in the `Origin` header.
 const DEFAULT_CORS_ORIGIN = "http://localhost:5173";
 
+// --- The database (Task 2.1.3) ---
+//
+// **Discrete variables and not a single `DATABASE_URL`, and the decision was
+// taken away rather than taken.** A URL is the obvious shape — one value a
+// platform can hold, accepted by every Postgres tool — and it assumes the
+// credential is a string that sits inside it. Task 2.1.1 made that assumption
+// false: the deployed server is Microsoft Entra only, password authentication
+// `Disabled`, with **no admin user created at all**, so the deployed password
+// field is filled at connect time by code that mints a token per connection.
+// There is no string to put in a URL. A URL plus a separate auth switch was
+// the runner-up and loses because it makes one value mean different things
+// depending on another; a URL locally and discrete variables deployed is two
+// shapes and is rejected on sight.
+//
+// The other half of the argument is that discrete variables let the credential
+// be handled separately from the five values that are not one — which is what
+// makes the `entra` case expressible at all, and what keeps the password out
+// of every message this module can produce.
+//
+// **These defaults are the local development database, and that is not a
+// coincidence — it is the definition.** `scripts/local-database.mjs` reads
+// them out of the built `dist/config.js`, exactly as `pair-addresses.mjs`
+// reads `PORT` and `HOST`, and hands them to `compose.yaml`. So there is one
+// place that says where the local database is, and `pnpm db`,
+// `pnpm ready` and the application cannot disagree about it. The direction is
+// the right way round: a container's `POSTGRES_USER`/`POSTGRES_PASSWORD`/
+// `POSTGRES_DB` are what **creates** a database, and these are what
+// **connects** to one, so the creation follows the connection rather than the
+// other way about.
+const DEFAULT_DATABASE_HOST = "127.0.0.1";
+const DEFAULT_DATABASE_PORT = 5432;
+const DEFAULT_DATABASE_NAME = "marketpulse";
+const DEFAULT_DATABASE_USER = "marketpulse";
+
+// The local fixture, and it is in the repository on purpose: it authenticates
+// a container `compose.yaml` publishes on loopback only, holding a database
+// whose entire future contents are re-derivable from Alpaca. Treating it as a
+// secret would mean a `.env` file every clean clone has to write before the
+// database starts.
+//
+// It is the same shape as `CORS_ORIGIN` defaulting to the dev server's origin
+// and carries the same hazard — a deployment that never overrides it points at
+// something that is not there. What softens it here and does not soften it
+// there is `DATABASE_AUTH`: this value is not read at all unless the mode says
+// `password`, so a deployment cannot fall back onto the fixture by forgetting
+// a variable. It has to ask for password authentication by name.
+const DEFAULT_DATABASE_PASSWORD = "marketpulse";
+
+// **Which credential mechanism, named rather than inferred.**
+//
+// The tempting shape is to infer it — a password is set, so use one; none is
+// set, so mint a token. That fails silently in both directions, which is the
+// whole reason this variable exists. A deployment that forgot the password
+// variable would fall through to the identity path and produce an
+// authentication error about an identity nobody was thinking about; a laptop
+// with a stale password variable would send one to a server that refuses
+// passwords outright. A named mode is cheaper than either failure, and it is
+// what lets this module reject the second case at startup instead.
+//
+//   password — a literal from DATABASE_PASSWORD. The local container, and any
+//              server with password authentication enabled.
+//   entra    — a Microsoft Entra access token, minted per connection from the
+//              container app's managed identity and used as the password.
+//              DATABASE_PASSWORD is not read. **The token never comes from the
+//              environment, so this module never holds it** — see loadConfig.
+export const DATABASE_AUTH_MODES = ["password", "entra"] as const;
+
+export type DatabaseAuth = (typeof DATABASE_AUTH_MODES)[number];
+
+const DEFAULT_DATABASE_AUTH: DatabaseAuth = "password";
+
+// libpq's own names, deliberately, because a driver takes one of these and a
+// third vocabulary in between is a translation table nobody asked for.
+//
+//   disable     — no TLS. What the local container offers: `pnpm ready`
+//                 reports `no TLS offered` against it, measured in Task 2.1.2.
+//   require     — encrypted, certificate NOT verified. This is what Microsoft's
+//                 own managed-identity sample connection string does with
+//                 `Trust Server Certificate=true`, and Task 2.1.1 recorded that
+//                 we must not copy it. It is in the vocabulary because it is a
+//                 real libpq mode and refusing to name it would not stop anyone
+//                 reaching for it; it is never the default.
+//   verify-full — encrypted and the certificate verified against a CA, host
+//                 name included. What the managed server gets.
+//
+// The default is `disable` because the default of every variable in this file
+// is what a clean clone needs, and a clean clone's database is the container.
+// Story 2.1's acceptance criterion 2 is about TLS rather than encryption if
+// convenient, and this is the variable it lands on.
+export const DATABASE_SSL_MODES = [
+  "disable",
+  "require",
+  "verify-full",
+] as const;
+
+export type DatabaseSsl = (typeof DATABASE_SSL_MODES)[number];
+
+const DEFAULT_DATABASE_SSL: DatabaseSsl = "disable";
+
 // The levels pino understands, in the order pino orders them, plus `silent`.
 //
 // This is deliberately pino's whole set rather than a curated subset. A
@@ -136,6 +235,30 @@ export interface Config {
   readonly logLevel: LogLevel;
   readonly logFormat: LogFormat;
   readonly corsOrigin: string;
+  readonly database: DatabaseConfig;
+}
+
+// Nested rather than seven more `database`-prefixed keys on Config, because
+// this is one thing with parts rather than seven settings that happen to share
+// a prefix — and because Task 2.1.4's pool takes exactly this object and
+// nothing else. `loadConfig` freezes it separately: `Object.freeze` is shallow,
+// so a nested object is only frozen if it is frozen.
+export interface DatabaseConfig {
+  readonly host: string;
+  readonly port: number;
+  readonly name: string;
+  readonly user: string;
+  readonly auth: DatabaseAuth;
+
+  // Present when `auth` is `password` and **absent** when it is `entra` —
+  // absent rather than `undefined`, which is the distinction
+  // `exactOptionalPropertyTypes` exists to draw and which this file's own
+  // comment above predicted "a credential Epic 2 brings" would be the first to
+  // need. It matters beyond tidiness: a pool in `entra` mode that reads this
+  // key gets a compile error rather than a silent empty string.
+  readonly password?: string;
+
+  readonly ssl: DatabaseSsl;
 }
 
 // The machine-readable declaration of what this application reads.
@@ -192,6 +315,51 @@ export const CONFIG_VARIABLES: readonly ConfigVariable[] = [
     default: DEFAULT_CORS_ORIGIN,
     description:
       "The one browser origin allowed to call this API, matched exactly (scheme, host and port). The default is the Vite dev server, so a fresh clone works with no .env at all; a deployment should set this to the site's own origin.",
+  },
+  {
+    key: "DATABASE_HOST",
+    required: false,
+    default: DEFAULT_DATABASE_HOST,
+    description:
+      "Host the database is reached at. The default is the local development container `pnpm db` starts, which publishes on loopback only.",
+  },
+  {
+    key: "DATABASE_PORT",
+    required: false,
+    default: String(DEFAULT_DATABASE_PORT),
+    description: `TCP port the database listens on. An integer between ${String(MIN_PORT)} and ${String(MAX_PORT)}.`,
+  },
+  {
+    key: "DATABASE_NAME",
+    required: false,
+    default: DEFAULT_DATABASE_NAME,
+    description: "Name of the database to connect to.",
+  },
+  {
+    key: "DATABASE_USER",
+    required: false,
+    default: DEFAULT_DATABASE_USER,
+    description:
+      "Role to connect as. Under DATABASE_AUTH=entra this is the managed identity's own name rather than a database-local role.",
+  },
+  {
+    key: "DATABASE_AUTH",
+    required: false,
+    default: DEFAULT_DATABASE_AUTH,
+    description: `How the connection authenticates: ${DATABASE_AUTH_MODES.join(" or ")}. \`password\` reads DATABASE_PASSWORD; \`entra\` mints a Microsoft Entra access token per connection from the container app's managed identity and never reads DATABASE_PASSWORD at all. Named rather than inferred, so a forgotten variable is a startup error instead of a confusing authentication failure.`,
+  },
+  {
+    key: "DATABASE_PASSWORD",
+    required: false,
+    default: DEFAULT_DATABASE_PASSWORD,
+    description:
+      "Password for DATABASE_USER. Read only under DATABASE_AUTH=password, and setting it alongside DATABASE_AUTH=entra is a startup error rather than a value that is quietly ignored. The default is the local container's fixture, which is in this repository on purpose; a real credential belongs in .env and nowhere else.",
+  },
+  {
+    key: "DATABASE_SSL",
+    required: false,
+    default: DEFAULT_DATABASE_SSL,
+    description: `TLS for the database connection: ${DATABASE_SSL_MODES.join(", ")}. The default suits the local container, which offers no TLS. \`require\` encrypts without verifying the certificate and is deliberately never a default; the managed server wants \`verify-full\`.`,
   },
 ];
 
@@ -385,6 +553,74 @@ export function loadConfig(
     readString(env, "CORS_ORIGIN", DEFAULT_CORS_ORIGIN),
   );
 
+  const databaseHost = read(() =>
+    readString(env, "DATABASE_HOST", DEFAULT_DATABASE_HOST),
+  );
+  const databasePort = read(() =>
+    readInt(env, "DATABASE_PORT", DEFAULT_DATABASE_PORT, MIN_PORT, MAX_PORT),
+  );
+  const databaseName = read(() =>
+    readString(env, "DATABASE_NAME", DEFAULT_DATABASE_NAME),
+  );
+  const databaseUser = read(() =>
+    readString(env, "DATABASE_USER", DEFAULT_DATABASE_USER),
+  );
+  const databaseAuth = read(() =>
+    readEnum(env, "DATABASE_AUTH", DATABASE_AUTH_MODES, DEFAULT_DATABASE_AUTH),
+  );
+  const databasePassword = read(() =>
+    readString(env, "DATABASE_PASSWORD", DEFAULT_DATABASE_PASSWORD),
+  );
+  const databaseSsl = read(() =>
+    readEnum(env, "DATABASE_SSL", DATABASE_SSL_MODES, DEFAULT_DATABASE_SSL),
+  );
+
+  // --- Two checks that are about a pair of variables rather than one ---
+  //
+  // These are the first cross-variable rules in this module, and they exist
+  // because the alternative to each is a failure at first connection rather
+  // than at startup — which is Task 2.1.3's stated 3am case: nothing is wrong
+  // until something asks the database a question.
+  //
+  // They go through the same accumulator as the readers, so a configuration
+  // that is wrong in a reader's way and in a pair's way at once reports both.
+
+  // A password set alongside the identity path is the "laptop with a stale
+  // variable" case, and it is worth rejecting rather than ignoring because the
+  // two readings of it are opposite: either the mode is wrong and the password
+  // should be used, or the password is left over and is being sent to a server
+  // that refuses passwords outright. Guessing between them is what produces an
+  // authentication error nobody can attribute.
+  //
+  // It keys on the variable being **present in the environment**, not on the
+  // resolved value, because the resolved value always exists — it has a
+  // default. And **the message names the variable and never the value**: this
+  // is the one line in this file that could put a credential into a log, and
+  // `readInt` and `readEnum` quoting what the operator typed is exactly the
+  // habit that would have done it.
+  // Dot notation rather than a bracketed key, because `dot-notation` rejects
+  // the latter on an index signature. Reading the raw environment here rather
+  // than the resolved value is the whole point: the resolved value always
+  // exists, so only the raw one can say whether anyone asked for it.
+  const passwordWasSet = present(env.DATABASE_PASSWORD) !== undefined;
+
+  if (databaseAuth === "entra" && passwordWasSet) {
+    problems.push(
+      "DATABASE_PASSWORD is set but DATABASE_AUTH is entra, which authenticates with a Microsoft Entra access token and never reads a password. Unset one of them: the server this mode is for has password authentication disabled, so the password would be sent and refused.",
+    );
+  }
+
+  // An access token is a bearer credential valid for up to 24 hours. Sending
+  // one over a connection that is not encrypted hands it to anything on the
+  // path, and `entra` is only ever the managed server, which enforces
+  // encryption anyway — so `disable` here cannot be a deliberate choice, only
+  // a variable somebody forgot to change.
+  if (databaseAuth === "entra" && databaseSsl === "disable") {
+    problems.push(
+      "DATABASE_SSL is disable but DATABASE_AUTH is entra, which sends an access token as the password. That is a bearer credential in the clear; the managed server enforces encryption in any case. Use verify-full.",
+    );
+  }
+
   // The undefined checks are redundant at runtime — a reader only returns
   // undefined after pushing a problem — and they are what narrows the types,
   // so the success path cannot be reached with a hole in it.
@@ -394,7 +630,14 @@ export function loadConfig(
     host === undefined ||
     logLevel === undefined ||
     logFormat === undefined ||
-    corsOrigin === undefined
+    corsOrigin === undefined ||
+    databaseHost === undefined ||
+    databasePort === undefined ||
+    databaseName === undefined ||
+    databaseUser === undefined ||
+    databaseAuth === undefined ||
+    databasePassword === undefined ||
+    databaseSsl === undefined
   ) {
     throw new ConfigError(problems.join("\n"));
   }
@@ -412,5 +655,41 @@ export function loadConfig(
   // point it matters instead — Fastify already prints the host and port in its
   // `Server listening at` line, which is the whole of what a startup dump would
   // have been good for.
-  return Object.freeze({ port, host, logLevel, logFormat, corsOrigin });
+  // The password is spread in conditionally rather than assigned, so that in
+  // `entra` mode the key is genuinely **absent** rather than present and
+  // undefined. That is the `exactOptionalPropertyTypes` idiom this file's own
+  // interface comment named in advance, and here it carries a meaning: there
+  // is nothing to read, rather than a credential that happens to be empty.
+  const database: DatabaseConfig = Object.freeze({
+    host: databaseHost,
+    port: databasePort,
+    name: databaseName,
+    user: databaseUser,
+    auth: databaseAuth,
+    ...(databaseAuth === "password" ? { password: databasePassword } : {}),
+    ssl: databaseSsl,
+  });
+
+  // **The strongest form of the no-credential-in-a-log rule turned out to be
+  // structural rather than disciplined, and it is worth stating as a result.**
+  // The rule above says the resolved configuration is never logged, and Task
+  // 2.1.3 was written expecting the database to be its first real test. It is
+  // not, quite: the deployed credential is an Entra **access token**, minted
+  // per connection by the pool, and it does not come from `process.env` — so
+  // this module never receives it and cannot leak it however carelessly it is
+  // used. What this module holds is the local fixture, which is in the
+  // repository on purpose. So the deployed half of the rule is not a promise
+  // this file has to keep; it is a promise Task 2.1.4's pool has to keep, and
+  // that is where the leak check belongs.
+  //
+  // The rule stays exactly as it was, because Story 2.6's Alpaca key **will**
+  // arrive through here and it is a bearer secret with no identity behind it.
+  return Object.freeze({
+    port,
+    host,
+    logLevel,
+    logFormat,
+    corsOrigin,
+    database,
+  });
 }

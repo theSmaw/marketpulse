@@ -86,9 +86,11 @@ curl http://127.0.0.1:3000/health
 # {"status":"ok","version":"0.0.0","uptimeSeconds":0.129}
 ```
 
-`PORT`, `HOST`, `LOG_LEVEL`, `LOG_FORMAT` and `CORS_ORIGIN` configure it, all
-with defaults — see [Configuration](#configuration). It is a skeleton in
-**scope** rather than in status: no market data, no database, no domain logic.
+`PORT`, `HOST`, `LOG_LEVEL`, `LOG_FORMAT`, `CORS_ORIGIN` and seven `DATABASE_*`
+settings configure it, all with defaults — see
+[Configuration](#configuration). It is a skeleton in **scope** rather than in
+status: no market data, no domain logic, and a database it can be told where to
+find but does not yet open a connection to.
 
 `apps/frontend` is a React 19 application built with Vite. It renders the
 application chrome and four routes, contains a render failure to the box it
@@ -134,6 +136,20 @@ Once per machine. pnpm comes from the `packageManager` pin in `package.json`,
 not from a global install — so do not `npm install -g pnpm`; the pin is what
 guarantees everyone runs the same pnpm.
 
+**Docker, for the local database and for nothing else.** Since Task 2.1.2 this
+repository has a PostgreSQL 18 container behind `pnpm db`, and Docker is what
+runs it. The prerequisite is narrow and it is worth knowing how narrow:
+`pnpm install`, `pnpm verify`, `pnpm dev` and `pnpm e2e` all run with no Docker
+at all, and nothing in the application opens a database connection yet. If it is
+missing, `pnpm db` says so in those terms rather than looking like a broken
+checkout.
+
+The alternatives were considered and are recorded in
+[HOSTING.md](planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md)
+under _The database — the local development database_: a native PostgreSQL 18
+install is the standing alternative for anyone who cannot run Docker, and
+pointing a developer at the deployed database is rejected on principle.
+
 ## Setup
 
 ```sh
@@ -156,6 +172,15 @@ clean checkout it takes a few seconds and exits 0.
 If `pnpm install` fails complaining about a dependency's install scripts, see
 [Install-script policy](#install-script-policy) below — the fix is to
 allowlist that one package, never to disable the check.
+
+Nothing in that sequence needs a database, and nothing in it needs Docker. The
+database is a separate, longer-lived thing:
+
+```sh
+pnpm db          # starts PostgreSQL 18 and waits until it is accepting connections
+```
+
+Run it once and leave it. See [`pnpm db` — the local database](#pnpm-db--the-local-database).
 
 ## Running MarketPulse
 
@@ -188,7 +213,9 @@ pnpm ready
 
 It exits 0 only when the backend answers `/health` **and** the frontend's module
 graph resolves, and it polls for up to 15 seconds so it can be run in the same
-breath as `pnpm dev`. Read
+breath as `pnpm dev`. It reports the **database** on a third line and
+deliberately does not fail on it — see below for why, and for when that
+changes. Read
 [`pnpm ready` — knowing the pair is up](#pnpm-ready--knowing-the-pair-is-up)
 before trusting a hand-rolled substitute; the obvious ones give false positives.
 The reason it exists is below: **a busy port 3000 leaves `pnpm dev` running and
@@ -228,9 +255,10 @@ deployment.
 ### What looks broken on a correct first run
 
 ~~Five things.~~ ~~**Six**, since Task 1.12.3 gave the page a reason to talk to
-the backend.~~ **Seven**, since Task 1.12.5 put the backend's own state in the chrome
-and every page load now renders a placeholder for a moment. None of them is a
-fault.
+the backend.~~ ~~**Seven**, since Task 1.12.5 put the backend's own state in the chrome
+and every page load now renders a placeholder for a moment.~~ **Eight**, since Task
+2.1.2 gave the repository a database that the application does not use. None of
+them is a fault.
 
 - **The `MARKET FEED` indicator says `DISCONNECTED` — and the `BACKEND SERVICE`
   one beside it says `HEALTHY`.** Read the label before the word: these are
@@ -275,6 +303,20 @@ fault.
   arrives immediately when you switch back, which reads like a coincidence and
   is the design. The interval has a floor it must stay above: `API_TIMEOUT_MS`,
   5 s, in `api-client.ts`
+
+- **`pnpm ready` says the database is not running, and exits 0 anyway.** The
+  line reads `○ database  127.0.0.1:5432  ECONNREFUSED — not running` — a `○`
+  rather than a `✗`, because it is a report and not a failure. Nothing in the
+  application opens a connection yet, `pnpm verify` has never needed a server,
+  and `pnpm e2e` gates on that same check, so failing on a missing database
+  would refuse to start a browser suite that has no interest in one. `pnpm db`
+  starts it. **This is the item on this list with an expiry date**: when a check
+  starts failing without a database — a migration, or a route that reads one —
+  the `○` becomes a `✗` and a missing database really is a broken first run. The two other things it can
+  say are worth recognising — `NOT_POSTGRES` means something else is on 5432
+  (a native PostgreSQL, most likely, which `pnpm db` would fail to bind
+  against), and `NO_RESPONSE` means something is holding the port and not
+  answering at all
 
 If a **box with a heading and a "Try again" button** appears where content
 should be, that is different: something failed to render and was contained to
@@ -405,6 +447,7 @@ Run from the repository root:
 | `pnpm test:process` | The backend's process half — 10 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
+| `pnpm db`           | Starts the local PostgreSQL 18 container — see below                  |
 | `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
 | `pnpm image`        | Builds the backend's `linux/amd64` container image — see below        |
 | `pnpm e2e`          | The browser suite, against a pair you started — see below             |
@@ -808,6 +851,99 @@ a source file is not enough either, because tsc's incremental build emits
 nothing when the content has not changed and `node --watch` is watching `dist/`.
 A real edit brings it back in about a second.
 
+### `pnpm db` — the local database
+
+```sh
+pnpm db          # start it, and wait until it is accepting connections
+pnpm db down     # stop it; the data survives
+pnpm db down -v  # stop it and delete the data
+pnpm db ps       # what is running
+pnpm db logs -f  # follow its log
+pnpm db exec postgres psql -U marketpulse -d marketpulse
+```
+
+PostgreSQL **18** in a container, defined by `compose.yaml` at the repository
+root and started by `scripts/local-database.mjs`. Arguments are forwarded to
+`docker compose` untouched, so anything Docker documents works.
+
+**Where it is comes from the backend's own configuration, and there is exactly
+one copy of it.** Since Task 2.1.3 the address, the credentials and the database
+name are `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER` and
+`DATABASE_PASSWORD` in [`apps/backend/.env.example`](apps/backend/.env.example),
+and `scripts/local-database.mjs` reads them out of the **built**
+`apps/backend/dist/config.js` — the way `pair-addresses.mjs` already reads
+`PORT` and `HOST`. So setting `DATABASE_PORT=5433` in `apps/backend/.env` moves
+the container **and** the client **and** `pnpm ready`'s probe, in one edit;
+there is no second copy of `5432` anywhere. Two consequences: **`pnpm db` needs
+a built tree** and says `run \`pnpm build\` first`if there is not one, and an
+invalid`DATABASE_*`value stops`pnpm db` with the same message the server
+itself would print.
+
+```
+  PostgreSQL 18 on 127.0.0.1:5432  database marketpulse  user marketpulse
+```
+
+**It is deliberately not part of `pnpm dev`.** The three watchers are a loop you
+stop with Ctrl-C several times an hour; a database is a fourth process with a
+completely different lifecycle — it holds state, and stopping it with the
+watchers would throw away the data you were part-way through debugging. So it is
+a separate long-lived command, and `pnpm dev` is unchanged. The cost of that is
+the new first-run confusion named in
+[What looks broken on a correct first run](#what-looks-broken-on-a-correct-first-run),
+and `pnpm ready`'s third line is the answer to it.
+
+**Why 18, and why the pin is in one place.** It is the version Task 2.1.1 chose
+for the managed server, and a local 17 against a deployed 18 is a class of bug
+that only appears in production. The major is pinned in
+`scripts/local-database.mjs` and interpolated into `compose.yaml`; the **minor**
+deliberately is not, because Azure patches that under us and a pin it cannot
+honour is a pin that lies. The running container reports 18.6. **Nothing checks
+that this pin and the deployed server's version still agree** — see
+[What `pnpm verify` does not cover](#what-pnpm-verify-does-not-cover).
+
+**The password is in the repository on purpose and is not a secret.** It
+authenticates a container published on **loopback only** (`127.0.0.1:5432:5432`,
+not the bare `5432:5432` that would put a database on every network this machine
+is joined to), holding an empty database. Treating it as a secret would mean a
+`.env` file every clean clone has to write before the database starts. Since
+Task 2.1.3 it lives where every other default does — as `DATABASE_PASSWORD`'s
+documented default — rather than as a literal in the script.
+
+**The local and deployed credentials do not match, and that is a decision.** The
+deployed server authenticates with **Microsoft Entra only** — password
+authentication is `Disabled` and no admin user exists — which is a mechanism a
+laptop structurally cannot have. "Match the deployed environment" applies to the
+**engine version** and not to the credential. `DATABASE_AUTH` is the variable
+that names which of the two is in use, and it is named rather than inferred; a
+`pnpm db` run under `DATABASE_AUTH=entra` refuses with that explanation rather
+than inventing a password. See
+[HOSTING.md](planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md).
+
+**The database is empty and stays empty in this story.** Tables and migrations
+are Story 2.2's; there is no seeding mechanism here, deliberately, because one
+invented now is one Story 2.2 would have to unpick.
+
+Two things that will otherwise cost an afternoon:
+
+- **`docker compose up` by hand does not work, on purpose.** Every value in
+  `compose.yaml` is required with no default, so the file cannot keep a second
+  copy of the port that quietly disagrees with the configuration boundary's. It
+  exits 1 naming `pnpm db`. This is the same arrangement
+  `e2e/playwright.config.ts` has with `E2E_BASE_URL`
+- **Two checkouts share one database, on purpose.** `compose.yaml` sets
+  `name: marketpulse`, so a git worktree under `.claude/worktrees/` — or a
+  second clone — attaches to the same project rather than starting a second
+  container that would collide on 5432. Confirmed by running `pnpm db` in a
+  clone and `pnpm db ps` in the original: one container,
+  `127.0.0.1:5432->5432/tcp`, loopback only as published. One database per
+  machine, not one per checkout
+- **The volume is mounted at `/var/lib/postgresql`, not `/var/lib/postgresql/data`.**
+  The 18 image moved both its declared volume and `PGDATA`. Every pre-18 snippet
+  uses the old path, and with it the container **refuses to start at all**,
+  first run, empty volume, with a long message naming the mount and the fix. It
+  is a loud failure rather than a silent one, which is the good outcome — but it
+  is not what the shape of the mistake suggests
+
 ### `pnpm ready` — knowing the pair is up
 
 ```sh
@@ -818,13 +954,48 @@ pnpm ready    # in another
 ```
   ✓ backend   http://127.0.0.1:3000/health  0.0.0, up 0.5s
   ✓ frontend  http://localhost:5173/src/routes/MarketOverview.tsx  module graph resolves
+  ✓ database  127.0.0.1:5432  PostgreSQL, no TLS offered
 
-The pair is up.
+The pair is up, and so is the database.
 ```
 
 It polls for up to 15 seconds, so it can be run immediately after `pnpm dev`
 rather than after guessing how long to wait. It exits 0 when both halves answer
 and 1 otherwise, with a line saying which one did not and why.
+
+**The database is the third line and it is reported rather than gated** (Task
+2.1.2). It is `○` rather than `✗` when it is down and the exit code does not
+change, because the question this exit code answers is _can the application
+run?_ and nothing here opens a database connection yet. **The reversal trigger
+is a condition rather than a task number** — the first check in `pnpm verify` or
+`pnpm e2e` that fails without a database, which is Story 2.2's migrations or
+Story 2.8's routes rather than the connection pool, since a pool that logs its
+failure and lets the server start leaves this exit code honest. On that day the
+line becomes a `✗` and the `e2e` job in CI gains a service.
+
+**It is also the first probe here that is not a `fetch`, and it could not have
+been one.** A PostgreSQL port answers an HTTP request by waiting, so the two
+checks above would report `NO_RESPONSE` against a perfectly healthy database.
+The decision — stated, because a TCP connect was the obvious cheaper option —
+is to speak enough of the protocol to get a real answer: an **SSLRequest**,
+eight bytes with no credentials and no driver, which every PostgreSQL server
+answers with a single byte. A connect proves only a **listener**, and both cases
+where that matters were made to happen: a bare `net.createServer()` reads
+`NO_RESPONSE` and an HTTP server on 5432 reads `NOT_POSTGRES`, where a connect
+check would have called both of them up.
+
+What it does **not** prove is worth knowing: not that the named database exists
+and not that the credentials work — both need a driver, and the connection pool
+is the right place for that — and not that the server is _ours_, since a native
+PostgreSQL on 5432 answers identically. The `no TLS offered` in that line is
+real information rather than filler: the container does not offer TLS and the
+managed server enforces it.
+
+Unlike the other two it is checked **once, with no polling**, because `pnpm db`
+does not return until the server is accepting connections, so there is nothing
+to wait for. That is not a detail — with a five-second poll, `pnpm ready`
+against a stopped database took 5.1 s instead of 0.093 s, and `pnpm e2e` gates
+on this script.
 
 It is **not** a step in `pnpm verify` and must not become one: `verify` runs
 with no servers up, where the honest answer to this question is "nothing is
@@ -1181,7 +1352,7 @@ Both packages read configuration from a `.env` file **beside their own
 `package.json`**, and each ships a documented example:
 
 ```sh
-cp apps/backend/.env.example apps/backend/.env    # PORT, HOST, LOG_LEVEL, LOG_FORMAT, CORS_ORIGIN
+cp apps/backend/.env.example apps/backend/.env    # PORT, HOST, LOG_*, CORS_ORIGIN, DATABASE_*
 cp apps/frontend/.env.example apps/frontend/.env  # VITE_API_BASE_URL
 ```
 
@@ -1250,6 +1421,55 @@ Three things that will otherwise cost you an afternoon:
   origin to every caller, including one it does not allow; the browser is what
   compares and refuses. A 200 from `curl -H "Origin: …"` proves nothing about
   what a browser will do
+
+### Talking to the database
+
+Seven variables, all with defaults, and the defaults **are** the local
+development database rather than merely resembling it — `scripts/local-database.mjs`
+reads them out of the built `dist/config.js` and hands them to `compose.yaml`,
+so `pnpm db` starts the container these values connect to.
+
+| Variable            | Values                                 | Default       |
+| ------------------- | -------------------------------------- | ------------- |
+| `DATABASE_HOST`     | A host name or address                 | `127.0.0.1`   |
+| `DATABASE_PORT`     | 1–65535                                | `5432`        |
+| `DATABASE_NAME`     | A database name                        | `marketpulse` |
+| `DATABASE_USER`     | A role name                            | `marketpulse` |
+| `DATABASE_AUTH`     | `password`, `entra`                    | `password`    |
+| `DATABASE_PASSWORD` | A password, read only under `password` | `marketpulse` |
+| `DATABASE_SSL`      | `disable`, `require`, `verify-full`    | `disable`     |
+
+**Discrete variables and not a single `DATABASE_URL`, and the decision was taken
+away rather than taken.** The deployed server is Microsoft Entra only — password
+authentication `Disabled`, no admin user created at all — so its password field
+is filled at connect time by code that mints a token per connection. There is no
+string to put inside a URL. Locally there is a password, because a container has
+no identity to be.
+
+**`DATABASE_AUTH` names which credential mechanism is in use rather than letting
+it be inferred**, and that is the whole reason it exists. Inferring it from
+whether a password is set fails silently in both directions: a deployment that
+forgot the variable would fall through to the identity path, and a laptop with a
+stale one would send a password to a server that refuses passwords outright.
+
+Three things that will otherwise cost you an afternoon:
+
+- **Setting `DATABASE_PASSWORD` alongside `DATABASE_AUTH=entra` is a startup
+  error, not a value that is quietly ignored.** The two readings of it are
+  opposite — wrong mode, or a left-over variable — and guessing between them
+  produces an authentication error nobody can attribute. `DATABASE_SSL=disable`
+  under `entra` is an error for the same kind of reason: an access token is a
+  bearer credential and that would put it on the wire in the clear
+- **The message names the variable and never the value.** `DATABASE_PORT` and
+  `DATABASE_AUTH` quote what you typed, because that is the one thing a
+  misconfiguration message needs; `DATABASE_PASSWORD` does not, because
+  `config.ts` is the file that promised never to write a credential to a log
+- **`DATABASE_PASSWORD`'s default is the local fixture and is in this repository
+  on purpose.** It authenticates a container published on loopback only. A real
+  credential goes in `apps/backend/.env`, which is gitignored, and nowhere else
+
+Nothing opens a connection yet — that is Task 2.1.4 — so a wrong value here is
+caught at startup by the configuration boundary and by nothing else.
 
 ### Logging
 
@@ -1937,6 +2157,20 @@ Story 1.10 added two more of this kind, inside the test suites:
   `git checkout` makes every source newer than every output without changing a
   byte, and the mtime comparison failed a correct tree on its first run
 
+**Story 2.1 added one, and it is the reason the local database exists at all.**
+`LOCAL_DATABASE_VERSION` in `scripts/local-database.mjs` is `18` because Task
+2.1.1 chose PostgreSQL 18 for the managed server. **Nothing compares those two
+numbers.** The deployed version lives in an `az` argument and in
+[HOSTING.md](planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md),
+neither of which any tool here reads, and a check would need Azure credentials —
+which `pnpm verify` deliberately does not have, so building one would fork the
+definition of "verified" in the way the pipeline's founding rule exists to
+prevent. A drift is silent in both directions and its whole symptom class is
+"works locally, wrong in production", which is exactly what pinning the version
+was for. The one-liner is
+`docker compose exec postgres postgres --version` against the server's
+`az postgres flexible-server show --query version`.
+
 **Story 1.13 added four more, and moved one of them out of this list by
 building a check for it.** The full argument — including what separates the ones
 worth checking from the ones worth writing down — is in
@@ -2010,9 +2244,15 @@ formatting is inside the net. Its **schema** is not — a misspelled key, an
 action reference that does not resolve, or a `runs-on` label GitHub retires are
 all green locally and red only on the runner. `actionlint` would close it and
 is declined for the same reason `shellcheck` is: a small number of small files.
-The same shape covers `.github/dependabot.yml` and
-`apps/frontend/public/staticwebapp.config.json`, whose formatting is checked and
-whose meaning is not.
+The same shape covers `.github/dependabot.yml`,
+`apps/frontend/public/staticwebapp.config.json` and — since Task 2.1.2 —
+**`compose.yaml`**, whose formatting is checked and whose meaning is not. All
+three were measured with the same one-liner rather than assumed:
+`prettier --file-info compose.yaml` reports `"inferredParser": "yaml"`, and
+ESLint reports `File ignored because no matching configuration was supplied`.
+So a malformed edit to the local database's definition fails `format:check` by
+name, and a misspelled Compose key, a healthcheck that tests the wrong thing or
+a volume mounted at a path the image does not use are all green locally.
 
 **Two files that were expected to join this entry and did not.**
 `e2e/playwright.config.ts` and `e2e/playwright.deployed.config.ts` are the first
