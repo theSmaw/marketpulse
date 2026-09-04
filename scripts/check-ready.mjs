@@ -48,16 +48,13 @@
 //
 // Dependency-free, like the two checks beside it.
 
-import { relative, resolve } from "node:path";
 import process from "node:process";
 
-const REPO_ROOT = resolve(import.meta.dirname, "..");
-const BACKEND_CONFIG = resolve(REPO_ROOT, "apps/backend/dist/config.js");
-
-// The module whose 200 means the frontend's graph resolves. See the comment
-// above for why it is this one and not `/` and not the entry module: it is the
-// first module Vite reaches with a *value* import of `@marketpulse/shared`.
-const FRONTEND_PROBE = "/src/routes/MarketOverview.tsx";
+import {
+  dialHost,
+  FRONTEND_PROBE,
+  resolvePairAddresses,
+} from "./pair-addresses.mjs";
 
 // How long to keep asking. A warm pair is up in about a second and a cold one
 // — a clean clone, where `scripts/dev.sh` builds before it watches — takes a
@@ -74,25 +71,6 @@ const INTERVAL_MS = 250;
 // rather than failing. A refused connection is the easy case; an accepted one
 // that goes nowhere is the case that needs this line.
 const ATTEMPT_MS = 2_000;
-
-/**
- * The address to dial for a bound host. `0.0.0.0` and `::` are wildcards a
- * server binds and a client cannot connect to; Fastify's own startup line
- * already rewrites the first of them, and this does the same rewrite for the
- * same reason.
- *
- * @param {string} host
- * @returns {string}
- */
-function dialHost(host) {
-  if (host === "0.0.0.0") {
-    return "127.0.0.1";
-  }
-
-  const resolved = host === "::" ? "::1" : host;
-
-  return resolved.includes(":") ? `[${resolved}]` : resolved;
-}
 
 /**
  * One attempt against one URL. Returns the response, or the reason it could
@@ -163,71 +141,31 @@ async function poll(url, judge) {
 
 // --- Where the two services are ---
 //
-// The backend's address comes from its own configuration module rather than
-// from a literal here, because `PORT` and `HOST` are real variables and a
-// readiness check that ignores them checks the wrong socket. That means
-// reading the **built** output, exactly as `check-env-example.mjs` does, and
-// saying so rather than throwing a resolver error on a clean tree.
+// Both addresses come from `pair-addresses.mjs`, which is the one place they
+// are defined and is shared with `scripts/run-e2e.mjs` (Task 1.13.2). The two
+// failures it can report — an unbuilt tree and an invalid configuration — are
+// ordinary states with a one-line answer rather than exceptions worth a stack,
+// so they are rendered here exactly as they arrive.
 
-/** @type {{ loadConfig: () => { port: number, host: string, corsOrigin: string }, loadEnvFile: () => string | undefined }} */
-let configModule;
+const resolved = await resolvePairAddresses();
 
-try {
-  configModule = await import(BACKEND_CONFIG);
-} catch {
-  console.error(
-    `Cannot read ${relative(REPO_ROOT, BACKEND_CONFIG)} — run \`pnpm build\` first.`,
-  );
+if (!resolved.ok) {
+  console.error(resolved.message);
   process.exit(1);
 }
 
-configModule.loadEnvFile();
-
-/** @type {{ port: number, host: string, corsOrigin: string }} */
-let config;
-
-try {
-  config = configModule.loadConfig();
-} catch (error) {
-  // The same failure the server itself would hit, reported the same way it
-  // reports it — a plain line rather than a stack, because the message already
-  // names the key and the value it was given. It is also the honest answer to
-  // this script's question: a server that cannot read its configuration is not
-  // going to be listening.
-  // Indented per line rather than once: `config.ts` reports *every* bad key, so
-  // this message is multi-line whenever two are wrong, and a single leading
-  // indent would align the first line and leave the rest hard against the
-  // margin. Found in Task 1.8.6, fixed in Task 1.8.7.
-  const detail = error instanceof Error ? error.message : String(error);
-  console.error(
-    `The backend's configuration is invalid, so it cannot be running:\n\n${detail
-      .split("\n")
-      .map((line) => `  ${line}`)
-      .join("\n")}\n`,
-  );
-  process.exit(1);
-}
-
-const backendUrl = `http://${dialHost(config.host)}:${String(config.port)}/health`;
+const { port, host, backendHealthUrl, frontendOrigin, frontendProbeUrl } =
+  resolved.addresses;
 
 // The frontend's origin is `CORS_ORIGIN` and not a literal `5173`, and that is
-// the least obvious decision in this file.
-//
-// The port lives in `vite.config.ts` as a literal with no environment
-// override, which Task 1.8.4 confirmed rather than reversed — so a copy of it
-// here would be a second place for it to be written down, and the drift
-// between them would be silent in the direction that matters. `CORS_ORIGIN`
-// is already the origin the backend allows a browser to call from, it already
-// defaults to `http://localhost:5173`, and `env:check` already keeps that
-// default honest against `.env.example`. Reading it here means the check dials
-// the origin the pair is actually pinned to.
-//
-// The payoff is the failure this story keeps meeting. A dev server moved to
-// 5174 without the allowlist moving with it is a broken pair whose only
-// symptom in the browser is `TypeError: Failed to fetch` beside a **200** in
-// the log. This check reports it as the frontend not answering on the origin
-// the backend allows, which names both halves.
-const frontendUrl = `${config.corsOrigin}${FRONTEND_PROBE}`;
+// the least obvious decision in this pair of files. The argument is written out
+// in `pair-addresses.mjs`; the short form is that a copy of the port here would
+// be a second place for it to be written down, and the drift between them would
+// be silent in the direction that matters. The payoff is the failure this story
+// keeps meeting: a dev server moved to 5174 without the allowlist moving with
+// it is a broken pair whose only symptom in the browser is `TypeError: Failed
+// to fetch` beside a **200** in the log. This check reports it as the frontend
+// not answering on the origin the backend allows, which names both halves.
 
 // Note both are dialled with Node's `fetch`, which tries both address families
 // and so is not caught by the split that catches `curl`: the backend listens
@@ -238,7 +176,7 @@ const frontendUrl = `${config.corsOrigin}${FRONTEND_PROBE}`;
 // name the family explicitly.
 
 const [backend, frontend] = await Promise.all([
-  poll(backendUrl, async (response) => {
+  poll(backendHealthUrl, async (response) => {
     if (!response.ok) {
       return undefined;
     }
@@ -255,7 +193,7 @@ const [backend, frontend] = await Promise.all([
       ? `${String(body.version)}, up ${(body.uptimeSeconds ?? 0).toFixed(1)}s`
       : `status ${String(body.status)}`;
   }),
-  poll(frontendUrl, async (response) => {
+  poll(frontendProbeUrl, async (response) => {
     await response.body?.cancel();
 
     // The **content type** and not the status, because the status cannot tell
@@ -279,8 +217,8 @@ const [backend, frontend] = await Promise.all([
 ]);
 
 const results = [
-  { name: "backend ", url: backendUrl, result: backend },
-  { name: "frontend", url: frontendUrl, result: frontend },
+  { name: "backend ", url: backendHealthUrl, result: backend },
+  { name: "frontend", url: frontendProbeUrl, result: frontend },
 ];
 
 for (const { name, url, result } of results) {
@@ -305,7 +243,7 @@ if (!backend.ready) {
     backend.reason === "ECONNREFUSED"
       ? "  The backend is not listening. `pnpm dev` does not stop when it fails to bind — look\n  above the Vite banner for a `server failed to start` record, and note that freeing the\n  port is not enough on its own: the loop restarts on a source edit, not on the port."
       : backend.reason === "NO_RESPONSE"
-        ? `  Something is holding ${dialHost(config.host)}:${String(config.port)} and not answering. That is not this server —\n  it is an unrelated process on the port, which is also what the backend's own EADDRINUSE\n  is complaining about.`
+        ? `  Something is holding ${dialHost(host)}:${String(port)} and not answering. That is not this server —\n  it is an unrelated process on the port, which is also what the backend's own EADDRINUSE\n  is complaining about.`
         : `  The backend answered but did not report itself healthy (${backend.reason}).`,
   );
 }
@@ -313,7 +251,7 @@ if (!backend.ready) {
 if (!frontend.ready) {
   console.error(
     frontend.reason === "ECONNREFUSED"
-      ? `  Nothing is listening on ${config.corsOrigin}. Either the dev server is not running, or it\n  is on a different port from the one CORS_ORIGIN allows — which is a broken pair even\n  though both halves look healthy on their own.`
+      ? `  Nothing is listening on ${frontendOrigin}. Either the dev server is not running, or it\n  is on a different port from the one CORS_ORIGIN allows — which is a broken pair even\n  though both halves look healthy on their own.`
       : frontend.reason.startsWith("HTML")
         ? `  The dev server answered ${FRONTEND_PROBE} with HTML, which is its SPA fallback and\n  not a module. It does not 404 — so this means the probe module has been renamed or\n  moved, and FRONTEND_PROBE in this file needs to follow it.`
         : `  The dev server did not transform ${FRONTEND_PROBE} (${frontend.reason}). That is usually\n  an unresolved import — build \`packages/shared\` first, since a filtered \`vite\` does not.`,

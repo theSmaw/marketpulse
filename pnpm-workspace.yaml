@@ -1,6 +1,20 @@
 packages:
   - "apps/*"
   - "packages/*"
+  # The browser suite (Task 1.13.2). A fourth workspace package, and the only
+  # one matched by a literal rather than a glob — `e2e` is neither an app nor a
+  # library, so filing it under `apps/*` would put a thing we never deploy into
+  # the directory that means "a thing we deploy", and `packages/*` means "a
+  # thing the apps import".
+  #
+  # Task 1.13.1 measured what this line costs: the package joins **every**
+  # `pnpm -r` fan-out the moment it matches — `pnpm test`, `pnpm coverage` and
+  # `pnpm test:process` all report "Scope: 4 of 5 workspace projects" — and the
+  # only thing keeping the browser suite out of the fast suite is that `e2e`
+  # has no `test` script. Nothing checks that it stays absent. See
+  # `e2e/package.json`, which says the same thing beside the scripts it does
+  # have, because a `package.json` cannot hold a comment.
+  - "e2e"
 
 # Dependencies may not run install scripts unless they are named here, and an
 # un-allowlisted one fails the install outright rather than warning. That policy

@@ -13,9 +13,19 @@
   // the order below. shared is listed anyway so that `tsc -b` still covers it
   // if the apps ever stop referencing it, rather than silently dropping a
   // package from the root build.
+  //
+  // `e2e` is the fourth, added in Task 1.13.2, and it is the one entry here
+  // that has no symptom when it is missing. It is referenced by nothing and it
+  // references only `packages/shared`, so nothing else in the graph reaches
+  // it — and Task 1.13.1 measured the consequence: with the package created
+  // and this line absent, a deliberate TS2322 in a spec is **completely
+  // silent** and `pnpm typecheck` exits 0. ESLint and Prettier reach the
+  // directory for free; `tsc` does not. Root `build` needs no matching edit,
+  // because `e2e` emits nothing and has no bundler of its own.
   "references": [
     { "path": "packages/shared" },
     { "path": "apps/backend" },
-    { "path": "apps/frontend" }
+    { "path": "apps/frontend" },
+    { "path": "e2e" }
   ]
 }

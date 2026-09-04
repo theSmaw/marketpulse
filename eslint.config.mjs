@@ -35,6 +35,11 @@ export default tseslint.config(
       "**/build/",
       "**/coverage/",
       "**/storybook-static/",
+      // Playwright's failure artefacts (Task 1.13.2) — a trace zip, a
+      // screenshot and the runner's own `.last-run.json`. Nothing in them is
+      // source. Mirrored in .gitignore and .prettierignore.
+      "**/test-results/",
+      "**/playwright-report/",
       "**/*.tsbuildinfo",
       ".claude/worktrees/",
     ],

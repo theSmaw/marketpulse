@@ -1,0 +1,47 @@
+{
+  // The browser suite's TypeScript project (Task 1.13.2).
+  //
+  // It extends the shared base like every other package, and adds four things,
+  // each of which is here for a reason worth reading before changing it.
+  //
+  // **`noEmit`, and it is safe here for the same reason it is safe in
+  // `apps/frontend`.** This package is referenced by nothing, so no consumer
+  // typechecks against declarations it would have produced. `composite` still
+  // applies alongside it and is still required: without it the root solution
+  // file cannot reference this project at all.
+  //
+  // **`lib` includes DOM, and `types` includes node, and both are true at
+  // once** — which is unusual here and is a property of what a spec is. The
+  // spec file itself runs in **Node**, under Playwright's runner; the code
+  // inside `page.evaluate()` runs in the **browser**. So a spec legitimately
+  // needs `document` and `process` in the same file, which is exactly the
+  // combination `apps/frontend`'s browser boundary exists to forbid. The
+  // asymmetry is deliberate rather than an oversight: nothing in this package
+  // is bundled, shipped or served, so a Node global reaching it cannot leak
+  // into a page.
+  //
+  // **`include` covers `playwright.config.ts` as well as the specs**, which is
+  // what keeps that file out of `eslint.config.mjs`'s trailing
+  // `disableTypeChecked` block. Every one of the seven files in that block is a
+  // config file sitting *outside* its package's tsconfig `include`; this one is
+  // inside, so the project service has a program for it and it is linted
+  // type-aware like the specs. Verified rather than assumed — see
+  // BROWSER-TESTING.md.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["es2024", "dom", "dom.iterable"],
+    "types": ["node"]
+  },
+
+  // The whole package, not `specs/**/*`. See above.
+  "include": ["**/*.ts"],
+
+  // The specs assert on `BACKEND_STATUSES` and the rest of Story 1.12's
+  // vocabulary rather than writing the words out by hand, which is the reason
+  // Task 1.13.1 rejected a bare root-level directory: pnpm links a workspace
+  // package only into packages that declare it, so a specs home that could not
+  // declare this dependency would have forced exactly the duplication
+  // `packages/shared` exists to prevent.
+  "references": [{ "path": "../packages/shared" }]
+}

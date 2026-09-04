@@ -25,10 +25,12 @@
     "env:check": "node scripts/check-env-example.mjs",
     "ready": "node scripts/check-ready.mjs",
     "image": "node scripts/build-image.mjs",
+    "e2e": "node scripts/run-e2e.mjs",
     "verify": "pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run test && pnpm run test:process"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.1",
     "@vitejs/plugin-react": "6.1.1",
     "@vitest/coverage-v8": "4.1.11",
     "eslint": "10.9.1",
