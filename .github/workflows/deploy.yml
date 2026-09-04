@@ -733,13 +733,30 @@ jobs:
           end=$(date +%s%N)
           echo "browser install: $(( (end - start) / 1000000 )) ms"
 
-      # NO `pnpm build` AND NO PAIR, which is the whole difference from the
-      # `e2e` job. That job builds, starts three watchers and gates on
-      # `pnpm ready`, because it drives a pair it has to create. This drives a
-      # live URL that is already up, so the only thing it needs is the browser
-      # and the spec — the specs import `@marketpulse/shared` for the words they
-      # assert on, and `pnpm install` links that as a workspace package without
-      # anything being compiled.
+      # NO PAIR AND NO FULL `pnpm build`, which is most of the difference from
+      # the `e2e` job. That job builds everything, starts three watchers and
+      # gates on `pnpm ready`, because it drives a pair it has to create. This
+      # drives a live URL that is already up.
+      #
+      # BUT IT DOES NEED ONE THING BUILT, AND THE FIRST REAL RUN OF THIS JOB IS
+      # WHAT FOUND THAT. The comment here originally claimed the specs needed
+      # nothing compiled, because `pnpm install` links `@marketpulse/shared` as
+      # a workspace package. That is wrong, and wrong against this repository's
+      # oldest rule: packages are consumed as BUILT OUTPUT, so the link points
+      # at a `dist/` that does not exist on a fresh checkout. The job failed in
+      # 1.7 s with `Cannot find module .../@marketpulse/shared/dist/index.js`
+      # and then `No tests found` — green on every laptop, where a built tree
+      # hides it, and red the first time it ran anywhere clean.
+      #
+      # The fix is the e2e package's OWN documented verb rather than a build
+      # step invented here. `e2e/tsconfig.json` references `packages/shared`, so
+      # `tsc -b` follows the project reference and builds exactly what the specs
+      # import and nothing else — no frontend bundle and no Storybook, which
+      # root `pnpm build` would also produce and which nothing here drives. It
+      # typechecks the specs on the way past, for free.
+      - name: Build what the specs import
+        run: pnpm --filter @marketpulse/e2e typecheck
+
       #
       # BOTH ADDRESSES PASSED EXPLICITLY, and neither derived from the other.
       # That is the point of the check: `VITE_API_BASE_URL` is what the bundle

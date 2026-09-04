@@ -38,6 +38,7 @@
 // `pnpm e2e:deployed -g "routing"` work as Playwright documents them.
 
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 
@@ -58,6 +59,44 @@ if (!frontendOrigin || !backendOrigin) {
       "are independent values that can disagree — which is the failure this check\n" +
       "exists to catch. See e2e/support/deployed.ts.\n\n" +
       ".github/workflows/deploy.yml passes both. To run it by hand, export them.\n",
+  );
+  process.exit(1);
+}
+
+// The specs import `@marketpulse/shared` for the words they assert on, and this
+// repository's oldest rule is that packages are consumed as BUILT OUTPUT — so
+// the workspace link points at a `dist/` that does not exist on a fresh
+// checkout. Without this, that failure arrives from Playwright as
+// `Cannot find module .../@marketpulse/shared/dist/index.js` followed by
+// `No tests found`, which names neither the cause nor the fix.
+//
+// It cost a red CI job to find, because every laptop has a built tree: the
+// `check-deployed` job's first real run failed here in 1.7 s having already
+// passed its readiness probe against a perfectly healthy production.
+//
+// PRESENCE AND NOT FRESHNESS, which is the shape Task 1.10.5 settled for the
+// process suite after building a staleness check and removing it: `tsc -b`
+// re-emits from content hashes in `.tsbuildinfo`, so a `git checkout` makes
+// every source newer than every output without changing a byte, and an mtime
+// comparison fails a correct tree.
+//
+// The same `.tsbuildinfo` is why the message below has a third paragraph. This
+// repository records that `tsc -b --clean` deletes the output of the sources
+// that CURRENTLY exist; the mirror of it was found here, writing this guard:
+// deleting `dist/` by hand and leaving `tsconfig.tsbuildinfo` makes `tsc -b`
+// emit NOTHING, because it still believes the output is current. A fresh
+// checkout has no `.tsbuildinfo` and so is unaffected — which is exactly the
+// case CI is in, and exactly why this trap cannot be found there.
+const SHARED_ENTRY = resolve(REPO_ROOT, "packages/shared/dist/index.js");
+
+if (!existsSync(SHARED_ENTRY)) {
+  console.error(
+    "packages/shared has not been built, and the specs import it.\n\n" +
+      "  pnpm --filter @marketpulse/e2e typecheck   # builds exactly what they import\n" +
+      "  pnpm build                                 # or the whole tree\n\n" +
+      "If you deleted dist/ BY HAND, neither of those will do anything: `tsc -b`\n" +
+      "decides what to re-emit from tsconfig.tsbuildinfo, which is still there and\n" +
+      "still says the output is current. Run `pnpm clean` first.\n",
   );
   process.exit(1);
 }

@@ -166,3 +166,43 @@ together`.
 - `pnpm verify` **23.5 s** exit 0; `pnpm test` untouched at **189** across
   "Scope: 4 of 5 workspace projects"; the local `pnpm e2e` **10 passed (1.0m)`.
 - **No new dependency**, no lockfile change, `pnpm-workspace.yaml` untouched.
+
+### What the job's first real run found, which is the most transferable thing here
+
+The `check-deployed` job **went red on its first execution**, and it went red on
+something a laptop structurally cannot see.
+
+**`packages/shared` is consumed as built output, and a fresh checkout has no
+`dist/`.** The job's own comment claimed the specs needed nothing compiled
+because `pnpm install` links the workspace package — wrong, and wrong against
+this repository's oldest rule. The failure arrived from Playwright as
+`Cannot find module .../@marketpulse/shared/dist/index.js` and then
+`No tests found`, in **1.7 s**, _after_ the readiness probe had passed against a
+perfectly healthy production. Green on every machine here, because every machine
+here has a built tree.
+
+The fix is the e2e package's **own documented verb** rather than a build step
+invented in a workflow: `pnpm --filter @marketpulse/e2e typecheck` is `tsc -b`,
+`e2e/tsconfig.json` references `packages/shared`, so it builds exactly what the
+specs import and nothing else — no frontend bundle and no Storybook, which root
+`pnpm build` would also produce and which nothing in this job drives. It
+typechecks the specs on the way past.
+
+`scripts/run-deployed-check.mjs` now also **guards on presence** with a message
+naming the command, so the next occurrence is a sentence rather than a module
+resolution error — presence and not freshness, the shape Task 1.10.5 settled
+after building a staleness check and removing it.
+
+**And writing that guard found a new face of a recorded trap.** This repository
+records that `tsc -b --clean` deletes the output of the sources that _currently_
+exist. The mirror: **deleting `dist/` by hand and leaving `tsconfig.tsbuildinfo`
+makes `tsc -b` emit nothing at all**, because it still believes the output is
+current — so the guard's own suggested fix silently does nothing in that
+situation, and `pnpm clean` is what is needed. Reproduced twice while writing
+this. A fresh checkout has no `.tsbuildinfo` and is unaffected, which is
+precisely why CI cannot find this one and a laptop can.
+
+**The failure path was exercised for real in the same run**, which is the thing
+that is usually left untested: `What to do about a red result` wrote its
+rollback table into the run summary and `Upload the failure artefacts`
+uploaded, both on a genuinely red job rather than on a rehearsal.
