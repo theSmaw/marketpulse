@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.1–2.1.7
-**Amended:** 2026-09-04, after Tasks 2.1.1, 2.1.2 and 2.1.3 — see the three _Amended_ sections below
+**Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.4 — see the four _Amended_ sections below
 
 ## Objective
 
@@ -121,3 +121,84 @@ Task 2.1.3 recorded an **unexplained flake**: one `pnpm test` run reported 1 fai
 subsequent runs or in `pnpm verify`, on a task that shipped no frontend source. If it
 recurs during this task's re-runs, **capture it** — that is the only way it stops being
 an anecdote. If it does not, record that it did not.
+
+## Amended after Task 2.1.4 (2026-09-05)
+
+### One recorded claim was falsified outright, and two of its three occurrences are already corrected
+
+**`LOG_LEVEL=debug` no longer "shows nothing `info` does not".** That claim was
+true for six stories and stopped being true on 2026-09-05: the drain now writes
+`http drained` and `database pool closed` at `debug`, so the level's lower half
+holds exactly two records.
+
+Task 2.1.4 corrected the two **live** occurrences in the same change that
+falsified them — `README.md`'s logging section and `CLAUDE.md`'s "three
+consequences of the level" paragraph — on Task 1.9.7's precedent that leaving a
+false claim standing for four more tasks is the failure the triplication exists to
+prevent. **The third occurrence is deliberately untouched**:
+`planning/epic-01-application-foundation/story-07-.../TASK-01-log-format-level-and-transport.md`
+records what Task 1.7.1 measured, which was correct then. **This task should
+confirm that split rather than re-derive it**, and it is a worked example of Task
+1.13.6's rule that occurrences are read rather than replaced.
+
+### The test-count sweep grew again, and the same live/historical split applies
+
+`pnpm test` is **207** — 37 + **67** + 103 — and `pnpm test:process` is **14**,
+where Epic 1's convention blocks say 189 and 10. Both numbers moved, and the sweep
+is now two numbers rather than one.
+
+Task 2.1.4 corrected `README.md` throughout and `CLAUDE.md`'s **two live**
+present-tense claims (the "a green `pnpm test` means exactly this" paragraph and
+the no-placeholders paragraph). **It deliberately left CLAUDE.md's other
+occurrences alone**, because they are historical records that are correct in their
+own context — "`pnpm test` is untouched at 189 tests" is a true statement about
+what Task 1.13.2 measured. `docs/adr/0010-*`'s "ten-test process suite" is the
+same case.
+
+**What is left for this task is Epic 1's duplicated convention blocks and
+`EPIC.md`** — the twelve-block problem, third time of asking — plus
+`docs/adr/0013-*`. Read every occurrence.
+
+### Four figures and one file that moved
+
+- **`apps/backend` is 67 tests across 4 files**, up from 56 across 3; the new file
+  is `src/database.test.ts` and it is in the **fast** suite, which is only
+  possible because `new Pool()` is lazy.
+- **`pnpm test:process` is 14 and takes ~8.2 s.** It passes with a database and
+  without one, **same count, no `skipIf`** — worth re-running both ways, because
+  that property is the story's sixth criterion and it is the kind that decays
+  silently.
+- **`pnpm verify` is 25.2 s with no database and 25.8 s with one**, against Task
+  2.1.3's 27.9 s. The chain gained no step; read the per-step split rather than
+  the total.
+- **A fresh install is 418 entries / 291,912 KB / 4,757 lockfile lines**, up from
+  404 / 291,080 / 4,641. The one dependency is `pg` 8.23.0 with `@types/pg`, and
+  **the install-script sweep still returns `esbuild@0.28.2` and nothing else** —
+  re-run it rather than citing it, which is the check that has actually caught
+  drift here.
+- **The gap list gained nothing**, which is worth stating: `database.ts` is
+  ordinary TypeScript that ESLint, Prettier and `tsc` all read.
+
+### For the ADR: what a reachable database certifies, and what it does not
+
+`docs/adr/0014-*`'s what-it-certifies section has two entries from this task that
+a future reader will actually use, both of which are absences rather than
+settings:
+
+- **A green startup says the database answered `SELECT 1` once, after the server
+  was already listening.** It does not say the pool will still connect a minute
+  later, and it deliberately does not gate anything: an unreachable database is a
+  level-40 record and never an exit, because a process that dies when Postgres is
+  down is a crash-loop on a liveness-probed platform.
+- **`pg`'s two most dangerous defaults are absences, and both are now set.** An
+  `EventEmitter` with no `error` listener **throws**, so without `pool.on("error")`
+  a dropped idle connection is an `uncaughtException` and an exit 1 — produced, by
+  terminating the process's own backend. And `connectionTimeoutMillis` defaults to
+  **0, meaning wait forever** — measured as still pending after four seconds
+  against a socket that accepts and never answers. Neither is visible in a green
+  run, which is exactly why they belong in that section.
+
+And one lesson worth carrying out of the story rather than leaving in a task file:
+**an ordering assertion needs a marker on each side of the step it is about, and
+the marker has to travel with the step.** Task 2.1.4's ordering test passed twice
+against a deliberately broken order before it was written correctly.

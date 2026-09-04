@@ -1,6 +1,6 @@
 # Task 2.1.4 — The connection pool, `SELECT 1`, and closing inside the drain
 
-**Status:** Not started
+**Status:** Complete — 2026-09-05
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.2, 2.1.3
 **Amended:** 2026-09-04, after Tasks 2.1.1, 2.1.2 and 2.1.3 — see the three _Amended_ sections below
@@ -150,3 +150,231 @@ default in `apps/backend/.env.example`, where every other default lives, and the
 reads it back. The value is unchanged and it is still a fixture that is in the
 repository on purpose. `LOCAL_DATABASE_VERSION` is the only value still declared in that
 script.
+
+## What was done (2026-09-05)
+
+Two new files — `apps/backend/src/database.ts` and its test — plus the pool's
+lifecycle in `index.ts` and four tests in the process suite. One dependency
+(`pg`, with `@types/pg`). **`pnpm verify` passes with no database running**, and the
+whole process suite passes both ways with the same count.
+
+### The driver: `pg` 8.23.0, and the cheaper candidate was rejected on purpose
+
+The hard criterion Task 2.1.1 added was checked **first**, as instructed, and
+**empirically rather than from the types** — which is what made it a finding
+rather than a box-tick. Both candidates type `password` as
+`string | (() => string | Promise<string>)`; driven against the running
+container, three concurrent queries on a cold pool of three produced **three**
+credential calls and three more on the warm pool produced **none**. So the
+credential is minted **per connection** in both, which is exactly what an Entra
+token needs and is not what "per pool" or "per query" would give.
+
+Cost, from a fresh install against a 404-entry baseline (Task 1.13.1's rule —
+a virtual-store count is only comparable across one):
+
+| Candidate             | Entries | Disk        | Lockfile | Install scripts | Own types |
+| --------------------- | ------- | ----------- | -------- | --------------- | --------- |
+| `pg` + `@types/pg`    | **+14** | **+832 KB** | **+116** | none            | no        |
+| `postgres` (porsager) | +1      | +380 KB     | +9       | none            | yes       |
+
+`pnpm-workspace.yaml` is md5-unchanged in both cases and the install-script
+sweep returns **`esbuild@0.28.2` and nothing else**, so `allowBuilds` still has
+one entry and Task 1.4.5 is still the only time the policy has fired.
+
+**`postgres` is markedly cheaper and was rejected anyway**, on the argument that
+took `@fastify/cors` over a hand-rolled hook and jsdom over happy-dom: it is one
+package doing what thirteen do, and a re-implementation's divergences arrive as
+"the database behaved differently", which is indistinguishable from an
+application bug. `pg` is what every Postgres tool, guide and Azure sample is
+written against. **The reversal trigger is the dependency count mattering more
+than the divergence risk** — which it does not, at +14 entries.
+
+An ORM was not considered: Story 2.2 owns that question and adopting one here
+would decide it inside this task.
+
+### The two `pg` defaults that are the real finding, and both are absences
+
+**1. `pg.Pool` is an `EventEmitter`, and an `EventEmitter` with no `error`
+listener throws.** So without `pool.on("error")` a dropped idle connection is an
+`uncaughtException`, which `index.ts` turns into a level-60 record and
+`process.exit(1)` — a **crash-loop on a liveness-probed platform, caused by a
+Postgres restart we had nothing to do with**. Produced rather than reasoned
+about, by terminating this process's own backend from a second connection:
+
+```
+no handler   → UNCAUGHT: terminating connection due to administrator command   (exit 42)
+with handler → HANDLED on pool: terminating connection due to administrator command
+               survived; next query: 1 ;  closed cleanly                        (exit 0)
+```
+
+**2. `connectionTimeoutMillis` defaults to 0, meaning wait forever.** Measured
+against a `net.createServer()` that accepts and never answers: at the default,
+`pool.query()` was **still pending after four seconds**; at 5,000 ms it fails in
+**2,005 ms** with `Connection terminated due to connection timeout`. That is the
+third door into a trap this repository has met twice already in
+`check-ready.mjs`, and it is worse inside a startup path than inside a check
+script. 5 s is chosen against the deployed path — cross-region East US → East
+US 2, plus a TLS handshake, plus a token mint — and a refused connection does
+not wait for any of it (**3 ms**, measured).
+
+### Where the pool lives, and why `buildServer()` was left alone
+
+The brief said to let `buildServer()`'s shape decide it. It did, and the answer
+was **not to touch that factory**: nothing serves data yet, so a pool in
+`ServerOptions` would be a dependency declared for a route that does not exist,
+and every test that builds a server would have to supply or fake one. It is
+created by `index.ts`, which already owns the process's resources.
+
+**The reversal trigger is Story 2.8's first route that needs data**, at which
+point the pool joins `ServerOptions` beside `corsOrigin` and ADR 0002 §3's
+warning about the first `await` in the factory applies. Nothing forces one
+today: `new Pool()` is lazy and synchronous, asserted by reading `totalCount`,
+which is **0** on a freshly constructed pool — and that laziness is exactly what
+lets `database.test.ts` sit in the **fast** suite.
+
+### The seam Task 2.1.6 fills
+
+`resolveCredential()` branches on `DATABASE_AUTH`, which Task 2.1.3 made a named
+mode with `password` **structurally absent** under `entra`. The `entra` branch
+returns a **throwing function** rather than being missing or throwing at
+construction, and both halves of that matter:
+
+- Throwing at construction would stop the server starting, which is the
+  crash-loop this task exists to avoid.
+- A missing branch would make `entra` behave like `password`, which is the
+  inference `DATABASE_AUTH` exists to prevent.
+
+So a process configured for `entra` today **starts, serves `/health`, and
+reports its database as unreachable** with a message naming Task 2.1.6 — the
+same shape as any other connection failure, needing no special case anywhere.
+Verified end to end at `DATABASE_AUTH=entra DATABASE_SSL=verify-full`: `/health`
+answered 200, `SIGTERM` exited 0.
+
+### TLS, set deliberately rather than by default
+
+`DATABASE_SSL`'s three modes map onto `pg`'s options: `disable` → `false`,
+`require` → `{ rejectUnauthorized: false }`, `verify-full` →
+`{ rejectUnauthorized: true }`. The gap between the last two is the one Task
+2.1.1 warned about — Microsoft's own sample connection string carries
+`Trust Server Certificate=true`, which is `require` wearing a reassuring name —
+and it is now one enum member rather than a boolean nobody reads twice.
+
+**The no-TLS case was produced from the client side**: `verify-full` against the
+local container fails in **5 ms** with `The server does not support SSL
+connections`. A clear, immediate refusal rather than a hang, which is half of
+the story's "what happens when TLS is not available"; Task 2.1.5 owns the server
+side and the trust store.
+
+`verify-ca` is deliberately not in the vocabulary — see the amendment above.
+
+### Pool size: 10, and what it leaves
+
+B1MS allows 50 `max_connections` of which **35 are usable**, with no PgBouncer
+on this tier, so this pool is the only pool. **10** leaves 25 for Story 2.2's
+migrations, an operator's `psql`, Epic 3's writer and a second replica. It is
+deliberately not `35 / replicas`: this app is at `minReplicas: 1` and serves one
+trivial route, so a large pool would reserve a scarce resource against no
+measured demand. **The reversal trigger is a measured wait for a client**, not a
+new feature.
+
+### The ordering, and this task's most transferable lesson
+
+The pool closes **after** `app.close()` resolves and **inside** the ceiling.
+Proving it took three attempts, and the failures are the point:
+
+1. Bounded the close by `signal received` and `shutdown complete`. Moving the
+   close to the wrong side of `app.close()` **stayed green** — the whole drain
+   happens between those two.
+2. Added a second `debug` record when the HTTP side finishes. The break **passed
+   again** — the `database pool closed` record was a separate statement further
+   down and did not move with the close.
+3. Put the record immediately after `closeDatabasePool()`. The break now fails:
+   `expected 5 to be greater than 6`.
+
+**An ordering assertion needs a marker on each side of the step it is about, and
+the marker has to travel with the step.**
+
+Those two lines are the **first records this application has ever emitted below
+`info`**, which fills the half of `LOG_LEVEL` Task 1.7.1 recorded as empty. At
+`info` they print nothing.
+
+**`pool.end()` does wait for a checked-out client** — measured, `end()` had not
+resolved 300 ms in and resolved **311.3 ms** after it was called, the instant the
+client was released — so a route holding one is a slow shutdown the 5-second
+ceiling turns into a level-50 record. With an idle pool the drain is **0–1 ms
+in-process and 25–30 ms wall across five runs**, against the recorded ~100 ms
+baseline: the pool costs the shutdown nothing measurable.
+
+### The probe, and what a failure means
+
+Asked once, **after** `listen()` — so a slow or absent database cannot delay the
+socket the platform's startup probe is waiting on — and `await`ed rather than
+floated, so the startup log ends in a known state.
+
+**A failure is `warn`, never an exit.** Three reasons in order of weight: a
+process that exits because Postgres is down is a crash-loop on a
+liveness-probed platform, and Task 2.1.1 recorded that a Burstable server can
+make **itself** unreachable by exhausting CPU credits under Story 2.7's
+backfill; `pnpm verify` and `test:process` both run with nothing listening; and
+`error` is what Task 1.7.4 reserves for a failure this server produced, where
+this server is still healthy by `/health`'s own definition.
+
+### What a request that needs data gets — decided, not built
+
+There is no route to give an answer to, so building one would violate
+`API_ERROR_CODES`' own rule that a member is added when a failure can be
+**produced**. The decision, recorded in `database.ts` for Story 2.8 to
+implement: a **503** (not a 500 — "this dependency is unavailable, retry" is a
+different instruction from "this server failed"), a new `SERVICE_UNAVAILABLE`
+code added by the story that can produce it, `errors.ts`'s status-to-code
+mapping extended in the same change, and a message that says nothing about
+Postgres, a host or a driver. **`/health` is not where this appears** — that is
+Task 2.1.7's, and the liveness probe is why.
+
+### `pnpm ready`'s third check: re-taken, unchanged
+
+Task 2.1.2's stated condition — _the first check in `pnpm verify` or `pnpm e2e`
+that fails without a database_ — **did not fire**, confirmed by measurement
+rather than by reading the code:
+
+- `pnpm verify` with the database stopped: **exit 0**
+- `pnpm e2e` with the database stopped: **9 passed in 3.4 s**
+- `pnpm ready` with the pair up and the database stopped: **exit 0**, `○ database … ECONNREFUSED`
+
+So the check stays reporting, the trigger is unchanged, and the `e2e` job in
+`verify.yml` still needs no Postgres service. That is 2.1.2's correction
+confirmed rather than a decision re-taken.
+
+### Tests, and the eight breaks
+
+**Eleven in the fast suite** (`database.test.ts`) — configuration only, no build
+and no socket, which the lazy pool is what permits. **Four in the process
+suite**, taking it to 14, and **they pass with a database and without one, with
+the same count and no `skipIf`**: a skipped test reports green, which this
+repository has recorded twice as the worst failure available. The one test that
+cares whether a database exists **asks the question itself** — the same
+eight-byte SSLRequest `check-ready.mjs` sends — and asserts the matching answer,
+so it is a real assertion in both environments.
+
+Every new assertion was seen to fail against a deliberate break, each reverted:
+
+| #   | Break                                      | Failed on                                     |
+| --- | ------------------------------------------ | --------------------------------------------- |
+| 1   | no `pool.on("error")`                      | the error-handler test                        |
+| 2   | `connectionTimeoutMillis: 0`               | the bounded-wait test                         |
+| 3   | `verify-full` downgraded to `require`      | the TLS mapping test                          |
+| 4   | `entra` falls through to `password`        | the credential-seam test                      |
+| 5   | probe moved before `listen()`              | the reachability-ordering test                |
+| 6   | exit on an unreachable database            | five signal tests at once                     |
+| 7   | pool closed before `app.close()`           | **passed twice before it failed** — see above |
+| 8   | `warn` → `error` on the unreachable record | the level assertion                           |
+
+### Figures
+
+- `pnpm test` **207** (37 + **67** + 103); `apps/backend` 56 → 67 across 4 files
+- `pnpm test:process` **14**, ~8.2 s, of which 5 s is the shutdown ceiling
+- `pnpm verify` **exit 0 in 25.2 s with no database**, 25.8 s with one
+- Fresh install: **418 entries / 291,912 KB / 4,757 lockfile lines**
+- The frontend artefact reproduces Task 1.13.4's four files to the byte —
+  348,135 B `b98aeaa5…`, 12,128 B `134d5dd8…`, 1,101 B `07983678…`, 300 B,
+  **361,664 B** — which is the check rather than a coincidence

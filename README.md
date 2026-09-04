@@ -5,8 +5,8 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all **189** fast tests passed, and
-the 10-test process suite spawned a real server on a real port, drained it on
+files still agree with the configuration table, all **207** fast tests passed, and
+the 14-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
 "verified" means.
@@ -58,7 +58,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of **189** fast tests plus a 10-test process suite, with
+and a test suite of **207** fast tests plus a 14-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -443,8 +443,8 @@ Run from the repository root:
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Every package's tests — 189 across the workspace — see below          |
-| `pnpm test:process` | The backend's process half — 10 tests that spawn a real server        |
+| `pnpm test`         | Every package's tests — 207 across the workspace — see below          |
+| `pnpm test:process` | The backend's process half — 14 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
 | `pnpm db`           | Starts the local PostgreSQL 18 container — see below                  |
@@ -541,7 +541,7 @@ the same second half for the same reason.
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
 in this workspace. `packages/shared` runs 37 tests across 4 files,
-`apps/backend` 49 across 3, and `apps/frontend` 103 across 12 — **189 in
+`apps/backend` 67 across 4, and `apps/frontend` 103 across 12 — **207 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -580,8 +580,8 @@ pnpm test:process                                    # from the root
 pnpm --filter @marketpulse/backend run test:process   # the same suite
 ```
 
-Ten tests in `apps/backend/src/index.process.test.ts`, run by a second runner
-config (`vitest.process.config.ts`) in the same package. They spawn
+Fourteen tests in `apps/backend/src/index.process.test.ts`, run by a second
+runner config (`vitest.process.config.ts`) in the same package. They spawn
 `dist/index.js` as a real child process on a real port and assert on what it
 does: `SIGTERM` and `SIGINT` drain and exit 0 with the port released, a second
 signal during a shutdown exits 1 immediately, a drain that outlives the
@@ -591,12 +591,22 @@ logger exists, and both crash handlers write one level-60 record and exit 1 —
 including at `LOG_LEVEL=silent`, and including a crash _during_ a drain, which
 leaves the drain to finish and exit 0.
 
+Four of them are the database pool (Task 2.1.4): that its reachability is
+reported at startup and reported _after_ the server is listening, that an
+unreachable database is a level-40 record and not an exit, that the server still
+drains and exits 0 without one, and that the pool closes **after** the HTTP side
+has drained and **before** the process exits. **They pass with a database
+running and with one absent, and the count does not change** — there is no
+`skipIf` here, because a skipped test reports green. The one test that cares
+whether a database exists asks the question itself and asserts the matching
+answer.
+
 Three things about it worth knowing before changing it.
 
-**It is a separate command because it is a separate cost.** `pnpm test` is 103
-tests in a few hundred milliseconds, needs no build and no socket, and is the
-one you run all day; this suite takes about 7.6 s, of which 5 s is the shutdown
-ceiling being what it says it is. Both are steps in `pnpm verify`, so both gate.
+**It is a separate command because it is a separate cost.** `pnpm test` is 207
+tests in a few seconds, needs no build and no socket, and is the one you run all
+day; this suite takes about 8.2 s, of which 5 s is the shutdown ceiling being
+what it says it is. Both are steps in `pnpm verify`, so both gate.
 
 **It needs a build.** `dist/index.js` is what has the process behaviour in it,
 so the suite fails with a message telling you to run `pnpm build` if it is
@@ -1468,8 +1478,30 @@ Three things that will otherwise cost you an afternoon:
   on purpose.** It authenticates a container published on loopback only. A real
   credential goes in `apps/backend/.env`, which is gitignored, and nowhere else
 
-Nothing opens a connection yet — that is Task 2.1.4 — so a wrong value here is
-caught at startup by the configuration boundary and by nothing else.
+**The backend opens one pool per process and probes it once at startup, and a
+database that is down never stops it.** The probe runs _after_ the server is
+already listening, so a slow or absent database cannot delay the moment
+`/health` starts answering, and its failure is a `warn` record rather than an
+exit:
+
+```
+database reachable            127.0.0.1:5432/marketpulse auth=password ssl=disable  ms=15.12
+database unreachable, continuing without it   ECONNREFUSED connect ECONNREFUSED 127.0.0.1:5432
+```
+
+The second line is what a correct run looks like when you have not started
+`pnpm db`. The server is serving, `/health` answers 200, and nothing in
+`pnpm verify` or the browser suite needs a database — that is deliberate and it
+is why `pnpm ready`'s third check still reports rather than gates. A process
+that exited because Postgres was down would be a restart loop on the deployed
+platform, whose liveness probe restarts a replica that dies.
+
+**Nothing serves data yet**, so a wrong value here is caught at startup by the
+configuration boundary and by the probe, and by nothing else. When a route does
+need data and cannot get it, the answer is a **503** carrying a
+`SERVICE_UNAVAILABLE` code — decided in Task 2.1.4, implemented by Story 2.8,
+and deliberately not a 500: "this dependency is unavailable, retry" is a
+different instruction from "this server failed".
 
 ### Logging
 
@@ -1504,10 +1536,14 @@ already stopped being true:
   server at `silent` writes exactly one line, the `fatal` record, and nothing
   else. The rule is: **ordinary traffic obeys the level; the process dying does
   not** — see below.
-- **`LOG_LEVEL=debug` shows nothing that `info` does not.** Fastify's request
-  logging is at `info` and nothing in this application emits below it, so the
-  variable is real and its lower half is empty. Re-measured: the message sets at
-  `info` and `debug` are identical.
+- ~~**`LOG_LEVEL=debug` shows nothing that `info` does not.**~~ **Stopped being
+  true on 2026-09-05 (Task 2.1.4).** It was true for six stories — Fastify's
+  request logging is at `info` and nothing emitted below it — and the database
+  pool's shutdown now writes two `debug` records, `http drained` and `database
+pool closed`. They exist so the **ordering** of the drain can be asserted from
+  outside the process, and they bracket the pool's close: a close that moved to
+  the wrong side of `app.close()` changes their order. At `info` they print
+  nothing, so an ordinary run is unchanged.
 
 #### The correlation id
 

@@ -1,6 +1,6 @@
 # Story 2.1 — Managed Postgres Provisioning & the Secrets Boundary
 
-**Status:** In progress — Tasks 2.1.1 to 2.1.3 complete
+**Status:** In progress — Tasks 2.1.1 to 2.1.4 complete
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Epic 1 (Stories 1.6, 1.11)
 **Epic scope covered:** Managed Postgres provisioning; Alpaca credential on the platform (the _mechanism_ half)
@@ -43,7 +43,9 @@ twelve months without using them.
   seven discrete `DATABASE_*` variables rather than a `DATABASE_URL`, taking the table from
   five to twelve
 - A connection pool with a lifecycle: opened once, closed inside Story 1.2's drain, well
-  inside the 5-second shutdown ceiling and the platform's 30-second grace
+  inside the 5-second shutdown ceiling and the platform's 30-second grace — **done in
+  Task 2.1.4**, `pg` 8.23.0, closing after `app.close()` resolves and inside the ceiling,
+  at a cost of 0–1 ms in-process
 - TLS, and what happens when it is not available
 - A **local development database**, and what that costs a clean clone following
   `README.md`
@@ -135,11 +137,34 @@ Tackled in order. The story is complete when all eight are done.
 | 2.1.1 | [Choose the four irreversible decisions, and the credential shape, provisioning nothing](TASK-01-choose-the-creation-decisions.md)           | Complete    |
 | 2.1.2 | [Give a clean clone a local database, and say what it costs](TASK-02-the-local-development-database.md)                                      | Complete    |
 | 2.1.3 | [Put the connection settings through the configuration boundary](TASK-03-connection-settings-in-the-configuration-boundary.md)               | Complete    |
-| 2.1.4 | [The connection pool, `SELECT 1`, and closing inside the drain](TASK-04-the-pool-and-its-lifecycle.md)                                       | Not started |
+| 2.1.4 | [The connection pool, `SELECT 1`, and closing inside the drain](TASK-04-the-pool-and-its-lifecycle.md)                                       | Complete    |
 | 2.1.5 | [Provision the managed instance, and reach it over TLS from outside the application](TASK-05-provision-the-managed-instance.md)              | Not started |
 | 2.1.6 | [Put the credential on the platform, connect the deployed backend, and prove nothing leaked](TASK-06-the-credential-on-the-platform.md)      | Not started |
 | 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Not started |
 | 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Not started |
+
+**Tasks 2.1.5 to 2.1.8 were each amended again on 2026-09-05 after Task 2.1.4 landed**, and
+for the fourth round running **no task was added, deleted or re-ordered**. This round
+shrinks 2.1.6 the most: the credential seam it was promised is built, so its code change
+is **one function body** — `resolveCredential`'s `entra` branch, which today returns a
+throwing function naming that task — and if filling it means touching anything else,
+that is 2.1.4 having built the seam wrongly. Three properties of the seam were measured
+rather than assumed, and each removes a question 2.1.6 would have had to answer: `pg`
+calls the credential **once per connection** (three concurrent queries on a cold pool of
+three gave three calls; three more on a warm pool gave none), the function may be
+`async`, and a throw inside it degrades rather than crash-loops — verified end to end.
+Its leak check is also half-done, because `pg` was measured **not** to quote the
+credential on either failure path, so what remains is the genuinely different deployed
+half with a JWT. **2.1.5** gains a question it must now answer for the _application_
+rather than for a client: `verify-full` maps to `rejectUnauthorized: true` with **no
+`ca`**, so the real question is whether a Node process using its bundled roots verifies
+Azure's certificate with nothing shipped — and if not, that is a file in the Dockerfile's
+runtime stage. **2.1.7** gains the number that decides its cost question: the 5-second
+connection deadline, which a health check can only pay by causing a **new** connection.
+**2.1.8** gains a recorded claim this story falsified outright — `LOG_LEVEL=debug` no
+longer "shows nothing `info` does not", since the drain writes two `debug` records — with
+its two live occurrences already corrected and its one historical occurrence deliberately
+left, which is a worked example of Task 1.13.6's read-every-occurrence rule.
 
 **Tasks 2.1.4 to 2.1.8 were each amended again on 2026-09-04 after Task 2.1.3 landed**, and
 for the third round running **no task was added, deleted or re-ordered** — the
