@@ -86,9 +86,11 @@ curl http://127.0.0.1:3000/health
 # {"status":"ok","version":"0.0.0","uptimeSeconds":0.129}
 ```
 
-`PORT`, `HOST`, `LOG_LEVEL`, `LOG_FORMAT` and `CORS_ORIGIN` configure it, all
-with defaults — see [Configuration](#configuration). It is a skeleton in
-**scope** rather than in status: no market data, no database, no domain logic.
+`PORT`, `HOST`, `LOG_LEVEL`, `LOG_FORMAT`, `CORS_ORIGIN` and seven `DATABASE_*`
+settings configure it, all with defaults — see
+[Configuration](#configuration). It is a skeleton in **scope** rather than in
+status: no market data, no domain logic, and a database it can be told where to
+find but does not yet open a connection to.
 
 `apps/frontend` is a React 19 application built with Vite. It renders the
 application chrome and four routes, contains a render failure to the box it
@@ -864,6 +866,19 @@ PostgreSQL **18** in a container, defined by `compose.yaml` at the repository
 root and started by `scripts/local-database.mjs`. Arguments are forwarded to
 `docker compose` untouched, so anything Docker documents works.
 
+**Where it is comes from the backend's own configuration, and there is exactly
+one copy of it.** Since Task 2.1.3 the address, the credentials and the database
+name are `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER` and
+`DATABASE_PASSWORD` in [`apps/backend/.env.example`](apps/backend/.env.example),
+and `scripts/local-database.mjs` reads them out of the **built**
+`apps/backend/dist/config.js` — the way `pair-addresses.mjs` already reads
+`PORT` and `HOST`. So setting `DATABASE_PORT=5433` in `apps/backend/.env` moves
+the container **and** the client **and** `pnpm ready`'s probe, in one edit;
+there is no second copy of `5432` anywhere. Two consequences: **`pnpm db` needs
+a built tree** and says `run \`pnpm build\` first`if there is not one, and an
+invalid`DATABASE_*`value stops`pnpm db` with the same message the server
+itself would print.
+
 ```
   PostgreSQL 18 on 127.0.0.1:5432  database marketpulse  user marketpulse
 ```
@@ -890,13 +905,18 @@ that this pin and the deployed server's version still agree** — see
 authenticates a container published on **loopback only** (`127.0.0.1:5432:5432`,
 not the bare `5432:5432` that would put a database on every network this machine
 is joined to), holding an empty database. Treating it as a secret would mean a
-`.env` file every clean clone has to write before the database starts.
+`.env` file every clean clone has to write before the database starts. Since
+Task 2.1.3 it lives where every other default does — as `DATABASE_PASSWORD`'s
+documented default — rather than as a literal in the script.
 
 **The local and deployed credentials do not match, and that is a decision.** The
 deployed server authenticates with **Microsoft Entra only** — password
 authentication is `Disabled` and no admin user exists — which is a mechanism a
 laptop structurally cannot have. "Match the deployed environment" applies to the
-**engine version** and not to the credential. See
+**engine version** and not to the credential. `DATABASE_AUTH` is the variable
+that names which of the two is in use, and it is named rather than inferred; a
+`pnpm db` run under `DATABASE_AUTH=entra` refuses with that explanation rather
+than inventing a password. See
 [HOSTING.md](planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md).
 
 **The database is empty and stays empty in this story.** Tables and migrations
@@ -907,9 +927,9 @@ Two things that will otherwise cost an afternoon:
 
 - **`docker compose up` by hand does not work, on purpose.** Every value in
   `compose.yaml` is required with no default, so the file cannot keep a second
-  copy of the port that quietly disagrees with the script's. It exits 1 naming
-  `pnpm db`. This is the same arrangement `e2e/playwright.config.ts` has with
-  `E2E_BASE_URL`
+  copy of the port that quietly disagrees with the configuration boundary's. It
+  exits 1 naming `pnpm db`. This is the same arrangement
+  `e2e/playwright.config.ts` has with `E2E_BASE_URL`
 - **Two checkouts share one database, on purpose.** `compose.yaml` sets
   `name: marketpulse`, so a git worktree under `.claude/worktrees/` — or a
   second clone — attaches to the same project rather than starting a second
@@ -1332,7 +1352,7 @@ Both packages read configuration from a `.env` file **beside their own
 `package.json`**, and each ships a documented example:
 
 ```sh
-cp apps/backend/.env.example apps/backend/.env    # PORT, HOST, LOG_LEVEL, LOG_FORMAT, CORS_ORIGIN
+cp apps/backend/.env.example apps/backend/.env    # PORT, HOST, LOG_*, CORS_ORIGIN, DATABASE_*
 cp apps/frontend/.env.example apps/frontend/.env  # VITE_API_BASE_URL
 ```
 
@@ -1401,6 +1421,55 @@ Three things that will otherwise cost you an afternoon:
   origin to every caller, including one it does not allow; the browser is what
   compares and refuses. A 200 from `curl -H "Origin: …"` proves nothing about
   what a browser will do
+
+### Talking to the database
+
+Seven variables, all with defaults, and the defaults **are** the local
+development database rather than merely resembling it — `scripts/local-database.mjs`
+reads them out of the built `dist/config.js` and hands them to `compose.yaml`,
+so `pnpm db` starts the container these values connect to.
+
+| Variable            | Values                                 | Default       |
+| ------------------- | -------------------------------------- | ------------- |
+| `DATABASE_HOST`     | A host name or address                 | `127.0.0.1`   |
+| `DATABASE_PORT`     | 1–65535                                | `5432`        |
+| `DATABASE_NAME`     | A database name                        | `marketpulse` |
+| `DATABASE_USER`     | A role name                            | `marketpulse` |
+| `DATABASE_AUTH`     | `password`, `entra`                    | `password`    |
+| `DATABASE_PASSWORD` | A password, read only under `password` | `marketpulse` |
+| `DATABASE_SSL`      | `disable`, `require`, `verify-full`    | `disable`     |
+
+**Discrete variables and not a single `DATABASE_URL`, and the decision was taken
+away rather than taken.** The deployed server is Microsoft Entra only — password
+authentication `Disabled`, no admin user created at all — so its password field
+is filled at connect time by code that mints a token per connection. There is no
+string to put inside a URL. Locally there is a password, because a container has
+no identity to be.
+
+**`DATABASE_AUTH` names which credential mechanism is in use rather than letting
+it be inferred**, and that is the whole reason it exists. Inferring it from
+whether a password is set fails silently in both directions: a deployment that
+forgot the variable would fall through to the identity path, and a laptop with a
+stale one would send a password to a server that refuses passwords outright.
+
+Three things that will otherwise cost you an afternoon:
+
+- **Setting `DATABASE_PASSWORD` alongside `DATABASE_AUTH=entra` is a startup
+  error, not a value that is quietly ignored.** The two readings of it are
+  opposite — wrong mode, or a left-over variable — and guessing between them
+  produces an authentication error nobody can attribute. `DATABASE_SSL=disable`
+  under `entra` is an error for the same kind of reason: an access token is a
+  bearer credential and that would put it on the wire in the clear
+- **The message names the variable and never the value.** `DATABASE_PORT` and
+  `DATABASE_AUTH` quote what you typed, because that is the one thing a
+  misconfiguration message needs; `DATABASE_PASSWORD` does not, because
+  `config.ts` is the file that promised never to write a credential to a log
+- **`DATABASE_PASSWORD`'s default is the local fixture and is in this repository
+  on purpose.** It authenticates a container published on loopback only. A real
+  credential goes in `apps/backend/.env`, which is gitignored, and nowhere else
+
+Nothing opens a connection yet — that is Task 2.1.4 — so a wrong value here is
+caught at startup by the configuration boundary and by nothing else.
 
 ### Logging
 
@@ -2089,7 +2158,7 @@ Story 1.10 added two more of this kind, inside the test suites:
   byte, and the mtime comparison failed a correct tree on its first run
 
 **Story 2.1 added one, and it is the reason the local database exists at all.**
-`LOCAL_DATABASE.version` in `scripts/local-database.mjs` is `18` because Task
+`LOCAL_DATABASE_VERSION` in `scripts/local-database.mjs` is `18` because Task
 2.1.1 chose PostgreSQL 18 for the managed server. **Nothing compares those two
 numbers.** The deployed version lives in an `az` argument and in
 [HOSTING.md](planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md),

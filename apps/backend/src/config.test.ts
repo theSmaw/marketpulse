@@ -18,6 +18,8 @@ import { describe, expect, it } from "vitest";
 import {
   CONFIG_VARIABLES,
   ConfigError,
+  DATABASE_AUTH_MODES,
+  DATABASE_SSL_MODES,
   LOG_FORMATS,
   LOG_LEVELS,
   loadConfig,
@@ -31,6 +33,15 @@ describe("loadConfig defaults", () => {
       logLevel: "info",
       logFormat: "json",
       corsOrigin: "http://localhost:5173",
+      database: {
+        host: "127.0.0.1",
+        port: 5432,
+        name: "marketpulse",
+        user: "marketpulse",
+        auth: "password",
+        password: "marketpulse",
+        ssl: "disable",
+      },
     });
   });
 
@@ -52,8 +63,14 @@ describe("loadConfig defaults", () => {
     expect(loadConfig({ HOST: " 0.0.0.0 " }).host).toBe("0.0.0.0");
   });
 
-  it("freezes what it returns", () => {
+  it("freezes what it returns, the nested database included", () => {
     expect(Object.isFrozen(loadConfig({}))).toBe(true);
+
+    // `Object.freeze` is shallow, so the nested object is only frozen because
+    // `loadConfig` freezes it separately. Asserted rather than assumed: the
+    // outer assertion above passes either way, which is exactly the shape of
+    // check that reads as covering something it does not.
+    expect(Object.isFrozen(loadConfig({}).database)).toBe(true);
   });
 });
 
@@ -66,6 +83,13 @@ describe("loadConfig reading", () => {
         LOG_LEVEL: "debug",
         LOG_FORMAT: "pretty",
         CORS_ORIGIN: "https://marketpulse.example",
+        DATABASE_HOST: "db.example",
+        DATABASE_PORT: "6432",
+        DATABASE_NAME: "pulse",
+        DATABASE_USER: "reader",
+        DATABASE_AUTH: "password",
+        DATABASE_PASSWORD: "correct-horse",
+        DATABASE_SSL: "verify-full",
       }),
     ).toStrictEqual({
       port: 8080,
@@ -73,6 +97,15 @@ describe("loadConfig reading", () => {
       logLevel: "debug",
       logFormat: "pretty",
       corsOrigin: "https://marketpulse.example",
+      database: {
+        host: "db.example",
+        port: 6432,
+        name: "pulse",
+        user: "reader",
+        auth: "password",
+        password: "correct-horse",
+        ssl: "verify-full",
+      },
     });
   });
 
@@ -83,6 +116,108 @@ describe("loadConfig reading", () => {
     for (const format of LOG_FORMATS) {
       expect(loadConfig({ LOG_FORMAT: format }).logFormat).toBe(format);
     }
+  });
+});
+
+// The credential half of Task 2.1.3, which is where the two environments
+// genuinely differ rather than merely being configured differently: the local
+// container takes a password and the managed server refuses one outright.
+describe("loadConfig database credentials", () => {
+  // `exactOptionalPropertyTypes` makes "absent" and "present as undefined" two
+  // different things, and here the difference carries meaning: under `entra`
+  // there is nothing to read, rather than a credential that happens to be
+  // empty. `toStrictEqual` distinguishes them; `toEqual` does not, which is
+  // why this is written the long way.
+  it("omits the password entirely under entra rather than setting it undefined", () => {
+    const { database } = loadConfig({
+      DATABASE_AUTH: "entra",
+      DATABASE_SSL: "verify-full",
+    });
+
+    expect(database.auth).toBe("entra");
+    expect("password" in database).toBe(false);
+    expect(Object.keys(database)).not.toContain("password");
+  });
+
+  it("carries the password under password mode", () => {
+    expect(loadConfig({}).database.password).toBe("marketpulse");
+  });
+
+  it("accepts every mode in both vocabularies", () => {
+    for (const ssl of DATABASE_SSL_MODES) {
+      expect(loadConfig({ DATABASE_SSL: ssl }).database.ssl).toBe(ssl);
+    }
+
+    // `entra` needs a TLS mode that is not `disable`, which is the cross-check
+    // below — so the two vocabularies cannot be swept independently.
+    for (const auth of DATABASE_AUTH_MODES) {
+      expect(
+        loadConfig({ DATABASE_AUTH: auth, DATABASE_SSL: "verify-full" })
+          .database.auth,
+      ).toBe(auth);
+    }
+  });
+
+  // The two cross-variable rules, which are the first in this module. Each
+  // exists because the alternative is a failure at first connection rather
+  // than at startup.
+  it("rejects a password set alongside the identity path", () => {
+    expect(() =>
+      loadConfig({
+        DATABASE_AUTH: "entra",
+        DATABASE_SSL: "verify-full",
+        DATABASE_PASSWORD: "left-over-from-last-week",
+      }),
+    ).toThrow(ConfigError);
+  });
+
+  // It keys on the variable being **present**, not on the resolved value —
+  // which always exists, because it has a default. A blank one is absent, so
+  // this must not fire.
+  it("does not fire on a blank password, which is absent", () => {
+    expect(
+      loadConfig({
+        DATABASE_AUTH: "entra",
+        DATABASE_SSL: "verify-full",
+        DATABASE_PASSWORD: "",
+      }).database.auth,
+    ).toBe("entra");
+  });
+
+  it("rejects an access token sent over an unencrypted connection", () => {
+    expect(() => loadConfig({ DATABASE_AUTH: "entra" })).toThrow(
+      "DATABASE_SSL is disable but DATABASE_AUTH is entra",
+    );
+  });
+
+  // **The redaction rule, asserted rather than trusted.** `readInt` and
+  // `readEnum` quote what the operator typed, which is the right habit for a
+  // port and the wrong one for a credential — so the one message in this module
+  // that mentions DATABASE_PASSWORD must name the variable and never the value.
+  // The value used here is deliberately not the local fixture: the fixture is
+  // public, so a test written against it would pass while leaking a real one.
+  it("never puts the password's value into a message", () => {
+    const secret = "hunter2-not-the-local-fixture";
+
+    let message = "";
+    try {
+      loadConfig({
+        PORT: "nonsense",
+        DATABASE_AUTH: "entra",
+        DATABASE_PASSWORD: secret,
+      });
+    } catch (error) {
+      if (error instanceof ConfigError) {
+        message = error.message;
+      }
+    }
+
+    expect(message).toContain("DATABASE_PASSWORD");
+    expect(message).not.toContain(secret);
+
+    // And the rest of the accumulator still quotes what it should, so this is
+    // a rule about one value rather than a message that gave up on detail.
+    expect(message).toContain('received "nonsense"');
   });
 });
 
@@ -173,6 +308,13 @@ describe("CONFIG_VARIABLES", () => {
       LOG_LEVEL: config.logLevel,
       LOG_FORMAT: config.logFormat,
       CORS_ORIGIN: config.corsOrigin,
+      DATABASE_HOST: config.database.host,
+      DATABASE_PORT: String(config.database.port),
+      DATABASE_NAME: config.database.name,
+      DATABASE_USER: config.database.user,
+      DATABASE_AUTH: config.database.auth,
+      DATABASE_PASSWORD: config.database.password ?? "",
+      DATABASE_SSL: config.database.ssl,
     };
 
     // The key sets have to match first, or the loop below passes vacuously on

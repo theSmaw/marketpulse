@@ -1,6 +1,6 @@
 # Story 2.1 — Managed Postgres Provisioning & the Secrets Boundary
 
-**Status:** In progress — Tasks 2.1.1 and 2.1.2 complete
+**Status:** In progress — Tasks 2.1.1 to 2.1.3 complete
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Epic 1 (Stories 1.6, 1.11)
 **Epic scope covered:** Managed Postgres provisioning; Alpaca credential on the platform (the _mechanism_ half)
@@ -132,7 +132,7 @@ Tackled in order. The story is complete when all eight are done.
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
 | 2.1.1 | [Choose the four irreversible decisions, and the credential shape, provisioning nothing](TASK-01-choose-the-creation-decisions.md)           | Complete    |
 | 2.1.2 | [Give a clean clone a local database, and say what it costs](TASK-02-the-local-development-database.md)                                      | Complete    |
-| 2.1.3 | [Put the connection settings through the configuration boundary](TASK-03-connection-settings-in-the-configuration-boundary.md)               | Not started |
+| 2.1.3 | [Put the connection settings through the configuration boundary](TASK-03-connection-settings-in-the-configuration-boundary.md)               | Complete    |
 | 2.1.4 | [The connection pool, `SELECT 1`, and closing inside the drain](TASK-04-the-pool-and-its-lifecycle.md)                                       | Not started |
 | 2.1.5 | [Provision the managed instance, and reach it over TLS from outside the application](TASK-05-provision-the-managed-instance.md)              | Not started |
 | 2.1.6 | [Put the credential on the platform, connect the deployed backend, and prove nothing leaked](TASK-06-the-credential-on-the-platform.md)      | Not started |

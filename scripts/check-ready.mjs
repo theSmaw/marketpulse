@@ -51,7 +51,7 @@
 import net from "node:net";
 import process from "node:process";
 
-import { LOCAL_DATABASE } from "./local-database.mjs";
+import { resolveLocalDatabase } from "./local-database.mjs";
 import {
   dialHost,
   FRONTEND_PROBE,
@@ -275,6 +275,16 @@ if (!resolved.ok) {
   process.exit(1);
 }
 
+// The database's address comes from the **same** place the backend's does —
+// `apps/backend`'s built configuration — since Task 2.1.3 put the connection
+// settings through `CONFIG_VARIABLES`. Before that it came from a literal in
+// `local-database.mjs`, which was one definition while nothing else named the
+// database and would have been the second copy the moment something did. A
+// resolver failure here is reported and not fatal, for the same reason the
+// probe below is: this check's exit code answers "can the application run", and
+// nothing opens a connection yet.
+const localDatabase = await resolveLocalDatabase();
+
 const { port, host, backendHealthUrl, frontendOrigin, frontendProbeUrl } =
   resolved.addresses;
 
@@ -335,7 +345,12 @@ const [backend, frontend, database] = await Promise.all([
       ? "module graph resolves"
       : undefined;
   }),
-  probePostgres(LOCAL_DATABASE.host, LOCAL_DATABASE.port),
+  localDatabase.ok
+    ? probePostgres(localDatabase.database.host, localDatabase.database.port)
+    : // Unreachable in the ordinary failure — an unbuilt tree stops this script
+      // above, at `resolvePairAddresses`. What lands here is the entra case,
+      // reported by the resolver's own message below rather than by this code.
+      Promise.resolve({ ok: /** @type {const} */ (false), code: "UNRESOLVED" }),
 ]);
 
 const results = [
@@ -374,9 +389,25 @@ for (const { name, url, result } of results) {
 // job in `.github/workflows/verify.yml` gains a service, which is a workflow
 // change worth knowing about in advance. It is written here rather than only in
 // a task file because this is where the next person will read it.
-const databaseAddress = `${LOCAL_DATABASE.host}:${String(LOCAL_DATABASE.port)}`;
+const databaseAddress = localDatabase.ok
+  ? `${localDatabase.database.host}:${String(localDatabase.database.port)}`
+  : "address unknown";
 
-if (database.ok) {
+if (!localDatabase.ok) {
+  // The one case that is not about the database at all: we could not work out
+  // where it is. Printed with the resolver's own message, so an unbuilt tree
+  // reads as "run `pnpm build` first" rather than as a database that is down.
+  // Indented per line, because the resolver's message is multi-line whenever
+  // `config.ts` reports more than one bad key — the fix Task 1.8.7 made after
+  // 1.8.6 found `pair-addresses.mjs` indenting only the first line.
+  console.log(
+    `  ○ database\n${localDatabase.message
+      .trimEnd()
+      .split("\n")
+      .map((line) => `      ${line}`)
+      .join("\n")}`,
+  );
+} else if (database.ok) {
   console.log(
     `  ✓ database  ${databaseAddress}  PostgreSQL, ${database.ssl ? "TLS offered" : "no TLS offered"}`,
   );
@@ -398,9 +429,12 @@ if (database.ok) {
 
 if (backend.ready && frontend.ready) {
   console.log(
-    database.ok
-      ? "\nThe pair is up, and so is the database."
-      : "\nThe pair is up. The database is not — start it with `pnpm db`.\n" +
+    !localDatabase.ok
+      ? "\nThe pair is up. Where the database is could not be worked out — see above.\n" +
+          "Nothing needs it yet, so this is exit 0."
+      : database.ok
+        ? "\nThe pair is up, and so is the database."
+        : "\nThe pair is up. The database is not — start it with `pnpm db`.\n" +
           "Nothing needs it yet, so this is exit 0. That changes when a check starts failing without one.",
   );
   process.exit(0);
