@@ -540,7 +540,12 @@ direction that check has ever enforced.
 ### The React Compiler rules met real state for the first time and said nothing
 
 They had never fired outside a spike, and the stated reason was that nothing
-shipped here has state. `ErrorBoundary.test.tsx` contains this tree's first
+shipped here has state. ~~That reason~~ **stopped being true in Task 1.12.3
+(2026-09-04), and the conclusion did not**: the repository now ships state, an
+effect and a network loop, and all seventeen rules were still silent — because
+`set-state-in-effect` objects to a _synchronous_ update in an effect body, which
+is not the shape that hook has. So they remain untested against anything they
+dislike. See ADR 0012. `ErrorBoundary.test.tsx` contains this tree's first
 stateful components — a counter with `useState` and two `setState` handlers —
 and all 17 rules were silent under `--max-warnings 0`. What did fire, twice, is
 ordinary type-aware lint on the tests themselves. **Test files are source here,

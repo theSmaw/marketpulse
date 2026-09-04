@@ -587,6 +587,9 @@ jobs:
             echo "~1.5-second window in which the outgoing \`index.html\` is still served while its"
             echo "hashed asset has already been withdrawn, so a cold load in that window is broken."
             echo "There is no flag that removes it. It is accepted, once per merge to \`main\`."
+            echo "Scoped by Task 1.12.7: the window is a property of the artefact CHANGING."
+            echo "A merge that rebuilds byte-identically keeps the hashed filenames and showed"
+            echo "zero broken states across 174 samples — there is nothing to swap."
             echo
             echo "Nothing here checks that the deployed site works — that is Task 1.11.7's."
             echo

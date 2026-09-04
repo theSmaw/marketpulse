@@ -53,7 +53,7 @@ This task closes two acceptance criteria belonging to a story that has been comp
 - **Preview-environment origins were measured rather than predicted**, by deploying one and deleting it. Both documented hostname patterns were wrong and the environment name is normalised, so a preview origin cannot be derived from a branch name — and every preview environment therefore fails cross-origin against the one `CORS_ORIGIN` the backend takes.
 - **`storybook-static/` is absent from the deployed site**, confirmed by requesting seven of its paths and getting the fallback's `index.html` rather than its content.
 - **The workshop is not published**, decided here with a reversal trigger.
-- **Uploads are not atomic**, and this is the finding worth carrying: the old asset is withdrawn while the old `index.html` is still being served, so a deploy has a **~1.5-second window in which a cold load is broken**. Reproduced on two deploys.
+- **Uploads are not atomic**, **Scoped by Task 1.12.7 (2026-09-04): this window is a property of the artefact _changing_, not of deploying — a docs-only merge that rebuilt byte-identically showed zero broken states across 174 CDN samples. Not a refutation: it was not re-measured on a changing artefact. See `docs/adr/0011-*` §17.** and this is the finding worth carrying: the old asset is withdrawn while the old `index.html` is still being served, so a deploy has a **~1.5-second window in which a cold load is broken**. Reproduced on two deploys.
 
 ### Four things this task found that its own brief did not anticipate
 

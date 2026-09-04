@@ -5,7 +5,7 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all 160 fast tests passed, and
+files still agree with the configuration table, all **189** fast tests passed, and
 the 10-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
@@ -47,7 +47,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of 160 fast tests plus a 10-test process suite, with
+and a test suite of **189** fast tests plus a 10-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -216,17 +216,32 @@ deployment.
 
 ### What looks broken on a correct first run
 
-~~Five things.~~ **Six**, since Task 1.12.3 gave the page a reason to talk to
-the backend. None of them is a fault.
+~~Five things.~~ ~~**Six**, since Task 1.12.3 gave the page a reason to talk to
+the backend.~~ **Seven**, since Task 1.12.5 put the backend's own state in the chrome
+and every page load now renders a placeholder for a moment. None of them is a
+fault.
 
-- **The feed indicator says `DISCONNECTED`.** It is the most prominent thing in
-  the chrome and it is honest: there is no market feed until Epic 3, which is
-  what the smaller line beside it says. It reports the **market feed**, not the
-  backend — ~~the frontend does not call the backend at all yet (Story 1.12)~~
-  **and since Task 1.12.3 the frontend does call the backend, every 30 seconds,
-  but nothing renders the result yet.** Task 1.12.4 builds that indicator and
-  1.12.5 puts it in the chrome, which is also where the question of whether this
-  indicator's meaning widens or a second one appears beside it gets answered
+- **The `MARKET FEED` indicator says `DISCONNECTED` — and the `BACKEND SERVICE`
+  one beside it says `HEALTHY`.** Read the label before the word: these are
+  **two** indicators reporting two facts that fail independently, and on a
+  correct first run they disagree. The feed is honest: there is no market feed
+  until Epic 3, which is what the smaller line beside it says. ~~The frontend
+  does not call the backend at all yet (Story 1.12)~~ ~~and since Task 1.12.3 the
+  frontend does call the backend, every 30 seconds, but nothing renders the
+  result yet.~~ **Since Task 1.12.5 it does render it** — `BACKEND SERVICE` is a
+  second indicator rather than a widening of the first, because `FeedStatus` is
+  what the backend _reports_ about the market data and `BackendStatus` is what
+  the client _concludes_ about whether the backend answered at all. See
+  [ADR 0012](docs/adr/0012-client-side-status-what-a-green-indicator-certifies.md)
+- **`BACKEND SERVICE` reads `CHECKING` for a moment on every load.** A dashed
+  marker and the word `checking`, before the first poll settles — about **50 ms**
+  against a local pair, and about **280 ms** against the deployed one, of which
+  almost all is the public-internet round trip. It is a neutral placeholder
+  rather than the honest `unreachable`, because rendering `unreachable` would
+  report the client's own startup as a fact about the server on every page load,
+  and rendering nothing would collapse the region and shift the chrome when the
+  first result lands. If it **stays** on `checking`, that is not this: it means
+  the tab is hidden, and a hidden tab does not poll at all
 - **The market clock reads `--:--:-- ET`.** It is a reserved region rather than
   a stopped clock. Epic 3 supplies the live market clock; `--:--:--` is used in
   preference to a plausible `00:00:00`, which would be a fake time
@@ -297,7 +312,7 @@ Five things worth knowing before relying on it:
   moves ahead of its own asset in both directions, over about **two seconds**,
   and **the window opens at the exact second the deploy step reports success** —
   so anything checking the deployed page after a deploy has to poll rather than
-  check once. Anyone already on the page is unaffected, and `no-cache` on the
+  check once. **Scoped by Task 1.12.7 (2026-09-04): the window is a property of the artefact _changing_, not of deploying.** 174 consecutive CDN samples at 0.4 s across a whole `Deploy the frontend` step of a docs-only merge showed **zero** broken states — a byte-identical Linux rebuild keeps the hashed filenames, so there was no incoming asset to be missing and no outgoing one to withdraw. That is a mechanism explaining an observation and **not a re-test**: the window is real on a changing artefact, and Task 1.12.7 did not re-measure it there. Anyone already on the page is unaffected, and `no-cache` on the
   document means their next navigation revalidates. There is no flag that
   removes it.
 - **The two halves talk.** The deployed page calls the deployed `/health` on
@@ -1389,8 +1404,9 @@ The addresses, and what is in each of them today, are in
 wired rather than what they show. The not-found route keeps the chrome intact
 like any other route, because it is a route.
 
-The chrome — product name, market feed, a reserved market clock, the navigation
-— is `components/AppHeader`, rendered once outside the route table so it
+The chrome — product name and a status strip of **three** regions (market feed,
+backend service, a reserved market clock), then the navigation — is
+`components/AppHeader`, rendered once outside the route table so it
 survives navigation rather than being remounted by it.
 
 Two conventions worth knowing before adding a route:
