@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.6
-**Amended:** 2026-09-04, after Tasks 2.1.1, 2.1.2 and 2.1.3 — see the three _Amended_ sections below
+**Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.4 — see the four _Amended_ sections below
 
 ## Objective
 
@@ -72,3 +72,35 @@ the two changes below.
   that; a check that causes the pool to open a **new** connection pays all three,
   including a token mint. So "cache it, or bound it" is now also an argument about which
   connections the check is allowed to cause.
+
+## Amended after Task 2.1.4 (2026-09-05)
+
+- **There is a `SELECT 1` to call and it should be called rather than re-written.**
+  `pingDatabase(pool)` in `database.ts` is the whole query surface and it
+  **returns a result rather than throwing** — `{ ok: true, ms }` or
+  `{ ok: false, ms, error }` — which is the shape a health handler wants, since it
+  must not let a database failure become a thrown error inside a route. Note it
+  goes **through the pool**: a route that opens its own client to answer a health
+  question consumes a connection outside the pool's `max`, which is the shape to
+  reject on a tier with 35 usable and no PgBouncer.
+- **The 5-second connection deadline is now the number that decides the cost
+  question.** `connectionTimeoutMillis` is 5000, so a health check that causes the
+  pool to open a **new** connection can block for five seconds — inside an endpoint
+  polled by three platform probes and every open browser tab, behind a liveness
+  probe that restarts the replica, and read by a client whose own deadline is
+  **also** 5 s (`API_TIMEOUT_MS`). Those two 5s are independent and nothing keeps
+  them ordered. **A check on an already-open pooled connection pays none of that**;
+  the brief's "cache it, or bound it" is therefore first an argument about which
+  connections the check may cause, and only then about frequency.
+- **The startup probe is the precedent to read, and it went the way this task
+  probably should.** `index.ts` asks once, **after** `listen()`, logs a level-40
+  record if it fails, and **never exits**. That is the same shape as `pnpm ready`'s
+  third check — report, do not gate — arriving for the second time in this story
+  and now inside the application. The consumer is what differs: nothing acts on the
+  startup record, where a liveness probe acts on `/health` by killing the replica.
+- **`BackendStatus` already has somewhere to put this and it costs a browser test
+  either way.** If `/health` gains a field the frontend reads, `degraded` is where
+  it lands and `e2e/specs-deployed/` is where it becomes an assertion; if it does
+  not, the record should say "no user-visible change" as a decision. 2.1.4 changed
+  nothing about the wire contract — `/health` is still 61 bytes, field for field —
+  so this task starts from exactly where Story 1.12 left it.

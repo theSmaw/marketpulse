@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.1
-**Amended:** 2026-09-04, after Tasks 2.1.1, 2.1.2 and 2.1.3 — see the three _Amended_ sections below
+**Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.4 — see the four _Amended_ sections below
 
 ## Objective
 
@@ -163,3 +163,53 @@ lists, and the one-liner is still `docker compose exec postgres postgres --versi
 against `az postgres flexible-server show --query version`. **Recording the deployed
 minor when the server is read back is still this task's**, and it is now the only way
 the two numbers can be compared at all.
+
+## Amended after Task 2.1.4 (2026-09-05)
+
+Three items, and the first is a question this task now has to answer **for the
+application** rather than only for a client.
+
+### `verify-full` is what the application will use, and nothing has verified a certificate yet
+
+`apps/backend/src/database.ts` maps `DATABASE_SSL=verify-full` onto `pg`'s
+`{ rejectUnauthorized: true }` **with no `ca` option**, which means Node's own
+bundled root store. Whether Azure's certificate chains to something in that store
+is unanswerable locally — 2.1.4 measured that the local container offers no TLS at
+all, so `verify-full` against it fails in **5 ms** with `The server does not
+support SSL connections`, which proves the refusal is immediate and proves nothing
+about verification.
+
+**So this task's TLS bullet has a second, sharper half.** It is not only "does a
+client verify" — the previous amendment already records that the local container
+has no CA trust store and so cannot — it is **"does a Node process using its
+bundled roots verify, with no file shipped?"** Those are different clients with
+different answers, and only the second one is the application. Test it with a bare
+`node` one-liner using `pg` rather than with `psql`, because that is what will run
+in production.
+
+If the answer is no, the consequence is named rather than discovered: a CA file
+has to ship in `apps/backend/Dockerfile`'s runtime stage, which is one of the
+three files no tool in `pnpm verify` reads, and Task 2.1.6 is where it reaches the
+application.
+
+### The connection ceiling is now a confirmation against a chosen number
+
+Task 2.1.4 sized the pool at **`max: 10`**, against the documented 35 usable of 50. So this task's ceiling measurement has something to check rather than only
+something to record: **confirm 35, and confirm that 10 plus a `psql` session plus
+whatever Story 2.2's migrations open stays under it.** If the created server
+reports a different figure, `POOL_MAX` in `database.ts` is a one-line change with
+its reasoning already written beside it.
+
+### The round trip has a consumer now, and a deadline over it
+
+The cross-region East US → East US 2 round trip this task owns measuring is no
+longer only a number for the record. `database.ts` sets
+**`connectionTimeoutMillis: 5000`**, chosen against that unmeasured hop plus a TLS
+handshake plus a token mint — so **this task's measurement is what says whether
+5 s is generous or tight**, and it is the figure Task 2.1.7 needs before deciding
+whether `/health` may touch the database at all, since that endpoint sits behind a
+liveness probe and a 5-second client deadline.
+
+Take the connection time and the query time **separately**: a pool pays the first
+once per connection and the second per query, and conflating them is what makes a
+`SELECT 1` on a warm pool look expensive.

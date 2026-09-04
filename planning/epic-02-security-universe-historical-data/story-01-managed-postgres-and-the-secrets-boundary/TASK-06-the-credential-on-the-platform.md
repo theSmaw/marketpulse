@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.4, 2.1.5
-**Amended:** 2026-09-04, after Tasks 2.1.1, 2.1.2 and 2.1.3 — see the three _Amended_ sections below
+**Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.4 — see the four _Amended_ sections below
 
 ## Objective
 
@@ -130,3 +130,101 @@ acquisition through `IDENTITY_ENDPOINT` and `X-IDENTITY-HEADER` (never
 the same interface the password branch already satisfies. If filling it requires
 reopening the pool's construction, that is Task 2.1.4 having built the seam wrongly and
 is worth saying so.
+
+## Amended after Task 2.1.4 (2026-09-05)
+
+This task's work shrank more than any other in the story, because 2.1.4 built the
+seam rather than only promising one. **What is left here is one function body and
+a great deal of measurement.**
+
+### Token acquisition is now a single named branch, and nothing else moves
+
+`apps/backend/src/database.ts` holds `resolveCredential(config)`, which branches on
+`DATABASE_AUTH`. The `password` branch returns the literal; **the `entra` branch
+returns a throwing function** naming this task. So the whole of this task's code
+change is replacing that function body with one that mints a token — and if
+filling it requires touching `createDatabasePool`, its callers, or `index.ts`,
+**that is 2.1.4 having built the seam wrongly and is worth saying so out loud**
+rather than quietly widening the change.
+
+Three properties of that seam were measured rather than assumed, and each removes
+a question this task would otherwise have to answer:
+
+- **`pg` calls the credential function once per _connection_.** Driven against a
+  real database: three concurrent queries on a cold pool of three produced
+  **three** calls; three more on the warm pool produced **none**. So a token is
+  minted per connection and reused for that connection's life, which is exactly
+  the shape Task 2.1.1's "valid up to 24 hours" needs. This task does **not** need
+  to build a cache; if it adds one, the reason has to be a measured token-endpoint
+  cost rather than an assumption about call frequency.
+- **The function may be `async`.** `pg` accepts `() => string | Promise<string>`,
+  so `IDENTITY_ENDPOINT` can be awaited inside it.
+- **A throw inside it surfaces as an ordinary connection failure**, not a crash.
+  Verified end to end at `DATABASE_AUTH=entra DATABASE_SSL=verify-full`: the
+  server started, `/health` answered 200, the pool reported
+  `database unreachable, continuing without it`, and `SIGTERM` exited 0. **So a
+  token acquisition that fails on the deployed replica degrades rather than
+  crash-loops, and that is already true before this task writes a line.**
+
+### The trap this task must not walk into, restated with what it costs
+
+`HOSTING.md` records that Azure's managed-identity-for-Postgres page is written
+for a VM and sends you to `http://169.254.169.254/...`, which **is not** how a
+container app gets a token — Container Apps uses `IDENTITY_ENDPOINT` with an
+`X-IDENTITY-HEADER` and `api-version` 2019-08-01 or later. What 2.1.4 adds is the
+**shape of the failure** if that is got wrong: the VM address does not exist
+inside a container app, so the request hangs or is refused, and it hangs
+**inside the credential function**, which `pg` calls inside connection
+establishment, which `connectionTimeoutMillis` bounds at **5 s**. So the symptom
+is a five-second stall followed by `database unreachable` — a slow, silent,
+correct-looking failure rather than an error naming the metadata endpoint.
+**Log what the token acquisition did**, or that afternoon is spent on the wrong
+question.
+
+### The leak check is now half-done, and 2.1.4 did the half that could be done locally
+
+The brief says to characterise the driver's error-message behaviour by producing a
+failure. **`pg` was measured and it does not quote the credential**, on both code
+paths, with a distinctive value planted as the password:
+
+| Produced failure                 | Message                                                 | Credential present? |
+| -------------------------------- | ------------------------------------------------------- | ------------------- |
+| Refused connection (closed port) | `connect ECONNREFUSED 127.0.0.1:5599`                   | **no**              |
+| Rejected authentication          | `password authentication failed for user "marketpulse"` | **no**              |
+
+Checked in the message **and** across the whole error object
+(`JSON.stringify(e, Object.getOwnPropertyNames(e))`), which is the check that
+catches a driver attaching the connection options to the error. So this task
+arrives already knowing the driver's habit — which is what the previous amendment
+asked for — and **the remaining work is the deployed half, which is genuinely
+different**: an access token is a JWT, it travels in the same field, and it is
+worth far more. Produce the failure with an **expired or malformed token** as well
+as a wrong host, because those are different code paths, and re-read the platform's
+own log destination as well as ours.
+
+**One more surface 2.1.4 added that the brief does not name.** The pool's
+`error` handler logs `{ err: error }` at `warn` on a dropped idle connection —
+a record that did not exist when this criterion was written, that fires on a
+Postgres restart or a failover, and that is therefore **the record most likely to
+be written in production without anyone deliberately provoking it**. Include it in
+the reading.
+
+### Two things this task gets for free, and should use rather than rebuild
+
+- **`application_name` is `marketpulse-backend`.** 2.1.4 set it precisely so this
+  task can evidence a connection "observed at both ends": the database side is
+  `select … from pg_stat_activity where application_name = 'marketpulse-backend'`
+  rather than a guess about which row is ours.
+- **`pingDatabase()` already is the `SELECT 1`.** The deployed proof needs a
+  route or a log record carrying its result, not a second query path.
+
+### One decision 2.1.4 took that this task should confirm rather than re-take
+
+The pool's `ssl` comes from `DATABASE_SSL` and `verify-full` maps to
+`{ rejectUnauthorized: true }` **with no `ca` supplied**, which means Node's own
+bundled root store. Whether that store contains the authority Azure's certificate
+chains to is a question 2.1.4 could not answer — the local container offers no TLS
+at all — and **Task 2.1.5 answers it for a client**. If the answer is that a CA
+file has to ship, this task is where it reaches the **application**, and that is a
+file in `apps/backend/Dockerfile`'s runtime stage: one of the three files no tool
+in `pnpm verify` reads.

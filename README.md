@@ -1536,10 +1536,14 @@ already stopped being true:
   server at `silent` writes exactly one line, the `fatal` record, and nothing
   else. The rule is: **ordinary traffic obeys the level; the process dying does
   not** — see below.
-- **`LOG_LEVEL=debug` shows nothing that `info` does not.** Fastify's request
-  logging is at `info` and nothing in this application emits below it, so the
-  variable is real and its lower half is empty. Re-measured: the message sets at
-  `info` and `debug` are identical.
+- ~~**`LOG_LEVEL=debug` shows nothing that `info` does not.**~~ **Stopped being
+  true on 2026-09-05 (Task 2.1.4).** It was true for six stories — Fastify's
+  request logging is at `info` and nothing emitted below it — and the database
+  pool's shutdown now writes two `debug` records, `http drained` and `database
+pool closed`. They exist so the **ordering** of the drain can be asserted from
+  outside the process, and they bracket the pool's close: a close that moved to
+  the wrong side of `app.close()` changes their order. At `info` they print
+  nothing, so an ordinary run is unchanged.
 
 #### The correlation id
 
