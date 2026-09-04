@@ -899,16 +899,29 @@ jobs:
           echo "e2e: $(( ($(date +%s%N) - start) / 1000000 )) ms"
           exit $status
 
-      # The pair's own log, on failure only. It is the answer to the failure
-      # this job can produce that a laptop cannot: the suite never started
-      # because half the pair did not come up, in which case there are no
-      # Playwright artefacts at all and this is the only evidence there is.
-      - name: The pair's log
+      # The pair's own log, on failure only, printed AND filed beside the
+      # Playwright artefacts. It is the answer to the failure this job can
+      # produce that a laptop cannot: the suite never started because half the
+      # pair did not come up, in which case there are no Playwright artefacts at
+      # all and this is the only evidence there is. Made to happen rather than
+      # imagined — a deliberate `PORT=0` produced `✗ backend ... ECONNREFUSED`
+      # from `pnpm ready` and `PORT must be an integer between 1 and 65535,
+      # received "0"` from this log, and nothing else.
+      #
+      # It is COPIED into `e2e/test-results` rather than uploaded from
+      # `RUNNER_TEMP` beside it, and that is not tidiness. `upload-artifact`
+      # roots an archive at the common ancestor of its paths, so two paths on
+      # opposite sides of `/home/runner/work` produce an archive nested at
+      # `marketpulse/marketpulse/e2e/...` beside a stray `_temp/` — measured on
+      # the first failing run of this job. One root is one readable archive.
+      - name: Collect the pair's log
         if: failure()
         run: |
           echo "::group::pnpm dev"
           cat "${RUNNER_TEMP}/dev.log" || true
           echo "::endgroup::"
+          mkdir -p e2e/test-results
+          cp "${RUNNER_TEMP}/dev.log" e2e/test-results/dev.log || true
 
       # ON FAILURE ONLY, and the reason is a measurement rather than a
       # principle: a green run leaves a 96-byte `.last-run.json` and one failed
@@ -931,9 +944,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e2e-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            e2e/test-results
-            ${{ runner.temp }}/dev.log
+          path: e2e/test-results
           if-no-files-found: warn
           retention-days: 7
 
