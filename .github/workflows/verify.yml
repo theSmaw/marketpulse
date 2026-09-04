@@ -874,6 +874,8 @@ jobs:
           nohup pnpm dev > "${RUNNER_TEMP}/dev.log" 2>&1 &
           echo "DEV_PID=$!" >> "$GITHUB_ENV"
           echo "started \`pnpm dev\` as pid $!; readiness is \`pnpm e2e\`'s to judge"
+        env:
+          PORT: "0"
 
       # ALL TEN JOURNEYS, INCLUDING THE ONE-MINUTE RECOVERY ONE, and that is a
       # decision rather than a consequence of running everything.
