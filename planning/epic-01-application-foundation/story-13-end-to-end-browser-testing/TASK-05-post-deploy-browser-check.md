@@ -1,6 +1,6 @@
 # Task 1.13.5 — Build the post-deploy browser check Task 1.11.7 declined
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.13 End-to-End Browser Testing](STORY.md)
 **Depends on:** Task 1.13.4
 
@@ -44,3 +44,125 @@ Close the gap Task 1.11.7 named and could not fill: a check that drives a real b
 ## Approach note
 
 This is the one check in the repository that can fail for a reason nothing else can see, and also the one most likely to be flaky, expensive and ignored. It is now carrying two criteria from Story 1.5 as well, which makes it the largest of this story's six tasks — that is a consequence of the target being forced rather than a widening of scope, and it is worth knowing before starting rather than discovering halfway through. Both facts are true at once. The decision to build it is not "browser checks are good" — it is that Story 1.12 shipped a specific failure mode with no instrument, and this is the instrument.
+
+## What happened
+
+**Completed 2026-09-04.** Every figure below was taken rather than cited, and
+two of them correct claims this repository states in more than one place.
+
+### What it is
+
+A second Playwright config (`e2e/playwright.deployed.config.ts`) over a second
+spec directory (`e2e/specs-deployed/`), run by `pnpm e2e:deployed`
+(`scripts/run-deployed-check.mjs`), gated by a deployed-readiness probe
+(`scripts/check-deployed.mjs`), and executed in CI as a **`check-deployed` job
+in `deploy.yml` with `needs: deploy`**. Ten tests: four deep links, the
+not-found route, the missing asset, the two failures, the server-side half, and
+an axe reading.
+
+A second **config** rather than a second project, because a project shares
+`use.baseURL` and the `testDir` sweep with its siblings — and `pnpm e2e` must
+never reach production while `pnpm e2e:deployed` must never need a local pair.
+`support/app.ts` and `support/axe.ts` transfer unchanged; `support/pair.ts`
+deliberately does not.
+
+### The declined decision, re-read before rebuilding it
+
+**What changed:** Task 1.11.7 declined this on the grounds that nothing could
+yet produce the failure. Story 1.12 shipped a client that polls the backend on
+every page load. **What still stands:** there is no preview environment and
+deliberately never will be one on this plan, so this runs after a merge and
+gates nothing. Its output is a rollback decision.
+
+### Both failures, made to happen
+
+**A wrong `CORS_ORIGIN`, against the live backend.** `CORS_ORIGIN` set to
+`https://marketpulse-wrong-origin.example` (revision `0000047`, `Activating` →
+`RunningAtMaxScale` in 44 s). The check went **red at exit 1 in 53.2 s, 3 failed
+/ 7 passed**, on `getByText(/^healthy$/)`. The server-side evidence, taken in
+the same window: `curl` with the **real** frontend `Origin` got a **200 with the
+full 62-byte contract body** and `access-control-allow-origin:
+https://marketpulse-wrong-origin.example`, and Log Analytics recorded **15
+`/health` requests through the 65-second window, every one `statusCode: 200`**.
+Restored to `https://red-smoke-029583a0f.5.azurestaticapps.net` (revision
+`0000048`), **read back from the platform** — all five environment variables
+match the values captured before the break — and the check is green again.
+
+**A missing `VITE_API_BASE_URL`, at the artefact.** Produced without touching
+production, on the user's instruction: `vite build` with the variable unset
+**succeeds**, and the bundle contains `http://localhost:3000` and no mention of
+the deployed backend. Served on a local static host and driven by the same spec,
+the check went red naming both origins —
+`- "https://marketpulse-backend…" / + "http://localhost:3000"`. **The gap is
+stated rather than hidden:** the mixed-content block itself is not reproduced,
+because a page served over plain HTTP does not block a `localhost` call, and the
+only HTTPS host available is production. It changes nothing about the
+assertion, which is on the request's **origin** and needs no response at all.
+
+**And the page in that state read `unreachable` / `No successful check yet.` —
+byte for byte what the CORS break produces.** That is the justification for two
+separate assertions rather than one, watched instead of argued.
+
+### Two recorded claims corrected
+
+- **`curl` is not _structurally_ incapable of catching a wrong allowlist.** The
+  status, the body and the log genuinely cannot, but
+  `access-control-allow-origin` is a readable copy of `CORS_ORIGIN` —
+  `@fastify/cors` with a string origin asserts the configured value
+  unconditionally — so an instrument **told the frontend's origin** can compare
+  them. That value is exactly what no server-side instrument has, and the
+  comparison is a proxy for the browser's verdict rather than the verdict: it
+  says nothing about the second failure, where the backend is never asked. The
+  suite makes the comparison anyway, because two instruments disagreeing is
+  diagnostic.
+- **The `e2e` gate caught a real flake in Task 1.13.3's health spec**, on this
+  branch's own predecessor, and it took a commit to fix rather than a re-run.
+  Every page load makes **two** `/health` requests and **one is aborted** —
+  `StrictMode`'s first mount cleans up and aborts its own in-flight request,
+  measured 5/5 as
+  `["request GET", "request GET", "FAILED net::ERR_ABORTED", "finished"]`.
+  Locally the abort lands before the headers, so there is one candidate; on a
+  loaded runner it can land after them, producing a `response` carrying a 200
+  whose body can never be retrieved. `waitForResponse` now requires the response
+  to have `finished()`.
+
+### Decisions stated
+
+- **axe deployed is a REPORT, not a gate.** A red post-deploy result is a
+  rollback decision; a contrast ratio is not a rollback, and mixing them makes
+  the one signal that sees what nothing else does indistinguishable from the one
+  nobody would act on immediately. The same rules already gate the same source
+  before the merge, and the deployed artefact differs from the one that gate
+  judged by exactly one string literal. So it is the **comparison**, and the
+  reversal trigger is a **divergence**. Measured: the deployed landing route is
+  **0 violations / 37 passes / 1 inconclusive (`color-contrast`)**, the
+  pre-merge gate's numbers exactly. The report also refuses to wait for
+  `healthy` — written that way the CORS break turned three tests red, one of
+  them labelled accessibility, which tells a reader something false.
+- **It gates nothing and is not in the ruleset**, for the reason `deploy` is
+  not: requiring it would gate on something that cannot have happened yet.
+  Ruleset `main` (id 22160620) still requires `verify` and `e2e` only.
+- **It is not a monitor and has no `schedule:`.** Measured cost: a whole green
+  run is **+5 requests** to the deployed backend, against a re-measured idle
+  baseline of a steady **4 per 30 s**.
+- **The evidence a red result must carry.** Both halves are probed and reported
+  separately; **both** failing at once is called out as more likely to be the
+  runner's link than a simultaneous outage of two independent Azure services in
+  two regions, which is Task 1.11.7's 65-second laptop "outage" turned into a
+  printed diagnosis. One half red with the other green is a claim about that
+  service.
+- **What a red result means is written where the person seeing it will look** —
+  the `check-deployed` job writes a table of failed-test-to-cause plus both
+  asymmetric rollback procedures into the summary of the run that went red, and
+  it names the case no revert can fix, because `CORS_ORIGIN` is not in this
+  repository.
+
+### Figures
+
+- **Green run: 10 passed in 10.5 s**, 12.5 s wall including readiness. Red on a
+  broken allowlist: **53.2 s**, exit 1.
+- Readiness on a settled deployment is immediate: `document and 2 assets served
+together`.
+- `pnpm verify` **23.5 s** exit 0; `pnpm test` untouched at **189** across
+  "Scope: 4 of 5 workspace projects"; the local `pnpm e2e` **10 passed (1.0m)`.
+- **No new dependency**, no lockfile change, `pnpm-workspace.yaml` untouched.

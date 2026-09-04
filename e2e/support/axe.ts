@@ -121,3 +121,80 @@ export async function expectNoAxeViolations(
     `axe violations on ${label}`,
   ).toEqual([]);
 }
+
+/**
+ * Run axe and **report** rather than assert (Task 1.13.5).
+ *
+ * The deployed check uses this where the local suite uses the gate above, and
+ * the asymmetry is the decision rather than an inconsistency.
+ *
+ * ## Why it is a report there and a gate here
+ *
+ * The question is not whether the deployed page deserves an accessibility
+ * check — it is what a **red** post-deploy result means. This check runs after
+ * a merge against the live environment, so its red channel is a rollback
+ * decision. A page that cannot reach its backend is a rollback. A contrast
+ * ratio is not, and mixing the two makes the one signal that can see failures
+ * nothing else can indistinguishable from the one signal nobody would act on
+ * immediately — which is exactly how a check gets ignored.
+ *
+ * What makes that affordable rather than a hole is that the same rules already
+ * gate the same source **before** the merge, in a real browser, on a real
+ * renderer: Task 1.13.4 confirmed the runner's `--only-shell` build computes
+ * real styles and passes `color-contrast` on the same **65 nodes** macOS does,
+ * and that gate found a genuine WCAG 2.1.1 defect on its first run. The
+ * deployed artefact differs from the one that gate judged by exactly one string
+ * literal — `VITE_API_BASE_URL`, substituted at build time — which cannot reach
+ * accessibility.
+ *
+ * So this is not a second opinion that is being thrown away. It is the
+ * comparison: the numbers are printed beside the pre-merge baseline, and a
+ * divergence between the two is the thing worth seeing, because it would mean
+ * the deployed artefact is not the artefact that was judged.
+ *
+ * **The reversal trigger is a divergence.** If these figures ever differ from
+ * the pre-merge gate's on the same commit, the artefacts differ in a way this
+ * repository does not currently believe is possible, and this becomes a gate.
+ *
+ * One limit belongs beside it rather than in a write-up: **every axe figure
+ * this repository has recorded was taken at one viewport**, and Task 1.13.4
+ * proved that is not the same as a page having no violations — the defect it
+ * found was invisible on the development machine and reproduced at a viewport
+ * 160 px shorter. A single-viewport reading is a narrow claim wherever it is
+ * taken.
+ */
+export async function reportAxe(page: Page, label: string): Promise<void> {
+  await page.addScriptTag({ content: axe.source });
+
+  const results = await page.evaluate(async () => {
+    const runner = (window as unknown as { readonly axe: AxeGlobal }).axe;
+
+    return await runner.run(document);
+  });
+
+  const summary =
+    `${label}: ${String(results.violations.length)} violations, ` +
+    `${String(results.passes.length)} passes, ` +
+    `${String(results.incomplete.length)} inconclusive` +
+    (results.incomplete.length === 0
+      ? ""
+      : ` (${results.incomplete.map((entry) => entry.id).join(", ")})`) +
+    (results.violations.length === 0
+      ? ""
+      : ` — VIOLATIONS: ${results.violations
+          .map(
+            (violation) => `${violation.id} x${String(violation.nodes.length)}`,
+          )
+          .join(", ")}`);
+
+  test.info().annotations.push({
+    type: "axe (report, not a gate)",
+    description: summary,
+  });
+
+  // Printed as well as annotated. An annotation on a passing test is not read;
+  // a line in the job log is, and this is the number somebody compares against
+  // the pre-merge gate's when they want to know whether the two artefacts
+  // agree.
+  console.log(`axe — ${summary}`);
+}
