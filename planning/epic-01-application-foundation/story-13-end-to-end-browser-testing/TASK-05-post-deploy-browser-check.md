@@ -206,3 +206,36 @@ precisely why CI cannot find this one and a laptop can.
 that is usually left untested: `What to do about a red result` wrote its
 rollback table into the run summary and `Upload the failure artefacts`
 uploaded, both on a genuinely red job rather than on a rehearsal.
+
+### The runner's figures, taken from the first green execution
+
+Run `33859017114`, on the merge that fixed the build step above.
+
+|                              |                                                                  |
+| ---------------------------- | ---------------------------------------------------------------- |
+| Whole `check-deployed` job   | **35 s** (09:37:16 → 09:37:51), against the `e2e` job's 99–103 s |
+| `pnpm e2e:deployed` step     | **8,306 ms**, of which the suite is **6.5 s**                    |
+| Browser cache                | **exact-key hit**, install **1,027 ms**                          |
+| Readiness                    | coherent on the first poll                                       |
+| axe, deployed, on the runner | **0 violations / 37 passes / 1 inconclusive**                    |
+
+Three things worth reading off that.
+
+- **The suite is FASTER on the runner than on the laptop** — 6.5 s against
+  9.7–10.5 s — which is the opposite of every other timing this repository has
+  recorded, and the explanation is geography rather than the machine: the runner
+  and both Azure services are in the United States and the laptop is not. It is
+  the first figure here where `ubuntu-latest` beats the development machine.
+- **The axe reading agrees three ways** — the deployed page on the runner, the
+  deployed page from macOS, and the pre-merge gate — all `0 / 37 / 1`. That is
+  the comparison this report exists to be, and it agreeing is what keeps it a
+  report rather than a gate.
+- **The browser cache behaved exactly as the restore-only rule predicts.** An
+  exact-key hit on the first run, because `verify`'s `e2e` job had already saved
+  it under the same key on the same commit. No second saver, no
+  `Cache already exists` warning.
+
+**The environment was re-verified after everything**: both halves up, the
+artefact coherent, and all five of the Container App's environment variables
+read back from the platform matching the values captured before the deliberate
+break.
