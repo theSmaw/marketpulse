@@ -611,6 +611,101 @@ Against Epic 1's re-derived totals, and the budget was re-read today rather than
 - **Story 2.6** — the credential path does **not** transfer unchanged; see the authentication section.
 - **Story 2.7** — the ~120 bytes/row assumption is a prediction to measure, and the usable capacity is **~27 GiB**, not 32.
 
+## The database — the local development database (Task 2.1.2)
+
+**Decided and built 2026-09-04 by [Task 2.1.2](../../epic-02-security-universe-historical-data/story-01-managed-postgres-and-the-secrets-boundary/TASK-02-the-local-development-database.md), which still provisions nothing on Azure.** It is recorded here rather than in a new `DATABASE.md` for the reason this document holds Task 2.1.1's decisions: Epic 1's habit is one document per subject, and a second file about the same subject is a copy waiting to disagree.
+
+### The mechanism: a container through Docker Compose, and what it costs a clean clone
+
+`compose.yaml` at the repository root, one service, started by **`pnpm db`**.
+
+**The cost is stated first because it is the part that is easy to wave through: Docker becomes a prerequisite for a clean clone that it was not before.** Epic 1 needed Docker only for `pnpm image`, which nobody runs on a first day, so a developer could go a long way without it. That is no longer true from the moment anything reads a database. What softens it, and what the README says in those words, is that the prerequisite is **narrow**: `pnpm install`, `pnpm verify`, `pnpm dev` and `pnpm e2e` all still run with no Docker at all, and `scripts/local-database.mjs` reports its absence as that narrow thing rather than as a broken checkout.
+
+Two alternatives, rejected with their reasons rather than skipped:
+
+- **A native install** (Homebrew `postgresql@18`, or the EDB installer) is cheaper at run time — no daemon, no image, less memory — and worse at the one thing this exists for. It puts the engine version outside the repository's control on the day after Task 2.1.1 pinned one, it differs per operating system in a repository whose CI is Linux and whose development machine is macOS, and it has no equivalent of `pnpm db down -v` when a schema experiment goes wrong. It is the standing alternative for anyone who cannot run Docker, and the connection settings are ordinary enough that it works.
+- **Pointing developers at the deployed database** is rejected on principle, and it is written down as rejected because somebody will suggest it during the first hour that Docker is broken. It is production, its firewall already admits every Azure tenant, and it would put development traffic behind an identity whose whole justification is that only the deployed backend uses it.
+
+### The version is pinned to the deployed one, in one place
+
+`postgres:18`, from `LOCAL_DATABASE.version` in `scripts/local-database.mjs`, interpolated into `compose.yaml`. The running container reports **PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2)**, read out of it rather than assumed.
+
+**The major and not the minor**, deliberately: Azure patches the minor under us — Task 2.1.1 records `--version 18` as the creation argument and nothing finer — so a `18.6` here would be a pin the managed server cannot honour, and it would go stale on the first platform maintenance window.
+
+**Nothing checks that these two numbers still agree.** It is a stated invariant of the third kind, and it is in the gap lists in `README.md` and `CLAUDE.md` for that reason. The failure it guards against is the one this pin exists for: a local 17 against a deployed 18 is a class of bug that only ever appears in production.
+
+### The credential does not match, and that is a decision rather than an inconsistency
+
+The local database authenticates with an ordinary **password**. The deployed one **cannot** — Task 2.1.1 chose Microsoft Entra authentication only, password authentication `Disabled`, with no admin user created at any point, and a managed identity is not a thing a laptop can be.
+
+So **"match the deployed environment" applies to the engine version and not to the credential**, and a reader who files that as a bug should be sent here. Task 2.1.1 already named the consequence and it lands on the next task rather than this one: **Task 2.1.3's configuration boundary has to express two shapes of credential**, a literal locally and an identity deployed. This task deliberately does not narrow that choice — `scripts/local-database.mjs` prints the connection as **parts** rather than as a URL, and adds nothing to `CONFIG_VARIABLES`, precisely so that a single `DATABASE_URL` with a password inside it is not chosen here by accident.
+
+**The password is a fixture and not a secret**, and treating it as one would cost a `.env` file every clean clone has to write before the database starts. It authenticates a container published on **loopback only** — `127.0.0.1:5432:5432` and not the bare `5432:5432` that puts a database on every network the machine is joined to — holding an empty database whose entire future contents are re-derivable from Alpaca.
+
+### Where it sits relative to `pnpm dev`: outside it, and the argument is lifecycle
+
+`pnpm dev` is unchanged. It is still three watchers, and starting the database inside it would mean stopping the database on Ctrl-C, which throws away the data you were part-way through debugging. A database is a fourth process with a completely different lifecycle: it should survive a Ctrl-C, it holds state, and it is started once a week rather than once an hour.
+
+`pnpm db` therefore starts it detached and **waits for it**, with `up --detach --wait` gating on a `pg_isready` healthcheck rather than on the container merely existing. That `--wait` turns out to be load-bearing twice over — see the readiness check below.
+
+Arguments are forwarded to `docker compose` untouched, so `pnpm db down`, `pnpm db logs -f`, `pnpm db ps` and `pnpm db exec postgres psql …` all work as documented. The data survives `pnpm db down`; `pnpm db down -v` is what removes it. There is deliberately **no `restart:` policy**: a database that comes back after a reboot is a listener on 5432 nobody in the room started.
+
+### The database is named `marketpulse` and it is empty
+
+User, password and database name are all `marketpulse`. **Empty is the honest answer for this story** — Story 2.2 owns tables and migrations — and the thing to avoid was inventing a seeding mechanism here that Story 2.2 then has to unpick. There is none.
+
+### `pnpm ready`'s third check speaks the protocol, and the decision was between two bad-looking options
+
+Both existing checks speak HTTP, and a PostgreSQL port answers an HTTP request by **waiting** — so a `fetch` against it reports `NO_RESPONSE`, which is the same answer this script already gives for the squatter case and therefore useless.
+
+**The stated decision is to speak enough of the protocol to get an answer rather than to settle for a TCP connect**, and the difference is what the answer means. A successful connect proves a **listener**, which is precisely what Task 1.8.4's squatter trap looks like. One packet gets past that: an **SSLRequest** — eight bytes, no credentials, no driver, no dependency — which every PostgreSQL server answers with a single byte, `S` or `N`.
+
+Both were made to happen rather than reasoned about:
+
+| What is on 5432                                | A TCP connect would say | This check says                                   |
+| ---------------------------------------------- | ----------------------- | ------------------------------------------------- |
+| The container                                  | up                      | `✓ PostgreSQL, no TLS offered`                    |
+| Nothing                                        | `ECONNREFUSED`          | `ECONNREFUSED — not running; `pnpm db` starts it` |
+| A bare `net.createServer()` that never answers | **up**                  | `NO_RESPONSE — something is holding this port`    |
+| An HTTP server                                 | **up**                  | `NOT_POSTGRES — it did not answer an SSLRequest`  |
+
+The two bold cells are the argument for the extra eight bytes.
+
+**What it deliberately does not prove**, because a check whose limits are unwritten gets read as proving more than it does: not that the **database** exists, and not that the credentials work — both need a full startup message and a SCRAM exchange, which is a driver, and Task 2.1.4's pool is the right place for it. And not that the server is **ours**: a native PostgreSQL already holding 5432 answers identically, which is worth knowing rather than fixing, since a client cares whether a PostgreSQL answers at the address it will dial, and a conflict is something `pnpm db` reports on its own by failing to bind.
+
+**One thing it reports that is genuinely informative: `no TLS offered`.** The container does not offer TLS and the managed server enforces it — "connection encryption is enforced for your network traffic" — so the line makes a real local-versus-deployed difference visible rather than leaving it to be discovered by Task 2.1.4.
+
+### The third check reports and does not gate, with a named trigger
+
+`pnpm ready` prints the database as `○` rather than `✗` and **its exit code does not change**. The exit code answers _can the application run?_, and today nothing opens a connection to anything: `pnpm verify` has never needed a server, and `pnpm e2e` gates on this very script, so a failing third check would refuse to start a browser suite with no interest in a database — on a laptop and on the runner alike. Making it gating today would be inventing a requirement one task ahead of the code that has it.
+
+**The reversal trigger is a condition rather than a task number**, which is the shape `src/report-error.ts` already uses for the same kind of deferral, and it is **the first check in `pnpm verify` or `pnpm e2e` that fails without a database**. ~~Task 2.1.4, the first thing here that opens a connection.~~ **Corrected on the same day it was written**: that sentence named a task and a condition that are not the same day, and Task 2.1.4's own brief is the proof — it keeps `pnpm verify` passing with no database running and `pnpm test:process` passing both ways, so after it the backend still starts, `/health` still answers, and nothing in either chain fails. Story 2.2's migrations and Story 2.8's routes are the realistic candidates. On that day the line becomes a `✗` and the `e2e` job in `.github/workflows/verify.yml` gains a service — a workflow change with a cache key, a startup wait and a second definition of the database's address in a file that currently defines none of the pair, which is worth knowing in advance rather than in a red CI run. **Task 2.1.4 owns re-taking the decision**, not executing it.
+
+**The database is also checked once with no polling, and that is not the shape of the other two.** They are polled because they are started by the command you run this alongside, so the check has to wait out a cold tree compiling. `pnpm db --wait` does not return until the server is accepting connections, so there is nothing to wait for. The cost of getting that wrong was measured rather than argued: with a five-second poll, `pnpm ready` against a stopped database took **5.1 s** instead of **0.093 s**, and `pnpm e2e` gates on this script — five seconds added to every browser run for a developer who has not started a database, to print a line no exit code depends on.
+
+**`compose.yaml` sets `name: marketpulse`, so two checkouts share one database rather than colliding.** This repository nests git worktrees under `.claude/worktrees/`, and without a fixed project name each one would derive a project from its directory and try to publish a second container on 5432. Confirmed by running `pnpm db` in a clean clone and `pnpm db ps` in the original checkout: one container, one volume, `127.0.0.1:5432->5432/tcp`. One database per machine rather than one per checkout, which is the right grain for a database that holds state.
+
+### Two things measured that no documentation page predicted
+
+**The PostgreSQL 18 image refuses to start with the pre-18 volume mount, and the prediction was wrong in the reassuring direction.** The image moved both its declared volume and its `PGDATA` — read out of it, `PGDATA` is `/var/lib/postgresql/18/docker` and `Config.Volumes` is `{"/var/lib/postgresql":{}}`. Every pre-18 compose snippet mounts `/var/lib/postgresql/data`. The expectation written into `compose.yaml`'s first draft was that this would start and **silently persist nothing**. It does not: with a genuinely fresh volume, on the **very first run**, the container exits with a twenty-line explanation naming the mount, the reason and the fix —
+
+```
+Error: in 18+, these Docker images are configured to store database data in a
+       format which is compatible with "pg_ctlcluster" …
+       Counter to that, there appears to be PostgreSQL data in:
+         /var/lib/postgresql/data (unused mount/volume)
+```
+
+— so it is the good kind of trap, and with `--wait` it is a failed `pnpm db` rather than a database that looks fine until the day somebody needs yesterday's rows. Persistence across `pnpm db down` and `pnpm db up` was then confirmed positively on the shipping mount: a row written, the container removed and recreated, the row still there.
+
+**A bare `docker compose up` refuses, by construction.** Every value `compose.yaml` interpolates is declared required with no default, using Compose's `${VAR:?message}` form, so the file cannot drift from `scripts/local-database.mjs` by quietly falling back to a plausible number. Measured: `docker compose up -d` exits **1** with `required variable MARKETPULSE_DB_USER is missing a value: set by pnpm db - run that rather than docker compose`. This is the same decision `e2e/playwright.config.ts` takes about `E2E_BASE_URL`, for the same reason — and the first draft used `${VAR:-default}`, which is worse than it looks: with a blank port the publish spec becomes `127.0.0.1::5432`, which is **valid** and binds a random one.
+
+### What it cost the tree
+
+**No dependency, no lockfile change, and no `pnpm verify` step.** Two new files — `compose.yaml` and `scripts/local-database.mjs` — one new root script, `pnpm db`, checked against `pnpm help -a`'s built-ins before being claimed (free; the detection was validated in the same run against `clean`, `test`, `start`, `config`, `env` and `deploy`, all correctly identified as built-ins).
+
+`pnpm verify` passes **with no database running**, in 23.08 s, which is criterion 8 met by the chain not changing at all. The browser suite is unaffected — nine journeys green with the database stopped — which is the non-gating decision confirmed rather than assumed. `pnpm ready` is **0.093 s** with the database down and reports it correctly up and down.
+
 ## Reversal cost — and it is not one file
 
 Story 1.10 recorded CI's reversal cost as "one YAML file", and that is only true because the pipeline runs `pnpm verify` by name and defines nothing of its own. **Deployment cannot be that cheap, and saying so precisely is this section's job.** Moving hosts means changing all of:

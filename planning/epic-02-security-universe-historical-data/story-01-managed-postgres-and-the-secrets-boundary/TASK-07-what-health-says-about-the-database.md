@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.6
-**Amended:** 2026-09-04, after Task 2.1.1 — see _Amended after Task 2.1.1_ below
+**Amended:** 2026-09-04, after Tasks 2.1.1 and 2.1.2 — see the two _Amended_ sections below
 
 ## Objective
 
@@ -37,3 +37,9 @@ Story 1.12 built a three-state vocabulary and then spent two tasks proving that 
 - **The tier supplies a new way for the database to be unavailable, and it is the one most likely to be mistaken for a bug.** B1MS is credit-based, and its own documentation says that if CPU "runs near or above baseline for long periods, credits deplete and **the server might become unreachable**", with "delays or transient failures in management operations until credits rebuild". So the outage this task must not turn into a crash-loop is not only a network blip or a maintenance restart — it is a **self-inflicted, load-correlated** outage that Story 2.7's backfill is the most likely thing to cause. That strengthens the liveness argument rather than changing it.
 - **The per-check cost has a harder ceiling than the brief assumed.** Any `SELECT 1` added to a polled endpoint consumes one of **35 usable connections**, and there is **no PgBouncer on this tier** to absorb it. A per-request check on an endpoint hit by three probes plus one per visible browser tab is therefore competing with the application for a small pool, not just adding query load. Cache it or bound it, and state which — the brief already asks for that, and this is the number that decides it.
 - **The database is in a different region from the backend**, so any check added here crosses East US → East US 2. That latency is unmeasured until Task 2.1.5 takes it, and it lands inside an endpoint with a 5-second client deadline and a liveness probe on it.
+
+## Amended after Task 2.1.2 (2026-09-04)
+
+- **There is now a cheap, repeatable way to produce the state this task must observe.** `pnpm db down` makes the local database unreachable and `pnpm db` brings it back with its data intact, so the local half of "break the database, watch the endpoint, watch the probes, watch the replica" costs one command rather than a firewall change. The deployed half still needs the firewall, and only the deployed half has a liveness probe.
+- **`pnpm ready`'s third check is a precedent this task should read before deciding, because it answered a smaller version of the same question.** It reports the database, does not gate, and states the reversal trigger — deliberately choosing "report" over "fail" because the thing consuming the signal (`pnpm e2e`) would have been broken by a failure it had no interest in. `/health`'s consumers are three platform probes, a browser poll every 30 seconds per tab, and `BackendStatus`; the liveness probe is the one that turns a report into a restart. **The shapes are the same and the stakes are not**, which is the comparison worth making explicitly rather than the conclusion worth copying.
+- **A local check exercises a different connection path from the deployed one**, in two ways 2.1.2 measured: the local server offers **no TLS** and authenticates with a password, where the deployed one enforces encryption and takes a token. So a database check that works locally has not been tested on the path that can actually be slow, and the cross-region round trip the brief already flags is only visible deployed.

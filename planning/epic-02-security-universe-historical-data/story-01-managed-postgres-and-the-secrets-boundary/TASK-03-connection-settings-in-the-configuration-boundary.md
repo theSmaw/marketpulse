@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.1, 2.1.2
-**Amended:** 2026-09-04, after Task 2.1.1 — see _Amended after Task 2.1.1_ below
+**Amended:** 2026-09-04, after Tasks 2.1.1 and 2.1.2 — see the two _Amended_ sections below
 
 ## Objective
 
@@ -40,3 +40,27 @@ The brief above says "note that Task 2.1.1's authentication decision may have al
 - **Whatever is chosen has to make "which credential mechanism" explicit rather than inferred.** Inferring it from whether a password variable is set is the shape that fails silently: a deployment that forgets the variable would fall through to the identity path and produce a confusing auth error, and a laptop that has a stale variable set would try a password against a server that refuses passwords. A named mode is cheaper than the failure.
 - **The "password is a value this module must never render" bullet still applies and its subject changed.** The thing that must never reach a log is now **the token**, which is a live bearer credential for up to 24 hours. It does not come from `process.env`, so `config.ts` may never hold it at all — which, if true, is a **stronger** result than redaction and should be recorded as such: the module that promised not to log a credential turns out never to receive one.
 - **The matched-pair hazard is unchanged and now has a second half.** A defaulted local address that a deployment forgets to override is the `CORS_ORIGIN` shape already recorded. The new half is that a deployment which forgets the **mode** does not fail at startup at all — it fails at first connection, which is Task 2.1.4's "what happens when the database is absent" path and is exactly the 3am failure this bullet exists to prevent.
+
+## Amended after Task 2.1.2 (2026-09-04)
+
+Task 2.1.2 deliberately did **not** narrow the shape decision above — it prints the local database's connection as parts rather than a URL and adds nothing to `CONFIG_VARIABLES`, precisely so a `DATABASE_URL` with a password inside it was not chosen by accident. That decision is still fully open. What 2.1.2 did do is create a second definition of the same values, and that is this task's new problem.
+
+### The one-definition problem, which is this task's real work and is not in the brief above
+
+`scripts/local-database.mjs` now holds `LOCAL_DATABASE` — host, port, user, password, database and the image major — as **the** definition of where the local database is. It has two readers today: `compose.yaml`, which interpolates every one of them as a **required** variable with no default so it cannot drift, and `scripts/check-ready.mjs`, which dials the address.
+
+The moment this task puts connection settings into `CONFIG_VARIABLES` and `apps/backend/.env.example`, there are **two** places that say where the local database is, and they can disagree silently — a `.env.example` default of `5432` against a `LOCAL_DATABASE.port` somebody moved to `5433` is a backend dialling a port nothing is on, with `pnpm ready` cheerfully reporting the database up because it read the other copy. **This is exactly the fork `scripts/pair-addresses.mjs` exists to prevent**, and this repository has refused it twice: the frontend's origin is read from `CORS_ORIGIN` rather than a second copy of `5173`, and the backend's port is read from the built `dist/config.js` rather than written down again.
+
+So this task owes a decision, and the two shapes are:
+
+- **The configuration module is the definition and `local-database.mjs` reads it**, the way `pair-addresses.mjs` reads `dist/config.js`. This is the arrangement the repository already has and it makes `pnpm db` depend on a **built** tree — which `pair-addresses.mjs` already accepts, reporting "run `pnpm build` first" rather than a resolver stack. Note that a container's `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` are what **creates** the database while config's are what **connects** to it, so this direction makes the compose file's inputs derived from the application's, which is the right way round.
+- **`local-database.mjs` stays the definition and supplies `config.ts`'s defaults**, which inverts the dependency and makes a shipped module read a script.
+
+The first is almost certainly right and the second should be rejected in writing rather than by omission. Either way `scripts/check-ready.mjs`'s third check must end up reading **one** of them, and today it reads `LOCAL_DATABASE`; whichever way this lands, that import is part of this task's change and not a follow-up.
+
+**The image major is the one value that does not move**, because nothing in the application's configuration has any business naming a Postgres version. It stays in `local-database.mjs`, still unchecked against the deployed `--version`, still in both gap lists.
+
+### Two facts 2.1.2 measured that are inputs to the shape decision
+
+- **The local server offers no TLS and the managed one enforces it.** `pnpm ready` reports `no TLS offered` against the container, and Task 2.1.1 recorded that "connection encryption is enforced for your network traffic" on the managed server, with the further requirement that the client **verify** rather than merely encrypt. So a TLS/verification setting is part of the connection surface and it genuinely differs between the two environments — which is a second axis beside the credential, and the shape chosen here has to carry both without becoming a switch per environment.
+- **The local credential is real and is a fixture.** `marketpulse` / `marketpulse` / `marketpulse`, in the repository on purpose, authenticating a container published on loopback only. So the "password is a value this module must never render" bullet has a **local** subject as well as the deployed token — and the local one is deliberately public, which means a `ConfigError` quoting it is untidy rather than dangerous. Do not let that make the redaction test vacuous: the test that matters is the deployed one, and the honest way to run it locally is with a value that is not the fixture.

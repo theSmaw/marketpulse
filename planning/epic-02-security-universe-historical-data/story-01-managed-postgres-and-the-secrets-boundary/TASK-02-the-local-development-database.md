@@ -1,9 +1,14 @@
 # Task 2.1.2 — Give a clean clone a local database, and say what it costs
 
-**Status:** Not started
+**Status:** Complete (2026-09-04)
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.1 (the version, and the authentication decision)
 **Amended:** 2026-09-04, after Task 2.1.1 — see _Amended after Task 2.1.1_ below
+**Record:** the decisions and their measurements are in
+[`HOSTING.md`](../../epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md)
+under _The database — the local development database_, beside Task 2.1.1's — one
+document per subject, because a second one about the same subject is a copy
+waiting to disagree
 
 ## Objective
 

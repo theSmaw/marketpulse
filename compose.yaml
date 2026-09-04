@@ -1,0 +1,99 @@
+# The local development database (Task 2.1.2).
+#
+# **This file is not meant to be run directly.** `pnpm db` is the command, and
+# every value below is required with no default, so a bare `docker compose up`
+# stops with a message naming that script. That is deliberate and it is the same
+# shape `e2e/playwright.config.ts` already uses for `E2E_BASE_URL`: the address,
+# the credentials and the database name are defined **once**, in
+# `scripts/local-database.mjs`, because the readiness check needs the same
+# values and a compose file with its own copy of `5432` has forked the
+# definition on the day it was created. A default here would be that second
+# copy wearing a helpful face.
+#
+# **The image tag is the deployed version and that is the whole point of pinning
+# it.** Task 2.1.1 chose PostgreSQL **18** for the managed server (Azure support
+# to 14-Nov-2030, GA there since 25-Sep-2025, and `timescaledb` at 2.24.0 on 15
+# through 18 alike, so extensions did not constrain it). A local 17 against a
+# deployed 18 is a class of bug that only ever appears in production, so the two
+# have to agree — and the grain that matters is the **major**, because Azure
+# patches the minor itself and we do not get to pin what it patches to. The
+# major is pinned in one place, `scripts/local-database.mjs`, and interpolated
+# in below.
+#
+# What this file does **not** match is the credential, and that asymmetry is a
+# decision rather than an inconsistency to iron out. The deployed server
+# authenticates with **Microsoft Entra only**, password authentication
+# `Disabled`, no admin user created at all — a mechanism that structurally
+# cannot exist on a laptop, because there is no managed identity to be. So
+# "match the deployed environment" applies to the **engine version** and not to
+# the credential. See HOSTING.md, _The database — the local development
+# database_.
+#
+# Nothing here is a secret. The password is a fixture, it is in the repository
+# on purpose, and it authenticates a container published on **loopback only** —
+# see the `ports` entry, which is `127.0.0.1:` rather than the bare port that
+# would put a database on every network this machine is joined to.
+#
+# Formatting is checked and meaning is not: Prettier reads this file, and
+# nothing validates its schema. It is recorded in the gap list in `README.md`
+# and `CLAUDE.md` for that reason.
+
+name: marketpulse
+
+services:
+  postgres:
+    # Pinned to the deployed major version. `18` and not `18.6`: Azure moves the
+    # minor under us and a pin it cannot honour is a pin that lies.
+    image: postgres:${MARKETPULSE_DB_VERSION:?set by pnpm db - run that rather than docker compose}
+
+    # Loopback only. A bare "5432:5432" binds every interface, which is a
+    # database on the coffee-shop network with a password that is in a public
+    # repository.
+    ports:
+      - "127.0.0.1:${MARKETPULSE_DB_PORT:?set by pnpm db - run that rather than docker compose}:5432"
+
+    environment:
+      POSTGRES_USER: ${MARKETPULSE_DB_USER:?set by pnpm db - run that rather than docker compose}
+      POSTGRES_PASSWORD: ${MARKETPULSE_DB_PASSWORD:?set by pnpm db - run that rather than docker compose}
+      POSTGRES_DB: ${MARKETPULSE_DB_NAME:?set by pnpm db - run that rather than docker compose}
+
+    # `pnpm db` passes `--wait`, which waits on this rather than on the
+    # container merely existing — so by the time that command returns, the
+    # server is accepting connections and `pnpm ready` sees it on its first
+    # poll instead of polling through the initialisation.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready --username=$$POSTGRES_USER --dbname=$$POSTGRES_DB",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+
+    # **`/var/lib/postgresql` and NOT `/var/lib/postgresql/data`.** The
+    # PostgreSQL 18 image moved both its declared volume and its PGDATA — read
+    # out of the image rather than remembered: `PGDATA` is
+    # `/var/lib/postgresql/18/docker` and `Config.Volumes` is
+    # `{"/var/lib/postgresql":{}}`. Every pre-18 compose snippet mounts
+    # `/var/lib/postgresql/data`, and the failure that produces was measured
+    # rather than predicted, because the prediction was wrong in the reassuring
+    # direction. It does **not** start and silently persist nothing: the
+    # container **refuses to start at all, on the very first run, with an empty
+    # volume**, exiting with a twenty-line explanation that names the mount, the
+    # reason and the fix ("Error: in 18+, these Docker images are configured to
+    # store database data in a format which is compatible with pg_ctlcluster …
+    # there appears to be PostgreSQL data in: /var/lib/postgresql/data (unused
+    # mount/volume)"). So this is the good kind of trap. With `--wait` it is a
+    # failed `pnpm db` rather than a database that looks fine until the day
+    # somebody needs yesterday's rows.
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+    # Deliberately no `restart:` policy. `pnpm db down` stops it and a reboot
+    # does not bring it back — a database that resurrects itself is a listener
+    # on 5432 that nobody in the room started.
+
+volumes:
+  postgres-data:
