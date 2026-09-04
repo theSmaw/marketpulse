@@ -107,6 +107,25 @@ twelve months without using them.
 8. `pnpm verify` passes, and it still passes **with no database running** — the chain has
    never needed a server and must not start now
 
+## Tasks
+
+Tackled in order. The story is complete when all eight are done.
+
+2.1.1 decides and provisions nothing, deliberately — the same shape as Tasks 1.10.1 and 1.11.1, so the first failed provisioning attempt in this repository's history has one possible cause, and because this story's two one-way doors are both in it. 2.1.2 to 2.1.4 are entirely local and come **before** the managed instance exists, for Task 1.11.2's reason: a platform failing on something that was never correct is the most expensive failure to read, and a connection pool that has never opened a connection is exactly that. 2.1.5 is the deploy half with no application in front of it. 2.1.6 is the only task where both halves are unknown at once, which is why it comes after both, and it is where the secrets mechanism and its leak check land. 2.1.7 answers the `/health` question with something running, because the liveness-probe trap cannot be reasoned about safely. 2.1.8 closes the story and takes the cost question Epic 1 handed forward.
+
+| #     | Task                                                                                                                                         | Status      |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 2.1.1 | [Choose the four irreversible decisions, and the credential shape, provisioning nothing](TASK-01-choose-the-creation-decisions.md)           | Not started |
+| 2.1.2 | [Give a clean clone a local database, and say what it costs](TASK-02-the-local-development-database.md)                                      | Not started |
+| 2.1.3 | [Put the connection settings through the configuration boundary](TASK-03-connection-settings-in-the-configuration-boundary.md)               | Not started |
+| 2.1.4 | [The connection pool, `SELECT 1`, and closing inside the drain](TASK-04-the-pool-and-its-lifecycle.md)                                       | Not started |
+| 2.1.5 | [Provision the managed instance, and reach it over TLS from outside the application](TASK-05-provision-the-managed-instance.md)              | Not started |
+| 2.1.6 | [Put the credential on the platform, connect the deployed backend, and prove nothing leaked](TASK-06-the-credential-on-the-platform.md)      | Not started |
+| 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Not started |
+| 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Not started |
+
+**The five open decisions above are not spread across the eight tasks evenly.** Four of them — networking mode, authentication, storage and backup — are settled together in **2.1.1**, because they are creation arguments and a creation argument decided late is a server rebuilt. The local-database decision is **2.1.2**'s, because its real cost is what a clean clone has to install and that cannot be judged apart from doing it. The `/health` decision is **2.1.7**'s and deliberately last, because it is the only one whose answer depends on watching a real replica survive a real outage.
+
 ## What this story hands forward
 
 A reachable database, a credential path that Story 2.6 reuses rather than reinvents, and
