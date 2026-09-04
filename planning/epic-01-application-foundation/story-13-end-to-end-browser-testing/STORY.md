@@ -86,12 +86,24 @@ Story 1.1 is complete, and these four bind this story. They are stated in every 
 
 ### What Story 1.12 hands this story
 
-Story 1.12 is a dependency and is what makes this story worth doing now rather than in Epic 8.
+Story 1.12 is a dependency and is what makes this story worth doing now rather than in Epic 8. **It is complete as of 2026-09-04, so the four bullets below are records rather than forecasts, and the section that follows them is the specification it handed over rather than a description of one.**
 
 - **It ships the first behaviour in this application that is not a static render.** A poll, three states, a last-successful-check time and automatic recovery — every one of which is a user-visible sequence over time rather than a rendered output, which is the thing no level below a browser can assert
 - **It ships the failure that `curl` cannot see.** A wrong `CORS_ORIGIN` or a missing `VITE_API_BASE_URL` produces `TypeError: Failed to fetch` in the page and a 200 in every server-side instrument
 - **Its recovery criterion is a timing fact and the interval is a test input.** "Recovery is automatic when the backend returns — no page reload required" cannot be observed faster than the next poll. Read the interval Task 1.12.3 chose rather than hardcoding a wait, and prove the absence of a reload with `performance.timeOrigin` rather than with a wait
 - **Its three states have named, producible causes**, defined in Task 1.12.1 and produced by hand in Task 1.12.6. A suite that cannot produce them is asserting on the healthy path only
+- **Every state was produced twice over, and the deployed half is the one that matters here.** Locally from a stopped backend, a squatter that accepts and never answers, a 503 with an `ApiError` body, a 502 with an HTML page and a 200 serving `index.html`; deployed from a wrong `CORS_ORIGIN` and from the frontend's own origin, whose `navigationFallback` is a **URL-pattern rule** rather than an `Accept` rule and so answers `/health` with 200 `index.html` at both `Accept` values. So there are two known, deployed, no-code-change producers to write a check against, and `<origin>/assets` is the third
+- **Its poll is measured, not estimated, and three of the figures are test inputs.** The cycle is **31 s** rather than 30 in an automated tab (the browser aligning timers, not the application), **36 s** when a poll hangs to the deadline, and the `checking` placeholder clears in **50.7 ms** locally and **283 ms** deployed against a **5 s** hold when the backend is dead. A timeout picked from the healthy figure will be red on the failing path, which is the path this suite exists for
+
+#### The strings to assert on, handed over verbatim rather than described
+
+Task 1.12.7 recorded these as the specification for Tasks 1.13.3 and 1.13.5 — [that task's file](../story-12-health-status-vertical-slice/TASK-07-verify-against-the-deployed-environment.md) is the source, and they are repeated here because a specification nobody can find is a specification nobody uses.
+
+- **The words on screen are the `BackendStatus` members themselves** — `healthy`, `degraded`, `unreachable` — plus **`checking`**, which is not a state but the placeholder every page load renders until the first poll settles. A check must **wait past `checking` rather than read it as a failure**, and must make the tab **visible** first or the loop never starts
+- **The three region labels in the chrome are `Market feed`, `Backend service` and `Market clock`**, and reading the label before the word is not optional: a correct first run shows a **`DISCONNECTED` market feed beside a `HEALTHY` backend service**, because there is no market data until Epic 3. A selector that matches a status word without scoping to its region is matching the wrong indicator half the time
+- **The four detail sentences are** `No response from the service.`, `The service answered with an error.`, `Something answered at the service's address, and it was not this service.` and `No successful check yet.` — the last of which is the **missing-`VITE_API_BASE_URL` signature**, and the one before it the frontend's-own-origin one
+- **The two `degraded` causes share a word and differ only in sentence**, so a check asserting on the word alone cannot tell them apart and should not try — and the two non-2xx producers (a 503 with an `ApiError` body, a 502 with an HTML page) render **identically**, which is a designed collapse rather than a gap
+- **No request id is rendered anywhere**, even when the response carries a well-formed one. A check looking for a correlation id on screen is looking for something the design deliberately does not put there
 
 ## Acceptance criteria
 
