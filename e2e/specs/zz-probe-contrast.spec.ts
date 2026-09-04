@@ -43,5 +43,5 @@ test("PROBE: the browser computes real styles", async ({ page }) => {
 
   // A blind engine cannot produce either of these.
   expect(ground).toBe("rgb(244, 243, 238)");
-  expect(contrast.contrastNodes).toBeGreaterThan(0);
+  expect(contrast.contrastNodes).toBeGreaterThan(999999); // PROBE 3: deliberate red
 });
