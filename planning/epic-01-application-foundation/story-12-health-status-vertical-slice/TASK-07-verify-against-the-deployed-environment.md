@@ -1,6 +1,6 @@
 # Task 1.12.7 — Verify the slice against the deployed environment, including the states you cannot fake there
 
-**Status:** Not started
+**Status:** Complete (2026-09-04)
 **Story:** [1.12 Health & Status Vertical Slice](STORY.md)
 **Depends on:** Task 1.12.6 — complete, and this file was amended against what 1.12.6 measured on 2026-09-04
 
@@ -36,3 +36,145 @@ Meet the criterion that says "not only locally". Deploy the slice, watch it work
 ## Approach note
 
 This is the task where the epic's exit criterion is actually met, and it is the only one in the story that nothing in this repository can check for you. Leave the deployed environment up and correct; the last two criteria of Story 1.11 depend on it as much as this story's do.
+
+## What was measured (2026-09-04)
+
+Every reading below was taken in a browser against the deployed pair, with the tab **visible** throughout — `document.visibilityState` overridden with a `configurable` getter and a `visibilitychange` dispatched, because an automated tab reports `hidden` and the loop is guarded by `isHidden()`. Backend evidence is Log Analytics (`ContainerAppConsoleLogs_CL`), read by `reqId` rather than by eye.
+
+### The three states, each from a named cause
+
+**`healthy`** from the ordinary pair. `BACKEND SERVICE` / `HEALTHY` on the landing route, deep-loaded and after client-side navigation.
+
+**`unreachable`** from a **wrong `CORS_ORIGIN`** — a platform value, so **nothing in a diff shows it**, which is why it was restored and the restoration re-verified rather than remembered. The browser reported `TypeError: Failed to fetch` on six consecutive polls; the indicator read `UNREACHABLE` under `No response from the service.`
+
+**`degraded` / `unreadable-body`** from **`VITE_API_BASE_URL` pointed at the deployed frontend's own origin** — a build-time literal, so it is the one cause here a diff does show. Shipped as [#147](https://github.com/theSmaw/marketpulse/pull/147) and reverted by [#148](https://github.com/theSmaw/marketpulse/pull/148). The client's `/health` came back **200 `text/html`** with `x-request-id: null`, and the indicator read `DEGRADED` under `Something answered at the service's address, and it was not this service.` **This is the first time this story has produced `unreadable-body` from a host this project did not write.**
+
+### The prediction this task owed, confirmed — and it is the opposite of `vite preview`
+
+Task 1.12.6 could only reach `unreadable-body` from a purpose-built impostor, because **`vite preview`'s SPA fallback keys on the `Accept` header** and the `application/json` this client sends gets a 404. **Azure Static Web Apps' `navigationFallback` is a URL-pattern rule and not an `Accept` rule**, checked with `curl` at both `Accept` values _before_ any browser reading:
+
+| path             | `Accept`           | status  | content-type | bytes |
+| ---------------- | ------------------ | ------- | ------------ | ----- |
+| `/health`        | `application/json` | **200** | `text/html`  | 1101  |
+| `/health`        | `text/html`        | 200     | `text/html`  | 1101  |
+| `/assets/health` | `application/json` | **404** | `text/html`  | 2400  |
+| `/assets/health` | `text/html`        | 404     | `text/html`  | 2400  |
+
+Identical bytes at both `Accept` values. So the state is honestly producible deployed, and there is no CORS obstacle because the request is same-origin. Note the second row pair: **`not-ok-status` is equally reachable deployed** by pointing the client at `<origin>/assets`, since `/assets/*` is excluded from the fallback and returns a real 404 — measured here, and deliberately **not** spent a second deploy on, because Task 1.12.6 already produced that cause from both its producers and found they render identically.
+
+### Two `unreachable` causes have very different cadences, and only one of them is slow
+
+A CORS rejection fails at the **round trip** — 270 / 505 / 479 / 282 / 281 / 764 ms — because the response _arrives_ and the browser discards it. Nothing goes near the 5 s deadline. That is the opposite of Task 1.12.6's hung socket, which fails at 5001 ms and stretches the cycle to 36.00 s. **So `unreachable` is not one latency signature but two**, and an operator timing a failure can tell a refused/blocked response from a hung one without any other instrument.
+
+### The three instruments disagree, and this is the specification for Story 1.13
+
+Taken at the same moment, with `CORS_ORIGIN` wrong:
+
+| instrument                        | reading                                                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| the browser                       | `TypeError: Failed to fetch`, indicator `UNREACHABLE`, six consecutive failed polls                     |
+| `curl` sending the same `Origin`  | **200** with the full body, and `access-control-allow-origin: https://marketpulse-wrong-origin.example` |
+| the backend's own log (4 minutes) | **38 requests, every one `statusCode: 200`**, zero errors                                               |
+
+The server asserts the **configured** origin unconditionally — Story 1.8's finding, alive in production — so the browser is the only party that compares, and every piece of server-side evidence says the system is healthy while the product is broken for every user. `curl` is structurally incapable of catching this. That is the whole case for [Story 1.13](../story-13-end-to-end-browser-testing/STORY.md)'s browser smoke check, and this table is its acceptance criterion.
+
+### Both "never been answered" and "was answered once" signatures, from one cause
+
+- an **established** session held `Last confirmed 09:02:38` across **six** failed polls — neither cleared nor advanced to a failed attempt
+- a **fresh load** during the same outage read `No successful check yet.`
+
+So the missing-`VITE_API_BASE_URL` signature and the backend-went-away signature are distinguishable on screen, which is what makes them worth asserting separately. Throughout, the rest of the interface stayed usable: four navigation links, the route rendered (`Security Explorer`), and **zero error fallbacks anywhere**.
+
+### Recovery, deployed, with no reload
+
+`CORS_ORIGIN` restored → poll failed 01:10:54, failed 01:11:26, **succeeded 01:11:57** (`a149a660-361c-4ac3-b704-5fad61928268`) and the indicator returned to `HEALTHY`. `performance.getEntriesByType('navigation').length` was **1** and `timeOrigin` unchanged, so it was the running page and not a reload. A second tab, which had never once been answered, recovered in the same window.
+
+### The correlation id, followed from a browser to a log record — from a poll, not a probe
+
+`window.fetch` was wrapped so the **poll's own** response headers were captured. All three ids were found in Log Analytics as `reqId`, each as an `incoming request` / `request completed` pair:
+
+| `x-request-id` read in the browser     | revision    | `responseTime` |
+| -------------------------------------- | ----------- | -------------- |
+| `f529c75f-4660-4c1b-a0a0-2941e4974bfe` | `--0000034` | 0.3207 ms      |
+| `8f69efbc-4ada-4224-aae3-1c54a690d967` | `--0000035` | 0.5458 ms      |
+| `850fcc50-2658-463c-af6f-707f8c4ab5d4` | `--0000035` | 0.6119 ms      |
+
+Note the revision column: **polls 1 and 2 straddle a revision rollover** and neither failed.
+
+### The poll's cost, deployed — measured as a step function rather than inherited
+
+Requests per 30 s in the backend's own log, one continuous series, tabs added one at a time:
+
+| window (UTC)        | visible tabs | requests / 30 s  |
+| ------------------- | ------------ | ---------------- |
+| 01:43:30 – 01:44:30 | **0**        | 4, 4, 4          |
+| 01:45:00 – 01:47:30 | **1**        | 5, 5, 5, 5, 5    |
+| 01:48:00 – 01:50:30 | **2**        | 6, 6, 5, 6, 6, 6 |
+
+**The probe-only baseline is a precise and explainable 4 per 30 s**, which refines Task 1.11.7's "1–4": the liveness probe is `periodSeconds: 30` (1) and the readiness probe `periodSeconds: 10` (3). **One visible tab adds exactly +1 per 30 s**, which is the arithmetic that made `HEALTH_POLL_INTERVAL_MS = 30_000` defensible, now confirmed against the log. The single `5` at 01:49:00 is not a lost request: it is the **31.00 s** automated-tab cycle drifting across a 30 s bin boundary, which is Task 1.12.6's instrument effect visible in the data.
+
+The cycle itself reproduced deployed at **31.15 / 30.86 s** settle-to-settle (mean 31.00 s), and the round trip at **262–768 ms**.
+
+### Two placeholder figures, and the trap that makes them worth having
+
+- **A tab hidden at mount made 0 `/health` requests in 4.65 s** and sat on `CHECKING` — Task 1.12.5's property confirmed against the deployed environment. A page opened in a background tab is indistinguishable from broken wiring.
+- Once visible, the placeholder cleared in **283.2 ms**, of which **267 ms** was the round trip — against **50.7 ms** on a local pair. So on this environment `checking` is a real interval rather than a flicker, and a smoke check waiting past it needs a public-internet allowance, with the **5 s deadline** as the figure it must actually accommodate against a dead backend.
+
+### A full deploy of both halves is invisible to a running page
+
+Across one complete pipeline deploy — backend revision **34 → 35** rollover _and_ the frontend upload — an open page made **14 polls with 0 failures** and never left `healthy`, on one navigation entry with `timeOrigin` unchanged.
+
+### The non-atomic upload window did not appear, and the reason is a correction
+
+The CDN was polled every 0.4 s for the whole of `Deploy the frontend`: **174 consecutive samples, every one `doc=200`, the referenced asset unchanged and 200 throughout, zero broken states.** Task 1.11.7 records a ~2 s window holding two distinct broken states, reproduced across four deploys.
+
+The difference is the artefact. That merge shipped **no source**, so the Linux build reproduced byte-identically and the hashed filenames did not change — there was no _incoming_ asset to be missing and no _outgoing_ one to withdraw; the upload replaced files with identical bytes at identical names. **So the window is a property of the artefact changing, not of deploying.** The probe deploy, which did change the bundle (`index-CL7CW2na.js` → `index-SSKhEFDu.js`), was not polled at that resolution, so this is the mechanism explaining an observation rather than a re-test of the window itself — recorded that way deliberately.
+
+### Artefact figures, and the restoration proved by bytes
+
+| build                      | bundle              | bytes   | md5         | `index.html` md5 |
+| -------------------------- | ------------------- | ------- | ----------- | ---------------- |
+| deployed, before the probe | `index-CL7CW2na.js` | 348,196 | `e1f2daff…` | `4caaf62f…`      |
+| the probe                  | `index-SSKhEFDu.js` | 348,169 | `eea8982c…` | `387e4193…`      |
+| deployed, after the revert | `index-CL7CW2na.js` | 348,196 | `e1f2daff…` | `4caaf62f…`      |
+
+The revert reproduced the pre-probe bytes **exactly**, which is a better restoration check than re-reading the workflow file. Two recorded facts held: the deployed bundle is **348,196 B against a local default build's 348,124 B**, reproducing the **72-byte** `VITE_API_BASE_URL` divergence to the byte; and **`index.html` is 1,101 B in all three rows at two different hashes**, because it carries the hashed script filename — a size comparison reports it unchanged and it is not.
+
+### The cost question: still no figure, and the refusal has changed shape
+
+That change is the finding, because Task 1.11.8's stated cause is no longer what happens:
+
+- `az consumption usage list` now returns **`[]` at exit 0** — not the _"doesn't have valid WebDirect/AIRS offer type"_ refusal reproduced six times in Task 1.11.8
+- the Cost Management query API answers **`429 Too Many Requests`**, on three attempts spread over ~40 minutes
+- `az costmanagement` is not a recognised command without an extension
+
+So whether continuous probing breaks the Consumption plan's idle-billing condition is **still open**, and it stays owned by Epic 2 and re-taken by Epic 3. What _is_ answerable is the arithmetic, re-derived from the Retail Prices API rather than cited, and it reproduces Task 1.11.8 **to the cent**:
+
+| line                           | idle      | active     |
+| ------------------------------ | --------- | ---------- |
+| replica (0.25 vCPU / 0.5 GiB)  | $4.21     | $14.04     |
+| ACR Basic (`$0.1666`/day × 30) | $5.00     | $5.00      |
+| **total**                      | **$9.21** | **$19.04** |
+
+after the free grant of 180,000 vCPU-seconds and 360,000 GiB-seconds (468,000 and 936,000 billable of 648,000 and 1,296,000). The **$20 budget** with alerts at **50 / 80 / 100%** was re-read and is in place — still sitting just **above** the active-rate total, so it would not fire on the change that matters most. The deployed poll adds **1 request per 30 s per visible tab** against a 2-million-request monthly allowance and a 4-per-30-s probe baseline it does not exceed; health-probe requests are not billable and these are.
+
+### The browser smoke check: decided, and not this task's to build
+
+Task 1.11.7 declined it and named the gap. **Story 1.12 is the first story capable of shipping that failure**, which is why [Story 1.13](../story-13-end-to-end-browser-testing/STORY.md) exists and owns building it as Task 1.13.5. Saying so here rather than deferring silently is what this task owed. What it hands over is the specification, in strings rather than descriptions:
+
+- the states are `healthy`, `degraded`, `unreachable`, plus **`checking`**, which is not a state but the placeholder every load renders until the first poll settles — a check must wait past it, not read it as a failure
+- the region labels are `Market feed`, `Backend service`, `Market clock`
+- the detail sentences are `No response from the service.`, `The service answered with an error.`, `Something answered at the service's address, and it was not this service.` and `No successful check yet.`
+- **it must make the tab visible first**, or the loop never starts and the page sits on `checking` forever — 0 requests in 4.65 s, measured here
+- the two `degraded` causes render the same **word** and different **sentences**; a check asserting on the word alone cannot tell them apart, and should not try
+- its acceptance criterion is the three-instrument table above: green `curl`, green log, broken product
+
+**Reversal trigger for the shape of that check:** if it ever needs to distinguish the two `degraded` causes or a `requestId`, that is a new named prop on the indicator, never a widening of what is rendered today.
+
+## Done
+
+- [x] All three states seen in a browser against the deployed environment, each from a named cause, tab visible throughout, the up-to-31-second lag accounted for
+- [x] Everything broken restored and re-verified — `CORS_ORIGIN` by re-reading the platform and the live `access-control-allow-origin`, `VITE_API_BASE_URL` by the deployed bundle returning to its pre-probe bytes
+- [x] The correlation id followed from a browser to a backend log record, three times, from polls rather than probes
+- [x] The cost question re-asked; its continued refusal recorded, along with the fact that the refusal changed shape
+- [x] The browser smoke check decision written down with its owner, its specification and its reversal trigger
