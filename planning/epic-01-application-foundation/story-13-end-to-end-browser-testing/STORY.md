@@ -1,6 +1,6 @@
 # Story 1.13 — End-to-End Browser Testing
 
-**Status:** Not started
+**Status:** In progress
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Stories 1.10, 1.11, 1.12
 **Epic scope covered:** user-journey test foundations — an addition to this epic's scope, see the note at the end
@@ -105,6 +105,17 @@ Task 1.12.7 recorded these as the specification for Tasks 1.13.3 and 1.13.5 — 
 - **The two `degraded` causes share a word and differ only in sentence**, so a check asserting on the word alone cannot tell them apart and should not try — and the two non-2xx producers (a 503 with an `ApiError` body, a 502 with an HTML page) render **identically**, which is a designed collapse rather than a gap
 - **No request id is rendered anywhere**, even when the response carries a well-formed one. A check looking for a correlation id on screen is looking for something the design deliberately does not put there
 
+## The tool and the specs' home are settled
+
+**Chosen 2026-09-04 by Task 1.13.1 and recorded in full in [`BROWSER-TESTING.md`](BROWSER-TESTING.md)** — which carries both spikes' figures side by side, the browser-binary numbers Task 1.13.4 has to cache, what Cypress was better at, and what Task 1.13.2 inherits.
+
+**Playwright 1.62.1**, with the specs in a **fourth workspace package at `e2e/`**, run by a root script named **`pnpm e2e`**. Four things from it bind the rest of this story:
+
+- **`document.visibilityState` is `visible`**, in Playwright and in Cypress alike, so the hidden-tab hazard this story was written around **does not exist in either tool** and no override is needed. The repository's recorded "an automated tab reports `hidden`" is a property of the browser-extension harness rather than of automation. Driven at the real pair, the indicator goes `checking` → `healthy` and the poll fires unaided
+- **The poll cycle reads 30.02 s under Playwright, not the 31 s** Tasks 1.12.6 and 1.12.7 recorded — which confirms their attribution of the extra second to Chrome aligning timers in a backgrounded tab. Specs should expect 30 s
+- **The `e2e` package must never have a `test` script.** It joins every `pnpm -r` fan-out automatically — measured at "Scope: 4 of 5 workspace projects" — and the only thing keeping the browser suite out of `pnpm test` is that absence. Nothing checks it
+- **The root solution file needs `{ "path": "e2e" }` or the specs are typechecked by nothing**, silently, at exit 0. ESLint and Prettier reach the directory for free; `tsc` does not
+
 ## Acceptance criteria
 
 - One browser-driven test tool is chosen, with the alternative measured rather than dismissed, and the specs have one stated home
@@ -122,7 +133,7 @@ Tackled in order. The story is complete when all six are done, and it is the las
 
 | #      | Task                                                                                                                 | Status      |
 | ------ | -------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1.13.1 | [Choose the browser tool and decide where the specs live](TASK-01-choose-the-tool-and-where-specs-live.md)           | Not started |
+| 1.13.1 | [Choose the browser tool and decide where the specs live](TASK-01-choose-the-tool-and-where-specs-live.md)           | Complete    |
 | 1.13.2 | [Install it and make one journey real against a local pair](TASK-02-first-journey-against-a-local-pair.md)           | Not started |
 | 1.13.3 | [Write the journeys worth having, and state the ones deliberately not written](TASK-03-the-journeys-worth-having.md) | Not started |
 | 1.13.4 | [Run it in CI, and settle where it sits relative to `pnpm verify`](TASK-04-run-it-in-ci.md)                          | Not started |
