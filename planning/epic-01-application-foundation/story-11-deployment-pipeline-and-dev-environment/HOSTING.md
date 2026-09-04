@@ -483,6 +483,8 @@ Compression is negotiated and **brotli is preferred**: the 343,658 B bundle arri
 
 ### Uploads are not atomic, and the window is long enough to break a cold load
 
+**Scoped by Task 1.12.7 (2026-09-04): the window is a property of the artefact _changing_, not of deploying.** 174 consecutive CDN samples at 0.4 s across a whole `Deploy the frontend` step of a docs-only merge showed **zero** broken states — a byte-identical Linux rebuild keeps the hashed filenames, so there was no incoming asset to be missing and no outgoing one to withdraw. A mechanism explaining an observation and **not a re-test**: the window is real on a changing artefact and was not re-measured there.
+
 This was the one item on the task's list that could only be answered by making it happen, so it was made to happen twice. A synthetic second artefact was built by renaming both hashed assets and rewriting `index.html` to match, then deployed while the site was polled continuously for three things: which asset `index.html` referenced, and the status of the old and new asset URLs.
 
 Both runs showed the same ordering, and it is the wrong way round:
@@ -848,7 +850,7 @@ The deadline is now 600 s rather than 300 so `ActivationFailed` stays reachable 
 
 Across five rollouts — three failing, two healthy — **no request ever returned a non-200 HTTP status**, and the serving process's `uptimeSeconds` never reset.
 
-That sentence took three attempts to be able to write honestly. Polling from a laptop produced runs of complete timeouts (curl exit 28), including one contiguous **65-second** run during a failing rollout, which reads exactly like the platform dropping traffic. Two controls settle it. A probe of **three hosts at the same instant on a steady system with nothing deploying** reproduced the same drops, twice hitting the backend and the frontend — two different Azure services in two different regions — in the same second. And decisively, the backend's own Log Analytics records show it answering **9 requests per 30 s during the window the laptop saw as a blackout**, against a probe-only idle baseline of **1–4 per 30 s**. The server never went quiet; the measuring path did.
+That sentence took three attempts to be able to write honestly. Polling from a laptop produced runs of complete timeouts (curl exit 28), including one contiguous **65-second** run during a failing rollout, which reads exactly like the platform dropping traffic. Two controls settle it. A probe of **three hosts at the same instant on a steady system with nothing deploying** reproduced the same drops, twice hitting the backend and the frontend — two different Azure services in two different regions — in the same second. And decisively, the backend's own Log Analytics records show it answering **9 requests per 30 s during the window the laptop saw as a blackout**, against a probe-only idle baseline of ~~1–4~~ **a precise and explainable 4** per 30 s — liveness at `periodSeconds: 30` is 1 and readiness at `10` is 3 (refined by Task 1.12.7, 2026-09-04). The server never went quiet; the measuring path did.
 
 **The lesson is worth more than the numbers: a deployment check that runs from one machine over one link cannot distinguish its own network from the environment it is checking, and the server-side record is the only tiebreak.** It is also a measured argument against a naive post-deploy smoke check — see below.
 
@@ -867,6 +869,8 @@ The backend is deployed before the frontend deliberately, so a failure between t
 **Re-running the failed deploy is safe but is not a no-op, which is the opposite of what "idempotent update" suggests.** 202 probes across the re-run, all 200, no downtime. But the same commit through the same `pnpm image` invocation produced a **different digest** — `549b0888…` became `bf2007d5…`, layer bytes 60,247,138 against the 60,247,220 recorded in Task 1.11.6 — so the image is **not bit-reproducible across runs**, `az containerapp update` saw a genuine template change, and a **new revision was rolled out**. The consequence to carry: **the commit-SHA tag has now pointed at two different digests.** It still means "the tree is that commit", which is all `scripts/build-image.mjs` ever claimed; it does not mean "these exact bytes".
 
 ### The frontend's upload is still not atomic, and there is a second broken state nobody had recorded
+
+**Scoped by Task 1.12.7 (2026-09-04): the window is a property of the artefact _changing_, not of deploying.** 174 consecutive CDN samples at 0.4 s across a whole `Deploy the frontend` step of a docs-only merge showed **zero** broken states — a byte-identical Linux rebuild keeps the hashed filenames, so there was no incoming asset to be missing and no outgoing one to withdraw. A mechanism explaining an observation and **not a re-test**: the window is real on a changing artefact and was not re-measured there.
 
 Re-confirmed on the shipping pipeline, on a deploy whose hashed asset actually changed (deploy run 33743081928 — a deploy of identical bytes uploads the same filenames and withdraws nothing, which is why this needed a deliberate bundle change):
 

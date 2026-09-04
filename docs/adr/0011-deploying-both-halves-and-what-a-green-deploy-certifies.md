@@ -398,6 +398,8 @@ itself perfectly well.
 No documentation page names this. Reproduced on four deploys with a continuous
 poll, and it is worse than Task 1.11.4 first recorded:
 
+**Scoped by Task 1.12.7 (2026-09-04): the window is a property of the artefact _changing_, not of deploying.** 174 consecutive CDN samples at 0.4 s across a whole `Deploy the frontend` step of a docs-only merge showed **zero** broken states — a byte-identical Linux rebuild keeps the hashed filenames, so there was no incoming asset to be missing and no outgoing one to withdraw. That is a mechanism explaining an observation and **not a re-test**: the window is real on a changing artefact, and Task 1.12.7 did not re-measure it there.
+
 - The **incoming `index.html` is served while the incoming asset is still a
   404** — the document moves ahead of its own asset.
 - Then the **outgoing asset is withdrawn while the outgoing `index.html` is
@@ -593,15 +595,19 @@ under a running environment.
 ### 23. What crossed the frontend-to-backend boundary, and what was deliberately left to Story 1.12
 
 **Scope taken from Story 1.12 is one `fetch` and one variable and nothing else.**
-`apps/frontend/src/health-probe.ts` calls the deployed `/health` once at startup
-from `main.tsx`, outside React entirely, and reports to the console. No client,
-no state, no effect, no polling, no component; the body stays `unknown` so
-`HealthResponse`'s promotion stays 1.12's payoff, and the file says it is meant
-to be deleted.
+~~`apps/frontend/src/health-probe.ts` calls the deployed `/health` once at
+startup from `main.tsx`, outside React entirely, and reports to the console.~~
+**That module and that line are both gone as of Task 1.12.3 (2026-09-04)**, which
+replaced them with `use-backend-health.ts` — a hook that polls every 30 s and
+whose result the chrome renders — exactly as the file said it would be. It was
+true when written and is kept struck through rather than deleted, because the
+scope boundary is the decision worth reading: no client, no state, no effect, no
+polling, no component; the body stayed `unknown` so `HealthResponse`'s promotion
+stayed 1.12's payoff.
 
 A deployment story landing a data layer is the failure that decision avoids, and
-it is also what leaves the React Compiler rules' first real test to 1.12's
-polling effect.
+it is also what left the React Compiler rules' first real test to 1.12's polling
+effect — **which landed, and they said nothing; see ADR 0012**.
 
 **`exposedHeaders` is load-bearing, and this is the first time anywhere.** The
 `x-request-id` the browser reads is the `reqId` in the backend's Log Analytics
@@ -723,7 +729,7 @@ images. Say which one you mean.
 A 65-second "outage" observed during Task 1.11.7 was the laptop, proved by a
 three-host control and by the backend's own Log Analytics records showing 9
 requests per 30 s through the supposed outage against a probe-only idle baseline
-of 1–4. Anything Epic 15 builds for monitoring inherits this.
+of ~~1–4~~ **a precise and explainable 4** per 30 s — liveness at `periodSeconds: 30` is 1 and readiness at `10` is 3 (refined by Task 1.12.7, 2026-09-04). Anything Epic 15 builds for monitoring inherits this.
 
 ### Repository-invisible configuration is now the largest instance in the project
 

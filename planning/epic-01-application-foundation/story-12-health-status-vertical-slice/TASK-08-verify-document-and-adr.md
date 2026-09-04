@@ -1,6 +1,6 @@
 # Task 1.12.8 — Verify, document, and record ADR 0012
 
-**Status:** Not started
+**Status:** Complete (2026-09-04)
 **Story:** [1.12 Health & Status Vertical Slice](STORY.md)
 **Depends on:** Task 1.12.7 — complete, and this file was amended against what Tasks 1.12.6 and 1.12.7 measured on 2026-09-04
 
@@ -31,3 +31,103 @@ Close the story the way every Epic 1 story has been closed: re-running every cri
 ## Approach note
 
 Every closing task in this epic has found at least one recorded claim that had stopped being true, and the ones that were found were found by re-measuring rather than by reading. Task 1.11.8 found three, including a paragraph that contradicted itself two sentences apart and an arithmetic error of a factor of about 35. Budget for finding some here; the cheapest place to find them is the task that is looking.
+
+## What was measured (2026-09-04)
+
+Every figure below was re-taken rather than cited. The local and deployed
+evidence are kept separate deliberately — the criterion is "not only locally".
+
+### The six acceptance criteria
+
+| #   | Criterion                                              | Local                                                                                              | Deployed                                                                        |
+| --- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 1   | Queries health, displays it in the chrome              | **Met** — `Market feed / disconnected`, `Backend service / healthy`, `Market clock / --:--:-- ET`  | **Met** — `Backend service / healthy` on the live pair                          |
+| 2   | Distinguishes healthy, degraded, unreachable           | **Met** — all three, and both `degraded` causes rendering different sentences under one word       | **Met** — all three (Task 1.12.7); `unreadable-body` producer re-confirmed here |
+| 3   | Unreachable reports last check; interface stays usable | **Met** — `Last confirmed 10:21:16`; five routes navigate, **0** fallbacks, **1** navigation entry | **Met** (Task 1.12.7)                                                           |
+| 4   | Recovery automatic, no reload                          | **Met** — watched, table below                                                                     | **Met** (Task 1.12.7)                                                           |
+| 5   | Verified against the deployed environment              | —                                                                                                  | **Met** — healthy, poll, correlation ids, fallback rule, all re-taken           |
+| 6   | Polling deliberate, does not spam logs                 | **Met** — 6 polls / 185 s, 2 log records each, 0 header mutations, 0 long tasks                    | **Met** — cycle 31.05 s, round trip 262–268 ms                                  |
+
+### Recovery, watched rather than inferred
+
+| Time     | Event                                                         |
+| -------- | ------------------------------------------------------------- |
+| 10:23:20 | `healthy`                                                     |
+| 10:23:28 | backend `SIGTERM`ed — the poll at that second still succeeded |
+| 10:24:00 | `unreachable`, holding `Last confirmed 10:23:28`              |
+| 10:24:05 | backend answering again                                       |
+| 10:24:31 | `healthy` again                                               |
+
+`performance.timeOrigin` unchanged at `1788488462798.1`, **one** navigation entry
+of type `navigate`, on `/replay` — a route reached by client-side navigation.
+Zero error fallbacks throughout. The failed poll neither cleared nor advanced the
+timestamp.
+
+### The poll (local, 185 s, one visible tab)
+
+6 requests; cycle **30.98 / 31.00 / 31.00 / 31.00 / 31.02 s**; **12 log records,
+exactly 2 per request**; round trip 7.8–25.1 ms; **0 header DOM mutations** and
+**0 `longtask` entries**. The 31 s rather than 30 is Chrome's timer alignment in a
+genuinely backgrounded automated tab, not the application.
+
+### The deployed pair
+
+- Three correlation ids followed from a browser to a Log Analytics record —
+  `responseTime` **0.48 / 0.31 / 0.38 ms**, `pid` 1, revision `0000040`
+- Round trip **250.8 / 262 / 268.1 / 275 / 385.5 ms**
+- An automated tab sat on `CHECKING` for **twelve seconds** making no request
+  until `visibilityState` was overridden — Task 1.12.7's precondition, reproduced
+- `/health` **200 `index.html` at 1,101 B under both `Accept` values**;
+  `/assets/health` **404** at both — Task 1.12.7's `navigationFallback` finding,
+  reproduced exactly
+- Deployed bundle still `index-CL7CW2na.js` — Task 1.12.7's restored value
+
+### The tree
+
+`pnpm verify` **exit 0 in 27.06 s** from a clean clone after **398 packages cold
+in 7.91 s**; warm **21.93 s** (build 2.44 / lint 4.03 / `format:check` 4.05 /
+`stories` 0.27 / `env:check` 0.29 / `test` 3.38 / `test:process` 7.79). **189
+tests** (37 / 49 / 103) plus **10** process tests. The artefact reproduces Task
+1.12.5's figures **to the byte** — **361,653 B over four files at 278 modules**.
+
+### The sweep, run with a `grep`
+
+- The convention block is **twelve** now, not eleven — Story 1.13 added one — and
+  **ten** are byte-identical rather than nine.
+- The current-tense `103 real tests` claim stood in **12 sites** (10 convention
+  blocks plus two in `EPIC.md`), stale by **six** increments. The other **27**
+  occurrences of "103 tests" across the tree are historical records correct in
+  their own context — the distinction a grep-and-replace would have destroyed.
+- The **non-atomic upload** claim stands in **14** files; all 14 now carry the
+  scoping clause, as a **scoping clause and not a strike-through**, because the
+  window is real on a changing artefact and was not re-measured there.
+- The **"1–4 requests per 30 s"** baseline stands in **4** files; all four refined
+  to a precise and explainable **4**.
+
+### Four recorded claims that had stopped being true
+
+1. **`docs/adr/0011-*` §23** described `apps/frontend/src/health-probe.ts` in the
+   present tense two tasks after Task 1.12.3 deleted it.
+2. **`docs/adr/0009-*`** and **Story 1.7's `STORY.md`** both said the React
+   Compiler rules had never fired "because nothing shipped here has state". That
+   is **wrong in its stated reason and right in its conclusion**: the repository
+   now ships state, an effect and a network loop, and all seventeen rules were
+   still silent — because `set-state-in-effect` objects to a _synchronous_ update
+   in an effect body, which is not that hook's shape.
+3. **`CLAUDE.md`'s coverage table** was stale for two of three packages — shared
+   30.00% → **75.86%**, frontend 68.25% → **85.80%** — while the backend
+   reproduces to the digit, which is exactly what a story that added tests to two
+   packages should look like.
+4. **`CLAUDE.md` said "All twelve" ADRs when there were eleven.** An off-by-one
+   that this task makes accidentally true. It was found by counting the directory
+   rather than by reading the sentence, which is the whole method.
+
+`README.md`'s "what looks broken" list is **seven** items now, not five or six:
+the `CHECKING` placeholder is a new one, and the `DISCONNECTED` entry had to say
+which of the two indicators it means.
+
+## Done
+
+Story 1.12 is closed. `docs/adr/0012-*` is written, the epic's fourth exit
+criterion is recorded as met with its evidence for Task 1.13.6 to read, and
+Story 1.13 has its handover verified against the code rather than trusted.
