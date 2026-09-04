@@ -146,7 +146,7 @@ Tackled in order. The story is complete when all six are done, and it is the las
 | 1.13.1 | [Choose the browser tool and decide where the specs live](TASK-01-choose-the-tool-and-where-specs-live.md)           | Complete    |
 | 1.13.2 | [Install it and make one journey real against a local pair](TASK-02-first-journey-against-a-local-pair.md)           | Complete    |
 | 1.13.3 | [Write the journeys worth having, and state the ones deliberately not written](TASK-03-the-journeys-worth-having.md) | Complete    |
-| 1.13.4 | [Run it in CI, and settle where it sits relative to `pnpm verify`](TASK-04-run-it-in-ci.md)                          | Not started |
+| 1.13.4 | [Run it in CI, and settle where it sits relative to `pnpm verify`](TASK-04-run-it-in-ci.md)                          | Complete    |
 | 1.13.5 | [Build the post-deploy browser check Task 1.11.7 declined](TASK-05-post-deploy-browser-check.md)                     | Not started |
 | 1.13.6 | [Verify, document, record ADR 0013, and close Epic 1](TASK-06-verify-document-adr-and-close-the-epic.md)             | Not started |
 

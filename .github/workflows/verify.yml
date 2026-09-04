@@ -711,6 +711,25 @@ jobs:
   # retried away: a retry is how a suite stops being able to tell a flake from
   # a defect. If this gate starts flaking, that is information and the answer is
   # to fix the flake, not to add a retry.
+  #
+  # WHAT IT MEASURED ON ITS FIRST DAY, so the next reader compares against a
+  # number rather than an impression. Three green readings of this whole job:
+  # **103 / 102 / 99 s**, which is a 4 s spread where the seven-step chain has
+  # a ~9 s one over five readings — so this job is, so far, the more repeatable
+  # half of the run. Its split, warm: install 4,677-5,035 ms on an exact store
+  # cache hit (`reused 400, downloaded 0`), browser 918-981 ms on a hit and
+  # 5,582 ms cold, `pnpm build` 6,430-7,468 ms, `pnpm e2e` 69,208-72,569 ms of
+  # which the recovery journey is a minute nothing can shorten.
+  #
+  # AND IT WENT RED ON ITS FIRST RUN, FOR A REASON NOBODY PLANNED. The axe gate
+  # reported `scrollable-region-focusable` on the landing route — a real WCAG
+  # 2.1.1 defect that had stood for five stories and that the development
+  # machine had never shown, because which region overflows is a function of the
+  # viewport and of font metrics. It reproduces locally at a viewport 160 px
+  # shorter. `apps/frontend/src/components/Region/Region.tsx` carries the fix
+  # and the reason. That is the whole argument for this job in one incident: no
+  # other level in this repository can see contrast or a whole-document rule at
+  # all.
   e2e:
     name: e2e
     runs-on: ubuntu-latest
@@ -802,11 +821,23 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-shell-v1-${{ runner.os }}-${{ steps.playwright.outputs.version }}
 
-      # `--only-shell`, which is ~199 MB against 554 MB for `install chromium`
-      # (three artefacts: Chrome for Testing 356 MB, the headless shell 196 MB
-      # and FFmpeg 2.5 MB) and 1.1 GB for the bare default over five
-      # directories. Those are Task 1.13.1's macOS figures and the ones printed
-      # below are this runner's; they are not the same builds.
+      # `--only-shell`, and the runner's figures are NOT the macOS ones this
+      # repository already recorded — re-taken here rather than carried. Task
+      # 1.13.1 measured ~199 MB on macOS against 554 MB for `install chromium`
+      # and 1.1 GB for the bare default. On `ubuntu-latest` the same command
+      # puts **267 MB** on disk in TWO directories, not one:
+      # `chromium_headless_shell-1234` at 262 MB and `ffmpeg-1011` at 4.9 MB —
+      # so `--only-shell` still fetches FFmpeg, which is worth knowing before
+      # anyone reads the flag as "one artefact". Compressed into the cache that
+      # is 108,075,781 B, the largest single entry this repository stores
+      # against GitHub's 10 GB per-repository allowance (609,986,375 B in use
+      # across 9 entries when this was taken).
+      #
+      # Cold it is 5,582 ms and a hit is 918-981 ms, against a job that takes
+      # ~100 s in total. That is the whole saving and it is stated rather than
+      # implied: this cache buys about 4.6 s, and it is here because a 267 MB
+      # download on every push is a poor neighbour, not because it moves the
+      # clock much.
       #
       # It is not a downgrade to something the local suite has never run. Task
       # 1.13.2 read the process table while a headless browser was open and a
@@ -822,6 +853,17 @@ jobs:
       # PRINTS what it did, which is the only thing that separates a restored
       # cache from a silent re-download — `cache-hit` cannot, because a
       # version mismatch inside a restored directory is invisible to it.
+      #
+      # ONLY CHROMIUM IS INSTALLED, so WebKit and Firefox on Linux stay
+      # unmeasured and that is deliberate rather than an omission. Task 1.13.1
+      # found WebKit unusable on macOS 14/arm64 — `launch()` succeeds and
+      # `newPage()` never returns — so an unsupported engine presents as a
+      # hanging test rather than an error, and the honest default until an
+      # engine has been seen green here is not to name it. Adding one is a
+      # second project in playwright.config.ts, a second browser in this cache
+      # and roughly a doubling of the run, for a class of finding this suite has
+      # never produced: it exists to catch failures in how the two halves talk,
+      # which is not an engine difference.
       #
       # Nothing here is fetched by `pnpm install`: Playwright ships no install
       # script anywhere in its chain (read out of the published tarballs in Task
@@ -887,7 +929,11 @@ jobs:
       # a minute of a job that already spends more than that installing, and the
       # other nine run underneath it — though that arithmetic is worker-count
       # dependent, so read the worker line the reporter prints rather than
-      # carrying a local total.
+      # carrying a local total. THIS RUNNER REPORTS **2 workers**, not the
+      # laptop's 4, because Playwright's default is half the CPU count: the nine
+      # short journeys stop overlapping four ways and still finish underneath
+      # the recovery journey, so the suite is 69.2-72.6 s here against 62-64 s
+      # locally. Read that as the shape holding rather than as a regression.
       - name: Browser journeys
         run: |
           set -euo pipefail
@@ -928,6 +974,14 @@ jobs:
       # HTML reporter is enabled, so there is no `playwright-report/` to
       # collect. Traces are the largest thing this repository would upload and
       # they are worth exactly nothing on a green run.
+      #
+      # ON THE RUNNER, MEASURED RATHER THAN ESTIMATED, and both shapes were made
+      # to happen. One failed assertion is a **872,142 B** artefact — a 755,894 B
+      # trace zip, a 117,923 B screenshot, a 10,212 B error context and the
+      # 7,080 B pair log — which is larger than the local ~450 KB because the
+      # trace of the axe journey carries the injected axe source. A pair that
+      # never started is **577 B**: the log and nothing else, because there is
+      # no Playwright output at all. A green run uploads nothing.
       #
       # 7 days, for the reason the coverage reports get 7: a trace is opened
       # within days of the run that produced it or it is not opened at all. Read

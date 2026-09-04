@@ -26,6 +26,50 @@ chromium`, ~554 MB, once per machine.
 | `specs/backend-recovery.spec.ts`       | recovery across a real poll interval, with no page reload            |
 | `support/`                             | locators, timings and the axe pass — not collected as tests          |
 
+## Where it runs in CI
+
+It is a **second job named `e2e` in `.github/workflows/verify.yml`**, alongside
+the `verify` job and not inside it, running in parallel with it, and **it gates
+a merge** (Task 1.13.4). The argument for each of those three is written beside
+the job; the short version is that `pnpm verify` runs with nothing listening —
+which is why `pnpm ready` is not a chain step — while `deploy.yml`'s reasons for
+being a separate _workflow_ are properties of a deploy rather than of a check.
+
+The job runs three commands by name and defines no port, browser command or
+readiness rule of its own: `pnpm build` (which has to come first, because
+`pnpm e2e` resolves both addresses from the backend's **built** `dist/config.js`
+and exits 1 on an unbuilt tree), then `pnpm dev` in the background, then
+`pnpm e2e` — which gates on `pnpm ready` itself.
+
+Four things it measured that are worth not rediscovering.
+
+- **`ubuntu-latest` reports 2 workers, not the laptop's 4** — Playwright's
+  default is half the CPU count — so the suite is **69.2–72.6 s** there against
+  62–64 s locally. The nine short journeys still finish underneath the recovery
+  journey. The whole job is **99–103 s** across three green readings.
+- **The browser is `--only-shell chromium` and it is 267 MB on Linux**, in _two_
+  directories (`chromium_headless_shell` 262 MB and `ffmpeg` 4.9 MB) — not the
+  ~199 MB single artefact macOS shows. Cached under an OS- and
+  version-scoped key with **no restore-key**, because a browser directory
+  restored from a different Playwright version looks populated and holds the
+  wrong build.
+- **The shell build is not a lesser renderer.** A control run confirmed it
+  reports the page ground exactly and axe's `color-contrast` rule passes on
+  **65 nodes**, the same as macOS. That mattered: a shell that skipped style
+  computation would turn the axe gate green by making it blind, which is the one
+  failure mode a green run cannot distinguish from success.
+- **The gate found a real defect on its first run.** `scrollable-region-focusable`
+  on the landing route — a WCAG 2.1.1 failure that had stood for five stories,
+  invisible on the development machine because which region overflows depends on
+  the viewport and on font metrics. It reproduces locally at a viewport 160 px
+  shorter. `apps/frontend/src/components/Region/Region.tsx` carries the fix.
+
+Failure artefacts are uploaded **on failure only, for 7 days**; a green run
+uploads nothing. Both shapes were made to happen on the runner: one failed
+assertion is **872,142 B** (trace, screenshot, error context and the pair's log)
+and a pair that never started is **577 B** — the log alone, which is the only
+evidence that failure produces.
+
 ## Why no spec stops the backend
 
 **Every failure state in this suite is produced by intercepting the health
@@ -165,7 +209,8 @@ In the same shape ADR 0010 states it for the tick.
   `/assets/nope.js` with a 200. Story 1.5's two host-level criteria are **not
   assertable here** and belong to the post-deploy check.
 - **Not the deployed environment.** Nothing in this suite has ever spoken to
-  Azure.
+  Azure. In CI it drives a pair the runner started, on that runner, and the
+  post-deploy check is a different thing.
 - **Not that the artefact it drove is the artefact that ships.** The dev server
   does not typecheck and does not bundle; `pnpm verify` is what covers that.
 - **Not coverage, and not that a journey exists for a behaviour.** There are

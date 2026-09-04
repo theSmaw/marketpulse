@@ -11,6 +11,17 @@ the 10-test process suite spawned a real server on a real port, drained it on
 this README documents, run by name — CI does not keep its own list of what
 "verified" means.
 
+**Since Task 1.13.4 green also means the browser suite passed**, and that half
+is the one exception to the paragraph above. `verify.yml` has a second job,
+`e2e`, running in parallel with the chain: it builds, starts `pnpm dev` on the
+runner and runs [`pnpm e2e`](#pnpm-e2e--the-browser-suite) — ten journeys in
+Chromium against a real pair, including an accessibility gate over two assembled
+pages. It is a job rather than a chain step because `pnpm verify` runs with
+nothing listening, which is a property eight clean-clone runs have measured and
+one this repository is not willing to lose. Both jobs are required checks on
+`main`. Everything the browser suite does **not** certify is listed in
+[`e2e/README.md`](e2e/README.md).
+
 **Green does not mean anything is deployed, either.** Deployment is a second
 workflow (`deploy.yml`), keyed on this one succeeding, and it is deliberately
 outside the badge: a registry outage or an expired credential must not turn this
@@ -870,7 +881,10 @@ Four things about it worth knowing before running it:
 - **Arguments are forwarded**, so `pnpm e2e --headed`, `pnpm e2e --debug` and
   `pnpm e2e -g "regions"` work as Playwright documents them
 - **It is not part of `pnpm verify`**, for the same reason `pnpm ready` is not:
-  `verify` runs with no servers up
+  `verify` runs with no servers up. It **is** in CI, as a second job in
+  `verify.yml` that starts the pair itself and calls these same commands by
+  name, and it is a required check on `main` — so a red journey blocks a merge
+  even though it is not a chain step
 
 The browsers are **not** installed by `pnpm install` — Playwright downloads them
 in an explicit command, which is why its cost is visible:
@@ -881,7 +895,10 @@ pnpm exec playwright install chromium    # ~554 MB, three artefacts, once per ma
 
 A failed run leaves a trace, a screenshot and a page snapshot under
 `e2e/test-results/` — about 450 KB for one failure, all of it gitignored, and
-cleared at the start of the next run. Read the trace with:
+cleared at the start of the next run. CI uploads the same directory as an
+artefact on failure only, kept for 7 days; there it measured 872,142 B for one
+failed assertion, and 577 B when the pair never started at all. Read the trace
+with:
 
 ```sh
 pnpm exec playwright show-trace e2e/test-results/<the directory it named>/trace.zip
@@ -1868,15 +1885,18 @@ absence of an annotation as "coverage was fine".
 ### The gate itself is configuration, and no file here can hold it
 
 `verify` is a **required status check on `main`**, through repository ruleset
-`main` (id 22160620). It requires a pull request and that check. Nothing in
-this repository records it, no tool reads it, and `pnpm verify` cannot see it —
+`main` (id 22160620) — and since Task 1.13.4 **`e2e` is a second one**, so a red
+browser journey blocks a merge exactly as a red chain does. The ruleset requires
+a pull request and both checks. Nothing in this repository records it, no tool reads it, and `pnpm verify` cannot see it —
 so **the repository has no way to detect its own gate being switched off**, and
 a reader who finds it absent cannot tell whether it was removed or never set.
 Four things about it are worth knowing:
 
-- It keys on the **job** name, so renaming the job in `verify.yml` un-requires
-  it silently. The workflow, its job and its file are all called `verify` for
-  exactly this reason
+- It keys on the **job** name, so renaming either job in `verify.yml`
+  un-requires it silently. The workflow, its first job and its file are all
+  called `verify` for exactly this reason, and the second job is called `e2e`
+- A reader finding only `verify` required should read that as the browser gate
+  having been **removed**, not as it never having been set
 - **Admin bypass is retained**, so a red run is a decision to override rather
   than a wall — and a merged red run leaves no trace in any file
 - `require_extra_approval_for_unattributed_changes` is **off**, against

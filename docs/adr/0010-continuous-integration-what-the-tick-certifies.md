@@ -484,6 +484,15 @@ Repository ruleset **`main`, id 22160620**, `enforcement: active`, scoped to
 from the API in Tasks 1.10.7 and 1.10.8 rather than cited, and every field
 matches.
 
+**Amended 2026-09-04 (Task 1.13.4): the ruleset now requires TWO checks,
+`verify` and `e2e`.** `verify.yml` gained a second job running the browser
+suite, and it gates a merge for the reason coverage does not — it is a pass/fail
+assertion about the product working, not a number nobody can agree on. Every
+other field of the ruleset is unchanged and was re-read. ADR 0013 carries the
+argument; this section stays the durable record of the gate itself, and a reader
+finding only `verify` required should read that as the browser gate having been
+removed rather than never set.
+
 **Nothing in the tree records it, no tool reads it, and `pnpm verify` cannot see
 it** — so the repository has no way to detect its own gate being switched off,
 and a reader who finds it absent cannot tell whether it was removed or never

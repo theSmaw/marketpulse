@@ -3,8 +3,10 @@
 // A root script beside `ready`, `image` and `coverage`, and deliberately **not**
 // a `pnpm verify` step: `verify` runs with no servers up, in CI and on a clean
 // clone, and a chain that needs two ports stops being runnable from a cold
-// tree. Where the suite sits relative to the pipeline's founding rule is Task
-// 1.13.4's decision to take out loud.
+// tree. Task 1.13.4 settled where that leaves it relative to the pipeline's
+// founding rule: it is a **second job** in `.github/workflows/verify.yml`, not
+// a chain step and not a separate workflow, it gates a merge, and the argument
+// for all three is written beside the job.
 //
 // It exists for the same reason `build-image.mjs` does — so that the things
 // that cannot be forgotten are not remembered. It does three things and each
@@ -29,7 +31,10 @@
 //
 // It does **not** start the servers, and that is the decision rather than an
 // omission — see the long note in `e2e/playwright.config.ts`. `pnpm dev` in
-// another terminal is the prerequisite, and CI's answer is Task 1.13.4's.
+// another terminal is the prerequisite, and **CI does exactly that** (Task
+// 1.13.4): the `e2e` job in `.github/workflows/verify.yml` builds, backgrounds
+// `pnpm dev`, and then calls this script by name — so the readiness rule is
+// written down once, here, rather than a second time in a workflow.
 //
 // Arguments are forwarded untouched, so `pnpm e2e --headed`, `pnpm e2e
 // --debug`, `pnpm e2e specs/landing-route.spec.ts` and `pnpm e2e -g "chrome"`
