@@ -1,6 +1,6 @@
 # Task 1.13.3 — Write the journeys worth having, and state the ones deliberately not written
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.13 End-to-End Browser Testing](STORY.md)
 **Depends on:** Task 1.13.2
 
@@ -39,3 +39,103 @@ Encode the small number of behaviours that only a browser can assert, and write 
 ## Approach note
 
 The temptation here is coverage, and it is the wrong instinct twice over. There is very little application to cover — one indicator, five routes and four empty regions — and the levels below already cover what they can reach. Every journey in this task is here because **no cheaper level can see it**: a host's fallback behaviour, two origins, a sequence over time, and a failure that every server-side instrument reports as success.
+
+## Outcome
+
+**Done 2026-09-04.** Five spec files hold **ten** journeys, every one of them passing and every one seen to fail for its own reason. `pnpm verify` exits 0 at 26.14 s, `pnpm test` is unchanged at "Scope: 4 of 5 workspace projects" and **189** tests, and the frontend artefact reproduces Task 1.12.5's figures to the byte — 348,124 B `d280e167…`, 12,128 B `134d5dd8…`, 1,101 B `177df27d…`, 300 B, **361,653 B over four files** — which is the check rather than a coincidence, because this task shipped no application source.
+
+### The finding that shaped the whole suite: `route.fulfill()` bypasses CORS
+
+The obvious way to produce a cross-origin refusal in a browser is to intercept the health request and strip `access-control-allow-origin` from the response. **It does not work.** Measured two ways against the running pair: a `route.fulfill()` carrying the real response with the header deleted, and a plain `route.fulfill()` with **no CORS headers at all** — Chromium accepted both and the page read the body normally. A fulfilled response is not subject to the browser's CORS check.
+
+So route interception can produce every state in this suite **except the one the story exists for**. That single measurement decided three things at once:
+
+- **How the failure states are produced.** `route.abort("connectionrefused")` is genuine — the same `TypeError: Failed to fetch` a refused connection gives, which is what `unreachable` is defined as — and `route.fulfill()` is genuine for both `degraded` causes, because neither of those is about CORS. All three are installed **before** `page.goto()`, so the first poll is the failing one and the state is on screen in **157–172 ms**.
+- **How mutating specs are kept apart from non-mutating ones: there are none.** No spec stops, restarts or reconfigures the pair, so Playwright's default worker count (4 here) stands, and it stands as a _decision with a reason_ rather than as a default nobody examined. The alternative was rejected on Story 1.8's measurement rather than on taste — freeing a port does not recover a `node --watch` loop, which waits for a _file_ change and not for the port — so a spec that stops the backend locally has no reliable way to put it back and every later spec in the run inherits the wreckage. The reversal trigger is stated: **a state that cannot be produced from inside the browser.** There is already one, and it is handled by being _caught_ rather than produced.
+- **What the cross-origin criterion actually means.** `backend-health.spec.ts` asserts the healthy path, and its _purpose_ is to go red when `CORS_ORIGIN` does not name the origin the page is served from.
+
+### The cross-origin failure was produced deliberately, and this suite caught it
+
+A backend started with `CORS_ORIGIN=https://marketpulse-wrong-origin.example` beside the real dev server, driven at the real frontend origin. **Four of `backend-health.spec.ts`'s tests failed at exit 1**, the first of them naming `getByText(/^healthy$/)` / `element(s) not found`. Beside it, from the other side:
+
+- **`curl` with the real frontend's `Origin` got a 200 with a full body**, carrying `access-control-allow-origin: https://marketpulse-wrong-origin.example` and `access-control-expose-headers: x-request-id` — the server asserting the _configured_ origin unconditionally, which is Story 1.8's finding alive again.
+- **The backend's log recorded 10 `/health` requests and `statusCode: 200` on every one.** Not one non-200 through the whole red run.
+- The browser's own indicator read `UNREACHABLE / No response from the service. / No successful check yet.`
+
+One refinement to what this repository has recorded about the browser's symptom: the **caught** error is `TypeError: Failed to fetch`, and that is all the application ever sees — but Chromium's console additionally carries an explanatory line naming the mechanism outright: `Access to fetch at 'http://localhost:3000/health' from origin 'http://localhost:5173' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://marketpulse-wrong-origin.example' that is not equal to the supplied origin.` Two different messages for one failure; say which one you mean, and note only the first is reachable from code.
+
+**And a property of the harness that Task 1.13.5 should read before it starts.** `scripts/pair-addresses.mjs` resolves the frontend's origin _from `CORS_ORIGIN`_, so locally the allowlist and "where the frontend is" **cannot disagree through `pnpm e2e`** — which is why the break above had to be driven by hand with `E2E_BASE_URL` set explicitly. Run normally against a misconfigured pair, the failure is caught one layer earlier and just as loudly: `pnpm ready` reports `✗ frontend https://marketpulse-wrong-origin.example/... ENOTFOUND` and exits 1, so the suite refuses to start rather than running against the wrong page. That is the right local behaviour and it is **not** available deployed, where `CORS_ORIGIN` is a literal in `deploy.yml` and the frontend's hostname is a fact about a Static Web App — two independent values that genuinely can disagree. The deployed check is the only place this failure can be caught rather than pre-empted.
+
+### The journeys
+
+| Spec                             | Journeys | What only a browser can see                                |
+| -------------------------------- | -------- | ---------------------------------------------------------- |
+| `landing-route.spec.ts`          | 1        | the built module graph loading over HTTP (Task 1.13.2's)   |
+| `backend-health.spec.ts`         | 4        | two origins, header exposure, and the axe pass             |
+| `backend-failure-states.spec.ts` | 4        | three states from named causes, and §36 across five routes |
+| `backend-recovery.spec.ts`       | 1        | a sequence over time, with no reload                       |
+
+- **The two halves talking.** The `/health` response is watched _from the browser_ rather than assumed, asserted 200, and its body checked with `isHealthResponse` — the shared predicate rather than fields picked out of it.
+- **The correlation id crossing the origin boundary**, which is the one assertion in the suite that has to fabricate a request. `exposedHeaders` is invisible to every other instrument here: Playwright's own `response.headerValue()` reads the _network layer_ and sees every header the server sent, so an assertion through it passes with `exposedHeaders` deleted. Only the page's own JavaScript is subject to the exposure rule. Made to fail by deleting that line and rebuilding: the id read back `null`.
+- **The backend answering a disallowed origin 200**, asserted from Node so that the mechanism is a checked fact rather than a paragraph. Made to fail by setting `origin: true`, which reflects the request origin: `Expected: "http://localhost:5173" / Received: "https://marketpulse-wrong-origin.example"`.
+- **`unreachable`, `degraded`/`not-ok-status` and `degraded`/`unreadable-body`**, each from its own cause, each asserting the sentence that distinguishes it — the wiring check Task 1.12.4 set when it made the cause select a sentence rather than render a slug. The `degraded` spec also asserts that **no request id appears on screen** even though the body carried a well-formed one, which is Task 1.12.2's rule holding structurally.
+- **Every route usable with the backend unreachable.** Four client-side navigations plus a fresh load of a made-up path, each asserting its `<h1>` and zero fallbacks, and the indicator still `unreachable` afterwards — a route change does not restart the poll.
+- **Recovery across two real poll intervals with no reload.** Healthy at 219 ms, `unreachable` at 30.30 s, `healthy` again at 60.51 s, with `Last confirmed 14:58:19` held across the outage and neither cleared nor advanced to the failed attempt, `performance.timeOrigin` unchanged and exactly **one** navigation entry throughout.
+
+### Waits are derived, and the copy of the interval is a _checked_ copy
+
+`e2e/support/poll-timings.ts` restates `HEALTH_POLL_INTERVAL_MS` and `API_TIMEOUT_MS`, and the reason it restates them rather than importing them was measured rather than assumed: **every path from those constants to a spec runs through `api-base-url.ts`, which reads `import.meta.env` at module load**, so importing either one under Node is `TypeError: Cannot read properties of undefined (reading 'VITE_API_BASE_URL')`. Moving them to `packages/shared` was rejected — that package is the wire contract and a poll interval is client policy, which is the argument Task 1.12.3 used to keep the number beside the hook and the shape of Task 1.10.5 refusing to widen `MIN_PORT` for a test's convenience.
+
+What makes the copy safe is that **`backend-recovery.spec.ts` measures the interval the running application actually polls at and asserts it against the copy** — free, because it already waits out two cycles. Made to fail by changing the copy to 20 s: `expect(received).toBeLessThanOrEqual(5000) / Received: 10050`. Measured gaps on a green run: **30.018 s and 30.012 s**, which is Task 1.13.1's 30.02 s reproduced and not the 31.00 / 31.05 s Tasks 1.12.6 and 1.12.7 recorded through a genuinely backgrounded tab. `API_TIMEOUT_MS`'s copy is deliberately **unchecked** and that is stated where it lives: it is used only as slack in a derived timeout, and producing the hung-socket path that would check it costs 36 s to assert something Task 1.12.6 already proved in a browser.
+
+The only test that raises its own per-test timeout is the recovery journey, and it derives it. Playwright's 30 s default is left alone everywhere else, because the failure states are on screen in under a fifth of a second.
+
+### The axe decision: it is a **gate**, and it cost nothing
+
+Zero violations asserted on two pages — the landing route healthy, and the not-found route with the backend unreachable — with `incomplete` results attached to the test as an annotation and structurally unable to fail anything.
+
+**It is an adoption rather than a reversal of Story 1.9's rejection.** That one declined `@storybook/addon-vitest` because it would have turned the _workshop's_ visual-review compromises into test fixtures; nothing in that argument reaches the assembled application. What decided this is that a browser is the first and only level here that can see two things:
+
+- **Contrast**, which is structurally unrunnable below — no global stylesheet is applied in the component tests, `getComputedStyle` returns nothing and `getTokens()` throws. This is not a hypothetical class of defect: Task 1.12.4 found a real one, the `checking` placeholder's `--ink-disabled` label at **2.09:1**, on the very component these specs exercise.
+- **Whole-document rules.** `landmark-unique`, `landmark-one-main`, `page-has-heading-one` and `region` are properties of an assembled page, and the Storybook addon's `#storybook-root` scoping structurally cannot judge them — Task 1.7.6 measured a fragment at **3 violations unscoped and 0 scoped**, all three of them page-level rules.
+
+The cost is **+0 store entries** (404 → 404), **+3 lockfile lines** (4,638 → 4,641), `pnpm-workspace.yaml` md5-unchanged, and an install-script sweep that still returns **`esbuild@0.28.2` and nothing else**: `axe-core@4.13.0` was already in the virtual store, reached through `@storybook/addon-a11y`, so declaring it in `e2e` deduped straight onto the addon's entry. It is `axe-core` directly rather than `@axe-core/playwright` — the wrapper's whole job is `page.addScriptTag({ content: axe.source })` — at the **same pin**, because two axe versions in one repository would mean the workshop and this suite reporting different numbers for the same page, which is the worst outcome available for an accessibility signal. **That pin pair is a stated invariant and nothing checks it**, since `apps/frontend`'s copy arrives transitively.
+
+**The baseline was re-taken against the running pair and reproduces four earlier hand measurements exactly** — and it is the first time this measurement has been taken anywhere but a built artefact on a static host: the landing route is **0 violations / 37 passes / 1 inconclusive** and the four other routes **0 / 25 / 0** each. The one inconclusive has not moved in four tasks: `color-contrast` over the two `aria-hidden` direction arrows, "Element content contains only non-text characters" — automation declining to judge exactly the elements this product encodes with. Made to fail by lightening `--ink-secondary` to `#c9cbca`: `Expected: Array [] / Received: Array ["color-contrast", …]`. **Epic 15 still owns the accessibility review and a green axe run is not one.**
+
+### Every journey was seen to fail, for its own reason
+
+Nine deliberate breaks, each reverted and each leaving the tree byte-identical:
+
+| Break                                           | What went red, and what it named                                          |
+| ----------------------------------------------- | ------------------------------------------------------------------------- |
+| `CORS_ORIGIN` wrong on a real backend           | 4 tests; `getByText(/^healthy$/)` not found                               |
+| `exposedHeaders` removed from `cors.ts`         | the correlation-id test; the id read back `null`                          |
+| `origin: true` in `cors.ts`                     | the disallowed-origin test, naming both origins                           |
+| each of the three detail sentences reworded     | one test each, naming its own sentence — and the fourth test still passed |
+| `NotFound`'s `<h1>` reworded                    | the every-route test, naming the heading                                  |
+| a failing poll clearing `lastSuccessAt`         | the recovery test, naming `Last confirmed`                                |
+| `page.reload()` inserted into the recovery spec | `timeOrigin` mismatch, to the tenth of a millisecond                      |
+| `HEALTH_POLL_INTERVAL_MS` copy set to 20 s      | the interval check, `10050 > 5000`                                        |
+| a throwing probe inside a `Region`              | `getByRole('alert')` count **1**, not 0                                   |
+
+Two of those are worth more than the confirmation. The three-sentence break left **`every route stays usable` still passing**, which is the layering working — the same shape Task 1.13.2 saw when a renamed region failed by name while the count assertion held. And the throwing probe reported a count of **1** rather than a broken page, which is Task 1.7.6's containment measured from the outside for the first time: a failed region is one alert inside a page that otherwise rendered.
+
+### What it costs
+
+- **Ten journeys, 1:02.2 s wall.** Nine of them finish in **3.4 s** (4.1 s wall, four workers); the recovery journey alone is **1.0 m**, and the other nine run underneath it, so the suite costs almost exactly what its slowest journey costs. `pnpm e2e --grep-invert "recovers on the next poll"` is the fast half if anyone needs it.
+- **A green run still leaves one 96-byte `.last-run.json`**, and a failed one the trace, screenshot and page snapshot Task 1.13.2 measured. Everything is ignored by all three tools, re-verified with `git status --porcelain --ignored=matching`.
+- **`pnpm verify` is 26.14 s at exit 0** against Task 1.13.2's 23.20 s — a difference that is one more `tsc` file set and inside the spread this repository has measured for five stories running.
+
+### Where the rules live, and the two `verify` gaps this task did not widen
+
+The must-not-assert list, the workers decision, the axe decision, the derivation rule and **what a green run does not certify** are in **`e2e/README.md`**, which is the file open beside `package.json` in the package a spec author is working in — not only in this task file, which is what the brief asked for. `e2e/package.json`'s `description` points at it, because a manifest cannot hold a comment.
+
+Two gaps stated rather than discovered later. The **axe pin pair** above is a new instance of this repository's third kind of gap — a stated invariant nothing enforces. And `e2e/README.md` is prose carrying figures, which is the gap Task 1.8.7 opened and every story since has enlarged; it is enlarged again here, knowingly, for the reason the link checker is still declined.
+
+### What Tasks 1.13.4 and 1.13.5 inherit
+
+- **The recovery journey is 1 minute of wall clock and cannot be shortened** without faking the interval. Task 1.13.4 decides whether CI runs it, and `--grep-invert` is the lever if it does not.
+- **Nothing in this suite mutates the pair**, so CI needs no serial project — but it does need a pair, and `pnpm e2e` deliberately does not start one.
+- **The axe gate runs in the browser**, so whatever CI drives has to have the real stylesheet. A built artefact on a static host would satisfy that; a dumb static host would not satisfy `CORS_ORIGIN`.
+- **The cross-origin failure is caught locally one layer early**, by `pnpm ready`, because the harness resolves the frontend's origin from `CORS_ORIGIN`. Deployed, those are two independent values. Task 1.13.5 is the only place that failure can be caught rather than pre-empted, and it also owns Story 1.5's deep-link and `/assets/nope.js` criteria.

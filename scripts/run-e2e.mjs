@@ -50,7 +50,7 @@ if (!resolved.ok) {
   process.exit(1);
 }
 
-const { frontendOrigin } = resolved.addresses;
+const { backendOrigin, frontendOrigin } = resolved.addresses;
 
 // --- Is the pair up? ---
 
@@ -82,7 +82,18 @@ const suite = spawnSync(
   {
     cwd: REPO_ROOT,
     stdio: "inherit",
-    env: { ...process.env, E2E_BASE_URL: frontendOrigin },
+    // Both addresses, from the one place they are defined. The frontend's is
+    // what Playwright drives; the backend's is needed by the one assertion that
+    // has to be made from *outside* the browser — that the server answers a
+    // disallowed origin with a 200, which is why no server-side instrument can
+    // catch a wrong allowlist. `e2e/support/pair.ts` is the reading end, and it
+    // throws rather than defaulting, for the reason the config has no default
+    // base URL.
+    env: {
+      ...process.env,
+      E2E_BASE_URL: frontendOrigin,
+      E2E_BACKEND_ORIGIN: backendOrigin,
+    },
   },
 );
 

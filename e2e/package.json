@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Browser-driven journeys against a running pair (Story 1.13)",
+  "description": "Browser-driven journeys against a running pair (Story 1.13). See README.md for the conventions, the must-not-assert list and what a green run does not certify.",
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -b",
@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@marketpulse/shared": "workspace:*",
-    "@types/node": "24.13.3"
+    "@types/node": "24.13.3",
+    "axe-core": "4.13.0"
   }
 }
