@@ -39,7 +39,9 @@ twelve months without using them.
 - How the backend authenticates to it, and where that credential lives — the Container
   App `secrets` array, which is **empty today** (measured in Task 1.11.3)
 - Configuration surface: the connection settings joining `CONFIG_VARIABLES`,
-  `apps/backend/.env.example` and therefore `pnpm env:check`
+  `apps/backend/.env.example` and therefore `pnpm env:check` — **done in Task 2.1.3**, as
+  seven discrete `DATABASE_*` variables rather than a `DATABASE_URL`, taking the table from
+  five to twelve
 - A connection pool with a lifecycle: opened once, closed inside Story 1.2's drain, well
   inside the 5-second shutdown ceiling and the platform's 30-second grace
 - TLS, and what happens when it is not available
@@ -138,6 +140,25 @@ Tackled in order. The story is complete when all eight are done.
 | 2.1.6 | [Put the credential on the platform, connect the deployed backend, and prove nothing leaked](TASK-06-the-credential-on-the-platform.md)      | Not started |
 | 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Not started |
 | 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Not started |
+
+**Tasks 2.1.4 to 2.1.8 were each amended again on 2026-09-04 after Task 2.1.3 landed**, and
+for the third round running **no task was added, deleted or re-ordered** — the
+local-before-deployed sequence has now survived three tasks intact. This round is unusual in
+that it **shrinks** more work than it adds. **2.1.4** loses two decisions: the pool now takes
+a `DatabaseConfig` rather than deciding where the database is, and the `pnpm ready` reversal
+trigger it was told to re-take was already corrected in 2.1.2's shipped code, so it confirms
+rather than decides — what it gains is a credential seam that is half-built, with
+`DATABASE_AUTH` as a discriminator and `password` **structurally absent** under `entra`, so a
+pool that reads the credential without narrowing is a compile error. **2.1.6** gains the
+round's one genuine hazard: the two new cross-variable checks fire at **startup**, so a
+deployed revision setting `DATABASE_AUTH=entra` and forgetting `DATABASE_SSL` does not connect
+insecurely — it **fails to start**, which on a liveness-probed platform is Task 1.11.7's
+crash-loop, so all six variables go in one `az containerapp update`. **2.1.5** gains a named
+set of values to produce rather than facts to record, and a question to answer: `verify-ca` is
+deliberately absent from the shipped TLS vocabulary. **2.1.8** gains the sweep target this
+repository has got wrong most often — `pnpm test` is **196** where every Epic 1 convention
+block says **189**, in ~30 occurrences across 25 files of which only the present-tense ones
+are live claims. **2.1.7** is barely touched, which is itself worth recording.
 
 **Tasks 2.1.3 to 2.1.8 were each amended again on 2026-09-04 after Task 2.1.2 landed**, and
 again **no task was added, deleted or re-ordered** — the local-before-deployed sequence was

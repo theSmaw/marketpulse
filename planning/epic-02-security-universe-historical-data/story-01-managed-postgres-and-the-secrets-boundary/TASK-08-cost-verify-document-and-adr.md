@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.1–2.1.7
-**Amended:** 2026-09-04, after Tasks 2.1.1 and 2.1.2 — see the two _Amended_ sections below
+**Amended:** 2026-09-04, after Tasks 2.1.1, 2.1.2 and 2.1.3 — see the three _Amended_ sections below
 
 ## Objective
 
@@ -53,3 +53,71 @@ The brief says "at least one of those figures moves". Task 2.1.2 moved several, 
 - **`pnpm ready`'s documented output changed**, and it is quoted verbatim in `README.md` — three lines now, with a `○` state and two diagnoses that are not `ECONNREFUSED`. Prose figures are the half of the fourth gap that has been wrong nearly every time it was read.
 - **A sweep target this task should expect to find:** if Task 2.1.4 restates the third check's reversal trigger as a condition rather than "Task 2.1.4", that sentence stands in `scripts/check-ready.mjs`, `README.md`, `HOSTING.md` and `CLAUDE.md`. Read every occurrence rather than replacing them, per Task 1.13.6's finding.
 - **`HOSTING.md` gained a section this task's ADR draws on**: _The database — the local development database_, beside Task 2.1.1's creation decisions in the same document, deliberately rather than in a second file.
+
+## Amended after Task 2.1.3 (2026-09-04)
+
+The brief says "at least one of those figures moves". Task 2.1.3 moved the one this
+repository has historically got wrong most often, and it is named here so the closing
+sweep checks rather than rediscovers it.
+
+### The test count moved, and it is the twelve-block problem arriving for the third time
+
+`pnpm test` is **196** — 37 + **56** + 103 — where every convention block in Epic 1 says
+**189**. Measured on 2026-09-04 rather than estimated: **`189` appears in ~30 places
+across 25 files.** Most are historical records correct in their own context; the **live
+present-tense claims** are the ones in the duplicated convention blocks and in
+`EPIC.md`, and they read:
+
+> **189 real tests across 19 files (37 in `packages/shared`, 49 in `apps/backend`, …**
+> … A green tick now means those ~~103~~ **189** tests passed …
+
+This is precisely the failure Task 1.12.8 documented — the "103 real tests" claim stood
+in twelve sites, stale by six increments, while 27 other occurrences of "103 tests" were
+historical records that a naive grep-and-replace would have destroyed. **Read every
+occurrence.** The backend's own figure moved too (49 → 56), and it is quoted separately
+in some of those blocks, so the sweep is two numbers rather than one. `README.md` and
+`CLAUDE.md` were updated by Task 2.1.3 itself; the Epic 1 blocks were deliberately not,
+because a sweep belongs in a closing task where every occurrence is read at once.
+
+### Four more figures and names that moved
+
+- **`CONFIG_VARIABLES` went from five variables to twelve**, and the count is quoted in
+  `pnpm env:check`'s own success line (`12 backend variables documented`), in `README.md`
+  and in `CLAUDE.md`. Anything describing the backend's configuration as "five
+  variables" or listing them as `PORT`, `HOST`, `LOG_LEVEL`, `LOG_FORMAT`, `CORS_ORIGIN`
+  is now short by seven.
+- **`LOCAL_DATABASE` no longer exists.** Task 2.1.3 moved every value in it into the
+  configuration boundary and left `LOCAL_DATABASE_VERSION`, a bare exported constant.
+  The gap-list entry for the version pin names the old identifier in both `README.md`
+  and `CLAUDE.md` — Task 2.1.3 corrected both, but the previous amendment to **Task
+  2.1.5** and this task's own earlier amendment still use the old name, and any other
+  occurrence needs reading rather than replacing.
+- **`README.md` gained a "Talking to the database" section** carrying a seven-row table
+  of variables and defaults, which is figure-carrying prose in the gap list's fourth
+  kind and goes stale the moment a default changes.
+- **`pnpm ready`'s documented output is unchanged in shape but its database line has a
+  fourth state** — the address could not be resolved, because the tree is unbuilt or a
+  `DATABASE_*` value is invalid. It is still `○` and still non-gating.
+
+### Criterion 3's clean-clone procedure gained an ordering that is easy to get wrong
+
+**`pnpm db` now requires a built tree**, because it reads the database's address out of
+`apps/backend/dist/config.js`. `README.md`'s first-run sequence already puts
+`pnpm install` and `pnpm verify` ahead of `pnpm db`, so following it works — **but a
+reader who jumps straight to the `pnpm db` section does not have a built tree**, and the
+honest check is that the failure they get names `pnpm build` rather than showing a
+resolver stack. Produce it from the clean clone rather than reading the guard.
+
+The two clean-clone figures to re-take are unchanged in kind and both moved: `pnpm db`'s
+own time now includes whatever the build costs a reader who has not run one, and
+`pnpm verify` is **27.9 s with no database running** against Task 2.1.2's 24.45 s from a
+clone — a chain that gained no step and seven more variables, so the difference is
+run-to-run variance and the per-step split is what to compare.
+
+### One thing to look for that is not a figure
+
+Task 2.1.3 recorded an **unexplained flake**: one `pnpm test` run reported 1 failed /
+102 passed in `apps/frontend` with the failing test uncaptured, not reproduced in six
+subsequent runs or in `pnpm verify`, on a task that shipped no frontend source. If it
+recurs during this task's re-runs, **capture it** — that is the only way it stops being
+an anecdote. If it does not, record that it did not.

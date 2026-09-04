@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.6
-**Amended:** 2026-09-04, after Tasks 2.1.1 and 2.1.2 — see the two _Amended_ sections below
+**Amended:** 2026-09-04, after Tasks 2.1.1, 2.1.2 and 2.1.3 — see the three _Amended_ sections below
 
 ## Objective
 
@@ -43,3 +43,32 @@ Story 1.12 built a three-state vocabulary and then spent two tasks proving that 
 - **There is now a cheap, repeatable way to produce the state this task must observe.** `pnpm db down` makes the local database unreachable and `pnpm db` brings it back with its data intact, so the local half of "break the database, watch the endpoint, watch the probes, watch the replica" costs one command rather than a firewall change. The deployed half still needs the firewall, and only the deployed half has a liveness probe.
 - **`pnpm ready`'s third check is a precedent this task should read before deciding, because it answered a smaller version of the same question.** It reports the database, does not gate, and states the reversal trigger — deliberately choosing "report" over "fail" because the thing consuming the signal (`pnpm e2e`) would have been broken by a failure it had no interest in. `/health`'s consumers are three platform probes, a browser poll every 30 seconds per tab, and `BackendStatus`; the liveness probe is the one that turns a report into a restart. **The shapes are the same and the stakes are not**, which is the comparison worth making explicitly rather than the conclusion worth copying.
 - **A local check exercises a different connection path from the deployed one**, in two ways 2.1.2 measured: the local server offers **no TLS** and authenticates with a password, where the deployed one enforces encryption and takes a token. So a database check that works locally has not been tested on the path that can actually be slow, and the cross-region round trip the brief already flags is only visible deployed.
+
+## Amended after Task 2.1.3 (2026-09-04)
+
+This task is the least affected of the four remaining, and saying so is worth as much as
+the two changes below.
+
+- **The `pnpm ready` precedent this task was told to read before deciding is now
+  finished, and it went the way the amendment above predicted.** The third check reports
+  rather than gates, and its reversal trigger is stated as a **condition** — "the first
+  check in `pnpm verify` or `pnpm e2e` that fails without a database" — rather than as a
+  task number. That is the smaller version of this task's question answered in full, and
+  the comparison the previous amendment asks for can now be made against something
+  settled rather than something in flight. The conclusion is still not the thing to copy:
+  the consumer that made `pnpm ready` choose "report" was a browser suite with no
+  interest in a database, and the consumer that makes `/health` dangerous is a liveness
+  probe that restarts the replica.
+- **A `/health` that says anything about the database now has a place to read the
+  answer from.** `config.ts` exposes a frozen `Config.database`, and Task 2.1.4's pool
+  takes it — so a database check is a call against an existing pool rather than a second
+  connection path invented inside a route handler. That matters for the cost bullet
+  above: the connection this check would consume is one of the pool's, not an extra
+  against the 35-connection ceiling, **provided the check goes through the pool**. A
+  route that opens its own client to answer a health question is the shape to reject.
+- **One new fact the cost bullet should carry.** `DATABASE_SSL=verify-full` and
+  `DATABASE_AUTH=entra` mean the deployed connection is TLS-verified, token-authenticated
+  **and** cross-region. A `SELECT 1` on an already-open pooled connection pays none of
+  that; a check that causes the pool to open a **new** connection pays all three,
+  including a token mint. So "cache it, or bound it" is now also an argument about which
+  connections the check is allowed to cause.

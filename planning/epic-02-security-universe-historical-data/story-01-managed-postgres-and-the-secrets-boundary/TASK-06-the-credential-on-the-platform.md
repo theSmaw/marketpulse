@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.4, 2.1.5
-**Amended:** 2026-09-04, after Tasks 2.1.1 and 2.1.2 — see the two _Amended_ sections below
+**Amended:** 2026-09-04, after Tasks 2.1.1, 2.1.2 and 2.1.3 — see the three _Amended_ sections below
 
 ## Objective
 
@@ -49,3 +49,84 @@ Task 2.1.1 chose **Microsoft Entra authentication only, with password authentica
 - **The repository now contains a deliberate credential-shaped string, and the leak grep will find it.** Task 2.1.2's local database uses the fixture password `marketpulse` in `scripts/local-database.mjs`, in the repository on purpose: it authenticates a container published on loopback only, holding an empty database whose contents are re-derivable from Alpaca, and treating it as a secret would cost every clean clone a `.env` file before the database starts. **Do not report it as a finding and do not "fix" it.** What this task must not do is let its presence make the grep vacuous — the value to hunt for is a **JWT**, and the local fixture is a different thing living in a different place.
 - **The local half of the leak check is now producible without the platform.** `pnpm db down` gives a refused connection and `pnpm db` restores it, so the driver's error-message behaviour — the thing this criterion exists to catch — can be characterised locally before the deployed token exists. That does not replace the deployed reading, because the credential differs, but it means arriving at the platform already knowing whether the driver quotes connection details in errors.
 - **The certificate-trust question arrives here for the application, and Task 2.1.5 will have answered it for a client.** 2.1.2 measured that the local Postgres container has **no CA trust store at all** — no `ca-certificates`, a dangling `/usr/lib/ssl/cert.pem`, no `~/.postgresql/root.crt` — which is a fact about that container rather than about the backend's image, but it is the same question one layer along: whether anything has to **ship with the application** for it to verify rather than merely encrypt. If the answer is yes, that is a file in `apps/backend/Dockerfile`'s runtime stage, which is one of the three files no tool in `pnpm verify` reads.
+
+## Amended after Task 2.1.3 (2026-09-04)
+
+Task 2.1.3 changed what this task **sets**, sharpened what it **greps for**, and added a
+hazard that did not exist before — one that turns a forgotten variable into a
+crash-loop.
+
+### Configuring the deployed backend is now six variables, and two of them check each other
+
+`deploy.yml` uses `update` and never `create`, so the app's environment exists only in
+the platform. What has to be set there is:
+
+```
+DATABASE_HOST=psql-marketpulse-dev.postgres.database.azure.com
+DATABASE_PORT=5432
+DATABASE_NAME=marketpulse
+DATABASE_USER=marketpulse-backend
+DATABASE_AUTH=entra
+DATABASE_SSL=verify-full
+```
+
+and **`DATABASE_PASSWORD` must not be set at all** — the platform holds no secret, the
+`secrets` array stays empty, and this task's job is still to prove that rather than to
+fill it.
+
+**The hazard, which is new and is the most important line in this amendment.** Task
+2.1.3 added two cross-variable checks to `config.ts`, and both fire at **startup**:
+setting `DATABASE_PASSWORD` alongside `DATABASE_AUTH=entra` is a `ConfigError`, and so
+is leaving `DATABASE_SSL` at its default `disable` under `entra`. That is the right
+behaviour — it is what stops an access token going out in the clear — but the
+consequence on this platform is specific: **a revision that sets `DATABASE_AUTH=entra`
+and forgets `DATABASE_SSL` does not connect insecurely, it fails to start**, and a
+replica that fails to start on a platform whose liveness probe restarts it is
+Task 1.11.7's crash-loop, which sits at `Activating` for ten minutes before saying
+`ActivationFailed`. So **set all six in one `az containerapp update`**, and read the
+configuration back afterwards — which this task's brief already requires for a different
+reason.
+
+The compensation is worth stating in the same breath: the failure is **loud, immediate
+and names the variable**, on stdout, which Container Apps collects. It is a much better
+failure than the one it replaces, which was a token on the wire.
+
+### The leak grep's target moved file, and the fixture is not the thing to hunt
+
+The amendment above says the fixture password lives in `scripts/local-database.mjs`.
+**It does not any more.** Task 2.1.3 moved it to `DATABASE_PASSWORD`'s documented
+default in **`apps/backend/.env.example`**, where every other default lives, and the
+script reads it back out of the built configuration. The instruction is unchanged and
+its target is a different file: **do not report `marketpulse` as a finding and do not
+"fix" it** — it is a fixture authenticating a loopback-only container, in the repository
+on purpose — and **do not let its presence make the grep vacuous**. The value to hunt
+for is a **JWT**.
+
+### The leak surface is narrower than it was, and Task 2.1.3 proved which part
+
+Task 2.1.3 confirmed the amendment above's hoped-for result: **`config.ts` never
+receives the deployed credential at all**, because the Entra token does not come from
+`process.env`. It also asserted — with a test made to fail first — that the one
+`ConfigError` message naming `DATABASE_PASSWORD` names the **variable and never the
+value**, using a value deliberately unlike the public fixture.
+
+So the configuration module is accounted for, and **this task's log reading should aim
+at the two places that genuinely handle the token: the driver and the pool.** A driver
+that quotes connection parameters in an error message is the failure this criterion
+exists to catch, and the brief's instruction to produce a failure with an **expired or
+malformed token** as well as a wrong host is the one that reaches it. Task 2.1.4 will
+have characterised the driver's error-message behaviour locally with a password; this
+task repeats it with a bearer token, which is a different code path in every driver and
+a much worse thing to leak.
+
+### One thing this task inherits as a seam rather than a design
+
+Task 2.1.3 made `DATABASE_AUTH` a named mode and made `password` **structurally absent**
+under `entra` — `exactOptionalPropertyTypes`, so a pool reading it without narrowing is
+a compile error. Task 2.1.4 fills the `password` branch and leaves the `entra` branch
+explicitly unimplemented. **This task fills that branch and nothing else**: the token
+acquisition through `IDENTITY_ENDPOINT` and `X-IDENTITY-HEADER` (never
+`169.254.169.254`, which is the VM recipe and the trap `HOSTING.md` records) goes behind
+the same interface the password branch already satisfies. If filling it requires
+reopening the pool's construction, that is Task 2.1.4 having built the seam wrongly and
+is worth saying so.

@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.1
-**Amended:** 2026-09-04, after Tasks 2.1.1 and 2.1.2 — see the two _Amended_ sections below
+**Amended:** 2026-09-04, after Tasks 2.1.1, 2.1.2 and 2.1.3 — see the three _Amended_ sections below
 
 ## Objective
 
@@ -102,3 +102,64 @@ That is precisely the distinction this task's brief warns about: "the two things
 - **The database name is `marketpulse`.** Task 2.1.2 chose it for the local container. The brief says "create the database itself, and decide the name" — the decision is now to match, or to state the divergence, because a local `marketpulse` against a deployed something-else is a connection string that differs in one more place than it needs to.
 - **`--version 18` has a local counterpart that nothing checks.** `LOCAL_DATABASE.version` in `scripts/local-database.mjs` is `18` and is recorded in both gap lists as an invariant with no check behind it. This task should **record the deployed minor** when it reads the created server back, so the two are at least comparable by hand; the local container is 18.6 today, and the one-liner is `docker compose exec postgres postgres --version` against `az postgres flexible-server show --query version`.
 - **`no TLS offered` is what a correct local database reports**, so `pnpm ready`'s line is not a comparison against the managed server and should not be read as one.
+
+## Amended after Task 2.1.3 (2026-09-04)
+
+Small but concrete: this task now has a **named set of values to produce** rather than a
+set of facts to record, because the configuration boundary that will consume them exists.
+
+### What this task creates is now the right-hand side of seven declared variables
+
+`CONFIG_VARIABLES` holds `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`,
+`DATABASE_USER`, `DATABASE_AUTH`, `DATABASE_PASSWORD` and `DATABASE_SSL`. Three of them
+are answered by what this task creates, and recording them in those terms is what makes
+Task 2.1.6 a configuration change rather than a research exercise:
+
+| Variable        | Produced by this task                                                          |
+| --------------- | ------------------------------------------------------------------------------ |
+| `DATABASE_HOST` | the server's FQDN, expected `psql-marketpulse-dev.postgres.database.azure.com` |
+| `DATABASE_NAME` | the database this task creates — **match the local default, `marketpulse`**    |
+| `DATABASE_USER` | the role `pgaadauth_create_principal` creates, i.e. `marketpulse-backend`      |
+
+The other four are already decided: `DATABASE_PORT` is 5432, `DATABASE_AUTH` will be
+`entra`, `DATABASE_PASSWORD` is **not set at all** deployed, and `DATABASE_SSL` is the
+subject of the next section. **Record the three above verbatim when the server is read
+back**, in the shape `HOSTING.md`'s account-facts table uses.
+
+The database-name bullet is stronger than it was: it is no longer "match what Task 2.1.2
+chose for a container", it is **match a documented default in the configuration
+boundary**, and a divergence now means a deployed environment overriding a variable for
+no reason.
+
+### The TLS bullet lands on a shipped vocabulary, and one value is deliberately missing
+
+`DATABASE_SSL` is `disable` | `require` | `verify-full` — libpq's own names, so this
+task's client-side experiments and the application's setting speak the same language.
+The brief's distinction between "the server **requires** encryption" and "the client is
+**verifying** rather than merely encrypting" is exactly the gap between `require` and
+`verify-full`, and it is now a value somebody can get wrong in one place instead of a
+property somebody can claim.
+
+**`verify-ca` is not in the set, and that is this task's to confirm or reverse.** It was
+left out because `verify-full` is what a managed server with a stable FQDN wants and a
+vocabulary should not carry a mode nobody has a use for. If the certificate this server
+presents makes `verify-full` unworkable — a host-name mismatch is the usual cause —
+then `verify-ca` is a one-line widening of the union in `config.ts` plus its
+`.env.example` line, and it should be recorded there **with the certificate fact that
+forced it** rather than added because a driver accepted it.
+
+The container-as-client limit the previous amendment records is unchanged and still
+decides how this task is done: that container can do `require` and **cannot** do
+`verify-full`, so proving the mode the application will actually use means installing
+`ca-certificates` into it or mounting a CA file.
+
+### One stale name
+
+The previous amendment refers to **`LOCAL_DATABASE.version`**. Task 2.1.3 moved every
+other value in that script into the configuration boundary and left the version behind
+as **`LOCAL_DATABASE_VERSION`** — a bare exported constant. The invariant it names is
+unchanged: nothing compares it against the deployed `--version`, it is in both gap
+lists, and the one-liner is still `docker compose exec postgres postgres --version`
+against `az postgres flexible-server show --query version`. **Recording the deployed
+minor when the server is read back is still this task's**, and it is now the only way
+the two numbers can be compared at all.
