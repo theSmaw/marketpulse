@@ -48,8 +48,10 @@
 //
 // Dependency-free, like the two checks beside it.
 
+import net from "node:net";
 import process from "node:process";
 
+import { LOCAL_DATABASE } from "./local-database.mjs";
 import {
   dialHost,
   FRONTEND_PROBE,
@@ -71,6 +73,22 @@ const INTERVAL_MS = 250;
 // rather than failing. A refused connection is the easy case; an accepted one
 // that goes nowhere is the case that needs this line.
 const ATTEMPT_MS = 2_000;
+
+// The database is checked **once, with no polling at all**, and that is the
+// one place this script's own shape does not carry over. The two services above
+// are polled because they are started by the command you then run this
+// alongside, so the check has to be able to wait out a cold tree compiling.
+// `pnpm db` is not like that: it passes `--wait`, so it does not return until
+// the container's healthcheck says the server is accepting connections. There
+// is therefore nothing to wait for — a database that is up answers the first
+// attempt, and one that is down refuses the connection immediately and is not
+// going to start on its own.
+//
+// The cost of getting this wrong is not theoretical and it was measured: with a
+// 5-second poll here, `pnpm ready` against a stopped database took **5.1 s**
+// instead of 0.3 s, and `pnpm e2e` gates on this script, so that would have
+// been five seconds added to every browser run — on a laptop and on the
+// runner — to print a line no exit code depends on.
 
 /**
  * One attempt against one URL. Returns the response, or the reason it could
@@ -139,6 +157,109 @@ async function poll(url, judge) {
   return { ready: false, reason };
 }
 
+// --- The third check, which does not speak HTTP ---
+//
+// **This is the first probe in this script that is not a `fetch`, and it could
+// not have been one.** A PostgreSQL port speaks a binary protocol and answers
+// an HTTP request by waiting: the two existing checks would report
+// `NO_RESPONSE` against a perfectly healthy database, which is the same answer
+// they give for the squatter case and therefore useless.
+//
+// **The stated decision is to speak enough of the protocol to get an answer,
+// rather than to settle for a TCP connect**, and the difference is what the
+// answer means. A successful connect proves a **listener**, which is exactly
+// what the squatter trap this script already documents looks like — Task
+// 1.8.4's `net.createServer()` standing in for a wrong process would pass a
+// connect check with full marks. One packet gets past that: an **SSLRequest**,
+// eight bytes with no credentials and no driver, which every PostgreSQL server
+// answers with a single byte, `S` if it will negotiate TLS and `N` if it will
+// not. Anything else on the port answers something else, or nothing.
+//
+// **What it deliberately does not prove**, because a check whose limits are not
+// written down gets read as proving more than it does:
+//
+//   - **Not that the database exists.** The named database and the credentials
+//     are only tested by a real startup message and a SCRAM exchange, which is
+//     a driver. Task 2.1.4's pool is what proves that, and it is the right
+//     place for it.
+//   - **Not that this is *our* database.** A native PostgreSQL already holding
+//     5432 answers identically. That is worth knowing rather than fixing: what
+//     a client cares about is whether a PostgreSQL answers at the address it
+//     will dial, and if the answer comes from the wrong server that is a
+//     conflict `pnpm db` reports on its own by failing to bind.
+//   - **Not that TLS is available.** The reply says whether the server offers
+//     it, and this container does not — which is correct and is the honest
+//     local difference from a managed server where "connection encryption is
+//     enforced for your network traffic". The line reports which answer came
+//     back so that difference is visible rather than assumed.
+
+/**
+ * One SSLRequest against one address.
+ *
+ * @param {string} host
+ * @param {number} port
+ * @returns {Promise<{ ok: true, ssl: boolean } | { ok: false, code: string }>}
+ */
+function probePostgres(host, port) {
+  return new Promise((done) => {
+    const socket = net.connect({ host, port });
+
+    let settled = false;
+
+    /** @param {{ ok: true, ssl: boolean } | { ok: false, code: string }} result */
+    const finish = (result) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      socket.destroy();
+      done(result);
+    };
+
+    // The same reason ATTEMPT_MS exists above, arriving through a different
+    // door: a socket that accepts and never answers would leave this promise
+    // pending forever, and `net` has no equivalent of an abort signal.
+    socket.setTimeout(ATTEMPT_MS, () => {
+      finish({ ok: false, code: "NO_RESPONSE" });
+    });
+
+    socket.on("error", (error) => {
+      finish({
+        ok: false,
+        code: /** @type {{ code?: string }} */ (error).code ?? "CONNECT_FAILED",
+      });
+    });
+
+    socket.on("connect", () => {
+      // Int32 length including itself, then the SSLRequest code 80877103,
+      // which is 1234 << 16 | 5679 and is a protocol constant rather than a
+      // version number.
+      const request = Buffer.alloc(8);
+
+      request.writeInt32BE(8, 0);
+      request.writeInt32BE(80877103, 4);
+      socket.write(request);
+    });
+
+    socket.on("data", (chunk) => {
+      const reply = chunk.length > 0 ? String.fromCharCode(chunk[0] ?? 0) : "";
+
+      finish(
+        reply === "S" || reply === "N"
+          ? { ok: true, ssl: reply === "S" }
+          : { ok: false, code: "NOT_POSTGRES" },
+      );
+    });
+
+    // A server that closes without answering is not one either — a plain TCP
+    // listener with nothing behind it does exactly this.
+    socket.on("close", () => {
+      finish({ ok: false, code: "NO_RESPONSE" });
+    });
+  });
+}
+
 // --- Where the two services are ---
 //
 // Both addresses come from `pair-addresses.mjs`, which is the one place they
@@ -175,7 +296,7 @@ const { port, host, backendHealthUrl, frontendOrigin, frontendProbeUrl } =
 // services. The README's documented `curl` lines do not get that for free and
 // name the family explicitly.
 
-const [backend, frontend] = await Promise.all([
+const [backend, frontend, database] = await Promise.all([
   poll(backendHealthUrl, async (response) => {
     if (!response.ok) {
       return undefined;
@@ -214,6 +335,7 @@ const [backend, frontend] = await Promise.all([
       ? "module graph resolves"
       : undefined;
   }),
+  probePostgres(LOCAL_DATABASE.host, LOCAL_DATABASE.port),
 ]);
 
 const results = [
@@ -229,8 +351,52 @@ for (const { name, url, result } of results) {
   }
 }
 
+// The database is **reported and not gating**, and that is a decision with a
+// stated trigger rather than a softness.
+//
+// The exit code of this script answers one question — *can the application
+// run?* — and today the application does not open a connection to anything.
+// Nothing in `apps/backend` reads a database, `pnpm verify` has never needed a
+// server, and `pnpm e2e` gates on this very script, so a failing third check
+// would refuse to start a browser suite that has no interest in a database, on
+// a laptop and on the runner alike. Making it gating today would be inventing a
+// requirement one task ahead of the code that has it, which is the thing this
+// repository keeps declining to do.
+//
+// **The reversal trigger is Task 2.1.4** — the pool, the first thing here that
+// opens a connection. On the day the backend needs a database to serve a
+// request, this line becomes a `✗` and the `e2e` job in
+// `.github/workflows/verify.yml` gains a service. It is written here rather
+// than only in a task file because this is where the next person will read it.
+const databaseAddress = `${LOCAL_DATABASE.host}:${String(LOCAL_DATABASE.port)}`;
+
+if (database.ok) {
+  console.log(
+    `  ✓ database  ${databaseAddress}  PostgreSQL, ${database.ssl ? "TLS offered" : "no TLS offered"}`,
+  );
+} else {
+  // The diagnosis goes on this line rather than into the hint block below,
+  // because that block only runs when the pair itself failed — and the
+  // interesting database cases are exactly the ones where everything else is
+  // green. `○` and not `✗` on purpose: it is a report, not a failure.
+  const diagnosis = {
+    NOT_POSTGRES:
+      "something is on this port and it did not answer an SSLRequest",
+    NO_RESPONSE: "something is holding this port and not answering at all",
+  };
+
+  console.log(
+    `  ○ database  ${databaseAddress}  ${database.code} — ${diagnosis[database.code] ?? "not running; `pnpm db` starts it"}`,
+  );
+}
+
 if (backend.ready && frontend.ready) {
-  console.log("\nThe pair is up.");
+  console.log(
+    database.ok
+      ? "\nThe pair is up, and so is the database."
+      : "\nThe pair is up. The database is not — start it with `pnpm db`.\n" +
+          "Nothing needs it yet, so this is exit 0; Task 2.1.4 is what changes that.",
+  );
   process.exit(0);
 }
 

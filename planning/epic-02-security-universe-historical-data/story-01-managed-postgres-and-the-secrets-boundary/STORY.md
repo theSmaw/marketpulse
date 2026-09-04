@@ -1,6 +1,6 @@
 # Story 2.1 — Managed Postgres Provisioning & the Secrets Boundary
 
-**Status:** In progress — Task 2.1.1 complete
+**Status:** In progress — Tasks 2.1.1 and 2.1.2 complete
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Epic 1 (Stories 1.6, 1.11)
 **Epic scope covered:** Managed Postgres provisioning; Alpaca credential on the platform (the _mechanism_ half)
@@ -58,11 +58,13 @@ twelve months without using them.
 
 ## Open decisions — settle with the user before the first `az` command
 
+**Decision 3 was settled by [Task 2.1.2](TASK-02-the-local-development-database.md) on 2026-09-04: a PostgreSQL 18 container through Docker Compose, behind `pnpm db`, outside `pnpm dev`, reported by `pnpm ready` as a third check that does not gate.** Only **decision 4** now remains open, owned by Task 2.1.7.
+
 **Decisions 1, 2 and 5 were settled by [Task 2.1.1](TASK-01-choose-the-creation-decisions.md) on 2026-09-04** and are recorded in
 `HOSTING.md` under _The database — the creation decisions_. They are left below with their
 original wording, struck where the answer changed them, because the reasoning they asked for
-is what the record has to contain. **Decisions 3 and 4 remain open**, owned by Tasks 2.1.2
-and 2.1.7 as the table says.
+is what the record has to contain. ~~**Decisions 3 and 4 remain open**, owned by Tasks 2.1.2
+and 2.1.7 as the table says.~~ **Decision 4 remains open, owned by Task 2.1.7.**
 
 **A fourth answer nobody asked for: the region.** East US is `OfferRestricted` for this
 subscription and offers no Postgres at all, so the database is in **East US 2** — the second
@@ -129,7 +131,7 @@ Tackled in order. The story is complete when all eight are done.
 | #     | Task                                                                                                                                         | Status      |
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
 | 2.1.1 | [Choose the four irreversible decisions, and the credential shape, provisioning nothing](TASK-01-choose-the-creation-decisions.md)           | Complete    |
-| 2.1.2 | [Give a clean clone a local database, and say what it costs](TASK-02-the-local-development-database.md)                                      | Not started |
+| 2.1.2 | [Give a clean clone a local database, and say what it costs](TASK-02-the-local-development-database.md)                                      | Complete    |
 | 2.1.3 | [Put the connection settings through the configuration boundary](TASK-03-connection-settings-in-the-configuration-boundary.md)               | Not started |
 | 2.1.4 | [The connection pool, `SELECT 1`, and closing inside the drain](TASK-04-the-pool-and-its-lifecycle.md)                                       | Not started |
 | 2.1.5 | [Provision the managed instance, and reach it over TLS from outside the application](TASK-05-provision-the-managed-instance.md)              | Not started |
