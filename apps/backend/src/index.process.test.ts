@@ -606,3 +606,200 @@ describe("crash handlers", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// The database pool (Task 2.1.4)
+// ---------------------------------------------------------------------------
+
+// **Every test below passes with a database running and with one absent**, and
+// that is the story's sixth acceptance criterion rather than an accident. The
+// suite is run in both environments and the count does not change: there are no
+// `skipIf`s here, because a skipped test reports green and this repository has
+// already recorded twice that a suite which silently runs fewer tests is the
+// worst failure available (`-t` with a typo exits 0; a `.test.tsx` under a
+// `.ts`-only glob is simply not collected).
+//
+// The one test that *does* care whether a database exists asks the question
+// itself and asserts the matching answer, so it is a real assertion in both
+// environments rather than an absent one in half of them.
+
+/**
+ * Is a PostgreSQL server answering on this address?
+ *
+ * The same eight-byte SSLRequest `scripts/check-ready.mjs` sends, for the same
+ * reason: a successful TCP connect proves only a *listener*, and every
+ * PostgreSQL answers this one packet with a single `S` or `N` and no
+ * credentials. It is duplicated here rather than imported because that script
+ * is plain JavaScript outside this package's tsconfig, and eight bytes is a
+ * cheaper copy than a shared module for one caller.
+ */
+async function postgresAnswers(port: number): Promise<boolean> {
+  return await new Promise<boolean>((resolve) => {
+    const socket = net.connect({ host: "127.0.0.1", port });
+    let settled = false;
+
+    const finish = (answered: boolean): void => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(answered);
+    };
+
+    socket.setTimeout(2000, () => {
+      finish(false);
+    });
+    socket.on("error", () => {
+      finish(false);
+    });
+    socket.on("close", () => {
+      finish(false);
+    });
+    socket.on("connect", () => {
+      const request = Buffer.alloc(8);
+      request.writeInt32BE(8, 0);
+      request.writeInt32BE(80877103, 4);
+      socket.write(request);
+    });
+    socket.on("data", (chunk) => {
+      const reply = chunk.length > 0 ? String.fromCharCode(chunk[0] ?? 0) : "";
+      finish(reply === "S" || reply === "N");
+    });
+  });
+}
+
+describe("the database pool", () => {
+  // Both branches assert, so this is a real test whether or not `pnpm db` is
+  // running. What it actually holds is the wiring: that the probe runs at all,
+  // that it runs *after* the server is listening, and that its two outcomes are
+  // told apart. A test that only ran with a database would be a test nobody on
+  // a fresh clone ever executes.
+  it("reports the database's reachability at startup, either way", async () => {
+    const port = await probeFreePort();
+    const server = startServer(port);
+    await waitForReady(server);
+
+    // Asked after the server answered, so the probe has certainly run: the
+    // entrypoint awaits it immediately after `listen()` resolves.
+    await delay(200);
+
+    const reachable = await postgresAnswers(5432);
+    const messages = server.records().map((record) => record.msg);
+
+    expect(messages).toContain(
+      reachable
+        ? "database reachable"
+        : "database unreachable, continuing without it",
+    );
+
+    // And the server is listening before the answer is known, which is the
+    // ordering that keeps a slow database out of the startup path.
+    expect(
+      messages.indexOf("Server listening at http://127.0.0.1:" + String(port)),
+    ).toBeLessThan(
+      messages.indexOf(
+        reachable
+          ? "database reachable"
+          : "database unreachable, continuing without it",
+      ),
+    );
+
+    server.child.kill("SIGTERM");
+    await waitForExit(server);
+  });
+
+  // The behaviour this task exists to guarantee, and it is deterministic in
+  // every environment because the address is a port nothing is on rather than
+  // "whatever the machine happens to have".
+  //
+  // A process that exits because Postgres is down is a crash-loop on a platform
+  // whose liveness probe restarts the replica — and Task 2.1.1 recorded that a
+  // Burstable server can make itself unreachable by exhausting its CPU credits,
+  // so this is a state the *database* can enter on its own.
+  it("starts, serves /health and logs a warning when the database is unreachable", async () => {
+    const port = await probeFreePort();
+    const databasePort = await probeFreePort();
+    const server = startServer(port, { DATABASE_PORT: String(databasePort) });
+
+    await waitForReady(server);
+    await delay(200);
+
+    const records = server.records();
+    const unreachable = records.find(
+      (record) => record.msg === "database unreachable, continuing without it",
+    );
+
+    if (unreachable === undefined) {
+      expect.fail(
+        `no unreachable record was written. The server's output was:\n${server.output()}`,
+      );
+    }
+
+    // `warn` and not `error`: this server is still healthy by `/health`'s own
+    // definition, and Task 1.7.4 reserves 50 for a failure the server produced.
+    expect(unreachable.level).toBe(40);
+    expect(unreachable.err?.code).toBe("ECONNREFUSED");
+
+    // Still serving, which is the whole point.
+    const response = await fetch(`http://127.0.0.1:${String(port)}/health`);
+    expect(response.status).toBe(200);
+    expect(server.exit()).toBeUndefined();
+
+    server.child.kill("SIGTERM");
+    await waitForExit(server);
+  });
+
+  it("still drains and exits 0 when the database is unreachable", async () => {
+    const port = await probeFreePort();
+    const databasePort = await probeFreePort();
+    const server = startServer(port, { DATABASE_PORT: String(databasePort) });
+
+    await waitForReady(server);
+    server.child.kill("SIGTERM");
+
+    const exit = await waitForExit(server);
+
+    expect(exit.code).toBe(0);
+    expect(server.records().map((record) => record.msg)).toContain(
+      "shutdown complete",
+    );
+  });
+
+  // **The ordering, asserted rather than argued — and this assertion had to be
+  // strengthened after it was seen NOT to fail.** A pool closed before
+  // `app.close()` resolves would pull connections out from under requests that
+  // are still draining, and that failure does not look like an error: it looks
+  // like a 500 during a shutdown.
+  //
+  // The first version of this test bounded the close by `signal received` and
+  // `shutdown complete`, and moving the close to the wrong side of
+  // `app.close()` **left it green** — both bounds still held, because the whole
+  // drain happens between them. So `index.ts` emits a second `debug` record at
+  // the moment the HTTP side finishes, and the assertion is that the pool
+  // closes between *those two*. That is the general lesson rather than a detail:
+  // an ordering assertion needs a marker on each side of the step it is about.
+  it("closes the pool after the drain and before the exit", async () => {
+    const port = await probeFreePort();
+    const databasePort = await probeFreePort();
+    const server = startServer(port, {
+      DATABASE_PORT: String(databasePort),
+      LOG_LEVEL: "debug",
+    });
+
+    await waitForReady(server);
+    server.child.kill("SIGTERM");
+
+    const exit = await waitForExit(server);
+    expect(exit.code).toBe(0);
+
+    const messages = server.records().map((record) => record.msg);
+    const signalled = messages.indexOf("signal received, shutting down");
+    const drained = messages.indexOf("http drained");
+    const closed = messages.indexOf("database pool closed");
+    const complete = messages.indexOf("shutdown complete");
+
+    expect(signalled).toBeGreaterThanOrEqual(0);
+    expect(drained).toBeGreaterThan(signalled);
+    expect(closed).toBeGreaterThan(drained);
+    expect(complete).toBeGreaterThan(closed);
+  });
+});
