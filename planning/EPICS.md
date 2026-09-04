@@ -21,6 +21,8 @@ A working frontend and backend can be run locally and deployed, with shared conv
 - Logging
 - Basic error handling
 - Unit/integration test foundations
+- User-journey test foundations — added 2026-09-03
+- Select UI component library and styling conventions — added 2026-08-31
 - CI pipeline
 - Initial deployment pipeline
 
@@ -30,6 +32,10 @@ A working frontend and backend can be run locally and deployed, with shared conv
 - A deployed development environment is accessible
 - Automated tests run in CI
 - Backend health/status can be viewed from the frontend
+
+**Closed 2026-09-04**, all four criteria re-checked against the running system
+rather than against story statuses — see `epic-01-application-foundation/EPIC.md`.
+Two items were added to its scope during delivery and are recorded above.
 
 ---
 
@@ -49,6 +55,9 @@ A user can select one of the tracked securities and inspect its historical price
 - Initial ~100-security universe
 - ETF/sector metadata
 - Market-data provider abstraction
+- Managed Postgres provisioning — tier and networking mode are irreversible
+- Database schema and migration mechanism
+- Alpaca credential on the platform — the first secret this system holds
 - Alpaca historical-data integration
 - Historical market-data persistence/cache
 - Security search/select
@@ -85,6 +94,7 @@ Tracked securities update automatically as live market observations arrive.
 - Stale-data detection
 - Live price updates in the UI
 - Market timestamp / LIVE indicator
+- Continuous-connection cost envelope — the idle-rate estimate does not transfer
 
 ### Exit criteria
 
@@ -323,6 +333,7 @@ Users can investigate market behaviour conversationally without giving the model
 - Agent event protocol
 - Investigation context
 - Streaming agent activity
+- Stream keep-alive inside the platform's 240-second ingress idle timeout
 - Findings generated from tool results
 - Follow-up questions
 - Agent cancellation
@@ -504,6 +515,7 @@ Someone encountering MarketPulse for the first time can understand both the prod
 - Performance report
 - ADRs
 - Testing strategy documentation
+- End-to-end journey suite — the harness exists, the suite has never had an owner
 - Demo walkthrough
 - Screenshots/video
 - Error-state polish

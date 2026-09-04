@@ -61,9 +61,13 @@ worth writing down rather than smoothing over.
 
 **Nothing is left unmet, and one thing is left open on purpose.** The suite this
 epic ends with is a **harness**, not coverage: ten local journeys and ten
-deployed ones against an application that barely exists. **Where the eventual
+deployed ones against an application that barely exists. ~~**Where the eventual
 suite lives in the roadmap is an open question handed to Epic 15**, not resolved
-here — `PRODUCT_SPEC.md` §41 puts E2E tests in Phase 6 while Epic 15's scope
+here~~ — **resolved on 2026-09-04, in Epic 15 rather than here**: an
+`End-to-end journey suite` scope item and a `What Epic 1 hands this epic`
+section now say so in `../epic-15-portfolio-release/EPIC.md`, with Epic 8 named
+as where the suite starts growing rather than where it starts existing. The
+reason it was not resolved here is unchanged — `PRODUCT_SPEC.md` §41 puts E2E tests in Phase 6 while Epic 15's scope
 carries only "Testing strategy documentation", so the suite has no owner
 anywhere in the roadmap. Epic 8 is the checkpoint with journeys worth asserting
 on in quantity, and what it inherits is that the tool, the specs' home, the CI
