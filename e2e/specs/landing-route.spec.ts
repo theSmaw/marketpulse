@@ -1,6 +1,8 @@
 import { BACKEND_STATUSES } from "@marketpulse/shared";
 import { expect, test } from "@playwright/test";
 
+import { expectNothingFailedToRender } from "../support/app.js";
+
 // The first journey, and deliberately the only one in this file (Task 1.13.2).
 //
 // It is the smallest thing that is genuinely a *journey* rather than a render:
@@ -141,5 +143,11 @@ test("the landing route serves the chrome and PRODUCT_SPEC §9's four regions", 
   // Nothing failed to render. `ErrorFallback` is what stands in the place of
   // what failed, and there are three places it can appear on this route — the
   // header, the route outlet and inside each region. None of them should have.
-  await expect(page.getByText("could not be displayed")).toHaveCount(0);
+  //
+  // By **role** rather than by title (amended by Task 1.13.3): `role="alert"`
+  // is what every fallback carries wherever it is placed, so one query covers
+  // every boundary this application has and any it grows. A title list goes
+  // stale the day a fourth boundary is added — silently, and in the passing
+  // direction.
+  await expectNothingFailedToRender(page);
 });
