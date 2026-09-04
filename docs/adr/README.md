@@ -31,3 +31,4 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0010](0010-continuous-integration-what-the-tick-certifies.md)                | Continuous integration: one command, and what the green tick certifies                   | Accepted |
 | [0011](0011-deploying-both-halves-and-what-a-green-deploy-certifies.md)       | Deploying both halves: two artefacts, two hosts, and what a green deploy certifies       | Accepted |
 | [0012](0012-client-side-status-what-a-green-indicator-certifies.md)           | Client-side status: two vocabularies, three states, and what a green indicator certifies | Accepted |
+| [0013](0013-browser-testing-two-suites-and-what-a-green-run-certifies.md)     | Browser testing: one tool, two suites, and what a green run certifies                    | Accepted |

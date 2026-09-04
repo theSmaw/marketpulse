@@ -461,6 +461,20 @@ for every user, and **`curl` is structurally incapable of catching it**. That
 table is the reason Story 1.13 exists, and it is that story's acceptance
 criterion.
 
+> **Scoped 2026-09-04 (Task 1.13.5).** _Structurally_ is too strong, and the
+> correction is worth having because it is a fourth instrument rather than a
+> retraction. The status, the body and the log genuinely cannot catch it. But
+> `access-control-allow-origin` is a **readable copy of `CORS_ORIGIN`** —
+> `@fastify/cors` with a string origin asserts the configured value
+> unconditionally — so an instrument **told the frontend's origin** can compare
+> the two. That value is exactly what no server-side instrument has, and the
+> comparison is a proxy for the browser's verdict rather than the verdict: it
+> says nothing about the second failure, where a wrong `VITE_API_BASE_URL`
+> means the backend is never asked at all. `e2e/specs-deployed/two-halves.spec.ts`
+> makes the comparison anyway, because two instruments disagreeing is
+> diagnostic. The table above is unchanged and still the reason the story
+> exists.
+
 The converse is also worth stating: a **red** indicator is not proof the server
 is down either. It is proof that this browser could not get a readable answer,
 which is a strictly weaker and more useful claim.
@@ -571,7 +585,12 @@ timestamp.
 
 ### The poll, counted rather than estimated (local, 185 s, one visible tab)
 
-- **6 requests**, cycle **30.98 / 31.00 / 31.00 / 31.00 / 31.02 s**
+- **6 requests**, cycle **30.98 / 31.00 / 31.00 / 31.00 / 31.02 s** — scoped
+  2026-09-04 (Task 1.13.1): that is a **driven Chrome tab**, which is genuinely
+  backgrounded, so Chrome aligns its timers to the second. Under Playwright the
+  same application measures **30.02 s**, which confirms the attribution of the
+  extra second to the browser by its absence. A browser spec should expect 30 s,
+  and the difference is not drift
 - **12 log records** — exactly 2 per request, which is `singleLine`'s figure
 - round trip **7.8–25.1 ms**
 - **0 header DOM mutations** across six healthy polls — the whole-tree re-render

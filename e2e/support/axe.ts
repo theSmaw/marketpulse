@@ -82,6 +82,42 @@ interface AxeGlobal {
 }
 
 /**
+ * Assert that the browser under this suite actually computed styles.
+ *
+ * This is the one check in the suite that protects the instrument rather than
+ * the application, and it exists because the axe gate's whole value depends on
+ * a property nothing else observes. A renderer that skipped style computation
+ * would report **zero violations** — by being blind, not by the page being
+ * correct — and a green run structurally cannot tell that apart from success.
+ *
+ * Task 1.13.4 confirmed the property with a throwaway probe on the runner (the
+ * page ground exact, `color-contrast` passing on **65 nodes**, the same number
+ * macOS reports) and then deleted the probe, leaving the property as prose. It
+ * is one line beside the assertion it protects instead, which is this
+ * repository's own rule that a test beats another `verify` step when the thing
+ * being checked is reachable from an assembled instance.
+ *
+ * It asserts **presence with nodes** rather than a node count: 65 is a property
+ * of this page at this moment and would fail on the next component, where "axe
+ * evaluated contrast on something" is the claim that actually matters. And it
+ * lives here rather than in `expectNoAxeViolations` alone, because `reportAxe`
+ * injects the same axe into a second browser and a check on one leaves the
+ * other blind.
+ */
+function expectTheRendererComputedStyles(
+  results: AxeResults,
+  label: string,
+): void {
+  const contrast = results.passes.find((pass) => pass.id === "color-contrast");
+
+  expect(
+    contrast === undefined ? 0 : contrast.nodes.length,
+    `axe evaluated color-contrast on ${label} — zero nodes means the renderer ` +
+      `computed no styles, which turns this gate green by making it blind`,
+  ).toBeGreaterThan(0);
+}
+
+/**
  * Run axe over the whole document and fail on any violation.
  *
  * The source is injected as a script tag rather than driven through a wrapper
@@ -102,6 +138,8 @@ export async function expectNoAxeViolations(
 
     return await runner.run(document);
   });
+
+  expectTheRendererComputedStyles(results, label);
 
   // Inconclusive results are recorded and never fail. They are axe declining to
   // judge, which is information about axe rather than about the page.
@@ -171,6 +209,12 @@ export async function reportAxe(page: Page, label: string): Promise<void> {
 
     return await runner.run(document);
   });
+
+  // Asserted even here, where everything else is a report: this one is a claim
+  // about the instrument rather than about the deployed page, and a reading
+  // taken by a blind renderer is not a reading worth comparing against the
+  // pre-merge gate's.
+  expectTheRendererComputedStyles(results, label);
 
   const summary =
     `${label}: ${String(results.violations.length)} violations, ` +

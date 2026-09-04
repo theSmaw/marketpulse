@@ -1,6 +1,6 @@
 # Story 1.13 — End-to-End Browser Testing
 
-**Status:** In progress
+**Status:** Complete
 **Epic:** [Epic 1 — Application Foundation](../EPIC.md)
 **Depends on:** Stories 1.10, 1.11, 1.12
 **Epic scope covered:** user-journey test foundations — an addition to this epic's scope, see the note at the end
@@ -190,14 +190,14 @@ Tackled in order. The story is complete when all six are done, and it is the las
 
 1.13.1 chooses the tool and decides where specs live, installing nothing permanent — the same shape as Task 1.10.1 proving the toolchain and stopping, and Task 1.11.1 choosing a platform and deploying nothing. 1.13.2 installs it and makes exactly one journey real against a local pair, including the part that is easy to skip: seeing it fail. 1.13.3 writes the journeys worth having and states the ones deliberately not written, minus Story 1.5's two host-level criteria, which Task 1.13.2 moved to 1.13.5 because the local target cannot hold them. 1.13.4 puts it in CI and resolves the tension with the pipeline's founding rule. 1.13.5 builds the post-deploy check Task 1.11.7 declined, now that its trigger has fired. 1.13.6 closes the story, writes ADR 0013 and closes Epic 1.
 
-| #      | Task                                                                                                                 | Status      |
-| ------ | -------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1.13.1 | [Choose the browser tool and decide where the specs live](TASK-01-choose-the-tool-and-where-specs-live.md)           | Complete    |
-| 1.13.2 | [Install it and make one journey real against a local pair](TASK-02-first-journey-against-a-local-pair.md)           | Complete    |
-| 1.13.3 | [Write the journeys worth having, and state the ones deliberately not written](TASK-03-the-journeys-worth-having.md) | Complete    |
-| 1.13.4 | [Run it in CI, and settle where it sits relative to `pnpm verify`](TASK-04-run-it-in-ci.md)                          | Complete    |
-| 1.13.5 | [Build the post-deploy browser check Task 1.11.7 declined](TASK-05-post-deploy-browser-check.md)                     | Complete    |
-| 1.13.6 | [Verify, document, record ADR 0013, and close Epic 1](TASK-06-verify-document-adr-and-close-the-epic.md)             | Not started |
+| #      | Task                                                                                                                 | Status   |
+| ------ | -------------------------------------------------------------------------------------------------------------------- | -------- |
+| 1.13.1 | [Choose the browser tool and decide where the specs live](TASK-01-choose-the-tool-and-where-specs-live.md)           | Complete |
+| 1.13.2 | [Install it and make one journey real against a local pair](TASK-02-first-journey-against-a-local-pair.md)           | Complete |
+| 1.13.3 | [Write the journeys worth having, and state the ones deliberately not written](TASK-03-the-journeys-worth-having.md) | Complete |
+| 1.13.4 | [Run it in CI, and settle where it sits relative to `pnpm verify`](TASK-04-run-it-in-ci.md)                          | Complete |
+| 1.13.5 | [Build the post-deploy browser check Task 1.11.7 declined](TASK-05-post-deploy-browser-check.md)                     | Complete |
+| 1.13.6 | [Verify, document, record ADR 0013, and close Epic 1](TASK-06-verify-document-adr-and-close-the-epic.md)             | Complete |
 
 Each task leaves the repository installable, typechecking and passing `pnpm verify`, leaves the pipeline green, and leaves the deployed environment up.
 

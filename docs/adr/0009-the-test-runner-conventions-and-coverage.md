@@ -277,6 +277,18 @@ thing that can drift from the one that ships.
 
 ### 10. There are three levels with a runner behind them, and a fourth without one
 
+> **Amended 2026-09-04 (Story 1.13).** There are **five** levels now. Story
+> 1.10 gave the fourth a runner (`pnpm test:process`), and Story 1.13 added a
+> **fifth**: a browser suite driving a real Chromium against a real pair, in a
+> fourth workspace package at `e2e/`, run by `pnpm e2e` — and the same tool
+> pointed at the deployed environment by `pnpm e2e:deployed`, which is that
+> fifth level against a second target rather than a sixth level. What makes
+> them one level is that they run the same tool over the same helpers and
+> assert the same kind of thing; what makes the target worth naming separately
+> is that only the deployed one can see a host's `navigationFallback`, a
+> platform-only `CORS_ORIGIN`, or an artefact `verify` never fingerprinted.
+> Neither is in `pnpm test`. See ADR 0013.
+
 A **unit** test drives a function with a plain argument, and `loadConfig(env)` is
 the model: it takes the environment as a parameter specifically so no process
 has to be mutated. An **integration** test drives the real HTTP layer through
@@ -380,6 +392,14 @@ against the baseline in `Measured` below**, which is what this command exists to
 produce.
 
 ### 13. `@storybook/addon-vitest` was rejected, and the predicted blocker did not materialise
+
+> **Amended 2026-09-04 (Story 1.13).** The sentence below is about the
+> _addon_ and is still true of it. What has changed is the tree around it:
+> **Playwright 1.62.1 is a root devDependency since Task 1.13.2**, with its
+> browsers in `~/Library/Caches/ms-playwright/` rather than in
+> `node_modules`. Do not read this section as evidence that no Playwright is
+> installed here. It ships no install script, so `esbuild@0.28.2` is still
+> `allowBuilds`' only entry — re-swept at Story 1.13's close. See ADR 0013 §1.
 
 Story 1.9 expected `@vitest/browser` and a Playwright download. Measured:
 `pnpm add -D -E @storybook/addon-vitest@10.5.10` is **+1 package**, pulls no

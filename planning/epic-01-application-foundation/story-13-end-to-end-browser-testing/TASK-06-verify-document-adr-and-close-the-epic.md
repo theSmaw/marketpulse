@@ -1,6 +1,6 @@
 # Task 1.13.6 — Verify, document, record ADR 0013, and close Epic 1
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [1.13 End-to-End Browser Testing](STORY.md)
 **Depends on:** Task 1.13.5
 
@@ -67,3 +67,74 @@ Close the story the way every Epic 1 story has been closed — re-running every 
 Every closing task in this epic has found at least one recorded claim that had stopped being true, and every one of them was found by re-measuring rather than by reading — Task 1.11.8 found three, including a paragraph that contradicted itself two sentences apart and an arithmetic error of a factor of about 35. This task closes an epic as well as a story, so it is reading **twelve** stories' worth of claims rather than one. Budget for it.
 
 **It grew again with Task 1.13.5 and it is now the largest closing task in the epic (amended 2026-09-04).** It owes an ADR covering **two** suites, six third-kind invariants plus two counter-examples, four sweeps of which one has 14 known occurrences, and an epic close. **Splitting it was considered and rejected**, and the reason is worth stating rather than leaving as an omission: every story in this epic has closed with exactly one task, and a closing task exists to re-verify a whole story at once — split in two, each half re-verifies part of a story and neither is the re-verification the pattern is for. The epic close genuinely depends on the story close, so a separate "close Epic 1" task would be a task that cannot start until the other finishes and shares all of its context. One task, budgeted honestly, beats two that pretend to be independent.
+
+## Outcome
+
+**Done 2026-09-04.** All six acceptance criteria re-run and every figure
+re-taken; `docs/adr/0013-browser-testing-two-suites-and-what-a-green-run-certifies.md`
+written; Epic 1 closed against the tree rather than against story statuses.
+
+### Three recorded claims had stopped being true, and one was wrong when written
+
+- **"Five spec files"** — there have only ever been **four**
+  (`backend-failure-states`, `backend-health`, `backend-recovery`,
+  `landing-route`), confirmed against the commits that created them. Task
+  1.13.3's own write-up said five and `CLAUDE.md` copied it. That is the class a
+  re-count catches and a re-read does not.
+- **`README.md`'s `pnpm test` section read "74 across 11 — 160 in total"**,
+  stale by three increments. Task 1.12.8's sweep did not reach it because the
+  sweep was written against the twelve convention blocks, not against the
+  document's own body.
+- **The 397-on-Linux / 398-on-macOS install pair is now 400 / 402**, and the
+  difference is **two** darwin-only optional packages rather than one:
+  `fsevents@2.3.3` via Vite and `fsevents@2.3.2` through Playwright. Both
+  re-read (`Packages: +400` off a runner, 402 off a clean clone).
+
+### The sweeps, with counts
+
+- **Duplicated-sentence sweep**: **twelve** blocks, **ten byte-identical**,
+  Story 1.13's among the ten — Task 1.12.8's shape reproduced exactly. It needed
+  **no amendment**, because this story adds nothing to `pnpm test`; that is the
+  first time this sweep has come back clean.
+- **`curl` is structurally incapable**: **16 occurrences across 13 files**, each
+  **read** rather than replaced. Four are live claims and now carry a scoping
+  clause (`CLAUDE.md`, `docs/adr/0012-*`, `EPIC.md`, `HOSTING.md`); nine are
+  historical records of Task 1.11.7's decline, correct in their own context; one
+  (`story-10/TASK-06`) is about the badge and coverage and **is not this claim at
+  all**; two already carry the correction in this story's own code. A grep count
+  is not a copy count.
+- **"the SPA fallback answers _any_ unmatched path"**: four uncorrected copies
+  (`README.md` ×2, `EPIC.md`, Story 1.9's `STORY.md`), all scoped — three hosts,
+  three behaviours, and never write the phrase without naming the host.
+- **`esbuild` is the only install script**: re-swept **against the clean
+  clone's own store**, returns `esbuild@0.28.2` and nothing else. Story 1.13's
+  prediction that `allowBuilds` would fire was falsified twice and is recorded as
+  falsified.
+- **Pinned actions**: five distinct, **eighteen** uses, **six** distinct `uses:`
+  references, counted out of `.github/workflows/`.
+
+### The decisions this task owed
+
+- **The axe gate's dependence on a browser that computes styles is CHECKED, not
+  prose.** `expectTheRendererComputedStyles` asserts `color-contrast` appears in
+  axe's `passes` with more than zero nodes, in **both** `expectNoAxeViolations`
+  and `reportAxe`. Presence-with-nodes rather than 65, and made to fail first.
+  The other five invariants stay prose with their durable copy named, and **the
+  line between the two lists is reachability from an assembled instance** —
+  this repository's own rule.
+- **The deployed check is the fifth level pointed at a second target, not a
+  sixth level**, written that way in `CLAUDE.md`, `README.md` and ADR 0013.
+
+### Measured
+
+Clean clone, empty store: **402 packages cold in 31.2 s**, 404 store entries /
+280,732 KB / 4,641 lockfile lines, `pnpm verify` **exit 0 in 29.28 s**;
+**24.33 s** warm on the working tree (build 2.63 / lint 4.48 / `format:check`
+4.41 / `stories` 0.24 / `env:check` 0.25 / `test` 3.21 / `test:process` 7.78).
+189 tests + 10 process tests, 10 components / 10 stories files. Artefact
+reproduces Task 1.13.4 to the byte: **361,664 B over four files**, Storybook 63
+files / 9.3 MB. `pnpm e2e` **10 passed (1.0m)**; `pnpm e2e:deployed` from the
+clean clone **10 passed in 10.8 s** after its built-output guard fired and
+`tsc -b` fixed it in **0.87 s**. Criterion 3 re-made: a wrong local
+`CORS_ORIGIN` gave **4 failed / 5 passed** while `curl` got a 200 with the full
+body and the log recorded 12 requests, all `statusCode: 200`.
