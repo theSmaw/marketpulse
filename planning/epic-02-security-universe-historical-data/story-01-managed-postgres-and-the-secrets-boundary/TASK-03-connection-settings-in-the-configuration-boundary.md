@@ -3,6 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.1, 2.1.2
+**Amended:** 2026-09-04, after Task 2.1.1 — see _Amended after Task 2.1.1_ below
 
 ## Objective
 
@@ -29,3 +30,13 @@ Add the database's connection settings to `apps/backend/src/config.ts` — the o
 ## Notes
 
 This is the story's fifth acceptance criterion in its own task because it is the one piece that can be finished, checked and made to fail with no server anywhere — which is also the property `pnpm verify` has and must keep.
+
+## Amended after Task 2.1.1 (2026-09-04)
+
+The brief above says "note that Task 2.1.1's authentication decision may have already forced it". **It has, and the answer is not the one a `DATABASE_URL` assumes.**
+
+- **There is no password in the deployed environment at all.** Task 2.1.1 chose Microsoft Entra authentication with password authentication `Disabled` and **no admin user created**. The deployed credential is an access token, minted per connection, valid up to 24 hours. Locally there _is_ a password, because a local container has no identity.
+- **So the settings are not one string that means the same thing in both places.** A single `DATABASE_URL` carrying a password works locally and cannot express the deployed case, where the password field is filled at connect time by code rather than by configuration. The shapes actually available are therefore: **discrete variables** (host, port, database, user, and a credential that is present locally and absent deployed); a `DATABASE_URL` **plus** a separate auth-mode switch; or a URL locally and discrete variables deployed, which is two shapes and should be rejected on sight. Take one and record it — but the decision is now between narrower options than the brief describes.
+- **Whatever is chosen has to make "which credential mechanism" explicit rather than inferred.** Inferring it from whether a password variable is set is the shape that fails silently: a deployment that forgets the variable would fall through to the identity path and produce a confusing auth error, and a laptop that has a stale variable set would try a password against a server that refuses passwords. A named mode is cheaper than the failure.
+- **The "password is a value this module must never render" bullet still applies and its subject changed.** The thing that must never reach a log is now **the token**, which is a live bearer credential for up to 24 hours. It does not come from `process.env`, so `config.ts` may never hold it at all — which, if true, is a **stronger** result than redaction and should be recorded as such: the module that promised not to log a credential turns out never to receive one.
+- **The matched-pair hazard is unchanged and now has a second half.** A defaulted local address that a deployment forgets to override is the `CORS_ORIGIN` shape already recorded. The new half is that a deployment which forgets the **mode** does not fail at startup at all — it fails at first connection, which is Task 2.1.4's "what happens when the database is absent" path and is exactly the 3am failure this bullet exists to prevent.

@@ -3,6 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.1 (the version, and the authentication decision)
+**Amended:** 2026-09-04, after Task 2.1.1 — see _Amended after Task 2.1.1_ below
 
 ## Objective
 
@@ -30,3 +31,10 @@ Make a working local database part of what `README.md` gets you, before anything
 ## Notes
 
 This comes before the pool and before provisioning deliberately. Epic 1's most-cited structural lesson is Task 1.11.2's: the artefact was built and run outside the workspace before any platform saw it, because "a platform failing on an artefact that was never correct is the most expensive failure to read". A connection pool that has never opened a connection is that artefact.
+
+## Amended after Task 2.1.1 (2026-09-04)
+
+- **The version to pin is PostgreSQL 18.** Chosen for the support window (Azure standard support to **14-Nov-2030**, against 17's 2029), GA on Azure since 25-Sep-2025 so not fresh, and with the extension question checked and found not to constrain it — `timescaledb` is 2.24.0 on 15, 16, 17 and 18 alike. The image tag is `18`, and the deployed server is created with `--version 18`.
+- **The local database authenticates with a password and the deployed one cannot, and that asymmetry is deliberate rather than an inconsistency to iron out.** Task 2.1.1 chose **Microsoft Entra authentication only** for the managed server, which is a mechanism that structurally cannot exist on a laptop: there is no managed identity to be. So "match the deployed environment" applies to the **engine version** and not to the credential, and this task should say so where a reader would otherwise file it as a bug.
+- **That has a consequence for Task 2.1.3 which is worth flagging from here**, because this task is what creates it: the configuration boundary will carry **two shapes of credential**, a literal locally and an identity deployed. Choosing a local connection shape that only a password fits — a single `DATABASE_URL` with the password inside it, say — narrows 2.1.3's options before it gets to choose.
+- **`pnpm ready`'s third check is a genuinely different probe from the two it has.** Both existing checks speak HTTP; a Postgres port speaks a binary protocol and will not answer a `fetch` at all. The existing 2-second per-attempt deadline exists because a socket that accepts and never answers hangs `fetch` forever — **a database port does exactly that**, so this is the first check in that script that has to either speak enough of the protocol to get an answer or settle for a TCP connect. Which one it settles for should be a stated decision, because a TCP connect proves a listener and not a database.

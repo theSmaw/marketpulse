@@ -3,6 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.6
+**Amended:** 2026-09-04, after Task 2.1.1 — see _Amended after Task 2.1.1_ below
 
 ## Objective
 
@@ -30,3 +31,9 @@ Answer the story's fourth open decision with something running: whether `/health
 ## Notes
 
 Story 1.12 built a three-state vocabulary and then spent two tasks proving that a server-side instrument cannot see what a browser sees. This is the first time a state has arrived that the _server_ can see and the browser cannot infer — and the temptation will be to report it everywhere. The probe property is the reason not to.
+
+## Amended after Task 2.1.1 (2026-09-04)
+
+- **The tier supplies a new way for the database to be unavailable, and it is the one most likely to be mistaken for a bug.** B1MS is credit-based, and its own documentation says that if CPU "runs near or above baseline for long periods, credits deplete and **the server might become unreachable**", with "delays or transient failures in management operations until credits rebuild". So the outage this task must not turn into a crash-loop is not only a network blip or a maintenance restart — it is a **self-inflicted, load-correlated** outage that Story 2.7's backfill is the most likely thing to cause. That strengthens the liveness argument rather than changing it.
+- **The per-check cost has a harder ceiling than the brief assumed.** Any `SELECT 1` added to a polled endpoint consumes one of **35 usable connections**, and there is **no PgBouncer on this tier** to absorb it. A per-request check on an endpoint hit by three probes plus one per visible browser tab is therefore competing with the application for a small pool, not just adding query load. Cache it or bound it, and state which — the brief already asks for that, and this is the number that decides it.
+- **The database is in a different region from the backend**, so any check added here crosses East US → East US 2. That latency is unmeasured until Task 2.1.5 takes it, and it lands inside an endpoint with a 5-second client deadline and a liveness probe on it.

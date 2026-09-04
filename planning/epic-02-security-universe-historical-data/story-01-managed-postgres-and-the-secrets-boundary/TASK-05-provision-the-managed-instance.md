@@ -3,6 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.1
+**Amended:** 2026-09-04, after Task 2.1.1 — see _Amended after Task 2.1.1_ below
 
 ## Objective
 
@@ -30,3 +31,52 @@ Spend Task 2.1.1's decisions: create the server, the database and its networking
 ## Notes
 
 This is the deploy half of the local/deployed split this story uses throughout, and it is deliberately narrow: the previous three tasks proved the application against a database it could see, and this one proves a database with no application in front of it. Task 2.1.6 is the only place both halves are unknown at once, which is why it comes after both.
+
+## Amended after Task 2.1.1 (2026-09-04)
+
+This is the task 2.1.1 was written to de-risk, so it inherits the most. Everything below is a fact 2.1.1 measured or a piece of work it found that had no owner.
+
+### Two prerequisites, either of which fails the first create
+
+- **`Microsoft.DBforPostgreSQL` is `NotRegistered` on this subscription**, read 2026-09-04. This is **Task 1.11.4's exact failure** — the subscription had never registered `Microsoft.Web` and the first Static Web App create failed — and **the same asymmetry reproduced**: `checkNameAvailability` returned `"nameAvailable": true` from the unregistered provider, so the reassuring call answers while the one that matters would not. `az provider register --namespace Microsoft.DBforPostgreSQL --wait` is this task's **first command**. 2.1.1 deliberately did not run it, because registering is a change to the subscription.
+- **`psql` is not installed on the development machine**, checked 2026-09-04. The brief says "the client is `psql` or equivalent, run by hand"; installing it is a real step, and if it is declined then "or equivalent" has to become a named thing rather than an assumption.
+
+### The creation arguments, and the three whose defaults are traps
+
+**`psql-marketpulse-dev` was available when checked on 2026-09-04** — the name is globally unique across Azure, so re-check at creation rather than assume. Target FQDN `psql-marketpulse-dev.postgres.database.azure.com`, in `rg-marketpulse-dev`, **in East US 2**.
+
+Three flags must be passed explicitly because their defaults are wrong or irreversible, and a default that cannot be changed later is a decision somebody did not notice making:
+
+- **`--storage-size 32`.** The CLI's default is **128**, four times the free offer.
+- **Storage type**, because it is irreversible and the default is silent.
+- **`--geo-redundant-backup Disabled`**, because geo-redundancy is creation-only.
+
+Also `--storage-auto-grow Disabled` (the default, chosen rather than inherited — its smallest step is a 2× jump to 64 GiB at `$7.36`/month that cannot be undone), `--backup-retention 7`, `--tier Burstable --sku-name Standard_B1ms`, `--version 18`, and **`--microsoft-entra-auth Enabled --password-auth Disabled` with no `--admin-user` and no `--admin-password` at all**.
+
+### The Entra bootstrap, which is new work the original brief does not contain
+
+With no admin user, "create the database and connect to it" is a different procedure from the one the brief assumes, and it is the part most likely to go wrong:
+
+1. Set the server's Microsoft Entra administrator at creation (`--admin-object-id 8d92279d-ed7d-4127-9884-ba258857457c`, `--admin-type User`).
+2. Get a token with `az account get-access-token --resource https://ossrdbms-aad.database.windows.net` and use it **as the password**, with the Entra user's name as the username.
+3. **Connect as that administrator and confirm it works before depending on it.** The subscription owner is an **external (`#EXT#`) guest** in the default directory, and a guest principal as the sole database administrator is not the well-trodden path. If it does not work, the fallback is `az postgres flexible-server update --password-auth Enabled` — a **control-plane** operation needing no database access, so lock-out is recoverable — and the divergence is recorded in `HOSTING.md` with its reason.
+4. Create the backend's role: `select * from pgaadauth_create_principal('marketpulse-backend', false, false);` — **run on the `postgres` database**, not on the application database, or it fails with "No function matches...".
+
+The application's own connection is still Task 2.1.6's; what this task establishes is that the role exists and the administrator path works.
+
+### Figures to take, one of which nothing else in the story will
+
+- **The East US → East US 2 round trip**, which is the cost of the region 2.1.1 was forced into and which **nothing else measures**. Take it from the deployed backend's region rather than from a laptop in the UK, because that is the hop that matters.
+- **The connection ceiling is a confirmation, not a discovery**: documented as **50 `max_connections`, 35 usable**, with 15 reserved. Confirm it on the created server, because Task 2.1.4 will already have sized a pool against the documented number.
+- **Idle behaviour on a Burstable tier** is worth taking carefully: the tier is credit-based and can "become unreachable" under sustained load, and separately a **stopped** flexible server "automatically starts after seven days", so it cannot be parked indefinitely to save money.
+
+### Three pieces of monitoring that 2.1.1 identified and left unowned — they belong here
+
+- **A storage alert, which is what replaces autogrow.** With autogrow off, the failure it protects against is real: at 95% used **or fewer than 5 GiB free, whichever is more**, the server "automatically switches … to _read-only mode_" — and on a 32 GiB disk the binding clause is the 5 GiB one, so **usable capacity is ~27 GiB**. The documentation asks for an alert on `storage percent` at 80%.
+- **A CPU-credits alert**, which the Burstable documentation asks for by name: "Monitor **CPU Credits Remaining** in Azure Monitor and set alerts for low credits."
+- **A resource lock, or a written decision not to set one.** 2.1.1 confirmed **no lock exists** on the subscription or the resource group, and deleting a flexible server **deletes its backups irrecoverably** — "If you delete a server, all backups that belong to the server are also deleted and can't be recovered" — with the backup documentation recommending a lock by name.
+
+### Two consequences of the networking decision to record as they are created
+
+- **Every restore is bound to the mode**: "If you configure your source server with a _public access_ network, you can only restore to public access." The one-way door binds the recovery path, not just the running server.
+- **Firewall changes are not immediate** — "can take up to five minutes to take effect" — which is a wait to plan for rather than a failure to debug, and rules must be IPv4 or they are rejected outright.

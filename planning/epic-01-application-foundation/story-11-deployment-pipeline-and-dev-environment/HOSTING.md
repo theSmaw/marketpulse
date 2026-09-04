@@ -280,15 +280,336 @@ The rule exists because it was already broken once. Task 1.11.2 built its image 
 
 ## The database — named now, provisioned in Epic 2
 
-**The service is Azure Database for PostgreSQL flexible server, in East US, in the same subscription and resource group as the backend.** That is the answer to the provider half, and it is the half that had to be answered here: deferring provisioning is only free because the platform chosen for the backend has a managed Postgres adjacent to it. Had the backend gone to a provider with no database story, Epic 2 would have become a second vendor and a cross-network hop, and the deferral would have been a hidden cost rather than a saving.
+**The service is Azure Database for PostgreSQL flexible server, ~~in East US~~ in the same subscription and resource group as the backend.** **The region was wrong and Task 2.1.1 corrected it to East US 2 on 2026-09-04 — East US is `OfferRestricted` for this subscription and offers no Postgres editions at all** — see _The database — the creation decisions_ below, which supersedes the three bullets in this section. The rest of this paragraph stands, and it is the half that had to be answered here: That is the answer to the provider half, and it is the half that had to be answered here: deferring provisioning is only free because the platform chosen for the backend has a managed Postgres adjacent to it. Had the backend gone to a provider with no database story, Epic 2 would have become a second vendor and a cross-network hop, and the deferral would have been a hidden cost rather than a saving.
 
 **It is not provisioned now**, because this story stores nothing and an instance with no schema and no reader is idle cost with an operational surface. What Epic 2 must do, named here so it is not rediscovered:
 
-- Create the flexible server in **East US**, in the backend's resource group, on the **Burstable B1MS** tier to stay inside the free offer.
+- ~~Create the flexible server in **East US**~~ — **East US 2** (Task 2.1.1), in the backend's resource group, on the **Burstable B1MS** tier to stay inside the free offer.
 - Choose the networking mode at creation — the quickstart is explicit that you "can't change it after creation". Public access with a firewall rule is the cheap path; private access via VNet integration is the correct one and costs the Container Apps environment a custom VNet. **Decide it in Epic 2 before creating the server, not after.**
-- Add the connection string through the platform's configuration, as a **secret** rather than a plain environment variable, and extend `CONFIG_VARIABLES` and `apps/backend/.env.example` together so `pnpm env:check` keeps the pair honest.
+- ~~Add the connection string through the platform's configuration, as a **secret** rather than a plain environment variable~~ — **superseded by Task 2.1.1: there is no connection secret.** The backend authenticates as its own managed identity and the `secrets` array stays empty. Extending `CONFIG_VARIABLES` and `apps/backend/.env.example` together so `pnpm env:check` keeps the pair honest is unchanged, and is Task 2.1.3's.
 
-**What would make the deferral painful, stated honestly:** the 12-month free window starts at subscription creation, not at first use, so every month between now and Epic 2 is a month of that offer spent on nothing. That is the cost of deferring and it is accepted — the alternative is an idle database with a public endpoint and an admin password in a repository that has no use for either. **The reversal trigger is Epic 2 starting, or any earlier task discovering that the networking decision above forces a change to the Container Apps environment** — because a custom VNet is not something to retrofit under a running environment.
+**What would make the deferral painful, stated honestly:** the 12-month free window starts at subscription creation, not at first use, so every month between now and Epic 2 is a month of that offer spent on nothing. That is the cost of deferring and it is accepted — the alternative is an idle database with a public endpoint and an admin password in a repository that has no use for either. **Task 2.1.1 removed half of that sentence's premise: the shipped decision creates no admin password at all.** **The reversal trigger is Epic 2 starting, or any earlier task discovering that the networking decision above forces a change to the Container Apps environment** — because a custom VNet is not something to retrofit under a running environment.
+
+## The database — the creation decisions (Task 2.1.1)
+
+**Decided 2026-09-04 by [Task 2.1.1](../../epic-02-security-universe-historical-data/story-01-managed-postgres-and-the-secrets-boundary/TASK-01-choose-the-creation-decisions.md), which provisions nothing.** No server, no database, no firewall rule, no secret, and no resource provider registration. Everything below is a decision plus the measurement or quotation behind it, taken so that the first failed provisioning attempt in this repository's history has one possible cause.
+
+Every `az` command run for this task was a read. Every platform limit is quoted from vendor documentation dated 2026-09-04 with the source named, and every figure attributed to this subscription was read from it today. **Re-read the source rather than citing this document** — the section above already records one platform fact (East US) that stopped being true between stories.
+
+### The decisions, in one table
+
+| Decision         | Answer                                                             | Reversible after creation?                            |
+| ---------------- | ------------------------------------------------------------------ | ----------------------------------------------------- |
+| Region           | **East US 2**                                                      | No, in practice — a server cannot move region         |
+| Tier             | **Burstable, `Standard_B1ms`**                                     | **Yes** — `az postgres flexible-server update --tier` |
+| Postgres version | **18**                                                             | Forward only, with no automated revert                |
+| Networking mode  | **Public access**, firewall rule `0.0.0.0` plus the developer's IP | **No.** The one genuine one-way door                  |
+| Authentication   | **Microsoft Entra only; password authentication `Disabled`**       | **Yes** — both flags exist on `update`                |
+| Storage          | **32 GiB, autogrow `Disabled`**                                    | Grow only, in 2× steps, never shrink                  |
+| Backup retention | **7 days**, geo-redundancy `Disabled`                              | Retention yes, up and down. Geo-redundancy **no**     |
+
+### Region: East US 2, and the choice was made for us
+
+**Task 1.11.1 recorded East US and Epic 2 inherited it. It is not available.** Read from the capability API today rather than discovered at creation:
+
+```
+az postgres flexible-server list-skus --location eastus
+→ "reason": "Provisioning is restricted in this region. Please choose a different region.
+   For exceptions to this rule please open a support request with Issue type of
+   'Service and subscription limits'."
+```
+
+East US returns **zero server editions and zero server versions**. The mechanism is named in the response's own feature list: `OfferRestricted` is **`Enabled`** in East US and **`Disabled`** in every other region checked. So this is a property of this subscription's offer in that region, not a general outage, and it is the second time this subscription has been unable to put a resource in East US — Task 1.11.4 found Static Web Apps is not offered there at all.
+
+Eight regions were read, and East US is the only restricted one:
+
+| Region           | Versions offered | Burstable B1MS | `OfferRestricted` |
+| ---------------- | ---------------- | -------------- | ----------------- |
+| `eastus`         | **none**         | **no**         | **Enabled**       |
+| `eastus2`        | 11–18            | yes            | Disabled          |
+| `centralus`      | 11–18            | yes            | Disabled          |
+| `westus2`        | 11–18            | yes            | Disabled          |
+| `westus3`        | 11–18            | yes            | Disabled          |
+| `southcentralus` | 11–18            | yes            | Disabled          |
+| `northcentralus` | 11–18            | yes            | Disabled          |
+| `canadacentral`  | 11–18            | yes            | Disabled          |
+
+**East US 2 is chosen from that list because this subscription already has a resource there and the resource group already spans regions.** `marketpulse-frontend` is in East US 2 inside `rg-marketpulse-dev`, which is itself in East US — read back today, so the arrangement is a measured precedent rather than an assumption about what resource groups permit. A resource group's location fixes where its metadata lives and not where its resources run.
+
+**The price is identical, which is the reason this costs nothing to accept.** Read from the Retail Prices API for both regions on 2026-09-04: B1MS `$0.017`/hour, storage `$0.115`/GB/month, backup LRS `$0.095`/GB/month — the same three numbers in East US and East US 2.
+
+**What it does cost is co-location with the backend**, which stays in East US. Both are Virginia and the hop is intra-geography, but **that latency has not been measured and must not be assumed** — it cannot be, without a server. **Task 2.1.5 owns measuring it** and reporting the round trip of a trivial query from the deployed backend, which is the first number that would justify revisiting this.
+
+Two alternatives were rejected with reasons rather than skipped:
+
+- **Move the backend to East US 2 so both halves share a region.** A Container Apps environment cannot change region, so this means re-creating `cae-marketpulse-dev`, which changes its unique id, which changes the backend FQDN, which is `VITE_API_BASE_URL` in `deploy.yml`, `CORS_ORIGIN` on the app, a frontend rebuild, and both of Task 1.13.5's deployed addresses. That is the whole of the _Reversal cost_ section below, spent on a millisecond.
+- **Open the support request the error message offers.** A quota exception on a free account, for a restriction with a free workaround one region away.
+
+### Tier: Burstable B1MS, which the offer decides and which the documentation argues against
+
+**B1MS is not chosen so much as constrained**, and the constraint is the free account's offer: 750 hours of Burstable B1MS, 32 GB storage and 32 GB backup storage, for 12 months. Note the hours are not a real limit — **a 31-day month is 744 hours**, so 750 covers continuous operation in every calendar month with six hours to spare.
+
+**What would break the constraint is written down here rather than discovered**, because the documentation is blunt about this tier and the story that follows this one is a bulk backfill:
+
+> **Burstable** … Uses a CPU credit model: credits accumulate when usage is below baseline and are consumed when usage exceeds it. When credits are exhausted, the VM is restricted to baseline CPU, which under sustained load can cause severe performance degradation, connection timeouts, and delays or transient failures in management operations until credits rebuild. **Not recommended for production workloads.**
+
+and
+
+> Burstable compute is for workloads that stay idle or below baseline most of the time. If CPU runs near or above baseline for long periods, credits deplete and **the server might become unreachable**. This tier … **does not qualify for 24/7 support**, and root cause analysis (RCA) may not be provided.
+
+— [Compute options](https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-compute), read 2026-09-04
+
+**So the reversal trigger is named in advance: Story 2.7's backfill depleting CPU credits, or Epic 3's continuous writes.** The mitigation the documentation asks for is an Azure Monitor alert on **CPU Credits Remaining**, which belongs to whichever of Tasks 2.1.5 and 2.1.8 sets alerts.
+
+**And the tier is the least expensive of these decisions to get wrong, which is the correction worth carrying.** `--tier` and `--sku-name` are both arguments of `az postgres flexible-server update`, verified today — so tier is a setting, not a door. Being wrong costs money and a restart, and leaves the offer; it does not cost a rebuild.
+
+Two B1MS numbers are load-bearing for tasks that follow, so they are recorded here rather than rediscovered:
+
+- **Maximum user connections is 35**, not 50. The documented table gives B1ms `max_connections` **50** and maximum _user_ connections **35**, because "an Azure Database for PostgreSQL flexible server reserves 15 connections for physical replication and monitoring". **Task 2.1.4 sizes its pool against 35**, shared with every migration run, every psql session and every replica.
+- **There is no PgBouncer.** "Burstable servers currently don't have access to the built-in PgBouncer connection pooler" — so the pooling the documentation recommends when connections are tight is unavailable at this tier, and the application's own pool is the only pool.
+
+B1ms is 1 vCore, 2 GiB memory, 640 maximum IOPS, 10 MiB/sec maximum I/O bandwidth.
+
+### Postgres version: 18
+
+Available versions in East US 2 today are **11, 12, 13, 14, 15, 16, 17, 18**, read from the capability API and matching the quickstart's "Currently supported: 18, 17, 16, 15, 14, 13, 12, 11".
+
+**18 is chosen for the support window, because that is what a twelve-month decision turns on.** From the [version policy](https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-version-policy), read 2026-09-04:
+
+| Version | Azure support start | Azure support end |
+| ------- | ------------------- | ----------------- |
+| 18      | 25-Sep-2025         | **14-Nov-2030**   |
+| 17      | 30-Sep-2024         | 8-Nov-2029        |
+| 16      | 15-Oct-2023         | 9-Nov-2028        |
+| 15      | 15-May-2023         | 11-Nov-2027       |
+
+**The "too new to trust" argument was checked and does not apply**: 18 has been supported on Azure since 25-Sep-2025, which is **eleven months** as of today, so it is not a fresh GA.
+
+**The extension question was checked rather than guessed, and it turned out not to constrain the choice at all** — which is worth recording, because `CLAUDE.md` names "PostgreSQL, optionally TimescaleDB" and this epic stores time series, so it looked like it would decide the version. From the [extensions list](https://learn.microsoft.com/en-us/azure/postgresql/extensions/concepts-extensions-versions), read 2026-09-04: **`timescaledb` is 2.24.0 on PostgreSQL 15, 16, 17 _and_ 18 alike**, and drops to 2.15.3 only at 14 and below. `pg_partman` is 5.4.3 on 16, 17 and 18 against 4.7.1 on 15. `vector` is 0.8.2 on everything from 14 up. So extensions rule out 14 and below and are silent between 15 and 18.
+
+**A major version upgrade is available and is a one-way door, which is why the version is decided here at all.** In-place upgrade is supported, can skip versions, retains the server name and needs no connection-string change — but:
+
+> After an in-place major version upgrade is successful, there are no automated ways to revert to the earlier version. You can perform a point-in-time recovery (PITR) to a time before the upgrade to restore the previous version on a new server.
+
+and it requires "at least 10-20% free storage available", which on a 32 GiB disk is a real precondition rather than a formality.
+
+**One correction to this task's own brief.** It says "a major upgrade on a flexible server is not free". No fee is charged for an in-place major version upgrade; what it costs is **downtime, a precheck that can block on extensions, and irreversibility**. The decision deserves the care the brief asks for, for those reasons rather than for a line on a bill.
+
+**Handed to Task 2.1.2: the local development database must be PostgreSQL 18**, or the local and deployed servers disagree about the one thing neither of them will tell you they disagree about.
+
+### Networking: public access, and the allowlist named in words rather than adopted
+
+**This is the one genuine one-way door in this story**, and both directions are quoted rather than paraphrased:
+
+> Choose your connectivity method (**you can't change it after creation**).
+> — [Quickstart](https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/quickstart-create-server)
+
+> **We currently don't support moving in and out of a virtual network.**
+> We currently don't support combining public access with deployment in a virtual network.
+> — [Limits](https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-limits)
+
+**The decision is public access with a firewall rule, and the rule that actually gets used is `0.0.0.0`.** What that admits is Microsoft's own sentence, not a summary of it:
+
+> **Important**
+> The **Allow public access from Azure services and resources within Azure** option configures the firewall to allow **all connections from Azure, including connections from the subscriptions of other customers**. When you select this option, make sure that your sign-in and user permissions limit access to only authorized users.
+> — [Networking with public access](https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-networking-public)
+
+So the network boundary admits every Azure tenant's compute. **The password — if there were one — would be the entire security boundary.** That is the sentence that decides the authentication section below, and the two decisions are one decision read twice.
+
+**"Allow this one IP instead" is not on the menu, and this was measured rather than cited.** The deployed backend's own outbound address list, read from the platform today:
+
+- **321 distinct IPv4 addresses**, across **58 distinct /16 prefixes**, the largest single block being 44 addresses in `40.121.0.0/16`.
+- The environment's `staticIp` (`20.253.60.207`) is **not** one of them — it is the inbound virtual IP, so the field that looks like the answer is about the other direction.
+- Two readings three minutes apart were **identical, 321 for 321, nothing added and nothing removed**. So the set is not thrashing minute to minute; what makes it unusable as a firewall rule is its size, its spread, and the platform's own statement that it is not a contract:
+
+> **Outbound public IP** — Used as the "from" IP for outbound connections that leave the virtual network. … **Outbound IPs might change over time.** Using Azure NAT Gateway or another proxy for outbound traffic from a Container Apps environment is supported only in a workload profile environment.
+> — [Networking in an Azure Container Apps environment](https://learn.microsoft.com/en-us/azure/container-apps/networking)
+
+**The NAT Gateway escape hatch exists on paper and is closed in practice here.** `cae-marketpulse-dev` is a workload profiles environment, so it qualifies — but NAT Gateway integration needs a custom virtual network, and the environment has none (`vnetConfiguration: null`, read today), and:
+
+> After you create an environment with either the default Azure network or an existing virtual network, **you can't change the network type**.
+
+So a stable outbound IP and private access are the _same_ project: re-creating the Container Apps environment. That re-creation changes the environment's unique id, therefore the backend FQDN `marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io`, therefore `VITE_API_BASE_URL`, `CORS_ORIGIN` and both of Task 1.13.5's deployed addresses, and therefore a frontend rebuild. **It is the whole of the Reversal cost section, spent to protect a database that is empty.**
+
+**One cost argument was tempting, is wrong, and is recorded as wrong so nobody reaches for it.** This document already quotes that "private endpoints and planned maintenance are subject to a **Dedicated Plan Management** charge regardless of whether you use the Consumption or Dedicated plans" — re-read on 2026-09-04 and still accurate. It does **not** apply to this comparison: the Postgres private-access path is virtual-network _injection_ of the database into a delegated subnet, not a **Container Apps private endpoint**, so that meter is not what makes private access expensive here. The environment re-creation is.
+
+**Two more consequences of taking the public door, both permanent:**
+
+- **Every restore is public, forever.** "If you configure your source server with a _public access_ network, you can only restore to public access. … You can't perform PITR across public and private access." So the one-way door binds the recovery path too, not only the running server.
+- **The database can dial out and cannot be stopped from it.** "Public access database servers can connect to the public internet; for example, through `postgres_fdw`. **You can't restrict this access.**"
+
+**What makes this acceptable is stated as a condition rather than a shrug**, in the shape the _development environment_ section above uses. Nothing in this database is a credential, nothing in it is personal data, and everything in it is **re-derivable from Alpaca by re-running Story 2.7's backfill** — so the loss from a read is a market-data cache somebody else could have fetched themselves, and the loss from a write is a backfill. **The reversal trigger is the first row that is none of those things**: a stored Alpaca key, anything about a user, or Epic 12's investigation history, whose value is the analysis rather than the prices.
+
+**The firewall gets exactly two rules and they are both narrow in the ways available**: `0.0.0.0` for Azure, and the developer's own address for Tasks 2.1.5 and Story 2.2's migrations. Note that "changes to the firewall configuration … can take up to five minutes to take effect", which is a real wait to plan for rather than a failure to debug, and that rules must be IPv4 — "If you specify firewall rules in IPv6 format, you get a validation error."
+
+**TLS needs no decision and gets one anyway, because it is the thing most likely to be quietly turned off later**: "Connection encryption is enforced for your network traffic" applies to both networking modes, so `sslmode=require` at minimum is the platform's floor rather than our choice. What is _our_ choice is whether the client verifies the certificate rather than merely encrypting — the Microsoft sample connection string in the managed-identity documentation carries `Trust Server Certificate=true`, which is verification switched off. **Task 2.1.4 must not copy that**, and Story 2.1's acceptance criterion 2 is about TLS rather than about encryption-if-convenient.
+
+### Authentication: Microsoft Entra only, and the platform ends this story holding no secret at all
+
+**The decision is `--microsoft-entra-auth Enabled --password-auth Disabled`, with no admin username and no admin password created at any point.** The deployed backend authenticates as its own system-assigned managed identity; the operator authenticates as the server's Entra administrator.
+
+**The argument is the previous section's.** With `0.0.0.0` in the firewall, every Azure tenant can reach the endpoint, so the credential is the entire boundary — and the strongest available answer to "what if the credential leaks" is that **there is no credential**. That is the same reasoning that put `acrPull` on a managed identity rather than a registry password, and a federated identity credential rather than a service-principal secret; this is the third time, and it is the first time the alternative would have been genuinely dangerous rather than merely untidy.
+
+**The result is that ADR 0011's "nothing deployed holds a credential" survives this story**, which is not what Epic 2's own framing predicted. `EPIC.md` says this epic "is the first thing that puts a credential on the platform" and that the claim expires here. Measured today, `marketpulse-backend`'s `configuration.secrets` is **`null`** — still empty, as Task 1.11.3 left it — and this decision keeps it that way. **The claim expires in Story 2.6 instead**, for the reason below.
+
+**The mechanism, so that Tasks 2.1.4 to 2.1.6 implement it rather than research it:**
+
+| Piece                     | Value                                                                                          |
+| ------------------------- | ---------------------------------------------------------------------------------------------- |
+| Backend identity          | System-assigned, name **`marketpulse-backend`**                                                |
+| — principal / object id   | `fe8a2ecd-719c-407e-94d4-629015bd889d`                                                         |
+| — client (application) id | `748ccf1c-7f36-441f-aa84-51abb052489c`                                                         |
+| Token resource            | `https://ossrdbms-aad.database.windows.net`                                                    |
+| Postgres username         | the identity's **name**, `marketpulse-backend`                                                 |
+| Postgres password         | the access token, verbatim                                                                     |
+| Role creation             | `select * from pgaadauth_create_principal('marketpulse-backend', false, false);`               |
+| — run where               | on the **`postgres`** database, connected as the Entra administrator                           |
+| Entra administrator       | `bensmawfield_outlook.com#EXT#@bensmawfieldoutlook.onmicrosoft.com`, `8d92279d-…-ba258857457c` |
+
+> After you authenticate against Active Directory, you retrieve a token. **This token is your password for signing in.**
+> — [Microsoft Entra authentication](https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-azure-ad-authentication)
+
+**The token lifetime is the number Task 2.1.4 needs and it is the favourable one**: "User tokens are valid for up to 1 hour. **Tokens for system-assigned managed identities are valid for up to 24 hours.**" So the deployed pool refreshes at most daily, and the operator's own `psql` session is the one that expires in an hour.
+
+**The single most expensive thing to get wrong here is where the token comes from, and the documentation will send you to the wrong address.** Azure's own managed-identity-for-Postgres page is written for a virtual machine and tells you to `GET http://169.254.169.254/metadata/identity/oauth2/token`. **That is not how a container app gets a token.** Container Apps exposes its own endpoint through two environment variables:
+
+> A container app with a managed identity exposes the identity endpoint by defining two environment variables:
+>
+> - `IDENTITY_ENDPOINT`: Local URL from which your container app can request tokens.
+> - `IDENTITY_HEADER`: A header used to help mitigate server-side request forgery (SSRF) attacks. The value is rotated by the platform.
+
+with `api-version` "2019-08-01" or later and the header sent as `X-IDENTITY-HEADER`. **Copying the Postgres page's recipe produces a request that hangs or is refused inside a container app**, which is exactly the failure Task 2.1.4 would spend an afternoon on. The Azure Identity client library for JavaScript abstracts both, which is the shape to prefer.
+
+**Three costs of this decision, stated rather than discovered:**
+
+1. **Token acquisition sits in the connection path.** Whatever driver Task 2.1.4 chooses must accept a **per-connection credential that can be computed asynchronously**, not a fixed password string — that is now a selection criterion for the driver rather than a detail after it.
+2. **Local development cannot use this mechanism at all**, and does not need to: Task 2.1.2's local database is a different server, reached with an ordinary password. So Task 2.1.3's configuration boundary must express **two shapes of credential** — a literal locally, an identity deployed — and that asymmetry is a property of the decision rather than a wart in the configuration module.
+3. **There is a manual bootstrap that is in nobody's tree.** Someone has to connect as the Entra administrator and run `pgaadauth_create_principal` once. Like the repository ruleset and the platform-only `CORS_ORIGIN`, it is configuration no file here can hold, so it is written down in this document and nowhere else.
+
+**Two risks, both with named recoveries.**
+
+- **The Entra administrator is a guest account.** The subscription owner is `…#EXT#@bensmawfieldoutlook.onmicrosoft.com` — an external identity in the default directory, read today — and this document should not pretend that a guest principal as the sole database administrator is the well-trodden path. **Task 2.1.5 must connect as the Entra administrator and see it work _before_ it relies on it**, and if it cannot, that is the trigger to fall back to password authentication and record the divergence here with its reason.
+- **Lock-out is a control-plane problem, not a database one.** `--microsoft-entra-auth` and `--password-auth` are **both arguments of `az postgres flexible-server update`**, verified today, so password authentication can be switched back on and an admin password set without any database access. **Authentication is therefore the most reversible decision in this section**, which is the opposite of where the brief placed it.
+
+**What Story 2.6 inherits, and it is not what Story 2.1's summary predicts.** Story 2.1 says it hands forward "a credential path that Story 2.6 reuses rather than reinvents". **The path does not transfer as-is, and saying so now is cheaper than discovering it under time pressure.** An Alpaca key is a bearer secret issued by a third party that has no Azure identity behind it; no identity mechanism can hold it, because there is nothing to be an identity _of_. So Story 2.6 genuinely must place a secret, and it is the first thing to do so.
+
+What _does_ transfer is the identity rather than the credential type: the recommended shape for Story 2.6 is a Container App secret **sourced from Azure Key Vault and fetched by this same system-assigned managed identity**, so the thing stored on the platform is a reference and the thing that authorises reading it is the identity this task already relies on. That keeps one credential path in the system. **Story 2.6 owns that decision** — this is a recommendation with a reason, not a decision taken on its behalf.
+
+### Storage and backup: the only free number, and the one setting that can spend it
+
+**Storage is 32 GiB, and there is no decision in the number.** The minimum for a flexible server is 32 GiB and the free offer's ceiling is 32 GB — the floor and the ceiling are the same value. **The trap is the CLI's default, which is `128`**: `--storage-size` reads "Minimum is 32 GiB and max is 16 TiB. **Default: 128.**" A create that omits the flag provisions four times the offer and silently leaves it.
+
+**The real decision is autogrow, and it is `Disabled`.** That is also the CLI default, so this is a default chosen rather than inherited — the reason matters more than the value:
+
+- "Server storage can only be scaled in **2x increments**", so autogrow's smallest possible step is 32 → **64 GiB**.
+- 64 GiB leaves the offer, at `$0.115`/GB/month = **`$7.36`/month**, arriving with no prompt and no approval.
+- "**Decreasing the server storage size isn't supported.** To decrease the storage size, you need to dump and restore to a new server." So the step cannot be undone.
+- "At this time, scaling up the server storage **requires a server restart**."
+
+**What replaces autogrow is an alert, which the documentation itself recommends** — "set alert rules for `storage used` or `storage percent` … For example, you can set an alert if the storage percentage exceeds 80% usage" — and which belongs to whichever of Tasks 2.1.5 and 2.1.8 owns monitoring. The failure autogrow protects against is real and worth naming: at 95% used, **or fewer than 5 GiB free, whichever is more**, "the system automatically switches the server to _read-only mode_". **On a 32 GiB disk the binding clause is the 5 GiB one, so the usable capacity is about 27 GiB, not 32.**
+
+**The ingestion arithmetic, with its assumptions visible, because that is what the brief asks for and what makes it checkable later.** Story 2.7 states the shape: ~100 securities × 390 minute bars per session × ~252 sessions, which is **9,828,000 minute-bar rows per year**, and ~25,200 daily-bar rows per year.
+
+Assume the narrowest reasonable row — `security_id int4`, `ts timestamptz`, four `float8` prices, `volume int8` — which is 52 bytes of column data:
+
+| Component                                                          | Bytes per row |
+| ------------------------------------------------------------------ | ------------- |
+| Column data                                                        | 52            |
+| Heap tuple header (23 B) plus alignment                            | 24            |
+| Line pointer in the page                                           | 4             |
+| One btree index on `(security_id, ts)`, at the default fill factor | ~27           |
+| **Assumed total, rounded up for bloat and alignment slack**        | **~120**      |
+
+- **A year of minute bars is ~1.18 GB.** A year of daily bars is ~3 MB and is, as Story 2.7 says, effectively free.
+- Against ~27 GiB usable that is roughly **24 years** of minute history for 100 securities — or **~5 years if this estimate is wrong by a factor of five**, which is the number worth remembering, because it is the one that still says "comfortable".
+- **Two things this estimate deliberately does not include**, both of which Story 2.7 must add: WAL, which shares the same volume and which a bulk backfill generates in quantity, and any index beyond the primary key. Story 2.7's instruction to "do this arithmetic with real row sizes measured after loading a sample, not estimated" stands unchanged — **this is the prediction that measurement checks**, not a replacement for it.
+
+**Backup retention is 7 days, and geo-redundancy is `Disabled`.** Three reasons, in order of weight:
+
+- **The included allowance makes the offer's "32 GB backup" almost beside the point**: "Azure Database for PostgreSQL provides **up to 100 percent of your provisioned server storage as backup storage at no extra cost**." With 32 GiB provisioned, 32 GiB of backup is free whether or not the offer applies, and a ~1.2 GB database's daily differentials plus WAL will not approach it in seven days.
+- **Retention is the one knob here that moves freely in both directions** after creation, so choosing the default costs nothing and choosing 35 now would buy a recovery window nobody has asked for.
+- **Geo-redundancy is a one-way door and is not worth it here**: "You can configure geo-redundant backup **only when you create the server**", and it doubles the backup size with billing "((2 × local backup size) - provisioned storage size)". The contents of this database are re-derivable from Alpaca; a region-loss recovery plan for a market-data cache is protection nobody needs.
+
+One limitation to know before reaching for it: "**The Burstable server compute tier doesn't support the on-demand backup feature.**" So before anything risky, the manual backup is `pg_dump`, not a portal button.
+
+### What is actually irreversible — and the brief's list of four is wrong in both directions
+
+The task names four decisions as "irreversible or expensive-to-change": tier, networking mode, region, version. Checked against the platform today, **exactly one of those four is genuinely irreversible, and three irreversible decisions are missing from the list.**
+
+| Decision                | Actually?                                    | Evidence                                                                  |
+| ----------------------- | -------------------------------------------- | ------------------------------------------------------------------------- |
+| Networking mode         | **Irreversible**                             | "We currently don't support moving in and out of a virtual network."      |
+| Storage **type**        | **Irreversible** — _not on the brief's list_ | Quickstart, "Can change later: ❌ No"                                     |
+| Backup **redundancy**   | **Irreversible** — _not on the brief's list_ | "You can configure geo-redundant backup only when you create the server." |
+| Data encryption key     | **Irreversible** — _not on the brief's list_ | Quickstart, "Can change later: ❌ No"                                     |
+| Admin **username**      | Irreversible **if one is created**           | `--admin-user`: "Once set, it cannot be changed"                          |
+| Region                  | Irreversible in practice                     | No move operation; a new server plus a migration                          |
+| Version                 | **Forward only**                             | "no automated ways to revert to the earlier version"                      |
+| Storage **size**        | Grow only, in 2× steps                       | "Decreasing the server storage size isn't supported."                     |
+| **Tier / SKU**          | **Fully reversible**                         | `--tier` and `--sku-name` are arguments of `update`                       |
+| **Authentication mode** | **Fully reversible**                         | `--microsoft-entra-auth` and `--password-auth` are arguments of `update`  |
+
+**The admin-username row disappears entirely under the authentication decision above**: creating no admin user means there is no immutable name to regret. That is a second, unlooked-for benefit of the Entra-only choice and it is recorded because it would otherwise look like an omission at creation.
+
+Two defaults are therefore load-bearing and must be passed explicitly rather than relied on: **storage type** (`Premium_LRS`, the default, and irreversible) and **geo-redundant backup** (`Disabled`, the default, and irreversible). A default that cannot be changed later is not a default; it is a decision somebody did not notice making.
+
+### The prerequisite that would have failed the first create, found before it ran
+
+**`Microsoft.DBforPostgreSQL` is `NotRegistered` on this subscription**, read today. This is Task 1.11.4's failure exactly — the subscription had never registered `Microsoft.Web`, and the first Static Web App create failed while the region query that preceded it succeeded — and **the same asymmetry reproduced here**: the name-availability check for `psql-marketpulse-dev` returned `"nameAvailable": true` from an unregistered provider, so the reassuring call answers before the one that matters fails.
+
+Registering it is a change to the subscription, so **this task did not do it**; it is Task 2.1.5's first command, recorded here as a prerequisite in the shape `ACCOUNT-SETUP.md` records one:
+
+```
+az provider register --namespace Microsoft.DBforPostgreSQL --wait
+```
+
+**`psql-marketpulse-dev` is available** as a server name, checked today against `checkNameAvailability` in East US 2 — the name is globally unique across Azure, so it is worth re-checking at creation rather than assuming it is still free.
+
+### The cost prediction, written as a prediction
+
+**Inside the offer, the database costs `$0.00`**, and that holds only while all three of these are true: the tier is B1MS, storage is 32 GiB, and the server runs no more than 750 hours in a calendar month — which, at 744 hours in the longest month, is unconditional. The offer runs 12 months from subscription creation, so it expires around **2027-09-03**; the clock started at `2026-09-03T05:32:32Z` whether or not anything used it.
+
+**Outside the offer — after expiry, or the moment any one of those three conditions breaks** — read from the Retail Prices API for East US 2 on 2026-09-04:
+
+| Meter               | Rate                  | Monthly          |
+| ------------------- | --------------------- | ---------------- |
+| B1MS compute        | `$0.017` / hour       | `$12.41` (730 h) |
+| Storage, 32 GiB     | `$0.115` / GB / month | `$3.68`          |
+| Backup, within 100% | `$0.095` / GB / month | `$0.00`          |
+| **Database total**  |                       | **`$16.09`**     |
+
+Against Epic 1's re-derived totals, and the budget was re-read today rather than cited — `marketpulse-monthly`, **`$20`/month**, actual-cost alerts at **50 / 80 / 100%** to the account owner, all three enabled:
+
+|                            | Epic 1   | Database | Total        | Against a `$20` budget    |
+| -------------------------- | -------- | -------- | ------------ | ------------------------- |
+| Idle rate, inside offer    | `$9.21`  | `$0.00`  | **`$9.21`**  | 46% — no alert            |
+| Active rate, inside offer  | `$19.04` | `$0.00`  | **`$19.04`** | 95% — the 80% alert fires |
+| Idle rate, offer expired   | `$9.21`  | `$16.09` | **`$25.30`** | **127% — all three fire** |
+| Active rate, offer expired | `$19.04` | `$16.09` | **`$35.13`** | **176% — all three fire** |
+
+**So the budget changes meaning rather than changing value.** Today it sits just _above_ the active-rate total, which this document already records as the wrong side of the number that matters. With the database inside its offer it is unchanged; with the offer expired it is exceeded in every case.
+
+**The recommendation to Task 2.1.8, which owns the budget, is to leave it at `$20`.** Raising it in anticipation is precisely wrong: while the offer holds, the database's true contribution is `$0.00`, so **a budget alert attributable to the database _is_ the signal that one of the three offer conditions broke** — most likely autogrow, or a tier change made to get through a slow backfill. A budget raised to accommodate a cost that should not exist cannot report that cost appearing.
+
+**The falsifiable predictions, for Task 2.1.8 to check against a real bill rather than re-derive:**
+
+1. The database's line on the first bill after provisioning is **`$0.00`**, or a `Compute - Free` meter at zero — a meter of exactly that name exists in the price list for this service at `$0.0`/hour.
+2. **No budget alert fires because of the database** during the offer window.
+3. The total stays in the **`$9.21`–`$19.04`** band this document already predicts, unchanged by the database's arrival.
+
+**And the cost question Epic 1 could not answer is still unanswered, with its refusal characterised again — the shape has not changed since Task 1.12.7.** `az consumption usage list` for 2026-09-01 to 2026-09-04 returns **`[]` at exit 0**, and the budget reports `currentSpend` of **`0.0` USD** with no forecast. **What has changed is that the lag explanation no longer covers it**: the first resource in this subscription is stamped `2026-09-03T05:32:32Z` and this reading was taken at `2026-09-04T11:20Z`, so the environment is now about **30 hours** old against Azure's documented 8–24 hour cost-data lag. Either the data is late beyond its own stated window or something else refuses it. **Task 2.1.8 still owns it**, and now has a sharper question than "wait longer".
+
+### What each later task inherits from this one
+
+- **2.1.2** — the local database is **PostgreSQL 18**, and it authenticates with a password, because the deployed mechanism structurally cannot be reproduced locally.
+- **2.1.3** — the configuration boundary carries **two shapes of credential**, a literal locally and an identity deployed; that is the decision above, not an accident of the module.
+- **2.1.4** — the driver must accept an **asynchronously computed per-connection credential**; the pool is sized against **35 user connections** with **no PgBouncer available**; the token comes from `IDENTITY_ENDPOINT`, **not** from `169.254.169.254`; and TLS must **verify** rather than merely encrypt.
+- **2.1.5** — run `az provider register --namespace Microsoft.DBforPostgreSQL` first; pass `--storage-size 32` explicitly against a default of 128; pass storage type and geo-redundancy explicitly because their defaults are irreversible; **connect as the Entra administrator before depending on it**; and **measure the East US ↔ East US 2 round trip**, which nothing here has.
+- **2.1.6** — the Container App's `secrets` array should still be **empty** when this story closes; if it is not, this decision was reversed and the reversal belongs in this document.
+- **2.1.7** — B1MS is a tier the documentation says can become **unreachable** under sustained CPU load, which is a new way for `/health` to be interesting and an argument for keeping the liveness probe away from the database.
+- **2.1.8** — the three predictions above, the budget left at `$20` with the reason, and the cost question with its sharper form.
+- **Story 2.6** — the credential path does **not** transfer unchanged; see the authentication section.
+- **Story 2.7** — the ~120 bytes/row assumption is a prediction to measure, and the usable capacity is **~27 GiB**, not 32.
 
 ## Reversal cost — and it is not one file
 
@@ -326,27 +647,31 @@ with a pull request's temporary environment suffixed by its PR number, and branc
 
 This is the class of fact Story 1.10 recorded for its repository ruleset: real configuration that no file here can hold, where the write-up is the only copy a future reader gets.
 
-| Fact                       | Value                                                                                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cloud                      | Microsoft Azure                                                                                                                                                                     |
-| Subscription id            | `5104e168-b3de-41c2-92a8-c68d28bd4d16`                                                                                                                                              |
-| Tenant id                  | `6069915b-5bf2-4e36-8b25-8ffb25b5fdd1`                                                                                                                                              |
-| Subscription type          | Azure free account (12-month offers plus the always-free grants)                                                                                                                    |
-| Region                     | East US for the backend, the registry and the eventual database. **The frontend is East US 2** — see below; Static Web Apps is not offered in East US                               |
-| Resource group             | `rg-marketpulse-dev` (East US)                                                                                                                                                      |
-| Container Apps environment | `cae-marketpulse-dev`, unique id **`blackgrass-e682fefb`**, `WorkloadProfiles` mode with a **Consumption profile only**, no VNet                                                    |
-| Backend URL                | **<https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io>**                                                                                                  |
-| Backend identity           | System-assigned, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`, `AcrPull` on the registry                                                                                        |
-| Log destination            | Log Analytics workspace `log-marketpulse-dev`, **30-day retention**, `PerGB2018` — $2.30/GB ingested, $0.10/GB/month retained beyond the included period                            |
-| Budget                     | `marketpulse-monthly`, **$20/month**, actual-cost alerts at 50 / 80 / 100% to the account owner                                                                                     |
-| Frontend service           | Azure Static Web Apps, **Free** plan, app `marketpulse-frontend` in **East US 2**                                                                                                   |
-| Frontend URL               | **<https://red-smoke-029583a0f.5.azurestaticapps.net>**                                                                                                                             |
-| Backend service            | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                                                                                                                        |
-| Database service           | Azure Database for PostgreSQL flexible server, Burstable B1MS — **not yet provisioned**                                                                                             |
-| Container registry         | **`crmarketpulse.azurecr.io`** — ACR Basic, East US, $0.1666/day, 10 GB included, **admin user disabled**. Pulled by managed identity with `AcrPull`                                |
-| Source repository          | `github.com/theSmaw/marketpulse`                                                                                                                                                    |
-| Deploy trigger             | A merge to `main`, gated on `verify` — `.github/workflows/deploy.yml`, automatic since Task 1.11.6                                                                                  |
-| Deploy credential          | Federated identity credential (OIDC) on app registration `marketpulse-github-deploy`, app id **`1bb765eb-fff3-4aed-80f2-90796c2fbcfb`**. **No repository secret exists.** See below |
+| Fact                       | Value                                                                                                                                                                                                                                                                                                                         |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloud                      | Microsoft Azure                                                                                                                                                                                                                                                                                                               |
+| Subscription id            | `5104e168-b3de-41c2-92a8-c68d28bd4d16`                                                                                                                                                                                                                                                                                        |
+| Tenant id                  | `6069915b-5bf2-4e36-8b25-8ffb25b5fdd1`                                                                                                                                                                                                                                                                                        |
+| Subscription type          | Azure free account (12-month offers plus the always-free grants)                                                                                                                                                                                                                                                              |
+| Region                     | East US for the backend and the registry. **The frontend is East US 2**, and so is the **database** — Static Web Apps is not offered in East US, and Postgres is `OfferRestricted` there for this subscription (Task 2.1.1). Two of the four resources this subscription places by region have now been pushed out of East US |
+| Resource group             | `rg-marketpulse-dev` (East US)                                                                                                                                                                                                                                                                                                |
+| Container Apps environment | `cae-marketpulse-dev`, unique id **`blackgrass-e682fefb`**, `WorkloadProfiles` mode with a **Consumption profile only**, no VNet                                                                                                                                                                                              |
+| Backend URL                | **<https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io>**                                                                                                                                                                                                                                            |
+| Backend identity           | System-assigned, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`, `AcrPull` on the registry                                                                                                                                                                                                                                  |
+| Log destination            | Log Analytics workspace `log-marketpulse-dev`, **30-day retention**, `PerGB2018` — $2.30/GB ingested, $0.10/GB/month retained beyond the included period                                                                                                                                                                      |
+| Budget                     | `marketpulse-monthly`, **$20/month**, actual-cost alerts at 50 / 80 / 100% to the account owner                                                                                                                                                                                                                               |
+| Frontend service           | Azure Static Web Apps, **Free** plan, app `marketpulse-frontend` in **East US 2**                                                                                                                                                                                                                                             |
+| Frontend URL               | **<https://red-smoke-029583a0f.5.azurestaticapps.net>**                                                                                                                                                                                                                                                                       |
+| Backend service            | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                                                                                                                                                                                                                                                                  |
+| Database service           | Azure Database for PostgreSQL flexible server, Burstable **B1MS**, **PostgreSQL 18**, **East US 2**, 32 GiB storage with autogrow off, 7-day backups, public access, **Microsoft Entra authentication only** — **not yet provisioned** (decided by Task 2.1.1, created by Task 2.1.5)                                         |
+| Database server name       | **`psql-marketpulse-dev`** — available when checked 2026-09-04, re-check at creation. FQDN will be `psql-marketpulse-dev.postgres.database.azure.com`                                                                                                                                                                         |
+| Database admin             | **No PostgreSQL admin user exists**, deliberately. The Entra administrator is `bensmawfield_outlook.com#EXT#@bensmawfieldoutlook.onmicrosoft.com` (`8d92279d-ed7d-4127-9884-ba258857457c`); the backend connects as its own managed identity `marketpulse-backend`. **No password anywhere**                                  |
+| Database prerequisite      | **`Microsoft.DBforPostgreSQL` is `NotRegistered`** as of 2026-09-04. `az provider register --namespace Microsoft.DBforPostgreSQL --wait` is Task 2.1.5's first command — the same trap that failed Task 1.11.4's first create                                                                                                 |
+| Who can delete it          | The subscription owner above, via the portal or CLI. **No resource lock is set**; the backup-restore documentation recommends one ("Use Azure resource lock to help prevent accidental deletion of your server") and deleting a server deletes its backups irrecoverably                                                      |
+| Container registry         | **`crmarketpulse.azurecr.io`** — ACR Basic, East US, $0.1666/day, 10 GB included, **admin user disabled**. Pulled by managed identity with `AcrPull`                                                                                                                                                                          |
+| Source repository          | `github.com/theSmaw/marketpulse`                                                                                                                                                                                                                                                                                              |
+| Deploy trigger             | A merge to `main`, gated on `verify` — `.github/workflows/deploy.yml`, automatic since Task 1.11.6                                                                                                                                                                                                                            |
+| Deploy credential          | Federated identity credential (OIDC) on app registration `marketpulse-github-deploy`, app id **`1bb765eb-fff3-4aed-80f2-90796c2fbcfb`**. **No repository secret exists.** See below                                                                                                                                           |
 
 **Why East US.** Alpaca's market data endpoints are US-hosted, and Epic 3's WebSocket is the latency that matters; the frontend is a geo-distributed CDN on the production environment regardless of the app's region, so co-locating it costs nothing. The trade accepted is portal and log latency for a UK-based maintainer, which is a human cost paid once per session rather than per market tick.
 

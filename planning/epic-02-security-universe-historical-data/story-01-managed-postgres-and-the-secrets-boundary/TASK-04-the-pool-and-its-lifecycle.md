@@ -3,6 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.2, 2.1.3
+**Amended:** 2026-09-04, after Task 2.1.1 — see _Amended after Task 2.1.1_ below
 
 ## Objective
 
@@ -31,3 +32,11 @@ Open one pool for the process, execute a trivial query through it against the lo
 ## Notes
 
 The two halves of the sixth acceptance criterion pull in opposite directions and that is the point: the pool has to be real enough to close cleanly and optional enough that the whole verification chain still runs on a laptop with nothing installed.
+
+## Amended after Task 2.1.1 (2026-09-04)
+
+- **The driver choice has acquired a hard functional criterion, and it can eliminate a candidate on its own.** Because the deployed credential is an Entra access token minted per connection, **the driver must accept a credential that is computed asynchronously, per connection** — not a fixed password string set once at pool construction. That is now a selection criterion alongside the store-entry count and the install-script sweep, and it should be checked **before** the cost measurement rather than after, because a driver that cannot do it is out regardless of what it weighs.
+- **The pool has a ceiling and Task 2.1.1 already supplied the number, so this task sizes against a fact rather than a guess.** B1MS allows **50 `max_connections`, of which 35 are usable** — "an Azure Database for PostgreSQL flexible server reserves 15 connections for physical replication and monitoring". That 35 is shared with every migration run, every `psql` session, every probe and, from Epic 3, a second writer. **And `Burstable servers currently don't have access to the built-in PgBouncer connection pooler`**, so the application's own pool is the only pool and there is no server-side safety net to fall back on. The original brief does not mention pool size at all; it should now choose one and state what it is leaving for everything else.
+- **Task 2.1.5's "measure the connection ceiling" is therefore a confirmation, not a discovery.** The order is unchanged and correct: this task can proceed on the documented figure, and 2.1.5 checks it against the created server.
+- **Token acquisition is deliberately NOT in this task.** This task is local and uses a password, so the first code that asks Azure for a token belongs to **Task 2.1.6**. What this task owes 2.1.6 is a seam: the pool must take its credential from something that can later be an async function, so that 2.1.6 adds a provider rather than reopens the pool's construction.
+- **"What the server does when the database is absent" gained a second failure mode that is not absence.** B1MS is a credit-based tier whose own documentation says that under sustained CPU load "credits deplete and **the server might become unreachable**", and that it is "not recommended for production workloads". So the unreachable case is not only "nobody started the container" — it is a state the managed server can enter on its own, and the logged-not-exited behaviour this task chooses is what keeps that from becoming a crash-loop.
