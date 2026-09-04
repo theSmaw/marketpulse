@@ -1,6 +1,6 @@
 # Story 2.1 — Managed Postgres Provisioning & the Secrets Boundary
 
-**Status:** Not started
+**Status:** In progress — Task 2.1.1 complete
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Epic 1 (Stories 1.6, 1.11)
 **Epic scope covered:** Managed Postgres provisioning; Alpaca credential on the platform (the _mechanism_ half)
@@ -58,19 +58,29 @@ twelve months without using them.
 
 ## Open decisions — settle with the user before the first `az` command
 
-1. **Networking mode.** Public access with a firewall rule is cheap and retrofittable to
+**Decisions 1, 2 and 5 were settled by [Task 2.1.1](TASK-01-choose-the-creation-decisions.md) on 2026-09-04** and are recorded in
+`HOSTING.md` under _The database — the creation decisions_. They are left below with their
+original wording, struck where the answer changed them, because the reasoning they asked for
+is what the record has to contain. **Decisions 3 and 4 remain open**, owned by Tasks 2.1.2
+and 2.1.7 as the table says.
+
+**A fourth answer nobody asked for: the region.** East US is `OfferRestricted` for this
+subscription and offers no Postgres at all, so the database is in **East US 2** — the second
+resource this subscription has been unable to place in East US.
+
+1. **Settled: public access with the `0.0.0.0` "allow Azure services" rule.** The `321` outbound IPs measured on the deployed backend make a single-IP rule impossible, and private access means re-creating the Container Apps environment and with it the backend FQDN. ~~Public access with a firewall rule is cheap and retrofittable to
    nothing; private access via VNet integration is correct and costs the Container Apps
    environment a custom VNet, which cannot be retrofitted under the running environment.
    **This is the single most expensive decision in the epic to get wrong.** Note the
    trap that makes the cheap path less cheap than it looks: a Consumption-plan Container
    App's outbound IPs are **not stable**, so "allow this IP" is not available and the
    realistic public-path rule is "allow Azure services", which is a materially wider
-   allowlist than it sounds
-2. **Authentication: password, or Microsoft Entra with the container's managed
-   identity.** The second is the shape Epic 1 already chose twice — `acrPull` on a managed
+   allowlist than it sounds~~
+2. **Settled: Microsoft Entra only, password authentication `Disabled`, no admin user created — the platform holds no secret. And it is the most _reversible_ decision here, not the most expensive: both flags exist on `az postgres flexible-server update`.** ~~Authentication: password, or Microsoft Entra with the container's managed
+   identity. The second is the shape Epic 1 already chose twice — `acrPull` on a managed
    identity, and OIDC for the deploy — and its payoff is the same: **no secret exists to
    leak or rotate**. Its cost is token acquisition in the connection path and a harder
-   local-development story
+   local-development story~~ — all three of which held on measurement
 3. **The local development database.** A container via Docker (a new prerequisite for
    every clean clone, where Epic 1 needs Docker only for `pnpm image`), a native install,
    or pointing developers at the deployed database (rejected on principle — it is
@@ -82,8 +92,7 @@ twelve months without using them.
    answer and database reachability is a separate readiness or diagnostic surface — but
    it is a decision, and Story 1.12's `BackendStatus` vocabulary has a `degraded` state
    that was designed for exactly this kind of arrival
-5. **Storage size and backup retention**, both inside the 32 GB / 32 GB offer, against
-   Story 2.7's ingestion arithmetic
+5. **Settled: 32 GiB with autogrow `Disabled` (the floor and the offer's ceiling are the same number, so the real decision was autogrow), 7-day backups, geo-redundancy off.** ~~Storage size and backup retention~~, both inside the 32 GB / 32 GB offer, against Story 2.7's ingestion arithmetic
 
 ## Acceptance criteria
 
@@ -115,7 +124,7 @@ Tackled in order. The story is complete when all eight are done.
 
 | #     | Task                                                                                                                                         | Status      |
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 2.1.1 | [Choose the four irreversible decisions, and the credential shape, provisioning nothing](TASK-01-choose-the-creation-decisions.md)           | Not started |
+| 2.1.1 | [Choose the four irreversible decisions, and the credential shape, provisioning nothing](TASK-01-choose-the-creation-decisions.md)           | Complete    |
 | 2.1.2 | [Give a clean clone a local database, and say what it costs](TASK-02-the-local-development-database.md)                                      | Not started |
 | 2.1.3 | [Put the connection settings through the configuration boundary](TASK-03-connection-settings-in-the-configuration-boundary.md)               | Not started |
 | 2.1.4 | [The connection pool, `SELECT 1`, and closing inside the drain](TASK-04-the-pool-and-its-lifecycle.md)                                       | Not started |
