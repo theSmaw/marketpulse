@@ -51,6 +51,23 @@ import styles from "./Region.module.css";
 // cannot collide. It is also the first hook in this application, and worth
 // noting for that alone: `useId` is not state, so the React Compiler rules that
 // failed Task 1.5.1's spike had nothing to say about it.
+//
+// **`tabIndex={0}` is here because a region SCROLLS, and it was found by a tool
+// rather than by a reading (Task 1.13.4).** This box is sized by the grid and
+// takes its own overflow, which is the property the layout is built on — and a
+// container that scrolls and cannot be reached by keyboard is a WCAG 2.1.1
+// failure, because a pointer user can see content a keyboard user cannot reach.
+// axe's `scrollable-region-focusable` is the rule, and it does not fire while
+// the scrolling box happens to contain something focusable, which is why this
+// stood for five stories: `Market topology` holds Story 1.4's render check and
+// that holds a popover trigger. The FIRST run of the browser suite on a Linux
+// runner reported it on `Current investigations`, which holds a heading and one
+// sentence and nothing focusable at all — and it reproduces on the development
+// machine at a viewport 160 px shorter, so it is a real defect that a taller
+// window was hiding rather than a property of the runner. Every region gets it,
+// not just the ones currently overflowing: which of the four scrolls is a
+// function of the viewport and of what Epics 4 to 7 put in them, so making it
+// conditional would be a guess re-taken on every window resize.
 export function Region({
   name,
   filledBy,
@@ -63,7 +80,7 @@ export function Region({
   const headingId = useId();
 
   return (
-    <section className={styles.region} aria-labelledby={headingId}>
+    <section className={styles.region} aria-labelledby={headingId} tabIndex={0}>
       <h2 className={styles.name} id={headingId}>
         {name}
       </h2>
