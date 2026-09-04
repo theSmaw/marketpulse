@@ -1,6 +1,6 @@
 # Task 1.12.6 — Make all three states happen locally, prove recovery, and measure what the poll costs
 
-**Status:** Not started
+**Status:** Complete (2026-09-04)
 **Story:** [1.12 Health & Status Vertical Slice](STORY.md)
 **Depends on:** Task 1.12.5 — complete, and this file was amended again against what 1.12.5 measured on 2026-09-04
 
