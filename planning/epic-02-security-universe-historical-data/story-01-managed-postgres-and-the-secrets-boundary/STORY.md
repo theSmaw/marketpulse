@@ -139,6 +139,19 @@ Tackled in order. The story is complete when all eight are done.
 | 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Not started |
 | 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Not started |
 
+**Tasks 2.1.3 to 2.1.8 were each amended again on 2026-09-04 after Task 2.1.2 landed**, and
+again **no task was added, deleted or re-ordered** — the local-before-deployed sequence was
+executed once and worked. Four of the six amendments are new work rather than context:
+**2.1.3** inherits a one-definition problem, because `scripts/local-database.mjs` now defines
+where the local database is and putting connection settings into `CONFIG_VARIABLES` creates a
+second copy of exactly the kind `pair-addresses.mjs` exists to prevent; **2.1.4** owns
+_re-taking_ a decision 2.1.2 made about it rather than executing it, because 2.1.2's stated
+reversal trigger named a task and a condition that are not the same day; **2.1.5**'s recorded
+`psql`-is-not-installed prerequisite is answered by the local container, which ships psql 18.6
+and has working DNS — but has **no CA trust store at all**, measured, so it can encrypt and
+cannot verify, which lands squarely on that task's hardest bullet; and **2.1.6** must not
+report the local fixture password as a leak.
+
 **Tasks 2.1.2 to 2.1.8 were each amended on 2026-09-04 after Task 2.1.1 landed**, and every
 one carries an _Amended after Task 2.1.1_ section saying what changed. **No task was added,
 deleted or re-ordered** — the local-before-deployed sequence survived the decisions intact.

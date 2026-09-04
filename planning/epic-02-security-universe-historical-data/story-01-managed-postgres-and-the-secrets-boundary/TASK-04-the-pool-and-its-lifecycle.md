@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.2, 2.1.3
-**Amended:** 2026-09-04, after Task 2.1.1 — see _Amended after Task 2.1.1_ below
+**Amended:** 2026-09-04, after Tasks 2.1.1 and 2.1.2 — see the two _Amended_ sections below
 
 ## Objective
 
@@ -40,3 +40,22 @@ The two halves of the sixth acceptance criterion pull in opposite directions and
 - **Task 2.1.5's "measure the connection ceiling" is therefore a confirmation, not a discovery.** The order is unchanged and correct: this task can proceed on the documented figure, and 2.1.5 checks it against the created server.
 - **Token acquisition is deliberately NOT in this task.** This task is local and uses a password, so the first code that asks Azure for a token belongs to **Task 2.1.6**. What this task owes 2.1.6 is a seam: the pool must take its credential from something that can later be an async function, so that 2.1.6 adds a provider rather than reopens the pool's construction.
 - **"What the server does when the database is absent" gained a second failure mode that is not absence.** B1MS is a credit-based tier whose own documentation says that under sustained CPU load "credits deplete and **the server might become unreachable**", and that it is "not recommended for production workloads". So the unreachable case is not only "nobody started the container" — it is a state the managed server can enter on its own, and the logged-not-exited behaviour this task chooses is what keeps that from becoming a crash-loop.
+
+## Amended after Task 2.1.2 (2026-09-04)
+
+### This task owns re-taking a decision 2.1.2 made about it, and 2.1.2 probably got it wrong
+
+Task 2.1.2 added a third check to `pnpm ready` that **reports** the database and does not gate — `○` rather than `✗`, exit code unchanged — because nothing opens a connection yet and `pnpm e2e` gates on that same script, so failing on a missing database would refuse to start a browser suite with no interest in one, on a laptop and on the runner alike. That reasoning stands.
+
+**What 2.1.2 got wrong is the reversal trigger, and it named this task.** The sentence it shipped says the trigger is "Task 2.1.4 — the pool, the first thing here that opens a connection", and then, in the same breath, "on the day the backend needs a database to serve a request". **Those are not the same day**, and this task's own "Done when" list is the proof: a start with no database reachable is a logged failure and **not** an exit, `pnpm test:process` passes with a database absent, and `pnpm verify` passes with no database running. After this task the backend still starts, `/health` still answers, and **nothing in either check chain fails without a database** — so `pnpm ready`'s exit 0 is still the honest answer and flipping the line to `✗` here would be inventing a requirement ahead of the code that has it, which is the thing 2.1.2 declined to do in the first place.
+
+So this task should **re-take the decision rather than execute it**, and the likely outcome is that the check stays reporting and the trigger is restated as a **condition rather than a task number** — the shape `src/report-error.ts` already uses, where `CLAUDE.md` records that "the trigger was never 'Story 1.12', it was _an endpoint that accepts a client error report_". The condition here is **the first check in `pnpm verify` or `pnpm e2e` that fails without a database**, which is Story 2.2's migrations or Story 2.8's routes rather than anything in this story.
+
+**If it does flip, the cost is not local**, and 2.1.2 named it: the `e2e` job in `.github/workflows/verify.yml` starts `pnpm dev` and calls `pnpm e2e`, which gates on `check-ready.mjs` — so a gating third check means that job gains a Postgres service. That is a workflow change with a cache key, a startup wait and a second definition of the database's address in a file that currently defines none of the pair, and it is the sort of thing Story 1.10's founding rule exists to keep out of a workflow. Cheap to state now, expensive to discover in a red CI run.
+
+### What 2.1.2 hands this task concretely
+
+- **The target is real and its figures are taken**: PostgreSQL **18.6** on `127.0.0.1:5432`, database `marketpulse`, user `marketpulse`, password `marketpulse`, reachable in **0.093 s** and started by `pnpm db`.
+- **The local server offers no TLS**, measured — `pnpm ready` reports `no TLS offered` — and the managed one enforces it. `pg` defaults to `ssl: false`, so a pool that works perfectly against the local database is a pool with TLS switched off, and that difference is invisible until Task 2.1.6. The driver's TLS configuration is therefore something this task must set **deliberately rather than by default**, even though it cannot exercise the deployed side; Task 2.1.5 owns the verification mode and the trust store.
+- **`pnpm db down` is the instrument for the absent-database case** this task has to produce, and `pnpm db` brings it back with the data intact, so the failure can be produced repeatedly without re-seeding anything.
+- **The container ships `psql` 18.6**, so `pnpm db exec postgres psql …` is available for checking by hand what the pool did, with no host install.

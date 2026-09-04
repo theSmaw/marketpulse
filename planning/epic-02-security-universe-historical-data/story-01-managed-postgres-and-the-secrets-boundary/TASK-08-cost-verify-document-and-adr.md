@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.1–2.1.7
-**Amended:** 2026-09-04, after Task 2.1.1 — see _Amended after Task 2.1.1_ below
+**Amended:** 2026-09-04, after Tasks 2.1.1 and 2.1.2 — see the two _Amended_ sections below
 
 ## Objective
 
@@ -41,3 +41,15 @@ The pattern is Task 1.13.6's: the value of a closing task is almost entirely in 
 - **Three predictions from 2.1.1 are waiting to be checked against a real bill** rather than re-derived: the database's line is `$0.00` (or a `Compute - Free` meter at zero); no budget alert fires because of the database; and the total stays in the `$9.21`–`$19.04` band. Outside the offer the figure is **`$16.09`/month** — `$12.41` compute, `$3.68` storage, `$0.00` backup — which puts the totals at `$25.30` / `$35.13` once the offer expires around **2027-09-03**.
 - **The cost question has a sharper form now.** Task 2.1.1 re-took it and the refusal's shape is **unchanged since Task 1.12.7** — `az consumption usage list` returns `[]` at exit 0 and the budget reports `currentSpend` `0.0` — but the environment was **~30 hours** old at that reading, against a documented 8–24 hour lag. **So "wait longer" is no longer an available explanation**, and a third reading that still returns `[]` is evidence about the API or the subscription rather than about timing.
 - **One more figure moves that the original brief does not name**: `HOSTING.md`'s _Account facts_ table gained five rows in Task 2.1.1 and its region row changed, because **the database is in East US 2 rather than East US**. Any prose elsewhere describing this subscription as "East US" needs the same read-every-occurrence treatment as the other sweeps.
+
+## Amended after Task 2.1.2 (2026-09-04)
+
+The brief says "at least one of those figures moves". Task 2.1.2 moved several, and they are named here so the closing sweep checks rather than rediscovers them.
+
+- **Criterion 3 has already been met once and must be met again from a genuinely clean clone.** Task 2.1.2 followed `README.md` from a fresh clone to a running database — `pnpm db` in **6.2 s**, `pnpm ready` reporting it — and `pnpm verify` exited **0 in 24.45 s** from that clone **with no database running**, which is criterion 8. Both are re-runs for this task, not citations.
+- **`README.md`'s Prerequisites section changed and that is the biggest first-run change in the story.** Docker is now a prerequisite it was not before, with the narrowness of that stated in the same paragraph. A clean-clone run that already has Docker does not test the sentence; the honest check is whether the failure a machine **without** Docker gets names the right thing.
+- **The "what looks broken on a correct first run" list went from seven items to eight**, and the new one is the only item on that list with a **stated expiry** — it describes `pnpm ready` reporting a database that is not running and exiting 0 anyway, which stops being correct when the third check becomes gating. Task 2.1.4 owns re-taking that decision; whatever it decides, this list is one of the places the answer has to land.
+- **The gap lists gained two entries in two different kinds**, both in `README.md` and `CLAUDE.md`: `compose.yaml` joins the fifth kind (Prettier reads it, nothing validates its schema — measured with the same `--file-info` one-liner as the workflows), and **the version pin joins the third kind** — nothing compares `LOCAL_DATABASE.version` against the deployed `--version`, and a check would need Azure credentials `pnpm verify` deliberately does not have. The third kind is the one this repository's own history says actually causes wrong claims to stand, so re-measure it rather than citing it.
+- **`pnpm ready`'s documented output changed**, and it is quoted verbatim in `README.md` — three lines now, with a `○` state and two diagnoses that are not `ECONNREFUSED`. Prose figures are the half of the fourth gap that has been wrong nearly every time it was read.
+- **A sweep target this task should expect to find:** if Task 2.1.4 restates the third check's reversal trigger as a condition rather than "Task 2.1.4", that sentence stands in `scripts/check-ready.mjs`, `README.md`, `HOSTING.md` and `CLAUDE.md`. Read every occurrence rather than replacing them, per Task 1.13.6's finding.
+- **`HOSTING.md` gained a section this task's ADR draws on**: _The database — the local development database_, beside Task 2.1.1's creation decisions in the same document, deliberately rather than in a second file.

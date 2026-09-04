@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.1
-**Amended:** 2026-09-04, after Task 2.1.1 — see _Amended after Task 2.1.1_ below
+**Amended:** 2026-09-04, after Tasks 2.1.1 and 2.1.2 — see the two _Amended_ sections below
 
 ## Objective
 
@@ -80,3 +80,25 @@ The application's own connection is still Task 2.1.6's; what this task establish
 
 - **Every restore is bound to the mode**: "If you configure your source server with a _public access_ network, you can only restore to public access." The one-way door binds the recovery path, not just the running server.
 - **Firewall changes are not immediate** — "can take up to five minutes to take effect" — which is a wait to plan for rather than a failure to debug, and rules must be IPv4 or they are rejected outright.
+
+## Amended after Task 2.1.2 (2026-09-04)
+
+### The `psql` prerequisite is answered, and the answer comes with a measured limit that lands on this task's hardest bullet
+
+Task 2.1.1 recorded that **`psql` is not installed on the development machine**, and said that if installing it were declined then "or equivalent" would have to become a named thing rather than an assumption. **It is named now: the local database's own container.** `pnpm db exec postgres psql` is **psql 18.6**, the same major as the server this task creates, and DNS resolves inside the container (confirmed against an external hostname), so it can dial the managed server directly:
+
+```sh
+pnpm db exec postgres psql "host=psql-marketpulse-dev.postgres.database.azure.com ..."
+```
+
+No host install, and the client version matches the server version rather than being whatever a package manager offers.
+
+**But it cannot verify a certificate as it stands, and this bears directly on the TLS bullet above.** Measured in the container rather than assumed: the `ca-certificates` package is **not installed**, `/etc/ssl/certs/` holds only `ssl-cert-snakeoil.pem`, `/usr/lib/ssl/cert.pem` is a **dangling symlink** to a `ca-certificates.crt` that does not exist, and libpq's default `~/.postgresql/root.crt` is absent. So out of the box this client can do `sslmode=require` — encrypt without verifying — and **cannot** do `verify-ca` or `verify-full`.
+
+That is precisely the distinction this task's brief warns about: "the two things to establish are that the server **requires** encryption and that the client is verifying rather than merely encrypting … the second is where a 'TLS is on' claim usually turns out to be trust-on-first-use". **A `require`-only connection from this container would produce exactly that false claim.** So using the container as the client means either installing `ca-certificates` into it, or mounting a CA file, and whichever is chosen is a real step to record — including whether the file is one that would have to ship with the application, which the brief already asks about and which Task 2.1.6 inherits for the backend's own connection.
+
+### Three things to match rather than re-decide
+
+- **The database name is `marketpulse`.** Task 2.1.2 chose it for the local container. The brief says "create the database itself, and decide the name" — the decision is now to match, or to state the divergence, because a local `marketpulse` against a deployed something-else is a connection string that differs in one more place than it needs to.
+- **`--version 18` has a local counterpart that nothing checks.** `LOCAL_DATABASE.version` in `scripts/local-database.mjs` is `18` and is recorded in both gap lists as an invariant with no check behind it. This task should **record the deployed minor** when it reads the created server back, so the two are at least comparable by hand; the local container is 18.6 today, and the one-liner is `docker compose exec postgres postgres --version` against `az postgres flexible-server show --query version`.
+- **`no TLS offered` is what a correct local database reports**, so `pnpm ready`'s line is not a comparison against the managed server and should not be read as one.

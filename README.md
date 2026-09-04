@@ -308,9 +308,9 @@ them is a fault.
   application opens a connection yet, `pnpm verify` has never needed a server,
   and `pnpm e2e` gates on that same check, so failing on a missing database
   would refuse to start a browser suite that has no interest in one. `pnpm db`
-  starts it. **This is the item on this list with an expiry date**: Task 2.1.4
-  brings the connection pool, and on that day the `○` becomes a `✗` and a
-  missing database really is a broken first run. The two other things it can
+  starts it. **This is the item on this list with an expiry date**: when a check
+  starts failing without a database — a migration, or a route that reads one —
+  the `○` becomes a `✗` and a missing database really is a broken first run. The two other things it can
   say are worth recognising — `NOT_POSTGRES` means something else is on 5432
   (a native PostgreSQL, most likely, which `pnpm db` would fail to bind
   against), and `NO_RESPONSE` means something is holding the port and not
@@ -946,9 +946,12 @@ and 1 otherwise, with a line saying which one did not and why.
 **The database is the third line and it is reported rather than gated** (Task
 2.1.2). It is `○` rather than `✗` when it is down and the exit code does not
 change, because the question this exit code answers is _can the application
-run?_ and nothing here opens a database connection yet. Task 2.1.4 is the
-reversal trigger: on the day the backend needs one, that line becomes a `✗` and
-the `e2e` job in CI gains a service.
+run?_ and nothing here opens a database connection yet. **The reversal trigger
+is a condition rather than a task number** — the first check in `pnpm verify` or
+`pnpm e2e` that fails without a database, which is Story 2.2's migrations or
+Story 2.8's routes rather than the connection pool, since a pool that logs its
+failure and lets the server start leaves this exit code honest. On that day the
+line becomes a `✗` and the `e2e` job in CI gains a service.
 
 **It is also the first probe here that is not a `fetch`, and it could not have
 been one.** A PostgreSQL port answers an HTTP request by waiting, so the two

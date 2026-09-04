@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.4, 2.1.5
-**Amended:** 2026-09-04, after Task 2.1.1 settled the credential shape — see _Amended after Task 2.1.1_ below
+**Amended:** 2026-09-04, after Tasks 2.1.1 and 2.1.2 — see the two _Amended_ sections below
 
 ## Objective
 
@@ -43,3 +43,9 @@ Task 2.1.1 chose **Microsoft Entra authentication only, with password authentica
 - **Token acquisition is written here, not in Task 2.1.4.** 2.1.4 is local and uses a password, so this is the first task in which the application asks for a token at all. The trap is recorded in `HOSTING.md`: Azure's own managed-identity-for-Postgres page is written for a VM and sends you to `http://169.254.169.254/...`, which **is not how a container app gets a token** — Container Apps uses `IDENTITY_ENDPOINT` with an `X-IDENTITY-HEADER` and `api-version` 2019-08-01 or later.
 - **The rotation story is reframed rather than dropped.** There is nothing to rotate: the credential is minted per connection and expires in at most 24 hours. What this task should write down instead is what _replaces_ rotation — what happens to open connections when a token expires (the token is validated at connect time, so an established connection is expected to survive its own token's expiry; **verify that rather than assume it**), and what revocation looks like, which is deleting the database role or the identity rather than changing a value.
 - **The `secrets`-array mechanism Story 2.6 needs is therefore NOT exercised by this story.** That is a gap this task should name explicitly rather than let Story 2.6 discover: 2.6 is the first task in the project to put a secret on the platform, and it will be doing it for the first time rather than repeating something proven here.
+
+## Amended after Task 2.1.2 (2026-09-04)
+
+- **The repository now contains a deliberate credential-shaped string, and the leak grep will find it.** Task 2.1.2's local database uses the fixture password `marketpulse` in `scripts/local-database.mjs`, in the repository on purpose: it authenticates a container published on loopback only, holding an empty database whose contents are re-derivable from Alpaca, and treating it as a secret would cost every clean clone a `.env` file before the database starts. **Do not report it as a finding and do not "fix" it.** What this task must not do is let its presence make the grep vacuous — the value to hunt for is a **JWT**, and the local fixture is a different thing living in a different place.
+- **The local half of the leak check is now producible without the platform.** `pnpm db down` gives a refused connection and `pnpm db` restores it, so the driver's error-message behaviour — the thing this criterion exists to catch — can be characterised locally before the deployed token exists. That does not replace the deployed reading, because the credential differs, but it means arriving at the platform already knowing whether the driver quotes connection details in errors.
+- **The certificate-trust question arrives here for the application, and Task 2.1.5 will have answered it for a client.** 2.1.2 measured that the local Postgres container has **no CA trust store at all** — no `ca-certificates`, a dangling `/usr/lib/ssl/cert.pem`, no `~/.postgresql/root.crt` — which is a fact about that container rather than about the backend's image, but it is the same question one layer along: whether anything has to **ship with the application** for it to verify rather than merely encrypt. If the answer is yes, that is a file in `apps/backend/Dockerfile`'s runtime stage, which is one of the three files no tool in `pnpm verify` reads.

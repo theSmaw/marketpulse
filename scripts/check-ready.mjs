@@ -363,11 +363,17 @@ for (const { name, url, result } of results) {
 // requirement one task ahead of the code that has it, which is the thing this
 // repository keeps declining to do.
 //
-// **The reversal trigger is Task 2.1.4** — the pool, the first thing here that
-// opens a connection. On the day the backend needs a database to serve a
-// request, this line becomes a `✗` and the `e2e` job in
-// `.github/workflows/verify.yml` gains a service. It is written here rather
-// than only in a task file because this is where the next person will read it.
+// **The reversal trigger is a condition rather than a task number**, which is
+// the shape `src/report-error.ts` already uses for the same kind of deferral:
+// it is **the first check in `pnpm verify` or `pnpm e2e` that fails without a
+// database**. Not "the first code that opens a connection" — a pool that logs
+// its failure and lets the server start leaves this exit code honest — and so
+// not Task 2.1.4, which explicitly keeps `pnpm verify` and `test:process`
+// passing with no database. Story 2.2's migrations and Story 2.8's routes are
+// the realistic candidates. On that day this line becomes a `✗` and the `e2e`
+// job in `.github/workflows/verify.yml` gains a service, which is a workflow
+// change worth knowing about in advance. It is written here rather than only in
+// a task file because this is where the next person will read it.
 const databaseAddress = `${LOCAL_DATABASE.host}:${String(LOCAL_DATABASE.port)}`;
 
 if (database.ok) {
@@ -395,7 +401,7 @@ if (backend.ready && frontend.ready) {
     database.ok
       ? "\nThe pair is up, and so is the database."
       : "\nThe pair is up. The database is not — start it with `pnpm db`.\n" +
-          "Nothing needs it yet, so this is exit 0; Task 2.1.4 is what changes that.",
+          "Nothing needs it yet, so this is exit 0. That changes when a check starts failing without one.",
   );
   process.exit(0);
 }
