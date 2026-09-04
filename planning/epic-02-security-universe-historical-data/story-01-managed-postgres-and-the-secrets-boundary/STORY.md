@@ -104,7 +104,11 @@ resource this subscription has been unable to place in East US.
    `README.md`, and `pnpm ready` tells them whether it is up
 4. No credential appears in the repository, in `dist/`, in `storybook-static/`, or in any
    log record — the last one checked by producing a connection failure and reading what
-   was written
+   was written. **Amended 2026-09-04: the credential to hunt for is an Entra access token,
+   not a password.** Task 2.1.1's decision means no password exists deployed, which makes
+   the repository and bundle greps close to vacuous and the **log** half sharper — a token
+   is a live bearer credential for up to 24 hours, so a driver that puts it into a
+   connection error leaks a working key
 5. Connection settings are in `CONFIG_VARIABLES` and both `.env.example` files agree, so
    `pnpm env:check` covers them; a missing or malformed setting fails at startup with a
    message naming the variable
@@ -133,12 +137,30 @@ Tackled in order. The story is complete when all eight are done.
 | 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Not started |
 | 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Not started |
 
+**Tasks 2.1.2 to 2.1.8 were each amended on 2026-09-04 after Task 2.1.1 landed**, and every
+one carries an _Amended after Task 2.1.1_ section saying what changed. **No task was added,
+deleted or re-ordered** — the local-before-deployed sequence survived the decisions intact.
+Two of the amendments are corrections rather than additions, and they matter most: Tasks
+2.1.6 and 2.1.8 were both instructed to sweep ADR 0011's "nothing deployed holds a
+credential" as a claim this story falsifies, and **that claim stays true through this
+story** — so following the original wording would have made a true claim false.
+
 **The five open decisions above are not spread across the eight tasks evenly.** Four of them — networking mode, authentication, storage and backup — are settled together in **2.1.1**, because they are creation arguments and a creation argument decided late is a server rebuilt. The local-database decision is **2.1.2**'s, because its real cost is what a clean clone has to install and that cannot be judged apart from doing it. The `/health` decision is **2.1.7**'s and deliberately last, because it is the only one whose answer depends on watching a real replica survive a real outage.
 
 ## What this story hands forward
 
-A reachable database, a credential path that Story 2.6 reuses rather than reinvents, and
-a written record of two decisions nobody can revisit.
+A reachable database, ~~a credential path that Story 2.6 reuses rather than reinvents~~ and
+a written record of ~~two decisions~~ the decisions nobody can revisit.
+
+**Both halves of that sentence were corrected by Task 2.1.1 (2026-09-04).** The credential
+path **does not transfer**: an Alpaca key is a bearer secret from a party with no Azure
+identity, so Story 2.6 is genuinely the first task in this project to put a secret on the
+platform, and it will be doing it for the first time rather than repeating something proven
+here. What transfers is the **identity**, not the mechanism. And there are not two
+irreversible decisions but **one** — networking mode — with version forward-only, region
+irreversible in practice, tier and authentication both fully reversible, and **three**
+irreversible decisions this story never named at all: storage type, backup redundancy and
+the data encryption key.
 
 ## Conventions
 
