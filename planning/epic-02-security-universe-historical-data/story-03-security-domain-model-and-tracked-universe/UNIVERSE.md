@@ -181,7 +181,10 @@ story that can return it). A member with no producer is a vocabulary entry that 
 "this has never happened", which is indistinguishable in the data from "this cannot
 happen".
 
-**Its producer is named, so nobody has to rediscover it: Story 2.6.** Alpaca's assets
+**Its producer is named, so nobody has to rediscover it: Story 2.6**, which carries this
+forward in its own Scope and as its fourth open decision rather than only being named here
+— a deferral recorded in one document and not in the story that inherits it is a deferral
+with no owner. Alpaca's assets
 endpoint carries an asset status, and that is the first thing in this product with any
 opinion about whether a symbol is still listed. Adding the member then is one migration of
 a shape this repository has now proved twice — drop the check, add the member, add the
