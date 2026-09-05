@@ -155,7 +155,7 @@ that paragraph in `DATA-LAYER.md` before assuming the plugin is the only option.
 
 **The seam is declared here and not built**, and saying so plainly is the point.
 This story ships no route and no read, so the plugin was written in a spike and
-reverted; the tree is byte-identical. **Story 2.8 writes the first `selectFrom` and
+reverted; the tree is byte-identical. **Story 2.4 writes the first `selectFrom` and
 owns the module.** The instruction it inherits is the mechanism: the plugin is
 attached with `withPlugin`, which returns a **different object**, so the seam holds
 only while the module that constructs Kysely exports the plugged handle and no
@@ -244,7 +244,7 @@ type graph, and `packages/shared` is consumed as built output.
 **What maps between them lives beside the query, one function per domain type, and
 never a generic mapper** — because the mapping is exactly where a nullable column
 becomes an explicit domain answer, and a generic mapper is where that decision gets
-skipped. Story 2.8 owns it.
+skipped. Story 2.9 owns it.
 
 Two places where the types and the SQL agree by construction: `id` is
 `GeneratedAlways<string>`, so an insert supplying one is a **compile** error as well
@@ -505,8 +505,8 @@ act on and ids here are explicitly not contiguous.
 | A regex over the SQL text                                   | It cannot tell a statement from a comment, so it false-positives on this directory's own headers — and the workaround is to reword the comment                   | none                                                                                            |
 | `hadolint`-style SQL linting or formatting                  | One file class, against a new root dependency and an eighth `verify` step                                                                                        | a migration whose failure was **not** loud                                                      |
 | Naming the migration error's failing **statement**          | Only a syntax error carries a `position`; every execution error carries none. The version worth having needs the provider to pass the body along                 | a migration long enough for `at or near "x"` to be ambiguous                                    |
-| A `CREATE INDEX CONCURRENTLY` escape hatch                  | It fails under a transaction and Kysely's `disableTransactions` is per-**`Migrator`**, not per-migration                                                         | **Story 2.7's `market_bars` indexes** — answer is a second `Migrator` over a separate directory |
-| A post-deploy browser assertion for the schema              | A schema is not a user-visible surface, no route reads it, and a post-deploy check's output is a rollback decision                                               | **Story 2.8's first route that serves data**                                                    |
+| A `CREATE INDEX CONCURRENTLY` escape hatch                  | It fails under a transaction and Kysely's `disableTransactions` is per-**`Migrator`**, not per-migration                                                         | **Story 2.8's `market_bars` indexes** — answer is a second `Migrator` over a separate directory |
+| A post-deploy browser assertion for the schema              | A schema is not a user-visible surface, no route reads it, and a post-deploy check's output is a rollback decision                                               | **Story 2.9's first route that serves data**                                                    |
 | A deployed-engine-version check in `pnpm verify`            | It needs Azure credentials `verify` deliberately does not have, so building one forks the definition of "verified"                                               | a second environment, or the version being found changed with nobody able to say why            |
 
 ## Consequences worth stating separately
@@ -605,7 +605,7 @@ comment and a third copy of a version number are not.
    it is only a comment, in a package that has one.
 4. **The temporal seam holds only while no unplugged handle is exported.** The plugin is
    attached with `withPlugin`, which returns a different object, so the guarantee is a
-   property of what a module chooses to export. Nothing enforces it. Story 2.8 inherits it,
+   property of what a module chooses to export. Nothing enforces it. Story 2.9 inherits it,
    and it is the same class as `e2e/package.json`'s missing `test` script.
 5. **Expand-then-contract.** Whether a column is still read is a fact about code rather
    than about a schema, so no instrument here can hold it. `migrations/README.md` §8.
@@ -729,7 +729,7 @@ task measured at the time is correct in its own context and stays.
 `DATA-LAYER.md`'s temporal-seam paragraphs had **hardened from a spike finding into a
 description of shipped code** in three places — the class this repository's closing sweeps
 exist to catch, and the second time a document has been found doing it. Marked as a spike
-record with the instruction Story 2.8 inherits stated separately.
+record with the instruction Story 2.9 inherits stated separately.
 
 ## Related
 

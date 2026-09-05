@@ -67,7 +67,7 @@ describe("GET /diagnostics/database", () => {
 
   // The property the whole endpoint rests on. A 503 here would claim this
   // endpoint failed, and would need an `API_ERROR_CODES` member that
-  // `database.ts` reserves for Story 2.8.
+  // `database.ts` reserves for Story 2.9.
   it("answers 200 when the database is UNREACHABLE, because the question was answered", async () => {
     const instance = await serverWith(() =>
       Promise.resolve({

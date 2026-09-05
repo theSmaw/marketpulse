@@ -7,7 +7,7 @@
 //
 // **What this file is not.** It is not a query layer, a repository, an ORM or a
 // typed access seam. Story 2.2 chose the query layer — Kysely — and deliberately
-// wrote no read, so the seam is declared rather than built and Story 2.8 writes
+// wrote no read, so the seam is declared rather than built and Story 2.4 writes
 // the first `selectFrom` and owns where the isolated handle lives. What this
 // file contains is a pool, one `SELECT 1`, and a close. `pingDatabase()` is
 // still the whole query surface of the serving process, and it exists to answer
@@ -23,7 +23,7 @@
 // which is already the file that owns the process's resources, and closed by
 // the shutdown path in the same file.
 //
-// The reversal trigger is a route that needs data — Story 2.8's — at which
+// The reversal trigger is a route that needs data — Story 2.9's — at which
 // point the pool enters `ServerOptions` beside `corsOrigin`, and the argument
 // ADR 0002 §3 records applies: the first `await` inside the factory changes
 // every caller. Note that nothing here forces one. `new Pool()` is lazy and
@@ -497,7 +497,7 @@ export async function closeDatabasePool(pool: pg.Pool): Promise<void> {
 // be produced, not per failure that can be imagined", and `BAD_REQUEST` was
 // added a task later by the task that could produce it.
 //
-// So the decision, for Story 2.8 to implement rather than re-take:
+// So the decision, for Story 2.9 to implement rather than re-take:
 //
 //   - The status is **503**, not 500. A 500 says this server failed; a database
 //     that is down is a dependency that is unavailable and a client may
@@ -517,4 +517,4 @@ export async function closeDatabasePool(pool: pg.Pool): Promise<void> {
 //     liveness probe hits `/health`, so a `/health` that fails when the database
 //     is down turns a recoverable outage into a restart loop. Database
 //     reachability is reported by `GET /diagnostics/database`, which no probe
-//     uses, and Story 2.8's data routes still owe their own 503.
+//     uses, and Story 2.9's data routes still owe their own 503.

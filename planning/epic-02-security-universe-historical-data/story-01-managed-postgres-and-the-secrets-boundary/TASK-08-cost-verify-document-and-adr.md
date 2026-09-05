@@ -36,7 +36,7 @@ The pattern is Task 1.13.6's: the value of a closing task is almost entirely in 
 
 ## Amended after Task 2.1.1 (2026-09-04)
 
-- **The claim to sweep is ADR 0006's, not ADR 0011's.** Task 2.1.1 chose an authentication path under which the platform holds no secret, so "nothing deployed holds a credential" survives this story and **must be confirmed rather than corrected**. `EPIC.md` says this epic is where that claim expires; it expires in **Story 2.6**. Correcting `EPIC.md`'s prediction is in scope for this task; correcting ADR 0011 is not.
+- **The claim to sweep is ADR 0006's, not ADR 0011's.** Task 2.1.1 chose an authentication path under which the platform holds no secret, so "nothing deployed holds a credential" survives this story and **must be confirmed rather than corrected**. `EPIC.md` says this epic is where that claim expires; it expires in **Story 2.7**. Correcting `EPIC.md`'s prediction is in scope for this task; correcting ADR 0011 is not.
 - **The budget arrives with a recommendation attached, and the recommendation is to leave it at `$20`.** Task 2.1.1 re-read it (`marketpulse-monthly`, `$20`/month, actual-cost alerts at 50 / 80 / 100%, all enabled) and predicted the database contributes **`$0.00`** while the free offer holds. The argument for not raising it is that **a database-attributable alert _is_ the signal that one of the three offer conditions broke** — B1MS, 32 GiB, under 750 hours — and a budget raised to accommodate a cost that should not exist cannot report that cost appearing. This task should accept or reject that reasoning explicitly rather than re-derive it.
 - **Three predictions from 2.1.1 are waiting to be checked against a real bill** rather than re-derived: the database's line is `$0.00` (or a `Compute - Free` meter at zero); no budget alert fires because of the database; and the total stays in the `$9.21`–`$19.04` band. Outside the offer the figure is **`$16.09`/month** — `$12.41` compute, `$3.68` storage, `$0.00` backup — which puts the totals at `$25.30` / `$35.13` once the offer expires around **2027-09-03**.
 - **The cost question has a sharper form now.** Task 2.1.1 re-took it and the refusal's shape is **unchanged since Task 1.12.7** — `az consumption usage list` returns `[]` at exit 0 and the budget reports `currentSpend` `0.0` — but the environment was **~30 hours** old at that reading, against a documented 8–24 hour lag. **So "wait longer" is no longer an available explanation**, and a third reading that still returns `[]` is evidence about the API or the subscription rather than about timing.
@@ -303,7 +303,7 @@ the byte — which is the check rather than a coincidence.
 ADR 0011's **"nothing deployed holds a credential" is still TRUE**, and Task
 2.1.6 confirmed it by reading the app's `secrets` array back from the platform
 and finding it `null` **after** wiring the database. `EPIC.md`'s prediction that
-it expires in this story is wrong: it expires in **Story 2.6**. This task should
+it expires in this story is wrong: it expires in **Story 2.7**. This task should
 check that nobody "corrected" a true claim into a false one on the strength of
 that prediction — the failure mode the sweep habit exists to prevent, arriving
 from the other direction.
@@ -330,8 +330,8 @@ that the split is still right.
 - **`TOKEN_TIMEOUT_MS < CONNECT_TIMEOUT_MS`** — this one is **checked**, by a
   test, and belongs in the checked list rather than the prose one.
 - **The `secrets`-array mechanism is exercised by nothing**, which is this
-  story's strongest outcome and Story 2.6's largest unknown. Name it in the ADR
-  rather than letting 2.6 find it.
+  story's strongest outcome and Story 2.7's largest unknown. Name it in the ADR
+  rather than letting 2.7 find it.
 
 ### The cost question, with one new consumer
 
@@ -438,4 +438,4 @@ did not anticipate:
   fired** — confirmed rather than assumed, because `pnpm verify` is exit 0 and the browser
   suite is 9 passed with the database stopped. The condition is unchanged: the first check
   in `pnpm verify` or `pnpm e2e` that fails without a database, which is Story 2.2's
-  migrations or Story 2.8's routes.
+  migrations or Story 2.9's routes.

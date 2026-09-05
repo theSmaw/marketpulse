@@ -19,8 +19,8 @@ test it with.
 **One correction to this epic's own framing, and it changes the sequencing.** The epic
 says the Alpaca key is "the first secret this system holds". It is not — **the database
 credential is**, and it arrives here, five stories earlier. That is the argument for
-building the secrets mechanism in this story rather than in Story 2.6: the mechanism is
-needed either way, and Story 2.6 should be placing a second key through a proven path
+building the secrets mechanism in this story rather than in Story 2.7: the mechanism is
+needed either way, and Story 2.7 should be placing a second key through a proven path
 rather than inventing one under time pressure.
 
 ## Why it sits here in the sequence
@@ -56,7 +56,7 @@ twelve months without using them.
 
 - Tables, columns and migrations — **Story 2.2**. This story provisions an empty database
   and proves the backend can reach it
-- The Alpaca key itself — **Story 2.6**, through the mechanism this story establishes
+- The Alpaca key itself — **Story 2.7**, through the mechanism this story establishes
 - Query layer, ORM or typed access — **Story 2.2**
 - Anything about market data — this story ends at `SELECT 1`
 
@@ -106,13 +106,13 @@ none of them.**
    service but **no** service. The check is bounded at one query per 5 s and one in-flight
    query whatever the caller count, and `BackendStatus` deliberately does **not** move —
    see the task record for why "no user-visible change" is the right answer until Story
-   2.8 ships a route a user can be affected by. ~~Beware the Epic 1 property: the liveness
+   2.9 ships a route a user can be affected by. ~~Beware the Epic 1 property: the liveness
    probe hits `/health` and a failing liveness probe **kills the replica**, so a database
    blip would become a crash-loop. The likely answer is that `/health` stays a cheap
    liveness answer and database reachability is a separate readiness or diagnostic surface
    — but it is a decision, and Story 1.12's `BackendStatus` vocabulary has a `degraded`
    state that was designed for exactly this kind of arrival~~
-5. **Settled: 32 GiB with autogrow `Disabled` (the floor and the offer's ceiling are the same number, so the real decision was autogrow), 7-day backups, geo-redundancy off.** ~~Storage size and backup retention~~, both inside the 32 GB / 32 GB offer, against Story 2.7's ingestion arithmetic
+5. **Settled: 32 GiB with autogrow `Disabled` (the floor and the offer's ceiling are the same number, so the real decision was autogrow), 7-day backups, geo-redundancy off.** ~~Storage size and backup retention~~, both inside the 32 GB / 32 GB offer, against Story 2.8's ingestion arithmetic
 
 ## Acceptance criteria
 
@@ -185,7 +185,7 @@ unreachable database left the replica at 0 restarts and `/health` 200 across
 seven liveness intervals. For 2.1.8 it moves the test counts (218, `apps/backend`
 78 across 5), **confirms rather than falsifies** ADR 0011's "nothing deployed
 holds a credential" — the `secrets` array was read back and is still empty, so
-that claim expires in Story 2.6 and not here — and genuinely changes one stated
+that claim expires in Story 2.7 and not here — and genuinely changes one stated
 invariant: `config.ts` is no longer the only file reading `process.env`.
 
 **Tasks 2.1.6 to 2.1.8 were each amended again on 2026-09-05 after Task 2.1.5 landed**, and
@@ -276,12 +276,12 @@ story** — so following the original wording would have made a true claim false
 
 ## What this story hands forward
 
-A reachable database, ~~a credential path that Story 2.6 reuses rather than reinvents~~ and
+A reachable database, ~~a credential path that Story 2.7 reuses rather than reinvents~~ and
 a written record of ~~two decisions~~ the decisions nobody can revisit.
 
 **Both halves of that sentence were corrected by Task 2.1.1 (2026-09-04).** The credential
 path **does not transfer**: an Alpaca key is a bearer secret from a party with no Azure
-identity, so Story 2.6 is genuinely the first task in this project to put a secret on the
+identity, so Story 2.7 is genuinely the first task in this project to put a secret on the
 platform, and it will be doing it for the first time rather than repeating something proven
 here. What transfers is the **identity**, not the mechanism. And there are not two
 irreversible decisions but **one** — networking mode — with version forward-only, region

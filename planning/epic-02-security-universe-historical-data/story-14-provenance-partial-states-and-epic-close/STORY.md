@@ -1,8 +1,8 @@
-# Story 2.13 — Market-Data Provenance, Partial States & Epic Close
+# Story 2.14 — Market-Data Provenance, Partial States & Epic Close
 
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
-**Depends on:** Story 2.12
+**Depends on:** Story 2.13
 **Epic scope covered:** Market-data provenance display; closes the epic
 
 ## Description
@@ -18,10 +18,28 @@ the thing this product exists not to do.
 The story also closes the epic: the exit criterion re-run against the deployed environment,
 and the decisions recorded as ADRs.
 
+## What the user can see when this story lands
+
+**Where every number came from, and an honest answer when part of it is missing** — which is
+the story that turns a working chart into one an analyst can trust.
+
+Concretely: the feed labelled as **IEX rather than the consolidated tape**, so nobody reads
+it as full US market coverage; whether a price is adjusted; when the data was retrieved; and
+partial answers rendered as answers rather than errors — "we have data through 15:42" and
+"we have nothing for this symbol" are both correct outcomes and neither is a failure screen.
+
+It is also where **the curated file's age becomes visible** — the
+`classification_retrieved_at` column Story 2.3 argued about exists for exactly this, and
+this is the story that renders it.
+
+This is the least glamorous story in the epic and the one that most changes whether the
+product is credible. §35's list of things MarketPulse must not do — hide provenance,
+manufacture missing observations — is enforced here or nowhere.
+
 ## Why it sits here in the sequence
 
 Provenance display needs something to be displayed on, so it follows the charts. Everything
-it renders was made available by Story 2.5's model, so this is presentation rather than
+it renders was made available by Story 2.6's model, so this is presentation rather than
 plumbing — which is why it is last and why it is small.
 
 ## Scope
@@ -34,7 +52,7 @@ plumbing — which is why it is last and why it is small.
 - Data recency: what period is on screen, and through when the data runs — §36's
   "displaying data through 10:42:17" shape, which Epic 3 makes continuous and which is
   static but still true here
-- The adjusted/unadjusted disclosure, since Story 2.5 made it explicit in the data
+- The adjusted/unadjusted disclosure, since Story 2.6 made it explicit in the data
 - The metadata provenance Story 2.3 opened: sector and industry did not come from the market
   data provider, and the UI should not imply that they did
 - The complete pass over failure and partial states across the epic's surface (§36), checked

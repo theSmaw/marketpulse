@@ -1,8 +1,8 @@
-# Story 2.6 — Alpaca Historical Data Integration
+# Story 2.7 — Alpaca Historical Data Integration
 
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
-**Depends on:** Story 2.5 (and Story 2.1 for the credential mechanism)
+**Depends on:** Story 2.6 (and Story 2.1 for the credential mechanism)
 **Epic scope covered:** Alpaca historical-data integration; Alpaca credential on the platform (the _key_ half)
 
 ## Prerequisite — not a task
@@ -19,21 +19,37 @@ no account at all, and the account gates only the live verification.
 Implement the provider interface against Alpaca's historical market-data API, and place
 the Alpaca key through the credential path Story 2.1 established.
 
+## What the user can see when this story lands
+
+**Nothing on screen, and for the first time in this epic the reason is not "it is backend
+work" — it is that this story deliberately fetches into a terminal rather than a database.**
+Story 2.8 is what stores anything.
+
+What it unblocks is every number in the product. **The payoff is visible in Story 2.12.**
+
+**One thing here changes what a user is eventually told**, and it should be treated as a
+deliverable rather than a footnote: this story is the first to hold a real Alpaca key
+against a real account, so it is where the **feed's actual shape** is measured — what IEX
+coverage looks like for a thinly traded name, what a missing minute is, and whether the free
+tier's 30-channel cap exempts minute bars. `UNIVERSE.md` §10 parks the size of the tracked
+universe on that last measurement, so this story either confirms 101 securities or starts a
+conversation about the number.
+
 ## Why it sits here in the sequence
 
 After the interface exists and before anything stores data. This story is also the first
 place the product meets a real external system's real limits, and those limits shape
-Story 2.7's ingestion design — so it must precede it.
+Story 2.8's ingestion design — so it must precede it.
 
 ## Scope
 
 - The client: authentication, base URL, the bars endpoint, pagination, request
-  construction, response mapping to Story 2.5's domain types
+  construction, response mapping to Story 2.6's domain types
 - **The free tier's actual constraints, measured rather than cited.** Everything commonly
   "known" about Alpaca's free plan — the IEX feed, the request rate, how far back history
   goes, whether recent data is withheld, what a multi-symbol request costs — should be
   established by making the requests and reading the responses. Prices for getting this
-  wrong are paid in Story 2.7, which is sized against these numbers, and in Epic 3, which
+  wrong are paid in Story 2.8, which is sized against these numbers, and in Epic 3, which
   is sized against the streaming equivalents
 - Rate limiting and backoff, implemented against the measured limit, including what
   happens on a 429 and whether the limit is per-key or per-endpoint
@@ -56,7 +72,7 @@ Story 2.7's ingestion design — so it must precede it.
   one subscribe message and a read of the response; do it before building anything, and
   record it in `UNIVERSE.md` §10, which is where the parked decision lives
 - Timeframe support, and which timeframes the product actually requests
-- Error mapping: every Alpaca failure mode onto Story 2.5's error union, with the ones
+- Error mapping: every Alpaca failure mode onto Story 2.6's error union, with the ones
   that matter produced deliberately — bad key, unknown symbol, range in the future, range
   before the plan's history limit, rate limit exceeded
 - The credential: on the platform through Story 2.1's mechanism, in `apps/backend/.env`
@@ -79,13 +95,13 @@ Story 2.7's ingestion design — so it must precede it.
 
 ## Out of scope, and who owns it
 
-- Storing anything — Story 2.7
+- Storing anything — Story 2.8
 - The WebSocket stream, subscriptions and reconnection — Epic 3. **One narrow exception,
   added 2026-09-05: the subscription CAP is measured here**, per the scope bullet above,
   because Story 2.3's sizing is parked on it and this story is the first to hold a key.
   Measuring a limit is not building a stream, and the alternative is a universe sized
   against a documentation sentence that two Alpaca pages disagree about
-- Trades and quotes, unless a measurement shows bars alone cannot serve Story 2.11's chart
+- Trades and quotes, unless a measurement shows bars alone cannot serve Story 2.12's chart
 
 ## Open decisions — settle with the user
 
@@ -93,7 +109,7 @@ Story 2.7's ingestion design — so it must precede it.
    minute bars serve intraday and are what Epic 5's five-minute return calculations and
    Epic 13's replay ultimately need. Fetching minute bars now is more data and more
    ingestion time; fetching only daily now means re-running a large backfill later. This
-   decision belongs to a person, and Story 2.7 depends on it
+   decision belongs to a person, and Story 2.8 depends on it
 2. **How far back.** History depth drives storage, backfill runtime, and whether Epic 5's
    return distributions have enough observations to be meaningful
 3. **What a missing or invalid key does at startup.** Refuse to start, or start degraded
@@ -106,7 +122,7 @@ Story 2.7's ingestion design — so it must precede it.
    call the assets endpoint during ingestion and transition a symbol's status when Alpaca
    says it is no longer active; call it once as a **reporting** check that names symbols
    worth looking at and changes no row, which is Task 2.1.7's shape for exactly this kind
-   of question; or decline it here and hand it to Story 2.7's ingestion, which is the first
+   of question; or decline it here and hand it to Story 2.8's ingestion, which is the first
    thing that will actually notice bars stopping. Whichever it is, **an honest deferral
    with a named owner beats a mechanism built against no instance** — and note the answer
    is worth taking on evidence, because a symbol whose bars stop arriving and a symbol
@@ -130,7 +146,7 @@ Story 2.7's ingestion design — so it must precede it.
 
 ## What this story hands forward
 
-Real market data, the numbers Story 2.7 is designed against, and a second credential
+Real market data, the numbers Story 2.8 is designed against, and a second credential
 placed through a path that has now been used twice.
 
 **And one answer another story is waiting on**: whether minute-bar subscriptions are exempt
@@ -138,5 +154,5 @@ from the free plan's 30-channel cap. `UNIVERSE.md` §10 in Story 2.3 records the
 sizing as **parked on that measurement**, with both branches written out — if bars are
 exempt the universe reopens at ~500 with ~1,500 as the architectural target, and if they
 are not then 101 is already over the cap and Epic 3 has a blocker. **The deadline is Story
-2.7**, not this story: nothing in the tree encodes the security count, so re-sizing costs
+2.8**, not this story: nothing in the tree encodes the security count, so re-sizing costs
 one file edit for exactly as long as no bars have been stored against those rows.

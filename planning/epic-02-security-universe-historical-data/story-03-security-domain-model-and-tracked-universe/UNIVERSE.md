@@ -181,7 +181,7 @@ story that can return it). A member with no producer is a vocabulary entry that 
 "this has never happened", which is indistinguishable in the data from "this cannot
 happen".
 
-**Its producer is named, so nobody has to rediscover it: Story 2.6**, which carries this
+**Its producer is named, so nobody has to rediscover it: Story 2.7**, which carries this
 forward in its own Scope and as its fourth open decision rather than only being named here
 — a deferral recorded in one document and not in the story that inherits it is a deferral
 with no owner. Alpaca's assets
@@ -210,12 +210,12 @@ the failure `deleted_at` would have caused.
 ## 4. Provenance: a source and a retrieval timestamp per field group
 
 Acceptance criterion 6 says the metadata's source is recorded **per field** in a way Story
-2.13 can display, and invariant 6 says provenance is displayed rather than implied. The
+2.14 can display, and invariant 6 says provenance is displayed rather than implied. The
 fields do not share a source:
 
 | Field group    | Fields                       | Source                                                                    | Written by |
 | -------------- | ---------------------------- | ------------------------------------------------------------------------- | ---------- |
-| Profile        | `symbol`, `name`, `exchange` | the curated file today; plausibly Alpaca's assets endpoint from Story 2.6 | Task 2.3.5 |
+| Profile        | `symbol`, `name`, `exchange` | the curated file today; plausibly Alpaca's assets endpoint from Story 2.7 | Task 2.3.5 |
 | Classification | `sector`, `industry`         | the curated file (§5)                                                     | Task 2.3.5 |
 | Identity       | `cik`                        | Epic 9                                                                    | Epic 9     |
 | Ours           | `kind`, `status`             | this repository — a judgement, not a retrieval                            | Task 2.3.5 |
@@ -231,7 +231,7 @@ Epic 9 is a column that cannot be checked against anything. `kind` and `status` 
 pair at all, because "we decided this" is not a retrieval and a `retrieved_at` on it would
 be a timestamp pretending to be evidence.
 
-What Story 2.13 reads, so it does not have to reverse-engineer it: for any field on
+What Story 2.14 reads, so it does not have to reverse-engineer it: for any field on
 screen, the group it belongs to, that group's `source` string, and that group's
 `retrieved_at`. The mapping from field to group is the table above, and it belongs in
 `packages/shared` beside `Security` so the renderer and the loader agree.
@@ -241,7 +241,7 @@ screen, the group it belongs to, that group's `source` string, and that group's
 _retrieval_ timestamp and is exactly what invariant 5's evidence pair asks for. There is
 still **no `observed_at`**, because a security's sector is not a fact about the market at
 an instant; there is no moment at which "AAPL is in Technology" became true in the way a
-price became true. `market_bars` in Story 2.7 remains the first table that exercises the
+price became true. `market_bars` in Story 2.8 remains the first table that exercises the
 pair, and adding a defaulted `observed_at` here to make the convention look tested would
 be precisely the leak the convention forbids.
 
@@ -249,7 +249,7 @@ be precisely the leak the convention forbids.
 
 - **One `jsonb` provenance object.** New sources need no migration, which is its whole
   appeal. The compiler holds nothing about it, `information_schema` can confirm only that
-  it is `jsonb`, and Story 2.13 would have to reverse-engineer its shape — which that
+  it is `jsonb`, and Story 2.14 would have to reverse-engineer its shape — which that
   story's brief says explicitly it must not have to. It also puts an unvalidated
   open-ended object on the row, which is the same shape `ApiError.details` was
   deliberately made `readonly string[]` to avoid.
@@ -258,7 +258,7 @@ be precisely the leak the convention forbids.
   `<table_singularised>_id` naming rule Task 2.2.4 recorded as untested. It is rejected on
   proportion: a join, plus four or five rows per security, to carry two facts that are the
   same for every row the loader writes in a single run. **The naming rule therefore stays
-  untested**, and Task 2.3.3 owes saying so, because Story 2.7 then inherits it.
+  untested**, and Task 2.3.3 owes saying so, because Story 2.8 then inherits it.
 
 **Cost, stated:** a genuinely new field group means a migration. Given there are four
 groups and three of them are already named, that is a cost paid roughly once per epic that
@@ -304,9 +304,9 @@ two stories, and as the local/deployed Postgres version pin.
 
 | Drift                      | Example                                          | Symptom here                                                                                                                                                                                                                                                                       |
 | -------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A ticker change            | `FB` → `META`                                    | The old symbol stops matching anything at the provider; Story 2.6's bar requests return nothing for it, and the row is a company that no longer exists under that name. This is the case the surrogate key exists for, and Task 2.3.6 owns whether it is handled or named as a gap |
+| A ticker change            | `FB` → `META`                                    | The old symbol stops matching anything at the provider; Story 2.7's bar requests return nothing for it, and the row is a company that no longer exists under that name. This is the case the surrogate key exists for, and Task 2.3.6 owns whether it is handled or named as a gap |
 | A sector reclassification  | A name moves Technology → Communication Services | Nothing fails. Epic 5 compares it against the wrong benchmark and Epic 4 counts it in the wrong breadth number, indefinitely, and correctly-looking                                                                                                                                |
-| A delisting or acquisition | A tracked name is acquired                       | Bars stop arriving. §3's `status` has no member for it yet and Story 2.6 is its producer                                                                                                                                                                                           |
+| A delisting or acquisition | A tracked name is acquired                       | Bars stop arriving. §3's `status` has no member for it yet and Story 2.7 is its producer                                                                                                                                                                                           |
 
 The middle row is the dangerous one, because it is the only one with **no symptom at all**.
 
@@ -316,7 +316,7 @@ a while, or the universe passes ~250 securities.** At 100 rows a person can re-r
 file; at 250 nobody will. On that day the answer is a metadata provider and the licence
 question that comes with it, and the mitigation until then is that
 `classification_retrieved_at` (§4) makes the file's age _visible on screen_ through Story
-2.13 rather than only in git history — which is a weaker guarantee than a check and a
+2.14 rather than only in git history — which is a weaker guarantee than a check and a
 stronger one than nothing.
 
 ---
@@ -391,7 +391,7 @@ a type cannot express — the cross-row ones.
 **Not `packages/shared`.** Only the backend loads the universe, and that package is
 consumed as built output by the frontend, so ~100 rows of data would land in the
 frontend's type graph and its bundle's dependency graph for no reader. The _vocabulary_
-goes there (§1, §2, §3); the _rows_ do not. Story 2.10's search reads them from the API.
+goes there (§1, §2, §3); the _rows_ do not. Story 2.11's search reads them from the API.
 
 **The cost of `.ts`, stated:** it is less obviously data, and somebody will eventually want
 to generate it from a spreadsheet. That is fine — the generator writes the module.
@@ -462,14 +462,14 @@ which of them exist today:
 | The loader               | no — Task 2.3.5                 | A batch size or a single multi-row `insert` built as one statement; Postgres's 65,535 bind-parameter ceiling is reachable at 500 rows × 13 columns                                                                                                                   |
 | The schema               | **yes** — `0002_securities.sql` | Nothing. `bigint` identity, no partitioning, no size assumption                                                                                                                                                                                                      |
 | The validation           | no — Task 2.3.5                 | An O(n²) cross-row check; trivial at 100, still trivial at 500                                                                                                                                                                                                       |
-| An API default page size | no — Story 2.8                  | A limit sized to "the whole universe fits in one response"                                                                                                                                                                                                           |
-| A frontend list          | no — Story 2.9/2.10             | Rendering all of them without virtualisation                                                                                                                                                                                                                         |
-| The bar ingestion        | no — Story 2.7                  | Alpaca's per-request symbol limit and rate limits, which Story 2.6 measures                                                                                                                                                                                          |
+| An API default page size | no — Story 2.9                  | A limit sized to "the whole universe fits in one response"                                                                                                                                                                                                           |
+| A frontend list          | no — Story 2.10/2.11            | Rendering all of them without virtualisation                                                                                                                                                                                                                         |
+| The bar ingestion        | no — Story 2.8                  | Alpaca's per-request symbol limit and rate limits, which Story 2.7 measures                                                                                                                                                                                          |
 | Storage                  | **yes** — measured              | Story 2.1 measured **~22.5 GiB usable** and estimated **~1.18 GB/year** of minute bars at 100 securities. Linear in security count: ~5.9 GB/year at 500, so **~4 years** of headroom against the current disk before the read-only threshold, against **~20** at 100 |
 
 Of the eight, exactly two exist today and neither constrains the count. **The storage row
 is the one with a real number in it**, and it is the one Task 2.3.6 should hand forward
-rather than have Story 2.7 rediscover: expansion to 500 is free everywhere except the
+rather than have Story 2.8 rediscover: expansion to 500 is free everywhere except the
 disk, where it costs a factor of five against a figure Story 2.1 already took.
 
 ---
@@ -517,7 +517,7 @@ standing check belongs and a second one here would be the copy that disagrees.
    margin rather than approached.
 4. **Liquid on IEX.** Every name is a large, heavily traded US listing. This is the rule
    that is **not checkable from the file** and is the one most likely to be wrong: it is a
-   claim about IEX activity taken on judgement, and Story 2.6 is the first thing that can
+   claim about IEX activity taken on judgement, and Story 2.7 is the first thing that can
    measure it. Recorded as a claim rather than presented as verified.
 5. **Market-cap spread within a sector.** Present by construction in the blocks where it
    matters: TSLA sits beside GM and F, NVDA beside INTC and MU, GOOGL and META beside T
@@ -727,7 +727,7 @@ settle §5 before picking a number, not after.
 
 ### The trigger, stated precisely
 
-**Story 2.6 confirms, against a real key, whether minute-bar subscriptions are exempt from
+**Story 2.7 confirms, against a real key, whether minute-bar subscriptions are exempt from
 the 30-channel cap.** Until then the universe stays at 101 and nothing is re-sized.
 
 - **If bars are exempt** — reopen the sizing with ~500 as the starting proposal and
@@ -739,7 +739,7 @@ the 30-channel cap.** Until then the universe stays at 101 and nothing is re-siz
 - **Either way the taxonomy coarsening above is unaffected** and should not wait.
 
 Nothing in the tree encodes the count, so un-parking costs one file edit for as long as no
-bars have been stored against these rows. **After Story 2.7 it costs a re-backfill**, which
+bars have been stored against these rows. **After Story 2.8 it costs a re-backfill**, which
 is the real deadline on this decision and is worth more than the trigger itself.
 
 ---

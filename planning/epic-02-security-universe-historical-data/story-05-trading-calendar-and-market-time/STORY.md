@@ -1,4 +1,4 @@
-# Story 2.4 — Trading Calendar & Market Time Handling
+# Story 2.5 — Trading Calendar & Market Time Handling
 
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
@@ -10,13 +10,29 @@
 Establish, once, what "a trading day" and "market time" mean in this system.
 
 This is an addition to the epic's scope list, made because three later stories each need
-it and none of them is the right place to invent it: Story 2.7 cannot decide which minutes
-should have bars without a session definition, Story 2.12's "last 5 days" is wrong if it
+it and none of them is the right place to invent it: Story 2.8 cannot decide which minutes
+should have bars without a session definition, Story 2.13's "last 5 days" is wrong if it
 means five calendar days, and Epic 13's temporal isolation — invariant 4, the one the
 whole replay capability rests on — is a comparison against a market clock rather than a
 wall clock.
 
 It is small. It is here because the alternative is three inconsistent copies of it.
+
+## What the user can see when this story lands
+
+**Nothing on screen, and the reason is worth stating rather than apologising for.** This
+story decides what a trading session is, what a market holiday does, and how an instant in
+the market is converted between UTC and `America/New_York`. None of that renders.
+
+What it unblocks is everything that has an x-axis. A chart that plots minute bars across a
+weekend, or that draws a gap at 21:30 because somebody's laptop is in London, is wrong in a
+way a user notices immediately and an engineer takes a day to find. **The payoff is visible
+in Story 2.12**, where the price chart's time axis is correct because this story exists.
+
+**The one thing it may make visible early**: the chrome has carried a reserved
+`--:--:-- ET` market clock since Story 1.5, and this is the first story with any opinion
+about market time. Whether that clock starts working here or waits for Epic 3's live feed is
+an open decision below, and it is the cheapest visible win available in this epic.
 
 ## Why it sits here in the sequence
 
@@ -48,7 +64,7 @@ anything that fetches or renders a time series.
 - The replay clock itself, its controls and its state — Epic 13
 - Enforcing temporal isolation in queries — Epic 13, but this story is what makes it
   possible to express
-- Any UI — Story 2.12 consumes this, and the header's reserved market-clock region stays
+- Any UI — Story 2.13 consumes this, and the header's reserved market-clock region stays
   reserved (Epic 3 fills it)
 
 ## Open decisions — settle with the user
@@ -56,7 +72,7 @@ anything that fetches or renders a time series.
 1. **Calendar source.** A provider calendar endpoint is authoritative and adds a network
    dependency to something that must work offline in tests; a checked-in table is offline
    and goes stale at a known rate (one edit a year). Consider fetching it and caching it
-   into the database, which is the shape Story 2.7 uses for bars
+   into the database, which is the shape Story 2.8 uses for bars
 2. **Pre- and post-market.** Excluding them is simpler and is what most charts show;
    including them changes the volume baseline Epic 5 builds and changes what "the session"
    means in replay. Cheaper to decide now than to add

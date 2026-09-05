@@ -41,7 +41,7 @@
 // `withPlugin`, and because that returns a *different object*, the seam holds
 // only if there is no unplugged handle anywhere to import. There is not one:
 // this module builds one, uses it for the migration and destroys it, and
-// `database.ts` gained nothing at all. Story 2.8 writes the first `selectFrom`
+// `database.ts` gained nothing at all. Story 2.4 writes the first `selectFrom`
 // and owns where the *isolated* handle lives.
 //
 // **Forward-only.** There is no `down` and no `migrateDown`. A `down` that has

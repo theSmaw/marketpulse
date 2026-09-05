@@ -113,7 +113,7 @@ bar, once a year, silently.
 **A trading _day_ is a `date`**, not a `timestamptz` — a session is a calendar
 day in `America/New_York`, and that timezone is named explicitly wherever a date
 and an instant are converted. It is never inferred from the server's or the
-process's timezone, both of which are accidents. Story 2.4 owns the calendar.
+process's timezone, both of which are accidents. Story 2.5 owns the calendar.
 
 ### The two timestamps a row has, and why one name cannot do both jobs
 
@@ -153,7 +153,7 @@ for a group of fields — which is invariant 5's _retrieval_ timestamp with **no
 event timestamp beside it, because there is no event**: a security's sector is
 not a fact about the market at an instant, and there is no moment at which "AAPL
 is in technology" became true the way a price became true. So `securities` still
-has no `observed_at`, and `market_bars` in Story 2.7 remains the first table that
+has no `observed_at`, and `market_bars` in Story 2.8 remains the first table that
 exercises the pair.
 
 It is not `recorded_at` either, and the difference is real rather than pedantic:
@@ -333,7 +333,7 @@ mapping is exactly the place a nullable column becomes an explicit domain answer
 acceptance criterion 3 requires). One function per domain type, in the module that
 owns the query — never a generic row-to-object mapper, because a generic mapper is
 where that decision gets skipped, and never in `packages/shared`, which would put
-a row shape back on the frontend's side of the boundary. Story 2.8 writes the
+a row shape back on the frontend's side of the boundary. Story 2.4 writes the
 first read and owns where the isolated query handle lives.
 
 ~~**Nothing checks the interface against the schema**, and that is a real gap of
@@ -659,7 +659,7 @@ indistinguishable from one that certifies something.
 
 What stands in for it is a **tripwire**: the suite asserts there are **no**
 `numeric` columns at all, so it fails the moment one arrives — `market_bars` in
-Story 2.7 — with a message telling whoever added it to replace the tripwire with
+Story 2.8 — with a message telling whoever added it to replace the tripwire with
 the real check and update these two lists. A rule that cannot yet be enforced is
 recorded as failing-open rather than as quietly passing.
 
@@ -670,7 +670,7 @@ story that would add one. It did not, and both candidates were closed
 deliberately rather than by accident: the sector-to-ETF mapping went to
 `packages/shared` as a `Record` total over the taxonomy rather than becoming a
 `sectors` table, and a separate `security_field_provenance` table was rejected in
-favour of columns on the row. So `market_bars.security_id` in Story 2.7 inherits
+favour of columns on the row. So `market_bars.security_id` in Story 2.8 inherits
 it. Recorded rather than left silent, because a convention that quietly survives
 the story that should have tested it is exactly this repository's third class of
 gap.

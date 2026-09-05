@@ -95,7 +95,7 @@ recovery**.
   reporting `reachable: true` — the same observation Task 2.2.7 took, and worth re-taking
   because this is the first deploy that writes rows rather than DDL
 - **Decide whether anything goes into `e2e/specs-deployed/`**, and expect the answer to be
-  no with a reversal trigger. No route serves a security until Story 2.8, so there is
+  no with a reversal trigger. No route serves a security until Story 2.9, so there is
   nothing browser-visible to make a rollback decision from — which is the argument Task
   2.2.7 already made about a schema. Say so explicitly rather than leaving it unanswered
 - **Take the leak check on whatever this task's producers are.** A CI run log is one of

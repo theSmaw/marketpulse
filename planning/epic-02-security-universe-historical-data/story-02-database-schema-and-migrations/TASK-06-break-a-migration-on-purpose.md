@@ -119,8 +119,8 @@ on deploy, and that choice is entirely determined by the answers here.
   also found the shape of the fix and its cost — Kysely's opt-out is `disableTransactions`
   **per `Migrator`**, all or nothing, against `node-pg-migrate`'s `pgm.noTransaction()` per
   migration — and named the answer as a **second `Migrator` over a separate directory**,
-  triggered by Story 2.7's `market_bars` indexes. This task's job is to make the refusal
-  happen on the shipped mechanism, so Story 2.7 meets a documented failure rather than a
+  triggered by Story 2.8's `market_bars` indexes. This task's job is to make the refusal
+  happen on the shipped mechanism, so Story 2.8 meets a documented failure rather than a
   surprise, and to say whether the second-`Migrator` shape still looks right once the runner
   exists. **Do not build it here** — there is no table to index
 - **Make the failure loud**, which is acceptance criterion 4: a non-zero exit, a message
@@ -198,7 +198,7 @@ change does not reach the diagnostic.
 thing the spike could not: it leaves **no `INVALID` index**, because the transaction that
 refused it is the same transaction that would have held the half-built one. The
 second-`Migrator`-over-a-separate-directory answer still looks right now the runner exists,
-and it is still Story 2.7's to build — there is no table to index.
+and it is still Story 2.8's to build — there is no table to index.
 
 ### Both message branches are correct, and the second one is the one a naive check misses
 

@@ -40,7 +40,7 @@ theory: a mistake costs a `DROP`, not a backfill.
   monetary or price value is stored (**`numeric`, not floating point** — the arithmetic in
   Epic 5 is user-visible)
 - The **first schema**: enough for Story 2.3's `securities` table and nothing more.
-  `market_bars` belongs to Story 2.7, where its shape is driven by measured ingestion
+  `market_bars` belongs to Story 2.8, where its shape is driven by measured ingestion
 - A **sixth level of test** — one that talks to a real database — and its cost. Epic 1
   ended with five levels and a stated rule that `pnpm test` must stay fast, need no build and
   need no socket. A database-backed test breaks all three of those, so it needs the
@@ -48,10 +48,10 @@ theory: a mistake costs a `DROP`, not a backfill.
 
 ## Out of scope, and who owns it
 
-- Any table beyond `securities` — Stories 2.3 and 2.7
+- Any table beyond `securities` — Stories 2.3 and 2.8
 - Seed data — Story 2.3, which owns what the seed _contains_; this story owns whether
   seeding is a migration, a script, or neither
-- TimescaleDB — deliberately deferred to Story 2.7, where there is a row count to justify
+- TimescaleDB — deliberately deferred to Story 2.8, where there is a row count to justify
   it against. §30 says "optionally", and §37 says do not add a second data technology
   without a measurement
 
@@ -323,7 +323,7 @@ here, leaving it at 1 failure in ~40 across three tasks, still undiagnosed.
 The mechanism every table in §30 arrives through — **built and exercised** — and the one
 place Epic 13's temporal constraint can later be made structural rather than remembered,
 which is **a claim rather than a property**: the plugin was written in a spike and
-reverted, the tree is byte-identical, and Story 2.8 writes the first `selectFrom` and owns
+reverted, the tree is byte-identical, and Story 2.4 writes the first `selectFrom` and owns
 the module whose export list is the whole guarantee.
 
 ## Conventions

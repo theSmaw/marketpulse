@@ -502,7 +502,7 @@ describe("the closed vocabularies and the check constraints that back them", () 
 
   it("refuses a status outside SECURITY_STATUSES", async () => {
     // `delisted` specifically: it is the member Task 2.3.1 deferred to Story
-    // 2.6 because nothing here can produce it, and a database that accepted it
+    // 2.7 because nothing here can produce it, and a database that accepted it
     // would make that deferral a comment rather than a fact.
     await expect(insertProbe({ status: "delisted" })).rejects.toThrow(
       /securities_status_check/,
@@ -575,7 +575,7 @@ describe("the cross-column invariant between kind and sector", () => {
 
 describe("the provenance columns", () => {
   // Acceptance criterion 6 is that the metadata's source is recorded PER FIELD
-  // in a way Story 2.13 can display. The compiler holds the field-to-group
+  // in a way Story 2.14 can display. The compiler holds the field-to-group
   // mapping (`SECURITY_FIELD_GROUP` is `Record<keyof Security, …>`, so a field
   // added without a group is TS1360); what the database holds is that a row
   // cannot exist without saying where it came from.
@@ -622,7 +622,7 @@ describe("the provenance columns", () => {
     // is no event timestamp beside it, because there is no instant at which
     // "AAPL is in technology" became true the way a price became true. A
     // defaulted `observed_at` here would be exactly the leak that convention
-    // forbids. `market_bars` in Story 2.7 is the first table that exercises the
+    // forbids. `market_bars` in Story 2.8 is the first table that exercises the
     // pair, and this assertion fails there — deliberately, so whoever adds it
     // reads this comment.
     const names = (await readColumns(db()))
@@ -721,7 +721,7 @@ describe("the conventions in migrations/README.md that a database can check", ()
     // which is a green result that certifies nothing.
     //
     // This assertion fails the moment a numeric column arrives, which is
-    // `market_bars` in Story 2.7. That failure is the point: it puts whoever
+    // `market_bars` in Story 2.8. That failure is the point: it puts whoever
     // adds it in this file, to replace this test with the real one rather than
     // to discover months later that the rule was never enforced.
     const numerics = (await projectColumns()).filter(

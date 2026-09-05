@@ -101,7 +101,7 @@
 // "Is the database reachable" is a question this endpoint answers *correctly*
 // when the answer is no. A 503 would be claiming this endpoint failed, and it
 // would additionally need a `SERVICE_UNAVAILABLE` member of `API_ERROR_CODES`
-// — which `database.ts` records as Story 2.8's to add, under that union's own
+// — which `database.ts` records as Story 2.9's to add, under that union's own
 // rule that a member is added by the story that can produce the failure.
 //
 // ## What the body does not contain
@@ -186,7 +186,7 @@ const diagnosticSchema = {
  * ordering forces it: the pool takes `app.log`, so the app must exist before
  * the pool, and the pool before this route. The alternative is the reversal
  * `database.ts` records — the pool entering `ServerOptions` — and that trigger
- * is deliberately **not** fired here: it belongs to Story 2.8's first route
+ * is deliberately **not** fired here: it belongs to Story 2.9's first route
  * that serves data, and firing it for a diagnostic would change
  * `buildServer()`'s signature and every test that calls it, one story early.
  *

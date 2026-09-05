@@ -336,7 +336,7 @@ for the checksum pass anyway.
 A schema is not a user-visible surface, no route reads it, and Task 2.1.7 already declined
 to put the database behind `/health`. The post-deploy browser check's output is a rollback
 decision, and there is no browser-visible consequence of this change to make one from. The
-reversal trigger is Story 2.8's first route that serves data.
+reversal trigger is Story 2.9's first route that serves data.
 
 ### The leak check, on the fifth producer
 

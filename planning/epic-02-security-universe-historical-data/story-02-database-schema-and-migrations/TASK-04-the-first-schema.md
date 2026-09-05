@@ -35,7 +35,7 @@ type`, and removing a value has no operation at all. So `create type security_ki
   backstop. The rest follow the same document: `id bigint generated always as identity
 primary key` with `symbol` `unique` beside it, `text` rather than `varchar(n)`, and no
   `deleted_at` — a removed symbol is a `status`, which is Story 2.3's vocabulary
-- **`market_bars` is not in this task and not in this story.** Story 2.7 owns it, because
+- **`market_bars` is not in this task and not in this story.** Story 2.8 owns it, because
   its shape is driven by measured ingestion rather than by a guess — the partitioning
   question, the primary key, and whether TimescaleDB is warranted are all decisions with a
   row count behind them, and §37 says do not add a second data technology without a
@@ -62,7 +62,7 @@ primary key` with `symbol` `unique` beside it, `text` rather than `varchar(n)`, 
 - **Exercise the conventions on the one table that can**: at least one `timestamptz`, the
   identifier decision applied to a table with a genuine natural key, and the naming rule
   in a foreign key if there is one to have — and if there is not, say so, because that is a
-  convention this story cannot test and Story 2.3 or 2.7 will be the first to.
+  convention this story cannot test and Story 2.3 or 2.8 will be the first to.
   **One candidate for that list is already visible and it is the most consequential
   convention 2.2.3 wrote, so decide it here rather than letting the story close without
   noticing.** The `observed_at` / `recorded_at` pair exists because invariant 5 needs an
@@ -70,7 +70,7 @@ primary key` with `symbol` `unique` beside it, `text` rather than `varchar(n)`, 
   13's temporal plugin filters on — but `securities` is **reference data rather than a fact
   about the market**, so it plausibly has a `recorded_at` and an `updated_at` and no
   `observed_at` at all. If that is the answer, say so explicitly and name `market_bars`
-  (Story 2.7) as the first table that exercises the pair, because "the only table in the
+  (Story 2.8) as the first table that exercises the pair, because "the only table in the
   schema has one timestamp" is exactly how a two-timestamp convention quietly becomes a
   one-timestamp habit. Do **not** add an `observed_at` to `securities` to make the
   convention look tested — a defaulted or invented one is the leak the convention forbids
@@ -81,7 +81,7 @@ primary key` with `symbol` `unique` beside it, `text` rather than `varchar(n)`, 
   on, it would drag Kysely's `Generated` and `ColumnType` into whatever imports it, and
   `packages/shared` is consumed as built output. `Security` goes in `packages/shared` and
   **what maps between them lives beside the query, one function per domain type and never a
-  generic mapper**, which is Story 2.8's to write and this task's to not pre-empt. Task
+  generic mapper**, which is Story 2.9's to write and this task's to not pre-empt. Task
   2.2.5 asserts the interface against `information_schema`. In
   between, **no task owned actually writing it**, and Task 2.2.2 left the migrator on
   `Kysely<unknown>` because there was no table and therefore nothing true to say. That gap
@@ -112,7 +112,7 @@ primary key` with `symbol` `unique` beside it, `text` rather than `varchar(n)`, 
 ## Notes
 
 The temptation this task exists to resist is `market_bars`. It is the table the epic is
-about, its shape looks obvious, and adding it here would cost Story 2.7 the one thing it
+about, its shape looks obvious, and adding it here would cost Story 2.8 the one thing it
 has that this story does not: a measurement.
 
 ## Outcome — 2026-09-05
@@ -151,12 +151,12 @@ primary key and `symbol`'s unique constraint, and **no Postgres `enum` type**.
 data rather than a fact about the market: there is no instant at which a security "was
 true" that differs from when we recorded it. Adding a defaulted one to make the convention
 look tested would be exactly the leak `migrations/README.md` §2 forbids. **`market_bars`
-(Story 2.7) is the first table that exercises the pair**, and it is named here so that "the
+(Story 2.8) is the first table that exercises the pair**, and it is named here so that "the
 only table in the schema has one timestamp" does not quietly become the habit.
 
 Two other conventions are untested for the same reason and are named rather than assumed:
 the **foreign-key naming rule** (`<table_singularised>_id`), because this table references
-nothing — Story 2.3 or 2.7 will be the first — and the **`numeric(18, 6)` money rule**,
+nothing — Story 2.3 or 2.8 will be the first — and the **`numeric(18, 6)` money rule**,
 because `securities` holds no money. `updated_at` has **no trigger**: it is correct at
 insert through its default and maintained by the writer thereafter, on the argument that a
 trigger is a second place row behaviour lives that no tool here reads, against exactly one
