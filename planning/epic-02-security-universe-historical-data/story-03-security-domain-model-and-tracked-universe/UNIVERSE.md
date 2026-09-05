@@ -474,10 +474,130 @@ disk, where it costs a factor of five against a figure Story 2.1 already took.
 
 ---
 
+## 9. The list, and the distribution read against §7 (Task 2.3.4, 2026-09-05)
+
+**Written by Task 2.3.4, into this document rather than into a task file**, because §7's
+rule and the list that satisfies it disagreeing is the failure the split exists to catch,
+and a reader who has to open two files to notice will not notice.
+
+The list is `apps/backend/src/universe.ts`. **101 securities: 86 equities, the 11 sector
+proxies and the 4 index proxies.**
+
+### The distribution, printed from the file rather than asserted
+
+Acceptance criterion 4 says the distribution is **inspected**, and the difference between
+inspected and asserted is this table. It was produced by importing the compiled module and
+counting — the throwaway script is not kept, because Task 2.3.5's loader is where a
+standing check belongs and a second one here would be the copy that disagrees.
+
+| Sector                 | ETF    | Equities | % of equities |
+| ---------------------- | ------ | -------: | ------------: |
+| Technology             | `XLK`  |       12 |         14.0% |
+| Health Care            | `XLV`  |        9 |         10.5% |
+| Financials             | `XLF`  |        9 |         10.5% |
+| Consumer Discretionary | `XLY`  |        9 |         10.5% |
+| Industrials            | `XLI`  |        8 |          9.3% |
+| Communication Services | `XLC`  |        7 |          8.1% |
+| Consumer Staples       | `XLP`  |        7 |          8.1% |
+| Energy                 | `XLE`  |        7 |          8.1% |
+| Utilities              | `XLU`  |        6 |          7.0% |
+| Real Estate            | `XLRE` |        6 |          7.0% |
+| Materials              | `XLB`  |        6 |          7.0% |
+
+**Read against §7's rules, one at a time, rather than summarised as "it passes":**
+
+1. **Every sector present, with its ETF.** Eleven of eleven, and the eleven `sector_etf`
+   rows are generated from `SECTOR_ETFS` rather than typed, so this one cannot fail by
+   data entry. Confirmed against the actual symbols in the list, not against the mapping.
+2. **Floor of 6.** Met exactly — utilities, real estate and materials sit **on** the line
+   rather than above it. See "where the rule bit" below; that is a decision, not a
+   shortfall.
+3. **Ceiling of 12.** Met exactly — technology sits **on** the line. The largest sector is
+   **14.0%** of the equities against the criterion's 40%, so the criterion is met with
+   margin rather than approached.
+4. **Liquid on IEX.** Every name is a large, heavily traded US listing. This is the rule
+   that is **not checkable from the file** and is the one most likely to be wrong: it is a
+   claim about IEX activity taken on judgement, and Story 2.6 is the first thing that can
+   measure it. Recorded as a claim rather than presented as verified.
+5. **Market-cap spread within a sector.** Present by construction in the blocks where it
+   matters: TSLA sits beside GM and F, NVDA beside INTC and MU, GOOGL and META beside T
+   and VZ. A sector of ten mega-caps has a breadth number that is always ~0% or ~100%.
+6. **Every symbol PRODUCT_SPEC.md names by hand.** All eight present — **NVDA**, **SPY**,
+   **AMD**, **AVGO**, **TSLA**, **QQQ**, **DIA**, **IWM** — checked by lookup against the
+   compiled list rather than by reading. Nothing is absent, so nothing needs arguing.
+7. **A deep semiconductor group.** **8 constituents** on `Semiconductors`, which is the
+   deepest industry in the file and the whole reason technology is at the ceiling. §38's
+   "semiconductor weakness is broad" and §11's "82% of semiconductor securities currently
+   negative" are **industry**-level claims, and a group of three makes both of them
+   arithmetic over nothing.
+
+Ten industries carry three or more constituents (`Semiconductors` 8, `Electric Utilities`
+5, `Pharmaceuticals` 4, `Diversified Banks` 4, then six at 3), across **45 distinct
+industries**. That spread is what stops the industry column being decorative: a
+sector-level breadth number and an industry-level one can disagree, which is exactly the
+distinction §11's worked example draws.
+
+### Where the rule bit, stated rather than smoothed over
+
+**Rules 3 and 4 pull against each other and rule 4 won twice.** Utilities, real estate and
+materials are at the floor of 6 and not above it, because there are not many large,
+IEX-liquid US names in them and padding a block with thin ones would give Epic 5 an
+anomaly score computed over noise — which is worse than a small sector, because it is
+wrong rather than merely coarse. §7 anticipated this tension and the ~19 discretionary
+slots absorbed it in the other direction instead: they went to technology, health care,
+financials and consumer discretionary, where liquidity is not the constraint.
+
+**The rule was not relaxed and the list was not padded.** No number in §7 changed.
+
+### The classification is a single source, which is what Task 2.3.5 needs to know
+
+**Every row's profile and classification came from the same place: hand curation in this
+repository, with no per-row exception.** No sector, industry, name or venue was taken from
+a different source. So Task 2.3.5's loader may write **one** `classification_source` and
+one `profile_source` string for the whole file and needs no per-row override — which is
+the one negative fact this task owed §4's arrangement, and it holds.
+
+`cik` is `null` on all 101 rows. Epic 9 populates it, and a guessed identifier is worse
+than an absent one because Epic 9 will trust it.
+
+**The technology / communication services / consumer discretionary boundary is where this
+file is most arguable**, exactly as §1 warned: AMZN and TSLA are consumer discretionary,
+GOOGL and META are communication services, and a reasonable person would put all four in
+technology. That assignment is a recorded claim with a provenance of `curated`, not a
+fact — which is why provenance is per field group and why it is worth having at all.
+
+### What holds it, and what this task did not build
+
+The compiler holds the row-level rules, and all four were **made to fail before being
+believed**: a sector outside the taxonomy is `TS2345` naming the eleven members; an index
+proxy carrying a sector is `TS2322`; a row that omits `industry` is `TS2741`, because
+under `exactOptionalPropertyTypes` an omitted key is not a `null` one; and a twelfth
+sector added to `SECTORS` is `TS2741` twice in `packages/shared` — once for `SECTOR_ETFS`
+and once for `SECTOR_LABELS` — before it ever reaches this file. A malformed ticker is a
+`TypeError: Not a valid US equity ticker: "NVDA CORP"` at module load, produced.
+
+**Every cross-row rule is left to Task 2.3.5 and deliberately not half-expressed here** —
+no duplicate-symbol check, no "every sector has its ETF" check, no count. Those are
+statements about the whole list, which is the same shape Task 2.2.4 refused to encode as a
+row-level `check`.
+
+**Nothing was loaded.** `securities` holds **0 rows**, read back after the work.
+
+### The count is recorded here and encoded nowhere
+
+Per §8: there is no `EXPECTED_COUNT`, no asserted array length, no page size and no
+constant anywhere that would have to change to reach 500. `UNIVERSE.length` is the only
+way to learn the count, and the only place the number 101 appears in the repository is
+this document. Task 2.3.6 owes the argument; this task owed the absence, and it is absent.
+
+---
+
 ## What this task deliberately did not decide
 
-- **The actual symbols.** Task 2.3.4's, and it is a product conversation. Writing them
-  here would be the rule reverse-engineered from the list.
+- ~~**The actual symbols.** Task 2.3.4's, and it is a product conversation. Writing them
+  here would be the rule reverse-engineered from the list.~~ **Task 2.3.4 wrote them; see
+  §9.** The struck-through sentence is kept because the order it describes is the point:
+  the rule in §7 was written before the list and did not move to accommodate it.
 - **The exact column names in `0003`.** Task 2.3.3's, following §2, §3 and §4.
 - **What a removal does to a reader.** §3 fixes the vocabulary and states that `status` is
   an invisible predicate; **naming the readers is Task 2.3.6's**, because it cannot be
