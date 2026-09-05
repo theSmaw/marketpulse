@@ -41,7 +41,12 @@ Acceptance criteria 2 and 3.
   sector present has a corresponding sector ETF. The second is a statement about the whole
   universe — the reason Task 2.2.4 refused to encode it as a row-level `check` — so it is
   this program's job. **A security with neither fails the load**, so the whole load is one
-  transaction and a failure leaves the database exactly as it was; say so, and produce it
+  transaction and a failure leaves the database exactly as it was; say so, and produce it.
+  Add the third set-level check Task 2.3.1's mapping decision creates: **every
+  `sector_etf` row's `sector` agrees with the `packages/shared` mapping, and every entry in
+  that mapping has a row**. The compiler makes the mapping total over the taxonomy and can
+  say nothing about whether the universe file's rows match it, which is exactly the seam a
+  generated-then-hand-edited row slips through
 - **Report every violation rather than the first**, in the shape `config.ts`'s accumulator
   already has, because a curated file with three unclassified symbols should take one run
   to fix rather than three. Reuse the existing predicates rather than writing new ones —

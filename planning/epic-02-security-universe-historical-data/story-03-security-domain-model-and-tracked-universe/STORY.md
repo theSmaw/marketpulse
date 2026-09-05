@@ -26,9 +26,10 @@ are.
 ## Scope
 
 - The `Security` type in `packages/shared`, and the vocabulary it fixes: symbol, name,
-  exchange, kind (**equity or ETF — they are not the same thing and Epic 4 treats them
-  differently**), sector, industry, status, and the identifiers that let Epic 9 map a
-  security to a CIK later
+  exchange, kind (**an equity, a sector ETF and an index ETF are three different things and
+  Epic 4 treats them differently** — Task 2.3.1 widened `SECURITY_KINDS` from the two
+  members this line originally named), sector, industry, status, and the identifiers that
+  let Epic 9 map a security to a CIK later
 - The `securities` table and its migration
 - **The chosen universe, with the selection rule written down**, so the list can be
   regenerated rather than only edited: liquidity, market-cap spread, and — the criterion a

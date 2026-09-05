@@ -44,11 +44,17 @@ interesting to show.
   count is a fact about today's file that gets **recorded** in `UNIVERSE.md` and **derived**
   everywhere else. Task 2.3.6 owes the argument that expansion needs no redesign; this task
   owes it the absence of anything that would make the argument false
-- **Make the file typecheck against `Security` if Task 2.3.1 chose a `.ts` module**, which
-  is the whole reason that format wins: a row missing a sector, or carrying a sector that
-  is not in the taxonomy, is a compile error rather than a load-time failure. If it chose a
-  data format instead, say here what now catches that class and when — because the answer
-  is Task 2.3.5's loader and nothing before it
+- **Make the file typecheck against `Security`.** Task 2.3.1 chose a `.ts` module at
+  `apps/backend/src/universe.ts`, and this is the whole reason that format won: a row
+  missing a sector, or carrying a sector that is not in the taxonomy, is a **compile
+  error** rather than a load-time failure
+- **Derive the eleven `sector_etf` rows from the sector-to-ETF mapping rather than typing
+  them twice.** Task 2.3.2 puts that mapping in `packages/shared` as a `Record` total over
+  the taxonomy, and a `sector_etf` row's `sector` is precisely the key it is the value of —
+  so hand-typing `XLK`, `XLV` and the rest here creates a second copy of a table that
+  already exists, in the same commit as the first. `UNIVERSE.md` §1 records this as the one
+  real cost of putting the mapping in `packages/shared`, and generating the rows from it is
+  the stated mitigation. The four index proxies are genuinely data and are typed out
 - **Leave every cross-row rule to the loader.** "Every sector present has a corresponding
   sector ETF" is a statement about the whole list rather than about a row — the same shape
   Task 2.2.4 refused to encode as a row-level `check` — so it belongs in Task 2.3.5's
