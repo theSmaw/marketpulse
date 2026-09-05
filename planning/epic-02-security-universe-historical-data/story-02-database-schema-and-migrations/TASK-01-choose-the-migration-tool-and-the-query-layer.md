@@ -1,9 +1,9 @@
 # Task 2.2.1 — Choose the migration tool and the query layer, installing nothing permanent
 
-**Status:** Not started
+**Status:** Complete (2026-09-05)
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
 **Depends on:** Story 2.1 (a reachable database, local and deployed)
-**Record:** `DATA-LAYER.md` (in this directory), created by this task — the story's one
+**Record:** [`DATA-LAYER.md`](DATA-LAYER.md) (in this directory), created by this task — the story's one
 document about how this repository describes a database, in the shape
 `BROWSER-TESTING.md` has for Story 1.13 and `HOSTING.md` has for Story 1.11. One
 document per subject; a second one about the same subject is a copy waiting to disagree

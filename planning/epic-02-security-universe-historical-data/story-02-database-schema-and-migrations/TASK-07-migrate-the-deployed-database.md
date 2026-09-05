@@ -21,6 +21,15 @@ assumed, and settle where that happens relative to a deploy.
   command** is honest, has no failure mode nobody chose, and is a step somebody forgets.
   Write the answer to "the migration succeeded and the deploy then failed" for whichever
   is chosen, because that sentence is the decision
+- **Connecting at all is solved, so do not re-solve it — the open question is _as whom_.**
+  Task 2.2.1 measured that Kysely's `PostgresDialect` takes an existing `pg.Pool`, and
+  re-took Task 2.1.4's credential measurement through it: three concurrent queries on a cold
+  pool of three produced **three** credential calls and three more on the warm pool produced
+  **none**. So a migration that builds its pool through `createDatabasePool` gets the Entra
+  token path, TLS `verify-full`, the `pool.on("error")` handler and the connection deadline
+  for free, and `DATABASE_AUTH=entra` needs no new token code anywhere. That removes the
+  mechanical half of this task and leaves the half below, which is the part with a decision
+  in it
 - **Answer who the migration connects as, which is this task's real work.** The deployed
   server is **Entra-only**, `passwordAuth` is `Disabled` and `administratorLogin` is
   `null`, so there is no connection string with a password in it anywhere. Three identities

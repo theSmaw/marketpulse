@@ -40,7 +40,15 @@ epics read instead of re-deriving it.
   and a command list, and the levels-of-test paragraph says five and will say six. The
   distinction that a naive grep destroys is the one Task 1.12.8 named and Task 1.13.6
   re-proved: a **live** claim gets amended, a **historical record** of what a task measured
-  at the time is correct in its own context and stays
+  at the time is correct in its own context and stays. **Three more candidates arrived with
+  Task 2.2.1, and two of them are claims that task wrote itself.** `DATA-LAYER.md` says the
+  query layer is Kysely and that the temporal seam is structural — which stays a **claim**
+  until a query exists, and 2.2.1 said so, but a closing task should check the wording did
+  not quietly harden in the retelling. `CLAUDE.md` now says `allowBuilds` is keyed on a
+  package **name** rather than a version and that the sweep's single line is a property of
+  what is installed rather than of the policy — so re-run the sweep and count its lines. And
+  2.2.1's costs were measured against a baseline of **418 store entries**, which is exactly
+  the kind of figure a clean clone re-takes and the one most likely to have moved
 - **Write the conventions into `README.md`'s command reference**, because `pnpm migrate`
   and the database-test command are both things a developer runs and neither is discoverable
   from a task file. Point at Task 2.2.3's document rather than copying it
@@ -52,7 +60,12 @@ epics read instead of re-deriving it.
   migration identity's grants live only in the platform, that the two Vitest globs
   partitioning fast tests from database tests are a naming convention with nothing behind
   it, and that a schema matching in two databases says nothing about the third copy nobody
-  has migrated
+  has migrated. **Task 2.2.1 adds two more and both are structural rather than
+  procedural**: Kysely's `kysely_migration` carries no checksum, so an applied migration
+  whose file was later edited is skipped in silence unless something this story built checks
+  it; and the temporal-isolation seam is a **plugin attached to one handle**, so it holds
+  only while no unplugged `Kysely` instance is exported — which nothing enforces, and which
+  is the same class as `e2e/package.json`'s missing `test` script
 - **Update the gap lists in `CLAUDE.md` by re-measurement**, not by editing the text: re-run
   `prettier --file-info` and `eslint` on whatever this story added, since a `.sql` file is
   read by nothing here and a `.ts` migration is read by everything, and those are two

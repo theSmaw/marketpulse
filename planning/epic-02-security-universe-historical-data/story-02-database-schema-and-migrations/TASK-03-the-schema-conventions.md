@@ -42,12 +42,19 @@ table is a convention with two exceptions in it.
   it needs the argument stated anyway, because Story 2.3 asks directly what happens to data
   already stored for a removed symbol, and answering that with a `deleted_at` invented in
   a hurry is how a status column and a soft-delete column end up meaning overlapping things
-- **Whether the schema or the TypeScript types are the source of truth**, and which
-  direction generation runs if either is generated. `packages/shared` already holds the
-  domain vocabulary and is consumed as **built output**, which is the constraint: a
-  generated type that lands there needs a build ordering, and a generated type that lands
-  in `apps/backend` is a type the frontend cannot see. Story 2.3 puts `Security` in shared,
-  so the answer is load-bearing one task later
+- **Whether the schema or the TypeScript types are the source of truth — half answered, and
+  the half that remains got sharper.** Task 2.2.1 settled the generation direction:
+  **nothing is generated**, no build step is added, and the schema is the source of truth
+  with the TypeScript following it by hand (`kysely-codegen` introspects a **live** database
+  and was rejected against acceptance criterion 7). What is left is where that hand-written
+  type lives, and it is a real question because there are now **two** of them: Kysely's
+  `Database` interface, which describes the tables as Postgres holds them, and Story 2.3's
+  `Security`, which is domain vocabulary and goes in `packages/shared`. They are not the
+  same type — a row has a `sector_id` where a domain object has a sector — and deciding they
+  are is how a nullable column ends up in a frontend type. Say whether the `Database`
+  interface stays in `apps/backend`, and say what maps between the two and where that lives.
+  `packages/shared` is consumed as **built output**, which is the constraint on any answer
+  that puts either one there
 - **Whether seed data is a migration, a script, or neither** — the story's own out-of-scope
   note gives this story the mechanism and Story 2.3 the contents. The distinction worth
   writing down is that a migration is **applied once and recorded**, so data in a migration

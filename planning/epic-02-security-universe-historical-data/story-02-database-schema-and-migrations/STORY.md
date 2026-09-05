@@ -57,21 +57,51 @@ theory: a mistake costs a `DROP`, not a backfill.
 
 ## Open decisions — settle with the user
 
-1. **Migration tool.** Candidates worth measuring rather than arguing about: plain SQL
+**Decisions 1 and 2 are settled, and the generation half of decision 4 with them** — Task
+2.2.1 measured five candidates from a fresh install and recorded the arguments in
+[`DATA-LAYER.md`](DATA-LAYER.md). The migrator is **Kysely's `Migrator`** driving plain SQL
+files through a provider we own; the query layer is **Kysely** too, declared as a seam rather
+than written, since this story ships no read; **nothing is generated**; migrations are
+**forward-only**; and **`pg` and `database.ts` survive unchanged**. Decision 3 is still open
+and belongs to Task 2.2.7. The original wording is kept below rather than deleted, because it
+records what was being weighed at the time.
+
+1. ~~**Migration tool.**~~ **Settled — Kysely's `Migrator`, +1 store entry and no
+   dependencies.** The precedent question resolved to the `@fastify/cors` case, and it was
+   produced rather than argued: a plausible hand-rolled runner, differing from a correct one
+   only by recording its bookkeeping row outside the transaction, printed
+   `applied 0002_partial.sql` at **exit 0** over a database whose tables did not exist. The
+   partial-migration question separated **none** of the three real candidates, because
+   Postgres has transactional DDL and all three put the bookkeeping row inside the same
+   transaction — so the decision rested on cost, on the failure modes Kysely detects by name,
+   and on the query layer. The original text:
+   **Migration tool.** Candidates worth measuring rather than arguing about: plain SQL
    files with a tiny runner, `node-pg-migrate`, Kysely's migrator, Drizzle, Prisma. The
    repository's own precedent is instructive — Story 1.6 spiked two schema libraries and
    threw both away, Task 1.7.6 threw away `react-error-boundary`, and Task 1.8.3 kept
    `@fastify/cors` because a hand-rolled version fails in a way that looks like success.
    Weigh: what it adds to the install, whether it needs a build step, whether it owns the
    types as well as the schema, and what it does on a partially applied migration
-2. **Query layer.** A query builder with generated types, an ORM, or `pg` with hand-written
+2. ~~**Query layer.**~~ **Settled — Kysely, and on the architectural test rather than the
+   ergonomic one.** The temporal seam was written for two candidates: `pg` with hand-written
+   SQL leaks one `pool.query` away, produced; Kysely's AST plugin injected the predicate into
+   a call site that asked for no filter, left non-temporal queries untouched, and **refused**
+   the raw-SQL bypass it could not rewrite. The cost is stated rather than discovered — the
+   `Database` interface is hand-written and nothing checks it against the schema, which Task
+   2.2.5 now owns against `information_schema`. The original text:
+   **Query layer.** A query builder with generated types, an ORM, or `pg` with hand-written
    SQL and hand-written row types. The invariant to protect is architectural rather than
    ergonomic: **Epic 13 enforces temporal isolation in the data layer**, so whatever is
    chosen must make "no query may read past the replay clock" expressible in one place
    rather than remembered at every call site
 3. **Where migrations run on deploy**, and what a failed migration does to the rollout
-4. **Whether the schema or the TypeScript types are the source of truth**, and which
-   direction generation runs if either is generated
+4. **Whether the schema or the TypeScript types are the source of truth** — **the generation
+   half is answered: nothing is generated**, the schema is the source of truth and the
+   TypeScript follows it by hand (`kysely-codegen`, `drizzle-kit pull` and `prisma migrate
+dev` all introspect a **live** database and lose acceptance criterion 7). What remains for
+   Task 2.2.3 is where the hand-written types live, and there are now two of them: Kysely's
+   `Database` interface, which describes rows, and Story 2.3's `Security`, which is domain
+   vocabulary bound for `packages/shared`
 
 ## Acceptance criteria
 
@@ -104,16 +134,16 @@ which is what determines 2.2.7's shape rather than the other way round. 2.2.7 is
 the story says gets skipped and then hurts, and it is where the Entra-only credential path
 stops being the backend's problem alone. 2.2.8 closes the story and records ADR 0015.
 
-| #     | Task                                                                                                                                    | Status      |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 2.2.1 | [Choose the migration tool and the query layer, installing nothing permanent](TASK-01-choose-the-migration-tool-and-the-query-layer.md) | Not started |
-| 2.2.2 | [Install the mechanism and make an empty migration real](TASK-02-the-mechanism-and-an-empty-migration.md)                               | Not started |
-| 2.2.3 | [Write the conventions down, before there is a table to argue about](TASK-03-the-schema-conventions.md)                                 | Not started |
-| 2.2.4 | [The first schema: `securities` and nothing more](TASK-04-the-first-schema.md)                                                          | Not started |
-| 2.2.5 | [The sixth level of test, and what it costs `pnpm test`](TASK-05-the-sixth-level-of-test.md)                                            | Not started |
-| 2.2.6 | [Break a migration on purpose, locally, and record what it leaves behind](TASK-06-break-a-migration-on-purpose.md)                      | Not started |
-| 2.2.7 | [Migrate the deployed database, and decide what a failed migration does to a rollout](TASK-07-migrate-the-deployed-database.md)         | Not started |
-| 2.2.8 | [Verify from a clean clone, document, and record ADR 0015](TASK-08-verify-document-and-adr.md)                                          | Not started |
+| #     | Task                                                                                                                                    | Status       |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| 2.2.1 | [Choose the migration tool and the query layer, installing nothing permanent](TASK-01-choose-the-migration-tool-and-the-query-layer.md) | **Complete** |
+| 2.2.2 | [Install the mechanism and make an empty migration real](TASK-02-the-mechanism-and-an-empty-migration.md)                               | Not started  |
+| 2.2.3 | [Write the conventions down, before there is a table to argue about](TASK-03-the-schema-conventions.md)                                 | Not started  |
+| 2.2.4 | [The first schema: `securities` and nothing more](TASK-04-the-first-schema.md)                                                          | Not started  |
+| 2.2.5 | [The sixth level of test, and what it costs `pnpm test`](TASK-05-the-sixth-level-of-test.md)                                            | Not started  |
+| 2.2.6 | [Break a migration on purpose, locally, and record what it leaves behind](TASK-06-break-a-migration-on-purpose.md)                      | Not started  |
+| 2.2.7 | [Migrate the deployed database, and decide what a failed migration does to a rollout](TASK-07-migrate-the-deployed-database.md)         | Not started  |
+| 2.2.8 | [Verify from a clean clone, document, and record ADR 0015](TASK-08-verify-document-and-adr.md)                                          | Not started  |
 
 **Two things about this split worth stating, because both are decisions rather than
 consequences.** The **conventions come before the first table** (2.2.3 before 2.2.4): the
