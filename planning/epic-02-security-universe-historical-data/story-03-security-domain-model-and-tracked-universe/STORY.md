@@ -359,16 +359,31 @@ decision was taken — a status transition to `untracked`, never a `DELETE` — 
 is `UNIVERSE.md` §12.** Two task files gain something and one expectation this story held
 was wrong.
 
-- **2.3.7** inherits one new fact and it is the one that would be discovered the expensive
-  way: **the deployed `securities` table can now hold rows the file does not contain**, so
-  the first deployed run of `pnpm universe` after any future removal writes an `update`
-  rather than only inserts, and the row count and the universe count stop being the same
-  number. Nothing about the step changes; what changes is what its output means.
+- **2.3.7** loses a hazard and gains an argument. **The `0003`-is-unmerged ordering hazard
+  it states twice is FALSE**, falsified by a merge rather than by anything here: `0003` is
+  on `origin/main` and three `deploy.yml` runs have succeeded on `main` since, so the
+  deployed database already carries the three-member `kind`, the `status` check and the
+  provenance columns — checked with `git cat-file` and `gh run list` rather than assumed.
+  What replaces it is to **confirm that from the deployed database** rather than infer it.
+  The argument it gains is against **boot-time seeding**, and it did not exist before this
+  task: the loader now writes rows it did **not** insert, so two revisions booting with
+  different `universe.ts` files during a rollout can untrack and re-activate the same symbol
+  depending on start order — a flip-flop against production that a `deploy.yml` step, which
+  runs once with one file, cannot produce. It also inherits the fact that **the deployed
+  table can now hold rows the file does not contain**, so the row count and the universe
+  count stop being the same number from the first removal onward, and its read-back should
+  assert **101 `active` and zero `untracked`** on a first load.
 - **2.3.8** gains `load-universe.ts`'s new `untrackAbsent` and the `README.md` paragraph
   that used to say a removed symbol is "left alone" (rewritten here), plus moved figures:
   **`pnpm test` is 287 and `pnpm test:database` is 55**. It also inherits the one live
   claim this task created and nothing checks — the seven readers of `status` in
-  `UNIVERSE.md` §12.2, which is a gap of the third kind by construction.
+  `UNIVERSE.md` §12.2, which is a gap of the third kind by construction, and the most
+  expensive thing in this story to get wrong. **And one of its standing expectations turned
+  out backwards**: it expected 2.3.6 to falsify `universe.ts`'s self-describing comments and
+  §9's table, and neither moved, so both sweep items become _confirm still true_ rather than
+  _expect stale_. Two live wrong claims in `packages/shared/src/security.ts` — `untracked`
+  "Task 2.3.6 produces this one" and `symbol`'s "Task 2.3.6 decides" — were **resolved here
+  rather than left for the sweep**, because this task is what falsified them.
 - **The expectation that was wrong:** 2.3.6's own brief said §9's distribution table is
   "the count this task moves". It is not. `universe.ts` is byte-identical to Task 2.3.4's,
   and the demonstrations were produced in a scratch database and reverted — Task 2.2.6's

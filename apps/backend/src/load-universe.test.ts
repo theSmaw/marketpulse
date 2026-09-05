@@ -115,7 +115,8 @@ describe("validateUniverse", () => {
   it("accepts the real universe", () => {
     // Not the interesting test — everything above holds it — but it is the one
     // that fails if the shipped file ever stops satisfying its own rules, which
-    // is what Task 2.3.6's first edit could do.
+    // is what any edit to the list could do — the procedure for making one is
+    // `UNIVERSE.md` §12.8.
     //
     // Imported lazily so this file's other tests do not depend on ~900 lines of
     // data, and so a malformed ticker in that file fails as an import error

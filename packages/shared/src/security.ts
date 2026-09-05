@@ -250,7 +250,23 @@ export const SECTOR_LABELS: Record<Sector, string> = {
  * - **`active`** — it is in the universe file; we track it and we store bars
  *   against it.
  * - **`untracked`** — it was removed from the universe file. **The row stays
- *   and so do its bars.** Task 2.3.6 produces this one.
+ *   and so do its bars.** Task 2.3.6 chose this over a `DELETE` and over
+ *   refusing the load, and produced both alternatives rather than arguing them:
+ *   under a `DELETE` a removed-then-re-added symbol comes back on a **new**
+ *   `id`, orphaning everything filed against the old one. The loader writes it
+ *   — see `untrackAbsent` in `apps/backend/src/load-universe.ts`.
+ *
+ * **What every reader of this column owes it, because it is an invisible
+ * predicate.** `migrations/README.md` §5's argument is that one is a design and
+ * two is a bug waiting for whoever forgets, and this is the one. The rule, and
+ * the seven readers it was derived against, are in `UNIVERSE.md` §12.2: filter
+ * on `status` when computing over *the market we track now* — ingestion,
+ * breadth, sector performance, topology, anomaly detection — and **never** when
+ * showing or replaying *something we stored*. Epic 13 is the one that matters:
+ * a security untracked today was tracked on the date being replayed, so a
+ * replay that filtered on today's `status` would silently rewrite history,
+ * which is invariant 4's failure arriving through a column rather than through
+ * a timestamp.
  *
  * **`delisted` is deliberately not a member, and this is the decision most
  * likely to be questioned.** It is a genuinely different event — one is a fact
@@ -303,8 +319,13 @@ interface SecurityBase {
    *
    * **This is the identity and it is not stable.** `FB` became `META`, and the
    * database's surrogate `id` exists for exactly that case. Nothing here can
-   * join old rows to a new name; Task 2.3.6 decides whether this story handles
-   * a ticker change or records it as a gap with an owner.
+   * join old rows to a new name, and **Task 2.3.6 recorded that as a gap with
+   * an owner rather than building a mechanism against no instance** — produced,
+   * not assumed: renaming a symbol in the universe file gives **two rows, two
+   * ids and nothing joining them**, the old one correctly `untracked` with its
+   * history and the new one empty. **The owner is Story 2.7**, the first thing
+   * here with any opinion about a symbol's lifecycle. Until then a rename loses
+   * the link between the old bars and the new symbol. `UNIVERSE.md` §12.6.
    */
   symbol: Ticker;
 
