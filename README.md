@@ -576,8 +576,8 @@ the same second half for the same reason.
 ### What `pnpm test` covers
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
-in this workspace. `packages/shared` runs 37 tests across 4 files,
-`apps/backend` 99 across 7, and `apps/frontend` 103 across 12 — **239 in
+in this workspace. `packages/shared` runs 55 tests across 5 files,
+`apps/backend` 99 across 7, and `apps/frontend` 103 across 12 — **257 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
