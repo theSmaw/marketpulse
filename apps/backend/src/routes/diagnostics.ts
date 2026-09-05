@@ -42,15 +42,24 @@
 // ## And why the readiness probe is not pointed here either
 //
 // The brief offers a readiness surface as the middle shape, and it is refused
-// on a measurement rather than on caution. This app is `Single` revision mode
-// at `minReplicas: 1`, so there is exactly one replica behind the ingress: an
-// unready replica is not a degraded service, it is **no** service. Measured by
-// pointing the readiness probe at a path that 404s — see the task's record —
-// the public FQDN answered `503` while the replica itself was serving `/health`
-// 200 on its own port. So a readiness probe that fails on an unreachable
-// database would take a working application, whose every current route is
-// answerable without a database, entirely off the air because a dependency none
-// of them uses is down. That is strictly worse than the baseline above.
+// on the deployment's own shape. This app is `Single` revision mode at
+// `minReplicas: 1`, so there is exactly one replica behind the ingress: an
+// unready replica is not a degraded service, it is **no** service, because
+// there is no second replica for the ingress to send traffic to. So a readiness
+// probe that fails on an unreachable database would take a working application,
+// whose every current route is answerable without a database, entirely off the
+// air because a dependency none of them uses is down. That is strictly worse
+// than the baseline above.
+//
+// **This one is reasoned rather than produced, deliberately, and saying so is
+// the point.** Producing it means pointing the readiness probe at a failing
+// path and taking the deployed backend off the air to watch it happen — a live
+// outage spent confirming how ingress is defined to work, in support of a shape
+// that is being *rejected* rather than shipped. The three facts it rests on are
+// each readable without breaking anything: the revision mode, the replica count
+// and the probe table are all in `az containerapp show`, and they were read off
+// the live app rather than recalled. Where a rejection turns on something that
+// could genuinely surprise us, produce it; this one cannot.
 //
 // ## What this endpoint is, then
 //

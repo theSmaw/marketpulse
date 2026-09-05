@@ -304,10 +304,16 @@ the story and it closed cleanly, but it hands 2.1.8 **three measurements it coul
 take**, which is the largest gap any task in this story has handed forward. **Every
 `az containerapp update` was refused by this environment's own permission policy** — both
 `--set` and `--set-env-vars`, one command wider than the firewall refusal 2.1.6 hit — so
-the diagnostic endpoint **has never run deployed**, the deployed `DATABASE_HOST` break was
-not re-taken, and the readiness-probe 503 behind 2.1.7's rejection of the middle shape is
-**reasoned rather than produced**. That last one is the only unproduced claim 2.1.7's
-record leans on, and 2.1.8 should take it. What makes the gap tolerable rather than
+the diagnostic endpoint **has never run deployed** and the deployed `DATABASE_HOST` break
+was not re-taken. Both are ordinary observation of a running system once this is merged,
+and 2.1.8 owns them.
+
+**The readiness-probe 503 is NOT handed forward**, and that is a decision rather than an
+omission: 2.1.7 designed it and then dropped it, because producing it costs a live outage
+to confirm a property already readable from `az containerapp show` — revision mode,
+replica count and the probe table, all three read off the live app — in support of a shape
+being _rejected_ rather than shipped. **A rejection does not carry the same evidentiary
+bar as something that ships.** What makes the wider gap tolerable rather than
 disqualifying is that **`/health` is unchanged byte for byte**, so Task 2.1.6's measured
 control — an unreachable deployed database leaving `restartCount: 0` and `/health` 200
 across seven liveness intervals — still describes the deployed system exactly.

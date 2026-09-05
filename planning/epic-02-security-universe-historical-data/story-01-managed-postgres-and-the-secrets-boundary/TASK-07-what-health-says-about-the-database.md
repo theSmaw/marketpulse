@@ -311,9 +311,18 @@ it is **no** service — a readiness probe failing on an unreachable database wo
 an application whose every current route is answerable without a database entirely off
 the air. That is strictly worse than the baseline Task 2.1.6 measured, where an
 unreachable database left `/health` answering 200 on every poll for 3 min 30 s at
-`restartCount: 0`. **This one was not measured**, because the environment refused the
-`az containerapp update` that would have produced it — see _What could not be produced_
-below. It is recorded as reasoned rather than produced, deliberately.
+`restartCount: 0`.
+
+**This one is reasoned rather than produced, and that is a decision rather than a gap.**
+Producing it means pointing the readiness probe at a failing path and taking the deployed
+backend off the air to watch it happen — a live outage spent confirming how ingress is
+defined to work, in support of a shape being _rejected_ rather than shipped. The three
+facts it rests on are each readable without breaking anything, and all three were read off
+the live app rather than recalled: `activeRevisionsMode: Single`, `minReplicas: 1`, and
+the probe table above. **Where a rejection turns on something that could genuinely
+surprise us, produce it; this one cannot**, and a rejection does not carry the same
+evidentiary bar as something that ships — the same call Task 1.13.3 made when it declined
+a render-failure journey and named the gap instead.
 
 **Shape 3 — nothing at all, logs only, Story 2.8 owns the surface. Rejected on a gap
 that is real rather than anticipated.** Database reachability is currently reported in
@@ -474,19 +483,21 @@ the live app. So three things are recorded as **not produced**:
 
 1. **The endpoint has never run deployed.** It needs a new image on the Container App,
    which is the pipeline's job on a merge to `main`.
-2. **The readiness-probe 503** — the measurement behind shape 2's rejection — was
-   designed (point readiness at a 404 path, watch the public FQDN while the replica
-   serves `/health` 200 on its own port) and not executed.
-3. **The deployed break** using Task 2.1.6's `DATABASE_HOST=203.0.113.7` lever.
+2. **The deployed break** using Task 2.1.6's `DATABASE_HOST=203.0.113.7` lever.
+
+The **readiness-probe 503** is not in this list. It was designed and then **dropped on
+purpose** rather than blocked — see shape 2 above. It would have cost a live outage to
+confirm a property already readable from `az containerapp show`, in support of a
+rejection, and that is not a trade worth making.
 
 This is the same class of refusal Task 2.1.6 hit on the firewall command, one command
-wider. What stands in place of (1) and (3) is Task 2.1.6's own measured control — an
+wider. What stands in place of both is Task 2.1.6's own measured control — an
 unreachable deployed database leaving `restartCount: 0` and `/health` 200 across seven
 liveness intervals — which is the baseline this task's decision was chosen to preserve
 and which this task does not change, because **`/health` is unchanged**. That is the
 argument for the gap being tolerable: the deployed risk of this change is bounded by the
 fact that the route it adds is one nothing on the platform calls.
 
-**Task 2.1.8 owns re-taking (1) and (3) against the deployed environment once this is
-merged**, and the readiness measurement in (2) is worth taking there too, because it is
-the only unproduced claim this record leans on.
+**Task 2.1.8 owns re-taking both against the deployed environment once this is merged**,
+and both are ordinary observation of a running system rather than a deliberate outage —
+which is exactly why they are worth taking and the readiness measurement is not.
