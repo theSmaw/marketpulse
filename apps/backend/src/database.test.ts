@@ -11,10 +11,17 @@
 // Anything that needs a real connection is in `index.process.test.ts`, which
 // spawns the built entrypoint, and its cost is stated there.
 
+import type pg from "pg";
 import { describe, expect, it } from "vitest";
 
 import type { DatabaseConfig } from "./config.js";
-import { createDatabasePool, pingDatabase } from "./database.js";
+import {
+  DIAGNOSTIC_CACHE_TTL_MS,
+  POOL_IDLE_TIMEOUT_MS,
+  createCachedDatabaseCheck,
+  createDatabasePool,
+  pingDatabase,
+} from "./database.js";
 
 const base: DatabaseConfig = {
   host: "127.0.0.1",
@@ -285,5 +292,99 @@ describe("pingDatabase", () => {
       expect.fail("a rejecting query should not report success");
     }
     expect(result.error.message).toBe("just a string");
+  });
+});
+
+describe("createCachedDatabaseCheck", () => {
+  // A pool stub rather than a real one: this is about how often the query is
+  // made, not about what it returns, so a counter is the whole subject.
+  function countingPool(
+    result: () => Promise<unknown> = () => Promise.resolve(),
+  ) {
+    let queries = 0;
+    const pool = {
+      query: async () => {
+        queries += 1;
+        return result();
+      },
+    } as unknown as pg.Pool;
+    return { pool, queries: () => queries };
+  }
+
+  it("serves an answer younger than the TTL without querying", async () => {
+    const { pool, queries } = countingPool();
+    let clock = 1_000_000;
+    const check = createCachedDatabaseCheck(pool, 5000, () => clock);
+
+    await check();
+    expect(queries()).toBe(1);
+
+    clock += 4999;
+    const cached = await check();
+
+    expect(queries()).toBe(1);
+    expect(cached.ageMs).toBe(4999);
+  });
+
+  it("queries again once the TTL has passed", async () => {
+    const { pool, queries } = countingPool();
+    let clock = 1_000_000;
+    const check = createCachedDatabaseCheck(pool, 5000, () => clock);
+
+    await check();
+    clock += 5000;
+    const fresh = await check();
+
+    expect(queries()).toBe(2);
+    expect(fresh.ageMs).toBe(0);
+  });
+
+  // The half that matters more than the TTL, and the case the TTL alone does
+  // not cover: ten simultaneous requests to a public endpoint on a cold pool
+  // would otherwise be ten connections and, deployed, ten 866 ms token mints.
+  it("collapses concurrent callers onto ONE in-flight query", async () => {
+    // Assigned inside the executor, which runs synchronously, so it is defined
+    // by the time anything reads it. Typed as possibly undefined rather than
+    // seeded with an empty arrow, which `no-empty-function` rejects.
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { pool, queries } = countingPool(() => gate);
+    const check = createCachedDatabaseCheck(pool, 5000);
+
+    const all = Promise.all([check(), check(), check(), check()]);
+    release?.();
+    const results = await all;
+
+    expect(queries()).toBe(1);
+    expect(results.every((result) => result.ok)).toBe(true);
+  });
+
+  // Not caching failures would make an unreachable database an *unbounded*
+  // query rate at the moment the connection ceiling matters most.
+  it("caches a FAILURE too, so an outage does not become an unbounded query rate", async () => {
+    const { pool, queries } = countingPool(() =>
+      Promise.reject(new Error("connect ETIMEDOUT")),
+    );
+    let clock = 1_000_000;
+    const check = createCachedDatabaseCheck(pool, 5000, () => clock);
+
+    const first = await check();
+    clock += 1;
+    const second = await check();
+
+    expect(queries()).toBe(1);
+    expect(first.ok).toBe(false);
+    expect(second.ok).toBe(false);
+  });
+
+  // The coupled pair `pnpm verify` cannot see, checked here for the reason
+  // `use-backend-health.test.ts` checks the poll interval against the request
+  // deadline: the thing being checked is reachable from code, so a test beats a
+  // paragraph. Inverting these does not break anything visibly — it makes every
+  // check pay a cold connection and, deployed, an 866 ms token mint.
+  it("bounds checks BELOW the pool's idle timeout, which is what keeps a check warm", () => {
+    expect(DIAGNOSTIC_CACHE_TTL_MS).toBeLessThan(POOL_IDLE_TIMEOUT_MS);
   });
 });

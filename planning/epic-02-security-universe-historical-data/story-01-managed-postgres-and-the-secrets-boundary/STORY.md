@@ -1,6 +1,6 @@
 # Story 2.1 — Managed Postgres Provisioning & the Secrets Boundary
 
-**Status:** In progress — Tasks 2.1.1 to 2.1.6 complete
+**Status:** In progress — Tasks 2.1.1 to 2.1.7 complete
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Epic 1 (Stories 1.6, 1.11)
 **Epic scope covered:** Managed Postgres provisioning; Alpaca credential on the platform (the _mechanism_ half)
@@ -62,7 +62,9 @@ twelve months without using them.
 
 ## Open decisions — settle with the user before the first `az` command
 
-**Decision 3 was settled by [Task 2.1.2](TASK-02-the-local-development-database.md) on 2026-09-04: a PostgreSQL 18 container through Docker Compose, behind `pnpm db`, outside `pnpm dev`, reported by `pnpm ready` as a third check that does not gate.** Only **decision 4** now remains open, owned by Task 2.1.7.
+**Decision 3 was settled by [Task 2.1.2](TASK-02-the-local-development-database.md) on 2026-09-04: a PostgreSQL 18 container through Docker Compose, behind `pnpm db`, outside `pnpm dev`, reported by `pnpm ready` as a third check that does not gate.** ~~Only **decision 4** now remains open, owned by Task 2.1.7.~~ **Decision 4 was settled by
+[Task 2.1.7](TASK-07-what-health-says-about-the-database.md) on 2026-09-05, and every open
+decision in this story is now closed.**
 
 **Decisions 1, 2 and 5 were settled by [Task 2.1.1](TASK-01-choose-the-creation-decisions.md) on 2026-09-04** and are recorded in
 `HOSTING.md` under _The database — the creation decisions_. They are left below with their
@@ -96,12 +98,20 @@ none of them.**
    or pointing developers at the deployed database (rejected on principle — it is
    production). Whatever is chosen becomes part of `pnpm dev`, `pnpm ready` and the
    README's first-run narrative
-4. **Does `/health` report the database?** Beware the Epic 1 property: the liveness probe
-   hits `/health` and a failing liveness probe **kills the replica**, so a database blip
-   would become a crash-loop. The likely answer is that `/health` stays a cheap liveness
-   answer and database reachability is a separate readiness or diagnostic surface — but
-   it is a decision, and Story 1.12's `BackendStatus` vocabulary has a `degraded` state
-   that was designed for exactly this kind of arrival
+4. **Settled: no. `/health` is unchanged — 61 bytes, three fields — and database
+   reachability is `GET /diagnostics/database`, which no probe uses, no timer drives and
+   the frontend does not read.** The story's own guess was right about the shape and
+   wrong about the middle option: a _readiness_ surface is refused too, because this app
+   is `Single` revision mode at `minReplicas: 1`, so an unready replica is not a degraded
+   service but **no** service. The check is bounded at one query per 5 s and one in-flight
+   query whatever the caller count, and `BackendStatus` deliberately does **not** move —
+   see the task record for why "no user-visible change" is the right answer until Story
+   2.8 ships a route a user can be affected by. ~~Beware the Epic 1 property: the liveness
+   probe hits `/health` and a failing liveness probe **kills the replica**, so a database
+   blip would become a crash-loop. The likely answer is that `/health` stays a cheap
+   liveness answer and database reachability is a separate readiness or diagnostic surface
+   — but it is a decision, and Story 1.12's `BackendStatus` vocabulary has a `degraded`
+   state that was designed for exactly this kind of arrival~~
 5. **Settled: 32 GiB with autogrow `Disabled` (the floor and the offer's ceiling are the same number, so the real decision was autogrow), 7-day backups, geo-redundancy off.** ~~Storage size and backup retention~~, both inside the 32 GB / 32 GB offer, against Story 2.7's ingestion arithmetic
 
 ## Acceptance criteria
@@ -144,7 +154,7 @@ Tackled in order. The story is complete when all eight are done.
 | 2.1.4 | [The connection pool, `SELECT 1`, and closing inside the drain](TASK-04-the-pool-and-its-lifecycle.md)                                       | Complete    |
 | 2.1.5 | [Provision the managed instance, and reach it over TLS from outside the application](TASK-05-provision-the-managed-instance.md)              | Complete    |
 | 2.1.6 | [Put the credential on the platform, connect the deployed backend, and prove nothing leaked](TASK-06-the-credential-on-the-platform.md)      | Complete    |
-| 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Not started |
+| 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Complete    |
 | 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Not started |
 
 **Tasks 2.1.7 and 2.1.8 were amended again on 2026-09-05 after Task 2.1.6 landed. No
@@ -287,3 +297,24 @@ extensions, and `packages/shared` consumed as built output. They are recorded on
 `docs/adr/0001-*` and `CLAUDE.md` rather than duplicated here, deliberately: Epic 1
 finished with twelve near-identical copies of that block and a task spent reconciling
 them.
+
+**Task 2.1.8 was amended on 2026-09-05 after Task 2.1.7 landed. No task was added,
+deleted or re-ordered** — for the sixth round running. 2.1.7 was the last open decision in
+the story and it closed cleanly, but it hands 2.1.8 **three measurements it could not
+take**, which is the largest gap any task in this story has handed forward. **Every
+`az containerapp update` was refused by this environment's own permission policy** — both
+`--set` and `--set-env-vars`, one command wider than the firewall refusal 2.1.6 hit — so
+the diagnostic endpoint **has never run deployed**, the deployed `DATABASE_HOST` break was
+not re-taken, and the readiness-probe 503 behind 2.1.7's rejection of the middle shape is
+**reasoned rather than produced**. That last one is the only unproduced claim 2.1.7's
+record leans on, and 2.1.8 should take it. What makes the gap tolerable rather than
+disqualifying is that **`/health` is unchanged byte for byte**, so Task 2.1.6's measured
+control — an unreachable deployed database leaving `restartCount: 0` and `/health` 200
+across seven liveness intervals — still describes the deployed system exactly.
+
+2.1.7 also moves 2.1.8's figures: `pnpm test` is **229** (37 + **89** + 103) with
+`apps/backend` at 89 across **6** files, `pnpm verify` is exit 0 in **25.68 s** with no
+database, and `apps/backend/src/routes/` holds a **second** route for the first time — the
+directory Task 1.2.3 created for exactly that and which had held one file for eleven
+stories. The frontend artefact is untouched, which is the check rather than a coincidence:
+this task shipped no frontend source.

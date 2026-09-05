@@ -195,10 +195,26 @@ thirteen lines in under a second and a half, the last of them the server's
 varies between runs, so where Vite's address lands is not a signal. There is no
 silent stretch to wait out and no `.env` file to write first.
 
-| Address                 | What it is                                          |
-| ----------------------- | --------------------------------------------------- |
-| `http://localhost:5173` | the application                                     |
-| `http://127.0.0.1:3000` | the API — `GET /health` is currently the only route |
+| Address                 | What it is                                                          |
+| ----------------------- | ------------------------------------------------------------------- |
+| `http://localhost:5173` | the application                                                     |
+| `http://127.0.0.1:3000` | the API — two routes: `GET /health` and `GET /diagnostics/database` |
+
+**`GET /diagnostics/database` is a diagnostic and not a probe** (Task 2.1.7). It
+answers `{"reachable":…,"ms":…,"ageMs":…,"checkedAt":…}` with a **200 either
+way**, because "is the database reachable" is answered correctly when the answer
+is no. `/health` deliberately says nothing about the database: all three of the
+deployed platform probes point at it, and a failing liveness probe kills the
+replica, so a `/health` that failed on an unreachable database would turn a
+recoverable outage into a restart loop.
+
+Two things to know when reading it. The answer is **bounded** — one query per
+five seconds, and concurrent callers share one in-flight query — so `ageMs`
+above zero means you were served a cached answer, which is there so you cannot
+mistake one for a fresh measurement. And the body never says **why**: no error
+message, no host, no SQLSTATE, because the deployed ingress is public. The
+reason goes to the log at `warn`, and the `x-request-id` on the response is what
+joins the two.
 
 Note the two addresses are not interchangeable spellings. The dev server binds
 IPv6 loopback and the backend binds IPv4, so `curl http://127.0.0.1:5173/` is
@@ -338,8 +354,10 @@ quoted limits, the cost envelope and everything the two deploys measured — is
 | Backend  | <https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io> | Azure Container Apps, Consumption, East US |
 
 It is a **development environment and it is public** — no authentication, no
-user data, and a backend whose entire surface is `GET /health`. That is
-acceptable only for as long as nothing deployed holds a credential.
+user data, and a backend whose entire surface is `GET /health` and
+`GET /diagnostics/database`. That is acceptable only for as long as nothing
+deployed holds a credential — and the second route is why the diagnostic's body
+carries whether the database answered and never why.
 
 Five things worth knowing before relying on it:
 
@@ -541,7 +559,7 @@ the same second half for the same reason.
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
 in this workspace. `packages/shared` runs 37 tests across 4 files,
-`apps/backend` 78 across 5, and `apps/frontend` 103 across 12 — **218 in
+`apps/backend` 89 across 6, and `apps/frontend` 103 across 12 — **229 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -1776,7 +1794,12 @@ app will pass against the previous shape.
 
 Routes declare a JSON Schema for their responses, using Fastify's built-in
 support — no extra dependency, since ajv and `fast-json-stringify` arrive with
-Fastify. `GET /health` is the first.
+Fastify. `GET /health` is the first, and `GET /diagnostics/database` the second
+— where the schema is doing more than tidying: it is what keeps the reason for
+an unreachable database off a public endpoint. Measured in Task 2.1.7, adding an
+error message to that handler's body leaves the leak test **green**, because the
+serialiser strips a property the schema does not declare. So a green run is not
+evidence that a handler could not leak.
 
 The reason is not validation, it is that Fastify serialises through
 `fast-json-stringify`, which **strips any property the schema does not
