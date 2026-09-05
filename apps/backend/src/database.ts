@@ -136,7 +136,17 @@ export const DIAGNOSTIC_CACHE_TTL_MS = 5000;
 // One option, and it is here because Task 2.1.6 has to evidence a connection
 // "observed at both ends" — a named connection is the difference between
 // reading that table and guessing which row is ours.
-const APPLICATION_NAME = "marketpulse-backend";
+//
+// **It is the default rather than a constant since Task 2.2.7**, and the reason
+// is a real one rather than generality for its own sake. The deployed migration
+// connects as `marketpulse-github-deploy` — a different Entra principal with a
+// different Postgres role, because a service principal cannot mint a token for
+// another principal's role — through this same pool. Left as a constant, a
+// migration would appear in `pg_stat_activity` as the runtime service, which is
+// harmless when they are the same principal and actively misleading now that
+// they are not: the one row in that table holding DDL locks would be labelled
+// as the thing that only ever reads.
+export const DEFAULT_APPLICATION_NAME = "marketpulse-backend";
 
 /**
  * The credential, as `pg` wants it: a value or a function that produces one.
@@ -263,6 +273,7 @@ export interface DatabaseLogger {
 export function createDatabasePool(
   config: DatabaseConfig,
   log: DatabaseLogger,
+  applicationName: string = DEFAULT_APPLICATION_NAME,
 ): pg.Pool {
   const pool = new pg.Pool({
     host: config.host,
@@ -274,7 +285,7 @@ export function createDatabasePool(
     max: POOL_MAX,
     connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
     idleTimeoutMillis: POOL_IDLE_TIMEOUT_MS,
-    application_name: APPLICATION_NAME,
+    application_name: applicationName,
   });
 
   // **This handler is not optional, and leaving it out is the single most

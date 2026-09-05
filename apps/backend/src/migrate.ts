@@ -50,6 +50,7 @@
 // cannot be written at all. The answer to a migration we regret is always a new
 // forward migration. Kysely makes `down` optional, checked rather than assumed.
 
+import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { inspect } from "node:util";
@@ -131,6 +132,110 @@ const MIGRATIONS_DIR = resolve(import.meta.dirname, "../migrations");
 const MIGRATION_NAME = /^\d{4}_[a-z0-9]+(?:_[a-z0-9]+)*$/;
 
 /**
+ * Where the checksum of each applied migration is recorded (Task 2.2.7).
+ *
+ * **Task 2.2.5 declined this and named Task 2.2.7 as the trigger; 2.2.6 then
+ * produced the consequence rather than arguing it.** An index appended to an
+ * already-applied `0002_securities.sql` — the realistic edit, because nothing
+ * in the database suite asserts on indexes — took `pnpm migrate` to `Already up
+ * to date` at **exit 0** with the index absent, and `pnpm test:database` to 23
+ * passed at exit 0, because that suite migrates a database of its own from
+ * empty and never looks at the one that is wrong. Two green instruments over a
+ * broken database. The only recovery that worked was dropping it and
+ * re-migrating, and from Task 2.2.7 onward there is a managed server with a
+ * `CanNotDelete` lock on it where that is not an available answer.
+ *
+ * **Singular, mirroring `kysely_migration` rather than the plural rule in
+ * `../migrations/README.md`.** That rule is about domain tables; this is
+ * bookkeeping, it is read next to Kysely's two tables in `\dt`, and matching
+ * the neighbours it belongs with is worth more here than matching a convention
+ * about rows describing things in the world.
+ *
+ * **It is created by this runner rather than by a migration**, which is the one
+ * thing about it that looks wrong. A migration cannot create it, because the
+ * first migration that records into it is `0001`, which on every existing
+ * database has already run — so a migration-created table would be recorded as
+ * applied on precisely the databases that never got the table. `create table if
+ * not exists` from the runner is the same shape Kysely uses for its own two
+ * tables, which is the strongest available argument that it is not a novelty.
+ */
+const MIGRATION_CHECKSUM_TABLE = "migration_checksum";
+
+/**
+ * The identity of a migration's contents.
+ *
+ * SHA-256 of the file's bytes as UTF-8, hex. Not a cryptographic requirement —
+ * the threat is a developer editing an applied file, not an adversary forging
+ * one — but there is no reason to pick something weaker, and a hex digest is
+ * something a human can compare in an error message.
+ */
+export function checksumOf(body: string): string {
+  return createHash("sha256").update(body, "utf8").digest("hex");
+}
+
+/** One `.sql` file on disk, read once and used by both the provider and the checksum pass. */
+export interface MigrationFile {
+  /** The basename without `.sql`, which is Kysely's bookkeeping key. */
+  readonly name: string;
+  /** The whole file body, executed as one statement inside one transaction. */
+  readonly body: string;
+  /** {@link checksumOf} the body. */
+  readonly checksum: string;
+}
+
+/**
+ * Read and validate the migration directory.
+ *
+ * Lifted out of {@link SqlFileMigrationProvider} in Task 2.2.7 because the
+ * checksum pass needs the same bodies the provider executes, and reading them
+ * twice through two code paths is how the hash stops being a hash of what ran.
+ *
+ * Two things it refuses rather than tolerates, because both are silent
+ * otherwise. A filename that does not match {@link MIGRATION_NAME} is an error
+ * rather than a skipped file — a skipped migration is the failure this whole
+ * mechanism exists to prevent, and a typo'd name is the cheapest way to cause
+ * one. And an empty directory is an error too: "no migrations found" and "every
+ * migration already applied" both print nothing useful otherwise, and only one
+ * of them means the runner is looking in the wrong place.
+ */
+export async function readMigrationFiles(
+  directory: string = MIGRATIONS_DIR,
+): Promise<readonly MigrationFile[]> {
+  // `readdir` returns the filesystem's order, which is not an order. Kysely
+  // sorts by name itself before executing, so this sort is for the error
+  // message below and for anything reading this record; the guarantee comes
+  // from the migrator.
+  const files = (await readdir(directory)).filter((file) =>
+    file.endsWith(".sql"),
+  );
+  files.sort();
+
+  if (files.length === 0) {
+    throw new Error(`No .sql migrations found in ${directory}.`);
+  }
+
+  const read: MigrationFile[] = [];
+
+  for (const file of files) {
+    const name = basename(file, ".sql");
+
+    if (!MIGRATION_NAME.test(name)) {
+      throw new Error(
+        `Migration file \`${file}\` is not named \`NNNN_lower_snake_case.sql\`. ` +
+          "The name is the bookkeeping key and the ordering, so it is checked rather " +
+          "than guessed at.",
+      );
+    }
+
+    const body = await readFile(resolve(directory, file), "utf8");
+
+    read.push({ name, body, checksum: checksumOf(body) });
+  }
+
+  return read;
+}
+
+/**
  * Read `apps/backend/migrations/*.sql` and hand Kysely one migration per file.
  *
  * About fifteen lines, which is the whole of what was bought rather than
@@ -140,7 +245,7 @@ const MIGRATION_NAME = /^\d{4}_[a-z0-9]+(?:_[a-z0-9]+)*$/;
  * artefact reviewed in a pull request is then not the artefact executed.
  *
  * The whole file body goes through `sql.raw()` as one statement, inside the
- * transaction Kysely opens per migration — verified in the spike with a
+ * transaction the migrator opens for the run — verified in the spike with a
  * multi-statement body, and it is what makes Postgres's transactional DDL do
  * the work: a file that fails half way leaves nothing behind and records
  * nothing.
@@ -161,41 +266,38 @@ export class SqlFileMigrationProvider implements MigrationProvider {
   }
 
   async getMigrations(): Promise<Record<string, Migration>> {
-    // `readdir` returns the filesystem's order, which is not an order. Kysely
-    // sorts by name itself before executing, so this sort is for the error
-    // message below and for anything reading this record; the guarantee comes
-    // from the migrator.
-    const files = (await readdir(this.#directory)).filter((file) =>
-      file.endsWith(".sql"),
-    );
-    files.sort();
-
-    if (files.length === 0) {
-      throw new Error(`No .sql migrations found in ${this.#directory}.`);
-    }
-
+    const files = await readMigrationFiles(this.#directory);
     const migrations: Record<string, Migration> = {};
 
     for (const file of files) {
-      const name = basename(file, ".sql");
-
-      if (!MIGRATION_NAME.test(name)) {
-        throw new Error(
-          `Migration file \`${file}\` is not named \`NNNN_lower_snake_case.sql\`. ` +
-            "The name is the bookkeeping key and the ordering, so it is checked rather " +
-            "than guessed at.",
-        );
-      }
-
-      const body = await readFile(resolve(this.#directory, file), "utf8");
-
-      migrations[name] = {
+      migrations[file.name] = {
         // Declared with our own parameter type rather than Kysely's
         // `Kysely<any>`, so nothing in this file is `any` and the strict lint
         // pass has nothing to say. `Migration.up` is a method, so its parameter
         // is bivariant and this is assignable.
         up: async (db: Kysely<unknown>): Promise<void> => {
-          await sql.raw(body).execute(db);
+          await sql.raw(file.body).execute(db);
+          // **The checksum row goes in HERE and not in the runner**, and that
+          // is the whole reason this mechanism is worth having rather than a
+          // second bookkeeping system that can disagree with the first. `db` is
+          // the transaction the migrator is running in, and Kysely writes its
+          // own `kysely_migration` row in that same transaction — so the change,
+          // the record that it happened, and the record of what it said all
+          // commit together or none of them do. Task 2.2.1 produced the
+          // alternative: a runner that moved its bookkeeping outside the
+          // transaction printed `applied 0002_partial.sql` at exit 0 over a
+          // database whose tables did not exist.
+          //
+          // **That transaction is the RUN's and not this migration's**, which
+          // Task 2.2.7 corrected by measurement: two migrations applied in one
+          // run recorded an identical `recorded_at`, and `now()` is transaction
+          // start time — confirmed against Kysely 0.29.5's own migrator, which
+          // wraps every pending migration in a single
+          // `db.transaction().execute(...)` when the adapter supports
+          // transactional DDL. So a run of three migrations whose third fails
+          // rolls back all three, which is stronger than "it left nothing
+          // behind" per migration and is the sentence to keep.
+          await recordChecksum(db, file.name, file.checksum);
         },
         // No `down`, deliberately. See the header.
       };
@@ -203,6 +305,140 @@ export class SqlFileMigrationProvider implements MigrationProvider {
 
     return migrations;
   }
+}
+
+/** Insert one checksum row. Separate so both the provider and the adopt pass use one statement. */
+async function recordChecksum(
+  db: Kysely<unknown>,
+  name: string,
+  checksum: string,
+): Promise<void> {
+  // `on conflict do nothing` rather than an upsert, and the difference is the
+  // point: this row is written once, when the migration runs, and a second
+  // write would be exactly the silent overwrite that turns a divergence into a
+  // fresh baseline. The conflict path is reachable from the adopt pass in
+  // {@link runMigrations}, where two runners can race to adopt the same row.
+  await sql`
+    insert into ${sql.table(MIGRATION_CHECKSUM_TABLE)} (name, checksum)
+    values (${name}, ${checksum})
+    on conflict (name) do nothing
+  `.execute(db);
+}
+
+/** A migration whose file no longer hashes to what was recorded when it ran. */
+export interface ChecksumDivergence {
+  readonly name: string;
+  /** What the file hashed to when it was applied. */
+  readonly recorded: string;
+  /** What it hashes to now. */
+  readonly actual: string;
+}
+
+/** What the checksum pass found. */
+export interface ChecksumReport {
+  /** Applied migrations whose file has changed since. Any of these stops the run. */
+  readonly diverged: readonly ChecksumDivergence[];
+  /**
+   * Applied migrations with no checksum row, whose current contents are
+   * therefore **adopted** as the baseline rather than verified.
+   *
+   * This is the bootstrap, and calling it adoption rather than verification is
+   * the honest half. Every database migrated before Task 2.2.7 — every
+   * developer's, and the deployed one if it had been migrated first — has
+   * `kysely_migration` rows and no checksum rows, so failing on a missing row
+   * would fail every existing database on the first run. Adopting instead means
+   * a file edited *before* this mechanism existed is silently blessed, exactly
+   * once, and printed while it happens. There is no version of this that does
+   * not have that hole; what there is, is saying so.
+   */
+  readonly adopt: readonly MigrationFile[];
+  /** Applied migrations whose recorded checksum matches the file. */
+  readonly verified: readonly string[];
+}
+
+/**
+ * Compare what is on disk against what was recorded when each migration ran.
+ *
+ * A pure function of three inputs, for the reason {@link summariseMigration} is
+ * one: the property worth holding is that a divergence stops the run, and that
+ * is a property a test can assert without a database.
+ *
+ * **Migrations that have not been applied are not its business.** A file that
+ * has never run can be edited freely — that is what a pull request is — and the
+ * rule this enforces is narrower and is the one `../migrations/README.md` now
+ * states as a convention: never edit a migration that has been applied.
+ */
+export function checkMigrationChecksums(
+  files: readonly MigrationFile[],
+  executed: ReadonlySet<string>,
+  recorded: ReadonlyMap<string, string>,
+): ChecksumReport {
+  const diverged: ChecksumDivergence[] = [];
+  const adopt: MigrationFile[] = [];
+  const verified: string[] = [];
+
+  for (const file of files) {
+    if (!executed.has(file.name)) {
+      continue;
+    }
+
+    const previous = recorded.get(file.name);
+
+    if (previous === undefined) {
+      adopt.push(file);
+    } else if (previous === file.checksum) {
+      verified.push(file.name);
+    } else {
+      diverged.push({
+        name: file.name,
+        recorded: previous,
+        actual: file.checksum,
+      });
+    }
+  }
+
+  return { diverged, adopt, verified };
+}
+
+/**
+ * What to print, and to exit with, when a file has changed under an applied
+ * migration.
+ *
+ * **The recovery is deliberately not "run something".** There is no command
+ * that repairs this, and inventing one would be worse than saying so: the
+ * change the file now describes was never applied, so the database is missing
+ * whatever was added to the file and holds whatever was removed from it.
+ * Locally the answer is `pnpm db down -v && pnpm db && pnpm migrate`; against
+ * the deployed server it is a new forward migration carrying the difference,
+ * because that database has a `CanNotDelete` lock on it and dropping it is not
+ * an available answer. Both are said here, because this is what somebody is
+ * reading at the moment they need them.
+ */
+export function summariseChecksumFailure(
+  diverged: readonly ChecksumDivergence[],
+): MigrationOutcome {
+  const errors: string[] = [
+    `\n${String(diverged.length)} applied migration${diverged.length === 1 ? " has" : "s have"} been edited since ${diverged.length === 1 ? "it was" : "they were"} applied.\n` +
+      "Nothing was migrated. The database does not contain what these files now say.\n",
+  ];
+
+  for (const divergence of diverged) {
+    errors.push(
+      `  ✗ ${divergence.name}\n` +
+        `      applied: ${divergence.recorded}\n` +
+        `      on disk: ${divergence.actual}\n`,
+    );
+  }
+
+  errors.push(
+    "A migration is a record of what was done, so an applied one is not editable — see\n" +
+      "`apps/backend/migrations/README.md` §8. Put the change in a NEW migration. If this\n" +
+      "is a local database you would rather reset, `pnpm db down -v && pnpm db && pnpm\n" +
+      "migrate` rebuilds it from the files; the deployed server cannot be reset and needs\n" +
+      "the new migration.\n",
+  );
+
+  return { exitCode: 1, lines: [], errors };
 }
 
 /** What a run produced, in the form the caller needs to exit on. */
@@ -426,7 +662,76 @@ export async function runMigrations(): Promise<MigrationOutcome> {
   });
 
   try {
-    return summariseMigration(await migrator.migrateToLatest());
+    // ------------------------------------------------------------------
+    // The checksum pass (Task 2.2.7). Before anything is applied, because
+    // its whole purpose is to refuse to add to a database that already
+    // disagrees with these files.
+    // ------------------------------------------------------------------
+    await sql`
+      create table if not exists ${sql.table(MIGRATION_CHECKSUM_TABLE)} (
+        name text primary key,
+        checksum text not null,
+        recorded_at timestamptz not null default now()
+      )
+    `.execute(db);
+
+    const files = await readMigrationFiles();
+
+    // `getMigrations()` is Kysely's own view of the pair — every migration the
+    // provider offers, each carrying `executedAt` when the tracking table has a
+    // row for it. Reading the executed set from here rather than from a query
+    // of our own is what keeps this pass and the migrator agreeing about what
+    // "applied" means.
+    const known = await migrator.getMigrations();
+    const executed = new Set(
+      known
+        .filter((migration) => migration.executedAt !== undefined)
+        .map((migration) => migration.name),
+    );
+
+    const rows = await sql<{
+      name: string;
+      checksum: string;
+    }>`select name, checksum from ${sql.table(MIGRATION_CHECKSUM_TABLE)}`.execute(
+      db,
+    );
+    const recorded = new Map(rows.rows.map((row) => [row.name, row.checksum]));
+
+    const report = checkMigrationChecksums(files, executed, recorded);
+
+    if (report.diverged.length > 0) {
+      return summariseChecksumFailure(report.diverged);
+    }
+
+    const lines: string[] = [];
+
+    for (const file of report.adopt) {
+      await recordChecksum(db, file.name, file.checksum);
+      lines.push(
+        `  ○ ${file.name} — checksum adopted (applied before this database recorded them)`,
+      );
+    }
+
+    // **The pending list, and it is printed on every run rather than being a
+    // mode.** Task 2.2.2 refused arguments to `pnpm migrate` and that still
+    // stands — there is no `down`, no "migrate to 0003" and no dry run. What
+    // Task 2.2.7 changed is that this now runs inside a deploy, and a deploy
+    // step that cannot say what it is about to apply is a deploy step nobody
+    // can review afterwards. It costs nothing, because `getMigrations()` had to
+    // be called for the pass above anyway.
+    const pending = known.filter(
+      (migration) => migration.executedAt === undefined,
+    );
+
+    lines.push(
+      pending.length === 0
+        ? "\n  Nothing pending."
+        : `\n  Pending: ${pending.map((migration) => migration.name).join(", ")}`,
+    );
+
+    const outcome = summariseMigration(await migrator.migrateToLatest());
+
+    return { ...outcome, lines: [...lines, ...outcome.lines] };
   } finally {
     // `destroy()` ends the underlying pool, so `closeDatabasePool` must not
     // also be called — `pg` rejects a second `end()`.

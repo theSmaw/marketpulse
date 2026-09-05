@@ -72,8 +72,22 @@ const TEST_DATABASE_NAME = "marketpulse_vitest";
 /** The same directory `migrate.ts` reads, resolved the same way. */
 const MIGRATIONS_DIR = resolve(import.meta.dirname, "../migrations");
 
-/** Kysely's own bookkeeping, which is not part of the schema being checked. */
-const BOOKKEEPING_TABLES = ["kysely_migration", "kysely_migration_lock"];
+/**
+ * Bookkeeping, which is not part of the schema being checked.
+ *
+ * Kysely's two, plus `migration_checksum` (Task 2.2.7), which is the migration
+ * runner's own. The conventions in `migrations/README.md` are about tables that
+ * describe things in the world — a `bigint` identity `id`, the `observed_at` /
+ * `recorded_at` pair, `numeric` for money — and none of them means anything for
+ * a table keyed on a migration's name. Excluding it here rather than making it
+ * conform is the same call the list already makes for Kysely's, and it is why
+ * that table is deliberately named in the singular too.
+ */
+const BOOKKEEPING_TABLES = [
+  "kysely_migration",
+  "kysely_migration_lock",
+  "migration_checksum",
+];
 
 interface ColumnRow {
   readonly table_name: string;
@@ -272,6 +286,57 @@ describe("the migration mechanism", () => {
     );
 
     expect(recorded.rows.map((row) => row.name)).toEqual(files);
+  });
+
+  // The checksum pass, against a real database rather than against a pure
+  // function (Task 2.2.7). `checkMigrationChecksums` has its own unit tests and
+  // they cover the decision; what they cannot cover is that the row was
+  // actually written when the migration ran, that the runner reads it back, and
+  // that a mismatch stops the run before anything is applied. Task 2.2.6's
+  // finding is exactly that two green instruments can sit over a wrong
+  // database, so this one is worth having at the level that talks to one.
+  //
+  // It corrupts the RECORD rather than the file, which is the same divergence
+  // seen from the other side and is the only version of it a test can produce
+  // without editing a tracked migration.
+  it("refuses to migrate when an applied migration no longer matches its record", async () => {
+    const original = await db().query<{ name: string; checksum: string }>(
+      "select name, checksum from migration_checksum order by name",
+    );
+    expect(original.rows.length).toBeGreaterThan(0);
+    const target = original.rows[0]?.name ?? "";
+
+    await db().query(
+      "update migration_checksum set checksum = $1 where name = $2",
+      ["0".repeat(64), target],
+    );
+
+    try {
+      const outcome = await runMigrations();
+
+      expect(outcome.exitCode).toBe(1);
+      const text = outcome.errors.join("");
+      expect(text).toContain(target);
+      expect(text).toContain("Nothing was migrated");
+    } finally {
+      await db().query(
+        "update migration_checksum set checksum = $1 where name = $2",
+        [original.rows[0]?.checksum ?? "", target],
+      );
+    }
+  });
+
+  it("records a checksum for every migration it applied", async () => {
+    const applied = await db().query<{ name: string }>(
+      "select name from kysely_migration order by name",
+    );
+    const checksums = await db().query<{ name: string }>(
+      "select name from migration_checksum order by name",
+    );
+
+    expect(checksums.rows.map((row) => row.name)).toEqual(
+      applied.rows.map((row) => row.name),
+    );
   });
 });
 

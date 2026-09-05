@@ -230,6 +230,106 @@ jobs:
         run: az extension add --name containerapp --upgrade --allow-preview true --only-show-errors
 
       # ---------------------------------------------------------------------
+      # THE DATABASE GOES BEFORE EITHER HALF OF THE CODE (Task 2.2.7).
+      #
+      # Three shapes were weighed and this is the one chosen; the other two are
+      # recorded because the next person will ask.
+      #
+      #   - A JOB THE CONTAINER RUNS AT BOOT. Rejected on two costs that
+      #     compound. `apps/backend/package.json`'s `files` is
+      #     `["dist", "!dist/**/*.test.*"]`, so the image carries `migrate.js`
+      #     and NOT `apps/backend/migrations/` — it ships a description of the
+      #     schema and nothing that can create it — so this shape needs the SQL
+      #     added to every image. And it puts DDL on a liveness-probed platform:
+      #     the startup probe is 2 s period / 3 s timeout / 30 failures, so a
+      #     replica waiting on Kysely's advisory lock is killed at roughly 90 s,
+      #     long before the lock's own one-hour timeout, and at `minReplicas: 1`
+      #     in `Single` revision mode an unready replica is not a degraded
+      #     service — it is no service.
+      #   - A MANUAL COMMAND. Honest, with no failure mode nobody chose, and a
+      #     step somebody forgets. Story 2.2's criterion would be met once and
+      #     then drift.
+      #   - THIS: a step on the runner, from a checkout, before anything rolls.
+      #     The runner has the migrations because it has the repository.
+      #
+      # WHAT "THE MIGRATION SUCCEEDED AND THE DEPLOY THEN FAILED" MEANS, which
+      # is the sentence that IS the decision. It leaves the database ahead of
+      # the code, and that is the survivable direction only while migrations are
+      # ADDITIVE — a new table, a new nullable column, a new index. The old
+      # revision keeps serving because nothing it does reads what was just
+      # added. It stops being survivable the moment a migration removes or
+      # narrows something the deployed code still reads, and the answer to that
+      # is not a bigger deploy step: it is to split the change across two
+      # deploys, expand then contract. That convention is written down in
+      # `apps/backend/migrations/README.md` §9, because it is a rule about
+      # writing migrations rather than about this file.
+      #
+      # WHO IT CONNECTS AS. `marketpulse-github-deploy` — this workflow's own
+      # federated identity — and NOT the backend's managed identity, which is
+      # forced rather than chosen: Task 2.1.6 measured that a service principal
+      # cannot mint a token for another principal's Postgres role
+      # ("Service principals cannot generate AAD_AUTH_TOKENTYPE_APP_USER tokens
+      # for role"), so CI could not connect as `marketpulse-backend` even if it
+      # wanted to. Least privilege therefore comes free: the runtime role holds
+      # no DDL rights and the migration role holds no more than CREATE on
+      # `public`. Both roles, and the grants, are in HOSTING.md — they exist
+      # only in the platform.
+      #
+      # WHY `DATABASE_AUTH=password` AGAINST AN ENTRA-ONLY SERVER, which reads
+      # like a mistake and is not. The server has `passwordAuth: Disabled` and
+      # no admin login; what goes in the password field is an Entra access
+      # token, which is exactly what the deployed replica sends too. The
+      # difference is only where it comes from: the container reads a sidecar at
+      # `IDENTITY_ENDPOINT`, which does not exist on a runner, so here `az`
+      # mints it. `entra` mode names the sidecar path specifically, so claiming
+      # it here would be a lie the pool would then act on.
+      - name: Migrate the deployed database
+        env:
+          DATABASE_HOST: psql-marketpulse-dev.postgres.database.azure.com
+          DATABASE_PORT: "5432"
+          DATABASE_NAME: marketpulse
+          DATABASE_USER: marketpulse-github-deploy
+          DATABASE_AUTH: password
+          DATABASE_SSL: verify-full
+        run: |
+          set -euo pipefail
+
+          # The runner has no `dist/`, and `pnpm migrate` guards on presence
+          # with a message naming `pnpm build`. The package's own verb rather
+          # than a `tsc` invented here — the shape Task 1.13.5 settled for the
+          # deployed browser check, and root `pnpm build` would additionally
+          # build a frontend bundle and a Storybook this step does not use.
+          pnpm --filter @marketpulse/backend build
+
+          DATABASE_PASSWORD="$(az account get-access-token \
+            --resource https://ossrdbms-aad.database.windows.net \
+            --query accessToken -o tsv)"
+          echo "::add-mask::$DATABASE_PASSWORD"
+          export DATABASE_PASSWORD
+
+          # ITS OWN DEADLINE, and the reason is Kysely's lock rather than the
+          # network. Two runs against one database serialise on a session-level
+          # `pg_advisory_lock(3853314791062309107)` whose `lock_timeout` is ONE
+          # HOUR — measured in Task 2.2.6, along with the reassuring half, that
+          # a failing first runner does not poison the second. So overlap is
+          # safe and HANGING is the exposure, and without this the step would
+          # sit for an hour before saying anything. 120 s against a migration
+          # that takes under a second locally and a connect that Task 2.1.6
+          # measured at ~1 s deployed: generous by two orders of magnitude
+          # against the thing it is timing, and thirty times inside the thing it
+          # is protecting against. Task 1.11.7's lesson is why that gap is
+          # stated rather than assumed — a 300-second deadline there expired
+          # four minutes too early to ever match the failure it watched for, so
+          # it went red for the right reason with the wrong message.
+          if ! timeout 120 pnpm migrate; then
+            status=$?
+            if [ "$status" -eq 124 ]; then
+              echo "::error::the migration did not finish inside 120 s. Kysely takes a session-level advisory lock with a one-hour timeout, so the likeliest cause is another migration holding it — check pg_stat_activity for wait_event: advisory. Nothing was applied by this run."
+            fi
+            exit "$status"
+          fi
+
+      # ---------------------------------------------------------------------
       # The backend goes first, deliberately. Its contract (`GET /health`) is
       # unchanged by a frontend deploy, so the currently-published page keeps
       # working against the new revision; the reverse — publishing a page that
@@ -603,6 +703,16 @@ jobs:
             echo "Scoped by Task 1.12.7: the window is a property of the artefact CHANGING."
             echo "A merge that rebuilds byte-identically keeps the hashed filenames and showed"
             echo "zero broken states across 174 samples — there is nothing to swap."
+            echo
+            echo "**A database rolls back like neither half of the code** (Task 2.2.7). The"
+            echo "backend's rollback is \`az containerapp update --image <previous digest>\` in"
+            echo "43 s, silently undone by the next merge; the frontend's is a revert commit"
+            echo "through this pipeline in 3 min 42 s. A migration has no equivalent: migrations"
+            echo "are forward-only, there is no \`down\`, and reverting the commit that added one"
+            echo "does not remove what it did. If the schema itself is wrong, the answer is a new"
+            echo "forward migration — and if code has already shipped against it, revert the code"
+            echo "first and leave the schema ahead, which is the direction the additive rule in"
+            echo "\`apps/backend/migrations/README.md\` §9 exists to keep survivable."
             echo
             echo "Nothing here checks that the deployed site works — that is Task 1.11.7's."
             echo

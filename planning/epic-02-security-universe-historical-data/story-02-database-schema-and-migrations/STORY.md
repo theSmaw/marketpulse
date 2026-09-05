@@ -57,14 +57,19 @@ theory: a mistake costs a `DROP`, not a backfill.
 
 ## Open decisions — settle with the user
 
-**Decisions 1 and 2 are settled, and the generation half of decision 4 with them** — Task
+**Every decision in this story is now settled.** Decision 3 was taken by Task 2.2.7 — a step
+in `deploy.yml` before either half of the code rolls, connecting as a **second** Postgres
+role — and that task also took the checksum decision Task 2.2.5 had deferred to it. Task
+2.2.1 measured five candidates from a fresh install and recorded the arguments in
+[`DATA-LAYER.md`](DATA-LAYER.md). The migrator is **Kysely's `Migrator`** driving plain SQL
 2.2.1 measured five candidates from a fresh install and recorded the arguments in
 [`DATA-LAYER.md`](DATA-LAYER.md). The migrator is **Kysely's `Migrator`** driving plain SQL
 files through a provider we own; the query layer is **Kysely** too, declared as a seam rather
 than written, since this story ships no read; **nothing is generated**; migrations are
-**forward-only**; and **`pg` and `database.ts` survive unchanged**. Decision 3 is still open
-and belongs to Task 2.2.7. The original wording is kept below rather than deleted, because it
-records what was being weighed at the time.
+**forward-only**; and **`pg` and `database.ts` survive unchanged** — apart from one line Task
+2.2.7 had to move, `application_name`, which stopped being a constant the moment the
+migration connected as a different principal. The original wording is kept below rather than
+deleted, because it records what was being weighed at the time.
 
 1. ~~**Migration tool.**~~ **Settled — Kysely's `Migrator`, +1 store entry and no
    dependencies.** The precedent question resolved to the `@fastify/cors` case, and it was
@@ -94,11 +99,23 @@ records what was being weighed at the time.
    ergonomic: **Epic 13 enforces temporal isolation in the data layer**, so whatever is
    chosen must make "no query may read past the replay clock" expressible in one place
    rather than remembered at every call site
-3. **Where migrations run on deploy**, and what a failed migration does to the rollout —
-   still open and Task 2.2.7's, and Task 2.2.2 handed it the fact that decides it:
-   `apps/backend/package.json`'s `files` field means the container image does **not** carry
-   `apps/backend/migrations/`, so "a job the container runs at boot" needs that field
-   changed in the same commit and "a step in `deploy.yml`" does not
+3. ~~**Where migrations run on deploy**~~ **Settled by Task 2.2.7 — a step in `deploy.yml`,
+   before either half of the code rolls, with its own 120-second deadline.** The boot-time
+   shape was rejected on two compounding costs: `apps/backend/package.json`'s `files` means
+   the image does not carry `apps/backend/migrations/`, and the startup probe (2 s / 3 s / 30) kills a replica waiting on Kysely's one-hour advisory lock at roughly 90 seconds, on
+   an app where `minReplicas: 1` in `Single` mode makes an unready replica no service. **What
+   a failed rollout after a successful migration means** is a database ahead of the code,
+   which is survivable **only while migrations are additive** — now a written convention
+   (expand, then contract) in `migrations/README.md` §8, enforceable by nothing, because
+   whether a column is still read is a fact about code. **A second decision fell out of it**:
+   the migration connects as `marketpulse-github-deploy` and not as the backend, which is
+   forced rather than chosen — a service principal cannot mint a token for another
+   principal's role — so least privilege came free. The original text:
+   **Where migrations run on deploy**, and what a failed migration does to the rollout.
+   Task 2.2.2 handed it the fact that decides it: `apps/backend/package.json`'s `files` field
+   means the container image does **not** carry `apps/backend/migrations/`, so "a job the
+   container runs at boot" needs that field changed in the same commit and "a step in
+   `deploy.yml`" does not
 4. **Whether the schema or the TypeScript types are the source of truth** — **the generation
    half is answered: nothing is generated**, the schema is the source of truth and the
    TypeScript follows it by hand (`kysely-codegen`, `drizzle-kit pull` and `prisma migrate
@@ -154,7 +171,7 @@ stops being the backend's problem alone. 2.2.8 closes the story and records ADR 
 | 2.2.4 | [The first schema: `securities` and nothing more](TASK-04-the-first-schema.md)                                                          | **Complete** |
 | 2.2.5 | [The sixth level of test, and what it costs `pnpm test`](TASK-05-the-sixth-level-of-test.md)                                            | **Complete** |
 | 2.2.6 | [Break a migration on purpose, locally, and record what it leaves behind](TASK-06-break-a-migration-on-purpose.md)                      | **Complete** |
-| 2.2.7 | [Migrate the deployed database, and decide what a failed migration does to a rollout](TASK-07-migrate-the-deployed-database.md)         | Not started  |
+| 2.2.7 | [Migrate the deployed database, and decide what a failed migration does to a rollout](TASK-07-migrate-the-deployed-database.md)         | **Complete** |
 | 2.2.8 | [Verify from a clean clone, document, and record ADR 0015](TASK-08-verify-document-and-adr.md)                                          | Not started  |
 
 **Two things about this split worth stating, because both are decisions rather than

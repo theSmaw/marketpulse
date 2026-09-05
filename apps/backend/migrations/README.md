@@ -463,15 +463,15 @@ Three consequences worth carrying:
   drops. But a runner that _hangs_ holds it, and the second waits up to an hour
   before erroring rather than failing fast.
 
-### The one failure nothing here catches: editing a migration that has been applied
+### Editing a migration that has been applied — caught since Task 2.2.7
 
-There is **no checksum** (Task 2.2.5 weighed a hash table and declined it, with
-its reasoning recorded). `kysely_migration` holds `(name, timestamp)`, so a file
-that has been applied is matched by name and its contents are never looked at
-again.
+**This section used to end "the only thing that catches this is a person".** It
+does not any more, and the history is worth keeping because it is how the
+decision was taken.
 
-Produced, and this is the finding: an index was appended to `0002_securities.sql`
-_after_ it had been applied. Then —
+Task 2.2.5 weighed a hash table and declined it. Task 2.2.6 then produced the
+consequence rather than arguing it: an index was appended to
+`0002_securities.sql` _after_ it had been applied, and —
 
 - `pnpm migrate` reported **`Already up to date — no migrations to apply.`**, exit
   **0**, and the index was absent from the database.
@@ -479,21 +479,84 @@ _after_ it had been applied. Then —
   database of its own **from empty** every run, so it proves _these files produce
   this schema_ and structurally cannot prove _that database matches these files_.
 
-Two green instruments, side by side, over a database that is wrong. The only
-thing that catches this is a person.
-
-**So: never edit a migration that has been applied. Write a new one.** If you
-already have, the recovery is the big hammer, and it is sufficient — confirmed:
+Two green instruments, side by side, over a database that is wrong. The recovery
+was the big hammer, and it worked:
 
 ```
 pnpm db down -v && pnpm db && pnpm migrate
 ```
 
-What bounds the damage is that the divergence is confined to one laptop: CI and
-every deploy migrate from the same files into an empty database. **That stops
-being true from Task 2.2.7**, which is the stated reversal trigger for building
-the hash table — from there, dropping and re-migrating is not an available
-answer.
+**Task 2.2.7 is where that stopped being an available answer**, which is exactly
+the reversal trigger 2.2.5 named: there is now a managed server with a
+`CanNotDelete` lock on it, and you cannot drop it. So the hash table was built.
+
+**How it works.** `migration_checksum` holds `(name, checksum, recorded_at)` — a
+SHA-256 of the file's bytes. The row is written by the provider **inside the same
+transaction as the migration**, beside Kysely's own `kysely_migration` row, so
+the change, the record that it happened and the record of what it said all commit
+together or none of them do. Before anything is applied, every migration the
+database says it has run is hashed again and compared. A mismatch prints both
+hashes and exits **1**, having applied nothing:
+
+```
+1 applied migration has been edited since it was applied.
+Nothing was migrated. The database does not contain what these files now say.
+
+  ✗ 0002_securities
+      applied: 8a944594c3fdf6e5cd0b9cbb88a45a19e28c85a815a1c27df7ff7faf903b540a
+      on disk: 05d9127235835eb78e78edf09a63fbfd022f434a5dc0ad5e657697eb51e961a3
+```
+
+**Three things about it that are not obvious.**
+
+**It adopts rather than fails on a database that predates it.** Every database
+migrated before Task 2.2.7 has `kysely_migration` rows and no checksum rows, so
+refusing on a missing row would refuse every existing database on the first run.
+Instead the current contents are recorded and the line says so — `○ 0001_baseline
+— checksum adopted`. That means a file edited _before_ this existed is silently
+blessed, exactly once. There is no version of this that does not have that hole;
+what there is, is saying so.
+
+**It says nothing about a migration that has not run.** A file that has never
+been applied can be edited freely — that is what a pull request is for. The rule
+this enforces is the narrow one: never edit a migration that has been applied.
+
+**There is no command that repairs a divergence, and the recovery differs by
+environment.** Locally, reset: `pnpm db down -v && pnpm db && pnpm migrate`. On
+the deployed server there is no reset, so the answer is a **new forward
+migration** carrying whatever the edit was going to say — and then either revert
+the edit or leave it, since once the two disagree the file is no longer a record
+of what ran. The checksum will keep refusing until they agree again, which is the
+mechanism doing its job rather than being in the way.
+
+**What it still does not catch** is a database changed by something other than a
+migration — a hand-written `alter table` against the deployed server. Nothing
+here hashes the schema itself, only the files that were run.
+
+### Migrations must be additive across a deploy — expand, then contract
+
+This is a rule about **writing** migrations that exists because of where they now
+run. `deploy.yml` migrates the database **before** it rolls either half of the
+code, so between those two moments the schema is ahead of every running replica —
+and if the deploy then fails, it stays ahead until the next one.
+
+That is survivable while a migration only **adds**: a new table, a new nullable
+column, a new index. The old revision keeps serving because nothing it does reads
+what was just added. It stops being survivable the moment a migration removes or
+narrows something the deployed code still reads — a dropped column, a tightened
+`not null`, a renamed table — because there is a window, and possibly a long one,
+in which the running code is wrong.
+
+**So a destructive change is two deploys, not one.**
+
+1. **Expand.** Add the new shape. Ship code that writes both and reads the new
+   one. Merge.
+2. **Contract.** Once no running replica reads the old shape, a second migration
+   removes it. Merge.
+
+There is no mechanism enforcing this and there cannot be one — whether a column
+is still read is a fact about code, not about the schema. It is here because this
+is where somebody writing the destructive migration is looking.
 
 ---
 
@@ -527,6 +590,7 @@ database-backed test**, after it has.
 | Every table has an identity `bigint` `id`                        | `pnpm test:database`, on `is_identity` and never on `column_default`                                            |
 | `schema.ts` and the real schema agree, column for column         | `pnpm test:database`, in **both** directions — and the compiler covers a third                                  |
 | A closed set's union and its `check` constraint agree            | `pnpm test:database`, parsing the constraint Postgres **rewrote**                                               |
+| An applied migration's file has not been edited since            | the runner's checksum pass, in **every** environment — the only one of these that holds where no test runs      |
 
 **The three-hop arrangement behind the last two rows is worth understanding
 before adding a table**, because it is what makes a hand-written type safe
@@ -571,15 +635,21 @@ market_ and `recorded_at` means _when we wrote it_. A database can confirm both
 columns are `timestamptz`; nothing can confirm a writer put the right value in the
 right one. That is what review is for, and it is why this document exists.
 
-**And one convention here is prose that no instrument can ever hold: never edit a
-migration that has been applied.** Task 2.2.6 produced the consequence — with an
-index appended to an already-applied `0002_securities.sql`, `pnpm migrate`
-reported `Already up to date` at exit 0 and `pnpm test:database` reported 23
-passed at exit 0, over a database missing that index. Neither instrument looks at
-the database you broke: one matches migrations by name and never reads their
-contents, the other builds a database of its own from empty. Only a stored hash
-could close it, and Task 2.2.5 weighed one and declined it. See
-[§8](#the-one-failure-nothing-here-catches-editing-a-migration-that-has-been-applied).
+**One convention that used to be in this list has moved into the checked one, and
+it is the only migration of a rule between these two lists so far: never edit a
+migration that has been applied.** Task 2.2.5 declined a stored hash, Task 2.2.6
+produced the consequence — two green instruments over a database missing an index
+— and Task 2.2.7 built the hash table, because the recovery those two rested on
+(drop it and re-migrate) stopped existing the moment there was a deployed server
+with a `CanNotDelete` lock on it. The check is in the runner rather than in the
+database suite, which is why it holds in every environment including the one
+where no test runs. See
+[§8](#editing-a-migration-that-has-been-applied--caught-since-task-227).
+
+**And one convention is prose that no instrument can ever hold: a destructive
+migration must be split across two deploys, expand then contract.** Whether a
+column is still read is a fact about code rather than about the schema, so
+nothing can check it. See §8.
 
 **A regex over the SQL text was considered and declined.** It could catch
 `timestamp` and `double precision` before the file ran, which is earlier and

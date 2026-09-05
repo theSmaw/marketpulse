@@ -560,7 +560,7 @@ the same second half for the same reason.
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
 in this workspace. `packages/shared` runs 37 tests across 4 files,
-`apps/backend` 99 across 7, and `apps/frontend` 103 across 12 — **239 in
+`apps/backend` 106 across 7, and `apps/frontend` 103 across 12 — **246 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -981,13 +981,19 @@ pnpm migrate
 ```
 
 ```
+  Pending: 0001_baseline, 0002_securities
   ✓ 0001_baseline
   ✓ 0002_securities
 
   Applied 2 migrations.
 ```
 
-Every migration the database has not seen, in order, inside a transaction each.
+Every migration the database has not seen, in order, inside one transaction for
+the whole run — so a run of three whose third fails rolls back all three. It
+prints what it is about to apply before it applies it, which costs nothing (it
+has to read that list for the checksum pass anyway) and matters because this now
+runs inside a deploy, and a deploy step that cannot say what it is about to do is
+a step nobody can review afterwards.
 Run it again and it says `Already up to date — no migrations to apply.` and
 exits 0; that is not a courtesy, it is acceptance criterion 2 of the story that
 built this.
@@ -1009,10 +1015,17 @@ that dropped a column with data in it — cannot be written at all. The answer t
 a migration you regret is a new forward migration. `pnpm migrate` therefore
 takes no arguments and says so rather than ignoring them.
 
-**Editing a migration that has already been applied does nothing.** Kysely's
-`kysely_migration` table records a name and a timestamp and **no checksum**, so
-an edited file still matches by name and is skipped, and the database silently
-diverges from the file claiming to describe it. Write a new migration instead.
+**Editing a migration that has already been applied is refused.** Kysely's
+`kysely_migration` table records a name and a timestamp and no checksum, so it
+alone cannot tell — Task 2.2.6 produced the consequence, two green instruments
+over a database missing an index. Task 2.2.7 added `migration_checksum`, a
+SHA-256 of each file's bytes written **in the same transaction as the migration**
+and compared before every run, so an edited applied file now exits **1** naming
+the file and printing both hashes, having applied nothing. Write a new migration
+instead. A database migrated before that existed has its current contents
+**adopted** on the next run (`○ … checksum adopted`) rather than being refused,
+which is stated rather than hidden: a file edited before this was built is
+blessed exactly once.
 
 **It needs a built tree** — the mechanism is `apps/backend/src/migrate.ts` and
 the root script is a wrapper — and it says ``run `pnpm build` first`` if there
@@ -1051,14 +1064,24 @@ along with the recovery for each. Two of its findings are worth having before yo
 need them. **Two `pnpm migrate` runs at once are safe** — Kysely takes a
 session-level `pg_advisory_lock`, so the second waits and then reports
 `Already up to date`, and if the first _fails_ the second runs it itself and also
-exits 1; neither ever reports success over a failure. And **there is exactly one
-failure that does not exit 1**: editing a migration that has already been applied.
-There is no checksum, so `pnpm migrate` reports `Already up to date` at exit 0 and
-`pnpm test:database` passes too — it builds a database of its own from empty and
-never looks at yours. Two green instruments over a database that is wrong, and
-only a person catches it. **Never edit a migration that has been applied; write a
-new one.** If you already have, `pnpm db down -v && pnpm db && pnpm migrate` is
-the recovery, confirmed sufficient.
+exits 1; neither ever reports success over a failure. And **the one failure it
+found that did not exit 1 has since been closed**: editing a migration that has
+already been applied used to report `Already up to date` at exit 0, with
+`pnpm test:database` passing beside it because that suite builds a database of its
+own from empty and never looks at yours. Task 2.2.7 built the checksum, so it
+exits 1. **Never edit a migration that has been applied; write a new one.** If you
+already have, `pnpm db down -v && pnpm db && pnpm migrate` is the local recovery;
+the deployed server cannot be reset, so there the answer is a new forward
+migration carrying the difference.
+
+**The deployed database is migrated by the pipeline, not by you.** A step in
+`.github/workflows/deploy.yml` runs `pnpm migrate` on the runner **before** either
+half of the code rolls, connecting as `marketpulse-github-deploy` — a second
+Postgres role with `CREATE` on `public` and nothing else, so the backend's own
+role holds no DDL rights on the table it reads. That ordering means a deploy that
+fails after the migration leaves the schema **ahead** of the code, which is
+survivable only while migrations are additive, so a destructive change is two
+deploys: expand, then contract. See `migrations/README.md` §8.
 
 **What is in the database today: `securities`, and nothing else.** Task 2.2.4
 put one table through the mechanism, sized by Story 2.3's vocabulary — symbol,
@@ -1084,7 +1107,7 @@ pnpm build         # and a built tree
 pnpm test:database
 ```
 
-**23 tests against a real PostgreSQL server**, in about half a second. It is the
+**25 tests against a real PostgreSQL server**, in about half a second. It is the
 sixth level of test in this repository and the third command that runs tests,
 after `pnpm test` and `pnpm test:process`, and it exists because three things
 this repository claims are only answerable by a database: that a migration
