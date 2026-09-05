@@ -1,0 +1,16 @@
+-- 0001_baseline — the migration that creates nothing (Task 2.2.2).
+--
+-- This file exists so the mechanism can be proved end to end against a real
+-- database before any schema depends on it. Task 1.11.2's lesson applied to a
+-- stateful thing: "a platform failing on an artefact that was never correct is
+-- the most expensive failure to read", and a migration mechanism whose first
+-- migration is also its first schema is exactly that artefact.
+--
+-- Running it creates the two bookkeeping tables Kysely owns —
+-- `kysely_migration` and `kysely_migration_lock` — and records this name in the
+-- first of them, so the whole of acceptance criterion 2 ("applying it twice is
+-- a no-op") is observable with nothing else in the tree to be wrong.
+--
+-- **Do not add statements to this file.** It has been applied, and there is no
+-- checksum, so an edit here is silently skipped on every database that already
+-- holds this row. The first table is `0002_*`, and it is Task 2.2.4's.

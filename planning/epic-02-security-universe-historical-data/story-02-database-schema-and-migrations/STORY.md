@@ -94,7 +94,11 @@ records what was being weighed at the time.
    ergonomic: **Epic 13 enforces temporal isolation in the data layer**, so whatever is
    chosen must make "no query may read past the replay clock" expressible in one place
    rather than remembered at every call site
-3. **Where migrations run on deploy**, and what a failed migration does to the rollout
+3. **Where migrations run on deploy**, and what a failed migration does to the rollout —
+   still open and Task 2.2.7's, and Task 2.2.2 handed it the fact that decides it:
+   `apps/backend/package.json`'s `files` field means the container image does **not** carry
+   `apps/backend/migrations/`, so "a job the container runs at boot" needs that field
+   changed in the same commit and "a step in `deploy.yml`" does not
 4. **Whether the schema or the TypeScript types are the source of truth** — **the generation
    half is answered: nothing is generated**, the schema is the source of truth and the
    TypeScript follows it by hand (`kysely-codegen`, `drizzle-kit pull` and `prisma migrate
@@ -137,7 +141,7 @@ stops being the backend's problem alone. 2.2.8 closes the story and records ADR 
 | #     | Task                                                                                                                                    | Status       |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
 | 2.2.1 | [Choose the migration tool and the query layer, installing nothing permanent](TASK-01-choose-the-migration-tool-and-the-query-layer.md) | **Complete** |
-| 2.2.2 | [Install the mechanism and make an empty migration real](TASK-02-the-mechanism-and-an-empty-migration.md)                               | Not started  |
+| 2.2.2 | [Install the mechanism and make an empty migration real](TASK-02-the-mechanism-and-an-empty-migration.md)                               | **Complete** |
 | 2.2.3 | [Write the conventions down, before there is a table to argue about](TASK-03-the-schema-conventions.md)                                 | Not started  |
 | 2.2.4 | [The first schema: `securities` and nothing more](TASK-04-the-first-schema.md)                                                          | Not started  |
 | 2.2.5 | [The sixth level of test, and what it costs `pnpm test`](TASK-05-the-sixth-level-of-test.md)                                            | Not started  |

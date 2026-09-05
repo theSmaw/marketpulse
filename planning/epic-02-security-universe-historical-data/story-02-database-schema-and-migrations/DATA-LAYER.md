@@ -1,8 +1,11 @@
 # The data layer — MarketPulse
 
-**Task:** 2.2.1 — Choose the migration tool and the query layer, installing nothing permanent
+**Tasks:** 2.2.1 — Choose the migration tool and the query layer, installing nothing
+permanent; **2.2.2** — Install the mechanism and make an empty migration real
 **Date:** 2026-09-05
-**Status:** decided; nothing installed, nothing provisioned, tree byte-identical
+**Status:** decided (2.2.1, nothing installed, tree byte-identical); **installed and proved
+end to end against the local database (2.2.2)** — see the last section, which is where the
+figures that were predictions in 2.2.1 are re-taken against the shipping tree
 
 This is Story 2.2's one document about how this repository describes a database and how a
 change to that description reaches a running one. It is to Story 2.2 what `HOSTING.md` is to
@@ -531,6 +534,212 @@ Every candidate was installed and reverted. After the last revert:
 | `pnpm verify`            | **exit 0**                                                                                                                                                                                                                                  |
 
 The local database was reset to an empty `public` schema, and the spike directory was deleted.
+
+## The mechanism, as built — Task 2.2.2 (2026-09-05)
+
+Task 2.2.1 decided and installed nothing. This section records what 2.2.2 then shipped, and
+it is here rather than in a second document for the reason the header gives: one document per
+subject.
+
+### The install reproduced the spike exactly, and the sweep was counted rather than read
+
+Re-taken from a **fresh install** — `rm -rf node_modules apps/*/node_modules e2e/node_modules`
+then `pnpm install --frozen-lockfile` — because pnpm never prunes the virtual store and a
+count is only comparable that way.
+
+|                       | Baseline    | After `kysely@0.29.5` | Spike predicted |
+| --------------------- | ----------- | --------------------- | --------------- |
+| store entries         | 418         | **419**               | +1              |
+| `node_modules`        | 291,912 KB  | **295,356 KB**        | +3,444 KB       |
+| `pnpm-lock.yaml`      | 4,757 lines | **4,766 lines**       | +9              |
+| `pnpm-workspace.yaml` | `760fcd3c…` | **unchanged**         | unchanged       |
+
+All three to the byte and to the line. The install-script sweep returns **one line**,
+`esbuild@0.28.2` — counted rather than read as a binary, because 2.2.1 found that
+`allowBuilds` is keyed on a package **name** and one entry can admit any number of scripts.
+
+`kysely` is a **`dependency` of `apps/backend`**, not a root devDependency and not a
+devDependency: the runner is TypeScript that `tsc -b` compiles, the query builder will be
+imported by shipped code in Story 2.8, and pnpm links a workspace dependency only into the
+package that declares it.
+
+### Where migrations live: `apps/backend/migrations/`
+
+Three homes were available and the question that decides between them is which package the
+runner is a dependency of. A **bare top-level directory** fails the way Task 1.13.1 measured
+— `TS1295`, because the nearest `package.json` is the root's, which deliberately has no
+`"type": "module"`, and `MODULE_NOT_FOUND` on anything pnpm links per package. A **fifth
+workspace package** would be a package whose only consumer is `apps/backend`, and would join
+every `pnpm -r` fan-out on the day it was created. `apps/backend` is the only thing in this
+repository that connects to a database at all, so the description of that database lives
+beside it.
+
+**One consequence, stated now rather than discovered in Task 2.2.7:**
+`apps/backend/package.json`'s `files` is `["dist", "!dist/**/*.test.*"]`, so `pnpm deploy` and
+therefore the container image do **not** carry `migrations/`. That is the fact which decides
+between "a step in `deploy.yml` before the container rolls" and "a job the container runs at
+boot" — the second needs `migrations` added to `files` in the same change.
+
+### Naming and ordering: a four-digit sequence number, because its failure is loud
+
+`NNNN_lower_snake_case.sql`, checked by the provider rather than assumed. Timestamps are the
+more common convention **precisely because of the property being rejected here**: two
+developers on two branches each adding a migration.
+
+- A **sequence number collides** — a merge conflict on a filename, resolved by a human in the
+  pull request where both changes are visible, before it reaches any database.
+- A **timestamp interleaves** — both branches merge cleanly and the migrations then apply in
+  an order neither author tested, on every database, silently.
+
+The case that breaks a sequence number is a branch renamed to a free number after the fact
+rather than conflicting, and it has a backstop at the database: with
+`allowUnorderedMigrations` left at its default of `false`, Kysely refuses a migration inserted
+before an applied one by name — _"corrupted migrations: expected previously executed migration
+0003 to be at index 1 but 0002 was found in its place"_.
+
+A filename that does not match is an **error rather than a skipped file**, and so is an empty
+directory. A silently skipped migration is the failure the whole mechanism exists to prevent,
+and "no migrations found" and "everything already applied" otherwise print the same nothing.
+
+### The exit code, made to fail three ways before it was called working
+
+This was 2.2.1's sharpest handover and it is a property of our code rather than of the
+library. `summariseMigration()` is therefore a **pure function with its own tests** rather
+than a `console.log` inline, and `scripts/run-migrations.mjs` turns its `exitCode` into a
+process result. Each of the four paths below was produced against the running local database:
+
+| What                                      | Output                                                              | Exit  |
+| ----------------------------------------- | ------------------------------------------------------------------- | ----- |
+| empty database                            | `✓ 0001_baseline` / `Applied 1 migration.`                          | **0** |
+| the same again, twice                     | `Already up to date — no migrations to apply.`                      | **0** |
+| a migration violating a unique constraint | `✗ 0002_…` / `duplicate key value violates unique constraint`       | **1** |
+| a filename the provider refuses           | `failed before any migration was executed` / names the file         | **1** |
+| the database stopped                      | `failed before any migration was executed` / `connect ECONNREFUSED` | **1** |
+| `pnpm migrate down`                       | refuses arguments, naming forward-only                              | **1** |
+
+After the failing migration: **two tables in `public`** — Kysely's own two — and
+`kysely_migration` holding `0001_baseline` alone. Postgres's transactional DDL plus the
+bookkeeping row being inside the same transaction, confirmed on the shipping mechanism rather
+than on a spike.
+
+**Three deliberate breaks in `summariseMigration`, each seen to fail and reverted**, and the
+second is the one that teaches something:
+
+1. Never reading `error` at all — the exact 2.2.1 bug: **3 failed**.
+2. Reading `results` for a `status: "Error"` **instead of** reading `error` — **2 failed**.
+   It catches the ordinary case and misses the whole class where Kysely fails before working
+   out what to run, when `results` is `undefined` and there is no `Error` anywhere to find.
+3. Dropping the filename check — **1 failed**.
+
+`pnpm migrate` refuses arguments rather than forwarding them, which is the opposite of
+`pnpm db`'s decision and is deliberate: `pnpm db` wraps a tool with a large useful command
+surface, and this wraps one operation. Silently running `migrateToLatest` for
+`pnpm migrate down` and reporting success is the worst of the three options.
+
+### The tracking table, read by hand
+
+```
+kysely_migration       name       character varying  NOT NULL
+kysely_migration       timestamp  character varying  NOT NULL
+kysely_migration_lock  id         character varying  NOT NULL
+kysely_migration_lock  is_locked  integer            NOT NULL
+
+ name          | timestamp
+---------------+--------------------------
+ 0001_baseline | 2026-09-05T03:11:48.190Z
+```
+
+Both default names, kept: a rename buys nothing and gives every reader of this database two
+names to reconcile. Note `timestamp` is a **`character varying` holding an ISO 8601 string**,
+not a `timestamptz` — a fact worth knowing before anything tries to sort or filter on it.
+
+**And there is no checksum column, which is the gap 2.2.1 named. It is deferred to Task
+2.2.5**, which has been told so definitely rather than conditionally. The alternative was
+weighed rather than waved away: a second table the provider writes is feasible, because the
+provider's `up(db)` runs inside the migration's own transaction, so a hash row would be atomic
+with the change. It was declined because it is a second bookkeeping mechanism with a bootstrap
+ordering problem, guarding a failure whose only realistic cause is a developer editing an
+applied file — against which this repository's own rule prefers a test. The half that argues
+the other way is recorded in 2.2.5's task file: **a table is checked in every environment
+including the deployed one, where no test runs.** What ships in the meantime is a warning
+inside `0001_baseline.sql` itself saying not to edit it.
+
+### The `Kysely` instance is built inside the runner and is not exported
+
+`apps/backend/src/database.ts` gained **nothing at all** — no import, no handle, no export —
+which is the check rather than an omission. Epic 13's temporal plugin is attached with
+`withPlugin`, which returns a _different object_, so the seam holds only if there is no
+unplugged handle to import; there is not one. `migrate.ts` constructs one, migrates with it
+and destroys it. Story 2.8 writes the first `selectFrom` and owns where the _isolated_ handle
+lives.
+
+Note `db.destroy()` ends the underlying pool, so `closeDatabasePool()` must not also be
+called — `pg` rejects a second `end()`.
+
+### One thing 2.2.1 recorded that is sharper than recorded
+
+The migrator being a separate subpath export is worse at **compile** time than at run time.
+`import { Migrator } from "kysely"` is a hard `SyntaxError` when the module loads, as 2.2.1
+found — but the root package still exports the _names_ as
+`KyselyTypeError<"import from 'kysely/migration' instead">` stubs, so the mistake first
+arrives as a confusing type rather than a missing one. Types come from `kysely/migration` too.
+
+### A sixth kind of `pnpm verify` gap, measured rather than assumed
+
+`.sql` files are read by nothing here, and the one-liner that has caught this list drifting
+every time it has been re-run says so:
+
+```
+prettier --file-info apps/backend/migrations/0001_baseline.sql
+  { "ignored": false, "inferredParser": null }
+eslint apps/backend/migrations/0001_baseline.sql
+  0:0  warning  File ignored because no matching configuration was supplied
+```
+
+The same signature `scripts/dev.sh`, the `Dockerfile` and the root `.dockerignore` carry. So a
+migration's SQL is unformatted, unlinted and untypechecked, and the only things standing over
+it are code review and the fact that a broken one fails loudly the first time it is run. It is
+in `CLAUDE.md`'s gap list. `apps/backend/src/migrate.ts` and `scripts/run-migrations.mjs` are
+**inside** the net — `"typescript"` and `"babel"` respectively — which is the whole reason the
+runner is TypeScript in `src/` with a thin `.mjs` wrapper rather than a script.
+
+### One thing this task changed that it did not set out to, and one it could not explain
+
+`pnpm verify` went red twice during this task, both times inside
+`apps/backend/src/index.process.test.ts`, on a tree whose own tests were green when run on
+their own. They are recorded separately because only one of them was diagnosed.
+
+**Fixed.** `reports the database's reachability at startup, either way` used
+`await delay(200)` and then asserted the record was present. The comment beside it justified
+the _ordering_ — the entrypoint awaits the probe immediately after `listen()` — and said
+nothing about the _duration_, which is the half that matters: with no database the probe
+fails in about 3 ms and 200 ms is enormous, and with one it has to open a real connection.
+Under the load of a full chain it lost that race once. It **polls** now, with a 10-second
+deadline, which is what `check-ready.mjs` and `waitForReady` in the same file already do; the
+assertion is unchanged and was made to fail before it was believed, by asserting a record that
+never appears.
+
+**Not explained, and recorded rather than hidden.** `closes the pool after the drain and
+before the exit` failed once with `expected 4 to be greater than 7` — the index of
+`http drained` below the index of `signal received, shutting down`, which is an ordering the
+process cannot produce. It did **not** reproduce in five subsequent runs of the suite, nor in
+two runs under eight CPU-saturating background processes. The suspicion worth carrying is the
+harness rather than the application: `launch()` appends **both** `stdout` and `stderr` into one
+string, so a chunk boundary between the two streams can corrupt the buffer — though that does
+not obviously explain a reordering of records that all go to `stdout`. It is a flake in a
+Story 2.1 test rather than in anything this task built, and it is left open with the numbers
+written down, because inventing a fix for a mechanism nobody has reproduced is worse than
+naming it.
+
+### Criterion 7, measured on the task that could have broken it
+
+`pnpm verify` is **exit 0 in 26.16 s with the database stopped**, and `pnpm test` is **239**
+(37 + **99** + 103) needing no database, no build and no socket. Task 2.1.2's stated trigger
+for `pnpm ready`'s third check becoming a gate — _the first check in `pnpm verify` or
+`pnpm e2e` that fails without a database_ — has **not** fired here, because `pnpm migrate` is
+neither.
+
+---
 
 ## Sources
 

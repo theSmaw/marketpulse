@@ -678,30 +678,39 @@ describe("the database pool", () => {
     const server = startServer(port);
     await waitForReady(server);
 
-    // Asked after the server answered, so the probe has certainly run: the
-    // entrypoint awaits it immediately after `listen()` resolves.
-    await delay(200);
-
     const reachable = await postgresAnswers(5432);
-    const messages = server.records().map((record) => record.msg);
+    const expected = reachable
+      ? "database reachable"
+      : "database unreachable, continuing without it";
 
-    expect(messages).toContain(
-      reachable
-        ? "database reachable"
-        : "database unreachable, continuing without it",
-    );
+    // **Waited for rather than slept past, and that correction is Task 2.2.2's
+    // rather than a tidy-up.** This was `await delay(200)` on the argument that
+    // the entrypoint awaits the probe immediately after `listen()` resolves —
+    // which is true of the *ordering* and says nothing about the *duration*.
+    // With no database the probe fails in about 3 ms and 200 ms is enormous;
+    // with one it has to open a real connection, and that lost a race once
+    // under the load of a full `pnpm verify`, taking the chain red on a healthy
+    // tree. A fixed sleep in a process test is the shape this repository has
+    // already refused twice — `check-ready.mjs` polls and `waitForReady` above
+    // polls — so this polls too, and the assertion below is unchanged.
+    const readMessages = (): (string | undefined)[] =>
+      server.records().map((record) => record.msg);
+
+    const deadline = Date.now() + 10_000;
+
+    while (!readMessages().includes(expected) && Date.now() < deadline) {
+      await delay(25);
+    }
+
+    const messages = readMessages();
+
+    expect(messages).toContain(expected);
 
     // And the server is listening before the answer is known, which is the
     // ordering that keeps a slow database out of the startup path.
     expect(
       messages.indexOf("Server listening at http://127.0.0.1:" + String(port)),
-    ).toBeLessThan(
-      messages.indexOf(
-        reachable
-          ? "database reachable"
-          : "database unreachable, continuing without it",
-      ),
-    );
+    ).toBeLessThan(messages.indexOf(expected));
 
     server.child.kill("SIGTERM");
     await waitForExit(server);

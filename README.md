@@ -461,11 +461,12 @@ Run from the repository root:
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Every package's tests — 207 across the workspace — see below          |
+| `pnpm test`         | Every package's tests — 239 across the workspace — see below          |
 | `pnpm test:process` | The backend's process half — 14 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
 | `pnpm db`           | Starts the local PostgreSQL 18 container — see below                  |
+| `pnpm migrate`      | Applies every migration the database has not seen — see below         |
 | `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
 | `pnpm image`        | Builds the backend's `linux/amd64` container image — see below        |
 | `pnpm e2e`          | The browser suite, against a pair you started — see below             |
@@ -559,7 +560,7 @@ the same second half for the same reason.
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
 in this workspace. `packages/shared` runs 37 tests across 4 files,
-`apps/backend` 89 across 6, and `apps/frontend` 103 across 12 — **229 in
+`apps/backend` 99 across 7, and `apps/frontend` 103 across 12 — **239 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -971,6 +972,75 @@ Two things that will otherwise cost an afternoon:
   first run, empty volume, with a long message naming the mount and the fix. It
   is a loud failure rather than a silent one, which is the good outcome — but it
   is not what the shape of the mistake suggests
+
+### `pnpm migrate` — bringing the database up to date
+
+```sh
+pnpm migrate
+```
+
+```
+  ✓ 0001_baseline
+
+  Applied 1 migration.
+```
+
+Every migration the database has not seen, in order, inside a transaction each.
+Run it again and it says `Already up to date — no migrations to apply.` and
+exits 0; that is not a courtesy, it is acceptance criterion 2 of the story that
+built this.
+
+**Migrations are `.sql` files in `apps/backend/migrations/`, named
+`NNNN_lower_snake_case.sql`.** A `.sql` file is reviewable in a pull request as
+_the thing that will run_, where a TypeScript migration compiles into `dist/`
+and the artefact reviewed is not the artefact executed. The number is a
+**sequence and not a timestamp**, chosen on which failure is loud: two branches
+each adding `0002_*` is a merge conflict a human resolves before it reaches any
+database, where two timestamps merge cleanly and then apply in an order neither
+author tested. A filename that does not match is an **error**, not a file
+quietly skipped — a skipped migration is the failure the whole mechanism exists
+to prevent.
+
+**There is no `down`, deliberately.** A `down` that has never been executed is a
+claim rather than a mechanism, and the one that matters — reversing a migration
+that dropped a column with data in it — cannot be written at all. The answer to
+a migration you regret is a new forward migration. `pnpm migrate` therefore
+takes no arguments and says so rather than ignoring them.
+
+**Editing a migration that has already been applied does nothing.** Kysely's
+`kysely_migration` table records a name and a timestamp and **no checksum**, so
+an edited file still matches by name and is skipped, and the database silently
+diverges from the file claiming to describe it. Write a new migration instead.
+
+**It needs a built tree** — the mechanism is `apps/backend/src/migrate.ts` and
+the root script is a wrapper — and it says ``run `pnpm build` first`` if there
+is not one. Where the database is comes from the same
+`apps/backend/dist/config.js` that [`pnpm db`](#pnpm-db--the-local-database) and
+`pnpm ready` read, so there is no second copy of the address and both
+`DATABASE_AUTH` modes work with no code of its own.
+
+**It is not a `pnpm verify` step**, for the reason `pnpm ready` is not: `verify`
+runs with nothing listening and no database at all.
+
+**When a migration fails it exits 1 and leaves nothing behind.** Postgres has
+transactional DDL and the bookkeeping row goes in the same transaction, so a
+file that fails half way applies none of itself and records nothing:
+
+```
+  ✗ 0002_example
+
+Migration `0002_example` failed and was rolled back.
+
+  duplicate key value violates unique constraint "example_pkey"
+
+It ran inside a transaction, so it left nothing behind and was not recorded. Fix
+the file and run `pnpm migrate` again.
+```
+
+That exit code is the one thing about this command worth knowing:
+`migrateToLatest()` **resolves** rather than throwing, so a runner that does not
+read its `error` field is a green migration step over a database whose tables do
+not exist. It is read, and the reading is unit-tested.
 
 ### `pnpm ready` — knowing the pair is up
 
@@ -2177,6 +2247,18 @@ the file that starts the development loop, and since Story 1.7 it carries
 `export LOG_FORMAT="${LOG_FORMAT:-pretty}"`, the one configuration value
 [`pnpm env:check`](#pnpm-envcheck) cannot see. A typo there is not an error; it
 is a silent fallback to JSON logs in the dev loop.
+
+**1b. Every `.sql` file under `apps/backend/migrations/`**, since Task 2.2.2 —
+the same signature, re-measured rather than assumed: `"inferredParser": null`
+from Prettier, `File ignored because no matching configuration was supplied`
+from ESLint, and nothing from `tsc`. So a migration's SQL is unformatted,
+unlinted and untypechecked, and what stands over it is code review plus the fact
+that a broken one fails loudly the first time `pnpm migrate` runs. It is listed
+beside `dev.sh` rather than as a sixth item because the failure is identical.
+The mechanism _around_ it is inside the net on purpose:
+`apps/backend/src/migrate.ts` reports `"typescript"` and
+`scripts/run-migrations.mjs` reports `"babel"`, which is why the runner is
+TypeScript in `src/` behind a thin wrapper rather than a script of its own.
 
 **2. The `rm -rf` fragments in two `clean` scripts** — the root's and
 `apps/frontend`'s — unchecked shell inside a JSON string. The other two
