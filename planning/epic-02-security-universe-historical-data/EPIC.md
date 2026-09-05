@@ -63,15 +63,33 @@ before this epic lands spends part of the twelve.
 "Investigation persistence", but a migration mechanism is needed the moment this
 epic writes its first row, so it is scoped here.
 
-**This epic is the first thing that puts a credential on the platform**, and two
+~~**This epic is the first thing that puts a credential on the platform**, and two
 recorded properties stop being free at that moment. ADR 0011 states that nothing
 deployed holds a credential; ADR 0006 draws the secrets boundary on the
-assumption that nothing has yet tested it. Today the Container App's `secrets`
+assumption that nothing has yet tested it.~~ **Corrected 2026-09-05 by Task 2.1.8,
+and the correction is that this prediction was wrong about the story rather than
+about the epic.** Story 2.1 wired the deployed backend to a managed Postgres and
+**put no secret on the platform at all** — Task 2.1.1 chose Microsoft Entra
+authentication with password auth `Disabled`, so the credential is an access
+token minted per connection from the container's own managed identity and
+nothing is stored. The `secrets` array was read back from the live app **after**
+that change, and again by Task 2.1.8 after the diagnostic route deployed: it is
+still `null`. **So ADR 0011's claim is confirmed by Story 2.1 rather than
+falsified by it, and it expires in Story 2.6**, which is genuinely the first
+task in this project to place a bearer secret from a party with no Azure
+identity. ADR 0006's boundary is the half that did move: Story 2.1 is the first
+thing to test it, and it held — see `docs/adr/0014-*`.
+
+Today the Container App's `secrets`
 array is **empty** — measured in Task 1.11.3, which also identified the
-mechanism for exactly this key and used none of it. Note the deployed
+mechanism for exactly this key and used none of it, and re-read in Tasks 2.1.6
+and 2.1.8. Note the deployed
 environment is **public**, accepted in Epic 1 on the stated grounds that nothing
 deployed holds a credential and the backend's entire surface is `GET /health`;
-that argument expires here.
+~~that argument expires here~~ **that argument expires in Story 2.6 — Story 2.1
+left both halves of it standing, and it added one route,
+`GET /diagnostics/database`, which is public, unauthenticated, and deliberately
+carries no error message, host, port or SQLSTATE for that reason**.
 
 Also worth reading before starting: `apps/frontend/.env.example` exists in the
 shape it does specifically because it is the file open in front of whoever is
@@ -139,8 +157,15 @@ stories.
 ## Two corrections to this epic's framing
 
 **The Alpaca key is not the first secret this system holds — the database credential is**,
-and it arrives in Story 2.1, five stories earlier. So the secrets mechanism is built in 2.1
-and Story 2.6 places a second key through a proven path rather than inventing one.
+and it arrives in Story 2.1, five stories earlier. ~~So the secrets mechanism is built in 2.1
+and Story 2.6 places a second key through a proven path rather than inventing one.~~
+**Corrected 2026-09-04 by Task 2.1.1 and confirmed 2026-09-05 by Task 2.1.8: the second half
+of that does not follow.** The database credential turned out to need no storage mechanism at
+all, so **the path does not transfer** — an Alpaca key is a bearer secret from a party with no
+Azure identity, and Story 2.6 will be putting a secret on the platform for the first time
+rather than repeating something proven here. What transfers is the **identity**, not the
+mechanism, and the `secrets`-array path is **exercised by nothing** in this repository. That
+is Story 2.6's largest unknown and it is named here rather than left for 2.6 to discover.
 
 **"Historical market-data persistence/cache" is two different products and the epic does not
 say which.** §24 wants raw observations stored as append-only timestamped events, which is a

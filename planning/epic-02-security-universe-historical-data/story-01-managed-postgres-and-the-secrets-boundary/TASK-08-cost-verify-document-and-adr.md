@@ -1,6 +1,6 @@
 # Task 2.1.8 — Re-take the cost question, verify from a clean clone, document, and record ADR 0014
 
-**Status:** Not started
+**Status:** Complete (2026-09-05)
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.1–2.1.7
 **Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.7 — see the seven _Amended_ sections below

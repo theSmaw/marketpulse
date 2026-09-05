@@ -5,7 +5,7 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all **207** fast tests passed, and
+files still agree with the configuration table, all **229** fast tests passed, and
 the 14-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
@@ -58,7 +58,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of **207** fast tests plus a 14-test process suite, with
+and a test suite of **229** fast tests plus a 14-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -348,10 +348,27 @@ Both halves run on Microsoft Azure. The full record — the platform decision, t
 quoted limits, the cost envelope and everything the two deploys measured — is
 [`HOSTING.md`](planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md).
 
-| Half     | URL                                                                            | Service                                    |
-| -------- | ------------------------------------------------------------------------------ | ------------------------------------------ |
-| Frontend | <https://red-smoke-029583a0f.5.azurestaticapps.net>                            | Azure Static Web Apps, Free, East US 2     |
-| Backend  | <https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io> | Azure Container Apps, Consumption, East US |
+| Half     | URL                                                                            | Service                                                |
+| -------- | ------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| Frontend | <https://red-smoke-029583a0f.5.azurestaticapps.net>                            | Azure Static Web Apps, Free, East US 2                 |
+| Backend  | <https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io> | Azure Container Apps, Consumption, East US             |
+| Database | `psql-marketpulse-dev.postgres.database.azure.com` (not public-facing HTTP)    | PostgreSQL flexible server, B1MS, **North Central US** |
+
+**Three regions, and this project chose none of them.** Static Web Apps is not
+offered in East US, and Postgres is `OfferRestricted` for this subscription in
+East US _and_ in East US 2 — so the database sits in North Central US, one
+cross-region hop (**19.1–27.8 ms** TCP, **79.2–111.3 ms** TCP+TLS) from the
+backend. The price meters are identical, so it costs co-location and nothing
+else. See
+[ADR 0014](docs/adr/0014-managed-postgres-the-credential-path-and-what-a-reachable-database-certifies.md).
+
+**The backend holds no database credential**, and neither does the platform: it
+authenticates as its own managed identity, minting an access token per
+connection, and the Container App's `secrets` array is `null`. Checking whether
+it can reach the database is `GET /diagnostics/database` — **200 either way**,
+with `reachable` in the body. A healthy answer is ~20 ms warm and ~200 ms if it
+has to open a connection; an unreachable host costs the full 5-second connection
+deadline.
 
 It is a **development environment and it is public** — no authentication, no
 user data, and a backend whose entire surface is `GET /health` and
@@ -461,7 +478,7 @@ Run from the repository root:
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Every package's tests — 207 across the workspace — see below          |
+| `pnpm test`         | Every package's tests — 229 across the workspace — see below          |
 | `pnpm test:process` | The backend's process half — 14 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
@@ -621,7 +638,7 @@ answer.
 
 Three things about it worth knowing before changing it.
 
-**It is a separate command because it is a separate cost.** `pnpm test` is 207
+**It is a separate command because it is a separate cost.** `pnpm test` is 229
 tests in a few seconds, needs no build and no socket, and is the one you run all
 day; this suite takes about 8.2 s, of which 5 s is the shutdown ceiling being
 what it says it is. Both are steps in `pnpm verify`, so both gate.
@@ -2167,7 +2184,8 @@ The reasoning behind all of it, including what was rejected, is in
 A green tick means every **check** passed. It does not mean every **claim** in
 this repository holds. Five things sit outside the net, deliberately, and they
 are listed here rather than left for a reader to assume the badge covers them.
-Last re-checked **2026-09-04**, by measurement rather than by reading this list.
+Last re-checked **2026-09-05** by Task 2.1.8, by measurement rather than by reading
+this list — every `prettier --file-info` reading below reproduced.
 
 **1. `apps/backend/scripts/dev.sh`.** ESLint sees only JavaScript and
 TypeScript, Prettier has no shell parser, and `tsc` has no view of it —
@@ -2228,7 +2246,25 @@ prevent. A drift is silent in both directions and its whole symptom class is
 "works locally, wrong in production", which is exactly what pinning the version
 was for. The one-liner is
 `docker compose exec postgres postgres --version` against the server's
-`az postgres flexible-server show --query version`.
+`az postgres flexible-server show --query version`. **Run by hand for the first
+time on 2026-09-05: both read 18.6.** That is a hand comparison and not a check —
+the gap is unchanged, and the two numbers agreeing today says nothing about
+tomorrow.
+
+**Story 2.1 also added three couplings that `pnpm verify` cannot see, and two of
+them are CHECKED rather than written down here.** Constants in two different
+files cannot be compared by any step in the chain, so a **test** does it — the
+same rule that put the response-schema check in `server.test.ts` rather than in
+an eighth `verify` step:
+
+- `TOKEN_TIMEOUT_MS` (3 s, `entra-token.ts`) must stay strictly **below**
+  `CONNECT_TIMEOUT_MS` (5 s, `database.ts`), or a hung identity endpoint is
+  reported as a generic connection timeout and never names itself. **Checked.**
+- `DIAGNOSTIC_CACHE_TTL_MS` (5 s) must stay strictly **below**
+  `POOL_IDLE_TIMEOUT_MS` (10 s), because cost steps at the idle timeout rather
+  than scaling with frequency — so a _longer_ TTL is _more_ expensive. **Checked.**
+- The local Postgres major matching the deployed one is the third, and it is the
+  one above: not checked, and structurally unable to be.
 
 **Story 1.13 added four more, and moved one of them out of this list by
 building a check for it.** The full argument — including what separates the ones
@@ -2405,9 +2441,29 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 
 ## Documentation
 
-- [`docs/adr/`](docs/adr/) — architecture decision records, newest last;
-  [0010](docs/adr/0010-continuous-integration-what-the-tick-certifies.md) is the
-  most recent and covers the section above: why the pipeline runs `pnpm verify`
+- [`docs/adr/`](docs/adr/) — architecture decision records, newest last.
+  **There are fourteen.** This list said "0010 is the most recent" for four
+  ADRs, which is the prose-rot this README's own gap list warns about, so read
+  the directory rather than this sentence.
+  [0014](docs/adr/0014-managed-postgres-the-credential-path-and-what-a-reachable-database-certifies.md)
+  is the most recent: why the database is where it is and why that was not our
+  choice, why it authenticates with a managed identity so the platform holds no
+  secret, why the local database is a container and what that costs a clean
+  clone, why the pool closes where it does, why `/health` says **nothing** about
+  the database, and what a reachable database certifies and what it does not.
+  [0013](docs/adr/0013-browser-testing-two-suites-and-what-a-green-run-certifies.md)
+  covers the browser suites: the tool, the specs' home, why the suite is a
+  second CI job rather than a `verify` step, and why axe gates before a merge
+  and reports after one.
+  [0012](docs/adr/0012-client-side-status-what-a-green-indicator-certifies.md)
+  covers client-side status: why it is a second vocabulary rather than a
+  widening of the first, why `degraded` is structural rather than latency-based,
+  and why there are two indicators rather than one.
+  [0011](docs/adr/0011-deploying-both-halves-and-what-a-green-deploy-certifies.md)
+  covers hosting both halves, what a commit-SHA tag and a digest each mean, and
+  what a green deploy cannot certify.
+  [0010](docs/adr/0010-continuous-integration-what-the-tick-certifies.md)
+  covers the pipeline section above: why it runs `pnpm verify`
   by name and defines nothing of its own, why per-step timings are derived from
   the chain's own output rather than declared, why the store is cached and the
   build never is, why coverage runs in the pipeline and gates nothing, and what
