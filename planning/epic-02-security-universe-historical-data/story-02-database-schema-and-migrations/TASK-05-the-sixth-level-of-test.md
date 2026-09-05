@@ -257,6 +257,15 @@ links a workspace dependency only into the package that declares it, so the step
 `apps/backend`. The deployed version stays uncompared, because comparing it needs Azure
 credentials `pnpm verify` deliberately does not have.
 
+**Confirmed on the runner rather than assumed.** The `database` job is green in **49 s**,
+against `verify`'s 79 s and `e2e`'s 94 s, on a run where all three passed; its version step
+printed `service reports: 18` against the pin, and the suite itself took **644 ms** there.
+The ruleset was then updated and **re-read from the API**: ruleset `main` (id 22160620),
+`enforcement: active`, required checks `['verify', 'e2e', 'database']`. That is platform
+state no file in this tree can hold, so this paragraph and `CLAUDE.md` are its only durable
+copy — and a future reader finding fewer than three should read it as a gate having been
+removed rather than never set.
+
 ### The checksum gap: deliberately not closed, with the reasoning recorded
 
 This suite migrates from **empty** every run, so it proves _these files produce this schema_
