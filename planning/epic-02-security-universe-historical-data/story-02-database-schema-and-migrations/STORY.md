@@ -159,6 +159,24 @@ before 2.2.7), because "what happens when the migration succeeds and the deploy 
 is not answerable until what a half-applied migration leaves behind has been produced
 rather than read.
 
+**Amended after Task 2.2.2 (2026-09-05), with no task added, deleted or re-ordered.** Five
+task files were amended because 2.2.2 turned questions into facts they were still written
+around. The one that is a genuine gap rather than a refinement: **nobody owned writing the
+`Database` interface.** 2.2.3 decides where the hand-written type lives, 2.2.5 asserts it
+against `information_schema`, and 2.2.2 left the migrator on `Kysely<unknown>` because there
+was no table to describe — so **2.2.4 now owns creating it**, in the change that creates the
+table it describes. The other four are inheritances: 2.2.3 learns that a `.sql` file is read
+by no tool at all, which puts a hard floor under its "checked versus prose" lists, and that
+the filename rule is already an enforced convention it can copy; 2.2.6 learns that four
+failure classes have already been produced on the shipped runner, so its list is now the ones
+2.2.2 could not reach — including every one that needs a table **with rows in it**; 2.2.7
+learns that `files` keeps `migrations/` out of the container image, which is the fact that
+prices "a job the container runs at boot" against "a step in `deploy.yml`", and that the
+migration pool reports `application_name` as `marketpulse-backend`, which is misleading the
+moment a separate migration identity is chosen; and 2.2.8 gains the first-run **sequence** as
+a thing to re-take separately from the command table, plus an open flake to close or carry
+forward rather than drop.
+
 **`market_bars` is in none of these tasks and that is deliberate**, per this story's own
 out-of-scope note: its shape is driven by measured ingestion, and creating it here would be
 creating it against no measurement at all.

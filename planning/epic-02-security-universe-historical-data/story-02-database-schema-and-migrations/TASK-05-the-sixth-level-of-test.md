@@ -20,7 +20,13 @@ without letting it near the one developers run all day.
   globs are one decision** — the unit config excludes what the second config includes —
   and nothing enforces the naming, so a database test named the wrong way runs in the fast
   suite and a correctly named one in another package runs nowhere at all. Write the reason
-  in both files, which is the only mitigation there has ever been for that class
+  in both files, which is the only mitigation there has ever been for that class.
+  **Task 2.2.2 gave that trap a concrete neighbour**: `apps/backend/src/migrate.test.ts` is
+  ten fast tests about the migration mechanism that deliberately open no socket — the
+  provider reads files from a temporary directory and the summariser is pure — so the
+  package now holds migration tests on **both** sides of the partition, and a file named a
+  hair differently lands in the wrong one. Do not duplicate those ten; what this suite adds
+  is what they structurally cannot reach
 - **`skipIf` is not available and the reason is recorded twice.** A skipped test reports
   green, which this repository has already called the worst failure mode available. Task
   2.1.4's answer is the model: the one test that cared whether a database existed **asked
