@@ -27,12 +27,17 @@
 // generic mapper is where that decision gets skipped. Story 2.8 writes the
 // first read and owns it. There is deliberately nothing of the kind here yet.
 //
-// **Nothing consumes this interface today**, and that is expected rather than a
-// loose end: `migrate.ts` deliberately does not (see below), and Story 2.8
-// writes the first `selectFrom`. Its first consumer is Task 2.2.5, which
-// asserts it against `information_schema` — because **nothing checks that this
-// file and the migrations agree**, and a column renamed in a migration and not
-// here typechecks, lints, builds, and fails at run time.
+// **Its only consumer is a test, and that is the point rather than a loose
+// end.** `migrate.ts` deliberately does not consume it (see below), and Story
+// 2.8 writes the first `selectFrom`. What Task 2.2.5 added is
+// `migrate.database.test.ts`, which declares its column expectation
+// `satisfies Record<keyof SecuritiesTable, ExpectedColumn>` and then compares
+// that expectation against `information_schema`. So the two directions are held
+// by two different things: the compiler holds interface → spec (a column added
+// here and not described there is `TS1360`), and `pnpm test:database` holds
+// spec → database. A column renamed in a migration and not here still
+// typechecks, lints and builds — and it is now a red `pnpm test:database`
+// rather than a run-time failure.
 //
 // **Why `migrate.ts` stays on `Kysely<unknown>`.** The obvious tidy-up is to
 // give the migrator `Kysely<Database>` now that there is something to name, and

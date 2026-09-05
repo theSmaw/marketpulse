@@ -346,8 +346,16 @@ and the row after the clock is gone. A query naming no temporal table is untouch
 `select "tablename" from "pg_tables"`.
 
 Because the plugin is attached with `db.withPlugin(...)`, the isolated handle and the raw one
-are **different objects** — so the module that constructs Kysely exports only the plugged one
-and there is no unplugged handle to import.
+are **different objects** — so the module that constructs Kysely can export only the plugged
+one, leaving no unplugged handle to import.
+
+> **Read this paragraph and the next as a spike finding rather than as a property of the
+> shipping tree (noted at Story 2.2's close, 2026-09-05).** The plugin was written, run
+> against a real table with a row on each side of the clock, and reverted; the tree is
+> byte-identical. What ships is one `Kysely<unknown>` inside `migrate.ts`, which is not
+> exported and carries no plugin because it runs no query. **Story 2.8 writes the first
+> `selectFrom` and owns the module this describes**, so "exports only the plugged one" is
+> the instruction that story inherits, not a statement about a module that exists.
 
 **The hole, and the thing that closes it.** A raw `` sql`...` `` query reaches the plugin as a
 `RawNode` — an opaque string it cannot rewrite. It _does_ reach the plugin, though, which is
@@ -359,7 +367,9 @@ refused: raw SQL is not permitted under temporal isolation
 
 So the seam is: **rewrite what it can, refuse what it cannot.** That is structural in the
 sense invariant 4 asks for — a call site cannot silently read past the clock, and the only way
-to try is a construct the seam rejects at run time.
+to try is a construct the seam rejects at run time. **In the shipping tree that is a
+demonstrated capability of the chosen library rather than a property of any code here**, and
+it stays one until Story 2.8's first read.
 
 ### Candidate C — Drizzle: no equivalent hook
 
@@ -469,8 +479,11 @@ reaching it.
 
 **So `apps/backend/src/database.ts` keeps everything Story 2.1 measured into it.** Kysely is a
 wrapper _over_ the pool, not a replacement _for_ it, and the file's own header — "it is not a
-query layer, a repository, an ORM or a typed access seam — Story 2.2 owns all of that" — is
-answered by adding a handle beside the pool rather than by rewriting the file.
+query layer, a repository, an ORM or a typed access seam" — is answered by adding a handle
+beside the pool rather than by rewriting the file. **What Story 2.2 actually shipped is
+narrower than that sentence predicts**: `migrate.ts` constructs the handle it needs over this
+pool and `database.ts` gained nothing at all, because the story ships no read. The handle
+"beside the pool" is Story 2.8's.
 
 ---
 

@@ -18,8 +18,8 @@ runner and runs [`pnpm e2e`](#pnpm-e2e--the-browser-suite) — ten journeys in
 Chromium against a real pair, including an accessibility gate over two assembled
 pages. It is a job rather than a chain step because `pnpm verify` runs with
 nothing listening, which is a property every clean-clone run in this repository
-has measured and one it is not willing to lose. Both jobs are required checks on
-`main`. Everything the browser suite does **not** certify is listed in
+has measured and one it is not willing to lose. All three jobs — `verify`, `e2e` and `database` — are required checks
+on `main`. Everything the browser suite does **not** certify is listed in
 [`e2e/README.md`](e2e/README.md).
 
 **Green does not mean anything is deployed, either.** Deployment is a second
@@ -174,13 +174,40 @@ If `pnpm install` fails complaining about a dependency's install scripts, see
 allowlist that one package, never to disable the check.
 
 Nothing in that sequence needs a database, and nothing in it needs Docker. The
-database is a separate, longer-lived thing:
+database is a separate, longer-lived thing, and it is **two** commands rather
+than one:
 
 ```sh
 pnpm db          # starts PostgreSQL 18 and waits until it is accepting connections
+pnpm migrate     # applies every migration the database has not seen
 ```
 
-Run it once and leave it. See [`pnpm db` — the local database](#pnpm-db--the-local-database).
+So the first run of a clean clone is **four** steps in this order —
+`pnpm install`, `pnpm build` (or `pnpm verify`, which builds), `pnpm db`,
+`pnpm migrate`. It was three until Story 2.2, and the two things that make the
+order matter are worth knowing before you reorder them. **`pnpm db` and
+`pnpm migrate` both need a built tree**, because where the database is comes out
+of `apps/backend/dist/config.js` rather than out of a second copy of the port;
+both say ``run `pnpm build` first`` rather than throwing a resolver error.
+And a database started but not migrated is an **empty** database that every tool
+here reports as perfectly healthy — `pnpm ready` ticks it, `pnpm verify` passes,
+`pnpm dev` serves — so skipping the fourth step has no symptom at all until
+something reads a table.
+
+Run `pnpm db` once and leave it running. See
+[`pnpm db` — the local database](#pnpm-db--the-local-database) and
+[`pnpm migrate` — bringing the database up to date](#pnpm-migrate--bringing-the-database-up-to-date).
+
+**The database is one per machine, not one per checkout.** `compose.yaml`
+declares `name: marketpulse`, a fixed Compose project name, so a second clone or
+a git worktree running `pnpm db` attaches to the **same** container and the same
+volume rather than starting one of its own. That is the right default — one
+Postgres, one port, no surprises about which of two databases you just
+migrated — and it has one consequence worth stating, because it was measured at
+Story 2.2's close rather than assumed: **a fresh clone does not get a fresh
+database.** `pnpm migrate` in a brand-new clone reported `Already up to date`,
+correctly, because the volume it attached to had been migrated by another
+checkout. `pnpm db down -v` is what actually empties it.
 
 ## Running MarketPulse
 
@@ -576,8 +603,8 @@ the same second half for the same reason.
 ### What `pnpm test` covers
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
-in this workspace. `packages/shared` runs 55 tests across 5 files,
-`apps/backend` 99 across 7, and `apps/frontend` 103 across 12 — **257 in
+in this workspace. `packages/shared` runs 37 tests across 4 files,
+`apps/backend` 106 across 7, and `apps/frontend` 103 across 12 — **246 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -998,13 +1025,19 @@ pnpm migrate
 ```
 
 ```
+  Pending: 0001_baseline, 0002_securities
   ✓ 0001_baseline
   ✓ 0002_securities
 
   Applied 2 migrations.
 ```
 
-Every migration the database has not seen, in order, inside a transaction each.
+Every migration the database has not seen, in order, inside one transaction for
+the whole run — so a run of three whose third fails rolls back all three. It
+prints what it is about to apply before it applies it, which costs nothing (it
+has to read that list for the checksum pass anyway) and matters because this now
+runs inside a deploy, and a deploy step that cannot say what it is about to do is
+a step nobody can review afterwards.
 Run it again and it says `Already up to date — no migrations to apply.` and
 exits 0; that is not a courtesy, it is acceptance criterion 2 of the story that
 built this.
@@ -1026,10 +1059,17 @@ that dropped a column with data in it — cannot be written at all. The answer t
 a migration you regret is a new forward migration. `pnpm migrate` therefore
 takes no arguments and says so rather than ignoring them.
 
-**Editing a migration that has already been applied does nothing.** Kysely's
-`kysely_migration` table records a name and a timestamp and **no checksum**, so
-an edited file still matches by name and is skipped, and the database silently
-diverges from the file claiming to describe it. Write a new migration instead.
+**Editing a migration that has already been applied is refused.** Kysely's
+`kysely_migration` table records a name and a timestamp and no checksum, so it
+alone cannot tell — Task 2.2.6 produced the consequence, two green instruments
+over a database missing an index. Task 2.2.7 added `migration_checksum`, a
+SHA-256 of each file's bytes written **in the same transaction as the migration**
+and compared before every run, so an edited applied file now exits **1** naming
+the file and printing both hashes, having applied nothing. Write a new migration
+instead. A database migrated before that existed has its current contents
+**adopted** on the next run (`○ … checksum adopted`) rather than being refused,
+which is stated rather than hidden: a file edited before this was built is
+blessed exactly once.
 
 **It needs a built tree** — the mechanism is `apps/backend/src/migrate.ts` and
 the root script is a wrapper — and it says ``run `pnpm build` first`` if there
@@ -1068,14 +1108,24 @@ along with the recovery for each. Two of its findings are worth having before yo
 need them. **Two `pnpm migrate` runs at once are safe** — Kysely takes a
 session-level `pg_advisory_lock`, so the second waits and then reports
 `Already up to date`, and if the first _fails_ the second runs it itself and also
-exits 1; neither ever reports success over a failure. And **there is exactly one
-failure that does not exit 1**: editing a migration that has already been applied.
-There is no checksum, so `pnpm migrate` reports `Already up to date` at exit 0 and
-`pnpm test:database` passes too — it builds a database of its own from empty and
-never looks at yours. Two green instruments over a database that is wrong, and
-only a person catches it. **Never edit a migration that has been applied; write a
-new one.** If you already have, `pnpm db down -v && pnpm db && pnpm migrate` is
-the recovery, confirmed sufficient.
+exits 1; neither ever reports success over a failure. And **the one failure it
+found that did not exit 1 has since been closed**: editing a migration that has
+already been applied used to report `Already up to date` at exit 0, with
+`pnpm test:database` passing beside it because that suite builds a database of its
+own from empty and never looks at yours. Task 2.2.7 built the checksum, so it
+exits 1. **Never edit a migration that has been applied; write a new one.** If you
+already have, `pnpm db down -v && pnpm db && pnpm migrate` is the local recovery;
+the deployed server cannot be reset, so there the answer is a new forward
+migration carrying the difference.
+
+**The deployed database is migrated by the pipeline, not by you.** A step in
+`.github/workflows/deploy.yml` runs `pnpm migrate` on the runner **before** either
+half of the code rolls, connecting as `marketpulse-github-deploy` — a second
+Postgres role with `CREATE` on `public` and nothing else, so the backend's own
+role holds no DDL rights on the table it reads. That ordering means a deploy that
+fails after the migration leaves the schema **ahead** of the code, which is
+survivable only while migrations are additive, so a destructive change is two
+deploys: expand, then contract. See `migrations/README.md` §8.
 
 **What is in the database today: `securities`, and nothing else.** Task 2.2.4
 put one table through the mechanism, sized by Story 2.3's vocabulary — symbol,
@@ -1101,7 +1151,7 @@ pnpm build         # and a built tree
 pnpm test:database
 ```
 
-**37 tests against a real PostgreSQL server**, in about half a second. It is the
+**25 tests against a real PostgreSQL server**, in about half a second. It is the
 sixth level of test in this repository and the third command that runs tests,
 after `pnpm test` and `pnpm test:process`, and it exists because three things
 this repository claims are only answerable by a database: that a migration
@@ -1117,7 +1167,8 @@ readable from a migrated database.
 run and again at the start of the next, so a run that crashed cleans up after
 itself rather than leaving something for you to find. The alternatives each fail
 a property this repository already holds: a transaction per test cannot work,
-because a migration opens its own and that is the thing under test; truncation
+because the migrator opens one of its own around the whole run and that is the
+thing under test; truncation
 would destroy the universe Story 2.3 loads, costing you a command every time you
 ran the suite.
 
@@ -2446,8 +2497,8 @@ worth checking from the ones worth writing down — is in
   because two savers race to a warning that reads like a fault. `verify`'s
   `verify` job owns saving the store and its `e2e` job owns saving the browser —
   remove either saver and the other jobs install cold forever, silently. The
-  ruleset likewise keys on **two** job names now, so renaming either
-  un-requires it with no error anywhere
+  ruleset likewise keys on **three** job names now, so renaming any one of
+  them un-requires it with no error anywhere
 - **The deployed check cannot detect both its addresses being wrong in the same
   direction.** Pointed at a stale frontend origin with a matching backend
   origin, it passes green against the wrong site. The only check for it would be
@@ -2565,9 +2616,13 @@ absence of an annotation as "coverage was fine".
 ### The gate itself is configuration, and no file here can hold it
 
 `verify` is a **required status check on `main`**, through repository ruleset
-`main` (id 22160620) — and since Task 1.13.4 **`e2e` is a second one**, so a red
-browser journey blocks a merge exactly as a red chain does. The ruleset requires
-a pull request and both checks. Nothing in this repository records it, no tool reads it, and `pnpm verify` cannot see it —
+`main` (id 22160620) — and it is not alone: Task 1.13.4 added **`e2e`** and Task
+2.2.5 added **`database`**, so a red browser journey or a schema that no longer
+matches `schema.ts` blocks a merge exactly as a red chain does. The ruleset
+requires a pull request and **all three** checks — re-read from the API on
+2026-09-05 as `['verify', 'e2e', 'database']`, `enforcement: active`, so a reader
+finding fewer than three should read that as a gate having been removed rather
+than never set. Nothing in this repository records it, no tool reads it, and `pnpm verify` cannot see it —
 so **the repository has no way to detect its own gate being switched off**, and
 a reader who finds it absent cannot tell whether it was removed or never set.
 Four things about it are worth knowing:

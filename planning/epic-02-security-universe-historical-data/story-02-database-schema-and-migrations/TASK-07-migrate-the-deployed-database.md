@@ -1,6 +1,6 @@
 # Task 2.2.7 — Migrate the deployed database, and decide what a failed migration does to a rollout
 
-**Status:** Not started
+**Status:** Complete — 2026-09-05
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
 **Depends on:** Task 2.2.6 (complete — eight failure classes produced against a real
 PostgreSQL 18.6, which is what decides this task's shape). Note also that Task 2.2.5 named
@@ -223,3 +223,149 @@ This is the half of the story that gets skipped and then hurts — the story say
 directly. It is also the first task in this epic to write DDL to something with a
 `CanNotDelete` lock on it, and the reason that lock exists is not the data, which is all
 re-derivable from Alpaca: it is the backups and the bootstrap that exist in no file here.
+
+---
+
+## What was done
+
+**The deployed database holds `securities`, migrated from a GitHub Actions runner as
+`marketpulse-github-deploy`, and the checksum decision was taken rather than deferred a
+third time.**
+
+### The shape: a step in `deploy.yml`, before either half of the code rolls
+
+The other two were weighed and the arguments are written beside the step. A **boot-time
+job** needs `migrations` added to `apps/backend/package.json`'s `files` — putting SQL in
+every image — and puts DDL on a liveness-probed platform where the startup probe (2 s
+period / 3 s timeout / 30 failures) kills a replica waiting on Kysely's advisory lock at
+roughly 90 s, long before the lock's own hour; at `minReplicas: 1` in `Single` mode an
+unready replica is no service. A **manual command** is a step somebody forgets.
+
+**"The migration succeeded and the deploy then failed"** leaves the database ahead of the
+code, which is survivable **only while migrations are additive**. That is now a written
+convention — `migrations/README.md` §8's new "expand, then contract" section — rather than
+an implicit hope, and nothing can enforce it, because whether a column is still read is a
+fact about code.
+
+**The step has its own deadline**: `timeout 120`, with a message naming the advisory lock
+and `pg_stat_activity`'s `wait_event: advisory`. 120 s is two orders of magnitude above the
+thing it is timing (`pnpm migrate` measured at **1.181 s** on the runner) and thirty times
+inside the thing it protects against (the lock's one-hour `lock_timeout`). Task 1.11.7's
+lesson is why that gap is stated: a deadline that cannot match the failure it watches for
+goes red with the wrong message.
+
+### The identity was forced, so least privilege came free
+
+Task 2.1.6 measured that a service principal cannot mint a token for another principal's
+Postgres role, so CI **could not** connect as `marketpulse-backend`. A second role was the
+only option. `marketpulse-github-deploy` was created with
+`pgaadauth_create_principal_with_oid(...)` on the **`postgres`** database and granted
+`connect`, `usage, create on schema public`, plus default privileges handing the runtime
+role `select, insert, update, delete` on the tables it creates. **Read back afterwards**:
+all four tables are owned by the migration role, `marketpulse-backend` holds the four DML
+privileges on `securities`, and `has_schema_privilege('marketpulse-backend', 'public',
+'CREATE')` is **false**. The whole bootstrap is in `HOSTING.md`, because it exists in no
+file here.
+
+**Trap worth the write-up: `pgaadauth_*` exists only in the `postgres` maintenance
+database.** From `marketpulse` it is `42883 … does not exist` and a `pg_proc` sweep returns
+nothing at all.
+
+### Whether a CI runner can reach the database is a measurement, and the answer is yes
+
+Taken on a throwaway branch with a temporary federated credential, both deleted afterwards
+— which was necessary because **both existing federated credentials are scoped to
+`refs/heads/main`**, so no branch can authenticate to Azure. Runner egress was
+**`172.174.110.129`**, an Azure address, which `AllowAllAzureServicesAndResources` admits.
+So no firewall write from CI. **Connect in 142 ms** including TLS `verify-full` and the
+token, against the deployed replica's ~1,023 ms first connection — the difference being the
+866 ms sidecar mint the runner does not pay, since `az` already has one.
+
+That run also **applied both migrations for real**: `Pending: 0001_baseline,
+0002_securities`, `✓ ✓`, `Applied 2 migrations.`, **1.181 s** wall.
+
+### Read back from the managed database
+
+`securities` matches the local schema column for column through `information_schema` —
+eleven columns, `id` `bigint` with `is_identity: YES` / `ALWAYS` and `column_default`
+**null**, which is the trap Task 2.2.4 named. `pg_constraint` is identical line for line
+including `securities_kind_check` reading `CHECK ((kind = ANY (ARRAY['equity'::text,
+'etf'::text])))` and PostgreSQL 18's eight `NOT NULL` constraint rows. `kysely_migration`
+holds both names; `securities` holds **0 rows**, because seeding is Story 2.3's.
+
+**The checksums are byte-identical across environments** — `0001_baseline`
+`cdebe2eabc21…`, `0002_securities` `8a944594c3fd…` — deployed and local, which is a
+stronger statement of "the same files produced both" than a column comparison is.
+
+**The third engine pin was taken by hand, which is the cheapest it will ever be**, because
+this task connects to both: local container **PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2)**,
+managed server **PostgreSQL 18.6 on x86_64-pc-linux-gnu**. The number is recorded rather
+than the fact that it matched.
+
+### The checksum was built
+
+`migration_checksum (name, checksum, recorded_at)`, SHA-256 of the file's bytes, written by
+the provider **inside the migrator's transaction** beside Kysely's own row, verified before
+every run. **Task 2.2.6's exact break now goes red**: appending an index to an applied
+`0002_securities.sql` takes `pnpm migrate` from `Already up to date` at exit 0 to **exit 1**
+naming the file and printing both hashes, having applied nothing.
+
+Three things about it that are stated rather than hidden. It **adopts** rather than fails on
+a database that predates it — every existing database has `kysely_migration` rows and no
+checksum rows — so a file edited before this existed is silently blessed exactly once, and
+the line says `○ … checksum adopted` while it happens. It says nothing about a migration
+that has not run. And there is **no command that repairs a divergence**: locally reset,
+deployed write a new forward migration, because that server has a `CanNotDelete` lock.
+
+**A correction found while building it.** Kysely 0.29.5 wraps **the whole run** in one
+transaction, not one per migration — read out of its own `migrator.js` and confirmed by two
+migrations recording an identical `recorded_at`, `now()` being transaction start time. So a
+run of three whose third fails rolls back all three. `migrate.ts` and `CLAUDE.md` both said
+"per migration".
+
+### The pending list: yes, and it costs nothing
+
+`pnpm migrate` still refuses arguments and there is still no `down` and no dry run. What it
+now prints on every run is what it is about to apply — `Pending: 0001_baseline,
+0002_securities`, or `Nothing pending.` — because a deploy step that cannot say what it is
+about to do is a step nobody can review afterwards, and `getMigrations()` had to be called
+for the checksum pass anyway.
+
+### Nothing new in `e2e/specs-deployed/`, decided rather than assumed
+
+A schema is not a user-visible surface, no route reads it, and Task 2.1.7 already declined
+to put the database behind `/health`. The post-deploy browser check's output is a rollback
+decision, and there is no browser-visible consequence of this change to make one from. The
+reversal trigger is Story 2.8's first route that serves data.
+
+### The leak check, on the fifth producer
+
+The CI run log is a new place a credential can land. **Zero `eyJ`, zero `Bearer `** in the
+whole 304-line run log; the three `DATABASE_PASSWORD` occurrences and the one `PGPASSWORD=`
+are GitHub echoing the step's _script source_, i.e. the variable name, with
+`::add-mask::` applied to the value. Log Analytics returns **0** for `eyJ`, `access_token`,
+`IDENTITY_HEADER`, `ossrdbms` and `Bearer` across the window. The new code adds no
+credential-shaped string. And the container app's **`secrets` array is `null`**, read back
+— the third reading, and ADR 0011's claim still holds.
+
+### What the deploy did to a running system: nothing
+
+`uptimeSeconds` on the deployed replica was **4,723 s** after the migration with no restart,
+`/health` answered 200 throughout, and `/diagnostics/database` reports `reachable: true` in
+**186.19 ms** with a matching `x-request-id`. A schema change on a database no route reads is
+as quiet as Task 1.12.7's full pipeline deploy was.
+
+### Figures
+
+`pnpm verify` **exit 0 in 26.76 s with no database**, `pnpm test` **246** (37 + 106 + 103),
+`pnpm test:process` 14, `pnpm test:database` **25**. No new dependency and no lockfile
+change. The frontend artefact is untouched, because this task shipped no frontend source.
+
+### The honest gap
+
+**The `deploy.yml` step itself has not run**, because it only runs on `main` and this branch
+is not merged. What has run is its body — the same commands, the same identity, the same
+network path, the same `pnpm migrate` — from a throwaway branch, which is what made the
+reachability measurement possible at all. Its first run on `main` will report `Already up to
+date` and `Nothing pending.`, which is a weaker demonstration than the one recorded above
+and is ordinary observation once merged.
