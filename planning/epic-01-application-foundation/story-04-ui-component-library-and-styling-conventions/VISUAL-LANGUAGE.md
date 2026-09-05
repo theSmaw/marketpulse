@@ -12,7 +12,28 @@ This is the design input to the token tasks. Task 1.4.3 turns it into CSS custom
 
 MarketPulse should read as an **internal application at a large financial institution** — the kind of dense, sober, desktop tool an analyst has open all day — rather than as a consumer product or a modern SaaS dashboard. Concretely that means: white and warm off-white grounds, near-black text, hairline rules doing the work that borders and shadows do elsewhere, corners that are almost square, generous whitespace around genuinely dense numeric content, and **no decoration that does not carry information**. The aesthetic is restraint. It is not minimalism as a style choice; it is the absence of anything competing with the numbers.
 
+## The bar — added 2026-09-05, and it outranks everything below it
+
+**The UI has to be outstanding. It has to excite the people who see it. It must never read as old-fashioned, basic, or like a default admin panel.** That is a standing instruction from the user, given unprompted after a long stretch of backend work, and it is recorded here rather than in a task file because this is the document every screen is built against.
+
+**This is not in conflict with the paragraph above it, and reading it as one is the mistake to avoid.** "Dense, sober, institutional" describes a _category_ of product, and the best things in that category — a trading terminal somebody actually wants to open, a professional instrument — are exciting precisely because of how well they are made, not in spite of being serious. What the bar rules out is the failure this document already names in its own words: _"get the structure approximately wrong and the result is a generic admin panel, because there is nothing else holding it up."_ **Restraint is not the same as plain, and the text below has been read as licensing the second.**
+
+### What "outstanding" means here, so it is not a matter of taste
+
+Four tests, each of which can be applied to a screenshot by somebody who has never read this document:
+
+1. **Would a stranger believe this is a real, funded product?** Not a demo, not a tutorial, not a scaffold with data in it.
+2. **Does it look designed rather than defaulted?** Every framework and every component library has a look. Meeting the bar means none of the defaults survived contact with a decision.
+3. **Is there a moment in it worth showing somebody?** PRODUCT_SPEC.md §38 is built around a five-minute demonstration and §40's success criterion is a first-time viewer understanding the product in about a minute. A screen with no moment in it fails at the thing this project exists for.
+4. **Does it feel alive?** This is a market application. Numbers change. A UI that updates by silently swapping text is technically correct and feels dead.
+
+### The consequence: visual quality is an acceptance criterion, not polish
+
+**Polish deferred is polish never**, and this repository is set up to defer it — there is no design review in any of the fifteen epics, and Epic 15 is a release epic rather than a design one. So the bar is enforced per story, on the story that builds the screen, and a UI story is not done because it is correct and accessible. Correct and accessible is the **floor**.
+
 ## The four decisions this document rests on
+
+**Three of the four below are now under review against the bar above**, because between them they remove almost every tool that makes an interface exciting. They were settled with the user on 2026-08-31 and **they are not reversed here** — reversing a decision the user took, in a document, without asking, is how a design language stops being one. What follows each is what it costs against the new bar and what is recommended.
 
 Settled with the user on 2026-08-31, before Task 1.4.3 began, and each one is a constraint on everything below.
 
@@ -26,6 +47,18 @@ Settled with the user on 2026-08-31, before Task 1.4.3 began, and each one is a 
 Together they remove both of the usual carriers of visual identity — a brand hue and a distinctive typeface. **What is left is structure**, and the identity stands or falls on it: the warm ground against white cards, the hairline rules, the 2px radius, the uppercase letterspaced micro-labels, the underline tab indicator, the right-aligned tabular numerals, and the whitespace around them. Get the structure approximately right and the result is an institutional tool. Get it approximately wrong and the result is a generic admin panel, because there is nothing else holding it up.
 
 This is why the sections below specify geometry as precisely as they specify colour. The radius is one value and it is 2px; the separator is a 1px rule and it is near-black; the grid is 4px. Those are not defaults to be adjusted per component.
+
+### Each decision against the bar, with a recommendation — 2026-09-05
+
+**Decision 4 — colour is never the sole encoding — is kept unconditionally.** It is an accessibility property rather than an aesthetic one, it survives any restyle, and the measurement behind it stands: the two price directions differ by **1.05:1 in greyscale**, so hue is doing all the work and something else has to carry the meaning. Nothing about raising the visual bar touches it.
+
+**Decision 3 — system font stack, no webfont — is the one to reverse first.** Typography is the single highest-leverage change available and it is the reason a screen reads as designed rather than defaulted: the system stack is, definitionally, what every undesigned page already uses. A financial instrument wants a text face with real character and a numeric face with true tabular figures, and the cost is one or two self-hosted files plus a loading strategy. **Recommended: reverse.** Self-hosted rather than fetched, so it survives the deployed CSP and adds no third-party origin.
+
+**Decision 2 — neutral chrome, no brand accent — is under review, and it is reconcilable rather than binary.** Its purpose is that colour means something: an accent hue competing with the price and anomaly palettes would make the market colours ambiguous, which is a correctness problem rather than a taste one. But "no accent anywhere" is a stronger rule than that purpose needs. **Recommended: admit an accent that is confined to the chrome** — navigation, focus, selection, brand marks — and hold the market palette untouched, with the boundary written down and checked the way the semantic tokens already are.
+
+**Decision 1 — light theme only in V1 — is flagged rather than recommended, because it has already been reversed once at the user's instruction.** The case for revisiting is real: market practitioners overwhelmingly work in dark interfaces, a dark ground makes the price and anomaly palettes far more vivid, and it is what makes this kind of product photograph well for a portfolio. The case against is equally real — it doubles the surface every token, chart and canvas has to be correct in, and Epic 6's WebGL renderer reads its colours from these tokens. **This one is the user's to settle**, and the mechanism is already built: Task 1.4.3 made theming a `[data-theme]` attribute over one block of tokens, and proved a whole-page swap with eight values and no component change.
+
+**And one thing is missing rather than under review: there is nothing here about MOTION.** No durations, no easings, no opinion on what happens when a number changes, a panel opens or data arrives. For a live market application that is the largest single gap in this document — test 4 above is the one it currently fails outright — and it is not a token layer anybody has to reverse a decision to add.
 
 ## Surfaces and elevation
 

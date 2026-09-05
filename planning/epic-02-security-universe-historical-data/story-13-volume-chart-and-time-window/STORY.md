@@ -84,6 +84,21 @@ comparison views and pushed by Epic 11's `setTimeWindow` command. The price/volu
 the product's first composed visualisation and needs a proportion decided rather than
 defaulted — volume is a supporting series and should not compete with price for attention.
 
+## The design bar
+
+**PRODUCT_SPEC.md §5.6 and `VISUAL-LANGUAGE.md`'s _The bar_ apply to this story, and they
+are acceptance criteria rather than polish.** Correct and accessible is the floor. Before
+this story is called done, apply the four tests to a screenshot of what it built: would a
+stranger believe this is a real funded product; does it look designed rather than
+defaulted; is there a moment in it worth showing somebody; and does it feel alive. If the
+answer to any of them is no, the story is not finished — and "we will polish it in Epic 15"
+is not available, because Epic 15 is a release epic and polish deferred is polish never.
+
+**The time-window control is this story's design surface**, and it is the first control in
+the product that changes what the data says. It is also where test 4 — does it feel alive —
+is most obviously answerable: what happens between one window and the next is a decision,
+and an instant swap of one dataset for another is the version that feels dead.
+
 ## Acceptance criteria
 
 1. Volume renders beneath price, sharing an x-axis, verified across a window change rather

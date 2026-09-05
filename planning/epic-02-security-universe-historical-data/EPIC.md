@@ -196,6 +196,33 @@ Three rules for writing it:
 - **Say what the user still cannot do**, so a demonstration does not promise more than it
   is. This is the half that protects the next story.
 
+## Every story that builds a screen is held to the design bar
+
+**A second convention, added 2026-09-05 and for the same reason as the first**: the user
+raised it unprompted, and a sentiment nobody wrote down is a sentiment nobody applies.
+
+**The UI has to be outstanding.** It must excite the people who see it and must never read
+as old-fashioned, basic, or like a default admin panel. PRODUCT_SPEC.md §5.6 states it as a
+product requirement and `VISUAL-LANGUAGE.md`'s _The bar_ is the design record.
+
+**It is an acceptance criterion on the story that builds the screen, not polish deferred to
+Epic 15.** There is no design review anywhere in the fifteen epics and Epic 15 is a release
+epic, so anything deferred to it is deferred to nothing. Correct and accessible is the
+**floor**. The stories in this epic that build a screen — 2.4, 2.11, 2.12, 2.13 and 2.14 —
+each carry a **The design bar** section saying so, and each names what is specifically at
+risk on that screen rather than repeating the general rule.
+
+The four tests, which a stranger can apply to a screenshot without reading anything: would
+they believe this is a real funded product; does it look designed rather than defaulted; is
+there a moment in it worth showing somebody; and does it feel alive.
+
+**One thing that convention immediately exposed, and it is a gap rather than a preference:
+there is nothing anywhere about motion.** `VISUAL-LANGUAGE.md` specifies colour, ink,
+geometry and spacing to the pixel and says nothing about durations, easings, or what happens
+when a value changes — so the fourth test currently fails by construction. Task 2.4.4 owns
+the first two tokens, deliberately scoped to the one transition it needs, and **Epic 3 is
+where the vocabulary is decided against something that actually moves.**
+
 **Stories 2.6 to 2.9 are the load-bearing middle.** Story 2.6 lands the provider interface
 before any vendor code, which is invariant 7 rather than a preference; Story 2.8 is the
 largest engineering story in the epic; and Story 2.9's contract is consumed by three later

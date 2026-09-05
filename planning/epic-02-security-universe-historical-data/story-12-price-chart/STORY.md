@@ -89,6 +89,22 @@ rather than grey borders, the warm ground, restraint with colour — and it must
 room for what arrives later: Epic 5's anomaly markers, Epic 8's comparison series, Epic 9's
 filing markers on the time axis.
 
+## The design bar
+
+**PRODUCT_SPEC.md §5.6 and `VISUAL-LANGUAGE.md`'s _The bar_ apply to this story, and they
+are acceptance criteria rather than polish.** Correct and accessible is the floor. Before
+this story is called done, apply the four tests to a screenshot of what it built: would a
+stranger believe this is a real funded product; does it look designed rather than
+defaulted; is there a moment in it worth showing somebody; and does it feel alive. If the
+answer to any of them is no, the story is not finished — and "we will polish it in Epic 15"
+is not available, because Epic 15 is a release epic and polish deferred is polish never.
+
+**This is the story with the most at stake on that bar in the whole epic.** It is the first
+chart, and PRODUCT_SPEC.md §38's demonstration runs through it. A chart is also the single
+easiest place to accept a library's default appearance and ship something that looks like
+every other chart — which is test 2 failed exactly. Whatever renderer is chosen, its
+defaults are a starting point rather than an outcome.
+
 ## Acceptance criteria
 
 1. Opening NVDA shows a correct price series, verified against the stored bars rather than

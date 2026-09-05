@@ -145,6 +145,16 @@ place to get it wrong without noticing.
    its "Epic 6 fills this" sentence. This is a judgement about what the product should look
    like while it is unfinished, which makes it the user's
 
+## The design bar
+
+**PRODUCT_SPEC.md §5.6 and `VISUAL-LANGUAGE.md`'s _The bar_ apply to this story, and they
+are acceptance criteria rather than polish.** Correct and accessible is the floor. Before
+this story is called done, apply the four tests to a screenshot of what it built: would a
+stranger believe this is a real funded product; does it look designed rather than
+defaulted; is there a moment in it worth showing somebody; and does it feel alive. If the
+answer to any of them is no, the story is not finished — and "we will polish it in Epic 15"
+is not available, because Epic 15 is a release epic and polish deferred is polish never.
+
 ## Acceptance criteria
 
 1. `GET /securities` returns the tracked universe against the response contract in
