@@ -38,7 +38,7 @@ schema.ts` already holds `SecuritiesTable`, and the two are deliberately differe
   reads better — belongs here beside the vocabulary rather than at each call site, for the
   reason `isHealthResponse` and `isApiError` are in this package: a predicate written
   anywhere but beside its shape drifts from it. Epic 4 is its first real reader
-- **Do not widen the type to carry anything Story 2.7 or Epic 9 owns.** No price, no bar,
+- **Do not widen the type to carry anything Story 2.8 or Epic 9 owns.** No price, no bar,
   no filing, no CIK-derived anything beyond the identifier field that already exists. The
   test is whether the field is a fact about the security or a fact about something that
   happened to it
@@ -51,7 +51,7 @@ schema.ts` already holds `SecuritiesTable`, and the two are deliberately differe
   because one is switched on and the other is rendered. Say which case a `Security` is
 - **Make both apps compile against it, and make that mean something.** `apps/backend`
   imports it or nothing has changed for the backend at all; `apps/frontend` has no reader
-  until Story 2.9, so state whether "both apps compile against it" is met by the shared
+  until Story 2.10, so state whether "both apps compile against it" is met by the shared
   package being in both type graphs or requires an actual import, and do not manufacture a
   fake consumer to satisfy a criterion
 - **Add the tests this package's convention asks for**, beside the subject. Note what is
@@ -80,7 +80,7 @@ The `Database` interface and `Security` will look like near-duplicates in a diff
 reflex will be to make one derive from the other. `migrations/README.md` §6 already
 refused that: a row has a nullable column where a domain object has an explicit answer,
 and the mapping between them is exactly where that decision gets made. That mapping is
-Story 2.8's to write, one function per domain type and never a generic mapper — and this
+Story 2.9's to write, one function per domain type and never a generic mapper — and this
 task should not pre-empt it either.
 
 ---
@@ -219,7 +219,7 @@ which is the exact failure acceptance criterion 3 exists to prevent, and admitti
 it would push that failure to whatever indexes `SECTOR_ETFS` with it.
 
 It has **two** readers rather than the one the brief named: Task 2.3.5's loader,
-and Story 2.9's frontend, which receives these over the wire from Story 2.8's API
+and Story 2.10's frontend, which receives these over the wire from Story 2.9's API
 and is in exactly the position `api-client.ts` is in for `/health`.
 
 ### Provenance: the vocabulary and the field-to-group map, and nothing else
@@ -230,7 +230,7 @@ by construction**, so a field added to `Security` without a group is a compile
 error, the same `TS1360` guarantee the response schemas get from
 `satisfies Record<keyof HealthResponse, JsonSchemaProperty>`. That is acceptance
 criterion 6's "per field" half held by the compiler, and `UNIVERSE.md` §4 places
-this mapping here explicitly so the loader and Story 2.13's renderer agree rather
+this mapping here explicitly so the loader and Story 2.14's renderer agree rather
 than each deciding.
 
 **What deliberately did not ship is a stored provenance shape** — no
@@ -239,7 +239,7 @@ The columns are Task 2.3.3's, along with the `observed_at` question that task is
 told to answer explicitly, and a type here would be a second description of them.
 And `Security` does not embed provenance at all, because the universe file has to
 satisfy `Security` and **a file checked into a repository cannot know when it was
-retrieved** — the loader supplies that at load time. Story 2.8's read composes the
+retrieved** — the loader supplies that at load time. Story 2.9's read composes the
 two.
 
 ### What "both apps compile against it" means, stated rather than manufactured
@@ -250,10 +250,10 @@ The brief warned against a fake consumer, so:
   `SecurityKind` since Task 2.2.4 and now compiles against the three-member
   union — which is itself the change that surfaced the constraint divergence
   above.
-- **`apps/frontend` has no reader until Story 2.9**, and none was invented. It
+- **`apps/frontend` has no reader until Story 2.10**, and none was invented. It
   already imports `@marketpulse/shared` (`BackendStatus`, `isHealthResponse`,
   `REQUEST_ID_HEADER`), so the package is in its type graph and `Security` is
-  reachable from it; a component that renders one arrives with Story 2.9's
+  reachable from it; a component that renders one arrives with Story 2.10's
   security list. Criterion 1 is met by a real import on one side and by the
   package boundary on the other, and pretending otherwise would be worse than
   saying so.
@@ -273,7 +273,7 @@ asserting is everything the compiler **cannot** see:
   would make Epic 5 measure both against the same thing and report the difference
   as a finding about one of them. The compiler holds totality and cannot hold this.
 - **`SECURITY_STATUSES` does not contain `delisted`**, which is what makes adding
-  it a deliberate act with a producer behind it (Story 2.6) rather than a tidy-up
+  it a deliberate act with a producer behind it (Story 2.7) rather than a tidy-up
   — the same shape `backend-status.test.ts` uses for latency.
 - **`isSecurity` rejects each closed vocabulary's near-miss**: `kind: "etf"` (the
   old member), `sector: "Technology"` (the label rather than the slug),

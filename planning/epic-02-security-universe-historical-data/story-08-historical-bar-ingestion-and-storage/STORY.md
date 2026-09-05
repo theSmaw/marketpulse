@@ -1,8 +1,8 @@
-# Story 2.7 — Historical Bar Ingestion, Storage & Backfill
+# Story 2.8 — Historical Bar Ingestion, Storage & Backfill
 
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
-**Depends on:** Stories 2.2, 2.3, 2.4, 2.6
+**Depends on:** Stories 2.2, 2.3, 2.5, 2.7
 **Epic scope covered:** Historical market-data persistence — **a record of what was observed, not a cache** (settled 2026-09-05, see open decision 1)
 
 ## Description
@@ -24,19 +24,19 @@ it.
 important.** It builds `market_bars`, the backfill, and the record of what was observed.
 
 What it unblocks is the entire second half of the epic. **The payoff is visible in Story
-2.11**, and it is worth being concrete about the size of it: after this story the database
+2.12**, and it is worth being concrete about the size of it: after this story the database
 holds roughly ten million rows of real market history, and every chart, anomaly score,
 sector comparison and replay in the product reads them.
 
 **A demonstrable milestone that is not a UI change**, and worth showing anyway: after the
-backfill, `/securities` — which Story 2.14 put on screen — can honestly say how much history
-each security has. Whether that lands here or in Story 2.13 is a scoping call, but it is the
+backfill, `/securities` — which Story 2.4 put on screen — can honestly say how much history
+each security has. Whether that lands here or in Story 2.14 is a scoping call, but it is the
 cheapest way to make this story's work visible to somebody who is not reading a database.
 
 ## Why it sits here in the sequence
 
 It needs the schema mechanism (2.2), the symbol list (2.3), session boundaries to know
-which bars should exist (2.4), and the provider's measured limits (2.6). It must precede
+which bars should exist (2.5), and the provider's measured limits (2.7). It must precede
 the read API, because what the API can serve is a property of what is stored.
 
 ## Scope
@@ -58,7 +58,7 @@ the read API, because what the API can serve is a property of what is stored.
 - **Gap handling, which is where correctness lives.** A missing bar has at least three
   causes that look identical in the database: the market was closed, the security did not
   trade in that minute (common on IEX, which is one venue rather than the consolidated
-  tape), or the fetch failed. Story 2.4's calendar distinguishes the first; the other two
+  tape), or the fetch failed. Story 2.5's calendar distinguishes the first; the other two
   need to be distinguishable too, or Epic 5's volume baseline silently treats an outage as
   zero volume
 - Recording what has been ingested, per symbol and timeframe, so the system can answer
@@ -66,7 +66,7 @@ the read API, because what the API can serve is a property of what is stored.
 - **Corporate actions, and this is where "record not cache" stops being philosophy.** A
   stored _adjusted_ series is retroactively wrong after a split unless something re-fetches
   it — which is a cache's answer, and a cache is what this store is not. **So bars are
-  stored as observed and UNADJUSTED, and adjustment is applied on read** against Story 2.5's
+  stored as observed and UNADJUSTED, and adjustment is applied on read** against Story 2.6's
   adjustment decision. That is the one concrete thing decision 1 buys, it is the thing most
   likely to be decided by accident in whichever task writes the first `insert`, and it is
   cheap now and a full re-backfill later
@@ -80,7 +80,7 @@ the read API, because what the API can serve is a property of what is stored.
 
 ## Out of scope, and who owns it
 
-- Serving the data — Story 2.8
+- Serving the data — Story 2.9
 - Live bars arriving continuously — Epic 3, which writes into this table
 - Anomaly baselines computed from this data — Epic 5
 - Filings, anomalies, investigations — later epics
@@ -142,7 +142,7 @@ the read API, because what the API can serve is a property of what is stored.
    technology without a measurement. This is the story with the measurement in it. Note the
    Azure-specific question that must be answered first: whether the extension is available
    and enabled on the chosen tier — verify against the server rather than the documentation
-3. **Which timeframes are stored**, following Story 2.6's decision, and whether daily bars
+3. **Which timeframes are stored**, following Story 2.7's decision, and whether daily bars
    are stored or derived from minute bars on read. Deriving is one source of truth and more
    work per read; storing both is faster and can disagree with itself
 4. **Where the backfill runs.** A local command against the deployed database, a one-off
@@ -159,7 +159,7 @@ the read API, because what the API can serve is a property of what is stored.
    from a failed fetch
 5. The system can state what it holds per symbol and timeframe, and that statement is
    correct after a partial failure
-6. Query performance for the access patterns Story 2.8 needs is measured against the real
+6. Query performance for the access patterns Story 2.9 needs is measured against the real
    row count, not a sample
 7. Storage consumption is checked against the 32 GB offer, with the headroom stated
 8. `pnpm verify` passes; database-backed tests run under their own command

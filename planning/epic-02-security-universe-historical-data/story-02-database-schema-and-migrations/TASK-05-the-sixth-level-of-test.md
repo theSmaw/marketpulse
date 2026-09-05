@@ -90,8 +90,8 @@ without letting it near the one developers run all day.
   1.13.6's blind-renderer problem in a new place: a green result that certifies nothing,
   indistinguishable from a green result that certifies something. Either assert the sweep saw
   a non-zero number of columns, or say in writing which of the five are vacuous today and
-  which table first makes them real — `market_bars` (Story 2.7) for the money rule, and Story
-  2.3 or 2.7 for the foreign-key naming rule, which is prose permanently in any case
+  which table first makes them real — `market_bars` (Story 2.8) for the money rule, and Story
+  2.3 or 2.8 for the foreign-key naming rule, which is prose permanently in any case
 - **The checksum gap lands here too, and this is no longer conditional — Task 2.2.2 deferred
   it to this task by name.** Kysely's `kysely_migration` is
   `(name, timestamp)` with no hash, read out of `information_schema` twice now, so an applied
@@ -218,7 +218,7 @@ invariant Task 2.2.4 created deliberately.
 A check would pass by having nothing to look at — a green result that certifies nothing,
 indistinguishable from one that certifies something. What ships instead is a **tripwire**
 asserting there are **zero** `numeric` columns, which fails the moment `market_bars` arrives
-in Story 2.7 with a message telling whoever added it to replace it and update the two lists.
+in Story 2.8 with a message telling whoever added it to replace it and update the two lists.
 A rule that cannot yet be enforced is recorded as failing-open rather than as quietly
 passing, and the sweep carries its own non-vacuity guard.
 

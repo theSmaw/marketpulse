@@ -19,8 +19,8 @@ ETFs, starting at roughly 100, with an architecture that expands without redesig
 ## Why it sits here in the sequence
 
 It is the first table with rows, so it exercises Story 2.2's mechanism on something real
-and small. Everything downstream needs a symbol list: Story 2.6 cannot request bars
-without one, and Story 2.7 cannot size storage without knowing how many securities there
+and small. Everything downstream needs a symbol list: Story 2.7 cannot request bars
+without one, and Story 2.8 cannot size storage without knowing how many securities there
 are.
 
 ## Scope
@@ -48,7 +48,7 @@ are.
 
 ## Out of scope, and who owns it
 
-- Anything about prices — Stories 2.6 and 2.7
+- Anything about prices — Stories 2.7 and 2.8
 - Correlation or graph relationships between securities — Epic 6 owns `relationships`
 - CIK mapping and filings — Epic 9
 - A user-editable watchlist — not in V1 scope (§37)
@@ -74,7 +74,7 @@ SPDR, chosen against the ETFs rather than against familiarity; **`SECURITY_KINDS
 three members** — `equity`, `sector_etf`, `index_etf` — so the proxy distinction is one
 column with one source of truth; **`status` gets exactly two members**, `active` and
 `untracked`, because those are the two this story can produce, with `delisted` deferred to
-its producer in Story 2.6; sector and industry come from a **curated file in this
+its producer in Story 2.7; sector and industry come from a **curated file in this
 repository**, with its silent-staleness cost recorded as a gap of this repository's third
 kind and a reversal trigger stated; provenance is a **source and a retrieval timestamp per
 field group** rather than one column on the row; the universe is a **seed script and not a
@@ -112,11 +112,11 @@ deleted, because it records what was being weighed at the time.
    measured answer is that the _rule_ holds while the _industry_ taxonomy does not: 45
    industries across 86 equities, **51% of them singletons**, and §11's own worked example
    of "82% of semiconductor securities" is arithmetically unreachable below 11 constituents
-   against our deepest group of 8. Re-sizing is parked on one measurement Story 2.6 owns —
+   against our deepest group of 8. Re-sizing is parked on one measurement Story 2.7 owns —
    whether minute-bar subscriptions are exempt from Alpaca's free 30-channel cap, which two
    Alpaca pages disagree about — because if they are not, 101 is already over the cap. What
    is **not** parked is the taxonomy being too fine, which is fixable with no new data. The
-   deadline is Story 2.7: nothing encodes the count, so re-sizing costs one file edit until
+   deadline is Story 2.8: nothing encodes the count, so re-sizing costs one file edit until
    bars exist. The original wording follows, because it records the shape being aimed at: this wants a product conversation, not a generated list. A
    defensible starting shape: the eleven sector SPDRs plus four index proxies, then ~85
    equities allocated across sectors so every sector has enough constituents for a breadth
@@ -137,7 +137,7 @@ deleted, because it records what was being weighed at the time.
    distribution is inspected against the "not 40% technology" criterion rather than assumed
 5. Adding and removing a symbol are both demonstrated, including what happens to a removed
    symbol's stored data
-6. The metadata's source is recorded per-field in a way Story 2.13 can display
+6. The metadata's source is recorded per-field in a way Story 2.14 can display
 7. `pnpm verify` passes
 
 ## Tasks
@@ -188,7 +188,7 @@ the iteration that needs it, and its absence is what makes the staleness cost vi
 rather than hidden behind a mechanism nobody runs.
 
 **`market_bars` is in none of these tasks**, per Story 2.2's out-of-scope note and this
-story's: Story 2.7 owns it, and its shape is driven by measured ingestion.
+story's: Story 2.8 owns it, and its shape is driven by measured ingestion.
 
 ### Amended after Tasks 2.3.2 and 2.3.3 — no task added, deleted or re-ordered
 
@@ -231,13 +231,13 @@ files were amended and one sequencing hazard was found that is **not** this stor
   enforce, since there is no checksum and `migrate.ts` matches by name, which makes it
   exactly the rule that erodes by being harmless the first time. 2.3.3 left `0002`
   byte-identical; 2.3.8 must resolve that explicitly and say so in the ADR, because Story
-  2.7's stale migration comment will be read against the precedent. It also gained the two
+  2.8's stale migration comment will be read against the precedent. It also gained the two
   new figure-dense files, and a re-count of the `equity | etf` sites showing the shape
   changed rather than shrank.
 
 **Nothing needed adding.** The two candidates were considered and both belong elsewhere: a
 task for the deployed migration is Story 2.2's 2.2.7, and the foreign-key naming rule that
-survived this story untested is Story 2.7's `market_bars.security_id`, recorded in
+survived this story untested is Story 2.8's `market_bars.security_id`, recorded in
 `migrations/README.md` rather than turned into work here.
 
 ### Amended after Task 2.3.4 — no task added, deleted or re-ordered
@@ -293,7 +293,7 @@ person re-reads when the list changes, not an invariant a runner can hold.
 ## Design surface
 
 Sector naming is user-visible from Epic 4 onward, and the equity/ETF distinction will need
-a visual treatment as early as Story 2.10's search results. Naming decided here is
+a visual treatment as early as Story 2.11's search results. Naming decided here is
 expensive to rename later because it appears in URLs, charts and agent-facing text.
 
 ## What this story hands forward

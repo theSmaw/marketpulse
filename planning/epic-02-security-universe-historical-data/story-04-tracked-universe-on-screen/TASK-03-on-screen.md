@@ -1,14 +1,14 @@
-# Task 2.14.3 — Real data on screen: the frontend read path and the plainest honest list
+# Task 2.4.3 — Real data on screen: the frontend read path and the plainest honest list
 
 **Status:** Not started
-**Story:** [2.14 The Tracked Universe On Screen](STORY.md)
-**Depends on:** Task 2.14.2
+**Story:** [2.4 The Tracked Universe On Screen](STORY.md)
+**Depends on:** Task 2.4.2
 
 ## Objective
 
 Get the 101 real securities onto the `/securities` route. **This is the task the whole story
 exists for**, and it is deliberately the plainest version of it — the presentation work is
-Task 2.14.4's, and separating them is what stops "make it look right" from delaying "make it
+Task 2.4.4's, and separating them is what stops "make it look right" from delaying "make it
 true".
 
 ## What the user can see when this lands
@@ -19,7 +19,7 @@ through the API. A stakeholder can open the deployed site, click Securities, and
 MarketPulse tracks NVDA, AMD, XLK and SPY, and what each of those things is.
 
 It will look plain. That is intended and worth saying out loud when demonstrating it: this
-task proves the data is real and the path works end to end, and Task 2.14.4 makes it look
+task proves the data is real and the path works end to end, and Task 2.4.4 makes it look
 like the product. Shipping the plain version first is what makes the next task's changes
 visible as a design improvement rather than lost inside a fix.
 
@@ -42,7 +42,7 @@ visible as a design improvement rather than lost inside a fix.
   contradict each other. There are four here and the fourth is the one nobody plans for —
   loading, loaded, failed, and **loaded-but-empty**, which is exactly what a migrated but
   unseeded database looks like and is not an error
-- **Do not add a store.** Story 2.9 owns that decision and this story's open decision 2
+- **Do not add a store.** Story 2.10 owns that decision and this story's open decision 2
   recommends leaving it there: one static list is the weakest possible evidence on which to
   decide how this application holds domain state, and deciding it here anchors it against a
   shape nothing like a streaming bar series. A hook beside `useBackendHealth` is the shape
@@ -67,7 +67,7 @@ visible as a design improvement rather than lost inside a fix.
 
 ## Notes
 
-The temptation is to do this task and Task 2.14.4 together, because a plain table feels
+The temptation is to do this task and Task 2.4.4 together, because a plain table feels
 unfinished. Resist it: the two failures they catch are different — this one catches "the
 data is not what we thought", and that one catches "the page does not read as a product" —
 and merging them means a single large change where neither is clearly the cause of the other.

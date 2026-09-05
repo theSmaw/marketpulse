@@ -1,13 +1,13 @@
-# Task 2.14.6 — Deploy it, verify it in a browser, and hand forward what was pre-empted
+# Task 2.4.6 — Deploy it, verify it in a browser, and hand forward what was pre-empted
 
 **Status:** Not started
-**Story:** [2.14 The Tracked Universe On Screen](STORY.md)
-**Depends on:** Tasks 2.14.1 to 2.14.5
+**Story:** [2.4 The Tracked Universe On Screen](STORY.md)
+**Depends on:** Tasks 2.4.1 to 2.4.5
 
 ## Objective
 
 Get the page in front of a person on the deployed environment, verify it there rather than
-locally, and write down precisely what this story took from Stories 2.8, 2.9 and 2.10 so
+locally, and write down precisely what this story took from Stories 2.9, 2.10 and 2.11 so
 none of them re-decides it or assumes it is still theirs.
 
 ## What the user can see when this lands
@@ -17,8 +17,8 @@ stakeholder can be sent a link rather than a screenshot.
 
 It is also the task that produces the artefact worth putting in front of them: a short
 written summary of what the page shows, what it deliberately does not, and which story
-brings each missing piece. "No prices until Story 2.7, no search until 2.10, no chart until
-2.11" is a better answer to "when do we see more?" than a roadmap, because it is attached
+brings each missing piece. "No prices until Story 2.8, no search until 2.11, no chart until
+2.12" is a better answer to "when do we see more?" than a roadmap, because it is attached
 to something they are looking at.
 
 ## Work
@@ -45,13 +45,13 @@ to something they are looking at.
   suite gates nothing because it runs after a merge
 - **Write down what this story pre-empted, in the three stories it took from**, and amend
   each of their files rather than only recording it here. `STORY.md`'s table is the source:
-  2.8 keeps the series contract and loses the universe endpoints and the temporal seam; 2.9
+  2.9 keeps the series contract and loses the universe endpoints and the temporal seam; 2.10
   keeps the store decision and the `market` module and loses the first fetch and the state
-  types; 2.10 keeps search, the combobox, the per-security route and the Explorer shell and
+  types; 2.11 keeps search, the combobox, the per-security route and the Explorer shell and
   loses the list. **A story whose scope moved and whose file did not say so is how work gets
   done twice**, and this repository has the convention of amending the file rather than
   remembering
-- **Record the temporal seam decision where Epic 13 will find it.** Task 2.14.1 establishes
+- **Record the temporal seam decision where Epic 13 will find it.** Task 2.4.1 establishes
   the arrangement; this is where it is stated as a property of the tree rather than of a
   task — including the honest half, which is that `securities` is not a temporal table, so
   the seam is established and **not yet exercised by anything**
@@ -66,7 +66,7 @@ to something they are looking at.
 - The page is live and verified in a browser against the deployed pair
 - One correlation id followed from the browser to a deployed log record
 - The deployed page's count and sectors match the database
-- Stories 2.8, 2.9 and 2.10 each carry an amendment saying what moved
+- Stories 2.9, 2.10 and 2.11 each carry an amendment saying what moved
 - `CLAUDE.md` and `README.md` describe the route as it now is
 - All six acceptance criteria re-run, with the figures re-taken rather than cited
 
@@ -75,7 +75,7 @@ to something they are looking at.
 There is deliberately **no ADR** for this story. It takes no architectural decision of its
 own — the read path, the contract idiom and the state-as-types pattern are all applications
 of decisions ADRs 0002, 0007, 0012 and 0015 already record — and the two genuinely new
-decisions it makes, the temporal seam's shape and the store deferral, belong to Story 2.8's
-and Story 2.9's ADRs respectively. Recording that refusal here is the point: an ADR per
+decisions it makes, the temporal seam's shape and the store deferral, belong to Story 2.9's
+and Story 2.10's ADRs respectively. Recording that refusal here is the point: an ADR per
 story is a convention nobody chose, and this repository's rule is one ADR per decision worth
 arguing about.

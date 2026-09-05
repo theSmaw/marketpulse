@@ -1131,7 +1131,7 @@ deploys: expand, then contract. See `migrations/README.md` §8.
 put one table through the mechanism, sized by Story 2.3's vocabulary — symbol,
 name, exchange, kind, sector, industry, status and a CIK — and **no seed data**,
 so it is created empty and Story 2.3 fills it. `market_bars` is deliberately not
-here: Story 2.7 owns it, because its shape is driven by measured ingestion.
+here: Story 2.8 owns it, because its shape is driven by measured ingestion.
 
 **Read [`apps/backend/migrations/README.md`](apps/backend/migrations/README.md)
 before writing a migration.** The conventions every table in this schema
@@ -1210,7 +1210,7 @@ change, because the question this exit code answers is _can the application
 run?_ and nothing here opens a database connection yet. **The reversal trigger
 is a condition rather than a task number** — the first check in `pnpm verify` or
 `pnpm e2e` that fails without a database, which is Story 2.2's migrations or
-Story 2.8's routes rather than the connection pool, since a pool that logs its
+Story 2.9's routes rather than the connection pool, since a pool that logs its
 failure and lets the server start leaves this exit code honest. On that day the
 line becomes a `✗` and the `e2e` job in CI gains a service.
 
@@ -1730,7 +1730,7 @@ platform, whose liveness probe restarts a replica that dies.
 **Nothing serves data yet**, so a wrong value here is caught at startup by the
 configuration boundary and by the probe, and by nothing else. When a route does
 need data and cannot get it, the answer is a **503** carrying a
-`SERVICE_UNAVAILABLE` code — decided in Task 2.1.4, implemented by Story 2.8,
+`SERVICE_UNAVAILABLE` code — decided in Task 2.1.4, implemented by Story 2.9,
 and deliberately not a 500: "this dependency is unavailable, retry" is a
 different instruction from "this server failed".
 

@@ -1,8 +1,8 @@
-# Story 2.9 — Frontend Market-Data Layer & Application State
+# Story 2.10 — Frontend Market-Data Layer & Application State
 
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
-**Depends on:** Story 2.8
+**Depends on:** Story 2.9
 **Epic scope covered:** **Addition to this epic's stated scope** — the client-side half implied by every UI item in it
 
 ## Description
@@ -21,7 +21,7 @@ where that judgement is actually exercised rather than quoted.
 because of it. This story decides how the frontend holds domain state and fetches market
 data — once, here, rather than three times in three UI stories.
 
-**Scope note added 2026-09-05: Story 2.14 took the first fetch and the loading / loaded /
+**Scope note added 2026-09-05: Story 2.4 took the first fetch and the loading / loaded /
 failed / empty states as types**, exercised against the securities list. What remains here is
 the decision that story deliberately refused to take on one static list — **whether this
 application needs a store at all**, plus caching, invalidation and the `market` feature
@@ -54,7 +54,7 @@ Getting it after the charts would mean rewriting them.
   question of what to keep and when to refetch
 - Request cancellation on navigation and on window change, which `api-client.ts` already
   composes an abort signal for
-- What test support this needs, so Stories 2.10 to 2.12 test components without each
+- What test support this needs, so Stories 2.11 to 2.13 test components without each
   inventing its own mock — the `test-render.tsx` module is the stated home for the
   application's context in tests, and any provider added here lands there
 

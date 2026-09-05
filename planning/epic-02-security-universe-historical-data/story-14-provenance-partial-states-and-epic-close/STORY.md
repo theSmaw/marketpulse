@@ -1,8 +1,8 @@
-# Story 2.13 — Market-Data Provenance, Partial States & Epic Close
+# Story 2.14 — Market-Data Provenance, Partial States & Epic Close
 
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
-**Depends on:** Story 2.12
+**Depends on:** Story 2.13
 **Epic scope covered:** Market-data provenance display; closes the epic
 
 ## Description
@@ -39,7 +39,7 @@ manufacture missing observations — is enforced here or nowhere.
 ## Why it sits here in the sequence
 
 Provenance display needs something to be displayed on, so it follows the charts. Everything
-it renders was made available by Story 2.5's model, so this is presentation rather than
+it renders was made available by Story 2.6's model, so this is presentation rather than
 plumbing — which is why it is last and why it is small.
 
 ## Scope
@@ -52,7 +52,7 @@ plumbing — which is why it is last and why it is small.
 - Data recency: what period is on screen, and through when the data runs — §36's
   "displaying data through 10:42:17" shape, which Epic 3 makes continuous and which is
   static but still true here
-- The adjusted/unadjusted disclosure, since Story 2.5 made it explicit in the data
+- The adjusted/unadjusted disclosure, since Story 2.6 made it explicit in the data
 - The metadata provenance Story 2.3 opened: sector and industry did not come from the market
   data provider, and the UI should not imply that they did
 - The complete pass over failure and partial states across the epic's surface (§36), checked

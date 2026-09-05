@@ -14,7 +14,7 @@ Answer the story's fourth open decision with something running: whether `/health
 - **Start from the property that makes this dangerous.** The Container App's **liveness probe hits `/health`**, and a failing liveness probe kills the replica. So a `/health` that fails when the database is unreachable converts a recoverable dependency outage into a restart loop, during which the application is _less_ available than it would have been, and on a platform where Task 1.11.7 already measured a failing rollout sitting at `Activating` for ten minutes. Whatever is decided, the liveness answer must stay cheap and local
 - **Read what `/health` currently is before changing it.** It is a wire contract in `packages/shared` — `HEALTH_STATUSES`, `HealthResponse`, `isHealthResponse()` — with a response schema and a `satisfies` guard on the backend, a 61-byte body, three platform probes pointed at it, a client that polls it every 30 seconds, and a `BackendStatus` vocabulary on the frontend derived from it. Adding a field is therefore a change to a contract with five readers, and the guard means the type and the schema cannot silently disagree — which is the mechanism working, and it makes the change cheap to do correctly and impossible to do accidentally
 - **Note that the vocabulary for this already exists and was designed for exactly this arrival.** `BackendStatus`'s `degraded` is defined **structurally** — `not-ok-status` and `unreadable-body` — rather than by latency, and the recorded reason for structural definition was that there was nothing to set a threshold from _while `/health` reads `process.uptime()` and returns_. A database check is the first thing that changes that sentence. Whether "the backend is up and its database is not" should reach the user as `degraded` is a genuine product question and it belongs to this task, not to the frontend story that would render it
-- **Take the decision explicitly among at least three shapes**, with the rejected ones named: `/health` gains a field the probes do not fail on; a **second endpoint** (a readiness or diagnostic surface) that the platform's readiness probe may use where liveness does not; or nothing at all in this story, with database reachability visible only in logs and Story 2.8 owning the surface. The third is a legitimate answer and the record should say why it was or was not taken
+- **Take the decision explicitly among at least three shapes**, with the rejected ones named: `/health` gains a field the probes do not fail on; a **second endpoint** (a readiness or diagnostic surface) that the platform's readiness probe may use where liveness does not; or nothing at all in this story, with database reachability visible only in logs and Story 2.9 owning the surface. The third is a legitimate answer and the record should say why it was or was not taken
 - **If a check is added, decide what it costs and how often it runs.** A per-request `SELECT 1` on an endpoint polled by three probes and every open browser tab is a real query rate against a B1MS with a small connection ceiling — Task 1.12.7 measured the deployed baseline as a precise and explainable **4 requests per 30 s** with **+1 per visible tab** — and it is also billable traffic against the Consumption plan's under-1,000-bytes-per-second idle condition. Cache it, or bound it, and say which
 - **Whatever is added must be produced rather than reasoned about.** Break the database, watch the endpoint, watch the probes, watch the replica, and watch what the frontend's indicator does — in a browser, because that is the only instrument that sees the frontend's verdict. If the indicator changes state, `e2e/specs-deployed/` is where that becomes an assertion; if it does not, say so, because "no user-visible change" is a valid outcome that should be a decision rather than an omission
 - **Do not widen the health contract for a future need.** If a database field is added, it is one field with a stated meaning; Epic 3's feed and Epic 10's agent will both want one too, and a generic dependency-status map invented here is a schema nobody has requirements for yet
@@ -34,7 +34,7 @@ Story 1.12 built a three-state vocabulary and then spent two tasks proving that 
 
 ## Amended after Task 2.1.1 (2026-09-04)
 
-- **The tier supplies a new way for the database to be unavailable, and it is the one most likely to be mistaken for a bug.** B1MS is credit-based, and its own documentation says that if CPU "runs near or above baseline for long periods, credits deplete and **the server might become unreachable**", with "delays or transient failures in management operations until credits rebuild". So the outage this task must not turn into a crash-loop is not only a network blip or a maintenance restart — it is a **self-inflicted, load-correlated** outage that Story 2.7's backfill is the most likely thing to cause. That strengthens the liveness argument rather than changing it.
+- **The tier supplies a new way for the database to be unavailable, and it is the one most likely to be mistaken for a bug.** B1MS is credit-based, and its own documentation says that if CPU "runs near or above baseline for long periods, credits deplete and **the server might become unreachable**", with "delays or transient failures in management operations until credits rebuild". So the outage this task must not turn into a crash-loop is not only a network blip or a maintenance restart — it is a **self-inflicted, load-correlated** outage that Story 2.8's backfill is the most likely thing to cause. That strengthens the liveness argument rather than changing it.
 - **The per-check cost has a harder ceiling than the brief assumed.** Any `SELECT 1` added to a polled endpoint consumes one of **35 usable connections**, and there is **no PgBouncer on this tier** to absorb it. A per-request check on an endpoint hit by three probes plus one per visible browser tab is therefore competing with the application for a small pool, not just adding query load. Cache it or bound it, and state which — the brief already asks for that, and this is the number that decides it.
 - **The database is in a different region from the backend**, so any check added here crosses East US → East US 2. That latency is unmeasured until Task 2.1.5 takes it, and it lands inside an endpoint with a 5-second client deadline and a liveness probe on it.
 
@@ -150,7 +150,7 @@ is the arithmetic that decides it.
 `cpu_credits_remaining` sits at its **30** cap while `cpu_percent` reads **10.5–12.1%**
 against a 10% baseline — so an idle B1MS with no application attached is already on the
 line and **banks almost nothing**. A cheap check is genuinely cheap in CPU terms; what it
-cannot do is arrive during Story 2.7's backfill and expect headroom.
+cannot do is arrive during Story 2.8's backfill and expect headroom.
 
 ### One new way the database becomes unreachable, already exercised
 
@@ -324,7 +324,7 @@ surprise us, produce it; this one cannot**, and a rejection does not carry the s
 evidentiary bar as something that ships — the same call Task 1.13.3 made when it declined
 a render-failure journey and named the gap instead.
 
-**Shape 3 — nothing at all, logs only, Story 2.8 owns the surface. Rejected on a gap
+**Shape 3 — nothing at all, logs only, Story 2.9 owns the surface. Rejected on a gap
 that is real rather than anticipated.** Database reachability is currently reported in
 exactly one place: the level-40 record `index.ts` writes at **startup**. A running
 replica whose database goes away afterwards therefore reports **nothing anywhere**, and
@@ -349,7 +349,7 @@ from the other side, where no server-side instrument could see what a browser sa
 registered from `index.ts` because the ordering forces it — the pool takes `app.log`, so
 the app exists before the pool and the pool before the route — which means
 `database.ts`'s recorded reversal trigger (the pool entering `ServerOptions`) is
-**deliberately not fired** here. It belongs to Story 2.8's first route that serves data.
+**deliberately not fired** here. It belongs to Story 2.9's first route that serves data.
 The cost is stated: `server.test.ts`'s route-table walk cannot see this route, so its
 `500: apiErrorSchema` is asserted in the route's own test instead.
 
@@ -434,7 +434,7 @@ API's address and it was not a readable health report_; a backend whose database
 is answering perfectly and truthfully about itself. And nothing a user can do in the
 product today needs the database, so rendering `degraded` would tell every user their
 application is broken when nothing they can do is affected. **The reversal trigger is
-Story 2.8's first route that serves data** — at which point a user _can_ be affected, the
+Story 2.9's first route that serves data** — at which point a user _can_ be affected, the
 failure surfaces as a 503 on that route where it is actionable, and whether the chrome
 should say so becomes a question with a consumer. Consequently **no `e2e/specs-deployed/`
 assertion was added**, because there is nothing new for a browser to see.

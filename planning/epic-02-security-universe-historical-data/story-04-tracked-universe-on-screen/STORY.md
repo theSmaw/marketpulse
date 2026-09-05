@@ -1,26 +1,36 @@
-# Story 2.14 — The Tracked Universe On Screen (the first vertical slice)
+# Story 2.4 — The Tracked Universe On Screen (the first vertical slice)
 
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.3
-**Delivered:** fourth, immediately after Story 2.3 and before Story 2.4
+**Delivered:** fourth, immediately after Story 2.3 and before Story 2.5
 **Epic scope covered:** part of Security search/select — the _select_ half, without search
 
-> **Why the number and the position disagree.** This story was added on 2026-09-05, after
-> Stories 2.1 to 2.3 had shipped, so it takes the next free number rather than becoming a
-> new 2.4. Story numbers are identities and are referenced across the tree — `market_bars`
-> is Story 2.7's, the first `selectFrom` was Story 2.8's, the temporal plugin is Epic 13's
-> — and renumbering would falsify every one of those references silently, which is the same
-> reason ADRs are never renumbered. **Read the table in `EPIC.md` top to bottom for delivery
-> order; the `#` column is a name, not a position.**
+> **This story was inserted, and the rest of the epic was renumbered to make room.** It was
+> added on 2026-09-05, after Stories 2.1 to 2.3 had shipped, and the first draft gave it the
+> next free number (2.14) while delivering it fourth — on the argument that story numbers are
+> referenced across the tree and renumbering would falsify those references silently.
+> **That was overruled, and rightly**: a number that does not match the position is a trap
+> for every future reader, and it costs a little care once against confusing everybody
+> forever. What used to be Stories 2.4 to 2.13 are now 2.5 to 2.14, and **505 references
+> across 62 files were remapped** — prose, task files, ADRs and source comments — with the
+> residue reviewed by hand.
+>
+> The care that took is worth recording, because the next insertion needs it: a blind
+> substitution would have turned `build 2.44 s` into `2.54 s`, `eastus2.5.azurestaticapps.net`
+> into a different hostname, `jiti@2.7.0` into a version that does not exist, and a `2.14`
+> contrast ratio into `2.4`. The replacement was made context-aware — only where a `Story`
+> or `Stories` prefix, or a list continuing one, put it beyond doubt — and the 37 candidates
+> the rules would not touch were classified one at a time, of which **10 were genuine
+> references** the automation could not see and 27 were measurements it correctly left alone.
 
 ## Why this story exists
 
 Two reasons, and the second is the one that makes it good engineering rather than a
 concession.
 
-**The delivery reason.** Epic 2 is planned in layers — 2.1 to 2.8 are backend and
-infrastructure, and nothing a user can see arrives until 2.10. That is seven stories and
+**The delivery reason.** Epic 2 is planned in layers — 2.1 to 2.9 are backend and
+infrastructure, and nothing a user can see arrives until 2.11. That is seven stories and
 roughly fifty-five tasks of silence, during which the deployed application shows exactly
 what it showed when Epic 1 closed: four routes of placeholders and a landing page whose
 only market-looking content is **Story 1.4's render check, which is invented data**,
@@ -29,13 +39,13 @@ deployed site during Stories 2.1 to 2.3 saw no change and a page of fiction. Tha
 position to be in for three stories and an indefensible one for seven.
 
 **The engineering reason.** The universe is in the database as of Story 2.3, and putting it
-on screen needs **none** of Stories 2.4 to 2.7. The trading calendar, the provider
+on screen needs **none** of Stories 2.5 to 2.8. The trading calendar, the provider
 abstraction, Alpaca and bar ingestion are prerequisites for _charts_, not for _a list of
 securities_. So the slice is available without skipping anything that anything else needs
 — and it exercises the read path, the wire contract and the frontend data layer against
-real data while all three are still cheap to change. Story 2.10's own file already makes
+real data while all three are still cheap to change. Story 2.11's own file already makes
 this argument about itself: it calls a security list "the smallest useful vertical slice
-through Story 2.9's layer, which is a good way to find out whether that layer is right
+through Story 2.10's layer, which is a good way to find out whether that layer is right
 while it is still cheap to change." This story takes that sentence at its word and moves it
 earlier.
 
@@ -60,13 +70,13 @@ the placeholder that has been there since Story 1.5. Concretely, on the deployed
   says the service could not be reached and keeps the rest of the page usable, and — the
   one nobody plans for — a **loaded-but-empty** state, which is exactly what a database
   that was migrated but never seeded looks like
-- **No prices, and the page says so**, because we do not have any until Story 2.7. A
+- **No prices, and the page says so**, because we do not have any until Story 2.8. A
   region that names the epic that fills it is Story 1.5's convention and it is what keeps
   this page honest rather than looking broken
 
 **What the user still cannot do**, stated so nobody demonstrates this and promises more
 than it is: they cannot search, cannot click a security to open it, and cannot see a price
-or a chart. Those are Stories 2.10, 2.11 and 2.12, and this story deliberately does not
+or a chart. Those are Stories 2.11, 2.12 and 2.13, and this story deliberately does not
 reach for them.
 
 ## Scope
@@ -93,11 +103,11 @@ they would be first. Each keeps its subject; what moves is a thin first cut.
 
 | Story                                | What this story takes                                                                                                                                                   | What that story keeps                                                                                                                                           |
 | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **2.8 Market Data API**              | the universe endpoints, the response-contract idiom, and — the significant one — **the first `selectFrom` and the module whose export list is Epic 13's temporal seam** | the bar-series contract, the time-window request shape, partial answers over a series, and everything that needs bars to exist                                  |
-| **2.9 Frontend Market-Data Layer**   | one fetch through `api-client.ts` and the loading/loaded/failed/empty states as types                                                                                   | **the store decision**, which is deliberately not taken here — see the open decisions — plus caching, invalidation and the `market` feature module's real shape |
-| **2.10 Security Search & Selection** | the list and its presentation                                                                                                                                           | search, the combobox and its keyboard behaviour, the per-security route and deep link, and the Security Explorer shell                                          |
+| **2.9 Market Data API**              | the universe endpoints, the response-contract idiom, and — the significant one — **the first `selectFrom` and the module whose export list is Epic 13's temporal seam** | the bar-series contract, the time-window request shape, partial answers over a series, and everything that needs bars to exist                                  |
+| **2.10 Frontend Market-Data Layer**  | one fetch through `api-client.ts` and the loading/loaded/failed/empty states as types                                                                                   | **the store decision**, which is deliberately not taken here — see the open decisions — plus caching, invalidation and the `market` feature module's real shape |
+| **2.11 Security Search & Selection** | the list and its presentation                                                                                                                                           | search, the combobox and its keyboard behaviour, the per-security route and deep link, and the Security Explorer shell                                          |
 
-**The temporal seam is the one to read twice.** `CLAUDE.md` records that Story 2.8 "writes
+**The temporal seam is the one to read twice.** `CLAUDE.md` records that Story 2.9 "writes
 the first `selectFrom` and owns the module whose export list is the whole guarantee" for
 Epic 13's replay isolation. That obligation moves here, and it is not optional: the whole
 point of that arrangement is that there is no unplugged query handle to import, and a
@@ -108,10 +118,10 @@ place to get it wrong without noticing.
 
 ## Out of scope, and who owns it
 
-- Search of any kind — Story 2.10
-- Clicking through to a security — Story 2.10
-- Any price, volume, chart or time window — Stories 2.11 and 2.12
-- A store — Story 2.9, deliberately, and see the open decisions
+- Search of any kind — Story 2.11
+- Clicking through to a security — Story 2.11
+- Any price, volume, chart or time window — Stories 2.12 and 2.13
+- A store — Story 2.10, deliberately, and see the open decisions
 - Anything about the landing route's regions — Epic 4 owns the market overview
 - Pagination as a product feature — see the open decisions; 101 rows do not need it and
   500 might
@@ -123,7 +133,7 @@ place to get it wrong without noticing.
    contract is the general answer and costs a shape every later caller has to handle; no
    limit is simpler and is the thing that would have to change. Note `UNIVERSE.md` §8
    already lists "an API default page size" as a place a hard-coded 100 could hide
-2. **Whether the store decision is taken here or left to Story 2.9.** The recommendation is
+2. **Whether the store decision is taken here or left to Story 2.10.** The recommendation is
    **left**, firmly: §25 says avoid a heavyweight state library until complexity
    demonstrates the need, and one static list is the weakest possible evidence on which to
    decide how this application holds domain state. Taking it here risks anchoring it wrongly
@@ -157,16 +167,16 @@ Tackled in order. The story is complete when all six are done.
 
 The ordering has one property worth stating: **the third task is where a stakeholder can
 see something.** The first two are the read path and the contract, and they are demonstrable
-as a URL rather than as a page; from 2.14.3 onward every task changes what is on screen.
+as a URL rather than as a page; from 2.4.3 onward every task changes what is on screen.
 
-| #      | Task                                                                                                    | Status      |
-| ------ | ------------------------------------------------------------------------------------------------------- | ----------- |
-| 2.14.1 | [The first read: the query, the mapping, and the seam](TASK-01-the-first-read.md)                       | Not started |
-| 2.14.2 | [`GET /securities` and the wire contract](TASK-02-the-endpoint.md)                                      | Not started |
-| 2.14.3 | [Real data on screen: the frontend read path and the plainest honest list](TASK-03-on-screen.md)        | Not started |
-| 2.14.4 | [The states, and making it look like the product](TASK-04-states-and-presentation.md)                   | Not started |
-| 2.14.5 | [Keyboard, screen reader, and the browser journey](TASK-05-accessibility-and-journey.md)                | Not started |
-| 2.14.6 | [Deploy it, verify it in a browser, and hand forward what was pre-empted](TASK-06-deploy-and-verify.md) | Not started |
+| #     | Task                                                                                                    | Status      |
+| ----- | ------------------------------------------------------------------------------------------------------- | ----------- |
+| 2.4.1 | [The first read: the query, the mapping, and the seam](TASK-01-the-first-read.md)                       | Not started |
+| 2.4.2 | [`GET /securities` and the wire contract](TASK-02-the-endpoint.md)                                      | Not started |
+| 2.4.3 | [Real data on screen: the frontend read path and the plainest honest list](TASK-03-on-screen.md)        | Not started |
+| 2.4.4 | [The states, and making it look like the product](TASK-04-states-and-presentation.md)                   | Not started |
+| 2.4.5 | [Keyboard, screen reader, and the browser journey](TASK-05-accessibility-and-journey.md)                | Not started |
+| 2.4.6 | [Deploy it, verify it in a browser, and hand forward what was pre-empted](TASK-06-deploy-and-verify.md) | Not started |
 
 ## Design surface
 
@@ -179,6 +189,6 @@ and the token layer; this is the first time any of it renders something true.
 ## What this story hands forward
 
 A working read path from Postgres to the browser, exercised end to end against real data —
-which is the thing Stories 2.8, 2.9 and 2.10 would otherwise each have to prove for the
+which is the thing Stories 2.9, 2.10 and 2.11 would otherwise each have to prove for the
 first time on their own. And a page that gives every later story in this epic somewhere
 visible to land.

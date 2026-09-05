@@ -58,17 +58,17 @@ honest test of whether that document is usable. Record anything it failed to ans
   defaulted one would still be the leak that convention forbids — but a _retrieval_
   timestamp per source plausibly is exactly what invariant 5 wants, and this is the first
   table with any claim on that pair. Decide it explicitly rather than by omission, the way
-  Task 2.2.4 did. And it must be renderable by Story 2.13 without that story having to
+  Task 2.2.4 did. And it must be renderable by Story 2.14 without that story having to
   reverse-engineer it, so write down what it will read
 - **Expect to create no foreign key, and say so rather than leaving it unmentioned.** Task
   2.3.1 closed both candidates: the sector-to-ETF mapping goes in `packages/shared` as a
   `Record` total over the taxonomy, and the separate `security_field_provenance` table was
   rejected in favour of columns. So the **foreign-key naming rule
   (`<table_singularised>_id`) that Task 2.2.4 recorded as untested stays untested**, and
-  Story 2.7 inherits it. Record that explicitly — a convention that is silently still
+  Story 2.8 inherits it. Record that explicitly — a convention that is silently still
   untested after the story that looked most likely to exercise it is exactly the kind of
   thing this repository's third class of gap is made of
-- **Do not add an index for a query that does not exist.** Story 2.8 writes the first read.
+- **Do not add an index for a query that does not exist.** Story 2.4 writes the first read.
   The exception worth arguing rather than assuming: the loader itself is about to look rows
   up by `symbol` on every run, and `symbol` already has a unique constraint with a btree
   behind it — which Task 2.2.4 verified is a `UNIQUE CONSTRAINT` and not a bare index, a
@@ -248,7 +248,7 @@ timestamp with **no event timestamp beside it, because there is no event**. That
 is a genuine half-pair rather than an omission. It is also not `recorded_at`:
 that is when we wrote the **row**, and a loader re-run against an unchanged
 curated file is exactly when the two differ. A test asserts `observed_at` is
-absent and `recorded_at` present, and it is written so that Story 2.7's
+absent and `recorded_at` present, and it is written so that Story 2.8's
 `market_bars` makes whoever adds `observed_at` read the comment.
 
 ### No foreign key, and the naming rule is now recorded as still untested
@@ -258,7 +258,7 @@ Task 2.2.4 recorded `<referenced_table_singularised>_id` as untested and Story
 candidates were closed deliberately by Task 2.3.1: the sector-to-ETF mapping went
 to `packages/shared` as a `Record` total over the taxonomy rather than becoming a
 `sectors` table, and `security_field_provenance` was rejected in favour of
-columns. So `market_bars.security_id` in Story 2.7 inherits it, and that is now a
+columns. So `market_bars.security_id` in Story 2.8 inherits it, and that is now a
 paragraph in README.md's prose list rather than an omission — a convention that
 quietly survives the story that should have tested it is exactly this
 repository's third class of gap.
@@ -269,8 +269,7 @@ README.md's rule is that an index chosen before there is a query to serve is a
 guess with a write cost. The one candidate was checked: Task 2.3.5's loader looks
 rows up by `symbol` on every run, and `symbol` already carries a `unique`
 constraint with a btree behind it — which Task 2.2.4 verified is a `UNIQUE
-CONSTRAINT` rather than a bare index. **The loader needs nothing new.** Story
-2.8 writes the first read and can size an index against a query that exists.
+CONSTRAINT` rather than a bare index. **The loader needs nothing new.** Story 2.4 writes the first read and can size an index against a query that exists.
 
 ### What the database suite gained, and every check was made to fail first
 
@@ -346,7 +345,7 @@ it rather than writing it. It answered nearly everything; three gaps:
    rather than against a convention. §2 now carries them, including the
    consequence that the shape is only available on an empty table.
 3. **Its §5 still lists `delisted` as an example `status` member** (`active`,
-   `delisted`, …), written before Task 2.3.1 deferred that member to Story 2.6.
+   `delisted`, …), written before Task 2.3.1 deferred that member to Story 2.7.
    Left as it is: it is an illustration of what a status column holds rather than
    a claim about this one, and the vocabulary's real source of truth is
    `SECURITY_STATUSES`.

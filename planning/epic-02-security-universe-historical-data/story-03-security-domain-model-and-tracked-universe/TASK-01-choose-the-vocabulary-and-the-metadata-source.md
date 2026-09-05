@@ -62,13 +62,13 @@ wrong.
   reclassification, a delisting), because that is what a later story would have to detect
 - **Decide the per-field provenance shape, which is acceptance criterion 6 and is the
   requirement in this story most likely to be deferred into nothing.** Invariant 6 says
-  provenance is displayed rather than implied, and Story 2.13 is the consumer. Note that
+  provenance is displayed rather than implied, and Story 2.14 is the consumer. Note that
   the fields have genuinely different sources: `symbol`, `name` and `exchange` plausibly
   come from the provider, `sector` and `industry` from whatever this task chooses, `cik`
   from Epic 9, and `kind` from us. So a single `source` column on the row is already known
   to be wrong, and the question is how much less wrong the alternatives are: a column per
   field group, a `jsonb` provenance object, or a separate table. Decide against what Story
-  2.13 has to render rather than against what is tidy, and say which fields are covered
+  2.14 has to render rather than against what is tidy, and say which fields are covered
   and which are deliberately not
 - **Decide whether the universe is a migration or a seed script, and read
   `apps/backend/migrations/README.md` §7 before deciding rather than after.** That section

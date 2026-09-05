@@ -1,7 +1,7 @@
-# Task 2.14.1 — The first read: the query, the mapping, and the seam
+# Task 2.4.1 — The first read: the query, the mapping, and the seam
 
 **Status:** Not started
-**Story:** [2.14 The Tracked Universe On Screen](STORY.md)
+**Story:** [2.4 The Tracked Universe On Screen](STORY.md)
 **Depends on:** Story 2.3 (rows to read)
 
 ## Objective
@@ -34,7 +34,7 @@ a reader concludes the work was not done.
   `observed_at` and is not a temporal table, so nothing here would be filtered by that
   plugin even when it exists. The seam is therefore established against a case where getting
   it wrong has no symptom at all — which is exactly why it must be got right now, and why
-  `market_bars` in Story 2.7 is not the place to be discovering the pattern
+  `market_bars` in Story 2.8 is not the place to be discovering the pattern
 - **Write the mapping as one function per domain type, beside the query, and never a generic
   row-to-object mapper.** `migrations/README.md` §6 fixes this and gives the reason: the
   mapping is exactly where a nullable column becomes an explicit domain answer, and a
@@ -50,7 +50,7 @@ a reader concludes the work was not done.
   **invisible predicate**: `UNIVERSE.md` §3's rule is that it is _displayed rather than
   filtered away wherever a human is looking at a security_. So the read should return
   untracked securities and let the page show them as untracked, rather than hiding them —
-  and whichever is chosen, it is a decision recorded here and inherited by Story 2.8
+  and whichever is chosen, it is a decision recorded here and inherited by Story 2.9
 - **Test it against a real database**, in `pnpm test:database`, which already creates,
   migrates and drops its own `marketpulse_vitest` and does nothing to the database you are
   working in. Load the universe into it and read it back: the count, one row of each kind,

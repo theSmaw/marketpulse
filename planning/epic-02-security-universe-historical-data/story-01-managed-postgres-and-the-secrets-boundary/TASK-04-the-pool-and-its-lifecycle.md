@@ -15,7 +15,7 @@ Open one pool for the process, execute a trivial query through it against the lo
 - **Decide where the pool lives, and let `buildServer()`'s existing shape decide it.** That factory takes its logger settings rather than defaulting them, precisely so a test can build an instance without inheriting production defaults — the same argument applies to a database. What must not happen is a module-scope pool created on import, because every test file that imports the server would then open sockets. Note ADR 0002 §3's standing warning: the first `await` inside the factory changes every caller, and this is the most likely thing to introduce one
 - **`SELECT 1` and nothing more.** This story ends there deliberately. No table, no migration, no typed access, no query helper beyond what one trivial query needs — all of that is Story 2.2's, and a query layer invented here is one Story 2.2 has to argue with
 - **Close it in the drain, and prove the ordering rather than assume it.** The shutdown path is a `shuttingDown` flag, `app.close()`, a 5-second ceiling that forces an exit at level 50, and a second signal that exits 1. A pool closed _before_ the drain kills in-flight requests that still need it; one closed after `app.close()` resolves is the correct order and it has to be seen to be, because the failure looks like a slow shutdown rather than an error. Measure `signal received` → `shutdown complete` and compare it against the recorded ~100 ms and sub-millisecond drain: a pool that takes seconds to close is a route holding a client
-- **Decide what the server does when the database is absent or refuses, and decide it as a product state.** The backend must still start — `pnpm verify` runs with nothing listening, `test:process` spawns a server with no database, and a process that exits because Postgres is down is a crash-loop on a platform whose liveness probe restarts it. So the pool's first failure is a logged, levelled record rather than an exit, and what a request that needs data then gets is a decision to write down (Story 2.8 owns the API, but the shape of "the data layer is unavailable" is set here)
+- **Decide what the server does when the database is absent or refuses, and decide it as a product state.** The backend must still start — `pnpm verify` runs with nothing listening, `test:process` spawns a server with no database, and a process that exits because Postgres is down is a crash-loop on a platform whose liveness probe restarts it. So the pool's first failure is a logged, levelled record rather than an exit, and what a request that needs data then gets is a decision to write down (Story 2.9 owns the API, but the shape of "the data layer is unavailable" is set here)
 - **Extend `test:process` rather than leaving the new lifecycle untested.** That suite is the only thing here that drives signals, exit codes and the ceiling against a real spawned `dist/index.js`, and the story's sixth criterion asks for it **both ways**: with a database configured and reachable, and with one absent. Follow the suite's own rules — nothing waits on a log line, no timing is asserted, and every new test is seen to fail against a deliberate break before it is trusted
 - **Keep the fast suite fast.** The 189 tests in `pnpm test` need no build and no socket, and that is the property Story 1.9 and Task 1.10.5 both defended. A unit test that needs a live database has picked the wrong runner; if a real connection is genuinely needed, it belongs with the process suite and its cost is stated
 
@@ -49,7 +49,7 @@ Task 2.1.2 added a third check to `pnpm ready` that **reports** the database and
 
 **What 2.1.2 got wrong is the reversal trigger, and it named this task.** The sentence it shipped says the trigger is "Task 2.1.4 — the pool, the first thing here that opens a connection", and then, in the same breath, "on the day the backend needs a database to serve a request". **Those are not the same day**, and this task's own "Done when" list is the proof: a start with no database reachable is a logged failure and **not** an exit, `pnpm test:process` passes with a database absent, and `pnpm verify` passes with no database running. After this task the backend still starts, `/health` still answers, and **nothing in either check chain fails without a database** — so `pnpm ready`'s exit 0 is still the honest answer and flipping the line to `✗` here would be inventing a requirement ahead of the code that has it, which is the thing 2.1.2 declined to do in the first place.
 
-So this task should **re-take the decision rather than execute it**, and the likely outcome is that the check stays reporting and the trigger is restated as a **condition rather than a task number** — the shape `src/report-error.ts` already uses, where `CLAUDE.md` records that "the trigger was never 'Story 1.12', it was _an endpoint that accepts a client error report_". The condition here is **the first check in `pnpm verify` or `pnpm e2e` that fails without a database**, which is Story 2.2's migrations or Story 2.8's routes rather than anything in this story.
+So this task should **re-take the decision rather than execute it**, and the likely outcome is that the check stays reporting and the trigger is restated as a **condition rather than a task number** — the shape `src/report-error.ts` already uses, where `CLAUDE.md` records that "the trigger was never 'Story 1.12', it was _an endpoint that accepts a client error report_". The condition here is **the first check in `pnpm verify` or `pnpm e2e` that fails without a database**, which is Story 2.2's migrations or Story 2.9's routes rather than anything in this story.
 
 **If it does flip, the cost is not local**, and 2.1.2 named it: the `e2e` job in `.github/workflows/verify.yml` starts `pnpm dev` and calls `pnpm e2e`, which gates on `check-ready.mjs` — so a gating third check means that job gains a Postgres service. That is a workflow change with a cache key, a startup wait and a second definition of the database's address in a file that currently defines none of the pair, and it is the sort of thing Story 1.10's founding rule exists to keep out of a workflow. Cheap to state now, expensive to discover in a red CI run.
 
@@ -225,7 +225,7 @@ was **not to touch that factory**: nothing serves data yet, so a pool in
 and every test that builds a server would have to supply or fake one. It is
 created by `index.ts`, which already owns the process's resources.
 
-**The reversal trigger is Story 2.8's first route that needs data**, at which
+**The reversal trigger is Story 2.9's first route that needs data**, at which
 point the pool joins `ServerOptions` beside `corsOrigin` and ADR 0002 §3's
 warning about the first `await` in the factory applies. Nothing forces one
 today: `new Pool()` is lazy and synchronous, asserted by reading `totalCount`,
@@ -314,7 +314,7 @@ floated, so the startup log ends in a known state.
 **A failure is `warn`, never an exit.** Three reasons in order of weight: a
 process that exits because Postgres is down is a crash-loop on a
 liveness-probed platform, and Task 2.1.1 recorded that a Burstable server can
-make **itself** unreachable by exhausting CPU credits under Story 2.7's
+make **itself** unreachable by exhausting CPU credits under Story 2.8's
 backfill; `pnpm verify` and `test:process` both run with nothing listening; and
 `error` is what Task 1.7.4 reserves for a failure this server produced, where
 this server is still healthy by `/health`'s own definition.
@@ -323,7 +323,7 @@ this server is still healthy by `/health`'s own definition.
 
 There is no route to give an answer to, so building one would violate
 `API_ERROR_CODES`' own rule that a member is added when a failure can be
-**produced**. The decision, recorded in `database.ts` for Story 2.8 to
+**produced**. The decision, recorded in `database.ts` for Story 2.9 to
 implement: a **503** (not a 500 — "this dependency is unavailable, retry" is a
 different instruction from "this server failed"), a new `SERVICE_UNAVAILABLE`
 code added by the story that can produce it, `errors.ts`'s status-to-code

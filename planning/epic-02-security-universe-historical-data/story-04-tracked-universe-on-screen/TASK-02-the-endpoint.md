@@ -1,8 +1,8 @@
-# Task 2.14.2 — `GET /securities` and the wire contract
+# Task 2.4.2 — `GET /securities` and the wire contract
 
 **Status:** Not started
-**Story:** [2.14 The Tracked Universe On Screen](STORY.md)
-**Depends on:** Task 2.14.1
+**Story:** [2.4 The Tracked Universe On Screen](STORY.md)
+**Depends on:** Task 2.4.1
 
 ## Objective
 
@@ -17,7 +17,7 @@ nothing either — it is the first time this system will show a stakeholder its 
 it is worth demonstrating on the call rather than waiting for the page.
 
 The application itself is unchanged: `/securities` in the frontend is still Story 1.5's
-placeholder until Task 2.14.3.
+placeholder until Task 2.4.3.
 
 ## Work
 
@@ -34,8 +34,8 @@ Record<keyof T, JsonSchemaProperty>` guard Task 1.7.3 established, for the reaso
   `buildServer()`, and this route should be registered where the walk reaches it
 - **Decide the envelope**, and prefer the smallest thing that can grow. A bare array is the
   simplest and has nowhere to put the count, the provenance or a "there are more" signal; an
-  object with a `securities` key has all three and costs one level. Story 2.8's series
-  endpoint will need provenance in the payload per Story 2.5, so the shape chosen here is
+  object with a `securities` key has all three and costs one level. Story 2.9's series
+  endpoint will need provenance in the payload per Story 2.6, so the shape chosen here is
   the shape that story inherits
 - **Answer the pagination question this story left open**, and record it rather than
   defaulting. `UNIVERSE.md` §8 lists "an API default page size" as one of the places a
@@ -45,9 +45,9 @@ Record<keyof T, JsonSchemaProperty>` guard Task 1.7.3 established, for the reaso
   `profile_source`, `profile_retrieved_at`, `classification_source` and
   `classification_retrieved_at`, and invariant 6 says provenance is displayed rather than
   implied. Decide whether it rides on each security or once on the envelope — today every
-  row shares one value, which argues for the envelope, and Story 2.6 filling profile fields
+  row shares one value, which argues for the envelope, and Story 2.7 filling profile fields
   from Alpaca is what will break that. Say which, and say what breaks it
-- **Do not invent a search parameter.** Search is Story 2.10's and it has an open decision
+- **Do not invent a search parameter.** Search is Story 2.11's and it has an open decision
   about client-side versus server-side matching that this task must not settle by accident
 - **Test it through `app.inject()`**, which is where this repository's integration tests
   live, and assert the stripping property on the real route rather than on a copy of its
@@ -65,5 +65,5 @@ Record<keyof T, JsonSchemaProperty>` guard Task 1.7.3 established, for the reaso
 
 ## Notes
 
-This route is consumed by Stories 2.9, 2.10 and Epic 4, and its shape is read by Epic 6 and
+This route is consumed by Stories 2.10, 2.11 and Epic 4, and its shape is read by Epic 6 and
 Epic 9 later. It is worth an hour more than it feels like it needs.

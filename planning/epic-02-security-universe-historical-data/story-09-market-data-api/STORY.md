@@ -1,8 +1,8 @@
-# Story 2.8 — Market Data API
+# Story 2.9 — Market Data API
 
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
-**Depends on:** Stories 2.3, 2.7
+**Depends on:** Stories 2.3, 2.8
 **Epic scope covered:** **Addition to this epic's stated scope** — the read contract implied by "security search/select" and the two charts
 
 ## Description
@@ -15,15 +15,15 @@ because Epic 1 spent a whole story establishing how this codebase declares one.
 ## What the user can see when this story lands
 
 **A URL that returns real price history**, readable in a browser, and nothing rendered in
-the application — the chart is Story 2.11's.
+the application — the chart is Story 2.12's.
 
-**Scope note added 2026-09-05: Story 2.14 took the universe endpoints from this story**, and
+**Scope note added 2026-09-05: Story 2.4 took the universe endpoints from this story**, and
 with them the response-contract idiom and the first `selectFrom`. What remains here is the
 part that needs bars to exist: the series contract, the time-window request shape, and
-partial answers over a series. See Story 2.14's own file for the full table of what moved.
+partial answers over a series. See Story 2.4's own file for the full table of what moved.
 
-What it unblocks is Stories 2.9 to 2.12 and three later epics. **The payoff is visible in
-Story 2.11.**
+What it unblocks is Stories 2.10 to 2.13 and three later epics. **The payoff is visible in
+Story 2.12.**
 
 ## Why it sits here in the sequence
 
@@ -37,12 +37,12 @@ work to be proved end to end.
   series for a symbol over a time window at a timeframe
 - The request contract for a series: symbol, timeframe, window, and how the window is
   expressed — an absolute range, or a named window like "5 sessions" resolved server-side
-  through Story 2.4's calendar. The second keeps one definition of a session; the first
+  through Story 2.5's calendar. The second keeps one definition of a session; the first
   keeps the server dumber
 - The response contract, in `packages/shared`, with the `satisfies` guard idiom Task 1.7.3
   established so a field added to the interface and forgotten in the schema is a compile
   error rather than a field that silently vanishes from the wire
-- **Provenance in the payload**, per Story 2.5 — the response says which feed it came from
+- **Provenance in the payload**, per Story 2.6 — the response says which feed it came from
   and whether it is adjusted, so the UI cannot render market data without knowing
 - Partial answers as first-class results (§36): "we have data through 15:42" and "we have
   nothing for this symbol" are answers, not errors, and the contract must be able to say
@@ -56,7 +56,7 @@ work to be proved end to end.
 
 ## Out of scope, and who owns it
 
-- Anything rendered — Stories 2.9 to 2.13
+- Anything rendered — Stories 2.10 to 2.14
 - Streaming updates — Epic 3, which adds a second protocol beside this one (§31)
 - Anomaly, filing or investigation endpoints — Epics 5, 9, 7
 
@@ -91,5 +91,5 @@ work to be proved end to end.
 
 ## What this story hands forward
 
-The contract Stories 2.9 to 2.13 consume, and the shape Epic 3's live channel sits beside
+The contract Stories 2.10 to 2.14 consume, and the shape Epic 3's live channel sits beside
 rather than replaces.

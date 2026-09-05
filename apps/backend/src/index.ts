@@ -61,7 +61,7 @@ const app = buildServer({
 // closed inside the drain below, and every test that builds a server would
 // otherwise have to supply or fake one. Nothing in this application serves data
 // yet, so it deliberately does not reach the factory; database.ts's header
-// records the reversal trigger, which is Story 2.8's first route that needs it.
+// records the reversal trigger, which is Story 2.9's first route that needs it.
 //
 // This opens no socket. `new Pool()` is lazy, so construction cannot fail and
 // cannot delay startup, which is why reachability needs the explicit probe
@@ -347,7 +347,7 @@ try {
 // a crash-loop on a platform whose liveness probe restarts the replica — and
 // Task 2.1.1 recorded that a Burstable server can make itself unreachable by
 // exhausting its CPU credits, so this is a state the database can enter on its
-// own under Story 2.7's backfill. `pnpm verify` and `test:process` both run
+// own under Story 2.8's backfill. `pnpm verify` and `test:process` both run
 // with nothing listening, and that property is older than this task. And the
 // level is `warn` because this server is still healthy by `/health`'s own
 // definition: `error` is what Task 1.7.4 reserves for a failure this server

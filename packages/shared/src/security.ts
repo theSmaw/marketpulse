@@ -34,7 +34,7 @@
  *   truth, which is the arrangement `migrations/README.md` requires of every
  *   closed set.
  *
- * The mapping between the two is **Story 2.8's**, one function per domain type
+ * The mapping between the two is **Story 2.4's**, one function per domain type
  * and never a generic row-to-object mapper, because the mapping is exactly
  * where a nullable column becomes an explicit answer. Nothing of the kind is
  * here, and the reflex to make one type derive from the other is the thing
@@ -44,7 +44,7 @@
  *
  * No price, no bar, no filing, no market capitalisation, no anomaly score. The
  * test is whether the field is a fact about the security or a fact about
- * something that happened to it: Story 2.7 owns the second kind and Epic 9 owns
+ * something that happened to it: Story 2.8 owns the second kind and Epic 9 owns
  * filings. {@link SecurityBase.cik} is the one identifier that stays, because
  * it is a name for *this company* rather than an event — and it is null for
  * every row until Epic 9 populates it.
@@ -261,7 +261,7 @@ export const SECTOR_LABELS: Record<Sector, string> = {
  * was refused because no request produces a 415, and `SERVICE_UNAVAILABLE` was
  * designed and left unadded until the story that can return it. A member with
  * no producer means "this has never happened", which is indistinguishable in
- * the data from "this cannot happen". **Its producer is Story 2.6**, which
+ * the data from "this cannot happen". **Its producer is Story 2.7**, which
  * carries it in its own scope rather than only being named here.
  *
  * A single collapsed `inactive` member is rejected outright: it is cheaper than
@@ -316,7 +316,7 @@ interface SecurityBase {
    *
    * A plain `string` and deliberately not a union: unlike {@link SecurityKind}
    * and {@link SecurityStatus}, nothing in this product branches on it, the set
-   * is the market's rather than ours, and Story 2.6 is the first thing that
+   * is the market's rather than ours, and Story 2.7 is the first thing that
    * will receive it from a provider with its own spelling. A union invented
    * here would be a vocabulary that story has to migrate rather than adopt —
    * the same reason Task 2.2.4 left `status` unconstrained for this story to
@@ -425,7 +425,7 @@ export function isEtf(security: Security): security is EtfSecurity {
  * column would be a claim that is true of some of them.
  *
  * - **`profile`** — `symbol`, `name`, `exchange`. The curated file today;
- *   plausibly Alpaca's assets endpoint from Story 2.6.
+ *   plausibly Alpaca's assets endpoint from Story 2.7.
  * - **`classification`** — `sector`, `industry`. The curated file, and the
  *   group whose staleness is recorded as a gap: Alpaca carries neither, so
  *   there is nothing to reconcile it against.
@@ -438,7 +438,7 @@ export function isEtf(security: Security): security is EtfSecurity {
  *
  * What is stored is Task 2.3.3's — two columns per group that has a source, and
  * the `observed_at` question answered explicitly there. What is *here* is the
- * vocabulary and the field-to-group mapping, so the loader and Story 2.13's
+ * vocabulary and the field-to-group mapping, so the loader and Story 2.14's
  * renderer agree about which group a field on screen belongs to rather than
  * each deciding.
  */
@@ -486,7 +486,7 @@ export const SECURITY_FIELD_GROUP: Record<keyof Security, SecurityFieldGroup> =
  * {@link isApiError} do — a validator written anywhere but beside its shape is
  * the copy that drifts — and unlike those two it has **two** readers rather
  * than one: Task 2.3.5's loader, which has to reject a malformed row, and
- * Story 2.9's frontend, which receives these over the wire from Story 2.8's API
+ * Story 2.10's frontend, which receives these over the wire from Story 2.9's API
  * and is in exactly the position `api-client.ts` is in for `/health`.
  *
  * **It is the {@link isApiError} case and not the {@link isHealthResponse}

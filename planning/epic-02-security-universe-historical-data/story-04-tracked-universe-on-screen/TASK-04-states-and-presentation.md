@@ -1,8 +1,8 @@
-# Task 2.14.4 — The states, and making it look like the product
+# Task 2.4.4 — The states, and making it look like the product
 
 **Status:** Not started
-**Story:** [2.14 The Tracked Universe On Screen](STORY.md)
-**Depends on:** Task 2.14.3
+**Story:** [2.4 The Tracked Universe On Screen](STORY.md)
+**Depends on:** Task 2.4.3
 
 ## Objective
 
@@ -48,7 +48,7 @@ failure states rather than reasoning about them.
   reason this rule exists
 - **Decide grouping versus sorting** and record it. Grouping by sector makes coverage
   legible and makes finding one symbol harder; sorting alphabetically does the reverse.
-  Search arrives in Story 2.10 and changes which of those matters, so prefer the one that
+  Search arrives in Story 2.11 and changes which of those matters, so prefer the one that
   serves _this_ page and say what would reverse it
 - **Do not add a sort control, a filter or a density toggle.** They are each a small piece of
   state and a second thing to keep correct, on a page whose job is to show 101 rows, and

@@ -24,12 +24,12 @@
 // **What maps between the two lives beside the query**, one function per domain
 // type and never a generic row-to-object mapper — because the mapping is
 // exactly where a nullable column becomes an explicit domain answer, and a
-// generic mapper is where that decision gets skipped. Story 2.8 writes the
+// generic mapper is where that decision gets skipped. Story 2.4 writes the
 // first read and owns it. There is deliberately nothing of the kind here yet.
 //
 // **Its only consumer is a test, and that is the point rather than a loose
 // end.** `migrate.ts` deliberately does not consume it (see below), and Story
-// 2.8 writes the first `selectFrom`. What Task 2.2.5 added is
+// 2.4 writes the first `selectFrom`. What Task 2.2.5 added is
 // `migrate.database.test.ts`, which declares its column expectation
 // `satisfies Record<keyof SecuritiesTable, ExpectedColumn>` and then compares
 // that expectation against `information_schema`. So the two directions are held
@@ -109,7 +109,7 @@ export interface SecuritiesTable {
    * `packages/shared` holds as a discriminated union. This row type cannot
    * express it — a row is one interface with one nullable column, which is the
    * whole reason the domain type is a different type — so here the two meanings
-   * of `null` are indistinguishable and the mapping Story 2.8 writes is where
+   * of `null` are indistinguishable and the mapping Story 2.4 writes is where
    * they separate again.
    */
   sector: Sector | null;
@@ -167,7 +167,7 @@ export interface SecuritiesTable {
    * {@link recorded_at}, whose update parameter is `never`.
    *
    * `SECURITY_FIELD_GROUP` in `packages/shared` maps a field to its group, so
-   * Story 2.13 can render "where did this come from" beside any field without
+   * Story 2.14 can render "where did this come from" beside any field without
    * reverse-engineering which pair to read.
    */
   profile_source: string;
@@ -180,7 +180,7 @@ export interface SecuritiesTable {
    * date silently, and a sector reclassification has **no symptom at all** — it
    * simply benchmarks a security against the wrong ETF, indefinitely and
    * correctly-looking. This timestamp is the mitigation, and a weak one: it
-   * makes the file's age visible on screen through Story 2.13 rather than only
+   * makes the file's age visible on screen through Story 2.14 rather than only
    * in git history.
    */
   classification_source: string;
@@ -204,7 +204,7 @@ export interface SecuritiesTable {
  * Every table, by the name Postgres knows it by.
  *
  * `snake_case` keys because these are the database's identifiers rather than
- * ours; Kysely uses them verbatim in the SQL it builds. Story 2.8's mapping
+ * ours; Kysely uses them verbatim in the SQL it builds. Story 2.9's mapping
  * layer is where they become domain vocabulary.
  */
 export interface Database {

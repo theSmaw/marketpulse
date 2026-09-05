@@ -1,8 +1,8 @@
-# Task 2.14.5 — Keyboard, screen reader, and the browser journey
+# Task 2.4.5 — Keyboard, screen reader, and the browser journey
 
 **Status:** Not started
-**Story:** [2.14 The Tracked Universe On Screen](STORY.md)
-**Depends on:** Task 2.14.4
+**Story:** [2.4 The Tracked Universe On Screen](STORY.md)
+**Depends on:** Task 2.4.4
 
 ## Objective
 
@@ -40,7 +40,7 @@ appears to do nothing.
   assert on colour, and do not use `innerText()`, which reports the CSS-transformed string
   where the DOM and every Playwright matcher see the real one
 - **Assert on roles and accessible names rather than on classes or structure**, which is
-  what makes the journey survive Task 2.14.4's presentation decisions being revisited
+  what makes the journey survive Task 2.4.4's presentation decisions being revisited
 - **Do not intercept the route to fake the data.** Story 1.13 measured that `route.fulfill()`
   bypasses the browser's CORS check entirely, so a journey built on interception cannot see
   the one failure the deployed check exists for. The failure states are worth producing by
@@ -60,5 +60,5 @@ appears to do nothing.
 ## Notes
 
 This is the first table in the product and the first page whose content arrives
-asynchronously. Both patterns repeat — Stories 2.10, 2.11, 2.12 and every epic after — so
+asynchronously. Both patterns repeat — Stories 2.11, 2.12, 2.13 and every epic after — so
 what is decided here about announcing a state change is decided for all of them.
