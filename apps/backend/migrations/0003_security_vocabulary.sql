@@ -96,7 +96,7 @@ alter table securities
 -- because nothing in Story 2.3 can PRODUCE it, which is this repository's own
 -- rule for adding a member to a vocabulary — applied twice already, to
 -- `UNSUPPORTED_MEDIA_TYPE` and to `SERVICE_UNAVAILABLE`. Its producer is Story
--- 2.7, and adding it then is exactly the drop-check / add-check shape above,
+-- 2.6, and adding it then is exactly the drop-check / add-check shape above,
 -- which is why that shape is worth having a worked example of.
 alter table securities
     add constraint securities_status_check
@@ -171,14 +171,14 @@ alter table securities
 -- ---------------------------------------------------------------------------
 --
 -- Acceptance criterion 6 says the metadata's source is recorded PER FIELD in a
--- way Story 2.14 can display, and invariant 6 says provenance is displayed
+-- way Story 2.13 can display, and invariant 6 says provenance is displayed
 -- rather than implied. A single `source` column on the row is already known to
 -- be wrong, because the fields do not share a source — `symbol`/`name`/
 -- `exchange` plausibly come from a provider, `sector`/`industry` from a curated
 -- file, `cik` from Epic 9, and `kind`/`status` from us.
 --
 -- `SECURITY_FIELD_GROUP` in `packages/shared` is the field-to-group mapping and
--- is total over `keyof Security`, so Story 2.14 reads which group a field on
+-- is total over `keyof Security`, so Story 2.13 reads which group a field on
 -- screen belongs to rather than reverse-engineering it. What that story needs
 -- from HERE is, for any field: that group's `source` string and its
 -- `retrieved_at`.
@@ -206,7 +206,7 @@ alter table securities
 -- this one. There is still NO `observed_at` here, and the reasoning has not
 -- changed: a security's sector is not a fact about the market at an instant,
 -- because there is no moment at which "AAPL is in technology" became true the
--- way a price became true. `market_bars` in Story 2.8 remains the first table
+-- way a price became true. `market_bars` in Story 2.7 remains the first table
 -- that exercises the `observed_at` / `recorded_at` pair.
 --
 -- What HAS changed is that these four columns are the first thing in this schema
@@ -235,7 +235,7 @@ alter table securities
 -- over the taxonomy rather than becoming a `sectors` table, and a separate
 -- `security_field_provenance` table was rejected in favour of the columns above.
 -- So **the foreign-key naming rule is STILL UNTESTED after the story most likely
--- to have exercised it**, and Story 2.8's `market_bars.security_id` inherits it.
+-- to have exercised it**, and Story 2.7's `market_bars.security_id` inherits it.
 -- Recorded here rather than left silent, because a convention that quietly
 -- survives the story that should have tested it is exactly this repository's
 -- third class of gap.
@@ -246,5 +246,5 @@ alter table securities
 -- run, and `symbol` already carries a `unique` constraint with a btree behind it
 -- — which Task 2.2.4 verified is a UNIQUE CONSTRAINT rather than a bare index, a
 -- distinction that matters to anything reading `pg_constraint`. So the loader
--- needs nothing new. Story 2.9 writes the first read and can size an index
+-- needs nothing new. Story 2.8 writes the first read and can size an index
 -- against a query that exists.

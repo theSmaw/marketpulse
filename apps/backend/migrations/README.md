@@ -556,6 +556,35 @@ what there is, is saying so.
 been applied can be edited freely — that is what a pull request is for. The rule
 this enforces is the narrow one: never edit a migration that has been applied.
 
+**And "edited" means the bytes, not the meaning — which is how this rule was
+first broken, on 2026-09-05, by a change that altered no SQL at all.** Epic 2's
+stories were renumbered, and the sweep that remapped ~500 references across the
+tree walked into `0002_securities.sql` and `0003_security_vocabulary.sql` and
+updated the story numbers **in their comments**. Both files were already applied
+to the deployed database. The next deploy's migration step refused with
+`2 applied migrations have been edited since they were applied` and printed both
+checksums, having applied nothing — the guard doing precisely its job, against a
+change whose author would have said with confidence that it changed nothing.
+
+Two things to take from it. **A sweep, a reformat or a rename that touches a
+`.sql` file under this directory is an edit**, so anything of that kind must
+exclude the applied ones — there is no "comments only" exemption, because the
+checksum hashes the file. And **the correction is to restore the bytes**, which
+is what was done: the two files were reverted to the versions whose hashes the
+database recorded, leaving their comments naming story numbers that have since
+moved. Those stale numbers are the cost, they are a historical record inside a
+record of what was done, and they are cheaper than the alternative.
+
+**The second finding from that day belongs here too, because it is what made the
+first one dangerous rather than merely annoying.** The refusal exited 1 and the
+deploy step reported **success**, so the code rolled on top of a database the
+migration had declined to touch. The cause was in the workflow rather than in
+this mechanism: `if ! timeout 120 pnpm migrate; then status=$?` reads `$?` inside
+the then-block of a **negated** test, where it is `0` exactly when the command
+failed. Capture the status from the command — `status=0; cmd || status=$?` —
+never from inside `if ! cmd`. `migrate.ts` goes to some length to make a failed
+migration exit non-zero; a shell one layer up can throw that away silently.
+
 **There is no command that repairs a divergence, and the recovery differs by
 environment.** Locally, reset: `pnpm db down -v && pnpm db && pnpm migrate`. On
 the deployed server there is no reset, so the answer is a **new forward

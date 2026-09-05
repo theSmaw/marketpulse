@@ -23,12 +23,12 @@
 --      Story 2.3 has to migrate rather than choose.
 --   3. There is no `observed_at`. A security is reference data rather than a
 --      fact about the market, so there is no instant at which it "was true"
---      that is different from when we recorded it. `market_bars` (Story 2.8) is
+--      that is different from when we recorded it. `market_bars` (Story 2.7) is
 --      the first table that exercises the pair. Adding a defaulted one here to
 --      make the convention look tested would be exactly the leak the convention
 --      forbids.
 --   4. There is no index beyond the primary key and `symbol`'s unique
---      constraint. No query exists yet; Story 2.9 writes the first read, and an
+--      constraint. No query exists yet; Story 2.8 writes the first read, and an
 --      index chosen before there is a query to serve is a guess with a write
 --      cost.
 
