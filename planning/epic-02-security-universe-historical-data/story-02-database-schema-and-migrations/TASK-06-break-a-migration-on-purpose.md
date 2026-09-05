@@ -1,6 +1,6 @@
 # Task 2.2.6 — Break a migration on purpose, locally, and record what it leaves behind
 
-**Status:** Not started
+**Status:** Complete — 2026-09-05
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
 **Depends on:** Tasks 2.2.4 (complete — there is a real migration and a real table) and
 2.2.5 (complete — there is a database-backed suite, `pnpm test:database`, and it is a
@@ -159,3 +159,140 @@ This is deliberately local and deliberately before the deployed run. Producing a
 migration for the first time against the managed database would be the exact inversion of
 Task 1.11.2's rule, and unlike a failed container the mess it leaves is in a stateful thing
 that Task 2.1.5 put a `CanNotDelete` lock on.
+
+## Outcome — 2026-09-05
+
+**Eight failure classes were produced against a real PostgreSQL 18.6, each on a fresh
+scratch database, each reverted — and the headline is that seven of them leave the database
+byte-for-byte as it was, while the eighth leaves it wrong and reports success.**
+
+Everything below was produced through `pnpm migrate` rather than reasoned about, against a
+`marketpulse_scratch` database created, ruined and dropped — the pattern Task 2.2.5
+established, applied with more force here because this task's whole purpose was to leave a
+database broken. **The development database was never pointed at**, confirmed afterwards:
+`marketpulse` still holds `0001_baseline`, `0002_securities` and 0 rows.
+
+### The four classes 2.2.2 could not reach, plus four more
+
+| Class                                            | Message                                                                                       | Exit  | Left behind                                                                         |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------- |
+| **A** syntax error                               | `syntax error at or near "tabel"`                                                             | **1** | Nothing, not recorded                                                               |
+| **B** second statement fails, **table has rows** | `column "symbol" of relation "securities" already exists`                                     | **1** | Nothing — the successful `add column` _and_ its `update` rolled back, 3 rows intact |
+| **C** `set not null` against existing nulls      | `column "sector" of relation "securities" contains null values`                               | **1** | Nothing, `sector` still nullable                                                    |
+| **D** `check` violated by existing rows          | `check constraint "securities_status_check" of relation "securities" is violated by some row` | **1** | Nothing, constraint absent                                                          |
+| **E** `create index concurrently`                | `CREATE INDEX CONCURRENTLY cannot run inside a transaction block`                             | **1** | Nothing — **not** the `INVALID` index this leaves outside a transaction             |
+| **F** refused filename                           | the provider's own message                                                                    | **1** | Nothing ran at all                                                                  |
+| **G** unreachable database                       | `connect ECONNREFUSED 127.0.0.1:5499`                                                         | **1** | Nothing ran at all                                                                  |
+| **H** **editing an applied migration**           | **`Already up to date`**                                                                      | **0** | **A database that no longer matches the files**                                     |
+
+`kysely_migration` held exactly `0001_baseline` and `0002_securities` after every one of A–G,
+and `public` held exactly `kysely_migration`, `kysely_migration_lock` and `securities`. Exit
+1 was confirmed through `pnpm migrate` **and** through `runMigrations()` directly.
+
+**Class C was worth watching for the reason 2.2.4 named and the answer is reassuring**:
+PostgreSQL 18 materialises `NOT NULL` as `pg_constraint` rows, but the failure message is
+still the classic `contains null values` and does **not** name a constraint — so the engine
+change does not reach the diagnostic.
+
+**Class E reproduces Task 2.2.1's refusal verbatim on the shipped mechanism**, and adds one
+thing the spike could not: it leaves **no `INVALID` index**, because the transaction that
+refused it is the same transaction that would have held the half-built one. The
+second-`Migrator`-over-a-separate-directory answer still looks right now the runner exists,
+and it is still Story 2.7's to build — there is no table to index.
+
+### Both message branches are correct, and the second one is the one a naive check misses
+
+_"failed and was rolled back"_ covers A–E; _"failed before any migration was executed, so the
+database is exactly as it was"_ covers F and G, where `results` is `undefined`. Both were
+produced and both say the true thing about what was left behind. A class landing in the wrong
+branch would be actively misleading rather than merely unhelpful, since one claims a rollback
+and the other claims nothing ran.
+
+### The message names the migration and does not name the statement, and that is only fixable for one class
+
+Measured off the raw `DatabaseError` rather than assumed. The whole body is one `sql.raw()`
+call, so Postgres sees a single multi-statement query: a **syntax error carries
+`position: "86"`**, a character offset into the file body, and **every execution error
+carries no `position` at all** — only SQLSTATE (`42601` / `23502` / `23514` / `25001`) and
+PostgreSQL's internal `routine`. The error also carries `line: "7695"`, which is a trap: it
+is PostgreSQL's own C source line, not a line in the migration.
+
+**Nothing was changed**, and the reasoning is recorded rather than the change deferred: a
+bare character offset is weak, and the version worth having — a real line number — needs the
+provider to hand the body along so `position` can be resolved against it. That is a change
+worth making the first time a migration is long enough for `at or near "x"` to be ambiguous,
+and `0002_securities.sql` at 107 lines is not yet that file.
+
+### A rolled-back migration consumes identity values, confirmed on a migration
+
+2.2.4 observed this on a bare insert; it reproduces on the real mechanism and is sharper.
+Against a `securities` holding ids 1–3, a migration inserted **two** rows and then failed.
+After the rollback: 3 rows, max id 3 — and the next insert got id **6**, not 4. Sequences are
+non-transactional in Postgres by design and a rollback does not give the numbers back.
+
+**`migrate.ts`'s "it left nothing behind" is deliberately left as it is, and the decision is
+recorded beside the string.** That line is read by somebody who has just had a migration fail
+and is deciding whether to go and look at the database, and for _that_ question it is
+correct: a gap in a surrogate key's sequence is not something anyone can or should act on,
+ids here are explicitly not contiguous, and lengthening the sentence spends a reader's
+attention on a non-problem at the moment they have least of it. The precise version is in
+`migrations/README.md` §8.
+
+### Concurrency is safe, and the mechanism is an advisory lock rather than the lock table
+
+Established rather than assumed, by running two `pnpm migrate` processes half a second apart
+against one database with a `pg_sleep(6)` migration between them. The second appeared in
+`pg_stat_activity` as **`wait_event_type: Lock`, `wait_event: advisory`**, waited for the
+first, then reported `Already up to date` and exited 0. No interleaving, no double-apply.
+
+Read out of Kysely 0.29.5's own `postgres-adapter.js` rather than inferred: it is
+`pg_advisory_lock(3853314791062309107)` — a hard-coded id — **session-level**, with
+`lock_timeout` set to **one hour**. Three consequences for Task 2.2.7:
+
+- **The lock is per-database.** `pg_locks.database` is the database's own OID, one row
+  granted and one waiting. Two migrations against two databases on one server do not block
+  each other, which is what makes the scratch-database pattern genuinely isolated.
+- **A failing first runner does not poison the second.** Produced: run 1 failed after six
+  seconds, run 2 took the lock, ran the same migration itself, failed the same way and also
+  exited 1. Both report the failure; neither reports success. That is the answer a
+  concurrent-deploy story needs.
+- **Session-level means a hard crash releases it**, but a runner that _hangs_ holds it and
+  the second waits up to an hour before erroring rather than failing fast.
+
+### Class H is the finding, and it is two green instruments over a wrong database
+
+The instruction this task originally carried — run it "both ways round, with 2.2.5's check in
+place and disabled" — was unrunnable, because 2.2.5 weighed the checksum table and declined
+it. What was produced instead is the other half of that argument. An index was appended to
+`0002_securities.sql` **after** it had been applied — the realistic edit, since nothing in
+the database suite asserts on indexes. Then:
+
+- `pnpm migrate` reported **`Already up to date — no migrations to apply.`** at **exit 0**,
+  and `pg_indexes` held **0** rows for it.
+- `pnpm test:database` reported **23 passed** at **exit 0**, because it migrates a database of
+  its own **from empty** every run — so it proves _these files produce this schema_ and
+  structurally cannot prove _that database matches these files_.
+
+Two green results side by side, over a database that is wrong. **The only thing that catches
+it is a person.** Recovery was confirmed sufficient rather than assumed: dropping and
+re-migrating produced the index. `pnpm db down -v && pnpm db && pnpm migrate` is the
+development-database form.
+
+### Where the recovery is written down
+
+`apps/backend/migrations/README.md` gained **§8**, in the imperative and in the directory
+somebody is already in when they need it — the same argument that put the conventions there
+rather than in a task file. It carries the class table, both message branches, the SQLSTATE
+and `position` reading, the identity-sequence exception, the advisory-lock behaviour, and the
+one recovery that is not "fix the file and run it again". The README's own framing paragraph
+was amended, because it previously said mechanism is documented in `migrate.ts` and not here;
+§8 is the stated exception, on the grounds that when you need it you are reading a failure
+rather than reading source. The prose list gained "never edit a migration that has been
+applied" as a convention no instrument can ever hold.
+
+### Figures
+
+`pnpm verify` **exit 0 in 28.76 s**, `pnpm test` **239**, `pnpm test:process` **14**,
+`pnpm test:database` **23**. No dependency, no lockfile change, no new script and no new
+`verify` step; the two files that changed are `migrations/README.md` and a comment in
+`migrate.ts`. `apps/backend/migrations/` is byte-identical to where 2.2.4 left it.

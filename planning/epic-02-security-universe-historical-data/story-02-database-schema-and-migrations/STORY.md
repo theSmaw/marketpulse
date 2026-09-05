@@ -153,7 +153,7 @@ stops being the backend's problem alone. 2.2.8 closes the story and records ADR 
 | 2.2.3 | [Write the conventions down, before there is a table to argue about](TASK-03-the-schema-conventions.md)                                 | **Complete** |
 | 2.2.4 | [The first schema: `securities` and nothing more](TASK-04-the-first-schema.md)                                                          | **Complete** |
 | 2.2.5 | [The sixth level of test, and what it costs `pnpm test`](TASK-05-the-sixth-level-of-test.md)                                            | **Complete** |
-| 2.2.6 | [Break a migration on purpose, locally, and record what it leaves behind](TASK-06-break-a-migration-on-purpose.md)                      | Not started  |
+| 2.2.6 | [Break a migration on purpose, locally, and record what it leaves behind](TASK-06-break-a-migration-on-purpose.md)                      | **Complete** |
 | 2.2.7 | [Migrate the deployed database, and decide what a failed migration does to a rollout](TASK-07-migrate-the-deployed-database.md)         | Not started  |
 | 2.2.8 | [Verify from a clean clone, document, and record ADR 0015](TASK-08-verify-document-and-adr.md)                                          | Not started  |
 
@@ -244,6 +244,38 @@ time rather than left for the closing sweep**, which is the rule this repository
 has twice failed to follow: `README.md`'s levels table said **five** levels and now says six,
 and `CLAUDE.md`'s "nothing compares those two numbers" entry for the engine pin was **half
 closed** and now says which half.
+
+**Amended a fourth time after Task 2.2.6 (2026-09-05), with no task added, deleted or
+re-ordered.** **Two** task files were amended, 2.2.7 and 2.2.8, and the sweep confirmed the
+story's own ordering argument a second time: breaking a migration before deploying one
+produced three answers 2.2.7 was about to have to guess at.
+
+**2.2.7 gained the most, and one of its gaps was real rather than a refinement — it said
+nothing at all about two migrations running at once.** Concurrency is now established:
+Kysely takes a session-level `pg_advisory_lock` on a hard-coded id with a one-hour
+`lock_timeout`, it is **per-database**, and a failing first runner does **not** poison a
+second — both report the failure and neither reports success. **Overlap is therefore safe and
+_hanging_ is the exposure**, and it falls unevenly across the three shapes that task chooses
+between: a `deploy.yml` step waiting on the lock waits an hour before erroring, so it needs a
+deadline of its own, and a boot-time job is worse, because Task 2.1.7's startup probe kills a
+replica at roughly **90 seconds** — so a rolling revision that briefly runs two replicas is
+exactly what produces the wait. That is a cost to weigh beside the `files` cost rather than
+separately. **The checksum reversal trigger is now backed by a produced failure rather than an
+argument**, so 2.2.7 is told to _take_ that decision rather than defer it a third time, and to
+write down the deployed recovery if it defers again — an edited applied migration takes
+`pnpm migrate` and `pnpm test:database` both to exit 0 over a database missing what the files
+say it has, and the only recovery that worked was dropping the database, which is what a
+`CanNotDelete`-locked server does not offer. It also gained what a red deployed migration
+will actually print, which is less than expected: the file and a SQLSTATE, no statement.
+
+**2.2.8** gained a third document to sweep — `migrations/README.md` §8, the most figure-dense
+thing in the story, whose SQLSTATE values and advisory-lock constants are pinned to
+PostgreSQL 18.6 and Kysely 0.29.5 and so rot on either upgrade without breaking anything —
+and **two entries for ADR 0015's lists**. One moves into the _first_: two concurrent
+migrations cannot interleave. The other is the sharpest sentence the story has produced and
+belongs in the second: **a green `pnpm migrate` does not certify that the database matches the
+migration files**, only that every migration _named_ on disk is recorded as applied, which is
+a different claim — and 2.2.6 produced the gap between them.
 
 **`market_bars` is in none of these tasks and that is deliberate**, per this story's own
 out-of-scope note: its shape is driven by measured ingestion, and creating it here would be
