@@ -115,7 +115,8 @@ describe("validateUniverse", () => {
   it("accepts the real universe", () => {
     // Not the interesting test — everything above holds it — but it is the one
     // that fails if the shipped file ever stops satisfying its own rules, which
-    // is what Task 2.3.6's first edit could do.
+    // is what any edit to the list could do — the procedure for making one is
+    // `UNIVERSE.md` §12.8.
     //
     // Imported lazily so this file's other tests do not depend on ~900 lines of
     // data, and so a malformed ticker in that file fails as an import error
@@ -327,7 +328,8 @@ describe("summariseLoad", () => {
       inserted: 3,
       updated: 1,
       unchanged: 97,
-      absentFromFile: [],
+      untracked: [],
+      alreadyUntracked: [],
     });
 
     expect(outcome.exitCode).toBe(0);
@@ -340,21 +342,39 @@ describe("summariseLoad", () => {
     expect(outcome.lines.join("\n")).toContain("97 unchanged");
   });
 
-  it("reports a symbol in the database and not in the file, and still exits 0", () => {
-    // The seam. This loader does not delete, does not change `status` and does
-    // not refuse — Task 2.3.6 chooses, and one of the three answers destroys
-    // data Story 2.8 will have stored against the row.
+  it("reports a symbol it untracked, and still exits 0", () => {
+    // Task 2.3.6's answer to the seam: a symbol removed from the file has its
+    // row kept and its `status` moved to `untracked`. Exit 0, because removing
+    // a symbol is an edit somebody meant to make rather than a fault.
     const outcome = summariseLoad({
       inserted: 0,
       updated: 0,
       unchanged: 100,
-      absentFromFile: ["FB"],
+      untracked: ["FB"],
+      alreadyUntracked: [],
     });
 
     expect(outcome.exitCode).toBe(0);
-    expect(outcome.lines.join("\n")).toContain("1 in the database and not in");
+    expect(outcome.lines.join("\n")).toContain("now marked untracked");
     expect(outcome.lines.join("\n")).toContain("FB");
-    expect(outcome.lines.join("\n")).toContain("Task 2.3.6");
+  });
+
+  it("separates a removal happening from the steady state afterwards", () => {
+    // The two are different events and the second one is forever. A loader that
+    // printed the same paragraph about FB on every run for the rest of the
+    // project is one whose output stops being read, which is how the *next*
+    // removal goes unnoticed.
+    const outcome = summariseLoad({
+      inserted: 0,
+      updated: 0,
+      unchanged: 100,
+      untracked: [],
+      alreadyUntracked: ["FB"],
+    });
+
+    expect(outcome.exitCode).toBe(0);
+    expect(outcome.lines.join("\n")).toContain("1 already untracked");
+    expect(outcome.lines.join("\n")).not.toContain("now marked untracked");
   });
 });
 

@@ -46,8 +46,10 @@ renumbered.
   Re-take all four again at the close rather than citing this line, which is a measurement
   taken three tasks earlier and will have moved if 2.3.5 or 2.3.6 adds a test — both of
   which are expected to. **2.3.5 did: `pnpm test` is now `286` (55 + 128 + 103) and
-  `pnpm test:database` is `53` across two files**, and 2.3.6 will move both again, so this
-  line is a waypoint rather than a figure to cite. Both figures also appear in `README.md`
+  `pnpm test:database` is `53` across two files**; **2.3.6 moved both again — `pnpm test` is
+  `287` (55 + **129** + 103) and `pnpm test:database` is `55`, and it corrected both in
+  `README.md` and `CLAUDE.md`** — so this line is a waypoint rather than a figure to cite,
+  and the four commands are still this task's to re-run. Both figures also appear in `README.md`
   and `CLAUDE.md`; **2.3.5 corrected them in both** — along with two that were already stale
   before this story started (`229` and `246` in `README.md`, and a `25` for the database
   suite) — so what is left for this task is re-taking rather than discovering, plus whatever
@@ -106,19 +108,44 @@ renumbered.
     it. Resolve the two together and with one rule, because a reader arriving at
     `migrations/` in order meets both
   - **`apps/backend/src/universe.ts`**, new in 2.3.4 and the most figure-dense file this
-    story shipped — **and the one whose figures a task inside this story is expected to
-    falsify.** Each sector block's comment states its count and its relation to §7's bounds,
-    and the technology block's states that eight of its twelve are semiconductors; Task 2.3.6
-    adds a symbol and removes one, and **nothing anywhere would catch a comment left
-    behind** — it compiles, lints, formats and loads either way. Check the comments against
-    the rows rather than against `UNIVERSE.md` §9, since §9 is the other thing 2.3.6 edits
-    and two stale copies agreeing with each other is the failure mode
+    story shipped — ~~**and the one whose figures a task inside this story is expected to
+    falsify.**~~ **That expectation was wrong and the correction is worth more than the
+    sweep item: Task 2.3.6 shipped NO change to this file, and it is byte-identical to
+    2.3.4's.** The demonstrations ran in a scratch database and were reverted, on Task
+    2.2.6's precedent and for its reason — the list is a product decision and editing it to
+    satisfy a demonstration is the failure the 2.3.4/2.3.5 split exists to prevent
+    (`UNIVERSE.md` §12.7). **So §9's distribution table did not move either**, and the two
+    bullets in `STORY.md` and in 2.3.6's own brief that said it would are corrected there.
+    The sweep item survives in a weaker and still-worth-doing form: each sector block's
+    comment states its count and its relation to §7's bounds, and the technology block's
+    states that eight of its twelve are semiconductors, so **check the comments against the
+    rows** — `git diff` proving the file unchanged is the cheap version of that check, and
+    the reason the rule exists is that nothing anywhere would catch a stale comment: it
+    compiles, lints, formats and loads either way. Check against the rows rather than
+    against §9, since two stale copies agreeing with each other is the failure mode
   - **`apps/backend/src/load-universe.ts`**, new in 2.3.5 and the second most figure-dense
     file this story shipped. It carries three measurements in comments — 5,461 rows per
     statement, `securities_id_seq.last_value` 404 against `max(id)` 101 after four runs, and
-    the two-branch duplicate finding below — none of which any instrument re-takes. It also
+    the two-branch duplicate finding below — none of which any instrument re-takes. ~~It also
     **names Task 2.3.6 as the owner of the removal seam in two places**, one of them a test
-    name, so both go stale the moment that task decides
+    name, so both go stale the moment that task decides~~ — **2.3.6 resolved both, and added
+    two more figures to re-take**: the id contrast (**34** kept against **541** under the
+    rejected `DELETE`) and the ticker-change pair (**two rows, two ids**), both on
+    `untrackAbsent` and both taken in a scratch database that no longer exists
+  - **`packages/shared/src/security.ts`'s two Task 2.3.6 claims are already resolved** and
+    should be read rather than re-fixed: `SECURITY_STATUSES`' `untracked` member now records
+    the decision and the reader rule, and `SecurityBase.symbol` now records the ticker change
+    as a gap owned by Story 2.7. Both were live wrong claims for exactly one task
+  - **`UNIVERSE.md` §12.2's table of seven readers is a NEW live claim that nothing
+    checks**, and it is a gap of this repository's third kind by construction: it says which
+    future readers must filter on `status` and which must not, and no instrument can hold it
+    because none of those readers exists yet. It belongs in the ADR's "what a green load
+    cannot certify" list, and it is the single most expensive thing in this story to get
+    wrong — Epic 13 filtering on today's `status` would silently rewrite history
+  - **`README.md`'s `pnpm universe` section gained a second worked-output figure** in 2.3.6
+    (the `○ 1 in the database and not in the file, now marked untracked:` block), which is
+    another prose figure of the kind this repository's fourth gap records as checkable by
+    nothing
   - **`README.md`'s new `pnpm universe` section**, which publishes a worked example of the
     loader's output (`0 inserted / 1 updated / 100 unchanged`) — a prose figure of exactly
     the kind this repository's fourth gap records as checkable by nothing — and
@@ -244,3 +271,31 @@ added or removed.
 - **The duplicate-symbol premise is half-falsified** and needs sweeping as a claim rather
   than as a count — `STORY.md` is corrected, the task files are historical, and the ADR must
   carry the measured version.
+
+---
+
+## Amended after Task 2.3.6 (2026-09-05)
+
+Two figures moved, three sweep items added, and **one standing expectation turned out
+backwards** — which is the interesting one, because it is this task's own closing note
+arriving a second time before the task did.
+
+- **`pnpm test` is `287` (55 + 129 + 103) and `pnpm test:database` is `55`.** 2.3.6
+  corrected both in `README.md` and `CLAUDE.md`; re-take them anyway.
+- **The expectation that 2.3.6 would falsify `universe.ts`'s self-describing comments and
+  §9's distribution table is WRONG.** It shipped no change to either: the demonstrations ran
+  in a scratch database and were reverted, on Task 2.2.6's precedent. So both sweep items
+  become _confirm still true_ rather than _expect stale_, and `git diff` against 2.3.4's
+  commit is the cheap version of the check.
+- **Three new sweep items**: the two resolved `Task 2.3.6` claims in
+  `packages/shared/src/security.ts`, `UNIVERSE.md` §12.2's seven-reader table as a **new
+  unchecked invariant of the third kind**, and the second worked-output figure in
+  `README.md`'s `pnpm universe` section.
+- **The ADR gains the removal semantics as a decision Epics 4, 5, 6, 7 and 13 inherit**,
+  and §12.2's rule is the form it should take — filter when computing over the market we
+  track now, never when showing or replaying something we stored.
+
+**Nothing needed adding.** The candidate — a task to make the seven-reader rule checkable —
+was declined for the reason 2.3.4 kept the count out of the code: none of those readers
+exists yet, so a check would assert the shape of an empty set. It is prose with its durable
+copy named, which is what `CLAUDE.md`'s third kind of gap is for.

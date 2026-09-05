@@ -310,34 +310,101 @@ describe("converging on the file", () => {
 });
 
 describe("a symbol in the database and not in the file", () => {
-  it("is reported, left untouched, and does not fail the load", async () => {
-    // **The seam.** Deleting the row, changing its `status` and refusing are the
-    // three answers, they are not interchangeable, and one of them destroys data
-    // Story 2.8 will have stored against it. Task 2.3.6 decides; this asserts
-    // that until then nothing happens to it, because "leave it alone" is the
-    // only option all three remain reachable from.
+  // **This block asserted the opposite until Task 2.3.6**, and the edit is the
+  // seam working rather than a test being fixed. Task 2.3.5 shipped a loader
+  // that left such a row alone and a test named *"is reported, left untouched,
+  // and does not fail the load"* — an assertion that today's non-answer was
+  // correct behaviour, so that the answer could not be changed by accident. It
+  // is changed on purpose here, and it is visible in a diff.
+
+  /** Put a row in the database that the file does not contain. */
+  async function insertAbsentee(symbol: string, status = "active") {
     await db().query(
       `insert into securities
          (symbol, name, exchange, kind, sector, industry, status, cik,
           profile_source, profile_retrieved_at,
           classification_source, classification_retrieved_at)
-       values ('ZZZZ', 'Delisted Test Co', 'NYSE', 'equity', 'technology', null,
-               'active', null, 'test', now(), 'test', now())`,
+       values ($1, 'Removed Test Co', 'NYSE', 'equity', 'technology', null,
+               $2, null, 'test', now(), 'test', now())`,
+      [symbol, status],
+    );
+  }
+
+  it("is marked untracked, keeps its row, and does not fail the load", async () => {
+    await insertAbsentee("ZZZZ");
+
+    const outcome = await loadUniverse();
+
+    expect(outcome.exitCode).toBe(0);
+    expect(outcome.lines.join("\n")).toContain("now marked untracked");
+    expect(outcome.lines.join("\n")).toContain("ZZZZ");
+
+    const survivor = await row("ZZZZ");
+    expect(survivor.status).toBe("untracked");
+    // Nothing else about it moved. The status is the whole of the removal:
+    // there is no `deleted_at`, the name is not blanked, and — the half that
+    // matters to Story 2.8 — the row and its `id` are still there for anything
+    // that stored bars against it.
+    expect(survivor.name).toBe("Removed Test Co");
+    expect(survivor.sector).toBe("technology");
+
+    await db().query("delete from securities where symbol = 'ZZZZ'");
+  });
+
+  it("is left completely alone once it is already untracked", async () => {
+    // The steady state. A removal is a one-off event and this row will be
+    // absent from the file for the rest of the project, so a loader that
+    // rewrote it on every run would move `updated_at` forever and make that
+    // column mean "when the loader last ran" — the failure the upsert's own
+    // `where` clause exists to prevent, arriving through a second door.
+    await insertAbsentee("ZZZY", "untracked");
+    const before = await row("ZZZY");
+
+    const outcome = await loadUniverse();
+
+    expect(outcome.exitCode).toBe(0);
+    expect(outcome.lines.join("\n")).toContain("1 already untracked");
+    expect(outcome.lines.join("\n")).not.toContain("now marked untracked");
+
+    const after = await row("ZZZY");
+    expect(after.status).toBe("untracked");
+    expect(after.updated_at.toISOString()).toBe(
+      before.updated_at.toISOString(),
+    );
+
+    await db().query("delete from securities where symbol = 'ZZZY'");
+  });
+
+  it("comes back to active on its original id when it is put back in the file", async () => {
+    // The re-add, which needs no code: `status` is in the upsert's
+    // `is distinct from` list, so a row whose file entry says `active` and whose
+    // stored row says `untracked` is a row that changed.
+    //
+    // **Under this answer the id half of that is nearly vacuous and saying so is
+    // better than counting it as evidence** — the row never left the table, so
+    // of course its `id` survived. It is only a real test of the surrogate key
+    // against the `DELETE` alternative, and that contrast was produced by hand
+    // rather than here (`UNIVERSE.md` §12). What is *not* vacuous is the status
+    // flipping back, because `untracked` is a fact about us and is therefore
+    // reversible — which is exactly why `UNIVERSE.md` §3 refused to collapse it
+    // and `delisted` into one `inactive` member.
+    const before = await row("GILD");
+    expect(before.status).toBe("active");
+
+    await db().query(
+      "update securities set status = 'untracked', updated_at = '2020-01-01T00:00:00Z' where symbol = 'GILD'",
     );
 
     const outcome = await loadUniverse();
 
     expect(outcome.exitCode).toBe(0);
-    expect(outcome.lines.join("\n")).toContain(
-      "1 in the database and not in the file",
+
+    const after = await row("GILD");
+    expect(after.status).toBe("active");
+    expect(after.id).toBe(before.id);
+    expect(after.updated_at.getTime()).toBeGreaterThan(
+      new Date("2020-01-01T00:00:00Z").getTime(),
     );
-    expect(outcome.lines.join("\n")).toContain("ZZZZ");
-
-    const survivor = await row("ZZZZ");
-    expect(survivor.status).toBe("active");
-    expect(survivor.name).toBe("Delisted Test Co");
-
-    await db().query("delete from securities where symbol = 'ZZZZ'");
   });
 });
 

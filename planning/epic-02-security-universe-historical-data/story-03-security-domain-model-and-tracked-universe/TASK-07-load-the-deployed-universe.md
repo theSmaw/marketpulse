@@ -22,13 +22,28 @@ Story 2.2's Task 2.2.7, **which is Complete, so this dependency is satisfied**
 > `deploy.yml` before either half of the code rolls_, with its own deadline, and the first
 > bullet below can finally do what it says. And 2.2.7's own recorded honest gap transfers
 > directly: a step added to `deploy.yml` only runs on `main`, so its first execution is the
-> first merge after the story that adds it. What it does **not** change is the ordering
+> first merge after the story that adds it. ~~What it does **not** change is the ordering
 > constraint in the second bullet: `0003_security_vocabulary.sql` is on **this branch and
 > not on `main`**, so the deployed database does not yet have the three-member `kind`, the
 > `status` check or the provenance columns. **The first deploy after this story merges runs
 > `0003` and then this load, in that order, and a seed that ran before its own migration is
 > the one ordering that cannot work** — which is no longer hypothetical, it is what the next
-> merge actually does.
+> merge actually does.~~
+>
+> **That last paragraph is FALSE as of 2026-09-05 and was falsified by a merge rather than
+> by any task here — re-checked at Task 2.3.6 by measurement.** `0003_security_vocabulary.sql`
+> **is on `origin/main`** (`git cat-file -e origin/main:…` succeeds; `git ls-tree` lists all
+> three migrations there), and **three `deploy.yml` runs have completed successfully on
+> `main` since**, the most recent on the current tip — so the deployed database already has
+> the three-member `kind`, the `status` check and the four provenance columns, and this task
+> does **not** carry the seed-before-its-own-migration ordering risk. Two consequences.
+> **The `0003`-then-load ordering is no longer this task's to get right**, so the second
+> bullet's "it must be **after** the migration step" is a standing rule rather than a live
+> hazard. And **the read-back bullet gets sharper rather than easier**: `0003` being applied
+> is now an assumption this task should _confirm from the deployed database_ rather than
+> infer from a merge, because the whole point of reading rows back is not trusting a step's
+> output — and a `status` check that is somehow absent would let the untrack path below
+> write a value nothing constrains.
 
 ## Objective
 
@@ -63,7 +78,18 @@ recovery**.
   not in the image at all and neither half of that argument transfers here.
   So the argument that killed a boot-time job for migrations
   genuinely does not transfer to this, and a boot-time seed is available in a way a
-  boot-time migration is not. Weigh it anyway rather than taking it. The other half does
+  boot-time migration is not. Weigh it anyway rather than taking it.
+  **Amended after 2.3.6, and this is a NEW argument against boot-time that did not exist
+  when the bullet was written: the loader now writes rows it did not insert.** Before
+  2.3.6 it could only converge upward — every write named a symbol in its own file — so two
+  loaders running concurrently with different files produced the union and removed nothing.
+  Since 2.3.6 a symbol in the database and not in **that** loader's file is marked
+  `untracked`. A boot-time seed runs on **every replica start**, and during a rollout the
+  outgoing and incoming revisions carry **different `universe.ts` files** — so an old
+  replica booting would untrack a symbol the new file added while the new replica sets it
+  `active`, and which value survives depends on start order. That is a flip-flop against
+  production with nothing recording it, and it is unreachable from a `deploy.yml` step,
+  which runs **once** with **one** file. Weigh it; it looks decisive. The other half does
   transfer unchanged: the startup probe (2 s / 3 s / 30) kills a replica at roughly 90
   seconds, and `Single` mode at `minReplicas: 1` makes an unready replica **no service**
 - **Decide whether it runs on every deploy or once.** Idempotence makes "every deploy"
@@ -99,7 +125,10 @@ recovery**.
   deadline is what turns that into a red step with a message rather than a stalled job
 - **Read the deployed rows back off the deployed database rather than trusting the step's
   output** — the count, the per-sector distribution, a spot check of provenance on a row,
-  and a confirmation that nothing else in `public` changed. Compare the distribution
+  and a confirmation that nothing else in `public` changed. **Add `status` to that list
+  (2.3.6):** every row should read `active` and **none** should read `untracked` on a first
+  load, which is the check that the untrack path did not fire against an empty table. It is
+  cheap and it is the one column whose wrong value would be invisible in a count. Compare the distribution
   against `UNIVERSE.md`'s recorded local figures; they should be identical, and identical
   is the check rather than a coincidence
 - **Run it twice against the deployed database**, because idempotence proven locally is
@@ -173,3 +202,28 @@ Two edits, no work added or removed, and neither changes the shape of the task.
   arguments, and it takes its connection and identity from `loadConfig()` like
   `pnpm migrate` — so both auth modes work with no code, and it appears in
   `pg_stat_activity` as `marketpulse-universe`.
+
+---
+
+## Amended after Task 2.3.6 (2026-09-05)
+
+Three edits, no work added or removed — and one of them corrects a premise this file states
+twice.
+
+- **The `0003`-is-unmerged ordering hazard is FALSE and was falsified by a merge**, not by
+  2.3.6. `0003` is on `origin/main` and three `deploy.yml` runs have succeeded on `main`
+  since, so the deployed database already carries the three-member `kind`, the `status`
+  check and the provenance columns. What replaces it is not nothing: **confirm it from the
+  deployed database** rather than inferring it, which the read-back bullet was going to do
+  anyway.
+- **Boot-time seeding gained a new argument against it that did not exist before 2.3.6**:
+  the loader now writes rows it did **not** insert, so two revisions booting with different
+  `universe.ts` files during a rollout can untrack and re-activate the same symbol depending
+  on start order. A `deploy.yml` step runs once with one file and cannot produce it.
+- **The read-back must include `status`**, because a first load should produce **101
+  `active` and zero `untracked`**, and a wrong value there is invisible in a count.
+
+**Nothing needed adding.** The candidate — a task for what a removal does _deployed_ — is
+this task's own read-back plus §12.2's reader rule, not work of its own: the mechanism is
+shipped and tested, and the deployed table holds zero rows, so there is no removal to
+perform there.
