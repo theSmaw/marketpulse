@@ -93,6 +93,21 @@ consistent treatment for the epic's empty, partial and failed states. The failur
 where this product either reads as trustworthy or reads as broken, and §36 makes them
 product states rather than exceptions.
 
+## The design bar
+
+**PRODUCT_SPEC.md §5.6 and `VISUAL-LANGUAGE.md`'s _The bar_ apply to this story, and they
+are acceptance criteria rather than polish.** Correct and accessible is the floor. Before
+this story is called done, apply the four tests to a screenshot of what it built: would a
+stranger believe this is a real funded product; does it look designed rather than
+defaulted; is there a moment in it worth showing somebody; and does it feel alive. If the
+answer to any of them is no, the story is not finished — and "we will polish it in Epic 15"
+is not available, because Epic 15 is a release epic and polish deferred is polish never.
+
+**Partial and failed states are part of the bar, not an exception to it.** §36 makes them
+normal product states, and they are the states most likely to be left looking like a
+developer's error message. A product is judged on how it looks when something has gone
+wrong at least as much as on its happy path.
+
 ## Acceptance criteria
 
 1. A user looking at any market number can see which feed it came from, without hovering

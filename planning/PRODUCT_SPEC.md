@@ -223,6 +223,25 @@ AI accelerates investigation rather than becoming a dependency for basic product
 
 ---
 
+## 5.6 The interface must be exceptional, not merely correct
+
+MarketPulse is a product people are meant to be shown.
+
+§38 is built around a five-minute demonstration and §40's success criterion is a first-time viewer understanding the product in about a minute. Both fail if the interface looks generic, however good the engineering behind it is.
+
+So visual quality is a **product requirement**, not polish:
+
+- It must look like a real, funded product rather than a scaffold with data in it.
+- It must look designed rather than defaulted. No framework's or component library's out-of-the-box appearance should survive contact with a decision.
+- It must feel **alive**. This is a market application; a screen that updates by silently swapping text is technically correct and feels dead.
+- It must never read as old-fashioned or basic.
+
+This is not in tension with the dense, sober, analyst-facing character described in §3. The best products of that kind are compelling precisely because of how well they are made. **Restraint is not the same as plain.**
+
+The consequence for delivery: the story that builds a screen owns how that screen looks, and correct-and-accessible is the floor rather than the goal. Polish deferred to a later phase is polish that does not happen.
+
+---
+
 # 6. Initial market universe
 
 V1 will cover approximately:

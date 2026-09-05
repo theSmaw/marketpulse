@@ -30,6 +30,12 @@ failure states rather than reasoning about them.
   because that is what a migrated-but-unseeded database looks like and it is a real state a
   developer will hit on their first run
 
+## The bar this task is held to
+
+**This is the task the design bar lands on**, and it is not "tidy up the table". PRODUCT_SPEC.md §5.6 and `VISUAL-LANGUAGE.md`'s _The bar_ are acceptance criteria here: at the end of it, a screenshot of `/securities` has to look like a real, funded product rather than a scaffold with data in it. Correct and accessible is the floor and was Task 2.4.3's job.
+
+Two of the four tests are genuinely at risk on a table of 101 rows and should be named before the work rather than after it. **"Is there a moment in it worth showing somebody?"** — a table has no natural one, so it has to come from somewhere deliberate: the sector structure made visible, the density made to feel considered rather than cramped, the numerals and labels set with real care. **"Does it feel alive?"** — see the motion bullet below, which is this task's, because it is the first thing in this product where content arrives asynchronously and something has to happen when it does.
+
 ## Work
 
 - **Produce each state from a named cause rather than a flag**, which is the standard Story
@@ -53,10 +59,30 @@ failure states rather than reasoning about them.
 - **Do not add a sort control, a filter or a density toggle.** They are each a small piece of
   state and a second thing to keep correct, on a page whose job is to show 101 rows, and
   they are the kind of thing that arrives instead of the next story
+- **Define the first motion tokens, because there are none and this is the first screen
+  that needs any.** `VISUAL-LANGUAGE.md` specifies colour, ink, geometry and spacing to the
+  pixel and says **nothing at all** about motion — no durations, no easings, no opinion on
+  what happens when content arrives. For a live market application that is the largest gap
+  in that document, and it is the reason test 4 currently fails outright. This task owns the
+  thin first cut rather than the whole system: **two durations and one easing**, as tokens
+  beside the others, used for the loading-to-loaded transition on this page. Do not build a
+  motion system for animations nothing has yet — Epic 3's live price updates are where this
+  becomes load-bearing and where the full vocabulary should be decided, against something
+  that actually moves.
+  Two constraints that come with it. **Respect `prefers-reduced-motion`** from the first
+  token, because retrofitting it means finding every animation later. And **motion must not
+  make a number harder to read** — a value that fades or slides while an analyst is reading
+  it is worse than one that changes instantly, which is the specific reason the full
+  vocabulary waits for Epic 3 rather than being guessed here
 - **Check the contrast of anything new against the page ground**, because Task 1.12.4 found
   a real 2.09:1 violation on exactly this kind of secondary label where 4.5 is the threshold
 
 ## Done when
+
+- A screenshot of this page passes the four tests in `VISUAL-LANGUAGE.md`'s _The bar_, and
+  the judgement is recorded rather than assumed
+- The first motion tokens exist, are used for the loading-to-loaded transition, and honour
+  `prefers-reduced-motion`
 
 - All three non-loaded states are produced from a named cause and seen on screen
 - The kind distinction is legible without colour
