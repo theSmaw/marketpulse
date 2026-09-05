@@ -15,6 +15,19 @@ Volume is not decoration here. §11's anomaly detection is half a volume calcula
 the flagship demo's line — "Volume 3.8× normal" — is a claim a user must be able to check
 by looking. This story is where the product first shows the evidence behind that.
 
+## What the user can see when this story lands
+
+**Volume beneath the price, and the ability to change what period they are looking at** —
+which is the first control in the product that changes what the data _says_ rather than how
+it looks.
+
+Concretely: a volume series aligned to the price chart above it, and a time-window control
+that moves both together. Changing the window re-reads and redraws, with the loading and
+partial states already established rather than a blank flash.
+
+After this story, **the epic's exit criterion is met**: a user can search for NVDA, open it,
+and inspect recent historical price and volume data.
+
 ## Why it sits here in the sequence
 
 Immediately after the price chart, reusing its axis and interaction. It completes the

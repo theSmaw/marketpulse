@@ -18,6 +18,24 @@ the thing this product exists not to do.
 The story also closes the epic: the exit criterion re-run against the deployed environment,
 and the decisions recorded as ADRs.
 
+## What the user can see when this story lands
+
+**Where every number came from, and an honest answer when part of it is missing** — which is
+the story that turns a working chart into one an analyst can trust.
+
+Concretely: the feed labelled as **IEX rather than the consolidated tape**, so nobody reads
+it as full US market coverage; whether a price is adjusted; when the data was retrieved; and
+partial answers rendered as answers rather than errors — "we have data through 15:42" and
+"we have nothing for this symbol" are both correct outcomes and neither is a failure screen.
+
+It is also where **the curated file's age becomes visible** — the
+`classification_retrieved_at` column Story 2.3 argued about exists for exactly this, and
+this is the story that renders it.
+
+This is the least glamorous story in the epic and the one that most changes whether the
+product is credible. §35's list of things MarketPulse must not do — hide provenance,
+manufacture missing observations — is enforced here or nowhere.
+
 ## Why it sits here in the sequence
 
 Provenance display needs something to be displayed on, so it follows the charts. Everything

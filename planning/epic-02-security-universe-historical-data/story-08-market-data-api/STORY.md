@@ -12,6 +12,19 @@ names the ingestion and it names the charts, and assumes the wire between them; 
 makes it explicit, because that wire is a contract three later epics also consume and
 because Epic 1 spent a whole story establishing how this codebase declares one.
 
+## What the user can see when this story lands
+
+**A URL that returns real price history**, readable in a browser, and nothing rendered in
+the application — the chart is Story 2.11's.
+
+**Scope note added 2026-09-05: Story 2.14 took the universe endpoints from this story**, and
+with them the response-contract idiom and the first `selectFrom`. What remains here is the
+part that needs bars to exist: the series contract, the time-window request shape, and
+partial answers over a series. See Story 2.14's own file for the full table of what moved.
+
+What it unblocks is Stories 2.9 to 2.12 and three later epics. **The payoff is visible in
+Story 2.11.**
+
 ## Why it sits here in the sequence
 
 After there is something to serve and before anything tries to render it. It is also the

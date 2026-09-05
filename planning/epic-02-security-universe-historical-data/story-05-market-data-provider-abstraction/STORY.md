@@ -15,6 +15,20 @@ This is the same move Story 1.12 made twice and both times it paid: the contract
 first, in `packages/shared` or beside it, with a fake implementation, and the vendor
 client is then written against something that already exists.
 
+## What the user can see when this story lands
+
+**Nothing on screen.** This story defines the interface every market-data provider is read
+through, before any vendor code exists — invariant 7, and the reason a later provider swap
+is a new implementation rather than a rewrite.
+
+What it unblocks is Story 2.6, and through it every price in the product. **The payoff is
+visible in Story 2.11.**
+
+**One thing it decides that the user does eventually see**: the provenance vocabulary — that
+the feed is IEX and not the consolidated tape, and whether a price is adjusted. Invariant 6
+requires that to be displayed rather than implied, so the words chosen here are the words
+Story 2.13 renders on screen.
+
 ## Why it sits here in the sequence
 
 Immediately before the Alpaca client, and not after it. An interface extracted from a

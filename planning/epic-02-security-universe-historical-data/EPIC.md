@@ -112,6 +112,7 @@ re-takes it, for the reason recorded in that epic's own file.
 | 2.1  | [Managed Postgres Provisioning & the Secrets Boundary](story-01-managed-postgres-and-the-secrets-boundary/STORY.md) | Epic 1 (1.6, 1.11) |
 | 2.2  | [Database Schema & Migration Mechanism](story-02-database-schema-and-migrations/STORY.md)                           | 2.1                |
 | 2.3  | [Security Domain Model & the Tracked Universe](story-03-security-domain-model-and-tracked-universe/STORY.md)        | 2.2                |
+| 2.14 | [**The Tracked Universe On Screen** (the first vertical slice)](story-14-tracked-universe-on-screen/STORY.md)       | 2.3                |
 | 2.4  | [Trading Calendar & Market Time Handling](story-04-trading-calendar-and-market-time/STORY.md)                       | 2.3                |
 | 2.5  | [Market-Data Provider Abstraction](story-05-market-data-provider-abstraction/STORY.md)                              | 2.4                |
 | 2.6  | [Alpaca Historical Data Integration](story-06-alpaca-historical-data-integration/STORY.md)                          | 2.1, 2.5           |
@@ -123,10 +124,60 @@ re-takes it, for the reason recorded in that epic's own file.
 | 2.12 | [Volume Chart & Time-Window Selection](story-12-volume-chart-and-time-window/STORY.md)                              | 2.11               |
 | 2.13 | [Market-Data Provenance, Partial States & Epic Close](story-13-provenance-partial-states-and-epic-close/STORY.md)   | 2.12               |
 
-The sequence is deliberately linear — each story depends on the one before it — and it has
+**Read the table top to bottom for delivery order. The `#` column is a name, not a
+position** — Story 2.14 was added on 2026-09-05 and is delivered **fourth**, because story
+numbers are referenced across the tree (`market_bars` is Story 2.7's, the first `selectFrom`
+was Story 2.8's) and renumbering would falsify every one of those references silently. Same
+reason ADRs are never renumbered.
+
+The sequence is otherwise linear — each story depends on the one before it — and it has
 three phases: **2.1–2.2 make a database exist**, **2.3–2.8 make market data exist behind an
 API**, and **2.9–2.13 make it visible**. The one place parallel work is genuinely available
 is 2.4 and 2.5, which touch nothing each other touches.
+
+## Story 2.14 is an addition, and it is a delivery decision as much as a technical one
+
+**Added 2026-09-05, after Stories 2.1 to 2.3 had shipped and the shape of the problem was
+visible.** The epic as originally planned is layered — everything backend until 2.8, then
+everything frontend — which means **nothing a user can see arrives until Story 2.10, seven
+stories and roughly fifty-five tasks after Story 2.3.** For that whole stretch the deployed
+application shows what it showed when Epic 1 closed: four placeholder routes, and a landing
+page whose only market-looking content is Story 1.4's render check, which is **invented
+data** including two rows deliberately marked stale and disconnected.
+
+The technical opportunity is what makes the fix cheap rather than cosmetic: **the universe
+is in the database as of Story 2.3, and putting it on screen needs none of Stories 2.4 to
+2.7.** The calendar, the provider abstraction, Alpaca and bar ingestion are prerequisites
+for _charts_, not for _a list of securities_. So 2.14 takes a thin first cut of 2.8, 2.9 and
+2.10 — the universe endpoints, one fetch, and the list — and leaves each of those stories
+its actual subject. Story 2.10's own file already argued for this shape about itself, calling
+a security list "the smallest useful vertical slice through Story 2.9's layer, which is a
+good way to find out whether that layer is right while it is still cheap to change."
+
+**What it costs, stated rather than hidden:** it re-orders rather than removes, so it does
+not bring the charts closer, and it takes the temporal-seam obligation out of Story 2.8 and
+into a story where `securities` — having no `observed_at` — cannot exercise it. That second
+one is a real risk and 2.14.1 is written around it.
+
+## Every story and task states what the user will be able to see
+
+**A convention adopted 2026-09-05, and it applies to task files as well as story files.**
+Each carries a **What the user can see** section, and the honest answer is often _nothing_ —
+Story 2.1 provisioned a database and Story 2.2 built a migration mechanism, and neither
+changed a pixel. That is fine and it is not the failure mode. The failure mode is a run of
+stories where nobody wrote it down, because then "what has changed for a user?" has no
+answer at all and the only available one is a status table.
+
+Three rules for writing it:
+
+- **Say "nothing visible" plainly when that is the answer**, and say what it unblocks and
+  which story pays it off. A task that changes nothing visible is fine; a task that changes
+  nothing visible and does not say so reads as work that was not done.
+- **Describe what is on the screen, not what was built.** "A `/securities` page listing 101
+  securities with symbol, name, sector and kind" rather than "a securities endpoint and a
+  read path".
+- **Say what the user still cannot do**, so a demonstration does not promise more than it
+  is. This is the half that protects the next story.
 
 **Stories 2.5 to 2.8 are the load-bearing middle.** Story 2.5 lands the provider interface
 before any vendor code, which is invariant 7 rather than a preference; Story 2.7 is the

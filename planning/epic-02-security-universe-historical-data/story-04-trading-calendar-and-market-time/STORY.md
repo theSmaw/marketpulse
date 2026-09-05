@@ -18,6 +18,22 @@ wall clock.
 
 It is small. It is here because the alternative is three inconsistent copies of it.
 
+## What the user can see when this story lands
+
+**Nothing on screen, and the reason is worth stating rather than apologising for.** This
+story decides what a trading session is, what a market holiday does, and how an instant in
+the market is converted between UTC and `America/New_York`. None of that renders.
+
+What it unblocks is everything that has an x-axis. A chart that plots minute bars across a
+weekend, or that draws a gap at 21:30 because somebody's laptop is in London, is wrong in a
+way a user notices immediately and an engineer takes a day to find. **The payoff is visible
+in Story 2.11**, where the price chart's time axis is correct because this story exists.
+
+**The one thing it may make visible early**: the chrome has carried a reserved
+`--:--:-- ET` market clock since Story 1.5, and this is the first story with any opinion
+about market time. Whether that clock starts working here or waits for Epic 3's live feed is
+an open decision below, and it is the cheapest visible win available in this epic.
+
 ## Why it sits here in the sequence
 
 After the universe (which fixes the exchanges and therefore the sessions) and before

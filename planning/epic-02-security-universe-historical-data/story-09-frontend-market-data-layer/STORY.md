@@ -15,6 +15,22 @@ introducing heavyweight global state libraries until application complexity demo
 the need". This epic is the first place there is any domain state at all, so this story is
 where that judgement is actually exercised rather than quoted.
 
+## What the user can see when this story lands
+
+**Nothing new on screen by itself**, and everything after it is faster and more consistent
+because of it. This story decides how the frontend holds domain state and fetches market
+data — once, here, rather than three times in three UI stories.
+
+**Scope note added 2026-09-05: Story 2.14 took the first fetch and the loading / loaded /
+failed / empty states as types**, exercised against the securities list. What remains here is
+the decision that story deliberately refused to take on one static list — **whether this
+application needs a store at all**, plus caching, invalidation and the `market` feature
+module's real shape. §25's own advice is to avoid a heavyweight state library until
+complexity demonstrates the need, and a bar series is the first thing that might.
+
+What a user does eventually feel from this story: whether switching between securities is
+instant or re-fetches, and whether a failed request takes out one region or the page.
+
 ## Why it sits here in the sequence
 
 It is the first frontend story in the epic and the one every subsequent one depends on.

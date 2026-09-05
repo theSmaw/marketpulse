@@ -19,6 +19,22 @@ no account at all, and the account gates only the live verification.
 Implement the provider interface against Alpaca's historical market-data API, and place
 the Alpaca key through the credential path Story 2.1 established.
 
+## What the user can see when this story lands
+
+**Nothing on screen, and for the first time in this epic the reason is not "it is backend
+work" — it is that this story deliberately fetches into a terminal rather than a database.**
+Story 2.7 is what stores anything.
+
+What it unblocks is every number in the product. **The payoff is visible in Story 2.11.**
+
+**One thing here changes what a user is eventually told**, and it should be treated as a
+deliverable rather than a footnote: this story is the first to hold a real Alpaca key
+against a real account, so it is where the **feed's actual shape** is measured — what IEX
+coverage looks like for a thinly traded name, what a missing minute is, and whether the free
+tier's 30-channel cap exempts minute bars. `UNIVERSE.md` §10 parks the size of the tracked
+universe on that last measurement, so this story either confirms 101 securities or starts a
+conversation about the number.
+
 ## Why it sits here in the sequence
 
 After the interface exists and before anything stores data. This story is also the first

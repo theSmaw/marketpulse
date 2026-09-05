@@ -18,6 +18,21 @@ question.
 This is the largest engineering story in the epic and the one with the most arithmetic in
 it.
 
+## What the user can see when this story lands
+
+**Nothing on screen, and this is the largest story in the epic — which makes saying so
+important.** It builds `market_bars`, the backfill, and the record of what was observed.
+
+What it unblocks is the entire second half of the epic. **The payoff is visible in Story
+2.11**, and it is worth being concrete about the size of it: after this story the database
+holds roughly ten million rows of real market history, and every chart, anomaly score,
+sector comparison and replay in the product reads them.
+
+**A demonstrable milestone that is not a UI change**, and worth showing anyway: after the
+backfill, `/securities` — which Story 2.14 put on screen — can honestly say how much history
+each security has. Whether that lands here or in Story 2.13 is a scoping call, but it is the
+cheapest way to make this story's work visible to somebody who is not reading a database.
+
 ## Why it sits here in the sequence
 
 It needs the schema mechanism (2.2), the symbol list (2.3), session boundaries to know

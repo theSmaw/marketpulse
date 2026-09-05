@@ -12,6 +12,22 @@ repository has deferred since Story 1.4: **how MarketPulse draws a chart** — a
 answers it for the whole product, because Epic 6's WebGL topology, Epic 8's comparison
 charts and Epic 11's AI-opened charts all inherit whatever is chosen.
 
+## What the user can see when this story lands
+
+**The first chart in MarketPulse, and the moment the product looks like the thing it is
+meant to be.** A security's price history, drawn, on its own page, from real market data.
+
+Concretely: open NVDA and see its price over a recent window, with a correct time axis that
+skips weekends and holidays because Story 2.4 exists, labelled with the feed it came from
+because invariant 6 requires it, and honest about where the data stops rather than drawing a
+line to the edge.
+
+**This is the story to demonstrate.** Everything from 2.1 to 2.10 is visible in it: the
+database, the universe, the calendar, the provider, the backfill, the API, the state layer
+and the security page all have to be right for one line to be drawn correctly.
+
+What the user still cannot do: see volume, or change the time window. Story 2.12.
+
 ## Why it sits here in the sequence
 
 It needs data, a contract, a state layer and a security to be about — all of which now
