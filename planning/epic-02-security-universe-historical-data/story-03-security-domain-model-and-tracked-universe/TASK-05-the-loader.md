@@ -1,6 +1,6 @@
 # Task 2.3.5 — The loader: one documented command, idempotent, and it refuses a bad universe
 
-**Status:** Not started
+**Status:** Complete (2026-09-05)
 **Story:** [2.3 Security Domain Model & the Tracked Universe](STORY.md)
 **Depends on:** Tasks 2.3.3 (the schema) and 2.3.4 (the data)
 
@@ -192,3 +192,172 @@ correct and no per-row override is needed — which is the negative fact 2.3.4 o
 confirmed in `UNIVERSE.md` §9. And the `*_retrieved_at` decision is untouched and still
 open, because nothing in a curated list of symbols answers when it was last checked against
 a source.
+
+---
+
+## What shipped (2026-09-05)
+
+**One command, `pnpm universe`**, and the same three-file shape `pnpm migrate` has:
+`apps/backend/src/load-universe.ts` is the mechanism (typechecked, linted, tested),
+`scripts/load-universe.mjs` is a wrapper whose jobs are the name, the built-output guard
+and **the exit code**, and the root script is the name. `universe` was checked against
+`pnpm help -a` before being claimed, with the detection validated in the same run against
+six known built-ins (`clean`, `test`, `start`, `config`, `env`, `deploy`); `universe`,
+`seed` and `load` are all free, and `universe` is the name because there is exactly one of
+them and naming the noun is what `pnpm db` already does.
+
+**It is a separate command and not a phase of `pnpm migrate`**, and the cost is stated
+rather than hidden: a deploy now has two things to remember, which is Task 2.3.7's problem.
+
+**Files:** `load-universe.ts`, `load-universe.mjs`, `load-universe.test.ts` (22 fast tests),
+`load-universe.database.test.ts` (14 database tests), plus `UNIVERSE_PROVENANCE` in
+`universe.ts`. **No dependency and no lockfile change.**
+
+### The decisions
+
+**`*_retrieved_at` is the file's own stated date, not `now()`.** `UNIVERSE_PROVENANCE`
+lives in `universe.ts` beside the rows, two groups matching the two `0003` gave columns
+to, each a `source` and a `YYYY-MM-DD` `checkedOn` parsed as UTC midnight. `now()` would
+make the column mean "when the loader last ran" — always today — and destroy the one
+mitigation `UNIVERSE.md` §5 offers against the curated file's silent staleness. The
+obligation that creates is recorded as a gap of the third kind **by design**: nothing can
+enforce that a person moves the date when they actually re-check, and a check is
+structurally impossible because whether somebody read a fact sheet is not observable here.
+`profile_retrieved_at` diverges from `classification_retrieved_at` the day Story 2.6 fills
+the profile fields from Alpaca, which is a genuine retrieval where `now()` is correct — two
+columns rather than one is what makes that expressible.
+
+**Idempotent means converges on the file.** An upsert on `symbol`, with the whole write in
+one transaction. The `on conflict … where` row comparison is the load-bearing half rather
+than an optimisation: `updated_at` has no trigger, Task 2.2.4 recorded that maintaining it
+is the writer's obligation with nothing catching a writer who gets it wrong, and a bare
+`set … updated_at = now()` would move all 101 rows on every run. `is distinct from` rather
+than `<>`, because `null <> null` is `null` and every row with a null `industry` or `cik`
+would otherwise read as unchanged forever.
+
+**Validation takes the list as a parameter and reports every violation.** Set-level rather
+than row by row: duplicate symbols, a sector with no proxy, a proxy that disagrees with
+`SECTOR_ETFS`, the row shape via `isSecurity`, and criterion 3's first half with a message
+that names the criterion rather than saying the row is malformed. The one stated exception
+to "every violation" is a malformed ticker, which `toTicker` throws on at **module load**
+and which therefore arrives alone.
+
+**A symbol in the database and not in the file is counted, reported and left untouched.**
+The seam is left open on purpose: Task 2.3.6 chooses between deleting it, changing its
+`status` and refusing, and one of the three destroys data Story 2.7 will have stored.
+
+### What was produced rather than reasoned about
+
+- **All three refusals, through the real command, at exit 1**, with the table's fingerprint
+  (`c296fe11…`) identical before and after all three: an unclassified equity — two of them,
+  **both named in one run** — a sector whose ETF is missing, and a duplicate symbol.
+- **The two vacuous checks were made to fail against hand-built lists.** Disabling the
+  duplicate check takes 4 fast tests red; disabling the mapping-agreement check takes 1.
+  Neither can fail against the shipped file, which is why they are tested that way.
+- **Removing the upsert's `where` clause takes 2 database tests red** — "changes nothing at
+  all" and "does NOT move `updated_at` on a row that did not change".
+- **The transaction was made to matter.** With the bind-parameter ceiling lowered so 101
+  rows became eleven statements and a `check` constraint rejecting a symbol in a middle
+  chunk: exit 1, **0 rows**. At today's size the write is a single statement and would be
+  atomic anyway — said plainly, because implying otherwise would be a false comfort.
+- **An upsert consumes an identity value per row per run whether or not anything changed.**
+  After four runs of 101, `securities_id_seq.last_value` read **404** and `max(id)` read
+  **101**. Ids are stable across re-runs, which is what Story 2.7 needs; the sequence runs
+  ahead of them.
+
+### One premise this task was given, corrected by measuring it
+
+The brief and `STORY.md` both recorded that **a duplicate symbol has no backstop at all**,
+because an upsert is the one write shape a unique index cannot refuse. Produced with the
+check disabled, that is **half right, and the half that holds is the half you can see
+today**:
+
+- **Both copies in the same `insert`** — Postgres refuses it outright, SQLSTATE `21000`,
+  _"ON CONFLICT DO UPDATE command cannot affect row a second time"_. Exit 1, nothing
+  written. **This is what happens at 101 securities**, because the loader puts 5,461 rows
+  in one statement.
+- **Copies in different statements** — completely silent. The load printed
+  **`✓ 102 securities in the universe`** at **exit 0** while the table held **101 rows**,
+  counting the second write as _unchanged_.
+
+So the database's protection is **a property of the list being small**, and it disappears
+past ~5,461 securities or the first time anybody changes the batching — a performance edit
+nobody would review as a correctness one. The check is worth having for that reason rather
+than the stated one. Recorded in `UNIVERSE.md` §11 and in the code beside the check.
+
+### Figures
+
+`pnpm verify` **exit 0 in 27.84 s with no database running** and 28.16 s with one —
+criterion 7 re-taken on the task that could have broken it. `pnpm test` is **286**
+(55 + 128 + 103) and needs no database, no build and no socket. `pnpm test:database` is
+**53 across two files**. The load itself is 101 inserted on an empty table and 101
+unchanged on a re-run; `securities` holds 86 equities, 11 sector proxies, 4 index proxies,
+11 sectors with rows and **0 unclassified equities**. The first run of a clean clone is now
+**five** steps, and the last two still have no symptom if skipped.
+
+Nothing is deployed. The managed database is Task 2.3.7's.
+
+---
+
+## For the stakeholders — what this actually did
+
+**In one sentence: MarketPulse now knows which companies it is watching, and there is a
+single command that tells it.**
+
+Up to this point the product had a _description_ of its watchlist — 101 companies and
+funds, written down and argued over in the previous task — and an empty table in the
+database waiting for them. Those were two separate things, and nothing joined them. This
+task built the join: type `pnpm universe` and the list becomes real data the rest of the
+product can query. It is the moment the "security universe" stops being a document and
+starts being something the application can look things up in.
+
+That matters because **almost everything still to come reads this list.** Fetching price
+history needs to know which prices to fetch. The sector performance panel needs to know
+which companies are in which sector. The "is this move unusual?" score needs to know what
+to compare a company against. The market map needs to know which dots to draw. None of
+that could start until the list existed as data rather than as prose.
+
+**Three choices worth explaining, because each one prevents a specific kind of quiet
+damage.**
+
+**We made re-running the command mean "match the file", not "do nothing".** The obvious
+easy version refuses to run twice, so that you cannot accidentally duplicate anything. That
+version is safe and useless: the whole reason to keep the watchlist in a reviewable file is
+that people will correct it — a company name spelled wrong, a company moved to the right
+sector, a new name added. Our version reads the file and makes the database match it, every
+time. Fix a typo, run the command, done. Nothing is duplicated and nothing else is touched.
+
+**We were careful about a small column that answers a question nobody has asked yet.** Each
+company's sector is recorded by hand, and hand-maintained data goes out of date silently —
+a company can be reclassified and nothing anywhere breaks; the product simply compares it
+against the wrong peers, indefinitely, while looking entirely correct. There is no cheap fix
+for that, so instead we make the _age_ of the information visible: eventually a user
+inspecting a company will be able to see "this classification was last checked on such a
+date". The obvious implementation stamps today's date every time the command runs — which
+would make that display always say "checked today" and be a lie by construction. So the date
+comes from the file itself and only moves when a person actually re-checks the list. It is a
+small thing that would have been very hard to notice was broken.
+
+**We made a bad watchlist fail loudly, and fail before it touches anything.** If a company
+somehow has no sector, or a sector has no benchmark fund to measure it against, or a symbol
+is listed twice, the command refuses the whole thing, prints **every** problem it found in
+one go, and leaves the database exactly as it was. That last part was tested by actually
+breaking it three different ways and checking the database was untouched afterwards — not by
+reasoning that it should be. The "every problem at once" part is a small kindness with a real
+payoff: a list with three faults takes one round of fixing rather than three.
+
+**One thing we deliberately did not do.** If a company is removed from the file, the command
+leaves its existing row alone and simply tells you it is there. It does not delete it. That
+looks like an omission and is a decision: once we start storing years of price history
+against these companies, deleting a row would throw that history away, and "the loader
+quietly deleted it" is exactly how that happens by accident. What _should_ happen to a
+dropped company — mark it as no longer tracked, or refuse the change until a human confirms
+— is the very next task, and leaving the row untouched is the only option that keeps all the
+answers available.
+
+**Where this leaves the product.** The watchlist is loaded on a developer machine, and
+everything a future feature needs to look up — company, sector, benchmark, listing venue —
+is now queryable. The two remaining steps in this story are changing the list (adding and
+removing a company, and saying what that costs) and getting the same list onto the live
+production database. After that, the next story starts fetching actual market prices for
+these hundred-odd companies, which is when MarketPulse first has something to show a user.
