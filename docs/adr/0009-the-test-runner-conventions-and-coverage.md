@@ -275,19 +275,27 @@ own router — the helper would nest two — and re-declaring the five `<Route>`
 inside a `MemoryRouter` would test a **copy** of the route table, which is the
 thing that can drift from the one that ships.
 
-### 10. There are three levels with a runner behind them, and a fourth without one
+### 10. There are three levels with a runner behind them, and a fourth without one (six, as of Story 2.2 — see the amendments)
 
 > **Amended 2026-09-04 (Story 1.13).** There are **five** levels now. Story
 > 1.10 gave the fourth a runner (`pnpm test:process`), and Story 1.13 added a
 > **fifth**: a browser suite driving a real Chromium against a real pair, in a
 > fourth workspace package at `e2e/`, run by `pnpm e2e` — and the same tool
 > pointed at the deployed environment by `pnpm e2e:deployed`, which is that
-> fifth level against a second target rather than a sixth level. What makes
+> fifth level against a second target rather than a further level. What makes
 > them one level is that they run the same tool over the same helpers and
 > assert the same kind of thing; what makes the target worth naming separately
 > is that only the deployed one can see a host's `navigationFallback`, a
 > platform-only `CORS_ORIGIN`, or an artefact `verify` never fingerprinted.
 > Neither is in `pnpm test`. See ADR 0013.
+>
+> **Amended again 2026-09-05 (Story 2.2). There are SIX.** Task 2.2.5 added a
+> **database** level — `pnpm test:database`, a third Vitest config in
+> `apps/backend`, driving the real migrations against a real PostgreSQL server.
+> It got the `test:process` treatment for the same reason: it breaks all three
+> of `pnpm test`'s stated properties at once, since it needs a build, a socket
+> and several hundred milliseconds of a server that has to be running. It is
+> not in `pnpm test` and it is a required check on `main`. See ADR 0015.
 
 A **unit** test drives a function with a plain argument, and `loadConfig(env)` is
 the model: it takes the environment as a parameter specifically so no process
