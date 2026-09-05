@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.4, 2.1.5
-**Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.4 — see the four _Amended_ sections below
+**Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.5 — see the five _Amended_ sections below
 
 ## Objective
 
@@ -228,3 +228,75 @@ at all — and **Task 2.1.5 answers it for a client**. If the answer is that a C
 file has to ship, this task is where it reaches the **application**, and that is a
 file in `apps/backend/Dockerfile`'s runtime stage: one of the three files no tool
 in `pnpm verify` reads.
+
+## Amended after Task 2.1.5 (2026-09-05)
+
+The database exists, and this task's inputs are now values rather than facts to
+discover. Three items are new work, and one of them is a lever this task's own brief
+names that **no longer works the way it assumes**.
+
+### The six variables, verbatim, and they go in one `az containerapp update`
+
+| Variable        | Value                                              |
+| --------------- | -------------------------------------------------- |
+| `DATABASE_HOST` | `psql-marketpulse-dev.postgres.database.azure.com` |
+| `DATABASE_PORT` | `5432`                                             |
+| `DATABASE_NAME` | `marketpulse`                                      |
+| `DATABASE_USER` | `marketpulse-backend`                              |
+| `DATABASE_AUTH` | `entra`                                            |
+| `DATABASE_SSL`  | `verify-full`                                      |
+
+`DATABASE_PASSWORD` must be **absent, not empty** — Task 2.1.3's cross-variable check
+rejects a password set alongside `entra`, and Task 2.1.4's checks fire at **startup**, so
+a revision that sets `DATABASE_AUTH=entra` and omits `DATABASE_SSL` does not connect
+insecurely, it **fails to start**, which on a liveness-probed platform is Task 1.11.7's
+crash-loop. **One `update`, all six.**
+
+The role already exists: `pgaadauth_create_principal('marketpulse-backend', false, false)`
+was run by Task 2.1.5, and `marketpulse-backend` reads `rolcanlogin: t`, `rolsuper: f`.
+So the only code change remains the one 2.1.4 left: `resolveCredential`'s `entra` branch.
+
+### `DATABASE_SSL=verify-full` needs no file, and that is measured rather than assumed
+
+Task 2.1.4 asked whether a Node process using its bundled roots verifies Azure's
+certificate with nothing shipped. **It does, and it was confirmed from inside the
+deployed East US container** as well as from a laptop — the chain terminates at
+`DigiCert Global Root G2`, which is among Node 24.20.0's 118 bundled roots, along with
+both Microsoft 2017 roots Azure's published migration moves toward. **So there is no CA
+file, and `apps/backend/Dockerfile` does not change.** That removes the contingency this
+task was carrying.
+
+### The lever for making the database unreachable has changed, and the obvious command is now refused
+
+The brief says "the firewall is the cheapest lever". **It still is, but not by deletion.**
+Task 2.1.5 set a `CanNotDelete` lock on the server and it **inherits to child resources**
+— deleting a firewall rule returns `ScopeLocked`, proven. What still works under the lock
+is `create` and `update`. So:
+
+- To break connectivity, **`az postgres flexible-server firewall-rule update`** the
+  `AllowAllAzureServicesAndResources` rule to an address that is not `0.0.0.0`, and
+  update it back afterwards. Do not reach for `delete`.
+- If a rule genuinely has to go, the sequence is `az lock delete` → delete → `az lock create`,
+  which Task 2.1.5 executed once and documented.
+
+### The leak check gains a place, and loses one
+
+**A new place to look: terminal echo.** Task 2.1.5 passed an Entra token through
+`pnpm db exec` and pnpm printed the whole command, putting a **live bearer credential
+valid for 70 minutes** into the scrollback. That is not a log record and not a file, and
+it is exactly the class of leak this criterion is about. Use `docker exec -e` for local
+work, and count "what a command printed" among the four places.
+
+**One place is already half-cleared**: Task 2.1.4 measured that `pg` does **not** quote
+the credential on either failure path. What remains genuinely different deployed is that
+the credential is a **JWT** rather than a fixture password, so the grep has a stable
+shape — `eyJ` — and the token's own claims (`upn`, `oid`, `tid`) are worth grepping for
+separately, because a driver or a log line could carry a decoded fragment rather than the
+token itself.
+
+### Two smaller facts that save a detour
+
+- **The deployed image already contains `pg`**, verified by exec on revision `0000058`.
+- **A connection from the container costs ~150–250 ms** (TCP+TLS measured at 79–111 ms,
+  plus startup and auth), against a 5-second `connectionTimeoutMillis` — so a slow first
+  connect is not the expected failure and should be investigated rather than tolerated.

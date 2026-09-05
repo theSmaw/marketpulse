@@ -147,6 +147,27 @@ Tackled in order. The story is complete when all eight are done.
 | 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Not started |
 | 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Not started |
 
+**Tasks 2.1.6 to 2.1.8 were each amended again on 2026-09-05 after Task 2.1.5 landed**, and
+for the fifth round running **no task was added, deleted or re-ordered** — the
+local-before-deployed sequence has now survived four tasks intact. This round removes a
+contingency, changes a lever, and adds a sweep category nobody expected. **2.1.6** loses the
+CA-file branch it was carrying: `verify-full` verifies with Node's bundled roots from inside
+the deployed container, so `apps/backend/Dockerfile` does not change — and it gains the six
+`DATABASE_*` values verbatim, plus a warning that **the firewall lever its brief names no
+longer works by deletion**, because Task 2.1.5's `CanNotDelete` lock inherits to child
+resources and `firewall-rule update` is the way to break connectivity now. Its leak check
+gains a place — **terminal echo**, after `pnpm db exec` printed a live 70-minute bearer token
+into the scrollback — and loses half of another, since `pg` was already measured not to quote
+the credential. **2.1.7** gets the number it was promised and the answer is that **latency is
+not what makes the decision**: a pooled check pays ~23 ms and a new connection ~150–250 ms
+against a 5-second deadline, so what constrains it is the **connection ceiling** — 35 usable,
+of which Azure's own sessions already hold 7–10, with no PgBouncer on this tier. **2.1.8**
+inherits a cost refusal that has **already changed shape a third time**, which retires Task
+1.11.8's "the environment is too young" diagnosis outright, and a sweep list whose entries are
+**Task 2.1.1's own claims rather than Epic 1's** — the database is in North Central US, not
+East US 2; usable storage is ~22.5 GiB, not ~27; and the price meters are identical for that
+one pair rather than generally.
+
 **Tasks 2.1.5 to 2.1.8 were each amended again on 2026-09-05 after Task 2.1.4 landed**, and
 for the fourth round running **no task was added, deleted or re-ordered**. This round
 shrinks 2.1.6 the most: the credential seam it was promised is built, so its code change
