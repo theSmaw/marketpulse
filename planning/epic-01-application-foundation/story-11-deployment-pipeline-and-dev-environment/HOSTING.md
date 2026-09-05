@@ -280,11 +280,11 @@ The rule exists because it was already broken once. Task 1.11.2 built its image 
 
 ## The database — named now, provisioned in Epic 2
 
-**The service is Azure Database for PostgreSQL flexible server, ~~in East US~~ in the same subscription and resource group as the backend.** **The region was wrong and Task 2.1.1 corrected it to East US 2 on 2026-09-04 — East US is `OfferRestricted` for this subscription and offers no Postgres editions at all** — see _The database — the creation decisions_ below, which supersedes the three bullets in this section. The rest of this paragraph stands, and it is the half that had to be answered here: That is the answer to the provider half, and it is the half that had to be answered here: deferring provisioning is only free because the platform chosen for the backend has a managed Postgres adjacent to it. Had the backend gone to a provider with no database story, Epic 2 would have become a second vendor and a cross-network hop, and the deferral would have been a hidden cost rather than a saving.
+**The service is Azure Database for PostgreSQL flexible server, ~~in East US~~ in the same subscription and resource group as the backend.** **The region was wrong and Task 2.1.1 corrected it to ~~East US 2~~ on 2026-09-04 — East US is `OfferRestricted` for this subscription and offers no Postgres editions at all — and Task 2.1.5 corrected it again one day later, to NORTH CENTRAL US, because East US 2 turned out to be `OfferRestricted` too** — see _The database — the creation decisions_ below, which supersedes the three bullets in this section. The rest of this paragraph stands, and it is the half that had to be answered here: That is the answer to the provider half, and it is the half that had to be answered here: deferring provisioning is only free because the platform chosen for the backend has a managed Postgres adjacent to it. Had the backend gone to a provider with no database story, Epic 2 would have become a second vendor and a cross-network hop, and the deferral would have been a hidden cost rather than a saving.
 
 **It is not provisioned now**, because this story stores nothing and an instance with no schema and no reader is idle cost with an operational surface. What Epic 2 must do, named here so it is not rediscovered:
 
-- ~~Create the flexible server in **East US**~~ — **East US 2** (Task 2.1.1), in the backend's resource group, on the **Burstable B1MS** tier to stay inside the free offer.
+- ~~Create the flexible server in **East US**~~ ~~**East US 2** (Task 2.1.1)~~ — **North Central US** (Task 2.1.5), in the backend's resource group, on the **Burstable B1MS** tier to stay inside the free offer.
 - Choose the networking mode at creation — the quickstart is explicit that you "can't change it after creation". Public access with a firewall rule is the cheap path; private access via VNet integration is the correct one and costs the Container Apps environment a custom VNet. **Decide it in Epic 2 before creating the server, not after.**
 - ~~Add the connection string through the platform's configuration, as a **secret** rather than a plain environment variable~~ — **superseded by Task 2.1.1: there is no connection secret.** The backend authenticates as its own managed identity and the `secrets` array stays empty. Extending `CONFIG_VARIABLES` and `apps/backend/.env.example` together so `pnpm env:check` keeps the pair honest is unchanged, and is Task 2.1.3's.
 
@@ -300,7 +300,7 @@ Every `az` command run for this task was a read. Every platform limit is quoted 
 
 | Decision         | Answer                                                             | Reversible after creation?                            |
 | ---------------- | ------------------------------------------------------------------ | ----------------------------------------------------- |
-| Region           | **East US 2**                                                      | No, in practice — a server cannot move region         |
+| Region           | ~~**East US 2**~~ **North Central US** (Task 2.1.5)                | No, in practice — a server cannot move region         |
 | Tier             | **Burstable, `Standard_B1ms`**                                     | **Yes** — `az postgres flexible-server update --tier` |
 | Postgres version | **18**                                                             | Forward only, with no automated revert                |
 | Networking mode  | **Public access**, firewall rule `0.0.0.0` plus the developer's IP | **No.** The one genuine one-way door                  |
@@ -630,7 +630,7 @@ Two alternatives, rejected with their reasons rather than skipped:
 
 ### The version is pinned to the deployed one, in one place
 
-`postgres:18`, from `LOCAL_DATABASE.version` in `scripts/local-database.mjs`, interpolated into `compose.yaml`. The running container reports **PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2)**, read out of it rather than assumed.
+`postgres:18`, from ~~`LOCAL_DATABASE.version`~~ **`LOCAL_DATABASE_VERSION`** in `scripts/local-database.mjs` (renamed by Task 2.1.3, which moved every other value in that object into `CONFIG_VARIABLES`), interpolated into `compose.yaml`. The running container reports **PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2)**, read out of it rather than assumed.
 
 **The major and not the minor**, deliberately: Azure patches the minor under us — Task 2.1.1 records `--version 18` as the creation argument and nothing finer — so a `18.6` here would be a pin the managed server cannot honour, and it would go stale on the first platform maintenance window.
 
@@ -1879,3 +1879,174 @@ Re-run here rather than cited. `PORT=0` exits before the logger exists and write
 **Task 1.11.1 deployed nothing and produced no artefact.** No Azure resource existed, no account was linked to the repository, no credential was created and no file outside `planning/` was touched. That was the point, and it is the same shape as Task 1.10.1 installing and stopping: when Task 1.11.3's first deploy failed, the platform choice would not be one of the candidate causes.
 
 **It paid off, and the honest reckoning is that the first deploy had no platform surprises at all.** Every limit quoted in this document held. What did bite came from elsewhere: a `HOST` default of `127.0.0.1` that is correct everywhere except inside a container, a `consumption budget` CLI command that rejects its own valid input, and a first request that hung rather than failed. None of those is a hosting choice.
+
+## The database — closing the story (Task 2.1.8, 2026-09-05)
+
+Story 2.1's closing task. Everything here was re-taken rather than cited, and the
+things worth reading are the four claims it found had stopped being true.
+
+### The cost question: refused, in two shapes at once, and the environment is no longer young
+
+Epic 1 handed this forward and Task 1.11.8's stated cause — the environment being
+under six hours old against an 8–24 hour billing lag — is now definitively **not**
+the explanation. Re-taken 2026-09-05, with the first resource **44.3 hours** old:
+
+| Instrument                  | Answer                                                                                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `az consumption usage list` | **Two records**, the registry and the Log Analytics workspace, with `pretaxCost`, `usageQuantity`, `billableQuantity`, `usageStart` and `usageEnd` **all the string `'None'`** |
+| Cost Management query API   | **`429 Too Many Requests`**, reproduced **four times** across ~40 minutes, unchanged since Task 1.12.7                                                                         |
+| Budget `currentSpend`       | **`0.0` USD**                                                                                                                                                                  |
+
+**So the refusal is not a fourth shape — it is the third shape and the second
+shape standing side by side**, and that is the finding rather than a
+disappointment. The consumption API returns _shaped records for resources that
+exist_ and no numbers in them; the query API refuses outright. Two different
+instruments failing two different ways against a subscription whose resources are
+nearly two days old is evidence about the API tier or the offer type rather than
+about timing.
+
+**The database does not appear in either, and that one genuinely is timing**: it
+was created `2026-09-04T23:46:10Z` and was **2.1 hours old** when this was read,
+comfortably inside the documented lag. That is the one part of the refusal a
+later reading can be expected to change.
+
+**Consequence for the question the estimate was a proxy for.** Whether continuous
+probing breaks the Consumption plan's under-1,000-bytes-per-second idle condition
+is **still unanswered**, and it is now unanswered for a reason that will not
+resolve itself by waiting. It stays owned by Epic 3, which is the first thing that
+will hold a live feed through a market session and therefore the first thing for
+which the answer changes a decision rather than a number.
+
+### The estimate reproduces to the cent, for the third story running
+
+Re-read from the Retail Prices API rather than cited. All five meters:
+
+| Meter                                        | Region               | Price                    |
+| -------------------------------------------- | -------------------- | ------------------------ |
+| Container Apps Standard vCPU **Idle**        | East US              | `$0.000003` / second     |
+| Container Apps Standard vCPU **Active**      | East US              | `$0.000024` / second     |
+| Container Apps Standard Memory (idle=active) | East US              | `$0.000003` / GiB-second |
+| Container Registry **Basic** Registry Unit   | (flat)               | `$0.1666` / day          |
+| PostgreSQL Flexible **B1MS**                 | **North Central US** | `$0.017` / hour          |
+| PostgreSQL Flex Server Storage               | North Central US     | `$0.115` / GB/month      |
+| PostgreSQL Backup Storage LRS                | North Central US     | `$0.095` / GB/month      |
+
+Computed against a 30-day month, 0.25 vCPU / 0.5 GiB, net of the free grant
+(180,000 vCPU-seconds and 360,000 GiB-seconds):
+
+- Replica **$4.21** idle, **$14.04** active
+- ACR Basic **$5.00**
+- **Total $9.21 idle / $19.04 active** — Task 1.11.8's figures, to the cent
+- Database **$0.00** while the offer holds; **$16.09** outside it ($12.41 compute
+  - $3.68 storage + $0.00 backup), so **$25.30 / $35.13** after ~2027-09-03
+
+### The budget stays at $20, and the recommendation was accepted rather than re-derived
+
+Re-read: `marketpulse-monthly`, **$20.00**/month, actual-cost alerts at 50 / 80 /
+100%, all three enabled, `currentSpend` **0.0**, period `2026-09-01` → `2030-01-01`.
+
+Task 2.1.1's argument is **accepted explicitly**: while the free offer holds, the
+database's line should be `$0.00`, so **a database-attributable alert _is_ the
+signal that one of the three offer conditions broke** — B1MS, 32 GiB, under 750
+hours — and a budget raised to accommodate a cost that should not exist cannot
+report that cost appearing. Raising it now would trade the one alert that means
+something for silence.
+
+Two consequences stated rather than implied. The $20 still sits **just above** the
+$19.04 active-rate total, so it would not fire on the change that matters most —
+Epic 3 putting the replica on the active rate all session. And it will need
+raising around **2027-09-03**, when the offer expires and the floor becomes
+$25.30; that is a calendar item, not a threshold to pre-empt.
+
+### The `az containerapp update` refusal did NOT reproduce, and that unblocked two measurements
+
+Tasks 2.1.6 and 2.1.7 both recorded `az` mutations **refused by this environment's
+own permission policy**, and 2.1.7 handed forward two deployed measurements
+because of it. **`az containerapp update --set-env-vars` ran without complaint for
+Task 2.1.8.** So that refusal was situational rather than a durable property of
+this environment, and the two records naming it are correct about what those tasks
+experienced and wrong as a description of the tooling. The **firewall** command was
+not re-tested — 2.1.6's app-scoped lever is the better one for the reason it gives
+— so that half of the record stands untested rather than disproved.
+
+### `GET /diagnostics/database` deployed, which is the first time it has ever run there
+
+Revision `0000065`, healthy, `Single` mode at `minReplicas: 1`.
+
+**The bound is visible in production.** Three requests one second apart share one
+`checkedAt` with `ageMs` rising `0 → 1827 → 3646`, then a fresh check at the
+5-second boundary and the cycle repeats. The TTL and single flight are doing
+exactly what the local measurements said.
+
+**And the cold path is ~200 ms, not the ~1,023 ms recorded — falsified in the
+reassuring direction.** The 1,023 ms figure is the _first connection of a
+replica's life_, 866 ms of which is a token mint the identity **sidecar then
+caches for 24 hours**; `index.ts` already pays that once, after `listen()`. So by
+the time any request arrives the mint is a cached read:
+
+| Revision  | First check after start | Next checks          |
+| --------- | ----------------------- | -------------------- |
+| `0000065` | **193.09 ms**           | **17.89 ms**         |
+| `0000067` | **220.19 ms**           | **22.34 / 21.34 ms** |
+
+The warm figure reproduces Task 2.1.5's "~23 ms pooled" exactly. **The decision
+this figure supported does not change** — 200 ms is still a tenth of the startup
+probe's 3-second timeout, and the argument against widening a five-reader wire
+contract never depended on latency at all. The shipped comment in
+`routes/diagnostics.ts` is corrected rather than deleted.
+
+### The deployed break, produced — and the failing path costs three orders of magnitude more
+
+`DATABASE_HOST` pointed at `203.0.113.7` (RFC 5737, guaranteed unroutable, so a
+genuine packet-drop timeout rather than a refusal). Revision `0000066`,
+`Activating` → `RunningAtMaxScale`, traffic 100%.
+
+Twelve polls, five seconds apart:
+
+- `/diagnostics/database` reported **`reachable: false` at HTTP 200** on every one
+- **`/health` answered 200 on every one**, `uptimeSeconds` rising **90.6 → 222.1**
+  and **never resetting** — four liveness intervals with no restart
+- the replica held **`ready: true`, `restartCount: 0`**
+- every failure cost the **full `connectionTimeoutMillis`**, 5,000.58–5,005.02 ms,
+  against **1–3 ms** for a locally _refused_ connection
+
+**A consequence nobody had predicted: the cache contributes nothing on this
+failure mode.** The check takes 5,000 ms and `DIAGNOSTIC_CACHE_TTL_MS` is 5,000 ms,
+so the entry is already expired the instant it is written — `ageMs` read **0 on
+every poll after the first** and no caller was ever served a cached failure. The
+rate ceiling is unharmed, because the query occupies the whole window rather than
+the cache excluding it, but **single flight is the only thing left bounding
+concurrent callers**. That is worth knowing before anyone "simplifies" either half.
+
+**The correlation id was followed from the wire to the reason, deployed.** Poll 1's
+`x-request-id` `cffa2579-…` appears verbatim as the `reqId` on a level-40 Log
+Analytics record carrying `Connection terminated due to connection timeout`, and
+all twelve ids resolve the same way. The startup record at `01:54:09Z` carries
+**no `reqId`**, which is the one place reachability was reported before this route
+existed. **No record carries a credential**, which is criterion 4's log half
+re-confirmed deployed on a route that did not exist when it was first taken.
+
+Restored to `psql-marketpulse-dev.postgres.database.azure.com` (revision
+`0000067`), all six `DATABASE_*` values **read back from the platform** and
+matching, `reachable: true` again.
+
+### The `secrets` array is still `null`, read back after the diagnostic route deployed
+
+ADR 0011's "nothing deployed holds a credential" is **confirmed for the second
+time in this story**, on a revision that queries a managed database on every
+diagnostic request. Eleven environment variables, no secret. It expires in
+**Story 2.6**, and `EPIC.md`'s prediction that it expires in this epic is
+corrected there.
+
+### The `developer-laptop` firewall rule is confirmed rather than left on
+
+Two rules, read back: `AllowAllAzureServicesAndResources` (`0.0.0.0`–`0.0.0.0`)
+and `developer-laptop` (`122.11.246.19`–`122.11.246.19`). **The developer IP has
+not moved** — `api.ipify.org` returns exactly `122.11.246.19` today, so the rule
+is currently correct rather than stale. It is **kept deliberately**: `psql` from
+the laptop is how Story 2.2's migrations will be inspected, and under the
+`CanNotDelete` lock the rule can be updated but not deleted, so removing it now
+would mean lifting the lock to do it. **The standing hazard is unchanged and is
+restated rather than solved: a developer's IP moves, so this rule is wrong most of
+the time**, and the symptom is a laptop connection timing out against a server the
+deployed backend reaches perfectly.

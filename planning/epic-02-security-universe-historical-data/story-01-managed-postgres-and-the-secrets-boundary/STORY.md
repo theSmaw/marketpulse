@@ -1,6 +1,6 @@
 # Story 2.1 — Managed Postgres Provisioning & the Secrets Boundary
 
-**Status:** In progress — Tasks 2.1.1 to 2.1.7 complete
+**Status:** Complete — all eight tasks (2026-09-05)
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Epic 1 (Stories 1.6, 1.11)
 **Epic scope covered:** Managed Postgres provisioning; Alpaca credential on the platform (the _mechanism_ half)
@@ -146,16 +146,16 @@ Tackled in order. The story is complete when all eight are done.
 
 2.1.1 decides and provisions nothing, deliberately — the same shape as Tasks 1.10.1 and 1.11.1, so the first failed provisioning attempt in this repository's history has one possible cause, and because this story's two one-way doors are both in it. 2.1.2 to 2.1.4 are entirely local and come **before** the managed instance exists, for Task 1.11.2's reason: a platform failing on something that was never correct is the most expensive failure to read, and a connection pool that has never opened a connection is exactly that. 2.1.5 is the deploy half with no application in front of it. 2.1.6 is the only task where both halves are unknown at once, which is why it comes after both, and it is where the secrets mechanism and its leak check land. 2.1.7 answers the `/health` question with something running, because the liveness-probe trap cannot be reasoned about safely. 2.1.8 closes the story and takes the cost question Epic 1 handed forward.
 
-| #     | Task                                                                                                                                         | Status      |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 2.1.1 | [Choose the four irreversible decisions, and the credential shape, provisioning nothing](TASK-01-choose-the-creation-decisions.md)           | Complete    |
-| 2.1.2 | [Give a clean clone a local database, and say what it costs](TASK-02-the-local-development-database.md)                                      | Complete    |
-| 2.1.3 | [Put the connection settings through the configuration boundary](TASK-03-connection-settings-in-the-configuration-boundary.md)               | Complete    |
-| 2.1.4 | [The connection pool, `SELECT 1`, and closing inside the drain](TASK-04-the-pool-and-its-lifecycle.md)                                       | Complete    |
-| 2.1.5 | [Provision the managed instance, and reach it over TLS from outside the application](TASK-05-provision-the-managed-instance.md)              | Complete    |
-| 2.1.6 | [Put the credential on the platform, connect the deployed backend, and prove nothing leaked](TASK-06-the-credential-on-the-platform.md)      | Complete    |
-| 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Complete    |
-| 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Not started |
+| #     | Task                                                                                                                                         | Status   |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| 2.1.1 | [Choose the four irreversible decisions, and the credential shape, provisioning nothing](TASK-01-choose-the-creation-decisions.md)           | Complete |
+| 2.1.2 | [Give a clean clone a local database, and say what it costs](TASK-02-the-local-development-database.md)                                      | Complete |
+| 2.1.3 | [Put the connection settings through the configuration boundary](TASK-03-connection-settings-in-the-configuration-boundary.md)               | Complete |
+| 2.1.4 | [The connection pool, `SELECT 1`, and closing inside the drain](TASK-04-the-pool-and-its-lifecycle.md)                                       | Complete |
+| 2.1.5 | [Provision the managed instance, and reach it over TLS from outside the application](TASK-05-provision-the-managed-instance.md)              | Complete |
+| 2.1.6 | [Put the credential on the platform, connect the deployed backend, and prove nothing leaked](TASK-06-the-credential-on-the-platform.md)      | Complete |
+| 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Complete |
+| 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Complete |
 
 **Tasks 2.1.7 and 2.1.8 were amended again on 2026-09-05 after Task 2.1.6 landed. No
 task was added, deleted or re-ordered** — 2.1.6 shrank nothing else and opened no work
@@ -324,3 +324,32 @@ database, and `apps/backend/src/routes/` holds a **second** route for the first 
 directory Task 1.2.3 created for exactly that and which had held one file for eleven
 stories. The frontend artefact is untouched, which is the check rather than a coincidence:
 this task shipped no frontend source.
+
+## Closed (Task 2.1.8, 2026-09-05)
+
+All eight acceptance criteria were re-run against what shipped rather than cited,
+and the record is `docs/adr/0014-*` plus `HOSTING.md` under _The database —
+closing the story_.
+
+**The three deployed measurements Task 2.1.7 handed forward are all closed**, and
+the reason is that its blocker did not reproduce: `az containerapp update
+--set-env-vars` ran without complaint, so that refusal was situational rather
+than a property of this environment. `GET /diagnostics/database` ran deployed for
+the first time; the deployed `DATABASE_HOST=203.0.113.7` break was produced and
+reverted; and the readiness-probe 503 stays **deliberately not** reinstated, per
+2.1.7's own argument that a rejection does not carry the same evidentiary bar as
+something that ships.
+
+**Four recorded claims had stopped being true**, one of which made `CLAUDE.md`
+contradict itself about the database's region, and one of which — `README.md`'s
+"ADR 0010 is the most recent" — had been stale for three ADRs. **One shipped
+comment was falsified in the reassuring direction**: the deployed cold path is
+~200 ms rather than the ~1,023 ms recorded, because the identity sidecar caches
+the token for 24 hours and `index.ts` already pays the mint once.
+
+**The cost question is still unanswered and its refusal is two shapes at once**,
+with Task 1.11.8's "the environment is too young" diagnosis definitively retired.
+It stays owned by Epic 3. **The budget stays at $20**, with Task 2.1.1's argument
+accepted explicitly rather than re-derived.
+
+Nothing was added, deleted or re-ordered — for the eighth and last round.
