@@ -5,7 +5,7 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all **286** fast tests passed, and
+files still agree with the configuration table, all **287** fast tests passed, and
 the 14-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
@@ -58,7 +58,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of **286** fast tests plus a 14-test process suite, with
+and a test suite of **287** fast tests plus a 14-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -2730,11 +2730,22 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 ## Documentation
 
 - [`docs/adr/`](docs/adr/) — architecture decision records, newest last.
-  **There are fourteen.** This list said "0010 is the most recent" for four
-  ADRs, which is the prose-rot this README's own gap list warns about, so read
-  the directory rather than this sentence.
+  **There are sixteen files, 0001 to 0016.** This list said "0010 is the most
+  recent" for four ADRs and then "fourteen" for two more, which is the prose-rot
+  this README's own gap list warns about, so **read the directory rather than
+  this sentence** — `ls docs/adr/` is the check and it takes a second.
+  [0016](docs/adr/0016-the-tracked-universe-what-a-green-load-certifies.md)
+  is the most recent: what a security is, which ~100 of them MarketPulse tracks
+  and by what rule, why the list is a curated file in this repository rather
+  than a provider call, why loading it is a seed script and not a migration,
+  why removing a symbol marks it `untracked` rather than deleting it, and what
+  a green load certifies and what it cannot.
+  [0015](docs/adr/0015-the-migration-mechanism-the-schema-conventions-and-what-a-green-migration-certifies.md)
+  covers the migration mechanism: why migrations are plain `.sql` files driven
+  by a runner we own, why they are forward-only with no `down`, why the schema
+  conventions live beside the migrations, and what a green migration certifies.
   [0014](docs/adr/0014-managed-postgres-the-credential-path-and-what-a-reachable-database-certifies.md)
-  is the most recent: why the database is where it is and why that was not our
+  covers the managed database: why it is where it is and why that was not our
   choice, why it authenticates with a managed identity so the platform holds no
   secret, why the local database is a container and what that costs a clean
   clone, why the pool closes where it does, why `/health` says **nothing** about

@@ -204,7 +204,7 @@ export interface SecuritiesTable {
  * Every table, by the name Postgres knows it by.
  *
  * `snake_case` keys because these are the database's identifiers rather than
- * ours; Kysely uses them verbatim in the SQL it builds. Story 2.9's mapping
+ * ours; Kysely uses them verbatim in the SQL it builds. Story 2.4's mapping
  * layer is where they become domain vocabulary.
  */
 export interface Database {

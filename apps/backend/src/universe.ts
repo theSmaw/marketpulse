@@ -590,9 +590,12 @@ const EQUITIES: readonly EquitySecurity[] = [
     },
   ]),
 
-  // 8 — three aerospace names, which is the second-deepest industry group in
-  // the file after semiconductors and exists so that §11's breadth reading has
-  // somewhere to be tested that the demo does not already own.
+  // 8 — three aerospace names. ~~The second-deepest industry group in the file
+  // after semiconductors~~ — **wrong, and corrected by counting in Task 2.3.8:
+  // three is JOINT-FIFTH**, behind Semiconductors (8), Electric Utilities (5),
+  // Diversified Banks (4) and Pharmaceuticals (4). The reason the block exists
+  // is unaffected: §11's breadth reading needs somewhere to be tested that the
+  // demo does not already own, and three names give it one.
   ...equities("industrials", [
     {
       symbol: "GE",
