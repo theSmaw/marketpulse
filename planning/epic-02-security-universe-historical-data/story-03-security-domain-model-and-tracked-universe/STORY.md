@@ -251,7 +251,15 @@ story's doing.
   so the database refuses it — but this loader **upserts** on `symbol`, and an upsert is the
   one write shape a unique index cannot refuse. Two identical keys, the second silently
   wins, the load reports success, and the row count is one short with nothing saying so.
-  Invisible to the compiler (two valid rows), to the database, and to the count. It also
+  Invisible to the compiler (two valid rows), to the database, and to the count.
+  **Corrected at 2.3.5 by producing it: that is half right, and the half that holds is the
+  half you can see today.** Within a single `insert` Postgres refuses it outright (`21000`,
+  _"ON CONFLICT DO UPDATE command cannot affect row a second time"_) — which is what happens
+  at 101 rows, since the loader puts 5,461 in one statement. Across statements it is exactly
+  as described: `✓ 102 securities in the universe` at exit 0 over a table holding 101, with
+  the second write counted as _unchanged_. So the database's protection is **a property of
+  the list being small** and disappears past ~5,461 securities or the first batching change.
+  The check is worth having for that reason rather than the stated one. It also
   gained two consequences of the file's shape: **`toTicker` runs at module load**, so a
   malformed symbol is an import failure rather than an accumulated violation and the "report
   every violation" promise has a stated exception; and **the `sector_etf`-agrees-with-mapping
@@ -300,3 +308,46 @@ expensive to rename later because it appears in URLs, charts and agent-facing te
 
 The symbol list every later story iterates, and the sector vocabulary Epics 4, 5 and 6
 group by.
+
+### Amended after Task 2.3.5 — no task added, deleted or re-ordered
+
+The eight-task split has now survived contact with five implementation tasks. **Three task
+files were amended**, and the loader shipping changed one thing about 2.3.6 that nobody
+anticipated.
+
+- **2.3.6** gained the interaction between the two timestamps 2.3.5 made meaningful, and it
+  is the one that would have wasted a day: **moving `UNIVERSE_PROVENANCE.checkedOn` reports
+  every row as updated.** Measured — `0 inserted, 101 updated, 0 unchanged` — because the
+  loader compares `classification_retrieved_at` like any other written column. So that
+  task's stated observation ("one new row, every other row untouched, `updated_at`
+  unmoved") is only true if the date does not move in the same run, and **whether adding a
+  symbol counts as re-checking the list against a source is now a decision it has to
+  take**. It also gained two smaller corrections: the removal seam is already detected and
+  already **tested as a non-answer**, so implementing a removal means editing
+  `load-universe.database.test.ts` rather than adding to it; and the re-add-lands-on-the-
+  original-`id` check is **trivial under the expected answer**, since a status transition
+  never removes the row — it is only evidence against the `DELETE` alternative.
+- **2.3.7** gained the second half of a measurement it had only half of: `dist/load-universe.js`
+  is **31,608 B** beside `dist/universe.js`'s 28,819 B, so the image carries the **mechanism**
+  as well as the data and a boot-time seed is genuinely available to weigh. It also gained
+  the three properties of the loader that shape the step — it needs a built tree, it refuses
+  arguments, and it takes its connection and identity from `loadConfig()` like `pnpm
+migrate`, so both auth modes work with no code and it appears in `pg_stat_activity` as
+  `marketpulse-universe`.
+- **2.3.8** gained three sweep items (`load-universe.ts`, `README.md`'s `pnpm universe`
+  section, `UNIVERSE.md` §11), a **corrected premise to sweep as a claim rather than a
+  count** — the duplicate-symbol finding above, live in this file and historical in the task
+  files — and two moved figures: **`pnpm test` is 286 and `pnpm test:database` is 53**, both
+  of which 2.3.6 will move again. Its "the first-run sequence plausibly became five steps"
+  is now a fact, and the "no symptom if skipped" note covers the **last two** steps rather
+  than the fourth alone.
+
+**Nothing needed adding.** Two candidates were considered and both declined. A task for the
+`checkedOn`-moves-everything interaction is one bullet on 2.3.6, not work of its own — and
+making it a task would imply it is a defect, where it is the loader correctly noticing that
+a row's provenance changed. And a task to make the loader's column lists check each other
+(the `insert` list and the `is distinct from` list, which must agree and do not) was
+declined for the reason Task 2.3.4 kept the count out of the code: it is recorded as a gap
+of the third kind in `CLAUDE.md`, the two lists sit one above the other with a comment
+saying so, and the real answer is Story 2.8's mapping layer rather than a check bolted onto
+a loader.

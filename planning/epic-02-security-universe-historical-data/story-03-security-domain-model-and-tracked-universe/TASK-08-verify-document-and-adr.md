@@ -19,7 +19,11 @@ renumbered.
   actually tests — one documented command into a clean database — and note the trap the
   last close found: `compose.yaml` declares a fixed Compose project name, so **a fresh
   clone does not get a fresh database**, and `pnpm db down -v` is what empties it. The
-  first-run sequence is currently four steps and this story plausibly made it five
+  first-run sequence ~~is currently four steps and this story plausibly made it five~~ **is
+  five since 2.3.5** — `pnpm install` → `pnpm build` → `pnpm db` → `pnpm migrate` →
+  `pnpm universe` — and the **last two** now have no symptom if skipped, where the note used
+  to name only the fourth: a migrated database holding zero securities ticks in `pnpm ready`,
+  passes `pnpm verify` and serves `pnpm dev` exactly as an unmigrated one does
 - **Criterion 3 has to be re-made rather than cited.** Produce a universe with an
   unclassified equity and one with a sector missing its ETF, run the loader, read the exit
   code and the message. Criterion 5 likewise: add, remove and re-add a symbol
@@ -41,9 +45,13 @@ renumbered.
   correction to a recorded figure is itself a claim, and 257 was a claim nobody measured.
   Re-take all four again at the close rather than citing this line, which is a measurement
   taken three tasks earlier and will have moved if 2.3.5 or 2.3.6 adds a test — both of
-  which are expected to. Both figures also appear in `README.md` and `CLAUDE.md` and **were
-  not** updated by 2.3.2 or 2.3.3 as this bullet originally claimed, so that sweep is this
-  task's. Neither 2.3.2 nor 2.3.3 added a
+  which are expected to. **2.3.5 did: `pnpm test` is now `286` (55 + 128 + 103) and
+  `pnpm test:database` is `53` across two files**, and 2.3.6 will move both again, so this
+  line is a waypoint rather than a figure to cite. Both figures also appear in `README.md`
+  and `CLAUDE.md`; **2.3.5 corrected them in both** — along with two that were already stale
+  before this story started (`229` and `246` in `README.md`, and a `25` for the database
+  suite) — so what is left for this task is re-taking rather than discovering, plus whatever
+  2.3.6 moves. Neither 2.3.2 nor 2.3.3 added a
   dependency, so the install baseline below should reproduce exactly — and that
   reproduction is the check rather than a coincidence. Store entries, `node_modules` size
   and lockfile lines against
@@ -98,6 +106,16 @@ renumbered.
     behind** — it compiles, lints, formats and loads either way. Check the comments against
     the rows rather than against `UNIVERSE.md` §9, since §9 is the other thing 2.3.6 edits
     and two stale copies agreeing with each other is the failure mode
+  - **`apps/backend/src/load-universe.ts`**, new in 2.3.5 and the second most figure-dense
+    file this story shipped. It carries three measurements in comments — 5,461 rows per
+    statement, `securities_id_seq.last_value` 404 against `max(id)` 101 after four runs, and
+    the two-branch duplicate finding below — none of which any instrument re-takes. It also
+    **names Task 2.3.6 as the owner of the removal seam in two places**, one of them a test
+    name, so both go stale the moment that task decides
+  - **`README.md`'s new `pnpm universe` section**, which publishes a worked example of the
+    loader's output (`0 inserted / 1 updated / 100 unchanged`) — a prose figure of exactly
+    the kind this repository's fourth gap records as checkable by nothing — and
+    **`UNIVERSE.md` §11**, which is where 2.3.5's decisions live
   - `apps/backend/migrations/README.md` §7 on seed data, which is what this story read to
     decide, and its checked-versus-prose lists, which 2.3.3 moved entries between
   - **The `equity | etf` two-member claim, which Task 2.3.1 counted at eleven sites** so
@@ -122,6 +140,20 @@ renumbered.
     found in `CLAUDE.md`'s own artefact paragraph
   - `CLAUDE.md` and `README.md`: test counts, the first-run sequence, the command table,
     the levels of test, and the "three engine pins" and gap lists if 2.3.3 touched them
+- **Sweep the DUPLICATE-SYMBOL premise, which 2.3.5 half-falsified and which is stated as a
+  live claim in at least three places.** **Added after 2.3.5.** Task 2.3.4's amendment,
+  `STORY.md`'s "Amended after Task 2.3.4" section and Task 2.3.5's own Work bullet all say a
+  duplicate symbol has **no backstop at all**, because an upsert is the one write shape a
+  unique index cannot refuse. Measured with the check disabled, that is **half right**:
+  within one `insert` Postgres refuses it outright (`21000`, _"ON CONFLICT DO UPDATE command
+  cannot affect row a second time"_), which is what happens at 101 rows; across statements it
+  is silent, and the load printed `✓ 102 securities in the universe` at exit 0 over a table
+  holding 101. `STORY.md`'s copy was corrected at 2.3.5; the task files' copies are
+  **historical** — they record what was believed when the work was briefed, and the
+  correction lives in 2.3.5's own "What shipped" and in `UNIVERSE.md` §11 — so leave them
+  standing and check that the ADR states the measured version rather than the briefed one.
+  This is the live-versus-historical distinction again, arriving on a claim rather than on a
+  count
 - **Count the duplicated blocks before correcting them.** This repository has twice
   recorded that a sentence duplicated for legibility must be counted with a grep before it
   can be corrected, and twice found the recorded count was of the places somebody
@@ -186,3 +218,22 @@ Two corrections and one new sweep item. No work added or removed.
 - **`apps/backend/src/universe.ts` is a new sweep item**, and an unusual one: it describes
   its own shape in comments that **Task 2.3.6 is expected to falsify**, with no instrument
   anywhere that would notice.
+
+---
+
+## Amended after Task 2.3.5 (2026-09-05)
+
+Two figures moved, three sweep items added, one bullet's conditional became a fact. No work
+added or removed.
+
+- **`pnpm test` is `286` and `pnpm test:database` is `53`**, and 2.3.6 will move both again
+  — so the waypoint is recorded and the instruction to re-take at the close stands. 2.3.5
+  corrected both in `README.md` and `CLAUDE.md`, plus two figures (`229`, `246`, `25`) that
+  were stale before this story began.
+- **The first-run sequence IS five steps**, and the "no symptom if skipped" note now covers
+  the last two rather than the fourth alone.
+- **Three new sweep items**: `load-universe.ts`, `README.md`'s `pnpm universe` section, and
+  `UNIVERSE.md` §11.
+- **The duplicate-symbol premise is half-falsified** and needs sweeping as a claim rather
+  than as a count — `STORY.md` is corrected, the task files are historical, and the ADR must
+  carry the measured version.

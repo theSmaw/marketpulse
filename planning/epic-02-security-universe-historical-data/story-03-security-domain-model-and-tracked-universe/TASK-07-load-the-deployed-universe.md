@@ -55,7 +55,13 @@ recovery**.
   **the container image carries the universe**, where it does not carry
   `apps/backend/migrations/`. **Confirmed on the shipped file rather than predicted from the
   manifest (2.3.4): `apps/backend/dist/universe.js` exists after `pnpm build`, at 28,819 B**,
-  and it is not a `*.test.*` file, so nothing in `files` excludes it. So the argument that killed a boot-time job for migrations
+  and it is not a `*.test.*` file, so nothing in `files` excludes it.
+  **After 2.3.5 both halves are measured rather than one: `dist/load-universe.js` is
+  31,608 B and is equally not a `*.test.*` file, so the image carries the MECHANISM as well
+  as the DATA** — which is what makes the boot-time option genuinely available rather than
+  arguable, since a boot-time migration was impossible because `apps/backend/migrations/` is
+  not in the image at all and neither half of that argument transfers here.
+  So the argument that killed a boot-time job for migrations
   genuinely does not transfer to this, and a boot-time seed is available in a way a
   boot-time migration is not. Weigh it anyway rather than taking it. The other half does
   transfer unchanged: the startup probe (2 s / 3 s / 30) kills a replica at roughly 90
@@ -67,6 +73,19 @@ recovery**.
   the output of. If it runs on every deploy it must be **after** the migration step and
   before or after the code rolls by a stated rule — a seed that runs before its own
   migration is the one ordering that cannot work
+- **Note what the loader needs from wherever it runs, because three of its properties shape
+  the step and none of them is visible from the outside.** **Added after 2.3.5.** It reads
+  `loadConfig()` and builds its pool through `createDatabasePool`, exactly as `pnpm migrate`
+  does, so **both `DATABASE_AUTH` modes work with no code of its own** — an Entra token is
+  minted per connection deployed, and nothing here has to invent that. It needs a **built
+  tree** and says ``run `pnpm build` first`` otherwise, which is the same guard the migration
+  step already lives with. It **refuses arguments**, so there is no `--dry-run` to reach for
+  and no flag a deploy step could pass. And its `application_name` is
+  **`marketpulse-universe`** rather than the backend's, which is what to look for in
+  `pg_stat_activity` when reading the deployed rows back — a load labelled as the runtime
+  service would be the same mistake Task 2.2.7 avoided for the migration identity. One small
+  comfort for the ordering constraint above: a seed run before its own migration fails
+  **loudly and by name**, because the loader's error path names `pnpm migrate` as the fix
 - **Use the migration identity rather than the backend's**, unless there is a reason not to.
   `marketpulse-github-deploy` exists, owns the tables, and connects from the runner in
   **142 ms** including TLS `verify-full` and the Entra token; the backend cannot be
@@ -139,3 +158,18 @@ universe, in that order, against a deployed table whose `kind` check is still th
 two-member one until that migration runs.
 
 The second edit turns the `dist/` claim from a manifest reading into a measurement.
+
+---
+
+## Amended after Task 2.3.5 (2026-09-05)
+
+Two edits, no work added or removed, and neither changes the shape of the task.
+
+- **The `dist/` measurement now covers both halves.** `dist/load-universe.js` is 31,608 B
+  beside `dist/universe.js`'s 28,819 B, so the container image carries the loader as well as
+  the list — which is what makes a boot-time seed a real option to weigh rather than a
+  hypothetical one.
+- **Three properties of the loader shape the step**: it needs a built tree, it refuses
+  arguments, and it takes its connection and identity from `loadConfig()` like
+  `pnpm migrate` — so both auth modes work with no code, and it appears in
+  `pg_stat_activity` as `marketpulse-universe`.

@@ -27,6 +27,19 @@ nobody tested.
   **add to a sector below 12 and remove from a sector above 6**, and say which you chose and
   why. Health care, financials and consumer discretionary sit at 9 and have slack in both
   directions, which makes one of them the obvious subject for all three operations
+  **Amended after 2.3.5, and this is the sharpest thing handed to this task: that
+  observation is only true if you do not move `UNIVERSE_PROVENANCE.checkedOn` in the same
+  run, and moving it may well be the honest thing to do.** 2.3.5 put the classification's
+  as-of date in the file rather than stamping `now()`, and the loader's upsert compares
+  every written column — including `classification_retrieved_at` — to decide whether a row
+  changed. So moving that date by one day and re-running reports **`0 inserted, 101
+updated, 0 unchanged`** and moves **every** row's `updated_at`. Measured, not predicted.
+  Two consequences. **Decide explicitly whether adding a symbol counts as re-checking the
+  list against a source** — there is a real argument each way, and the answer decides
+  whether this task's own commit moves the date — and **if it does move, take the
+  add-a-symbol observation in a separate run from the date move**, or the correct result
+  reads as a bug and somebody "fixes" the `is distinct from` clause that makes `updated_at`
+  mean anything
 - **Remove a symbol and run the loader, having decided first what removal means.** This is
   the real decision in the task and it is a decision about _data that does not exist yet_:
   Story 2.7 will store bars against these rows, and Epic 13 will replay a date on which a
@@ -38,6 +51,16 @@ nobody tested.
   honestly: a status that readers must filter on is an **invisible predicate**, and that
   document's own argument is that one is a design and two is a bug waiting for whoever
   forgets. Say which readers filter and which do not
+- **Note what 2.3.5 already built, because this task's job is the decision rather than the
+  detection.** **Added after 2.3.5.** The loader already finds a symbol that is in the
+  database and not in the file: it counts them, names them, and **leaves them untouched**,
+  at exit 0. So there is nothing to build to notice a removal — what this task adds is what
+  happens next. Note the shape that creates: `load-universe.database.test.ts` carries a test
+  named _"is reported, left untouched, and does not fail the load"_ which **asserts today's
+  non-answer as correct behaviour**, so implementing a removal means **editing that test**
+  rather than adding one beside it. That is deliberate and it is the seam working: the
+  assertion is what stops the answer being changed by accident, and changing it on purpose
+  is a visible edit in a diff
 - **Note that the vocabulary is now enforced, so a removal cannot be improvised.**
   `securities_status_check` in `0003` permits `active` and `untracked` and nothing else, so
   a loader that invented `removed` or `inactive` is refused by the database rather than
@@ -50,7 +73,15 @@ nobody tested.
   the market and a security we stopped tracking are different events, and the second one is
   reversible — a symbol removed and later re-added must not arrive as a second row, because
   `symbol` is unique and the natural key. Produce the re-add and check it lands on the
-  original `id`
+  original `id`.
+  **Amended after 2.3.5: under the expected answer this check is nearly vacuous, and saying
+  so is better than presenting a trivial pass as evidence.** If removal is a status
+  transition the row never leaves the table, so the re-add is an upsert onto a row that was
+  always there and the `id` is unchanged for an uninteresting reason. It is only a real test
+  of the surrogate key against the alternative — a `DELETE` — where the re-add gets a **new**
+  `id` and orphans anything referencing the old one. So either produce both and record the
+  contrast, which is what makes the decision evidenced rather than asserted, or state that
+  the check is trivial under the chosen answer and do not count it as a demonstration
 - **Produce the ticker-change case, or state precisely why it is deferred.** FB became META,
   and it is the case the surrogate key exists for — Task 2.2.4's comment names it by name.
   A rename is not an add plus a remove, because the bars belong to the same company; but
@@ -115,3 +146,21 @@ in one way nobody anticipated and creates one obligation nothing can enforce:
 - **`universe.ts` describes its own shape in comments** that this task is the first thing to
   falsify, and no instrument would notice.
 - **`UNIVERSE.md` §8 and §9 both need editing rather than appending.**
+
+---
+
+## Amended after Task 2.3.5 (2026-09-05)
+
+Three edits, no work added or removed. The loader that shipped constrains this task in one
+way nobody anticipated, and makes one of its stated checks weaker than it reads:
+
+- **Moving `UNIVERSE_PROVENANCE.checkedOn` reports every row as updated** — `0 inserted,
+101 updated, 0 unchanged`, measured — because the loader compares
+  `classification_retrieved_at` like any other column. So the add-a-symbol observation and
+  an honest date move cannot share a run, and **whether adding a symbol counts as
+  re-checking the list is a decision this task has to take** rather than a detail.
+- **The removal seam is already detected and already tested as a non-answer**, so this task
+  edits `load-universe.database.test.ts` rather than adding to it. What is missing is the
+  decision, not the mechanism.
+- **The re-add check is trivial under the expected answer** and is only evidence against
+  the `DELETE` alternative.
