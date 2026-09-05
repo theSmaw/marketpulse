@@ -87,7 +87,57 @@ theory: a mistake costs a `DROP`, not a backfill.
 6. The conventions are written where the next person writing a migration will look
 7. `pnpm verify` passes with no database running
 
+## Tasks
+
+Tackled in order. The story is complete when all eight are done.
+
+2.2.1 decides and ships nothing, deliberately — the same shape as Tasks 1.10.1, 1.11.1 and
+2.1.1, because this decision is spent across thirteen more epics and the first migration in
+this repository's history should have one possible cause when it goes wrong. 2.2.2 to 2.2.6
+are entirely local and come **before** the deployed database is touched, for Task 1.11.2's
+reason — a platform failing on something that was never correct is the most expensive
+failure to read, and that goes double for a stateful thing with a `CanNotDelete` lock on
+it. Inside that run the order is machinery (2.2.2), then the vocabulary every later table
+inherits (2.2.3), then one real table (2.2.4), then the test level that makes idempotence a
+check rather than a measurement taken once (2.2.5), then every way it can fail (2.2.6) —
+which is what determines 2.2.7's shape rather than the other way round. 2.2.7 is the half
+the story says gets skipped and then hurts, and it is where the Entra-only credential path
+stops being the backend's problem alone. 2.2.8 closes the story and records ADR 0015.
+
+| #     | Task                                                                                                                                    | Status      |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 2.2.1 | [Choose the migration tool and the query layer, installing nothing permanent](TASK-01-choose-the-migration-tool-and-the-query-layer.md) | Not started |
+| 2.2.2 | [Install the mechanism and make an empty migration real](TASK-02-the-mechanism-and-an-empty-migration.md)                               | Not started |
+| 2.2.3 | [Write the conventions down, before there is a table to argue about](TASK-03-the-schema-conventions.md)                                 | Not started |
+| 2.2.4 | [The first schema: `securities` and nothing more](TASK-04-the-first-schema.md)                                                          | Not started |
+| 2.2.5 | [The sixth level of test, and what it costs `pnpm test`](TASK-05-the-sixth-level-of-test.md)                                            | Not started |
+| 2.2.6 | [Break a migration on purpose, locally, and record what it leaves behind](TASK-06-break-a-migration-on-purpose.md)                      | Not started |
+| 2.2.7 | [Migrate the deployed database, and decide what a failed migration does to a rollout](TASK-07-migrate-the-deployed-database.md)         | Not started |
+| 2.2.8 | [Verify from a clean clone, document, and record ADR 0015](TASK-08-verify-document-and-adr.md)                                          | Not started |
+
+**Two things about this split worth stating, because both are decisions rather than
+consequences.** The **conventions come before the first table** (2.2.3 before 2.2.4): the
+alternative is to write `securities` and extract the conventions from it, which produces
+conventions describing one table rather than ten — and the two that would suffer most, the
+event-versus-retrieval timestamp pair and the identifier rule, are the two `securities`
+alone does not exercise. And **breaking a migration comes before deploying one** (2.2.6
+before 2.2.7), because "what happens when the migration succeeds and the deploy then fails"
+is not answerable until what a half-applied migration leaves behind has been produced
+rather than read.
+
+**`market_bars` is in none of these tasks and that is deliberate**, per this story's own
+out-of-scope note: its shape is driven by measured ingestion, and creating it here would be
+creating it against no measurement at all.
+
 ## What this story hands forward
 
 The mechanism every table in §30 arrives through, and the one place Epic 13's temporal
 constraint can later be made structural rather than remembered.
+
+## Conventions
+
+The Story 1.1 conventions bind this story unchanged — `pnpm verify` is the acceptance
+command, six verbs per package, root-only shared tooling, ESM with `.js` import extensions,
+and `packages/shared` consumed as built output. They are recorded once in `docs/adr/0001-*`
+and `CLAUDE.md` rather than duplicated here, deliberately: Epic 1 finished with twelve
+near-identical copies of that block and a task spent reconciling them.
