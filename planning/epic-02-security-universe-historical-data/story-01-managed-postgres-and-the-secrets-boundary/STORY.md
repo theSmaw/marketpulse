@@ -1,6 +1,6 @@
 # Story 2.1 — Managed Postgres Provisioning & the Secrets Boundary
 
-**Status:** In progress — Tasks 2.1.1 to 2.1.4 complete
+**Status:** In progress — Tasks 2.1.1 to 2.1.5 complete
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Epic 1 (Stories 1.6, 1.11)
 **Epic scope covered:** Managed Postgres provisioning; Alpaca credential on the platform (the _mechanism_ half)
@@ -70,9 +70,13 @@ original wording, struck where the answer changed them, because the reasoning th
 is what the record has to contain. ~~**Decisions 3 and 4 remain open**, owned by Tasks 2.1.2
 and 2.1.7 as the table says.~~ **Decision 4 remains open, owned by Task 2.1.7.**
 
-**A fourth answer nobody asked for: the region.** East US is `OfferRestricted` for this
-subscription and offers no Postgres at all, so the database is in **East US 2** — the second
-resource this subscription has been unable to place in East US.
+**A fourth answer nobody asked for: the region — and it was taken away twice.** East US is
+`OfferRestricted` for this subscription and offers no Postgres at all, so Task 2.1.1 chose
+**East US 2**. ~~the second resource this subscription has been unable to place in East US.~~
+**Task 2.1.5 found East US 2 restricted too, one day later**, and the database is in
+**North Central US** — settled with the user, on identical pricing and the shortest
+available hop to the East US backend. **This subscription now spans three regions and chose
+none of them.**
 
 1. **Settled: public access with the `0.0.0.0` "allow Azure services" rule.** The `321` outbound IPs measured on the deployed backend make a single-IP rule impossible, and private access means re-creating the Container Apps environment and with it the backend FQDN. ~~Public access with a firewall rule is cheap and retrofittable to
    nothing; private access via VNet integration is correct and costs the Container Apps
@@ -138,10 +142,31 @@ Tackled in order. The story is complete when all eight are done.
 | 2.1.2 | [Give a clean clone a local database, and say what it costs](TASK-02-the-local-development-database.md)                                      | Complete    |
 | 2.1.3 | [Put the connection settings through the configuration boundary](TASK-03-connection-settings-in-the-configuration-boundary.md)               | Complete    |
 | 2.1.4 | [The connection pool, `SELECT 1`, and closing inside the drain](TASK-04-the-pool-and-its-lifecycle.md)                                       | Complete    |
-| 2.1.5 | [Provision the managed instance, and reach it over TLS from outside the application](TASK-05-provision-the-managed-instance.md)              | Not started |
+| 2.1.5 | [Provision the managed instance, and reach it over TLS from outside the application](TASK-05-provision-the-managed-instance.md)              | Complete    |
 | 2.1.6 | [Put the credential on the platform, connect the deployed backend, and prove nothing leaked](TASK-06-the-credential-on-the-platform.md)      | Not started |
 | 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Not started |
 | 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Not started |
+
+**Tasks 2.1.6 to 2.1.8 were each amended again on 2026-09-05 after Task 2.1.5 landed**, and
+for the fifth round running **no task was added, deleted or re-ordered** — the
+local-before-deployed sequence has now survived four tasks intact. This round removes a
+contingency, changes a lever, and adds a sweep category nobody expected. **2.1.6** loses the
+CA-file branch it was carrying: `verify-full` verifies with Node's bundled roots from inside
+the deployed container, so `apps/backend/Dockerfile` does not change — and it gains the six
+`DATABASE_*` values verbatim, plus a warning that **the firewall lever its brief names no
+longer works by deletion**, because Task 2.1.5's `CanNotDelete` lock inherits to child
+resources and `firewall-rule update` is the way to break connectivity now. Its leak check
+gains a place — **terminal echo**, after `pnpm db exec` printed a live 70-minute bearer token
+into the scrollback — and loses half of another, since `pg` was already measured not to quote
+the credential. **2.1.7** gets the number it was promised and the answer is that **latency is
+not what makes the decision**: a pooled check pays ~23 ms and a new connection ~150–250 ms
+against a 5-second deadline, so what constrains it is the **connection ceiling** — 35 usable,
+of which Azure's own sessions already hold 7–10, with no PgBouncer on this tier. **2.1.8**
+inherits a cost refusal that has **already changed shape a third time**, which retires Task
+1.11.8's "the environment is too young" diagnosis outright, and a sweep list whose entries are
+**Task 2.1.1's own claims rather than Epic 1's** — the database is in North Central US, not
+East US 2; usable storage is ~22.5 GiB, not ~27; and the price meters are identical for that
+one pair rather than generally.
 
 **Tasks 2.1.5 to 2.1.8 were each amended again on 2026-09-05 after Task 2.1.4 landed**, and
 for the fourth round running **no task was added, deleted or re-ordered**. This round

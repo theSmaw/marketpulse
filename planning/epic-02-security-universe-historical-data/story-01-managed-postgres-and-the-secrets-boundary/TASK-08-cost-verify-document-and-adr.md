@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.1–2.1.7
-**Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.4 — see the four _Amended_ sections below
+**Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.5 — see the five _Amended_ sections below
 
 ## Objective
 
@@ -202,3 +202,86 @@ And one lesson worth carrying out of the story rather than leaving in a task fil
 **an ordering assertion needs a marker on each side of the step it is about, and
 the marker has to travel with the step.** Task 2.1.4's ordering test passed twice
 against a deliberately broken order before it was written correctly.
+
+## Amended after Task 2.1.5 (2026-09-05)
+
+Two of this task's questions were partly answered early, and its sweep list grew by a
+category it did not have.
+
+### The cost refusal already has its third shape, so this task is looking for a fourth or a figure
+
+The brief says "if it refuses again, the finding is _how_ — a third shape means the
+earlier diagnosis was wrong". **The third shape arrived in Task 2.1.5.**
+`az consumption usage list` no longer returns `[]`: it returns **two records** — the Log
+Analytics workspace and the container registry — with **every cost field the string
+`'None'`** (`pretaxCost`, `currency`, `usageStart`, `usageQuantity` all `'None'`). The
+database does not appear at all, consistent with it being about an hour old against a
+documented 8–24 hour lag.
+
+So Task 1.11.8's "the environment is too young" diagnosis is now definitively **not the
+explanation** — the environment is two days old and the API answers with shaped records
+carrying no numbers. **This task is looking for a fourth shape or a real figure**, and it
+should also try the **Cost Management query API** separately, which last answered `429`.
+The budget was re-read by 2.1.5 and is unchanged: `marketpulse-monthly`, **$20**,
+50/80/100%, `currentSpend` **0.0**.
+
+### The sweep list gained a category, and it is regions rather than credentials
+
+Task 2.1.5 falsified recorded claims in a way this task must sweep, and **they are
+Task 2.1.1's rather than Epic 1's**:
+
+- **"the database is in East US 2"** — false; it is **North Central US**. Occurrences
+  corrected in `HOSTING.md` (the section heading, the Account facts table), `CLAUDE.md`
+  and this story's `STORY.md`; **grep the tree for the rest and read every one**, since
+  some occurrences are historical records of what 2.1.1 decided and are correct in their
+  own context. That is Task 1.13.6's read-every-occurrence rule, and this is its first
+  application in Epic 2.
+- **"the three price meters are identical in both regions"** — true of East US and East
+  US 2, false generally; US regional variation reaches **29%**.
+- **"usable capacity is ~27 GiB"** and **"~24 years / ~5 years"** — corrected to
+  **~22.5 GiB** and **~20 years / ~4 years**. Struck through in `HOSTING.md` and
+  `CLAUDE.md`; check for others.
+- **`supportedIops: 640`** for `Standard_B1ms` is the SKU ceiling, not the provisioned
+  disk's **120**.
+
+### Three things for ADR 0014 that were not in the brief's subject list
+
+- **Create this server through ARM, not through `az postgres flexible-server create`.**
+  The CLI cannot create an Entra-only server and its error message
+  (`MissingRequiredParameter: 'AdministratorLoginPassword'`) describes the tool rather
+  than the platform. This belongs in the ADR because it is the reproduction recipe.
+- **What a reachable database certifies and what it does not**, the section the brief
+  already asks for, now has real material: `verify-full` verifies chain **and** host name
+  (both made to fail), the server **requires** encryption (`28000`, "no encryption"), and
+  **none of that says the credential path works** — that is Task 2.1.6's.
+- **Region availability is not a decision this project gets to make.** Two regions were
+  taken away in two days on one service, and a third resource is now in a third region.
+  The transferable rule — re-read `list-skus` immediately before creating, never cite a
+  document — earned itself in 24 hours and belongs in the ADR rather than only in
+  `HOSTING.md`.
+
+### Figures this task should expect to re-take rather than cite
+
+`pnpm verify` was **exit 0 in 25.79 s** on 2026-09-05 with a database running and 207
+fast tests plus 14 process tests. Task 2.1.5 shipped **no application source**, so the
+frontend artefact should still reproduce Task 1.13.4's four files and **361,664 B** to
+the byte — which is the check rather than a coincidence.
+
+### Two additions found by re-reading this amendment round rather than by writing it
+
+- **The platform-only-configuration gap — `CLAUDE.md`'s "sixth kind" — roughly doubled,
+  and the sharpest new instance is not a setting.** It previously named the Container
+  App's three probes, `minReplicas: 1`, the ingress port, `HOST` and `CORS_ORIGIN`. Task
+  2.1.5 added the database's **two firewall rules**, its **Entra administrator**, the
+  **action group and two metric alerts**, the **`CanNotDelete` lock**, and — the one that
+  is different in kind — the **`marketpulse-backend` role**, which is not a value that can
+  be re-read and diffed but a **one-off SQL statement that must be re-run by hand if the
+  server is ever re-created**. `HOSTING.md` is its only copy. `CLAUDE.md` records this as
+  of 2026-09-05; **ADR 0014 should carry it too**, because that is where a future reader
+  looks for what the platform holds that this repository does not.
+- **Confirm the `developer-laptop` firewall rule is still wanted.** Task 2.1.5's brief
+  asked that laptop access be "a decision rather than something that quietly stays on",
+  and it is currently a decision: one IPv4 address, `122.11.246.19`. But **a developer's
+  IP moves**, so this rule is either stale or wrong most of the time, and under the lock it
+  can be **updated but not deleted**. As the closing task, confirm it or remove it
+  deliberately — this is exactly the "quietly stays on" the brief warned about.

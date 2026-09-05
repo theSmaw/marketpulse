@@ -308,7 +308,9 @@ Every `az` command run for this task was a read. Every platform limit is quoted 
 | Storage          | **32 GiB, autogrow `Disabled`**                                    | Grow only, in 2× steps, never shrink                  |
 | Backup retention | **7 days**, geo-redundancy `Disabled`                              | Retention yes, up and down. Geo-redundancy **no**     |
 
-### Region: East US 2, and the choice was made for us
+### Region: ~~East US 2~~ North Central US, and the choice was made for us — twice
+
+> **Superseded 2026-09-05 by Task 2.1.5.** East US 2 was itself `OfferRestricted` for this subscription one day after this section was written, and the database is in **North Central US**. The section below is kept because its reasoning is what a future reader needs; only its answer changed. **The instruction it ends with — re-read `list-skus` rather than citing this document — earned itself in 24 hours.**
 
 **Task 1.11.1 recorded East US and Epic 2 inherited it. It is not available.** Read from the capability API today rather than discovered at creation:
 
@@ -506,7 +508,7 @@ What _does_ transfer is the identity rather than the credential type: the recomm
 - "**Decreasing the server storage size isn't supported.** To decrease the storage size, you need to dump and restore to a new server." So the step cannot be undone.
 - "At this time, scaling up the server storage **requires a server restart**."
 
-**What replaces autogrow is an alert, which the documentation itself recommends** — "set alert rules for `storage used` or `storage percent` … For example, you can set an alert if the storage percentage exceeds 80% usage" — and which belongs to whichever of Tasks 2.1.5 and 2.1.8 owns monitoring. The failure autogrow protects against is real and worth naming: at 95% used, **or fewer than 5 GiB free, whichever is more**, "the system automatically switches the server to _read-only mode_". **On a 32 GiB disk the binding clause is the 5 GiB one, so the usable capacity is about 27 GiB, not 32.**
+**What replaces autogrow is an alert, which the documentation itself recommends** — "set alert rules for `storage used` or `storage percent` … For example, you can set an alert if the storage percentage exceeds 80% usage" — and which belongs to whichever of Tasks 2.1.5 and 2.1.8 owns monitoring. The failure autogrow protects against is real and worth naming: at 95% used, **or fewer than 5 GiB free, whichever is more**, "the system automatically switches the server to _read-only mode_". ~~**On a 32 GiB disk the binding clause is the 5 GiB one, so the usable capacity is about 27 GiB, not 32.**~~ **Corrected by Task 2.1.5 on 2026-09-05: it is ~22.5 GiB.** This calculation assumed the disk is empty when the database is empty, and it is not — the created server reads `storage_used` **3.740 GiB** and `storage_free` **27.461 GiB** with 47 MB of databases on it, the rest being filesystem overhead on the formatted P4 volume. Free space starts at 27.46 GiB, not 32, so subtracting the 5 GiB read-only floor leaves **~22.5 GiB**.
 
 **The ingestion arithmetic, with its assumptions visible, because that is what the brief asks for and what makes it checkable later.** Story 2.7 states the shape: ~100 securities × 390 minute bars per session × ~252 sessions, which is **9,828,000 minute-bar rows per year**, and ~25,200 daily-bar rows per year.
 
@@ -521,7 +523,7 @@ Assume the narrowest reasonable row — `security_id int4`, `ts timestamptz`, fo
 | **Assumed total, rounded up for bloat and alignment slack**        | **~120**      |
 
 - **A year of minute bars is ~1.18 GB.** A year of daily bars is ~3 MB and is, as Story 2.7 says, effectively free.
-- Against ~27 GiB usable that is roughly **24 years** of minute history for 100 securities — or **~5 years if this estimate is wrong by a factor of five**, which is the number worth remembering, because it is the one that still says "comfortable".
+- Against ~~~27 GiB~~ **~22.5 GiB** usable that is roughly ~~**24 years**~~ **~20 years** of minute history for 100 securities — or ~~**~5 years**~~ **~4 years if this estimate is wrong by a factor of five**, which is the number worth remembering, because it is the one that still says "comfortable". (Re-taken by Task 2.1.5 against the created server; the conclusion is unchanged and the arithmetic was ~17% optimistic.)
 - **Two things this estimate deliberately does not include**, both of which Story 2.7 must add: WAL, which shares the same volume and which a bulk backfill generates in quantity, and any index beyond the primary key. Story 2.7's instruction to "do this arithmetic with real row sizes measured after loading a sample, not estimated" stands unchanged — **this is the prediction that measurement checks**, not a replacement for it.
 
 **Backup retention is 7 days, and geo-redundancy is `Disabled`.** Three reasons, in order of weight:
@@ -706,6 +708,239 @@ Error: in 18+, these Docker images are configured to store database data in a
 
 `pnpm verify` passes **with no database running**, in 23.08 s, which is criterion 8 met by the chain not changing at all. The browser suite is unaffected — nine journeys green with the database stopped — which is the non-gating decision confirmed rather than assumed. `pnpm ready` is **0.093 s** with the database down and reports it correctly up and down.
 
+## The database — provisioning the managed instance (Task 2.1.5)
+
+**Provisioned 2026-09-05 by [Task 2.1.5](../../epic-02-security-universe-historical-data/story-01-managed-postgres-and-the-secrets-boundary/TASK-05-provision-the-managed-instance.md).** The server, the database, its firewall, its Entra bootstrap, two alerts and a lock exist. **No application code changed, no environment variable on the Container App changed, and no credential entered this repository** — the backend's own connection is Task 2.1.6's.
+
+Every property below was **read back from the platform** after creation rather than taken from the command that set it, which is Task 1.11.3's practice and the reason two of Task 2.1.1's recorded facts are corrected here rather than inherited.
+
+### The region decision was taken away a second time, and East US 2 is gone
+
+Task 2.1.1 chose **East US 2** on 2026-09-04 because East US returns zero Postgres editions for this subscription. Re-read on 2026-09-05, **East US 2 now refuses too**, and the two refusals are not the same sentence:
+
+| Region                                                            | `list-skus` reason                                                   |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------- |
+| East US                                                           | `Provisioning is restricted in this region.`                         |
+| **East US 2**                                                     | **`Subscriptions are restricted from provisioning in this region.`** |
+| West US 2                                                         | `Subscriptions are restricted from provisioning in this region.`     |
+| South Central US                                                  | `Subscriptions are restricted from provisioning in this region.`     |
+| Canada East                                                       | `Provisioning is restricted in this region.`                         |
+| Central US, North Central US, West US, West US 3, West Central US | none — `OfferRestricted: Disabled`                                   |
+
+So **the recorded region was unavailable within 24 hours of being chosen**, and this is the second time in two stories that a region decision has been made by the platform rather than by us. **Re-read `list-skus` immediately before creating, never from this document** — that instruction was already in Task 2.1.1's section and it earned itself in one day.
+
+**The database is in North Central US**, chosen on two grounds and confirmed against the Retail Prices API rather than assumed:
+
+- **All three price meters are identical to East US 2** — compute `B1MS` `$0.017`/hour, storage `$0.115`/GB/month, backup LRS `$0.095`/GB/month — so the move costs nothing but co-location, which is the same argument Task 2.1.1 used for East US 2.
+- **It is the closest unrestricted region to the East US backend.** The alternatives were not free: Central US is `$0.01921`/hour (**+13%**) with backup at `$0.108` (**+14%**), Canada Central `$0.0185`, West Central US `$0.0204`, and West US `$0.022` (**+29%**). **So Task 2.1.1's "the three price meters are identical in both regions" is true of East US and East US 2 specifically and false as a general claim** — regional price variation on this service is real and reaches 29% within the United States.
+
+The backend and the registry stay in East US and the frontend stays in East US 2, so **this subscription now spans three regions**, none of them chosen.
+
+### Two prerequisites, and the first one is a CLI defect worth more than the fix
+
+**`Microsoft.DBforPostgreSQL` was `NotRegistered`**, reproducing Task 2.1.1's reading exactly. `az provider register --namespace Microsoft.DBforPostgreSQL --wait` took **85 s**. This is the third resource provider this subscription has needed registering and the second to be caught before it failed a create.
+
+**The second is new and is the finding: `az postgres flexible-server create` cannot create an Entra-only server, and the REST API can.** The documented flag combination — which is in the CLI's own `--help` examples — fails:
+
+```
+az postgres flexible-server create ... --microsoft-entra-auth Enabled --password-auth Disabled \
+  --admin-object-id <oid> --admin-display-name <upn> --admin-type User
+ERROR: (MissingRequiredParameter) Parameter 'AdministratorLoginPassword' must be specified.
+        This parameter cannot be NULL or empty.
+```
+
+The obvious reading is that the platform requires a password and Task 2.1.1's "no admin user created at any point" is unachievable. **That reading is wrong.** The same server body sent straight to ARM — `PUT .../flexibleServers/psql-marketpulse-dev?api-version=2024-08-01` with `authConfig: { activeDirectoryAuth: "Enabled", passwordAuth: "Disabled", tenantId }` and no `administratorLogin` — was **accepted without complaint**, and the created server reads back `administratorLogin: null`.
+
+So it is a **CLI defect, not a platform requirement**, and the cost of believing the error message would have been an immutable admin username (`--admin-user`: "once set, it cannot be changed") plus a password existing on the most reversible decision in the story. **Create this server through ARM, not through `az postgres flexible-server create`.** This is the same lesson as Task 1.11.6 reading `static-web-apps-deploy`'s own `action.yml` rather than recalling it: the tool's error message described the tool, not the platform.
+
+### What was created, read back from the platform
+
+Provisioning took **217 s** from accepted PUT to `state: Ready`.
+
+| Property                         | Value read back                                    | Matches the decision?                   |
+| -------------------------------- | -------------------------------------------------- | --------------------------------------- |
+| `fullyQualifiedDomainName`       | `psql-marketpulse-dev.postgres.database.azure.com` | —                                       |
+| `location`                       | **North Central US**                               | changed, see above                      |
+| `version` / `minorVersion`       | **18 / 6**                                         | yes                                     |
+| `sku`                            | `Standard_B1ms` (`Burstable`)                      | yes                                     |
+| `storage.storageSizeGb`          | 32                                                 | yes — against a CLI default of 128      |
+| `storage.type`                   | `Premium_LRS`                                      | yes — irreversible                      |
+| `storage.autoGrow`               | `Disabled`                                         | yes                                     |
+| `storage.tier` / `iops`          | `P4` / **120**                                     | not previously recorded                 |
+| `backup.backupRetentionDays`     | 7                                                  | yes                                     |
+| `backup.geoRedundantBackup`      | `Disabled`                                         | yes — irreversible                      |
+| `network.publicNetworkAccess`    | `Enabled`, `delegatedSubnetResourceId: null`       | yes — irreversible                      |
+| `authConfig.activeDirectoryAuth` | `Enabled`                                          | yes                                     |
+| `authConfig.passwordAuth`        | **`Disabled`**                                     | yes                                     |
+| `administratorLogin`             | **`null`**                                         | yes — no admin user exists              |
+| `dataEncryption.type`            | `SystemManaged`                                    | the irreversible decision nobody listed |
+| `highAvailability.mode`          | `Disabled`                                         | Burstable cannot do HA                  |
+
+**`storage.iops` is 120, not the 640 the SKU list advertises.** `list-skus` reports `supportedIops: 640` for `Standard_B1ms`, but the provisioned P4 disk delivers 120 — the SKU's ceiling and the disk's entitlement are different numbers, and the disk is what a bulk backfill will meet. Story 2.7 should size against **120**.
+
+**The database is `marketpulse`**, matching `DATABASE_NAME`'s default in `CONFIG_VARIABLES` exactly, UTF8 / `en_US.utf8`, empty. Creating it took 17 s. Note the CLI's `--database-name` on `create` is elastic-cluster-only in 2.90.0, so the database is a separate `db create` call and its flag is `--name`.
+
+**The firewall has exactly the two rules Task 2.1.1 specified** — `AllowAllAzureServicesAndResources` (`0.0.0.0`–`0.0.0.0`, i.e. every Azure tenant's compute) and `developer-laptop` (`122.11.246.19`, a single IPv4 address). Nothing else is admitted. **What is deliberately not enabled** is any broader developer range: one address, changed by `firewall-rule update` when it moves.
+
+### The Entra bootstrap worked, and the guest-administrator risk did not materialise
+
+Task 2.1.1 flagged that the subscription owner is an **external (`#EXT#`) guest** and that a guest as the sole database administrator is not the well-trodden path, with password authentication as the named fallback. **The fallback was not needed.** Connected as the Entra administrator, with `az account get-access-token --resource https://ossrdbms-aad.database.windows.net` used verbatim as the password:
+
+```
+select current_user, version();
+ bensmawfield_outlook.com#EXT#@bensmawfieldoutlook.onmicrosoft.c | PostgreSQL 18.6 ...
+select * from pgaadauth_create_principal('marketpulse-backend', false, false);
+ Created role for "marketpulse-backend"
+```
+
+**Two things about that output are traps.**
+
+**The administrator's name is truncated to 63 characters and the platform does it silently.** The UPN is 65 characters; the role Postgres holds is `bensmawfield_outlook.com#EXT#@bensmawfieldoutlook.onmicrosoft.c`, losing the final `om`. That is `NAMEDATALEN - 1`, and it is visible in the `administrators` sub-resource's `principalName` as well as in `current_user`. **Connecting still works with the full 65-character UPN as the username** — the gateway maps it — so this is a fact to recognise in `pg_roles` and in error messages rather than something to work around. It also means **an Entra principal whose name exceeds 63 characters cannot be distinguished from another sharing its first 63**, which is a real collision surface for group-based administrators.
+
+**The token was echoed into the terminal**, because `pnpm db exec` runs through pnpm, which prints the script command it is about to run — so `PGPASSWORD=<jwt>` appeared in full in the scrollback. The token is a live bearer credential for up to an hour. **Pass a token to the container with `docker exec -e` directly, never through `pnpm db exec`**, and Task 2.1.6's leak check should treat terminal echo as one of the places a credential lands.
+
+The role now exists: `marketpulse-backend`, `rolcanlogin: t`, `rolsuper: f`, `rolcreatedb: f`. Its **token lifetime is the favourable one** — the operator's user token was measured at **70 minutes**, and Task 2.1.1's quoted 24 hours for system-assigned managed identities is what the deployed pool gets.
+
+### TLS: the server requires it, the client verifies it, and nothing ships to make that true
+
+This is the question Task 2.1.4 handed over — `DATABASE_SSL=verify-full` maps to `pg`'s `{ rejectUnauthorized: true }` with **no `ca` option**, so it rests entirely on Node's bundled root store. **The answer is that it works, and no CA file goes into `apps/backend/Dockerfile`.**
+
+Measured with `pg` 8.23.0 on Node 24.20.0, using the three modes exactly as `apps/backend/src/database.ts` maps them:
+
+| `DATABASE_SSL` | `pg` option                  | Result against the managed server                                                            |
+| -------------- | ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `disable`      | `false`                      | **Refused in 538 ms** — `no pg_hba.conf entry for host "…", no encryption`, SQLSTATE `28000` |
+| `require`      | `{rejectUnauthorized:false}` | Connected, TLSv1.3, `TLS_AES_256_GCM_SHA384`                                                 |
+| `verify-full`  | `{rejectUnauthorized:true}`  | **Connected**, TLSv1.3, `authorized: true`, no `ca` supplied                                 |
+
+**So the server requires encryption and that is proven rather than quoted** — `disable` is refused by `pg_hba.conf` with the words "no encryption" in the message.
+
+**And the verification is real rather than vacuous, which was made to fail before it was believed:**
+
+- `verify-full` with an unrelated CA as the only trust anchor is **refused** — `self-signed certificate in certificate chain`.
+- `verify-full` dialled by IP is **refused** — `Hostname/IP does not match certificate's altnames`. So host-name checking is on, not merely chain checking.
+
+**The chain is why nothing has to ship:**
+
+```
+e15a953f5ec4.database.azure.com                 (SAN: psql-marketpulse-dev.postgres.database.azure.com)
+  <- Microsoft TLS G2 RSA CA OCSP 16
+  <- Microsoft TLS RSA Root G2
+  <- DigiCert Global Root G2
+```
+
+`DigiCert Global Root G2` is in Node 24.20.0's **118 bundled roots**, read out of `tls.rootCertificates` rather than assumed — and so are **`Microsoft RSA Root Certificate Authority 2017` and `Microsoft ECC Root Certificate Authority 2017`**, which is the pair Azure's published root-CA migration moves toward. So `verify-full` survives that rotation with no change here. The leaf is short-lived — issued `Sep 4 2026`, expiring `Dec 13 2026`, about 100 days — so it rotates on its own and nothing here pins it.
+
+**`verify-full` also succeeds from inside the deployed container**, verified by execing into the running East US replica and completing a TLS handshake with `rejectUnauthorized: true` (`authorized: true`, TLSv1.3). That is the reading that matters, because the laptop and the container are different clients with different trust stores, and only the second one is the application.
+
+**`verify-ca` stays out of the vocabulary.** Task 2.1.3 left it out and made this task confirm or reverse it. `verify-full` works against this certificate, so there is no certificate fact forcing the widening, and the union in `config.ts` is unchanged.
+
+**What happens when TLS is not available, in both directions, and neither is a hang:**
+
+| Case                                                      | Result                                                                    |
+| --------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Client requires TLS, server offers none (local container) | **Refused in 1.1–3.6 ms** — `The server does not support SSL connections` |
+| Client disables TLS, server requires it (managed)         | **Refused in 538 ms** — `no pg_hba.conf entry … no encryption`            |
+
+Both are immediate, named refusals. That matters because this repository has met the opposite three times — `check-ready.mjs`'s socket that accepts and never answers, and `pg`'s `connectionTimeoutMillis` default of 0 — and a hang inside a startup path is the expensive failure. **TLS misconfiguration is not in that class.**
+
+### The connection ceiling, confirmed rather than discovered — and it came out one higher
+
+Task 2.1.4 sized `POOL_MAX: 10` against a documented 35 usable of 50. Read off the created server: `max_connections` **50**, `superuser_reserved_connections` **10**, `reserved_connections` **5**, so the arithmetic gives **35**.
+
+**Opened empirically as a non-superuser role, 36 connections succeeded and the 37th was refused** with `remaining connection slots are reserved for roles with the SUPERUSER attribute` (SQLSTATE `53300`). The extra one is slack in what Azure's own sessions happen to hold at that moment, so **35 is the number to design against and 36 is what was observed** — do not read the difference as headroom.
+
+The relevant fact for sizing is the one underneath it: **an idle server already holds 7–10 connections that are not ours**, Azure's maintenance and telemetry sessions. So `POOL_MAX: 10` plus a `psql` session plus Story 2.2's migrations sits at roughly 12 of ~25 genuinely available slots. Comfortable, and not as comfortable as 35 sounds. `POOL_MAX` needs no change.
+
+### Latency, taken separately for connect and query as the brief requires
+
+**From the deployed backend's own region (East US) to the database (North Central US)** — measured by execing into the running replica, so this is the hop that matters and the one nothing else in this story measures:
+
+| Measurement                      | Result                                        |
+| -------------------------------- | --------------------------------------------- |
+| TCP connect (one round trip)     | **19.1 – 27.8 ms** (n=9, median 23.7)         |
+| Postgres `SSLRequest` round trip | 28.6 – 53.2 ms (n=9, median 30.9)             |
+| TCP + full TLS handshake         | **79.2 – 111.3 ms** warm (188.7 ms cold, n=7) |
+
+**From the development laptop (UK) to the same server**, which is a different question and is included so the two are not confused:
+
+| Measurement                              | Result                                |
+| ---------------------------------------- | ------------------------------------- |
+| Connect, per new connection (TLS + auth) | **1194 – 1460 ms** (n=6, median 1312) |
+| `SELECT 1` on a warm connection          | **224 – 521 ms** (n=30, median 237)   |
+
+**So the 5-second `connectionTimeoutMillis` Task 2.1.4 chose against an unmeasured hop is generous, not tight.** The worst laptop connect used **29.2%** of it; from the container the handshake is ~90 ms, so a full connect is roughly 150–250 ms — under **5%** of the deadline. **The number does not need changing, and Task 2.1.7 now has the figure it was promised**: a `/health` check that reuses a pooled connection pays roughly one round trip (~23 ms from East US), and one that causes a **new** connection pays ~150–250 ms. Both are inside a liveness probe's budget; the risk `/health` carries is the failure mode, not the latency.
+
+### Storage: the usable capacity is ~22.5 GiB, not the ~27 GiB recorded
+
+Task 2.1.1 computed usable capacity as ~27 GiB, from 32 GiB provisioned minus the 5 GiB of free space at which the server switches itself to read-only. **Measured on the created server, that is optimistic by about 5 GiB, because the disk is not empty when it is empty:**
+
+| Metric                | Value on an empty server |
+| --------------------- | ------------------------ |
+| `storage_used`        | **3.740 GiB**            |
+| `storage_free`        | **27.461 GiB**           |
+| `storage_percent`     | 11.99%                   |
+| `txlogs_storage_used` | 0.080 GiB                |
+| `backup_storage_used` | 0.005 GiB                |
+
+All six databases together are **47 MB** (`marketpulse` itself is 7.7 MB), and the WAL is 80 MB — so roughly **3.6 GiB is filesystem overhead** on the formatted P4 volume and is not recoverable. Free space starts at **27.46 GiB**, and read-only mode triggers at **under 5 GiB free**, so:
+
+- **Usable for data: ~22.5 GiB, not ~27 GiB.**
+- Against Task 2.1.1's ~1.18 GB/year of minute bars, that is **~20 years** rather than 24 — or **~4 years if the estimate is wrong by a factor of five**.
+
+The conclusion is unchanged and still says "comfortable"; the arithmetic behind it was wrong by ~17% and is corrected here. **Story 2.7's instruction to re-do this with real row sizes measured after loading a sample stands**, and it now has a real starting free-space figure to subtract from rather than the provisioned one.
+
+### Idle behaviour on a Burstable tier, and why the credit alert earns its place
+
+The server does **not** pause, sleep or throttle when idle — there is no auto-pause on this tier, and the separate "a _stopped_ flexible server automatically starts after seven days" limit means it cannot be parked to save money either. Read over 30 minutes at idle:
+
+| Metric                  | Idle value          |
+| ----------------------- | ------------------- |
+| `cpu_credits_remaining` | **30.00** (the cap) |
+| `cpu_credits_consumed`  | 0.00                |
+| `cpu_percent`           | **10.5 – 12.1%**    |
+| `active_connections`    | 7 – 10              |
+
+**The uncomfortable reading is `cpu_percent`.** A `Standard_B1ms` earns credits below a **10%** baseline and spends them above it, and an _idle_ server with no application attached sits at 10.5–12.1% — on the line, dipping either side of it, with the balance observed moving 29.00 → 29.83 → 30.00 across consecutive five-minute windows. So **this server banks almost nothing at rest**, and the 30-credit ceiling is not a reservoir it arrives at a backfill holding. That makes the CPU-credits alert below more valuable than it looked when Task 2.1.1 asked for it, and it is a real input to Story 2.7: a bulk load starts with roughly the credits it can earn during the load, not with a bank.
+
+### Monitoring: two alerts and a lock, all three of which 2.1.1 left unowned
+
+There were **no action groups and no metric alerts on this subscription** before this task. Created:
+
+| Resource               | What it is                                                                                                     |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `ag-marketpulse-ops`   | Action group, short name `mpulseops`, one email receiver (the account owner)                                   |
+| `psql-storage-80pct`   | `avg storage_percent > 80` over 15 min, evaluated every 5 min, severity 2 — **this is what replaces autogrow** |
+| `psql-cpu-credits-low` | `avg cpu_credits_remaining < 5` over 15 min, evaluated every 5 min, severity 2                                 |
+
+Both thresholds are the ones the vendor documentation asks for by name. The storage alert is the one with teeth: autogrow is `Disabled` by decision, so nothing else stands between a filling disk and the server putting itself into read-only mode.
+
+**A `CanNotDelete` lock is set on the server, and the argument for it is not the data.** Everything in this database is re-derivable from Alpaca — that is the whole reason public access was acceptable — so a lock protecting _rows_ would be protecting nothing. What it protects is that **deleting a flexible server deletes its backups irrecoverably**, and that re-creating this one means re-running a provider registration, a region hunt, an ARM-not-CLI create, and a `pgaadauth_create_principal` bootstrap **that exists in no file in this repository**. That bootstrap is the expensive part, and it is exactly the class of thing this document exists to hold.
+
+**The lock was proven live rather than assumed, on something recoverable rather than on the server.** Deleting a firewall rule under it is refused with `ScopeLocked` naming the server — so **the lock inherits to child resources**. Two operational consequences measured in the same pass: **`create` and `update` still work** under the lock, so a moved developer IP is a `firewall-rule update`; and **removing anything, including a mistaken firewall rule, requires lifting the lock first** — `az lock delete` → change → `az lock create`, which was executed to clean up the probe rule and left the server with exactly its two intended rules.
+
+### The cost refusal has changed shape for a third time
+
+Task 1.11.8 recorded `az consumption usage list` refusing with _"doesn't have valid WebDirect/AIRS offer type"_; Task 1.12.7 recorded it returning **`[]` at exit 0**. Today it returns **two records** — the Log Analytics workspace and the container registry — with **every cost field the string `'None'`**: no `pretaxCost`, no `currency`, no `usageStart`. So the question is still unanswerable, in a third distinct way, and the database does not appear at all, which is consistent with it being about an hour old against a documented 8–24 hour lag.
+
+The `marketpulse-monthly` budget was re-read and is unchanged: **$20/month**, actual-cost alerts at **50 / 80 / 100%** to the account owner, `currentSpend` **0.0**. **Task 2.1.8 owns the cost question** and inherits a sharper version of it than Task 2.1.1 handed over.
+
+### What Task 2.1.6 inherits, as values rather than facts
+
+Task 2.1.3 asked for the right-hand side of the seven `DATABASE_*` variables. Recorded verbatim:
+
+| Variable            | Deployed value                                                       |
+| ------------------- | -------------------------------------------------------------------- |
+| `DATABASE_HOST`     | `psql-marketpulse-dev.postgres.database.azure.com`                   |
+| `DATABASE_PORT`     | `5432`                                                               |
+| `DATABASE_NAME`     | `marketpulse`                                                        |
+| `DATABASE_USER`     | `marketpulse-backend`                                                |
+| `DATABASE_AUTH`     | `entra`                                                              |
+| `DATABASE_PASSWORD` | **not set at all** — the variable must be absent, not empty          |
+| `DATABASE_SSL`      | `verify-full` — confirmed working from inside the container, no `ca` |
+
+Task 2.1.4's hazard stands and is worth repeating where the values are: the two cross-variable checks fire at **startup**, so a revision that sets `DATABASE_AUTH=entra` and forgets `DATABASE_SSL` does not connect insecurely — it fails to start, which on a liveness-probed platform is a crash-loop. **All six go in one `az containerapp update`.**
+
 ## Reversal cost — and it is not one file
 
 Story 1.10 recorded CI's reversal cost as "one YAML file", and that is only true because the pipeline runs `pnpm verify` by name and defines nothing of its own. **Deployment cannot be that cheap, and saying so precisely is this section's job.** Moving hosts means changing all of:
@@ -742,31 +977,32 @@ with a pull request's temporary environment suffixed by its PR number, and branc
 
 This is the class of fact Story 1.10 recorded for its repository ruleset: real configuration that no file here can hold, where the write-up is the only copy a future reader gets.
 
-| Fact                       | Value                                                                                                                                                                                                                                                                                                                         |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cloud                      | Microsoft Azure                                                                                                                                                                                                                                                                                                               |
-| Subscription id            | `5104e168-b3de-41c2-92a8-c68d28bd4d16`                                                                                                                                                                                                                                                                                        |
-| Tenant id                  | `6069915b-5bf2-4e36-8b25-8ffb25b5fdd1`                                                                                                                                                                                                                                                                                        |
-| Subscription type          | Azure free account (12-month offers plus the always-free grants)                                                                                                                                                                                                                                                              |
-| Region                     | East US for the backend and the registry. **The frontend is East US 2**, and so is the **database** — Static Web Apps is not offered in East US, and Postgres is `OfferRestricted` there for this subscription (Task 2.1.1). Two of the four resources this subscription places by region have now been pushed out of East US |
-| Resource group             | `rg-marketpulse-dev` (East US)                                                                                                                                                                                                                                                                                                |
-| Container Apps environment | `cae-marketpulse-dev`, unique id **`blackgrass-e682fefb`**, `WorkloadProfiles` mode with a **Consumption profile only**, no VNet                                                                                                                                                                                              |
-| Backend URL                | **<https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io>**                                                                                                                                                                                                                                            |
-| Backend identity           | System-assigned, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`, `AcrPull` on the registry                                                                                                                                                                                                                                  |
-| Log destination            | Log Analytics workspace `log-marketpulse-dev`, **30-day retention**, `PerGB2018` — $2.30/GB ingested, $0.10/GB/month retained beyond the included period                                                                                                                                                                      |
-| Budget                     | `marketpulse-monthly`, **$20/month**, actual-cost alerts at 50 / 80 / 100% to the account owner                                                                                                                                                                                                                               |
-| Frontend service           | Azure Static Web Apps, **Free** plan, app `marketpulse-frontend` in **East US 2**                                                                                                                                                                                                                                             |
-| Frontend URL               | **<https://red-smoke-029583a0f.5.azurestaticapps.net>**                                                                                                                                                                                                                                                                       |
-| Backend service            | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                                                                                                                                                                                                                                                                  |
-| Database service           | Azure Database for PostgreSQL flexible server, Burstable **B1MS**, **PostgreSQL 18**, **East US 2**, 32 GiB storage with autogrow off, 7-day backups, public access, **Microsoft Entra authentication only** — **not yet provisioned** (decided by Task 2.1.1, created by Task 2.1.5)                                         |
-| Database server name       | **`psql-marketpulse-dev`** — available when checked 2026-09-04, re-check at creation. FQDN will be `psql-marketpulse-dev.postgres.database.azure.com`                                                                                                                                                                         |
-| Database admin             | **No PostgreSQL admin user exists**, deliberately. The Entra administrator is `bensmawfield_outlook.com#EXT#@bensmawfieldoutlook.onmicrosoft.com` (`8d92279d-ed7d-4127-9884-ba258857457c`); the backend connects as its own managed identity `marketpulse-backend`. **No password anywhere**                                  |
-| Database prerequisite      | **`Microsoft.DBforPostgreSQL` is `NotRegistered`** as of 2026-09-04. `az provider register --namespace Microsoft.DBforPostgreSQL --wait` is Task 2.1.5's first command — the same trap that failed Task 1.11.4's first create                                                                                                 |
-| Who can delete it          | The subscription owner above, via the portal or CLI. **No resource lock is set**; the backup-restore documentation recommends one ("Use Azure resource lock to help prevent accidental deletion of your server") and deleting a server deletes its backups irrecoverably                                                      |
-| Container registry         | **`crmarketpulse.azurecr.io`** — ACR Basic, East US, $0.1666/day, 10 GB included, **admin user disabled**. Pulled by managed identity with `AcrPull`                                                                                                                                                                          |
-| Source repository          | `github.com/theSmaw/marketpulse`                                                                                                                                                                                                                                                                                              |
-| Deploy trigger             | A merge to `main`, gated on `verify` — `.github/workflows/deploy.yml`, automatic since Task 1.11.6                                                                                                                                                                                                                            |
-| Deploy credential          | Federated identity credential (OIDC) on app registration `marketpulse-github-deploy`, app id **`1bb765eb-fff3-4aed-80f2-90796c2fbcfb`**. **No repository secret exists.** See below                                                                                                                                           |
+| Fact                       | Value                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Cloud                      | Microsoft Azure                                                                                                                                                                                                                                                                                                                                                                                              |
+| Subscription id            | `5104e168-b3de-41c2-92a8-c68d28bd4d16`                                                                                                                                                                                                                                                                                                                                                                       |
+| Tenant id                  | `6069915b-5bf2-4e36-8b25-8ffb25b5fdd1`                                                                                                                                                                                                                                                                                                                                                                       |
+| Subscription type          | Azure free account (12-month offers plus the always-free grants)                                                                                                                                                                                                                                                                                                                                             |
+| Region                     | East US for the backend and the registry, **East US 2** for the frontend, **North Central US** for the database. Static Web Apps is not offered in East US; Postgres is `OfferRestricted` there **and, since 2026-09-05, in East US 2 as well** (Task 2.1.5). **This subscription now spans three regions and chose none of them** — re-read `list-skus` before creating anything, never this table          |
+| Resource group             | `rg-marketpulse-dev` (East US)                                                                                                                                                                                                                                                                                                                                                                               |
+| Container Apps environment | `cae-marketpulse-dev`, unique id **`blackgrass-e682fefb`**, `WorkloadProfiles` mode with a **Consumption profile only**, no VNet                                                                                                                                                                                                                                                                             |
+| Backend URL                | **<https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io>**                                                                                                                                                                                                                                                                                                                           |
+| Backend identity           | System-assigned, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`, `AcrPull` on the registry                                                                                                                                                                                                                                                                                                                 |
+| Log destination            | Log Analytics workspace `log-marketpulse-dev`, **30-day retention**, `PerGB2018` — $2.30/GB ingested, $0.10/GB/month retained beyond the included period                                                                                                                                                                                                                                                     |
+| Budget                     | `marketpulse-monthly`, **$20/month**, actual-cost alerts at 50 / 80 / 100% to the account owner                                                                                                                                                                                                                                                                                                              |
+| Frontend service           | Azure Static Web Apps, **Free** plan, app `marketpulse-frontend` in **East US 2**                                                                                                                                                                                                                                                                                                                            |
+| Frontend URL               | **<https://red-smoke-029583a0f.5.azurestaticapps.net>**                                                                                                                                                                                                                                                                                                                                                      |
+| Backend service            | Azure Container Apps, **Consumption** plan, `minReplicas: 1`                                                                                                                                                                                                                                                                                                                                                 |
+| Database service           | Azure Database for PostgreSQL flexible server, Burstable **B1MS**, **PostgreSQL 18.6**, **North Central US**, 32 GiB `Premium_LRS` (P4, **120 IOPS**) with autogrow off, 7-day backups, geo-redundancy off, public access, **Microsoft Entra authentication only**. **Provisioned 2026-09-05** by Task 2.1.5, in 217 s                                                                                       |
+| Database server name       | **`psql-marketpulse-dev`**, FQDN **`psql-marketpulse-dev.postgres.database.azure.com`**. Database **`marketpulse`** (UTF8 / `en_US.utf8`, empty). Firewall: exactly two rules — `AllowAllAzureServicesAndResources` (`0.0.0.0`) and `developer-laptop` (`122.11.246.19`)                                                                                                                                     |
+| Database admin             | **No PostgreSQL admin user exists** — `administratorLogin` reads `null` on the created server. The Entra administrator is `bensmawfield_outlook.com#EXT#@bensmawfieldoutlook.onmicrosoft.com` (`8d92279d-ed7d-4127-9884-ba258857457c`), **held by Postgres truncated to 63 characters**, losing the final `om`. Role `marketpulse-backend` exists via `pgaadauth_create_principal`. **No password anywhere** |
+| Database creation route    | **ARM `PUT`, not `az postgres flexible-server create`.** The CLI rejects an Entra-only server with `MissingRequiredParameter: 'AdministratorLoginPassword'` even with `--password-auth Disabled`; the REST API accepts the same server. A **CLI defect, not a platform requirement** — believing it would have cost an immutable admin username. `Microsoft.DBforPostgreSQL` was registered in 85 s first    |
+| Who can delete it          | The subscription owner — but a **`CanNotDelete` lock named `no-accidental-delete`** is set on the database server (Task 2.1.5), proven live (`ScopeLocked`) and **inherited by child resources**. `create` and `update` still work; any delete needs `az lock delete` first. Nothing else in this subscription is locked                                                                                     |
+| Database monitoring        | Action group **`ag-marketpulse-ops`** (email to the account owner) with two metric alerts: **`psql-storage-80pct`** (`storage_percent > 80`, which is what replaces autogrow) and **`psql-cpu-credits-low`** (`cpu_credits_remaining < 5`). Both 15-minute windows, evaluated every 5 minutes. **Before Task 2.1.5 this subscription had no action groups and no metric alerts at all**                      |
+| Container registry         | **`crmarketpulse.azurecr.io`** — ACR Basic, East US, $0.1666/day, 10 GB included, **admin user disabled**. Pulled by managed identity with `AcrPull`                                                                                                                                                                                                                                                         |
+| Source repository          | `github.com/theSmaw/marketpulse`                                                                                                                                                                                                                                                                                                                                                                             |
+| Deploy trigger             | A merge to `main`, gated on `verify` — `.github/workflows/deploy.yml`, automatic since Task 1.11.6                                                                                                                                                                                                                                                                                                           |
+| Deploy credential          | Federated identity credential (OIDC) on app registration `marketpulse-github-deploy`, app id **`1bb765eb-fff3-4aed-80f2-90796c2fbcfb`**. **No repository secret exists.** See below                                                                                                                                                                                                                          |
 
 **Why East US.** Alpaca's market data endpoints are US-hosted, and Epic 3's WebSocket is the latency that matters; the frontend is a geo-distributed CDN on the production environment regardless of the app's region, so co-locating it costs nothing. The trade accepted is portal and log latency for a UK-based maintainer, which is a human cost paid once per session rather than per market tick.
 

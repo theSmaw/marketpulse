@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.6
-**Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.4 — see the four _Amended_ sections below
+**Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.5 — see the five _Amended_ sections below
 
 ## Objective
 
@@ -104,3 +104,54 @@ the two changes below.
   not, the record should say "no user-visible change" as a decision. 2.1.4 changed
   nothing about the wire contract — `/health` is still 61 bytes, field for field —
   so this task starts from exactly where Story 1.12 left it.
+
+## Amended after Task 2.1.5 (2026-09-05)
+
+This task was promised a number and now has it. Everything below is measured against the
+created server.
+
+### The latency this decision turns on, split the way it has to be
+
+| What a check would pay                                          | Cost                                                      |
+| --------------------------------------------------------------- | --------------------------------------------------------- |
+| A query on a **pooled** connection (East US → North Central US) | **~23 ms** — one round trip                               |
+| A check that causes a **new** connection                        | **~150–250 ms** (TCP+TLS 79–111 ms plus startup and auth) |
+| The client deadline it sits inside                              | 5,000 ms                                                  |
+
+So **both shapes fit comfortably inside a liveness probe's budget, and latency is not
+what makes this dangerous** — the failure mode is. That sharpens the brief rather than
+changing it: the argument against a database check on `/health` was never that it is
+slow, it is that a failing liveness probe kills the replica. **Do not let the comfortable
+number talk you into the check.**
+
+Note the region moved: the hop is **East US → North Central US**, not East US 2, because
+East US 2 became `OfferRestricted` before the server was created.
+
+### The connection ceiling is the real constraint, and it is tighter than 35
+
+Confirmed on the created server: `max_connections` **50**, minus 10 superuser-reserved
+and 5 reserved, gives **35** — and **36 was opened before the 37th was refused**, so 35 is
+the number to design against. The half that matters for this task is underneath it:
+**Azure's own maintenance sessions already hold 7–10 connections at idle.** With
+`POOL_MAX: 10`, the application is at ~12 of roughly 25 genuinely free slots before any
+health check exists.
+
+There is **no PgBouncer on this tier**, so a per-request `SELECT 1` on an endpoint hit by
+three platform probes plus one per visible browser tab competes for that pool rather than
+merely adding query load. **Cache it or bound it** — the brief already says so, and this
+is the arithmetic that decides it.
+
+### The idle-credit picture argues the same way
+
+`cpu_credits_remaining` sits at its **30** cap while `cpu_percent` reads **10.5–12.1%**
+against a 10% baseline — so an idle B1MS with no application attached is already on the
+line and **banks almost nothing**. A cheap check is genuinely cheap in CPU terms; what it
+cannot do is arrive during Story 2.7's backfill and expect headroom.
+
+### One new way the database becomes unreachable, already exercised
+
+Task 2.1.5's `CanNotDelete` lock **inherits to child resources**, so the firewall lever
+this task will want is `firewall-rule update`, not `delete` — the latter returns
+`ScopeLocked`. Breaking and restoring connectivity is two `update` calls, and firewall
+changes "can take up to five minutes to take effect", which is a wait to plan for rather
+than a failure to debug.

@@ -1,6 +1,6 @@
 # Task 2.1.5 — Provision the managed instance, and reach it over TLS from outside the application
 
-**Status:** Not started
+**Status:** Complete — 2026-09-05
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.1
 **Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.4 — see the four _Amended_ sections below
@@ -213,3 +213,111 @@ liveness probe and a 5-second client deadline.
 Take the connection time and the query time **separately**: a pool pays the first
 once per connection and the second per query, and conflating them is what makes a
 `SELECT 1` on a warm pool look expensive.
+
+## What was done (2026-09-05)
+
+The full record is in
+[`HOSTING.md`](../../epic-01-application-foundation/story-11-deployment-and-hosting/HOSTING.md)
+under _The database — provisioning the managed instance (Task 2.1.5)_, beside Tasks
+2.1.1's and 2.1.2's, because this story's habit is one document per subject.
+
+**The server, the database, its firewall, its Entra bootstrap, two alerts and a lock
+exist. No application code changed, no environment variable on the Container App
+changed, and no credential entered this repository.**
+
+### The headline: the region decision was taken away a second time
+
+**East US 2 was `OfferRestricted` for this subscription within 24 hours of Task 2.1.1
+choosing it.** The database is in **North Central US** — settled with the user, because
+region is irreversible in practice and this overturned a recorded decision. All three
+price meters there are **identical** to East US 2 (`$0.017`/hr, `$0.115`/GB, `$0.095`/GB),
+and it is the closest unrestricted region to the East US backend. The alternatives were
+not free: Central US is +13% compute and +14% backup, West US +29%. **So 2.1.1's "the
+three price meters are identical in both regions" is true of that pair and false as a
+general claim.** This subscription now spans **three** regions and chose none of them.
+
+### The finding that would have cost the most: an error message describing the tool
+
+`az postgres flexible-server create` **cannot create an Entra-only server**. Its own
+documented flag combination fails with
+`MissingRequiredParameter: 'AdministratorLoginPassword' must be specified`. The obvious
+reading — that the platform requires a password and 2.1.1's "no admin user at any point"
+is unachievable — **is wrong**: the same body sent to ARM as a `PUT` was accepted, and
+the created server reads back `administratorLogin: null`. A **CLI defect, not a platform
+requirement**. Believing it would have bought an immutable admin username, which is the
+one irreversible decision 2.1.1's authentication choice had disposed of.
+
+### TLS: the question 2.1.4 handed over is answered, and nothing ships
+
+**`verify-full` works with Node's bundled roots and no `ca` option — so no CA file goes
+into `apps/backend/Dockerfile`.** Verified from the laptop _and from inside the deployed
+East US container_, which is the reading that matters. The chain is
+`… <- Microsoft TLS RSA Root G2 <- DigiCert Global Root G2`, and Node 24.20.0's 118
+bundled roots hold that root **plus both Microsoft 2017 roots** Azure's published
+migration moves toward — so the rotation will not break it.
+
+Made to fail before being believed: an unrelated CA is refused
+(`self-signed certificate in certificate chain`), and dialling by IP is refused
+(`Hostname/IP does not match certificate's altnames`) — so chain **and** host name are
+both checked. `verify-ca` therefore stays out of the vocabulary, as 2.1.3 asked.
+
+**Both TLS-unavailable directions are immediate, named refusals rather than hangs** —
+1.1–3.6 ms locally (`The server does not support SSL connections`) and 538 ms against the
+managed server (`no pg_hba.conf entry … no encryption`, SQLSTATE `28000`), which also
+proves the server _requires_ encryption rather than merely offering it.
+
+### The figures
+
+| Measurement                             | Result                                                         |
+| --------------------------------------- | -------------------------------------------------------------- |
+| Provisioning, accepted PUT → `Ready`    | **217 s**                                                      |
+| East US → North Central US, TCP connect | **19.1 – 27.8 ms** (n=9, median 23.7)                          |
+| East US → North Central US, TCP + TLS   | **79.2 – 111.3 ms** warm                                       |
+| Laptop (UK) connect, per new connection | 1194 – 1460 ms (median 1312)                                   |
+| Laptop `SELECT 1`, warm connection      | 224 – 521 ms (median 237)                                      |
+| Connection ceiling                      | **36 opened, 37th refused** (`53300`); 35 is the design number |
+| Idle connections held by Azure itself   | **7 – 10**                                                     |
+| `cpu_credits_remaining` at idle         | **30.00** (the cap), at `cpu_percent` 10.5–12.1%               |
+| Storage used on an **empty** server     | **3.740 GiB**, leaving **27.461 GiB** free                     |
+
+**So the 5-second `connectionTimeoutMillis` is generous, not tight** — the worst laptop
+connect used 29.2% of it and a connect from the container is under 5%. **Task 2.1.7 has
+the number it was promised:** a pooled `/health` check pays roughly one round trip
+(~23 ms); one that causes a _new_ connection pays ~150–250 ms. `POOL_MAX: 10` needs no
+change, though the useful figure is that Azure's own sessions already hold 7–10 of the 35.
+
+### Two of 2.1.1's recorded figures were corrected by measurement
+
+- **Usable storage is ~22.5 GiB, not ~27 GiB.** The disk is not empty when the database
+  is — 3.74 GiB is filesystem overhead, so free space _starts_ at 27.46 GiB and the 5 GiB
+  read-only floor comes off that. The ingestion estimate becomes **~20 years** rather
+  than 24, or ~4 at five times the estimate. The conclusion still says "comfortable".
+- **`storage.iops` is 120, not the 640 `list-skus` advertises** for `Standard_B1ms` — the
+  SKU's ceiling and the provisioned P4 disk's entitlement are different numbers, and
+  Story 2.7 should size against 120.
+
+### Three things nobody had owned, now created
+
+`ag-marketpulse-ops` (this subscription had **no** action groups and **no** metric alerts
+before), `psql-storage-80pct` — which is what replaces autogrow — and
+`psql-cpu-credits-low`. A **`CanNotDelete` lock** is set, and the argument for it is not
+the data (all re-derivable from Alpaca) but that deleting the server destroys its backups
+irrecoverably **and** the `pgaadauth_create_principal` bootstrap, which exists in no file
+here. Proven live on a recoverable child resource rather than on the server: `ScopeLocked`,
+and it **inherits**. `create` and `update` still work; any delete needs the lock lifted.
+
+### Two traps to carry
+
+- **The Entra administrator's name is silently truncated to 63 characters** — the 65-char
+  UPN loses its final `om`. Connecting with the full UPN still works; recognising it in
+  `pg_roles` and in error messages is the point.
+- **`pnpm db exec` echoes its arguments**, so passing a token that way printed a live
+  bearer credential into the terminal. Use `docker exec -e`. Task 2.1.6's leak check
+  should count terminal echo as a place a credential lands.
+
+### What Task 2.1.6 inherits
+
+The seven `DATABASE_*` values, recorded verbatim in `HOSTING.md`. `DATABASE_PASSWORD`
+must be **absent, not empty**, and all six go in **one** `az containerapp update`,
+because 2.1.4's cross-variable checks fire at startup and a half-set revision
+crash-loops.
