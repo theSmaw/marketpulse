@@ -136,6 +136,16 @@ renumbered.
   than a worry. The ADR also carries the taxonomy, the selection rule, the proxy
   distinction, the removal semantics and the provenance shape, because those are the
   decisions Epics 4, 5, 6 and 9 inherit
+- **Do NOT close the sizing question, and do not let the ADR imply it is closed.**
+  `UNIVERSE.md` §10 parks it on a Story 2.6 measurement with both branches written out, and
+  an ADR that records "101 securities" as a settled decision would quietly retire a parked
+  one — which is the failure mode this repository already records for deferrals that lose
+  their owner. ADR 0016's "what the universe is not" list should carry it explicitly: the
+  count is provisional, the trigger is named, and **the deadline is Story 2.7 rather than
+  Story 2.6**, because re-sizing is free until bars are stored. Note the related item that
+  is _not_ parked and may well be actionable by the time this task runs: the industry
+  taxonomy is finer than GICS's own industry-group level on a universe a fraction of the
+  size, half the groups are singletons, and coarsening it needs no new data
 - **Say what this story hands forward and be precise about which parts are properties and
   which are claims**, in the shape Task 2.2.8 used: the symbol list every later story
   iterates is a property, and "the architecture expands to 500 without redesign" is an

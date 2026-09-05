@@ -106,8 +106,18 @@ deleted, because it records what was being weighed at the time.
    produces it was settled first, deliberately: a floor of 6 and a ceiling of 12 equities per
    sector. The list met it without the rule moving — floor and ceiling hit **exactly**, the
    largest sector at **14.0%** of the equities, and all eight of the spec's hand-named
-   symbols present. The original wording follows, because it records the shape being aimed
-   at: this wants a product conversation, not a generated list. A
+   symbols present.
+   **The COUNT is provisional and the sizing is PARKED — see `UNIVERSE.md` §10 (2026-09-05).**
+   The user asked whether ~100 is enough to group and correlate meaningfully, and the
+   measured answer is that the _rule_ holds while the _industry_ taxonomy does not: 45
+   industries across 86 equities, **51% of them singletons**, and §11's own worked example
+   of "82% of semiconductor securities" is arithmetically unreachable below 11 constituents
+   against our deepest group of 8. Re-sizing is parked on one measurement Story 2.6 owns —
+   whether minute-bar subscriptions are exempt from Alpaca's free 30-channel cap, which two
+   Alpaca pages disagree about — because if they are not, 101 is already over the cap. What
+   is **not** parked is the taxonomy being too fine, which is fixable with no new data. The
+   deadline is Story 2.7: nothing encodes the count, so re-sizing costs one file edit until
+   bars exist. The original wording follows, because it records the shape being aimed at: this wants a product conversation, not a generated list. A
    defensible starting shape: the eleven sector SPDRs plus four index proxies, then ~85
    equities allocated across sectors so every sector has enough constituents for a breadth
    number to mean something, weighted toward names with liquid IEX activity and

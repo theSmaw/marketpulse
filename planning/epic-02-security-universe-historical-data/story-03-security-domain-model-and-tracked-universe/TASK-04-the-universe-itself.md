@@ -244,6 +244,18 @@ foundation in the order that makes each layer checkable on its own. But it is th
 piece of groundwork before the product starts having something to show. The next time
 there is a status report, there should be a screen with these names on it.
 
+**One update since this task closed (2026-09-05).** A stakeholder asked whether ~100
+securities is enough to group and spot patterns meaningfully. The short answer is that the
+_rule_ this task met is sound and the _number_ is now an open question — measurement found
+that half our industry groups have a single member, so "compare this company to its
+industry" is undefined for a quarter of the list, and the spec's own example of "82% of
+semiconductor stocks are down" cannot be produced by a group of 8. **The list ships as it
+is and the sizing is parked**, pending one check against the real market-data provider that
+decides whether we may track hundreds more for free or are in fact already over a limit.
+The full reasoning, both branches and the cost arithmetic are in `UNIVERSE.md` §10. Nothing
+needs re-doing today: nothing in the code depends on the count, so changing it later is a
+one-file edit right up until we start storing prices.
+
 One honest caveat, recorded rather than buried: **"heavily traded" is currently our
 judgement, not a measurement.** These are all large, well-known US listings, so we are
 confident — but the first time we can actually verify it against our data feed is the story

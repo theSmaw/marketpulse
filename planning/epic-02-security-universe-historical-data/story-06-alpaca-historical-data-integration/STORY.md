@@ -37,6 +37,24 @@ Story 2.7's ingestion design — so it must precede it.
   is sized against the streaming equivalents
 - Rate limiting and backoff, implemented against the measured limit, including what
   happens on a 429 and whether the limit is per-key or per-endpoint
+- **Confirm the WebSocket subscription cap, even though the stream itself is Epic 3's, and
+  do it FIRST.** This is an explicit and narrow exception to the out-of-scope line below,
+  added 2026-09-05 because **Story 2.3's universe sizing is parked on the answer** and this
+  is the first story in the project that holds an Alpaca key — so it is the first place the
+  question can be asked at all. Two sources disagree by two orders of magnitude:
+  [the pricing page](https://alpaca.markets/data) says the free plan is
+  **"Limited to 30 symbols"** flatly, while
+  [Alpaca's own streaming guide](https://alpaca.markets/learn/streaming-market-data) says
+  the limit is **"30 channels at a time for trades and quotes"** and that **"there is no
+  limit to the number of channels with minute bars"**; the reference documentation states
+  neither. **The whole product rests on which is true**, because §11's four calculations —
+  price percentile, volume ratio, relative move, breadth — are every one of them bar-based
+  and consume no trade and no quote. If bars are exempt, the universe can grow to whatever
+  IEX quality supports. **If the cap is 30 across all channels, the current 101-security
+  universe is already over it and Epic 3 has a blocker rather than a tuning problem** —
+  which is why this is measured here and not discovered in Epic 3. It is one connection,
+  one subscribe message and a read of the response; do it before building anything, and
+  record it in `UNIVERSE.md` §10, which is where the parked decision lives
 - Timeframe support, and which timeframes the product actually requests
 - Error mapping: every Alpaca failure mode onto Story 2.5's error union, with the ones
   that matter produced deliberately — bad key, unknown symbol, range in the future, range
@@ -62,7 +80,11 @@ Story 2.7's ingestion design — so it must precede it.
 ## Out of scope, and who owns it
 
 - Storing anything — Story 2.7
-- The WebSocket stream, subscriptions and reconnection — Epic 3
+- The WebSocket stream, subscriptions and reconnection — Epic 3. **One narrow exception,
+  added 2026-09-05: the subscription CAP is measured here**, per the scope bullet above,
+  because Story 2.3's sizing is parked on it and this story is the first to hold a key.
+  Measuring a limit is not building a stream, and the alternative is a universe sized
+  against a documentation sentence that two Alpaca pages disagree about
 - Trades and quotes, unless a measurement shows bars alone cannot serve Story 2.11's chart
 
 ## Open decisions — settle with the user
@@ -95,6 +117,8 @@ Story 2.7's ingestion design — so it must precede it.
 1. Real bars for a real symbol are retrieved from Alpaca, and the response is mapped to
    the domain types with provenance recording the IEX feed
 2. The measured plan limits are written down as measurements with the date they were taken
+   — **including the WebSocket subscription cap and specifically whether minute bars are
+   exempt from it**, which is the one measurement another story is blocked on
 3. Each mapped error cause is produced against the live API at least once, including a bad
    key and an unknown symbol
 4. Rate limiting is exercised — the client behaves correctly at the limit rather than
@@ -108,3 +132,11 @@ Story 2.7's ingestion design — so it must precede it.
 
 Real market data, the numbers Story 2.7 is designed against, and a second credential
 placed through a path that has now been used twice.
+
+**And one answer another story is waiting on**: whether minute-bar subscriptions are exempt
+from the free plan's 30-channel cap. `UNIVERSE.md` §10 in Story 2.3 records the universe
+sizing as **parked on that measurement**, with both branches written out — if bars are
+exempt the universe reopens at ~500 with ~1,500 as the architectural target, and if they
+are not then 101 is already over the cap and Epic 3 has a blocker. **The deadline is Story
+2.7**, not this story: nothing in the tree encodes the security count, so re-sizing costs
+one file edit for exactly as long as no bars have been stored against those rows.
