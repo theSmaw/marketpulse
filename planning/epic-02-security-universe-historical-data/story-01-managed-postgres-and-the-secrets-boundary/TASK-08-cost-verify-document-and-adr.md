@@ -285,3 +285,61 @@ the byte — which is the check rather than a coincidence.
   IP moves**, so this rule is either stale or wrong most of the time, and under the lock it
   can be **updated but not deleted**. As the closing task, confirm it or remove it
   deliberately — this is exactly the "quietly stays on" the brief warned about.
+
+## Amended after Task 2.1.6 (2026-09-05)
+
+### The figures moved, and one of this file's own is now stale
+
+- **`apps/backend` is 78 tests across 5 files**, not the 67 across 4 this file
+  records above — Task 2.1.6 added `src/entra-token.test.ts` and one more on the
+  pool. `pnpm test` is **218** (37 + 78 + 103). The `207` and `67 across 4`
+  claims stood in **four** live sites (`CLAUDE.md` ×3, `README.md` ×1) plus two
+  historical task records; the live ones are amended and the historical ones are
+  deliberately not, which is Task 1.13.6's distinction applied again.
+- `pnpm verify` is **25.7–27.3 s** across two readings with no database running.
+
+### One claim to CONFIRM rather than amend, and it is the interesting one
+
+ADR 0011's **"nothing deployed holds a credential" is still TRUE**, and Task
+2.1.6 confirmed it by reading the app's `secrets` array back from the platform
+and finding it `null` **after** wiring the database. `EPIC.md`'s prediction that
+it expires in this story is wrong: it expires in **Story 2.6**. This task should
+check that nobody "corrected" a true claim into a false one on the strength of
+that prediction — the failure mode the sweep habit exists to prevent, arriving
+from the other direction.
+
+### A stated invariant that genuinely changed, with a live/historical split
+
+**`config.ts` is no longer the only file that reads `process.env`** — Task 2.1.6
+added `apps/backend/src/entra-token.ts`, deliberately, because `IDENTITY_HEADER`
+is itself a bearer credential and putting it on `Config` would break the
+structural guarantee that module records. Amended in the **two live** sites,
+`CLAUDE.md` and **ADR 0006 §2**. **Five** task and story files record the
+one-file claim as it was when written and are left standing. Re-run
+`git grep -n "reads \`process.env\`"` and check nothing new has appeared and
+that the split is still right.
+
+### Three new entries for the unchecked-invariant list
+
+- **The app now carries eleven platform-only environment variables**, six of
+  them added by 2.1.6, and `HOSTING.md`'s table is their only copy. The
+  dangerous pair is `DATABASE_AUTH=entra` with `DATABASE_SSL=verify-full`:
+  Task 2.1.3's cross-variable check fires at **startup**, so setting the first
+  without the second is a replica that fails to start and sits at `Activating`
+  for ten minutes. Every change here is one `az containerapp update` or none.
+- **`TOKEN_TIMEOUT_MS < CONNECT_TIMEOUT_MS`** — this one is **checked**, by a
+  test, and belongs in the checked list rather than the prose one.
+- **The `secrets`-array mechanism is exercised by nothing**, which is this
+  story's strongest outcome and Story 2.6's largest unknown. Name it in the ADR
+  rather than letting 2.6 find it.
+
+### The cost question, with one new consumer
+
+The deployed backend now makes a small number of database connections. It is
+**one per replica start** and nothing more, because nothing queries after the
+startup probe and `pg` closes the idle client after 10 s — so the database's
+contribution to the bill is a Burstable server sitting idle, unchanged by this
+task. Re-take the refusal: 2.1.5 found it in a **third** shape
+(`az consumption usage list` returning two records with every cost field the
+string `'None'`), which is the third distinct shape in four tasks. The shape it
+is refusing in is itself the finding.

@@ -541,7 +541,7 @@ the same second half for the same reason.
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
 in this workspace. `packages/shared` runs 37 tests across 4 files,
-`apps/backend` 67 across 4, and `apps/frontend` 103 across 12 — **207 in
+`apps/backend` 78 across 5, and `apps/frontend` 103 across 12 — **218 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:

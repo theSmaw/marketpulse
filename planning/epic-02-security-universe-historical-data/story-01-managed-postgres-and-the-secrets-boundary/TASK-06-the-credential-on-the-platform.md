@@ -1,6 +1,6 @@
 # Task 2.1.6 — Put the credential on the platform, connect the deployed backend, and prove nothing leaked
 
-**Status:** Not started
+**Status:** Complete — 2026-09-05
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.4, 2.1.5
 **Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.5 — see the five _Amended_ sections below
@@ -307,3 +307,144 @@ token itself.
 - **A connection from the container costs ~150–250 ms** (TCP+TLS measured at 79–111 ms,
   plus startup and auth), against a 5-second `connectionTimeoutMillis` — so a slow first
   connect is not the expected failure and should be investigated rather than tolerated.
+
+## What was done (2026-09-05)
+
+The deployed backend executes `SELECT 1` against the managed database over TLS
+as its own system-assigned managed identity, and **the `secrets` array is still
+`null`** — read back from the platform rather than assumed. The full record,
+with every figure, is in
+[`HOSTING.md`](../../epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md)
+under _The database — the credential on the platform (Task 2.1.6)_, beside Tasks
+2.1.1, 2.1.2 and 2.1.5's, because this repository keeps one document per subject.
+
+### The headline is that the code change is one function body
+
+Task 2.1.4's seam held. `resolveCredential`'s `entra` branch is filled;
+`createDatabasePool`, its callers and `index.ts` are untouched. The one
+signature that moved is that private helper taking the logger it needed to say
+what it did, which is this file's own amendment asking for it rather than a
+widening of the change.
+
+Two new files: `apps/backend/src/entra-token.ts` and its test.
+
+### The invariant this task amended, and why amending it was the point
+
+**`entra-token.ts` is the second file in the workspace that reads
+`process.env`**, and it exists to protect the single-reader property rather
+than to break it. `IDENTITY_HEADER` is itself a bearer credential — it is what
+authorises a caller to mint a database token — so routing it through `config.ts`
+would put a live credential on the frozen `Config` object, in the module whose
+own comment records that its no-credential-in-a-log guarantee turned out to be
+**structural**: it never receives the deployed credential and so cannot leak it
+however carelessly it is used. Neither identity variable is application
+configuration, both are injected by the platform, and neither is in
+`CONFIG_VARIABLES` or `.env.example` — deliberately, because `pnpm env:check`
+would then demand they be documented as ours.
+
+Amended in `CLAUDE.md` and in ADR 0006 §2, which are the two places the claim is
+**live**. Five task and story files record it as it was when they were written
+and are left alone: correcting a historical record destroys it, which is the
+distinction Task 1.13.6 drew over the `curl` claim.
+
+### The three measurements that changed a decision
+
+- **`@azure/identity` is 32 packages and 46 MB** for one HTTP GET with one
+  header and no cryptography. Declined — the opposite of the `@fastify/cors`
+  decision and for its stated reason, that a hand-rolled CORS fails silently and
+  dangerously where a hand-rolled `fetch` of a documented URL fails loudly at
+  the first connection.
+- **The identity sidecar already caches, so there is no cache here.** Six calls
+  from inside the replica: **461 / 19 / 76 / 5 / 94 ms / 5 ms**, all with an
+  **identical `expires_on`**, 86,549 s — **24.0 hours** — ahead. Task 2.1.4's
+  brief said a cache would need a measured cost to justify it; this is the
+  measurement, and it says no.
+- **`IDENTITY_ENDPOINT` really is a localhost sidecar** — `http://localhost:12356/…`,
+  read from the replica, with `169.254.169.254` nowhere in it. `HOSTING.md`'s
+  trap confirmed from the inside rather than cited.
+
+### The ordering this task added, and the test that holds it
+
+`TOKEN_TIMEOUT_MS` is 3 s and must stay strictly below the pool's 5 s
+`CONNECT_TIMEOUT_MS`. `pg` calls the credential function _inside_ connection
+establishment, so a token fetch allowed to outlive the connection deadline is
+reported as a **generic connection timeout** and the identity endpoint is never
+named — exactly the "slow, silent, correct-looking failure" this file's
+amendment warned about. That is the frontend's
+`API_TIMEOUT_MS`/`HEALTH_POLL_INTERVAL_MS` shape a third time, and it gets the
+same treatment: a test, because two constants in two files are invisible to
+`pnpm verify`.
+
+### What was measured deployed
+
+| Thing                                    | Reading                                                     |
+| ---------------------------------------- | ----------------------------------------------------------- |
+| First token mint of a replica's life     | **866 / 889 / 887 ms** across three cold starts             |
+| First `SELECT 1` including connect       | **1,023 ms** — so the token is **85%** of it                |
+| Healthy start at `LOG_LEVEL=info`        | one `database reachable` record, **886.84 ms**, mint silent |
+| Token length                             | 1,850–1,856 characters                                      |
+| Connection visible in `pg_stat_activity` | **exactly 10 s**, `TLSv1.3`, `TLS_AES_256_GCM_SHA384`       |
+| Replica with an unreachable database     | **0 restarts** over 3 min 30 s, `/health` 200 on every poll |
+
+**The connection had to be raced to be seen**, and that is a finding rather than
+an inconvenience: `pg`'s default `idleTimeoutMillis` is 10 s and nothing queries
+the database after the startup probe, so **the deployed backend holds zero
+connections at rest**. A first attempt four minutes after a deploy correctly
+returned `(0 rows)`. Story 2.8 and Epic 3 should not assume a warm pool.
+
+**The control was worth taking.** The six variables set against the _old_ image
+gave a replica that started, served `/health` 200, and wrote Task 2.1.4's "not
+implemented" message at level 40 **134 ms after the listening line** — the seam
+behaving on the platform exactly as it did on a laptop.
+
+### The leak check, produced rather than read
+
+Five failure classes against the real server, each error read **whole**
+(`Object.getOwnPropertyNames`) rather than by its message: malformed token
+(`28000`), **wrong audience** (`28000` — and Azure's message names the resource
+to acquire), a role that does not exist (`28P01`), a wrong host (`ENOTFOUND`),
+and a credential function that throws. **None carries the credential.**
+
+Clean in all four places, and one of them was nearly got wrong: `apps/backend/dist`
+contains `eyJ` **four times**, entirely in the compiled test files `tsc -b`
+emits there, and **the shipping image contains zero** because
+`files: ["dist", "!dist/**/*.test.*"]` keeps them out of `pnpm deploy`. A leak
+check that stopped at `dist/` would have reported something that does not ship.
+The two `eyJ`-shaped strings in the repository are **deliberate test fixtures**
+and are not findings, exactly as the `marketpulse` fixture password is not.
+
+**Terminal echo is counted as a place**, which is Task 2.1.5's own leak turned
+into a rule: every operator query used `docker exec -e PGPASSWORD` with **no
+`=value`**, and the in-container probe printed a token's _length_.
+
+### Two things this task did not do, stated rather than implied
+
+- **The firewall lever was not exercised.** The `az postgres flexible-server
+firewall-rule` commands were **refused by this environment's own permission
+  policy**, so the database was made unreachable app-side instead, by pointing
+  `DATABASE_HOST` at `203.0.113.7` (RFC 5737, guaranteed unroutable, so a
+  genuine packet-drop timeout rather than a DNS failure). That is arguably the
+  better lever — it cannot affect any other consumer of the database and is
+  undone by one command — but it leaves the firewall path itself unmeasured.
+- **Whether an open connection outlives its own token is unverified**, and the
+  reason is that the case is **structurally unreachable** here: a token lasts 24
+  hours and `pg` closes an idle client after 10 seconds. Epic 3's long-lived
+  writer is what makes it reachable and should measure it.
+
+### What Story 2.6 inherits, named rather than assumed
+
+**The `secrets`-array mechanism is still not exercised by anything.** This story
+ends with the array empty and that is its strongest outcome, so Story 2.6 will
+be putting a secret on the platform for the **first** time rather than repeating
+something proven here. What does transfer is the identity: the recommended (not
+decided) shape is a Container App secret sourced from Key Vault and read by this
+same managed identity.
+
+### Figures
+
+- `pnpm test` **218** (37 + **78** + 103); `apps/backend` 67 → 78 across 5 files
+- `pnpm verify` exit 0 in **25.7–27.3 s** across two readings with no database running
+- **Four deliberate breaks, each seen to fail and reverted**: echoing the
+  response body on a non-200, the virtual-machine `Metadata` header, the token
+  deadline above the connection deadline, and the token in the debug record
+- No frontend source changed, so the artefact did not move

@@ -155,3 +155,65 @@ this task will want is `firewall-rule update`, not `delete` — the latter retur
 `ScopeLocked`. Breaking and restoring connectivity is two `update` calls, and firewall
 changes "can take up to five minutes to take effect", which is a wait to plan for rather
 than a failure to debug.
+
+## Amended after Task 2.1.6 (2026-09-05)
+
+The deployed backend now connects, so this task's subject exists. Three things
+2.1.6 measured change what this one has to decide, and one of them is a cost
+nobody had a number for.
+
+### The number that decides everything here: a cold connection costs ~1 second
+
+A `/health` that touches the database pays what the pool pays, and 2.1.6
+measured both halves from the deployed replica:
+
+- **First connection of a replica's life: 1,023 ms**, of which the **Entra token
+  mint is 866 ms** (866 / 889 / 887 ms across three cold starts).
+- A warm token from the platform's sidecar is **5–94 ms**, so a _second_
+  connection is a few hundred milliseconds rather than a second.
+
+Against a startup probe with `failureThreshold` counting 2-second intervals, and
+a liveness probe on the same route, **a `/health` that opens a connection is a
+`/health` that can take a second**. That is the arithmetic this task needs and
+it did not exist before.
+
+### And the pool is COLD almost every time, which is the trap
+
+`pg`'s default `idleTimeoutMillis` is **10 seconds**, and 2.1.6 confirmed the
+consequence deployed: the connection made by the startup probe was visible in
+`pg_stat_activity` for **exactly ten seconds** and then gone. **The deployed
+backend holds zero connections at rest.**
+
+So a `/health` that queries the database at any interval slower than 10 seconds
+pays the **cold** path every single time — including the token mint, unless the
+sidecar's cache is still warm. Do not size this against the warm figure. If this
+task decides `/health` should touch the database, `idleTimeoutMillis` becomes a
+number worth choosing rather than inheriting, and that is a change to
+`database.ts` this task would own.
+
+### The failure this task exists to avoid is now measured, not just feared
+
+2.1.6 produced an unreachable database on the deployed replica (by pointing
+`DATABASE_HOST` at an unroutable address) and watched it for **3 min 30 s** —
+seven liveness intervals and twenty-one readiness intervals. The replica held
+`ready: true`, `restartCount: 0`, `/health` **200 on every poll**, and
+`uptimeSeconds` rose 128 → 217 with no reset.
+
+**That is the baseline this task must not lose.** Whatever `/health` reports
+about the database, the platform's liveness probe must not restart a replica
+because a dependency is down — which is the trap this file already records, now
+with a measured control on the correct side of it.
+
+One ordering fact that helps: **`pg` calls the credential function only after
+the socket is up**, so an unreachable database produced **no token-mint record
+at all**. A token-endpoint outage and a database outage are therefore
+distinguishable in the log, which matters if `/health` is going to say which
+one it is.
+
+### Reading the answer is cheap now
+
+`LOG_LEVEL` is back to `info` on the deployed app, where the token mint prints
+nothing and a healthy start is one `database reachable` record. Setting it to
+`debug` for a measurement is one `az containerapp update` and shows the mint,
+the drain's `http drained` and `database pool closed`, and nothing else — all
+three confirmed reaching Log Analytics.

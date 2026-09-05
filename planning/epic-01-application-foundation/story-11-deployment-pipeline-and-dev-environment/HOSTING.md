@@ -941,6 +941,280 @@ Task 2.1.3 asked for the right-hand side of the seven `DATABASE_*` variables. Re
 
 Task 2.1.4's hazard stands and is worth repeating where the values are: the two cross-variable checks fire at **startup**, so a revision that sets `DATABASE_AUTH=entra` and forgets `DATABASE_SSL` does not connect insecurely — it fails to start, which on a liveness-probed platform is a crash-loop. **All six go in one `az containerapp update`.**
 
+## The database — the credential on the platform (Task 2.1.6)
+
+The deployed backend connects to the managed database and executes `SELECT 1`
+over TLS, authenticating as its own system-assigned managed identity. **The
+`secrets` array is still `null`, read back from the platform after the change
+rather than assumed** — so the strongest available outcome held: there is no
+credential on the platform, and ADR 0011's _"nothing deployed holds a
+credential"_ is **confirmed by this task rather than falsified by it**. That
+claim expires in Story 2.6, where a third-party bearer token with no Azure
+identity behind it genuinely has to be stored, and 2.6 will be doing that for
+the first time rather than repeating something proven here — a gap named
+deliberately rather than left for that story to discover.
+
+### The six variables, set in one update, read back afterwards
+
+| Variable            | Value                                              |
+| ------------------- | -------------------------------------------------- |
+| `DATABASE_HOST`     | `psql-marketpulse-dev.postgres.database.azure.com` |
+| `DATABASE_PORT`     | `5432`                                             |
+| `DATABASE_NAME`     | `marketpulse`                                      |
+| `DATABASE_USER`     | `marketpulse-backend`                              |
+| `DATABASE_AUTH`     | `entra`                                            |
+| `DATABASE_SSL`      | `verify-full`                                      |
+| `DATABASE_PASSWORD` | **absent** — not empty                             |
+
+The app now carries **eleven** environment variables and they exist only in the
+platform, because `deploy.yml` uses `update` and never `create`. That makes this
+the largest instance of the unchecked-invariant class in the project, and this
+table is its only durable copy.
+
+**One `az containerapp update`, all six, and the reason is a crash-loop.** Task
+2.1.3's cross-variable checks fire at **startup**, so a revision setting
+`DATABASE_AUTH=entra` while forgetting `DATABASE_SSL` does not connect
+insecurely — it fails to start, on a platform whose liveness probe restarts it.
+The failure would be loud and would name the variable, which is a much better
+failure than a token on the wire, but it would sit at `Activating` for ten
+minutes first.
+
+### The control that was worth taking: the OLD image with the NEW variables
+
+Setting the six variables against the image that still carried Task 2.1.4's
+throwing `entra` branch produced revision `0000060`, and it is the cleanest
+before-and-after in the story. The replica **started**, served `/health` 200,
+and wrote one level-40 record **134 ms after the listening line**:
+
+```
+DATABASE_AUTH=entra is not implemented yet: acquiring a Microsoft Entra access
+token is Task 2.1.6's. Use DATABASE_AUTH=password against a local database.
+```
+
+So the seam Task 2.1.4 designed behaved on the platform exactly as it did on a
+laptop: a credential path that does not exist yet is a degraded database and a
+healthy server, not a crash.
+
+### The mechanism, and the trap confirmed by measurement rather than by citation
+
+`IDENTITY_ENDPOINT` inside the running container is **`http://localhost:12356/…`**
+— read from the replica, and it is a **local sidecar**. `169.254.169.254` does
+not appear in it at all. So `HOSTING.md`'s recorded trap is confirmed from the
+inside: the virtual-machine recipe every Azure page for managed-identity
+PostgreSQL offers would have dialled an address that is not routable from here,
+and would have hung rather than failed.
+
+The request is `GET ${IDENTITY_ENDPOINT}?resource=https%3A%2F%2Fossrdbms-aad.database.windows.net&api-version=2019-08-01`
+with header **`X-IDENTITY-HEADER`** (not `Metadata: true`). The audience matters
+and nothing local can check it: a token for the wrong resource is refused **by
+the database gateway**, not by the token endpoint — measured below.
+
+### The measurement that settled the caching question, in the direction of no cache
+
+Six consecutive calls to the identity endpoint from inside the replica:
+
+| Call | Status | Time       | Token length | `expires_on` |
+| ---- | ------ | ---------- | ------------ | ------------ |
+| 1    | 200    | **461 ms** | 1850         | 1788655549   |
+| 2    | 200    | 19 ms      | 1850         | 1788655549   |
+| 3    | 200    | 76 ms      | 1850         | 1788655549   |
+| 4    | 200    | 5 ms       | 1850         | 1788655549   |
+| 5    | 200    | 94 ms      | 1850         | 1788655549   |
+| 6    | 200    | 5 ms       | 1850         | 1788655549   |
+
+**`expires_on` is identical across all six, so the platform's identity sidecar
+caches the token itself**, and it is **86,549 seconds — 24.0 hours** ahead,
+which is Task 2.1.1's "valid up to 24 hours" confirmed rather than repeated. A
+cache in `database.ts` would therefore be a second cache in front of one that
+already exists, with an expiry rule we would have to get right, in exchange for
+5–94 ms. **There is deliberately no cache**, and this table is the measured
+reason rather than the assumption Task 2.1.4's brief warned against.
+
+The number to carry is the **first** call of a replica's life, which is the one
+the application actually pays: **866 / 889 / 887 ms** across three cold starts,
+read off the application's own records. That is 29% of the 3-second token
+deadline — generous rather than tight, but nothing like the "tens of
+milliseconds" the warm figures suggest.
+
+### What a healthy deployed connection costs, and what it looks like at both ends
+
+From the replica, at `LOG_LEVEL=debug`:
+
+```
+level 20  ms=865.901983  tokenLength=1856   minted a Microsoft Entra access token for the database connection
+level 30  ms=1023.18     auth=entra ssl=verify-full   database reachable
+```
+
+**So the token is 85% of the first connection's cost** — 866 ms of 1023 ms —
+and the TCP, TLS and query that Task 2.1.5 measured at 150–250 ms are the rest.
+
+At `LOG_LEVEL=info`, which is what ships, the mint prints **nothing** and a
+healthy start is one `database reachable` record at **886.84 ms**.
+
+And from the database side, caught by racing a replica restart against a
+`\watch` on `pg_stat_activity`:
+
+```
+application_name | usename             | state | ssl | version | cipher                | client_addr
+marketpulse-backend | marketpulse-backend | idle | t   | TLSv1.3 | TLS_AES_256_GCM_SHA384 | 40.121.18.106
+```
+
+`application_name` is what Task 2.1.4 set it to precisely so this row could be
+found rather than guessed, and `usename` is the Entra role — so the row is proof
+of the token having been accepted, not merely of a connection.
+
+**It had to be raced, and why is a finding.** The connection is visible for
+**exactly ten seconds** (00:45:52 → 00:46:01) and then gone, because `pg`'s
+default `idleTimeoutMillis` is 10,000 ms and **nothing in this application
+queries the database after the startup probe**. So the deployed backend holds
+**zero** connections at rest, and a first attempt to read `pg_stat_activity` four
+minutes after a deploy correctly returned `(0 rows)`. Anything in Story 2.8 or
+Epic 3 that expects a warm pool should know that today there is not one.
+
+### The leak check — produced rather than read, and clean in all four places
+
+**Five failure classes were produced against the real managed server** and each
+error was read **whole** (`JSON.stringify(e, Object.getOwnPropertyNames(e))`),
+not by its message, because a driver that leaks connection options leaks them as
+attached properties:
+
+| Produced failure                          | `code`    | Message                                                                                   | Leaks? |
+| ----------------------------------------- | --------- | ----------------------------------------------------------------------------------------- | ------ |
+| Malformed token (JWT-shaped, not a token) | 28000     | `The access token has invalid format…`                                                    | **no** |
+| Token for the **wrong audience** (ARM)    | 28000     | `The access token doesn't have a valid audience claim. Acquire a new token for resource…` | **no** |
+| Valid token, role that does not exist     | 28P01     | `password authentication failed for user "no-such-role"`                                  | **no** |
+| Wrong host                                | ENOTFOUND | `getaddrinfo ENOTFOUND …`                                                                 | **no** |
+| Credential **function that throws**       | —         | our own message, verbatim                                                                 | **no** |
+
+Checked for the credential itself, for a real token, for a wrong-audience token
+and for the bare prefix `eyJ`. **Nothing.** That extends Task 2.1.4's local
+finding — `pg` does not quote a password — to the case that is worth far more,
+and it adds the observation that **Azure's gateway messages are unusually
+good**: the wrong-audience case names the resource to acquire instead.
+
+The other three places:
+
+- **The repository.** Two `eyJ`-shaped strings, both **deliberate test
+  fixtures** in `entra-token.test.ts` and `database.test.ts`. They exist so the
+  leak assertions have something to fail against, exactly as the `marketpulse`
+  fixture password does, and **they are not findings**. There is no real token,
+  no `IDENTITY_HEADER` value, and no `access_token` anywhere else.
+- **`apps/frontend/dist` and `apps/frontend/storybook-static`.** Zero for every
+  one of `eyJ`, `access_token`, `IDENTITY_ENDPOINT`, `IDENTITY_HEADER`,
+  `ossrdbms`, `psql-marketpulse` and `marketpulse-backend`. The database does
+  not exist as far as the browser artefacts are concerned.
+- **The platform's own log destination.** Log Analytics, queried per revision:
+  **zero** occurrences of `eyJ`, `access_token`, `IDENTITY_HEADER`,
+  `X-IDENTITY-HEADER`, `Bearer `, `ossrdbms`, or the claim names `upn`, `oid`
+  and `tid` — across the healthy revision, the degraded one, and both restarts.
+
+One place worth checking that a grep of the source would have missed: **the
+shipping image**. `apps/backend/dist` contains `eyJ` four times — entirely in
+the **compiled test files** `tsc -b` emits there — and the image contains
+**zero**, because `files: ["dist", "!dist/**/*.test.*"]` keeps them out of
+`pnpm deploy`. A leak check that stopped at `dist/` would have reported a
+finding that does not ship.
+
+**And a new place, which Task 2.1.5 discovered by leaking into it: terminal
+echo.** `pnpm db exec` prints its arguments, so passing a token that way put a
+live bearer credential in the scrollback. Every operator query in this task used
+`docker exec -e PGPASSWORD` — the form with **no `=value`**, which passes the
+variable from the environment rather than putting it on a command line — and the
+in-container timing probe was written to print a token's **length** and never
+the token.
+
+### An unreachable database does not kill the replica, watched across probe intervals
+
+Produced by pointing `DATABASE_HOST` at **`203.0.113.7`** (RFC 5737 TEST-NET-3,
+guaranteed unroutable), which gives a genuine packet-drop timeout rather than a
+DNS failure. The replica's own record:
+
+```
+level 40  database unreachable, continuing without it
+          Connection terminated due to connection timeout
+```
+
+Over **3 min 30 s** — seven liveness intervals at 30 s and twenty-one readiness
+intervals at 10 s — the replica read `ready: true`, `restartCount: 0`,
+`runningState: Running` throughout, `/health` answered **200 on every poll**, and
+`uptimeSeconds` rose monotonically 128 → 217 with **no reset**. The criterion is
+met and it was watched rather than argued.
+
+**One ordering fact fell out of it**: there is **no token-mint record at all** on
+that revision. `pg` calls the credential function only after the socket is up,
+so an unreachable database costs no token — which also means a token-endpoint
+outage and a database outage are distinguishable in the log rather than being
+one symptom.
+
+**The lever is not the one the brief named, and the reason is worth stating.**
+The brief suggested the firewall, updated rather than deleted because Task
+2.1.5's `CanNotDelete` lock inherits to child resources. That command was
+**refused by this environment's own permission policy**, so an app-scoped lever
+was used instead. It is arguably the better one: changing `DATABASE_HOST` on the
+container app cannot affect any other consumer of the database, does not briefly
+firewall the server off from the rest of Azure, and is undone by one command.
+What it does **not** exercise is the firewall path itself, and that is stated
+here rather than implied.
+
+### Rotation, which is the wrong word, and what replaces it
+
+**There is nothing to rotate.** The credential is minted per connection and
+expires in at most 24 hours; no value is stored in this repository, in
+`deploy.yml`, in a GitHub secret, or in the app's `secrets` array. So the three
+questions worth answering are these.
+
+- **How is it changed without a deploy?** It is not changed; it is re-minted, on
+  the next connection, automatically. The only thing that ever "rotates" is
+  `IDENTITY_HEADER`, which Azure's own documentation says the **platform**
+  rotates, and which this application reads fresh from the environment on every
+  acquisition rather than caching at module load — deliberately, because a
+  cached header survives a rotation and starts failing.
+- **What happens to an open connection when its token expires?** The token is
+  validated at connect time and Azure PostgreSQL does not re-validate it, so an
+  established connection is expected to outlive it. **That was not verified and
+  saying so is the honest answer**: a token lasts 24 hours and `pg` closes an
+  idle client after 10 seconds, so **no connection this application makes can
+  reach its own token's expiry** — the case is structurally unreachable in this
+  configuration rather than untested through neglect. What would make it
+  reachable is Epic 3's long-lived writer holding a connection open for a day,
+  and that is the task that should measure it.
+- **What does revocation look like?** Not changing a value. It is
+  `DROP ROLE marketpulse-backend` on the database, or removing the app's
+  system-assigned identity — either of which takes effect at the **next**
+  connection rather than immediately, for the reason above.
+
+**One security property fell out of the failure testing and is worth recording,
+because it is better than expected.** An operator's own Entra token — the one
+`az account get-access-token` issues, which any subscription owner can mint —
+**cannot authenticate as the `marketpulse-backend` role**:
+
+```
+Service principals cannot generate AAD_AUTH_TOKENTYPE_APP_USER tokens for role
+"marketpulse-backend".
+```
+
+The role was created with `pgaadauth_create_principal('marketpulse-backend',
+false, false)`, i.e. as a service-principal role, so only the managed identity's
+own token is accepted for it. A leaked operator credential therefore cannot
+impersonate the backend, and vice versa.
+
+### Two smaller things measured on the way
+
+- **`libpq` cannot do `verify-full` where Node can**, and the asymmetry is about
+  who ships roots. The local Postgres container has no CA trust store (Task
+  2.1.2), so `psql` there refuses `sslmode=verify-full` with
+  `root certificate file "/root/.postgresql/root.crt" does not exist`, while the
+  backend's Node image verifies the identical certificate with **nothing
+  shipped**, because Node carries its own 118 roots. Task 2.1.5's "no CA file
+  goes into the Dockerfile" is therefore a property of the **runtime** rather
+  than of the certificate, and it would not transfer to a `libpq`-based client.
+- **`@azure/identity` was measured before being declined**: **32 packages and
+  46 MB** for what is one HTTP GET with one header and no cryptography. That is
+  the opposite of the `@fastify/cors` decision and for the stated reason — that
+  library was taken because a hand-rolled CORS fails _silently and dangerously_,
+  where a hand-rolled `fetch` of a documented URL fails loudly at the first
+  connection.
+
 ## Reversal cost — and it is not one file
 
 Story 1.10 recorded CI's reversal cost as "one YAML file", and that is only true because the pipeline runs `pnpm verify` by name and defines nothing of its own. **Deployment cannot be that cheap, and saying so precisely is this section's job.** Moving hosts means changing all of:
@@ -987,7 +1261,7 @@ This is the class of fact Story 1.10 recorded for its repository ruleset: real c
 | Resource group             | `rg-marketpulse-dev` (East US)                                                                                                                                                                                                                                                                                                                                                                               |
 | Container Apps environment | `cae-marketpulse-dev`, unique id **`blackgrass-e682fefb`**, `WorkloadProfiles` mode with a **Consumption profile only**, no VNet                                                                                                                                                                                                                                                                             |
 | Backend URL                | **<https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io>**                                                                                                                                                                                                                                                                                                                           |
-| Backend identity           | System-assigned, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`, `AcrPull` on the registry                                                                                                                                                                                                                                                                                                                 |
+| Backend identity           | System-assigned, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`, `AcrPull` on the registry, and — since Task 2.1.6 — the **database credential**: it authenticates to PostgreSQL as role `marketpulse-backend` with a token minted per connection. The app's `secrets` array is still `null`                                                                                                               |
 | Log destination            | Log Analytics workspace `log-marketpulse-dev`, **30-day retention**, `PerGB2018` — $2.30/GB ingested, $0.10/GB/month retained beyond the included period                                                                                                                                                                                                                                                     |
 | Budget                     | `marketpulse-monthly`, **$20/month**, actual-cost alerts at 50 / 80 / 100% to the account owner                                                                                                                                                                                                                                                                                                              |
 | Frontend service           | Azure Static Web Apps, **Free** plan, app `marketpulse-frontend` in **East US 2**                                                                                                                                                                                                                                                                                                                            |
@@ -1392,10 +1666,11 @@ Both fingerprints and the deployed record are `tee`d into the log as well as the
 
 ### Two identities, named
 
-| Identity                     | What it is                                                                                                                                                                                    | What it authorises                                                                                    | How to rotate                                                                                              |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **GitHub → Azure**           | Federated identity credential (OIDC) on app registration `marketpulse-github-deploy`, app id `1bb765eb-fff3-4aed-80f2-90796c2fbcfb`, service principal `f8b785a8-f6e1-4ca9-a71a-a906e5356d6a` | `AcrPush` on `crmarketpulse`; `Contributor` on the container app; `Contributor` on the static web app | Nothing to rotate — there is no secret. Revoke by deleting the federated credential or the role assignment |
-| **Container app → registry** | System-assigned managed identity, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`                                                                                                            | `AcrPull` on `crmarketpulse`                                                                          | Platform-managed; nothing stored                                                                           |
+| Identity                     | What it is                                                                                                                                                                                    | What it authorises                                                                                    | How to rotate                                                                                                                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **GitHub → Azure**           | Federated identity credential (OIDC) on app registration `marketpulse-github-deploy`, app id `1bb765eb-fff3-4aed-80f2-90796c2fbcfb`, service principal `f8b785a8-f6e1-4ca9-a71a-a906e5356d6a` | `AcrPush` on `crmarketpulse`; `Contributor` on the container app; `Contributor` on the static web app | Nothing to rotate — there is no secret. Revoke by deleting the federated credential or the role assignment                                                                                            |
+| **Container app → registry** | System-assigned managed identity, principal `fe8a2ecd-719c-407e-94d4-629015bd889d`                                                                                                            | `AcrPull` on `crmarketpulse`                                                                          | Platform-managed; nothing stored                                                                                                                                                                      |
+| **Container app → database** | The same system-assigned managed identity. A Microsoft Entra access token minted **per connection** from `IDENTITY_ENDPOINT`, used verbatim as the PostgreSQL password (Task 2.1.6)           | Database role `marketpulse-backend`, created by `pgaadauth_create_principal`                          | Nothing to rotate — the token is re-minted per connection and lasts ≤24 h. Revoke with `DROP ROLE marketpulse-backend`, or by removing the app's identity; either takes effect at the next connection |
 
 **The role assignments are scoped per resource rather than to the resource group**, which is tighter than the "role assignment on the resource group" this document originally intended. Three assignments instead of one, and the deploy credential cannot touch the Log Analytics workspace, the Container Apps environment or the database Epic 2 will create.
 
