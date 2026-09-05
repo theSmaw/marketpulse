@@ -571,8 +571,8 @@ They are three different kinds of test:
 | `apps/backend`    | The assembled Fastify server through `app.inject()` — no listening socket, both error handlers, CORS |
 | `apps/frontend`   | The real component tree rendered under jsdom, asserted on roles and accessible names                 |
 
-**There are five levels of test here and `pnpm test` runs three of them.** The
-other two have their own commands, deliberately, because each needs something
+**There are six levels of test here and `pnpm test` runs three of them.** The
+other three have their own commands, deliberately, because each needs something
 the fast suite must never need:
 
 | Level             | Command                  | What it needs that `pnpm test` must not           |
@@ -581,6 +581,7 @@ the fast suite must never need:
 | Integration       | `pnpm test`              | —                                                 |
 | Component (jsdom) | `pnpm test`              | —                                                 |
 | Process           | `pnpm test:process`      | A build, and a free port                          |
+| Database          | `pnpm test:database`     | A build, and a running PostgreSQL server          |
 | Browser           | `pnpm e2e` / `:deployed` | A build, two servers (or a deployment), a browser |
 
 The browser level is one level pointed at two targets rather than two levels:
@@ -1058,6 +1059,47 @@ beside it, why a price is `numeric(18, 6)` and never a float, why nothing is
 soft-deleted, where the two hand-written types live, and why seed data is not a
 migration. It ends with the two lists that matter most: which of those a tool
 actually checks, and which are prose because nothing can.
+
+### `pnpm test:database` — the sixth level of test
+
+```sh
+pnpm db            # it needs a database, and fails loudly naming this command
+pnpm build         # and a built tree
+pnpm test:database
+```
+
+**23 tests against a real PostgreSQL server**, in about half a second. It is the
+sixth level of test in this repository and the third command that runs tests,
+after `pnpm test` and `pnpm test:process`, and it exists because three things
+this repository claims are only answerable by a database: that a migration
+applied to an empty one produces the expected schema and applying it twice is a
+no-op; that the hand-written `Database` interface in `apps/backend/src/schema.ts`
+matches what the migrations actually produce, which nothing generates and nothing
+else compares; and the conventions in
+[`apps/backend/migrations/README.md`](apps/backend/migrations/README.md) that are
+readable from a migrated database.
+
+**It never touches the database you are working in.** It creates one of its own
+(`marketpulse_vitest`), migrates that, reads it, and drops it — at the end of a
+run and again at the start of the next, so a run that crashed cleans up after
+itself rather than leaving something for you to find. The alternatives each fail
+a property this repository already holds: a transaction per test cannot work,
+because a migration opens its own and that is the thing under test; truncation
+would destroy the universe Story 2.3 loads, costing you a command every time you
+ran the suite.
+
+**It is not in `pnpm test` and not in `pnpm verify`**, for the reason
+[`pnpm ready`](#pnpm-ready--knowing-the-pair-is-up) is in neither: `verify` runs
+with nothing listening and no database, which is a property every clean-clone run
+in this repository has measured. **There is no `skipIf`** — a skipped test
+reports green — so with no database running it fails at exit 1 with a message
+naming `pnpm db`.
+
+CI runs it as the **`database` job** in `verify.yml`, against a Postgres service
+container, and it is a **required check on `main`** alongside `verify` and `e2e`.
+That job also compares the service's engine version against the local pin in
+`scripts/local-database.mjs`, so a bump on one side and not the other is a red
+job naming both numbers rather than a silent divergence.
 
 ### `pnpm ready` — knowing the pair is up
 

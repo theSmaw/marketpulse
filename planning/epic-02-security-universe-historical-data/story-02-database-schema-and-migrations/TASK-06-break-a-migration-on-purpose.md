@@ -3,7 +3,9 @@
 **Status:** Not started
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
 **Depends on:** Tasks 2.2.4 (complete — there is a real migration and a real table) and
-2.2.5 (a database-backed suite to run afterwards)
+2.2.5 (complete — there is a database-backed suite, `pnpm test:database`, and it is a
+**required check on `main`**, so a break left in the tree fails the pull request rather than
+only the laptop)
 
 **What Task 2.2.1 already answered, so this task does not re-derive it.** Against spike
 migrations it produced the partial-migration case on three tools and found that **it
@@ -72,11 +74,23 @@ on deploy, and that choice is entirely determined by the answers here.
   _says_ on PostgreSQL 18 specifically, because that major materialises `NOT NULL` as a named
   `pg_constraint` row where older ones did not, so the message may not be the one an older
   Postgres gave. And one that **succeeds and is then edited**, where **the answer is
-  already known and is the bad one**: Kysely does not checksum, Task 2.2.2 deferred that gap
-  rather than closing it, and Task 2.2.5 is the task that either closed it or did not — so
-  run this one **both** ways round, with 2.2.5's check in place and with it disabled, because
-  "the schema and the file disagree and nothing said so" and "the schema and the file
-  disagree and something said so" are two different things a reader needs to recognise
+  already known, it is the bad one, and Task 2.2.5 did NOT change it** — so the instruction
+  this bullet used to carry, to run it both ways round with 2.2.5's check in place and
+  disabled, **cannot be followed and should not be attempted: there is no such check.** 2.2.5
+  weighed the checksum table and declined it, and recorded why rather than deferring again:
+  its suite migrates from **empty** every run, so it proves _these files produce this schema_
+  and structurally cannot prove _that database matches these files_; only a stored hash
+  could. What bounds the damage is that the divergence is confined to one developer's
+  laptop, because CI and every deploy migrate from the same files into an empty database.
+  **So what this task owes is the other half of that argument, produced rather than
+  reasoned about**: edit an applied migration, run `pnpm migrate`, and record that it reports
+  success and changes nothing; then run `pnpm test:database` and record that **it passes
+  too**, because it never looks at the database you broke. Those two green results side by
+  side are the finding — the divergence is real, both instruments say fine, and the only
+  thing that catches it is a person. Confirm the recovery is
+  `pnpm db down -v && pnpm db && pnpm migrate` and that it is genuinely sufficient, and note
+  that **the reversal trigger for building the hash table is Task 2.2.7**, where dropping and
+  re-migrating stops being an option
 - **Read the tracking table after each**, and record whether the failed migration is marked
   applied, absent, or marked in some third state. The answer to the second case is the one
   that matters most: if the bookkeeping row commits in a different transaction from the
@@ -86,6 +100,14 @@ on deploy, and that choice is entirely determined by the answers here.
   concurrently does. This is not hypothetical the moment migrations run on deploy: two
   merges 95 s apart already produced two overlapping deploy runs once, and Task 1.11.6
   handled that with a concurrency group rather than by luck
+- **Use a scratch database rather than the development one, because Task 2.2.5 established
+  the pattern and it is cheap to reuse.** That suite creates `marketpulse_vitest`, migrates
+  it, reads it and drops it — at the end of a run and again at the start of the next, so a
+  crashed run is self-healing — precisely so that running it never destroys the rows somebody
+  was mid-way through debugging. The same argument applies with more force here, because this
+  task's whole purpose is to leave a database broken: do it somewhere that is meant to be
+  ruined. If a break _is_ taken against the development database, `pnpm db down -v` is the
+  reset, and it costs whatever Story 2.3 has loaded by then
 - **Say what recovery looks like for each failure**, in the imperative, where somebody
   reading it at the time will find it. This story is the cheapest moment in the project's
   life to answer that — there is no data, so the answer for most of them is "drop and
@@ -125,6 +147,8 @@ on deploy, and that choice is entirely determined by the answers here.
 - Whether a rolled-back migration consumes an identity value is confirmed, and
   `migrate.ts`'s "it left nothing behind" message is either amended or deliberately left
 - What the tracking table holds after each is recorded
+- The edited-applied-migration case is produced, and **both** `pnpm migrate` and
+  `pnpm test:database` are recorded reporting success against a database that is wrong
 - Concurrency behaviour is established rather than assumed
 - Recovery for each class is written down where it will be read
 - The failure exits non-zero with a message naming the migration, seen

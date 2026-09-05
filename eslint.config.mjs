@@ -290,6 +290,7 @@ export default tseslint.config(
       // spawns real processes against the built tree and the fast suite must
       // not become conditional on a build.
       "apps/backend/vitest.process.config.ts",
+      "apps/backend/vitest.database.config.ts",
     ],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },

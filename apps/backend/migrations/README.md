@@ -369,20 +369,49 @@ database-backed test**, after it has.
 | Forward-only                                                     | structural — there is no `down` and no `migrateDown` call anywhere                                              |
 | A failing migration exits non-zero                               | `summariseMigration`'s tests, three of which were seen to fail                                                  |
 | An empty migration directory is an error                         | the provider, rather than a silent "nothing to do"                                                              |
+| Applying twice changes the schema not at all                     | `pnpm test:database` — the _schema_ is compared, not just the runner's own report                               |
+| Every timestamp is `timestamptz`, never a naive `timestamp`      | `pnpm test:database`, over every column outside Kysely's bookkeeping                                            |
+| No `double precision` or `real` column exists                    | `pnpm test:database`                                                                                            |
+| No `created_at`, `deleted_at`, `is_deleted` or `archived_at`     | `pnpm test:database`                                                                                            |
+| Every table has an identity `bigint` `id`                        | `pnpm test:database`, on `is_identity` and never on `column_default`                                            |
+| `schema.ts` and the real schema agree, column for column         | `pnpm test:database`, in **both** directions — and the compiler covers a third                                  |
+| A closed set's union and its `check` constraint agree            | `pnpm test:database`, parsing the constraint Postgres **rewrote**                                               |
+
+**The three-hop arrangement behind the last two rows is worth understanding
+before adding a table**, because it is what makes a hand-written type safe
+without generating anything. `EXPECTED_SECURITIES` in
+`apps/backend/src/migrate.database.test.ts` is declared
+`satisfies Record<keyof SecuritiesTable, ExpectedColumn>`, so a column added to
+the interface and not described there is a **compile** error — `TS1360`, the
+same code the API's response-schema guard produces. The suite then compares that
+description against `information_schema` in both directions. Interface → spec by
+the compiler, spec → database by the test, therefore interface → database.
+
+Two mechanical facts anyone extending those checks needs, both produced rather
+than read. **Postgres rewrites a check constraint**: `check (kind in ('equity',
+'etf'))` reads back as `CHECK ((kind = ANY (ARRAY['equity'::text,
+'etf'::text])))`, so nothing can string-match what the migration says. And
+**PostgreSQL 18 materialises `NOT NULL` as `pg_constraint` rows** where older
+majors do not — confirmed to be the engine rather than anything here, since
+Kysely's own tables have them too — so a check that counts those rows is
+asserting the Postgres major version rather than the schema. Read nullability
+from `information_schema.columns.is_nullable`, which is stable across majors.
 
 ### Prose
 
-Everything in sections 1 to 7 above. Of those, five are **reachable** from a
-migrated database, and they are handed to Task 2.2.5 with the reading that would
-check them rather than left as an aspiration:
+Everything in sections 1 to 7 above **except the rows Task 2.2.5 moved into the
+checked list**. Of the five conventions this document originally handed forward,
+four are now checked and **one is not, for a reason worth stating rather than
+hiding**: "every price column is `numeric(18, 6)`" is **untested, because the
+schema has no money column**. `securities` holds none, so a check would pass by
+having nothing to look at — a green result that certifies nothing, and
+indistinguishable from one that certifies something.
 
-| Convention                                    | Where it is readable                                                                                                                 |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| No `timestamp without time zone`, anywhere    | `information_schema.columns.data_type` — the correct type reads `timestamp with time zone`                                           |
-| Every price column is `numeric` at (18, 6)    | `data_type`, `numeric_precision`, `numeric_scale`                                                                                    |
-| No `double precision` or `real` column exists | `data_type`                                                                                                                          |
-| No `deleted_at` / `is_deleted` / `created_at` | `column_name`                                                                                                                        |
-| Every table has an identity `id`              | `is_identity = 'YES'` — note `column_default` is `null` for an identity column, so a check written against the default finds nothing |
+What stands in for it is a **tripwire**: the suite asserts there are **no**
+`numeric` columns at all, so it fails the moment one arrives — `market_bars` in
+Story 2.7 — with a message telling whoever added it to replace the tripwire with
+the real check and update these two lists. A rule that cannot yet be enforced is
+recorded as failing-open rather than as quietly passing.
 
 The rest are **not** reachable and are prose permanently: plural table names,
 snake case, the `security_id` foreign key spelling, `text` over `varchar(n)`, and
