@@ -212,6 +212,39 @@ its identity-column trap. **2.2.8** gained two new documents to sweep for claims
 `packages/shared`'s moved file count and fallen coverage, and the note that ADR 0015's two
 lists have a shape to borrow rather than invent.
 
+**Amended a third time after Task 2.2.5 (2026-09-05), with no task added, deleted or
+re-ordered.** Three task files were amended, and **one of the amendments corrects an
+instruction that had become unrunnable**, which is the class this sweep exists to catch.
+2.2.6 was told to produce the edited-applied-migration case "both ways round, with 2.2.5's
+check in place and with it disabled" — and **2.2.5 declined to build that check**, weighing
+the checksum table and recording why rather than deferring it again. So there is nothing to
+disable. What 2.2.6 owes instead is the other half of the argument, produced: edit an
+applied migration, and record that `pnpm migrate` **and** `pnpm test:database` both report
+success against a database that is wrong, because neither instrument looks at it. Two green
+results side by side is the finding. 2.2.6 also gains the scratch-database pattern 2.2.5
+established, so a task whose purpose is to leave a database broken does it somewhere meant to
+be ruined.
+
+**2.2.7** gains two things. It is now named as the **reversal trigger** for that checksum
+decision, because from there onward "drop it and re-migrate" stops being an available answer.
+And the engine-pin bullet changed shape: there are **three** pins now and exactly one pair is
+compared, since 2.2.5 made CI check its service image against `LOCAL_DATABASE_VERSION` rather
+than leaving a second silent copy — so the deployed pin is the only uncompared one, and 2.2.7
+is the cheapest place it will ever be taken by hand.
+
+**2.2.8** gains the sixth level of test and a fourth test command to re-take figures for, the
+verification that 2.2.5 already amended both of `migrations/README.md`'s lists, a third
+required check on `main` to re-read from the API, and a sharper second list for ADR 0015:
+`SECURITY_KINDS` moved into the _checked_ column, while the **three-glob partition** joined
+the gaps as the second and weaker instance of Task 1.13.2's class — weaker because there the
+mitigation is a missing script and here it is only a comment, in a package that has one.
+
+**Two live claims outside the task files were falsified by 2.2.5 and were amended at the
+time rather than left for the closing sweep**, which is the rule this repository states and
+has twice failed to follow: `README.md`'s levels table said **five** levels and now says six,
+and `CLAUDE.md`'s "nothing compares those two numbers" entry for the engine pin was **half
+closed** and now says which half.
+
 **`market_bars` is in none of these tasks and that is deliberate**, per this story's own
 out-of-scope note: its shape is driven by measured ingestion, and creating it here would be
 creating it against no measurement at all.

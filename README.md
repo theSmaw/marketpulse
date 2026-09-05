@@ -571,8 +571,8 @@ They are three different kinds of test:
 | `apps/backend`    | The assembled Fastify server through `app.inject()` — no listening socket, both error handlers, CORS |
 | `apps/frontend`   | The real component tree rendered under jsdom, asserted on roles and accessible names                 |
 
-**There are five levels of test here and `pnpm test` runs three of them.** The
-other two have their own commands, deliberately, because each needs something
+**There are six levels of test here and `pnpm test` runs three of them.** The
+other three have their own commands, deliberately, because each needs something
 the fast suite must never need:
 
 | Level             | Command                  | What it needs that `pnpm test` must not           |
@@ -581,6 +581,7 @@ the fast suite must never need:
 | Integration       | `pnpm test`              | —                                                 |
 | Component (jsdom) | `pnpm test`              | —                                                 |
 | Process           | `pnpm test:process`      | A build, and a free port                          |
+| Database          | `pnpm test:database`     | A build, and a running PostgreSQL server          |
 | Browser           | `pnpm e2e` / `:deployed` | A build, two servers (or a deployment), a browser |
 
 The browser level is one level pointed at two targets rather than two levels:

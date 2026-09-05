@@ -2,7 +2,10 @@
 
 **Status:** Not started
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
-**Depends on:** Task 2.2.6 (what a broken migration leaves behind — which is what decides this task's shape)
+**Depends on:** Task 2.2.6 (what a broken migration leaves behind — which is what decides
+this task's shape). Note also that Task 2.2.5 named **this** task as the reversal trigger for
+the migration checksum it declined to build: from here onward "drop it and re-migrate" stops
+being an available answer, which is the argument that would reverse the decision
 
 ## Objective
 
@@ -97,12 +100,31 @@ assumed, and settle where that happens relative to a deploy.
   wrong. Read nullability from `information_schema` rather than by counting `pg_constraint`
   rows, because PostgreSQL 18 materialises `NOT NULL` as named constraint rows where older
   majors do not — which makes that count a statement about the engine version rather than
-  about the schema. **The local pin and the deployed version are two numbers nothing in this
-  repository compares**, and confirming they still agree is one of the cheapest useful things
-  this task can do while it happens to be connected to both. Task 2.1.5's operator-connection
+  about the schema. **There are THREE engine pins now and exactly one pair of them is compared**, which changes
+  what this bullet is asking for. Task 2.2.5 added a `postgres:18` service to CI and, rather
+  than leaving a second silent pin, made a step compare it against `LOCAL_DATABASE_VERSION`
+  in `scripts/local-database.mjs` — so local-versus-CI drift is now a red job naming both
+  numbers. **The deployed pin is still compared by nothing**, and it is the one whose drift
+  has the "works locally, wrong in production" symptom the whole arrangement exists to
+  prevent. A check for it stays refused for the reason it always was — it needs Azure
+  credentials `pnpm verify` deliberately does not have, so building one forks the definition
+  of "verified" — which makes **this task the cheapest place it will ever be taken by hand**,
+  since it is already connected to both. Record the number rather than the fact that it
+  matched. Task 2.1.5's operator-connection
   traps apply — `psql` from a laptop cannot do `verify-full` where Node can, because the
   container has no CA store, and `pnpm db exec` **echoes its arguments**, which is how a
   live bearer token was printed into a terminal once already
+- **Note that a database-backed suite now exists, and decide out loud whether any of it
+  points here.** `pnpm test:database` creates its own database, migrates it and drops it —
+  which is exactly the thing a deployed server must never let anything do, and the suite is
+  local-only by construction: it uses plain `pg` rather than `createDatabasePool`, so it has
+  no Entra path at all. That asymmetry is deliberate and should stay. The question worth
+  answering rather than assuming is the narrower one: **after the deployed migration runs, is
+  there anything worth asserting against the deployed schema, and if so does it belong in
+  `e2e/specs-deployed/` rather than here?** Task 1.13.5's precedent is the shape — a
+  post-deploy check that gates nothing and whose output is a rollback decision — and the
+  honest default is probably no, because a schema is not a user-visible surface and Task
+  2.1.7 already declined to put the database behind `/health`. Say which, with the reason
 - **Take the leak check on the new surface.** A migration runner logs SQL, and a
   connection failure quotes a DSN. Story 2.1's leak check is clean in four places —
   repository, built output, log destination and terminal echo — and this task adds a fifth

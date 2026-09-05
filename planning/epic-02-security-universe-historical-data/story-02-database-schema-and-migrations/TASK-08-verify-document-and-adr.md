@@ -24,7 +24,15 @@ epics read instead of re-deriving it.
   have moved entries from the second to the first. Re-read the lists against what 2.2.5
   actually built and amend the document if they disagree, because a document claiming a
   convention is only prose when a test now checks it is the same class of stale as a wrong
-  figure
+  figure. **Task 2.2.5 did move seven rows and amended both lists in the same change, so
+  this is a verification rather than an open question** — what is worth re-reading is the
+  one row that did **not** move: "every price column is `numeric(18, 6)`" is recorded as
+  untested-because-vacuous, standing on a **tripwire** that asserts there are zero `numeric`
+  columns and fails when one arrives. If anything in this story added a `numeric` column
+  after that was written, that tripwire is already red and the lists are already wrong.
+  **And criterion 5 is now the one to re-run rather than re-read**: "database-backed tests
+  run under their own command, exit non-zero when they fail, and are not in `pnpm test`" is
+  three separate claims, and the third is guarded only by a glob comment
 - **From a clean clone with an empty store**, because that is the only place several of
   these claims are testable: install cold and record packages, store entries,
   `node_modules` size and lockfile lines against Story 2.1's baseline; `pnpm verify` cold
@@ -45,7 +53,11 @@ epics read instead of re-deriving it.
   count** moved while its test count did not, and its **coverage percentage will have
   fallen**, for a file with no test sitting in the denominator. That last figure is exactly
   the one this repository has twice found carried forward as "unchanged" across several
-  stories
+  stories. **Task 2.2.5 added a fourth command that runs tests and a sixth level of test**,
+  so `pnpm test:database`'s count (23) and duration join the list, and the levels table in
+  `README.md` plus the levels paragraph in `CLAUDE.md` are now **six** rather than five —
+  both were amended when the claim was falsified rather than left for this sweep, so check
+  they say six and that nothing else in the tree still says five
 - **Sweep for claims this story falsified, and read each occurrence rather than replacing
   it.** Story 2.1 closed by finding four, one of which made `CLAUDE.md` contradict itself.
   The candidates here are specific: `apps/backend/src/database.ts` is described as the only
@@ -117,9 +129,18 @@ epics read instead of re-deriving it.
   in the second, since it means a rollback of code past a migration has no schema counterpart.
   **Task 2.2.4 adds a fourth, created deliberately and in the open**: `SECURITY_KINDS` in
   `packages/shared` and `securities_kind_check` in the database are two spellings of one
-  vocabulary, and whether they agree is either a check Task 2.2.5 built or another entry in
-  the second list — which of those it is depends on what 2.2.5 did, so **read that rather than
-  assuming either**. The two lists also have a ready-made shape to borrow rather than invent:
+  vocabulary — and **Task 2.2.5 closed it**, parsing the constraint text Postgres rewrote, so
+  it belongs in the **first** list as a property rather than the second as a gap. **What 2.2.5
+  put into the second list instead is sharper and there are three of them.** The **three-glob
+  partition** across that package's Vitest configs is a naming convention with nothing behind
+  it, and it is now the _second_ instance of the class Task 1.13.2 named — weaker than that
+  one, because there the mitigation is a missing `test` script and here it is only a comment,
+  in a package that does have one. The **migration checksum** is still open and is now
+  deliberately so, with its reasoning recorded and Task 2.2.7 named as the reversal trigger.
+  And the **third engine pin** — the CI service image — is compared against the local one on
+  every pull request, which moves half of an existing gap into the first list while leaving
+  the deployed half in the second; ADR 0015 should say which half is which rather than
+  repeating the old sentence. The two lists also have a ready-made shape to borrow rather than invent:
   `apps/backend/migrations/README.md` already ends with a checked-versus-prose split, and the
   line it draws — **whether the thing being checked is reachable from an assembled
   instance** — is the line ADR 0013 drew, and is worth stating once in an ADR rather than a
@@ -128,7 +149,17 @@ epics read instead of re-deriving it.
   `prettier --file-info` and `eslint` on whatever this story added, since a `.sql` file is
   read by nothing here and a `.ts` migration is read by everything, and those are two
   different entries. Re-date the existing kinds, which is the only thing that has ever
-  caught that list drifting
+  caught that list drifting. **One of those kinds moved rather than merely aged and it is
+  worth confirming by measurement rather than reading the amended text**: the
+  "nothing compares the local pin to the deployed one" entry is now half closed, and the
+  paragraph was rewritten to say which half. Re-run the CI job's own comparison step and
+  the `az` half by hand, and confirm the three-way split it now describes is the true one
+- **Record that the ruleset gained a third required check**, because it is platform state no
+  file in this tree can hold and this story is what added it. Ruleset `main` (id 22160620)
+  requires `verify`, `e2e` and **`database`** as of Task 2.2.5, read back from the API at the
+  time. Re-read it at the close rather than citing that reading — three checks keyed on three
+  job names is three ways to un-require a gate silently by renaming a job, which is Task
+  1.10.2's failure mode tripled, and `CLAUDE.md` plus ADR 0015 are the only durable copy
 - **Say what this story hands forward**, in two halves: the mechanism every table in §30
   arrives through, and — the one that matters more — **where Epic 13's temporal constraint
   will be made structural**. That seam was chosen in Task 2.2.1 and nothing in this story
