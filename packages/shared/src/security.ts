@@ -56,39 +56,42 @@ import type { Ticker } from "./ticker.js";
 /**
  * What kind of thing a tracked security is.
  *
- * `equity` and `etf` are not two flavours of one thing: PRODUCT_SPEC.md §6 asks
- * for equities *plus* a small set of ETFs, and Epic 4 treats them differently —
- * a sector ETF is what an equity's move is measured *against*, so a screen that
- * mixed them would compare a thing to itself. That is why the schema carries a
- * column rather than a boolean.
+ * **Three members and not two**, widened from `equity | etf` by Task 2.3.1.
+ * `SPY`, `QQQ`, `DIA` and `IWM` are what "the market" means; the eleven sector
+ * SPDRs are what "the sector" means; Epic 4's sector rows and Epic 5's
+ * relative-move need to tell them apart, and a screen that mixed them would
+ * compare a thing to itself.
  *
- * **This is deliberately not `Security`.** Story 2.3 owns that interface and
- * the rest of its vocabulary — name, exchange, sector, industry, `status`, and
- * the identifiers that reach a CIK — along with the taxonomy and the selection
- * rule. What is here is the one member of that vocabulary the product spec has
- * already fixed, and it is here rather than in `apps/backend` because
- * `apps/backend/migrations/0002_securities.sql` declares
- * `check (kind in ('equity', 'etf'))` and this repository's migration
- * conventions require a closed set's source of truth to be a TypeScript union
- * rather than the constraint itself — see `apps/backend/migrations/README.md`.
- * A check constraint with no source of truth is two vocabularies pretending to
- * be one.
+ * Two shapes were rejected for it, and the second is the trap. A **second
+ * nullable column** (`kind` stays `equity | etf`, plus an `etf_role` that must
+ * be non-null exactly when `kind = 'etf'`) is expressible as a cross-column
+ * check in the database and expressible nowhere in TypeScript, so the type
+ * system would permit a state the database refuses at run time — the one gap
+ * this vocabulary already has once and should not have twice. **Inferring it
+ * from whether `sector` is set** needs no schema change at all and reads an
+ * *absence* as a positive claim: a rule nobody wrote down, correct only for as
+ * long as a different rule is enforced somewhere else.
  *
- * A `const` array rather than a bare `type`, the shape {@link HEALTH_STATUSES}
- * and {@link FEED_STATUSES} already have, so the members are readable at run
- * time by anything that has to compare them against the database.
+ * Task 2.2.4 chose `text` + `check` over a Postgres `enum` specifically so this
+ * widening is writeable in one migration — inside a transaction, which is what
+ * a migration is here, adding an enum value *and using it* is refused with
+ * `unsafe use of new value "etf" of enum type`. **This is the first time that
+ * argument pays**, and Task 2.3.3 writes the migration.
  *
- * **This list and that constraint are checked against each other by
- * `pnpm test:database`** (Task 2.2.5). They are in two files that no single
- * tool reads — a `.sql` file is read by nothing in this repository at all — and
- * the failure was silent in the direction that matters: adding a member here
- * and not there means a row the type system permits and the database refuses,
- * at run time, in whatever writes it. The check reads the constraint's own text
- * back out of `pg_constraint` and parses it, which it has to, because Postgres
- * **rewrites** `check (kind in (…))` into `CHECK ((kind = ANY (ARRAY[…])))` —
- * so a string match against the migration would never have worked.
+ * ~~Until it does, this array and `0002_securities.sql`'s
+ * `check (kind in ('equity', 'etf'))` deliberately disagree.~~ **Task 2.3.3
+ * landed and they agree again**, held by `securities_kind_check` in
+ * `0003_security_vocabulary.sql`. The struck-through sentence is kept because
+ * the gap it describes was real for exactly one commit and is the only evidence
+ * this repository has that the check works: `pnpm test:database` reported
+ * `1 failed | 22 passed` naming both sides, which is what that suite is for.
+ *
+ * A `const` array rather than a bare `type`, the shape {@link HEALTH_STATUSES},
+ * `FEED_STATUSES`, `ANOMALY_BANDS` and `API_ERROR_CODES` already have, so the
+ * members are readable at run time by anything comparing them against the
+ * database.
  */
-export const SECURITY_KINDS = ["equity", "etf"] as const;
+export const SECURITY_KINDS = ["equity", "sector_etf", "index_etf"] as const;
 
 /** One of {@link SECURITY_KINDS}. */
 export type SecurityKind = (typeof SECURITY_KINDS)[number];
