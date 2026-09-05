@@ -3,7 +3,7 @@
 **Status:** Not started
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Tasks 2.1.1–2.1.7
-**Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.5 — see the five _Amended_ sections below
+**Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.7 — see the seven _Amended_ sections below
 
 ## Objective
 
@@ -343,3 +343,99 @@ task. Re-take the refusal: 2.1.5 found it in a **third** shape
 (`az consumption usage list` returning two records with every cost field the
 string `'None'`), which is the third distinct shape in four tasks. The shape it
 is refusing in is itself the finding.
+
+## Amended after Task 2.1.7 (2026-09-05)
+
+**No task was added, deleted or re-ordered — for the seventh round running.** 2.1.7 closed
+the story's last open decision and this task's scope is unchanged in kind. What it hands
+forward fits inside work this brief already describes.
+
+### Two deployed measurements it could not take, and they belong to criterion 2
+
+**Every `az containerapp update` was refused by this environment's own permission
+policy** — both `--set` and `--set-env-vars`, one command wider than the firewall refusal
+2.1.6 hit. Read-only `az` works. So two things exist only as local evidence:
+
+1. **`GET /diagnostics/database` has never run deployed.** It needs the merged image on the
+   Container App, which arrives on a merge to `main`, so this is ordinary observation once
+   the pipeline has run rather than a lever anybody has to pull.
+2. **The deployed `DATABASE_HOST=203.0.113.7` break was not re-taken.** 2.1.6's lever,
+   unchanged.
+
+Both sit inside criterion 2 — "the evidence is taken from the deployed environment rather
+than a laptop" — so they are re-runs of an existing obligation and not new scope. What
+makes the gap bounded rather than alarming is that **`/health` is unchanged byte for
+byte**, so Task 2.1.6's measured control still describes the deployed system exactly: an
+unreachable deployed database left `restartCount: 0` and `/health` 200 across seven
+liveness intervals.
+
+**The readiness-probe 503 is deliberately NOT handed forward.** 2.1.7 designed it and then
+dropped it: producing it costs a live outage to confirm a property already readable from
+`az containerapp show` — `activeRevisionsMode: Single`, `minReplicas: 1`, the probe
+table — in support of a shape being _rejected_ rather than shipped. Do not reinstate it.
+
+### Be pragmatic about what this task actually re-measures
+
+This is the task most likely to spend a long time on checks whose answers are not in
+doubt, and the closing-task habit ("re-measure rather than cite") is worth keeping for the
+reason Epic 1 earned it four separate times — recorded claims really do rot. But it is a
+habit rather than a rule. **Before running a check, ask what outcome would surprise you.**
+Re-measure the things that genuinely drift: test counts, artefact bytes, chain timings,
+figure-carrying prose, the install-script sweep, and anything a task recorded as "should
+still reproduce". Reason about the things that cannot go two ways, and say so, so the
+record reads as a decision rather than an omission.
+
+### One new failure mode this story produced, and it is worth a sweep of its own
+
+**A measurement was written into a shipped code comment before it was taken, and was not
+corrected when the command that would have taken it was refused.** `routes/diagnostics.ts`
+claimed the readiness 503 had been "measured", with a result, for the length of one commit.
+It is corrected. **Check the rest of this story's records for the same shape**: a claim
+phrased as measured whose measurement a later paragraph says was blocked or dropped. Tasks
+2.1.5 and 2.1.6 both hit permission refusals after their briefs were written, so they are
+where to look first. This is a different failure from the stale-figure sweep — a stale
+figure was true once, and this one never was.
+
+### Figures that moved
+
+- **`pnpm test` is 229** — 37 + **89** + 103 — where 2.1.6's amendment above says 218 and
+  Epic 1's convention blocks still say 189. `apps/backend` is **89 across 6 files**, the
+  new file being `src/routes/diagnostics.test.ts`. The live/historical split is unchanged
+  and so is the instruction: read every occurrence.
+- **`pnpm verify` is exit 0 in 25.68 s with no database running**, which is criterion 8
+  met once and a re-run for this task, not a citation.
+- **`pnpm e2e` is 10 passed with a database and 9 in 3.4 s with none.** The browser suites
+  were not extended, deliberately — see the no-user-visible-change decision.
+- **The frontend artefact is untouched**, so it should still reproduce Task 1.13.4's four
+  files and **361,664 B** to the byte.
+- **`apps/backend/src/routes/` holds a second file for the first time** — the directory
+  Task 1.2.3 created for a second route that took eleven stories to arrive.
+
+### For ADR 0014
+
+The brief's subject list already names "what `/health` does and does not say about the
+database", and that section now has its material. Three things belong in it that the list
+did not anticipate:
+
+- **The rejected shapes, with the reason each was rejected**, because the middle one is
+  rejected for a reason specific to this deployment (`Single` revision mode at
+  `minReplicas: 1` means an unready replica is **no** service) rather than for the
+  liveness reason everyone will assume.
+- **The bound, and why a shorter TTL is cheaper.** Cost steps at the pool's idle timeout
+  rather than scaling with frequency, so `DIAGNOSTIC_CACHE_TTL_MS` (5 s) sits deliberately
+  below `POOL_IDLE_TIMEOUT_MS` (10 s). Counter-intuitive, measured, and the kind of thing
+  a future reader will otherwise "simplify".
+- **In the what-it-certifies section: a 200 from `/health` says nothing whatsoever about
+  the database, on purpose**, and `ageMs` on the diagnostic can mean you were handed a
+  cached answer up to five seconds old.
+
+### Two entries for the invariant lists
+
+- **`DIAGNOSTIC_CACHE_TTL_MS < POOL_IDLE_TIMEOUT_MS` is CHECKED**, by a test, so it joins
+  `TOKEN_TIMEOUT_MS < CONNECT_TIMEOUT_MS` in the checked list rather than the prose one.
+  It is the third coupled pair `pnpm verify` cannot see.
+- **`pnpm ready`'s third check is still non-gating and its stated condition still has not
+  fired** — confirmed rather than assumed, because `pnpm verify` is exit 0 and the browser
+  suite is 9 passed with the database stopped. The condition is unchanged: the first check
+  in `pnpm verify` or `pnpm e2e` that fails without a database, which is Story 2.2's
+  migrations or Story 2.8's routes.

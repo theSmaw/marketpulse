@@ -74,6 +74,63 @@ const POOL_MAX = 10;
 // — see the comment there, and the test that asserts the ordering.
 export const CONNECT_TIMEOUT_MS = 5000;
 
+// How long an idle pooled client is kept before `pg` closes it.
+//
+// **This restates `pg`'s own default rather than changing it**, and it is set
+// explicitly for the reason `prettier.config.mjs` states every option it
+// agrees with: a number two other decisions are measured against must not be
+// something a minor version bump can move underneath them.
+//
+// It is the number behind the most surprising fact Task 2.1.6 measured. The
+// connection the startup probe makes is visible in `pg_stat_activity` for
+// **exactly ten seconds** and then gone, and nothing queries the database
+// afterwards — so **the deployed backend holds zero connections at rest**. Any
+// check asked for less often than this pays the *cold* path every time, which
+// deployed is ~1,023 ms of which the Entra token mint is 866 ms.
+//
+// Task 2.1.7 left it at ten seconds deliberately, having been handed the option
+// of choosing one. Zero connections at rest is a property worth keeping on a
+// tier with 35 usable connections of which Azure's own sessions already hold
+// 7–10, and the only thing in this application that queries the database is an
+// operator-driven diagnostic. See DIAGNOSTIC_CACHE_TTL_MS, which is chosen to
+// sit **below** this rather than above it.
+export const POOL_IDLE_TIMEOUT_MS = 10_000;
+
+// How long a database reachability answer is reused before another query is
+// made (Task 2.1.7).
+//
+// **This is the "cache it, or bound it" the task's brief demands, and it is
+// both.** `createCachedDatabaseCheck` below serves an answer younger than this
+// without querying, and collapses concurrent callers onto one in-flight query,
+// so the query rate this application can be made to produce is **at most one
+// per this interval, whatever the caller count** — which matters because the
+// endpoint reading it is on public ingress with no authentication, and a
+// per-request `SELECT 1` there is a free lever against a 35-connection ceiling
+// with no PgBouncer beneath it.
+//
+// **Five seconds, and the counter-intuitive part is that a SHORTER interval is
+// CHEAPER here.** The cost of a check is not linear in how often it is asked
+// for, because it steps at POOL_IDLE_TIMEOUT_MS:
+//
+//   - Below it, the previous check's connection is still in the pool, so a
+//     check is one round trip — **~23 ms** East US → North Central US — and
+//     mints **no token at all**.
+//   - At or above it, every check finds an empty pool, so every check opens a
+//     connection and pays a token mint: **~1,023 ms**, 866 ms of it the mint.
+//
+// So a 10-second bound under sustained polling would cost 6 cold connections
+// and 6 token mints a minute, where this costs 12 warm round trips and one
+// mint. The price is that sustained polling holds **one** connection open
+// rather than zero — 1 of roughly 25 genuinely free slots — and that is the
+// trade this number is making. Nobody polls it today.
+//
+// The two constants are a coupled pair that `pnpm verify` cannot see, which is
+// the third time this repository has met that shape after `API_TIMEOUT_MS` /
+// `HEALTH_POLL_INTERVAL_MS` and `TOKEN_TIMEOUT_MS` / `CONNECT_TIMEOUT_MS`. It
+// gets the same treatment for the same reason: a **test** asserts the ordering,
+// because the thing being checked is reachable from code.
+export const DIAGNOSTIC_CACHE_TTL_MS = 5000;
+
 // What the database sees in `pg_stat_activity.application_name`.
 //
 // One option, and it is here because Task 2.1.6 has to evidence a connection
@@ -216,6 +273,7 @@ export function createDatabasePool(
     ssl: resolveSsl(config),
     max: POOL_MAX,
     connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
+    idleTimeoutMillis: POOL_IDLE_TIMEOUT_MS,
     application_name: APPLICATION_NAME,
   });
 
@@ -280,6 +338,111 @@ export async function pingDatabase(pool: pg.Pool): Promise<DatabasePing> {
 }
 
 /**
+ * A reachability answer, plus how old it is (Task 2.1.7).
+ *
+ * `checkedAt` and `ageMs` are the two fields a diagnostic needs that
+ * {@link DatabasePing} has no business carrying: a caller reading a cached
+ * answer has to be able to tell it is cached, or the bound below is a lie
+ * dressed as a fresh measurement.
+ */
+export type DatabaseCheck =
+  | {
+      readonly ok: true;
+      readonly ms: number;
+      readonly checkedAt: number;
+      readonly ageMs: number;
+    }
+  | {
+      readonly ok: false;
+      readonly ms: number;
+      readonly checkedAt: number;
+      readonly ageMs: number;
+      readonly error: Error;
+    };
+
+/** Ask whether the database is reachable, without saying how much it cost. */
+export type DatabaseCheckFn = () => Promise<DatabaseCheck>;
+
+/**
+ * {@link pingDatabase}, bounded — the whole of Task 2.1.7's "cache it, or bound
+ * it", and it does both.
+ *
+ * Two mechanisms, and the second matters more than the first:
+ *
+ * - **A TTL.** An answer younger than `ttlMs` is served without querying. See
+ *   {@link DIAGNOSTIC_CACHE_TTL_MS} for why the number is *below*
+ *   {@link POOL_IDLE_TIMEOUT_MS} rather than above it, which is the
+ *   counter-intuitive half.
+ * - **Single flight.** Concurrent callers arriving while a check is in flight
+ *   share it rather than each starting one. Without this the TTL is worthless
+ *   against exactly the case it exists for: ten simultaneous requests to a
+ *   public endpoint on a cold pool would be ten connections and, deployed, ten
+ *   Entra token mints at 866 ms each — the *stampede* rather than the rate.
+ *
+ * The result is that the query rate this application can be driven to produce
+ * is at most one per `ttlMs`, whatever the caller count, and the connection
+ * count at most one. That is the number the task's cost bullet asks for.
+ *
+ * There is deliberately **no background timer**. A cached pull costs nothing
+ * when nobody asks; a timer would be uptime monitoring, which Task 1.13.5
+ * already declined for this repository on the grounds that nothing in the
+ * roadmap owns it — and it would be billable traffic against the Consumption
+ * plan's under-1,000-bytes-per-second idle condition, standing, forever, to
+ * answer a question nobody is asking. **A stale answer to a question nobody
+ * asked is not worth a permanent connection.**
+ *
+ * A failed check is cached exactly as a successful one is. Not caching failures
+ * would turn an unreachable database into an *unbounded* query rate at the
+ * moment the ceiling matters most, which is the failure mode inverted.
+ *
+ * `now` is a parameter so the TTL is testable without a fake clock or a real
+ * wait, the same reason `loadConfig(env)` takes its environment.
+ */
+export function createCachedDatabaseCheck(
+  pool: pg.Pool,
+  ttlMs: number = DIAGNOSTIC_CACHE_TTL_MS,
+  now: () => number = Date.now,
+): DatabaseCheckFn {
+  let cached:
+    { readonly ping: DatabasePing; readonly checkedAt: number } | undefined;
+  let inFlight: Promise<DatabasePing> | undefined;
+
+  const age = (checkedAt: number): number => Math.max(0, now() - checkedAt);
+
+  const present = (ping: DatabasePing, checkedAt: number): DatabaseCheck =>
+    ping.ok
+      ? { ok: true, ms: ping.ms, checkedAt, ageMs: age(checkedAt) }
+      : {
+          ok: false,
+          ms: ping.ms,
+          checkedAt,
+          ageMs: age(checkedAt),
+          error: ping.error,
+        };
+
+  return async () => {
+    if (cached !== undefined && age(cached.checkedAt) < ttlMs) {
+      return present(cached.ping, cached.checkedAt);
+    }
+
+    // The in-flight promise is assigned *before* the first `await`, so a second
+    // caller entering this function synchronously afterwards sees it. That
+    // ordering is the single-flight guarantee; a version that awaited first and
+    // assigned second would let two checks start.
+    inFlight ??= pingDatabase(pool);
+
+    try {
+      const ping = await inFlight;
+      const checkedAt = now();
+      cached = { ping, checkedAt };
+      return present(ping, checkedAt);
+    } finally {
+      inFlight = undefined;
+    }
+  };
+}
+
+/**
  * Close the pool. Idempotent enough for the shutdown path, which is the only
  * caller: `pg` rejects a second `end()`, and the drain runs once.
  *
@@ -317,7 +480,10 @@ export async function closeDatabasePool(pool: pg.Pool): Promise<void> {
 //     about Postgres, a host, a pool or a driver. That is Task 1.7.4's rule
 //     rather than a new one: a 5xx never carries the thrown message, because a
 //     message written for a developer is internal detail too.
-//   - `/health` is **not** where this appears. That is Task 2.1.7's decision and
-//     it is dangerous for a reason recorded there: the platform's liveness probe
-//     hits `/health`, so a `/health` that fails when the database is down turns
-//     a recoverable outage into a restart loop.
+//   - `/health` is **not** where this appears, and that is settled rather than
+//     pending: **Task 2.1.7 took the decision and `/health` is unchanged**, for
+//     the reason recorded there and in `routes/diagnostics.ts` — the platform's
+//     liveness probe hits `/health`, so a `/health` that fails when the database
+//     is down turns a recoverable outage into a restart loop. Database
+//     reachability is reported by `GET /diagnostics/database`, which no probe
+//     uses, and Story 2.8's data routes still owe their own 503.

@@ -1,6 +1,6 @@
 # Task 2.1.7 — Decide what `/health` says about the database, and where reachability is actually reported
 
-**Status:** Not started
+**Status:** Complete — 2026-09-05
 **Story:** [2.1 Managed Postgres Provisioning & the Secrets Boundary](STORY.md)
 **Depends on:** Task 2.1.6
 **Amended:** 2026-09-04 and 2026-09-05, after Tasks 2.1.1 to 2.1.5 — see the five _Amended_ sections below
@@ -268,3 +268,236 @@ nothing and a healthy start is one `database reachable` record. Setting it to
 `debug` for a measurement is one `az containerapp update` and shows the mint,
 the drain's `http drained` and `database pool closed`, and nothing else — all
 three confirmed reaching Log Analytics.
+
+---
+
+## Record — 2026-09-05
+
+### The decision, in one line
+
+**`/health` says nothing about the database. `GET /diagnostics/database` says it
+instead, no probe uses it, and the frontend does not read it.**
+
+`/health` is unchanged **byte for byte**: 61 bytes, three fields, same schema, same
+`satisfies` guard, same `HealthResponse`, same `isHealthResponse()`, same
+`BackendStatus`. So the criterion "any contract change to `/health` carries the schema,
+the guard, the shared type and the frontend's reading of it in the same change" is met
+vacuously, and that is the intended outcome rather than a dodge.
+
+### The three shapes, and why two were rejected
+
+**Shape 1 — a field on `/health` the probes are not taught to fail on. Rejected on
+cost, and the cost is measured rather than feared.** All three probes point at
+`/health`, read off the live app rather than recalled:
+
+| Probe     | period | timeout | failureThreshold | initialDelay |
+| --------- | -----: | ------: | ---------------: | -----------: |
+| Startup   |    2 s |     3 s |               30 |          1 s |
+| Readiness |   10 s |     5 s |                3 |          3 s |
+| Liveness  |   30 s |     5 s |                3 |          5 s |
+
+Task 2.1.6 measured that the pool holds **zero connections at rest** — `pg` closes an
+idle client after ten seconds and nothing queries afterwards — so a check on `/health`
+pays the **cold** path nearly every time: **~1,023 ms deployed, 866 ms of it the Entra
+token mint**. That is a third of the startup probe's 3-second timeout, on a route hit
+every 2 s during startup, every 10 s by readiness, every 30 s by liveness and once per
+30 s per **visible browser tab**. It would also widen a wire contract with five readers
+for a field with no consumer, which is the brief's own instruction not to.
+
+**Shape 2 — a readiness surface the readiness probe uses where liveness does not.
+Rejected, and the reason is `Single` revision mode at `minReplicas: 1`.** There is
+exactly one replica behind the ingress, so an unready replica is not a degraded service,
+it is **no** service — a readiness probe failing on an unreachable database would take
+an application whose every current route is answerable without a database entirely off
+the air. That is strictly worse than the baseline Task 2.1.6 measured, where an
+unreachable database left `/health` answering 200 on every poll for 3 min 30 s at
+`restartCount: 0`.
+
+**This one is reasoned rather than produced, and that is a decision rather than a gap.**
+Producing it means pointing the readiness probe at a failing path and taking the deployed
+backend off the air to watch it happen — a live outage spent confirming how ingress is
+defined to work, in support of a shape being _rejected_ rather than shipped. The three
+facts it rests on are each readable without breaking anything, and all three were read off
+the live app rather than recalled: `activeRevisionsMode: Single`, `minReplicas: 1`, and
+the probe table above. **Where a rejection turns on something that could genuinely
+surprise us, produce it; this one cannot**, and a rejection does not carry the same
+evidentiary bar as something that ships — the same call Task 1.13.3 made when it declined
+a render-failure journey and named the gap instead.
+
+**Shape 3 — nothing at all, logs only, Story 2.8 owns the surface. Rejected on a gap
+that is real rather than anticipated.** Database reachability is currently reported in
+exactly one place: the level-40 record `index.ts` writes at **startup**. A running
+replica whose database goes away afterwards therefore reports **nothing anywhere**, and
+cannot — nothing queries the database once the startup probe's connection has aged out.
+And the question cannot be answered from anywhere else: a laptop dialling the database
+tests a laptop's network, its own credential and no managed identity at all, where the
+path that matters is East US replica → North Central US server, over TLS, as
+`marketpulse-backend`, with a token from the platform's own sidecar. **The endpoint is
+the only instrument standing in that position** — which is Story 1.12's lesson arriving
+from the other side, where no server-side instrument could see what a browser saw.
+
+### What ships
+
+- `apps/backend/src/routes/diagnostics.ts` — `GET /diagnostics/database`, a factory
+  taking a **check function** rather than a pool, registered from `index.ts`.
+- `createCachedDatabaseCheck` in `database.ts` — the bound.
+- `POOL_IDLE_TIMEOUT_MS = 10_000`, restating `pg`'s default **explicitly** so the
+  coupling below cannot move underneath it, and `DIAGNOSTIC_CACHE_TTL_MS = 5000`.
+- 6 route tests and 5 cache tests. `pnpm test` is **229** (37 + **89** + 103).
+
+**`buildServer()` is untouched and so is every test that calls it.** The route is
+registered from `index.ts` because the ordering forces it — the pool takes `app.log`, so
+the app exists before the pool and the pool before the route — which means
+`database.ts`'s recorded reversal trigger (the pool entering `ServerOptions`) is
+**deliberately not fired** here. It belongs to Story 2.8's first route that serves data.
+The cost is stated: `server.test.ts`'s route-table walk cannot see this route, so its
+`500: apiErrorSchema` is asserted in the route's own test instead.
+
+### The added query rate and its cost
+
+**The bound is one query per 5 seconds and one in-flight query, whatever the caller
+count**, and it was measured against the running pair rather than argued:
+
+| What was done                                  | Distinct database queries |
+| ---------------------------------------------- | ------------------------- |
+| 300 sequential requests over 1.29 s            | **1**                     |
+| 25 **concurrent** requests on a cold cache     | **1**                     |
+| 2,853 requests over 60 s of continuous polling | **12** — exactly 60 ÷ 5   |
+
+Single flight matters more than the TTL, and the concurrent row is why: without it, 25
+simultaneous requests to a public unauthenticated endpoint on a cold pool would be 25
+connections and, deployed, 25 token mints at 866 ms each — the _stampede_ rather than the
+rate, against 35 usable connections of which Azure's own sessions already hold 7–10, with
+no PgBouncer on this tier.
+
+**The counter-intuitive half: a shorter TTL is cheaper.** The cost of a check steps at
+`POOL_IDLE_TIMEOUT_MS` rather than scaling with frequency — below it the previous check's
+connection is still pooled (**~23 ms**, no token mint), at or above it every check opens a
+connection and mints a token (**~1,023 ms**). So a 10-second bound under sustained polling
+would cost 6 cold connections and 6 token mints a minute where 5 seconds costs 12 warm
+round trips and one mint. **5 s is chosen to sit below 10 s for that reason, and a test
+asserts the ordering** — the third time this repository has met a coupled pair `pnpm
+verify` cannot see, after `API_TIMEOUT_MS`/`HEALTH_POLL_INTERVAL_MS` and
+`TOKEN_TIMEOUT_MS`/`CONNECT_TIMEOUT_MS`, and it gets the same treatment.
+
+The price is stated: sustained polling holds **one** connection rather than zero.
+Measured directly in `pg_stat_activity` — `1|idle` on three consecutive readings during
+1 req/s polling, and **0** twelve seconds after it stopped. Nobody polls it today, and
+there is deliberately **no background timer**: a timer would be uptime monitoring, which
+Task 1.13.5 already declined for this repository, and it would be standing billable
+traffic against the Consumption plan's under-1,000-bytes-per-second idle condition to
+answer a question nobody is asking.
+
+**A failure is cached exactly as a success is.** Not caching failures would turn an
+unreachable database into an _unbounded_ query rate at the moment the ceiling matters
+most.
+
+### Produced locally against a genuinely unreachable database
+
+`pnpm db down`, then watched across three intervals:
+
+- **The endpoint** reported `{"reachable":false,"ms":2.61,"ageMs":0,…}` at **200**, in
+  1–3 ms, because a refused connection is immediate.
+- **`/health`** answered **200** throughout, and `uptimeSeconds` rose 214 → 220 → 226 →
+  354 across the whole outage and **never reset** — the process was never restarted.
+- **`pnpm ready`** reported `○ database … ECONNREFUSED` and **exit 0**, which is Task
+  2.1.2's non-gating decision still correct.
+- **The frontend, in a browser, read `healthy`** — see the decision below.
+- **Recovery** was watched rather than inferred: `pnpm db` back up, and the next check
+  past the TTL read `reachable: true` in 14.73 ms. The cache is visible ageing in the
+  transcript — `ageMs` 0 → 2016 → 4042 → 0 at the 5-second boundary.
+
+**The correlation id was followed from the wire to the reason**, which is the whole
+mechanism the body's silence rests on:
+
+```
+body:   {"reachable":false,"ms":1.1,"ageMs":0,"checkedAt":"2026-09-05T01:22:04.336Z"}
+header: x-request-id: e3313d1d-e5e6-4fef-9eda-e90f86b938e4
+log:    level 40 | database unreachable, reported by the diagnostic endpoint
+                 | Error: connect ECONNREFUSED 127.0.0.1:5432
+```
+
+The endpoint tells you **whether**; the log tells you **why**; Task 1.7.2's correlation id
+makes that one investigation rather than two. `warn` and not `error`, for `index.ts`'s
+reason: this server has not failed, a dependency is unavailable, and Task 1.7.4 reserves
+50 for a failure this server produced.
+
+### No user-visible change, as a decision
+
+`BackendStatus` is untouched and the indicator does not move. **Watched in a browser with
+the database fully down**: the `Backend service` region read `healthy`, `Market feed` read
+its usual `disconnected`, there were **0** error fallbacks and 4 navigation links, and the
+page made **only `/health` requests** — it never calls the diagnostic.
+
+That is correct rather than a gap. `degraded` is defined as _something answered at the
+API's address and it was not a readable health report_; a backend whose database is down
+is answering perfectly and truthfully about itself. And nothing a user can do in the
+product today needs the database, so rendering `degraded` would tell every user their
+application is broken when nothing they can do is affected. **The reversal trigger is
+Story 2.8's first route that serves data** — at which point a user _can_ be affected, the
+failure surfaces as a 503 on that route where it is actionable, and whether the chrome
+should say so becomes a question with a consumer. Consequently **no `e2e/specs-deployed/`
+assertion was added**, because there is nothing new for a browser to see.
+
+### Two findings the plan did not anticipate
+
+**The leak assertion is a check on the SCHEMA, not on the handler, and it took two edits
+to make it fail.** Adding `detail: check.error.message` to the handler alone left the test
+**green** — `fast-json-stringify` strips a property the schema does not declare, which is
+Task 1.7.3's mechanism measured again on a new route. It only went red once the field was
+declared in `diagnosticProperties` too, at which point the payload read
+`{"reachable":false,"detail":"no pg_hba…"}`. So what holds this public unauthenticated
+endpoint closed is the schema, and **a green run here is not evidence that a handler could
+not leak**. Recorded in the test.
+
+**Fastify's `exposeHeadRoutes` default registers a HEAD route beside every GET**, so the
+route-table walk saw two entries for one declaration and the schema test failed
+`expected … length 1 but got 2` on its first run. The same class of surprise as the
+`OPTIONS *` preflight route `server.test.ts` found on _its_ first run; the walk is
+filtered to `GET`.
+
+### Deliberate breaks, each seen to fail and reverted
+
+1. Single flight removed (`??=` → `=`) — the concurrent test goes red.
+2. `DIAGNOSTIC_CACHE_TTL_MS` raised to 15,000 — the ordering test goes red.
+3. The reason added to the body — **green**, see the finding above; red only once the
+   schema declares it.
+4. `503` instead of `200` on an unreachable database — red.
+5. `ageMs` hard-coded to 0 — red.
+
+### Gates
+
+- `pnpm verify` **exit 0 in 25.68 s with no database running**, and exit 0 with one.
+- `pnpm test` **229** (37 + **89** + 103); `pnpm test:process` **14**, unchanged.
+- `pnpm e2e` **10 passed** with a database, **9 passed in 3.4 s** with none (the
+  recovery journey excluded for time, not for correctness).
+- `pnpm ready` exit 0 both ways.
+- The frontend artefact is untouched: this task ships no frontend source.
+
+### What could not be produced, and it is the honest gap
+
+**Every `az containerapp update` was refused by this environment's own permission
+policy**, in both the forms this task needed — `--set` on the readiness probe's path, and
+`--set-env-vars`. Read-only `az` works, which is how the probe table above was taken off
+the live app. So two things are recorded as **not produced**:
+
+1. **The endpoint has never run deployed.** It needs a new image on the Container App,
+   which is the pipeline's job on a merge to `main`.
+2. **The deployed break** using Task 2.1.6's `DATABASE_HOST=203.0.113.7` lever.
+
+The **readiness-probe 503** is not in this list. It was designed and then **dropped on
+purpose** rather than blocked — see shape 2 above. It would have cost a live outage to
+confirm a property already readable from `az containerapp show`, in support of a
+rejection, and that is not a trade worth making.
+
+This is the same class of refusal Task 2.1.6 hit on the firewall command, one command
+wider. What stands in place of both is Task 2.1.6's own measured control — an
+unreachable deployed database leaving `restartCount: 0` and `/health` 200 across seven
+liveness intervals — which is the baseline this task's decision was chosen to preserve
+and which this task does not change, because **`/health` is unchanged**. That is the
+argument for the gap being tolerable: the deployed risk of this change is bounded by the
+fact that the route it adds is one nothing on the platform calls.
+
+**Task 2.1.8 owns re-taking both against the deployed environment once this is merged**,
+and both are ordinary observation of a running system rather than a deliberate outage —
+which is exactly why they are worth taking and the readiness measurement is not.

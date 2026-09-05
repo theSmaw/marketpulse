@@ -15,9 +15,11 @@ import { ConfigError, loadConfig, loadEnvFile } from "./config.js";
 import type { Config } from "./config.js";
 import {
   closeDatabasePool,
+  createCachedDatabaseCheck,
   createDatabasePool,
   pingDatabase,
 } from "./database.js";
+import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
 import { buildServer } from "./server.js";
 
 // Declared before the try rather than assigned inside it, because everything
@@ -65,6 +67,23 @@ const app = buildServer({
 // cannot delay startup, which is why reachability needs the explicit probe
 // after listen() below rather than a `try` around this line.
 const database = createDatabasePool(config.database, app.log);
+
+// The diagnostic surface, and the answer to Story 2.1's fourth open decision
+// (Task 2.1.7). `/health` is untouched; see routes/diagnostics.ts for the whole
+// argument, and note the ordering that puts this line here rather than inside
+// `buildServer()`: the pool takes `app.log`, so the app exists before the pool
+// and the pool before the route that reads it.
+//
+// `app.register()` is synchronous — it queues the plugin and defers loading to
+// `ready()`/`listen()` — so registering after the factory has returned and
+// before the `listen()` below is registration at the ordinary time, not a late
+// one. Verified by the route answering.
+//
+// The check is **bounded here rather than in the handler**: one query per
+// DIAGNOSTIC_CACHE_TTL_MS and one in-flight query whatever the caller count,
+// which is what makes a public unauthenticated endpoint safe to point at a
+// 35-connection ceiling with no PgBouncer under it.
+app.register(createDiagnosticsRoutes(createCachedDatabaseCheck(database)));
 
 // Signal handling lives here rather than in buildServer(), because it is a
 // property of this process, not of the application. A factory that installs
