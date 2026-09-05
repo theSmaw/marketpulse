@@ -2,10 +2,12 @@
 
 **Status:** Not started
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
-**Depends on:** Task 2.2.6 (what a broken migration leaves behind — which is what decides
-this task's shape). Note also that Task 2.2.5 named **this** task as the reversal trigger for
-the migration checksum it declined to build: from here onward "drop it and re-migrate" stops
-being an available answer, which is the argument that would reverse the decision
+**Depends on:** Task 2.2.6 (complete — eight failure classes produced against a real
+PostgreSQL 18.6, which is what decides this task's shape). Note also that Task 2.2.5 named
+**this** task as the reversal trigger for the migration checksum it declined to build: from
+here onward "drop it and re-migrate" stops being an available answer, which is the argument
+that would reverse the decision — and **2.2.6 turned that argument into a produced failure**,
+so the decision below is taken against evidence rather than against a hypothesis
 
 ## Objective
 
@@ -29,6 +31,27 @@ assumed, and settle where that happens relative to a deploy.
   schema** and not the schema itself, and nothing inside it can create the table it
   describes. Harmless while nothing queries, and the clearest possible statement of why the
   boot-time shape needs the `files` change rather than merely benefiting from it
+- **Two migrations at once is settled, and the answer changes what the boot-time shape
+  costs.** Task 2.2.6 established it rather than assuming it: Kysely's Postgres adapter takes
+  a **session-level `pg_advisory_lock(3853314791062309107)`** — a hard-coded id, read out of
+  its own adapter — with `lock_timeout` set to **one hour**. Two `pnpm migrate` processes half
+  a second apart against one database put the second in `pg_stat_activity` as
+  `wait_event_type: Lock`, `wait_event: advisory`; it waited, then correctly reported
+  `Already up to date` and exited 0. **The lock is per-database**, and **a failing first
+  runner does not poison the second** — run 1 failed after six seconds, run 2 took the lock,
+  ran the same migration itself and also exited 1, so both report the failure and neither
+  reports success. That is the answer to "two overlapping deploys", which Task 1.11.6 already
+  proved happens: two merges 95 s apart produced two deploy runs, handled with a concurrency
+  group rather than by luck. **So overlap is safe and _hanging_ is the exposure**, and it
+  falls unevenly across the three shapes. A **`deploy.yml` step** that waits on the lock waits
+  up to an hour before erroring rather than failing fast, so the step needs **its own
+  deadline** rather than relying on the lock's — the same lesson Task 1.11.7 learned when a
+  300-second revision-wait expired four minutes too early to ever match the failure it was
+  watching for. A **boot-time job** is worse and the interaction is specific: Task 2.1.7 read
+  the startup probe off the live app as 2 s period / 3 s timeout / 30 failures, so a replica
+  waiting on a migration lock is killed at roughly **90 seconds** — long before the lock's own
+  hour — and a rolling revision that briefly runs two replicas is exactly what produces the
+  wait. Weigh that with the `files` cost above rather than separately
 - **Choose between the three shapes, and choose on the failure rather than the happy
   path.** A **step in `deploy.yml` before the container rolls** means a migration that
   succeeds and a deploy that then fails leaves a database ahead of the code — which is the
@@ -114,6 +137,24 @@ assumed, and settle where that happens relative to a deploy.
   traps apply — `psql` from a laptop cannot do `verify-full` where Node can, because the
   container has no CA store, and `pnpm db exec` **echoes its arguments**, which is how a
   live bearer token was printed into a terminal once already
+- **Take the checksum decision explicitly, because this is the task the trigger names and
+  2.2.6 removed the last reason to defer it again.** 2.2.5 declined a stored hash and recorded
+  why; 2.2.6 then **produced the consequence** rather than arguing it. An index appended to an
+  already-applied `0002_securities.sql` took `pnpm migrate` to `Already up to date` at **exit
+  0** with the index absent, and `pnpm test:database` to **23 passed** at **exit 0**, because
+  that suite migrates a database of its own from empty and never looks at the one that is
+  wrong. Two green instruments over a broken database, and **the only recovery that worked was
+  dropping it and re-migrating** — which is precisely what a managed server with a
+  `CanNotDelete` lock does not offer. So the question here is not "should we add a checksum"
+  in the abstract; it is: **once production exists, a file edited after it was applied is a
+  divergence no instrument reports and no command repairs.** Decide, and if the answer is to
+  keep deferring, say what the deployed recovery actually is — hand-written SQL against a
+  locked server, which is worth writing down before somebody needs it at speed. If the answer
+  is to build it, it is a change to the provider and `migrate.ts` and belongs in this task
+  rather than in a ninth one, since it is the same commit that first makes it matter. One
+  thing it must not be confused with: **a pending-list would not have caught this** — the
+  migration was recorded, so nothing was pending — which is worth stating in the bullet below
+  before a dry run gets adopted as though it closed this
 - **Note that a database-backed suite now exists, and decide out loud whether any of it
   points here.** `pnpm test:database` creates its own database, migrates it and drops it —
   which is exactly the thing a deployed server must never let anything do, and the suite is
@@ -131,6 +172,15 @@ assumed, and settle where that happens relative to a deploy.
   producer of all four. Confirm no credential reaches Log Analytics, and confirm the
   deployed `secrets` array is **still `null`**, which has now been read back twice and is
   ADR 0011's claim that this epic keeps confirming rather than expiring
+- **Know what a red step will actually print, because 2.2.6 measured it and it is less than
+  you would expect.** The message names the **migration** and does **not** name the statement:
+  the whole file body is one `sql.raw()` call, so a syntax error carries a `position`
+  character offset and **every execution error carries none** — only SQLSTATE and
+  PostgreSQL's internal `routine`. The error also carries a `line` field that is
+  **PostgreSQL's own C source line**, not a line in the migration, which is a trap worth not
+  falling into at speed. Both failure branches were confirmed to say the true thing about what
+  was left behind, including the one where `results` is `undefined`. So a red deployed
+  migration tells you which file and which SQLSTATE, and you read the file yourself
 - **Watch the deploy that carries it.** Whatever shape is chosen, run it for real and
   record the ordinary numbers: how long the migration step takes, what the run summary says,
   and whether a running page notices anything — Task 1.12.7 measured a full pipeline deploy
@@ -159,6 +209,10 @@ assumed, and settle where that happens relative to a deploy.
   them — including anything that exists only in the platform
 - Whether a CI runner can reach the database is a measurement
 - "The migration succeeded and the deploy then failed" has a written answer
+- The chosen shape has a **deadline of its own**, or the reason it does not need one, given
+  that the advisory lock's own timeout is an hour
+- The checksum decision is **taken** rather than deferred a third time, and if it is deferred
+  again the deployed recovery for a divergence is written down
 - No credential appears in the repository, the built output, the log destination or a
   terminal, checked rather than assumed
 - The `secrets` array is read back and reported

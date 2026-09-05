@@ -76,7 +76,14 @@ epics read instead of re-deriving it.
   `apps/backend/migrations/README.md` states that a `.sql` file is read by no tool here — so
   re-run `prettier --file-info` and `eslint` on `0002_securities.sql` rather than citing it —
   and its §6 says the `Database` interface is unchecked against the schema, which **Task
-  2.2.5 is supposed to have falsified on purpose**. `apps/backend/src/schema.ts` says in its
+  2.2.5 is supposed to have falsified on purpose**. **Task 2.2.6 added §8 to that same
+  document and it is the most figure-dense thing in the story**: a table of eight failure
+  classes with their verbatim messages and exit codes, four SQLSTATE values, a
+  `position` offset, an advisory lock id and its one-hour timeout. Those were measured
+  against PostgreSQL 18.6 through Kysely 0.29.5, so a **Kysely upgrade** moves the lock
+  constants and an **engine upgrade** may move the messages — neither of which breaks
+  anything, which is exactly why they rot silently. Re-take the ones cheapest to re-take
+  rather than all of them, and say which were re-taken. `apps/backend/src/schema.ts` says in its
   own header that _"nothing consumes this interface today"_, which stops being true the moment
   2.2.5 imports it and stops being true again in Story 2.8 — the exact shape of wording that
   hardens from "not yet" into "never" in the retelling. **And one claim to re-read rather than
@@ -130,13 +137,30 @@ epics read instead of re-deriving it.
   **Task 2.2.4 adds a fourth, created deliberately and in the open**: `SECURITY_KINDS` in
   `packages/shared` and `securities_kind_check` in the database are two spellings of one
   vocabulary — and **Task 2.2.5 closed it**, parsing the constraint text Postgres rewrote, so
-  it belongs in the **first** list as a property rather than the second as a gap. **What 2.2.5
+  it belongs in the **first** list as a property rather than the second as a gap. **Task 2.2.6 moves one item into the FIRST list and puts the sharpest item in the story into
+  the second.** Into the first: **two concurrent migrations cannot interleave**, because
+  Kysely takes a per-database session-level advisory lock — established rather than assumed,
+  with a failing first runner shown not to poison the second. Into the second, and it is the
+  one sentence ADR 0015 most needs: **a green `pnpm migrate` does not certify that the
+  database matches the migration files.** It certifies that every migration _named_ on disk is
+  recorded as applied, which is a different claim, and 2.2.6 produced the gap between them —
+  an index appended to an applied migration left `pnpm migrate` and `pnpm test:database` both
+  at exit 0 over a database missing it. That is precisely the "what a green X certifies and
+  what it does not" shape these lists exist for, and it is stronger than the checksum entry
+  below because it is a property of the mechanism rather than a gap in tooling. Two smaller
+  second-list candidates come with it: the advisory lock's **one-hour** timeout means a hung
+  migration blocks another for an hour rather than failing fast, and a failed migration
+  **names the file and not the statement**, carrying a `position` only for a syntax error.
+  **What 2.2.5
   put into the second list instead is sharper and there are three of them.** The **three-glob
   partition** across that package's Vitest configs is a naming convention with nothing behind
   it, and it is now the _second_ instance of the class Task 1.13.2 named — weaker than that
   one, because there the mitigation is a missing `test` script and here it is only a comment,
   in a package that does have one. The **migration checksum** is still open and is now
-  deliberately so, with its reasoning recorded and Task 2.2.7 named as the reversal trigger.
+  deliberately so, with its reasoning recorded and Task 2.2.7 named as the reversal trigger —
+  and it should be written up as a **produced failure rather than a hypothesis**, since 2.2.6
+  ran it and 2.2.7 was required to take the decision rather than defer it again; check which
+  way 2.2.7 went before describing it.
   And the **third engine pin** — the CI service image — is compared against the local one on
   every pull request, which moves half of an existing gap into the first list while leaving
   the deployed half in the second; ADR 0015 should say which half is which rather than

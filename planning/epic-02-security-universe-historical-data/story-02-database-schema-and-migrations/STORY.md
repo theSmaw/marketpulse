@@ -246,23 +246,36 @@ and `CLAUDE.md`'s "nothing compares those two numbers" entry for the engine pin 
 closed** and now says which half.
 
 **Amended a fourth time after Task 2.2.6 (2026-09-05), with no task added, deleted or
-re-ordered.** 2.2.6 produced eight failure classes and **2.2.7 is the only task that needed
-amending**, because three of them are directly about a rollout rather than about a laptop.
-**Concurrency is now established rather than assumed**: Kysely takes a session-level
-`pg_advisory_lock` on a hard-coded id with a one-hour `lock_timeout`, it is **per-database**,
-and a failing first runner does **not** poison a second — both concurrent runners report the
-failure and neither reports success, which is the answer 2.2.7's "what happens when two
-deploys overlap" needed. **The one-hour timeout is the sharp edge**: a runner that hangs
-holds the lock and the second waits an hour before erroring rather than failing fast, so a
-deploy step needs its own deadline rather than relying on the lock's. And **the checksum
-reversal trigger is now backed by a produced failure rather than an argument** — an edited
-applied migration takes `pnpm migrate` and `pnpm test:database` both to exit 0 over a
-database missing what the files say it has, and the recovery is dropping the database, which
-is exactly what stops being available at 2.2.7.
+re-ordered.** **Two** task files were amended, 2.2.7 and 2.2.8, and the sweep confirmed the
+story's own ordering argument a second time: breaking a migration before deploying one
+produced three answers 2.2.7 was about to have to guess at.
 
-**2.2.8** needs no amendment beyond a third document to sweep: `migrations/README.md` gained
-§8, whose figures — SQLSTATE values, the advisory lock id and timeout, and the class table —
-are measured claims that rot like any other.
+**2.2.7 gained the most, and one of its gaps was real rather than a refinement — it said
+nothing at all about two migrations running at once.** Concurrency is now established:
+Kysely takes a session-level `pg_advisory_lock` on a hard-coded id with a one-hour
+`lock_timeout`, it is **per-database**, and a failing first runner does **not** poison a
+second — both report the failure and neither reports success. **Overlap is therefore safe and
+_hanging_ is the exposure**, and it falls unevenly across the three shapes that task chooses
+between: a `deploy.yml` step waiting on the lock waits an hour before erroring, so it needs a
+deadline of its own, and a boot-time job is worse, because Task 2.1.7's startup probe kills a
+replica at roughly **90 seconds** — so a rolling revision that briefly runs two replicas is
+exactly what produces the wait. That is a cost to weigh beside the `files` cost rather than
+separately. **The checksum reversal trigger is now backed by a produced failure rather than an
+argument**, so 2.2.7 is told to _take_ that decision rather than defer it a third time, and to
+write down the deployed recovery if it defers again — an edited applied migration takes
+`pnpm migrate` and `pnpm test:database` both to exit 0 over a database missing what the files
+say it has, and the only recovery that worked was dropping the database, which is what a
+`CanNotDelete`-locked server does not offer. It also gained what a red deployed migration
+will actually print, which is less than expected: the file and a SQLSTATE, no statement.
+
+**2.2.8** gained a third document to sweep — `migrations/README.md` §8, the most figure-dense
+thing in the story, whose SQLSTATE values and advisory-lock constants are pinned to
+PostgreSQL 18.6 and Kysely 0.29.5 and so rot on either upgrade without breaking anything —
+and **two entries for ADR 0015's lists**. One moves into the _first_: two concurrent
+migrations cannot interleave. The other is the sharpest sentence the story has produced and
+belongs in the second: **a green `pnpm migrate` does not certify that the database matches the
+migration files**, only that every migration _named_ on disk is recorded as applied, which is
+a different claim — and 2.2.6 produced the gap between them.
 
 **`market_bars` is in none of these tasks and that is deliberate**, per this story's own
 out-of-scope note: its shape is driven by measured ingestion, and creating it here would be
