@@ -1044,6 +1044,22 @@ That exit code is the one thing about this command worth knowing:
 read its `error` field is a green migration step over a database whose tables do
 not exist. It is read, and the reading is unit-tested.
 
+Task 2.2.6 produced **eight** ways a migration can fail against a real server and
+recorded what each leaves behind in
+[`migrations/README.md` §8](apps/backend/migrations/README.md#8-when-a-migration-fails--what-it-leaves-behind-and-how-to-recover),
+along with the recovery for each. Two of its findings are worth having before you
+need them. **Two `pnpm migrate` runs at once are safe** — Kysely takes a
+session-level `pg_advisory_lock`, so the second waits and then reports
+`Already up to date`, and if the first _fails_ the second runs it itself and also
+exits 1; neither ever reports success over a failure. And **there is exactly one
+failure that does not exit 1**: editing a migration that has already been applied.
+There is no checksum, so `pnpm migrate` reports `Already up to date` at exit 0 and
+`pnpm test:database` passes too — it builds a database of its own from empty and
+never looks at yours. Two green instruments over a database that is wrong, and
+only a person catches it. **Never edit a migration that has been applied; write a
+new one.** If you already have, `pnpm db down -v && pnpm db && pnpm migrate` is
+the recovery, confirmed sufficient.
+
 **What is in the database today: `securities`, and nothing else.** Task 2.2.4
 put one table through the mechanism, sized by Story 2.3's vocabulary — symbol,
 name, exchange, kind, sector, industry, status and a CIK — and **no seed data**,

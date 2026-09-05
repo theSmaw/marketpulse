@@ -21,6 +21,10 @@ rather than a remembered one — is written beside the code that enforces it, in
 is the **vocabulary**: the decisions a migration author makes about a table, none
 of which the runner has an opinion about.
 
+The one exception is [§8](#8-when-a-migration-fails--what-it-leaves-behind-and-how-to-recover),
+which is about the mechanism and is here anyway, because the moment you need it
+you are reading a failure rather than reading source.
+
 Every figure below was measured against PostgreSQL 18.6 through `pg` 8.23.0 on
 2026-09-05, not recalled. Where a claim was produced rather than read, it says
 so.
@@ -346,6 +350,153 @@ invalid rather than merely empty.
 
 ---
 
+## 8. When a migration fails — what it leaves behind, and how to recover
+
+Every class in this section was **produced** against PostgreSQL 18.6 on a scratch
+database and reverted, rather than read from documentation (Task 2.2.6).
+
+**The headline, and it is the same answer for every execution failure: the
+database is exactly as it was.** Postgres has transactional DDL, the whole file
+body runs as one `sql.raw()` inside one transaction, and Kysely writes the
+bookkeeping row in that _same_ transaction — so there is no half-applied state
+and nothing to repair. A failed migration is not recorded, so the next run
+retries it.
+
+**So the recovery for every row below is the same, and it is not "drop the
+database":**
+
+```
+# fix the file, then:
+pnpm migrate
+```
+
+`pnpm db down -v && pnpm db && pnpm migrate` is the bigger hammer, and it is
+needed for exactly one of these — the last row, which is the only failure that
+leaves a database genuinely wrong.
+
+| What you did                                                    | What it says                                                                                  | What it left behind                                                                            |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| A syntax error                                                  | `syntax error at or near "tabel"`                                                             | Nothing. Not recorded                                                                          |
+| Two statements, the second fails, against a table **with rows** | `column "symbol" of relation "securities" already exists`                                     | Nothing — the first statement and its `update` are rolled back too, and the rows are untouched |
+| `set not null` on a column that has nulls                       | `column "sector" of relation "securities" contains null values`                               | Nothing. Not recorded                                                                          |
+| A `check` a table's existing rows violate                       | `check constraint "securities_status_check" of relation "securities" is violated by some row` | Nothing. Not recorded                                                                          |
+| `create index concurrently`                                     | `CREATE INDEX CONCURRENTLY cannot run inside a transaction block`                             | Nothing — **not** the `INVALID` index this leaves outside a transaction                        |
+| A filename that is not `NNNN_lower_snake_case.sql`              | The provider refuses it by name                                                               | Nothing. No migration ran at all                                                               |
+| No database                                                     | `connect ECONNREFUSED …`                                                                      | Nothing. No migration ran at all                                                               |
+| **Editing a migration that was already applied**                | **`Already up to date` — exit 0**                                                             | **A database that no longer matches the files.** See below                                     |
+
+All of them exit **1** except the last, which exits **0**. That is the point of
+the last row.
+
+### The two failure messages say different things, and the difference is real
+
+- _"Migration `X` failed and was rolled back"_ — a migration executed and threw.
+- _"failed before any migration was executed, so the database is exactly as it
+  was"_ — Kysely never got as far as running anything: a refused filename, a
+  corrupted migration list, an unreachable database. In this class `results` is
+  **`undefined`**, which is why `summariseMigration` checks `error` first and on
+  its own; a check written over `results` alone misses the whole class.
+
+Both were produced. If a failure ever lands in the wrong branch, the message is
+actively misleading rather than merely unhelpful — one of them claims a rollback
+and the other claims nothing ran.
+
+### The message names the migration and does **not** name the statement
+
+Measured, because it is worth knowing before you go looking for a line number.
+The whole file body is one `sql.raw()` call, so Postgres sees a single
+multi-statement query and the `DatabaseError` `pg` raises carries:
+
+| Class           | SQLSTATE | `position`                                   |
+| --------------- | -------- | -------------------------------------------- |
+| Syntax error    | `42601`  | `86` — a character offset into the file body |
+| Null violation  | `23502`  | absent                                       |
+| Check violation | `23514`  | absent                                       |
+| Not in a txn    | `25001`  | absent                                       |
+
+So **only a syntax error is locatable at all**, and none of it is printed today.
+The error also carries `line`, which is a trap: it is PostgreSQL's own C source
+line (`"7695"`), not a line in your migration. If a file ever grows big enough
+that "syntax error at or near `x`" is ambiguous, the right change is for the
+provider to hand the body along so a real line number can be computed from
+`position` — not to print the offset raw.
+
+### The one thing a rollback does not give back
+
+**A rolled-back migration consumes identity values.** Produced: against a
+`securities` holding ids 1–3, a migration inserted two rows and then failed. The
+rollback left three rows with max id 3 — and the next insert got id **6**, not 4.
+Sequences are non-transactional in Postgres by design.
+
+`migrate.ts` says _"it left nothing behind and was not recorded"_, and that
+sentence is **deliberately left as it is**. It is read by somebody who has just
+had a migration fail and is deciding whether to go and look at the database, and
+for that question it is correct: a gap in a surrogate key's sequence is not
+something anyone can or should act on, ids here are explicitly not contiguous,
+and lengthening the sentence would spend a reader's attention on a non-problem
+at the moment they have least of it. It is recorded here instead, because the
+claim is not quite true and noticing that is worth more than the wording.
+
+### Two migrations at once are safe, and the mechanism is an advisory lock
+
+Not hypothetical from Task 2.2.7 onward: two merges 95 s apart have already
+produced two overlapping deploy runs once.
+
+Kysely's Postgres adapter takes a **session-level advisory lock** —
+`pg_advisory_lock(3853314791062309107)`, a hard-coded id, with `lock_timeout`
+set to **one hour**. Produced by running two `pnpm migrate` processes half a
+second apart against one database: the second appeared in `pg_stat_activity` as
+`wait_event_type: Lock`, `wait_event: advisory`, waited for the first to finish,
+then correctly reported `Already up to date` and exited 0. No interleaving, no
+double-apply.
+
+Three consequences worth carrying:
+
+- **The lock is per-database.** `pg_locks.database` is the database's own OID, so
+  a migration against one database does not block one against another on the same
+  server. This is why the scratch-database pattern is genuinely isolated.
+- **A failing first runner does not poison the second.** Produced: run 1 failed
+  after six seconds; run 2 took the lock, ran the same migration itself, failed
+  the same way, and also exited 1. Both report the failure — neither reports
+  success.
+- **The lock is session-level, so a hard crash releases it** when the connection
+  drops. But a runner that _hangs_ holds it, and the second waits up to an hour
+  before erroring rather than failing fast.
+
+### The one failure nothing here catches: editing a migration that has been applied
+
+There is **no checksum** (Task 2.2.5 weighed a hash table and declined it, with
+its reasoning recorded). `kysely_migration` holds `(name, timestamp)`, so a file
+that has been applied is matched by name and its contents are never looked at
+again.
+
+Produced, and this is the finding: an index was appended to `0002_securities.sql`
+_after_ it had been applied. Then —
+
+- `pnpm migrate` reported **`Already up to date — no migrations to apply.`**, exit
+  **0**, and the index was absent from the database.
+- `pnpm test:database` reported **23 passed**, exit **0** — because it migrates a
+  database of its own **from empty** every run, so it proves _these files produce
+  this schema_ and structurally cannot prove _that database matches these files_.
+
+Two green instruments, side by side, over a database that is wrong. The only
+thing that catches this is a person.
+
+**So: never edit a migration that has been applied. Write a new one.** If you
+already have, the recovery is the big hammer, and it is sufficient — confirmed:
+
+```
+pnpm db down -v && pnpm db && pnpm migrate
+```
+
+What bounds the damage is that the divergence is confined to one laptop: CI and
+every deploy migrate from the same files into an empty database. **That stops
+being true from Task 2.2.7**, which is the stated reversal trigger for building
+the hash table — from there, dropping and re-migrating is not an available
+answer.
+
+---
+
 ## What is checked, and what is prose
 
 The line between these two lists is not effort. It is whether the thing being
@@ -419,6 +570,16 @@ snake case, the `security_id` foreign key spelling, `text` over `varchar(n)`, an
 market_ and `recorded_at` means _when we wrote it_. A database can confirm both
 columns are `timestamptz`; nothing can confirm a writer put the right value in the
 right one. That is what review is for, and it is why this document exists.
+
+**And one convention here is prose that no instrument can ever hold: never edit a
+migration that has been applied.** Task 2.2.6 produced the consequence — with an
+index appended to an already-applied `0002_securities.sql`, `pnpm migrate`
+reported `Already up to date` at exit 0 and `pnpm test:database` reported 23
+passed at exit 0, over a database missing that index. Neither instrument looks at
+the database you broke: one matches migrations by name and never reads their
+contents, the other builds a database of its own from empty. Only a stored hash
+could close it, and Task 2.2.5 weighed one and declined it. See
+[§8](#the-one-failure-nothing-here-catches-editing-a-migration-that-has-been-applied).
 
 **A regex over the SQL text was considered and declined.** It could catch
 `timestamp` and `double precision` before the file ran, which is earlier and

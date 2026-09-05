@@ -153,7 +153,7 @@ stops being the backend's problem alone. 2.2.8 closes the story and records ADR 
 | 2.2.3 | [Write the conventions down, before there is a table to argue about](TASK-03-the-schema-conventions.md)                                 | **Complete** |
 | 2.2.4 | [The first schema: `securities` and nothing more](TASK-04-the-first-schema.md)                                                          | **Complete** |
 | 2.2.5 | [The sixth level of test, and what it costs `pnpm test`](TASK-05-the-sixth-level-of-test.md)                                            | **Complete** |
-| 2.2.6 | [Break a migration on purpose, locally, and record what it leaves behind](TASK-06-break-a-migration-on-purpose.md)                      | Not started  |
+| 2.2.6 | [Break a migration on purpose, locally, and record what it leaves behind](TASK-06-break-a-migration-on-purpose.md)                      | **Complete** |
 | 2.2.7 | [Migrate the deployed database, and decide what a failed migration does to a rollout](TASK-07-migrate-the-deployed-database.md)         | Not started  |
 | 2.2.8 | [Verify from a clean clone, document, and record ADR 0015](TASK-08-verify-document-and-adr.md)                                          | Not started  |
 
@@ -244,6 +244,25 @@ time rather than left for the closing sweep**, which is the rule this repository
 has twice failed to follow: `README.md`'s levels table said **five** levels and now says six,
 and `CLAUDE.md`'s "nothing compares those two numbers" entry for the engine pin was **half
 closed** and now says which half.
+
+**Amended a fourth time after Task 2.2.6 (2026-09-05), with no task added, deleted or
+re-ordered.** 2.2.6 produced eight failure classes and **2.2.7 is the only task that needed
+amending**, because three of them are directly about a rollout rather than about a laptop.
+**Concurrency is now established rather than assumed**: Kysely takes a session-level
+`pg_advisory_lock` on a hard-coded id with a one-hour `lock_timeout`, it is **per-database**,
+and a failing first runner does **not** poison a second — both concurrent runners report the
+failure and neither reports success, which is the answer 2.2.7's "what happens when two
+deploys overlap" needed. **The one-hour timeout is the sharp edge**: a runner that hangs
+holds the lock and the second waits an hour before erroring rather than failing fast, so a
+deploy step needs its own deadline rather than relying on the lock's. And **the checksum
+reversal trigger is now backed by a produced failure rather than an argument** — an edited
+applied migration takes `pnpm migrate` and `pnpm test:database` both to exit 0 over a
+database missing what the files say it has, and the recovery is dropping the database, which
+is exactly what stops being available at 2.2.7.
+
+**2.2.8** needs no amendment beyond a third document to sweep: `migrations/README.md` gained
+§8, whose figures — SQLSTATE values, the advisory lock id and timeout, and the class table —
+are measured claims that rot like any other.
 
 **`market_bars` is in none of these tasks and that is deliberate**, per this story's own
 out-of-scope note: its shape is driven by measured ingestion, and creating it here would be
