@@ -80,7 +80,14 @@ renumbered.
     would catch it — there is no checksum, `migrate.ts` matches by name and never reads a
     file's contents, so editing a comment is mechanically invisible — which makes it exactly
     the rule that erodes by being harmless the first time. **Resolve it explicitly rather
-    than by reflex.** The shape that costs nothing is to leave `0002` byte-identical and let
+    than by reflex — and note that since 2026-09-05 the answer is FORCED rather than
+    preferred.** The story renumber edited the story numbers in both files' comments,
+    both were already applied to the deployed database, and the next deploy's migration
+    step refused with `2 applied migrations have been edited since they were applied`
+    having applied nothing. The bytes were restored. So the option this bullet already
+    called the one that costs nothing — leave `0002` byte-identical and let `0003`'s
+    header be the correction — is now the only option that works at all, and the same is
+    true of `0003` itself. `migrations/README.md` §9 records it.** The shape that costs nothing is to leave `0002` byte-identical and let
     `0003`'s header be the correction, since a reader arrives at these files in order and
     `0003` already says what it changed and why; a header note in `0002` pointing forward is
     the middle option and is still an edit. Whatever is chosen, say so in the ADR, because

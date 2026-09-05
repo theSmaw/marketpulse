@@ -321,10 +321,25 @@ jobs:
           # stated rather than assumed — a 300-second deadline there expired
           # four minutes too early to ever match the failure it watched for, so
           # it went red for the right reason with the wrong message.
-          if ! timeout 120 pnpm migrate; then
-            status=$?
+          # `status=$?` must be captured from the command itself, NOT from
+          # inside `if ! cmd; then`. In `if ! cmd`, `$?` at the top of the
+          # then-block is the status of the NEGATED test, which is 0 exactly
+          # when the command failed — so the earlier form here computed
+          # `status=0` and `exit 0`, and a REFUSED MIGRATION REPORTED SUCCESS
+          # and let the code roll on top of it. Produced on 2026-09-05: the
+          # checksum guard refused two edited migrations, `pnpm migrate` printed
+          # `[ELIFECYCLE] Command failed with exit code 1`, and this step and
+          # the whole deploy were green. That is the exact failure mode Task
+          # 2.2.2 spent three deliberate breaks on, reintroduced one layer up in
+          # the shell rather than in the runner.
+          status=0
+          timeout 120 pnpm migrate || status=$?
+
+          if [ "$status" -ne 0 ]; then
             if [ "$status" -eq 124 ]; then
               echo "::error::the migration did not finish inside 120 s. Kysely takes a session-level advisory lock with a one-hour timeout, so the likeliest cause is another migration holding it — check pg_stat_activity for wait_event: advisory. Nothing was applied by this run."
+            else
+              echo "::error::the migration failed and nothing after this step ran. The database is as it was; read the step's output above for which migration and why."
             fi
             exit "$status"
           fi
