@@ -266,3 +266,22 @@ Task 2.1.1's rather than Epic 1's**:
 fast tests plus 14 process tests. Task 2.1.5 shipped **no application source**, so the
 frontend artefact should still reproduce Task 1.13.4's four files and **361,664 B** to
 the byte — which is the check rather than a coincidence.
+
+### Two additions found by re-reading this amendment round rather than by writing it
+
+- **The platform-only-configuration gap — `CLAUDE.md`'s "sixth kind" — roughly doubled,
+  and the sharpest new instance is not a setting.** It previously named the Container
+  App's three probes, `minReplicas: 1`, the ingress port, `HOST` and `CORS_ORIGIN`. Task
+  2.1.5 added the database's **two firewall rules**, its **Entra administrator**, the
+  **action group and two metric alerts**, the **`CanNotDelete` lock**, and — the one that
+  is different in kind — the **`marketpulse-backend` role**, which is not a value that can
+  be re-read and diffed but a **one-off SQL statement that must be re-run by hand if the
+  server is ever re-created**. `HOSTING.md` is its only copy. `CLAUDE.md` records this as
+  of 2026-09-05; **ADR 0014 should carry it too**, because that is where a future reader
+  looks for what the platform holds that this repository does not.
+- **Confirm the `developer-laptop` firewall rule is still wanted.** Task 2.1.5's brief
+  asked that laptop access be "a decision rather than something that quietly stays on",
+  and it is currently a decision: one IPv4 address, `122.11.246.19`. But **a developer's
+  IP moves**, so this rule is either stale or wrong most of the time, and under the lock it
+  can be **updated but not deleted**. As the closing task, confirm it or remove it
+  deliberately — this is exactly the "quietly stays on" the brief warned about.

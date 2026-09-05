@@ -279,6 +279,13 @@ is `create` and `update`. So:
 - If a rule genuinely has to go, the sequence is `az lock delete` → delete → `az lock create`,
   which Task 2.1.5 executed once and documented.
 
+**And budget for the delay, because it decides whether the observation is real.** Firewall
+changes "can take up to five minutes to take effect". This task watches a replica across
+probe intervals after breaking connectivity, so a check run too early sees a **healthy**
+backend and would read as "an unreachable database does not kill the replica" when the
+database was still reachable. **Confirm the connection is actually failing before starting
+the clock on the replica**, or the criterion passes for the wrong reason.
+
 ### The leak check gains a place, and loses one
 
 **A new place to look: terminal echo.** Task 2.1.5 passed an Entra token through
