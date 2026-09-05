@@ -1,6 +1,6 @@
 # Task 2.2.8 — Verify from a clean clone, document, and record ADR 0015
 
-**Status:** Not started
+**Status:** **Complete** (2026-09-05)
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
 **Depends on:** Tasks 2.2.1 to 2.2.7 (all complete). **Task 2.2.7 resolved three things this
 task was written predicting**: it took the checksum decision by **building** it, it migrated

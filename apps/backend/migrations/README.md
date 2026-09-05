@@ -313,10 +313,15 @@ where that decision gets skipped, and never in `packages/shared`, which would pu
 a row shape back on the frontend's side of the boundary. Story 2.8 writes the
 first read and owns where the isolated query handle lives.
 
-**Nothing checks the interface against the schema**, and that is a real gap of
+~~**Nothing checks the interface against the schema**, and that is a real gap of
 this repository's third kind: a column renamed in a migration and not in the
 interface typechecks, lints and builds, and fails at run time. Task 2.2.5 owns
-closing it against `information_schema`.
+closing it against `information_schema`.~~ **Closed by Task 2.2.5 and re-verified
+at the story's close (2026-09-05).** `apps/backend/src/migrate.database.test.ts`
+declares its expectation `satisfies Record<keyof SecuritiesTable, ExpectedColumn>`
+and then compares that expectation against `information_schema` — so the compiler
+holds interface → spec and the test holds spec → database, and a column renamed in
+a migration and not in the interface is now a red `pnpm test:database`.
 
 ---
 
@@ -326,15 +331,16 @@ closing it against `information_schema`.
 a re-runnable script.** The distinction is not stylistic — it is what each
 mechanism can and cannot do:
 
-|                             | Migration                                   | Script                       |
-| --------------------------- | ------------------------------------------- | ---------------------------- |
-| Runs                        | once, ever, per database                    | as often as you like         |
-| Recorded                    | yes, in `kysely_migration`                  | no                           |
-| Editing the file afterwards | **silently skipped** — there is no checksum | takes effect on the next run |
-| Correcting its contents     | needs a second migration                    | edit and re-run              |
+|                             | Migration                                      | Script                       |
+| --------------------------- | ---------------------------------------------- | ---------------------------- |
+| Runs                        | once, ever, per database                       | as often as you like         |
+| Recorded                    | yes, in `kysely_migration`                     | no                           |
+| Editing the file afterwards | **refused** — exit 1, both hashes printed (§9) | takes effect on the next run |
+| Correcting its contents     | needs a second migration                       | edit and re-run              |
 
-So data in a migration is data you **cannot correct** — you can only write a
-second migration correcting the first, and the append-only history then contains
+So data in a migration is data you **cannot correct** — since Task 2.2.7 the
+runner refuses an edited applied file outright rather than skipping it, so you can
+only write a second migration correcting the first, and the append-only history then contains
 both. That is right for shape, where the history of how the schema got here is
 the point, and wrong for content, where only the current answer matters.
 

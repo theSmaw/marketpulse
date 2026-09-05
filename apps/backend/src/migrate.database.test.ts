@@ -18,8 +18,8 @@
 // database of its own, migrates that, reads it, and drops it — see
 // {@link TEST_DATABASE_NAME}. The alternatives were weighed and each fails a
 // property this repository already holds. A transaction rolled back per test
-// cannot work, because a migration opens its own transaction and the thing
-// under test is what that transaction does. Truncation destroys the
+// cannot work, because the migrator opens one of its own around the whole run
+// and the thing under test is what that transaction does. Truncation destroys the
 // development database's rows — which from Story 2.3 onward is a ~100-row
 // universe that takes a documented command to rebuild, so a suite that
 // truncates costs a developer that command every time they run it. And a

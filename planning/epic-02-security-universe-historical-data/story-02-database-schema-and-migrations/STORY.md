@@ -1,6 +1,6 @@
 # Story 2.2 — Database Schema & Migration Mechanism
 
-**Status:** Not started
+**Status:** **Complete** (2026-09-05)
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.1
 **Epic scope covered:** Database schema and migration mechanism
@@ -42,7 +42,7 @@ theory: a mistake costs a `DROP`, not a backfill.
 - The **first schema**: enough for Story 2.3's `securities` table and nothing more.
   `market_bars` belongs to Story 2.7, where its shape is driven by measured ingestion
 - A **sixth level of test** — one that talks to a real database — and its cost. Epic 1
-  has five levels and a stated rule that `pnpm test` must stay fast, need no build and
+  ended with five levels and a stated rule that `pnpm test` must stay fast, need no build and
   need no socket. A database-backed test breaks all three of those, so it needs the
   `test:process` treatment: its own command, its own config, and a stated reason
 
@@ -60,8 +60,6 @@ theory: a mistake costs a `DROP`, not a backfill.
 **Every decision in this story is now settled.** Decision 3 was taken by Task 2.2.7 — a step
 in `deploy.yml` before either half of the code rolls, connecting as a **second** Postgres
 role — and that task also took the checksum decision Task 2.2.5 had deferred to it. Task
-2.2.1 measured five candidates from a fresh install and recorded the arguments in
-[`DATA-LAYER.md`](DATA-LAYER.md). The migrator is **Kysely's `Migrator`** driving plain SQL
 2.2.1 measured five candidates from a fresh install and recorded the arguments in
 [`DATA-LAYER.md`](DATA-LAYER.md). The migrator is **Kysely's `Migrator`** driving plain SQL
 files through a provider we own; the query layer is **Kysely** too, declared as a seam rather
@@ -172,7 +170,7 @@ stops being the backend's problem alone. 2.2.8 closes the story and records ADR 
 | 2.2.5 | [The sixth level of test, and what it costs `pnpm test`](TASK-05-the-sixth-level-of-test.md)                                            | **Complete** |
 | 2.2.6 | [Break a migration on purpose, locally, and record what it leaves behind](TASK-06-break-a-migration-on-purpose.md)                      | **Complete** |
 | 2.2.7 | [Migrate the deployed database, and decide what a failed migration does to a rollout](TASK-07-migrate-the-deployed-database.md)         | **Complete** |
-| 2.2.8 | [Verify from a clean clone, document, and record ADR 0015](TASK-08-verify-document-and-adr.md)                                          | Not started  |
+| 2.2.8 | [Verify from a clean clone, document, and record ADR 0015](TASK-08-verify-document-and-adr.md)                                          | **Complete** |
 
 **Two things about this split worth stating, because both are decisions rather than
 consequences.** The **conventions come before the first table** (2.2.3 before 2.2.4): the
@@ -298,10 +296,35 @@ a different claim — and 2.2.6 produced the gap between them.
 out-of-scope note: its shape is driven by measured ingestion, and creating it here would be
 creating it against no measurement at all.
 
+**Closed by Task 2.2.8 (2026-09-05), with `docs/adr/0015-*`.** All seven acceptance
+criteria were re-run against the shipped tree and every figure re-taken, from a clean
+clone where that is the only honest place. Criterion 3 was re-run by **connecting to the
+managed server** rather than by reading Task 2.2.7's record of having done so, and the
+strongest form of it is that the two checksums stored there are byte-identical to
+`shasum -a 256` of the local files. **Seven live claims had stopped being true**, the
+sharpest being `migrations/README.md` §7's own table still saying an edited applied
+migration is "silently skipped — there is no checksum" — the paragraph Story 2.3 reads to
+decide whether the universe is a migration — and `README.md`'s script table saying
+`pnpm test` is 239 ninety lines above its own correct 246. **One new fact came out of the
+clean clone**: `compose.yaml` declares a fixed Compose project name, so **a fresh clone
+does not get a fresh database**; `pnpm db down -v` is what empties it, and the first-run
+sequence is now four steps rather than three.
+
+**Two things this story did not close, both stated rather than hidden.** The
+`deploy.yml` migration step **has still never run on `main`**, because `main` is at Task
+2.2.3 and Tasks 2.2.4–2.2.8 are one unmerged pull request; its first execution is the
+first merge after this one and will report `Nothing pending.`, which is ordinary
+observation. And the `index.process.test.ts` drain-ordering flake is **carried forward
+with a count rather than closed**: it did not recur across fourteen further executions
+here, leaving it at 1 failure in ~40 across three tasks, still undiagnosed.
+
 ## What this story hands forward
 
-The mechanism every table in §30 arrives through, and the one place Epic 13's temporal
-constraint can later be made structural rather than remembered.
+The mechanism every table in §30 arrives through — **built and exercised** — and the one
+place Epic 13's temporal constraint can later be made structural rather than remembered,
+which is **a claim rather than a property**: the plugin was written in a spike and
+reverted, the tree is byte-identical, and Story 2.8 writes the first `selectFrom` and owns
+the module whose export list is the whole guarantee.
 
 ## Conventions
 

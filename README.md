@@ -18,8 +18,8 @@ runner and runs [`pnpm e2e`](#pnpm-e2e--the-browser-suite) — ten journeys in
 Chromium against a real pair, including an accessibility gate over two assembled
 pages. It is a job rather than a chain step because `pnpm verify` runs with
 nothing listening, which is a property every clean-clone run in this repository
-has measured and one it is not willing to lose. Both jobs are required checks on
-`main`. Everything the browser suite does **not** certify is listed in
+has measured and one it is not willing to lose. All three jobs — `verify`, `e2e` and `database` — are required checks
+on `main`. Everything the browser suite does **not** certify is listed in
 [`e2e/README.md`](e2e/README.md).
 
 **Green does not mean anything is deployed, either.** Deployment is a second
@@ -174,13 +174,40 @@ If `pnpm install` fails complaining about a dependency's install scripts, see
 allowlist that one package, never to disable the check.
 
 Nothing in that sequence needs a database, and nothing in it needs Docker. The
-database is a separate, longer-lived thing:
+database is a separate, longer-lived thing, and it is **two** commands rather
+than one:
 
 ```sh
 pnpm db          # starts PostgreSQL 18 and waits until it is accepting connections
+pnpm migrate     # applies every migration the database has not seen
 ```
 
-Run it once and leave it. See [`pnpm db` — the local database](#pnpm-db--the-local-database).
+So the first run of a clean clone is **four** steps in this order —
+`pnpm install`, `pnpm build` (or `pnpm verify`, which builds), `pnpm db`,
+`pnpm migrate`. It was three until Story 2.2, and the two things that make the
+order matter are worth knowing before you reorder them. **`pnpm db` and
+`pnpm migrate` both need a built tree**, because where the database is comes out
+of `apps/backend/dist/config.js` rather than out of a second copy of the port;
+both say ``run `pnpm build` first`` rather than throwing a resolver error.
+And a database started but not migrated is an **empty** database that every tool
+here reports as perfectly healthy — `pnpm ready` ticks it, `pnpm verify` passes,
+`pnpm dev` serves — so skipping the fourth step has no symptom at all until
+something reads a table.
+
+Run `pnpm db` once and leave it running. See
+[`pnpm db` — the local database](#pnpm-db--the-local-database) and
+[`pnpm migrate` — bringing the database up to date](#pnpm-migrate--bringing-the-database-up-to-date).
+
+**The database is one per machine, not one per checkout.** `compose.yaml`
+declares `name: marketpulse`, a fixed Compose project name, so a second clone or
+a git worktree running `pnpm db` attaches to the **same** container and the same
+volume rather than starting one of its own. That is the right default — one
+Postgres, one port, no surprises about which of two databases you just
+migrated — and it has one consequence worth stating, because it was measured at
+Story 2.2's close rather than assumed: **a fresh clone does not get a fresh
+database.** `pnpm migrate` in a brand-new clone reported `Already up to date`,
+correctly, because the volume it attached to had been migrated by another
+checkout. `pnpm db down -v` is what actually empties it.
 
 ## Running MarketPulse
 
@@ -461,7 +488,7 @@ Run from the repository root:
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Every package's tests — 239 across the workspace — see below          |
+| `pnpm test`         | Every package's tests — 246 across the workspace — see below          |
 | `pnpm test:process` | The backend's process half — 14 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
@@ -1123,7 +1150,8 @@ readable from a migrated database.
 run and again at the start of the next, so a run that crashed cleans up after
 itself rather than leaving something for you to find. The alternatives each fail
 a property this repository already holds: a transaction per test cannot work,
-because a migration opens its own and that is the thing under test; truncation
+because the migrator opens one of its own around the whole run and that is the
+thing under test; truncation
 would destroy the universe Story 2.3 loads, costing you a command every time you
 ran the suite.
 
@@ -2433,8 +2461,8 @@ worth checking from the ones worth writing down — is in
   because two savers race to a warning that reads like a fault. `verify`'s
   `verify` job owns saving the store and its `e2e` job owns saving the browser —
   remove either saver and the other jobs install cold forever, silently. The
-  ruleset likewise keys on **two** job names now, so renaming either
-  un-requires it with no error anywhere
+  ruleset likewise keys on **three** job names now, so renaming any one of
+  them un-requires it with no error anywhere
 - **The deployed check cannot detect both its addresses being wrong in the same
   direction.** Pointed at a stale frontend origin with a matching backend
   origin, it passes green against the wrong site. The only check for it would be
@@ -2552,9 +2580,13 @@ absence of an annotation as "coverage was fine".
 ### The gate itself is configuration, and no file here can hold it
 
 `verify` is a **required status check on `main`**, through repository ruleset
-`main` (id 22160620) — and since Task 1.13.4 **`e2e` is a second one**, so a red
-browser journey blocks a merge exactly as a red chain does. The ruleset requires
-a pull request and both checks. Nothing in this repository records it, no tool reads it, and `pnpm verify` cannot see it —
+`main` (id 22160620) — and it is not alone: Task 1.13.4 added **`e2e`** and Task
+2.2.5 added **`database`**, so a red browser journey or a schema that no longer
+matches `schema.ts` blocks a merge exactly as a red chain does. The ruleset
+requires a pull request and **all three** checks — re-read from the API on
+2026-09-05 as `['verify', 'e2e', 'database']`, `enforcement: active`, so a reader
+finding fewer than three should read that as a gate having been removed rather
+than never set. Nothing in this repository records it, no tool reads it, and `pnpm verify` cannot see it —
 so **the repository has no way to detect its own gate being switched off**, and
 a reader who finds it absent cannot tell whether it was removed or never set.
 Four things about it are worth knowing:

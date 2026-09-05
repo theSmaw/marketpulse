@@ -499,6 +499,17 @@ argument; this section stays the durable record of the gate itself, and a reader
 finding only `verify` required should read that as the browser gate having been
 removed rather than never set.
 
+**Amended again 2026-09-05 (Task 2.2.5): there are THREE — `verify`, `e2e` and
+`database`.** `verify.yml` gained a third job running `pnpm test:database`
+against a real PostgreSQL service container, and it gates a merge because a
+`schema.ts` that no longer matches the migrations is a defect the other two
+checks structurally cannot see. Re-read from the API at Story 2.2's close as
+`['verify', 'e2e', 'database']`, `enforcement: active`, with every other field
+unchanged. **A reader finding fewer than three should read that as a gate having
+been removed rather than never set** — and note the failure mode has now tripled:
+each check keys on a job **name**, so there are three ways to un-require a gate
+silently by renaming a job in `verify.yml`. ADR 0015 carries the argument.
+
 **Nothing in the tree records it, no tool reads it, and `pnpm verify` cannot see
 it** — so the repository has no way to detect its own gate being switched off,
 and a reader who finds it absent cannot tell whether it was removed or never

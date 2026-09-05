@@ -1,12 +1,18 @@
-// The connection pool: one per process, and the only place this application
-// knows there is a database driver (Task 2.1.4).
+// The connection pool: one per process, and the only place *shipped* code
+// constructs one or names `pg` (Task 2.1.4). Scoped that way deliberately since
+// Story 2.2 closed: `migrate.ts` wraps this same pool in a `PostgresDialect`,
+// and `migrate.database.test.ts` opens a `pg` client of its own to create and
+// drop a scratch database — neither of which ships in the image's serving path,
+// and both of which would falsify a flatter claim.
 //
 // **What this file is not.** It is not a query layer, a repository, an ORM or a
-// typed access seam — Story 2.2 owns all of that, and something invented here
-// is something that story has to argue with. What it contains is a pool, one
-// `SELECT 1`, and a close. `pingDatabase()` is the whole query surface, and it
-// exists to answer "can this process reach its database" rather than to be the
-// first entry in a helper library.
+// typed access seam. Story 2.2 chose the query layer — Kysely — and deliberately
+// wrote no read, so the seam is declared rather than built and Story 2.8 writes
+// the first `selectFrom` and owns where the isolated handle lives. What this
+// file contains is a pool, one `SELECT 1`, and a close. `pingDatabase()` is
+// still the whole query surface of the serving process, and it exists to answer
+// "can this process reach its database" rather than to be the first entry in a
+// helper library.
 //
 // **Where the pool lives, and why `buildServer()` is untouched.** Task 2.1.4's
 // brief says to let `buildServer()`'s existing shape decide it. It did, and the
