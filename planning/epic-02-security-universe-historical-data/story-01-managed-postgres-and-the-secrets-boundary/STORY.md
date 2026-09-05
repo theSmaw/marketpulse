@@ -1,6 +1,6 @@
 # Story 2.1 — Managed Postgres Provisioning & the Secrets Boundary
 
-**Status:** In progress — Tasks 2.1.1 to 2.1.4 complete
+**Status:** In progress — Tasks 2.1.1 to 2.1.5 complete
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Epic 1 (Stories 1.6, 1.11)
 **Epic scope covered:** Managed Postgres provisioning; Alpaca credential on the platform (the _mechanism_ half)
@@ -70,9 +70,13 @@ original wording, struck where the answer changed them, because the reasoning th
 is what the record has to contain. ~~**Decisions 3 and 4 remain open**, owned by Tasks 2.1.2
 and 2.1.7 as the table says.~~ **Decision 4 remains open, owned by Task 2.1.7.**
 
-**A fourth answer nobody asked for: the region.** East US is `OfferRestricted` for this
-subscription and offers no Postgres at all, so the database is in **East US 2** — the second
-resource this subscription has been unable to place in East US.
+**A fourth answer nobody asked for: the region — and it was taken away twice.** East US is
+`OfferRestricted` for this subscription and offers no Postgres at all, so Task 2.1.1 chose
+**East US 2**. ~~the second resource this subscription has been unable to place in East US.~~
+**Task 2.1.5 found East US 2 restricted too, one day later**, and the database is in
+**North Central US** — settled with the user, on identical pricing and the shortest
+available hop to the East US backend. **This subscription now spans three regions and chose
+none of them.**
 
 1. **Settled: public access with the `0.0.0.0` "allow Azure services" rule.** The `321` outbound IPs measured on the deployed backend make a single-IP rule impossible, and private access means re-creating the Container Apps environment and with it the backend FQDN. ~~Public access with a firewall rule is cheap and retrofittable to
    nothing; private access via VNet integration is correct and costs the Container Apps
@@ -138,7 +142,7 @@ Tackled in order. The story is complete when all eight are done.
 | 2.1.2 | [Give a clean clone a local database, and say what it costs](TASK-02-the-local-development-database.md)                                      | Complete    |
 | 2.1.3 | [Put the connection settings through the configuration boundary](TASK-03-connection-settings-in-the-configuration-boundary.md)               | Complete    |
 | 2.1.4 | [The connection pool, `SELECT 1`, and closing inside the drain](TASK-04-the-pool-and-its-lifecycle.md)                                       | Complete    |
-| 2.1.5 | [Provision the managed instance, and reach it over TLS from outside the application](TASK-05-provision-the-managed-instance.md)              | Not started |
+| 2.1.5 | [Provision the managed instance, and reach it over TLS from outside the application](TASK-05-provision-the-managed-instance.md)              | Complete    |
 | 2.1.6 | [Put the credential on the platform, connect the deployed backend, and prove nothing leaked](TASK-06-the-credential-on-the-platform.md)      | Not started |
 | 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Not started |
 | 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Not started |
