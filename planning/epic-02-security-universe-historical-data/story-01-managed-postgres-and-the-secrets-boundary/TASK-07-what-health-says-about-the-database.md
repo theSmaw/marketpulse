@@ -112,14 +112,18 @@ created server.
 
 ### The latency this decision turns on, split the way it has to be
 
-| What a check would pay                                          | Cost                                                      |
-| --------------------------------------------------------------- | --------------------------------------------------------- |
-| A query on a **pooled** connection (East US → North Central US) | **~23 ms** — one round trip                               |
-| A check that causes a **new** connection                        | **~150–250 ms** (TCP+TLS 79–111 ms plus startup and auth) |
-| The client deadline it sits inside                              | 5,000 ms                                                  |
+| What a check would pay                                          | Cost                                                        |
+| --------------------------------------------------------------- | ----------------------------------------------------------- |
+| A query on a **pooled** connection (East US → North Central US) | **~23 ms** — one round trip                                 |
+| A check that causes a **new** connection                        | ~~**~150–250 ms**~~ **~1,023 ms** — see the 2.1.6 amendment |
+| The client deadline it sits inside                              | 5,000 ms                                                    |
 
-So **both shapes fit comfortably inside a liveness probe's budget, and latency is not
-what makes this dangerous** — the failure mode is. That sharpens the brief rather than
+~~So **both shapes fit comfortably inside a liveness probe's budget, and latency is not
+what makes this dangerous** — the failure mode is.~~ **Half of that is falsified by Task
+2.1.6 and the correction is in its own amendment below: a new connection under `entra`
+also pays a token mint, measured at 866 ms cold, so the true figure is ~1,023 ms rather
+than 150–250 ms.** The pooled figure stands. What survives is the conclusion's second
+half, and it is now the whole of it: the failure mode is what makes this dangerous. That sharpens the brief rather than
 changing it: the argument against a database check on `/health` was never that it is
 slow, it is that a failing liveness probe kills the replica. **Do not let the comfortable
 number talk you into the check.**
@@ -155,6 +159,11 @@ this task will want is `firewall-rule update`, not `delete` — the latter retur
 `ScopeLocked`. Breaking and restoring connectivity is two `update` calls, and firewall
 changes "can take up to five minutes to take effect", which is a wait to plan for rather
 than a failure to debug.
+
+**Superseded in practice by Task 2.1.6: that command was refused by this environment's
+own permission policy, so the firewall lever has never been exercised here.** What 2.1.6
+used instead is in its amendment below, and it is cheaper and safer. Read that before
+reaching for `az`.
 
 ## Amended after Task 2.1.6 (2026-09-05)
 
@@ -209,6 +218,48 @@ the socket is up**, so an unreachable database produced **no token-mint record
 at all**. A token-endpoint outage and a database outage are therefore
 distinguishable in the log, which matters if `/health` is going to say which
 one it is.
+
+### The lever, which is NOT the one the earlier amendments name
+
+The 2.1.5 amendment above tells this task to break connectivity with
+`az postgres flexible-server firewall-rule update`. **Task 2.1.6 could not run it** — the
+command was refused by this environment's own permission policy — so that instruction has
+never been executed and should not be planned around.
+
+What 2.1.6 used instead, and what this task should use first:
+
+```
+az containerapp update -n marketpulse-backend -g rg-marketpulse-dev \
+  --set-env-vars DATABASE_HOST=203.0.113.7          # break
+az containerapp update -n marketpulse-backend -g rg-marketpulse-dev \
+  --set-env-vars DATABASE_HOST=psql-marketpulse-dev.postgres.database.azure.com   # restore
+```
+
+`203.0.113.7` is RFC 5737 TEST-NET-3, so packets are dropped rather than refused and the
+failure is a genuine **timeout** — the shape a real outage has, and the one that
+interacts with `connectionTimeoutMillis`. It is arguably the better lever anyway: it
+cannot affect any other consumer of the database, it does not briefly firewall the server
+off from the rest of Azure, and it takes effect on the next revision rather than after
+the firewall's documented five-minute delay — so the 2.1.5 amendment's warning about
+starting the clock too early does not apply to it.
+
+**What it does not exercise is the firewall path itself**, and the difference is real for
+this task: an app-side break produces a timeout on a replica that is otherwise perfectly
+configured, where a firewall break also tests that a _correctly_ configured replica
+survives the database refusing it. If this task wants the second, the firewall command
+needs a permission the environment currently withholds, and asking for it is the first
+step rather than a workaround.
+
+### And one number from the 2.1.5 amendment is now wrong, in the direction that matters
+
+That amendment's table says a check causing a **new** connection costs ~150–250 ms, and
+concludes that latency is not what makes this dangerous. **Under `entra` a new connection
+also pays a token mint** — 866 / 889 / 887 ms cold — so the real figure is **~1,023 ms**.
+It is struck through above. The conclusion survives but is weaker than it reads: a cold
+connection is ~20% of the client's own 5-second `API_TIMEOUT_MS` and a fifth of a
+liveness budget, on an endpoint three probes and every browser tab hit. **The pooled
+figure (~23 ms) is unaffected**, which makes "the check must not cause a connection" a
+sharper rule than it was rather than a softer one.
 
 ### Reading the answer is cheap now
 

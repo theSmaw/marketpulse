@@ -147,6 +147,24 @@ Tackled in order. The story is complete when all eight are done.
 | 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Not started |
 | 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Not started |
 
+**Tasks 2.1.7 and 2.1.8 were amended again on 2026-09-05 after Task 2.1.6 landed. No
+task was added, deleted or re-ordered** — 2.1.6 shrank nothing else and opened no work
+big enough to be its own task; the two things it left are both squarely 2.1.7's, and
+adding a task for either would be scaffolding ahead of the iteration that needs it.
+**Two of 2.1.7's own recorded instructions had to be corrected rather than extended**,
+which is the amendment worth reading before the additions: the firewall lever the 2.1.5
+amendment names was **refused by this environment's permission policy** and has never
+been exercised, and that amendment's "a new connection costs ~150–250 ms" is **falsified
+under `entra`** — a new connection also pays an 866 ms token mint, so it is ~1,023 ms,
+which makes "the check must not cause a connection" a sharper rule rather than a softer
+one.
+
+**One thing this story now hands forward rather than answering**: whether an established
+connection outlives its own access token is **structurally unreachable here** — a token
+lasts 24 hours and `pg` closes an idle client after 10 seconds — so Epic 3's long-lived
+writer is the first thing that can measure it, and it is recorded in `HOSTING.md` under
+_Rotation, which is the wrong word_.
+
 **Tasks 2.1.7 and 2.1.8 were amended again on 2026-09-05 after Task 2.1.6 landed.**
 2.1.6 gives 2.1.7 the arithmetic it was missing: a cold deployed connection is
 **1,023 ms**, of which the Entra token mint is **866 ms**, and the pool holds
