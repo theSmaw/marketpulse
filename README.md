@@ -1135,7 +1135,9 @@ deploys: expand, then contract. See `migrations/README.md` §8.
 **What is in the database today: `securities`, and nothing else.** Task 2.2.4
 put one table through the mechanism, sized by Story 2.3's vocabulary — symbol,
 name, exchange, kind, sector, industry, status and a CIK — and **no seed data**,
-so it is created empty and Story 2.3 fills it. `market_bars` is deliberately not
+so it is created empty; **Story 2.3 fills it, and since Task 2.3.7 the deployed
+one holds the 101-row universe**, loaded by the step described under
+[`pnpm universe`](#pnpm-universe--loading-the-tracked-universe). `market_bars` is deliberately not
 here: Story 2.8 owns it, because its shape is driven by measured ingestion.
 
 **Read [`apps/backend/migrations/README.md`](apps/backend/migrations/README.md)
@@ -1203,6 +1205,16 @@ product deletes a security, and no reader may treat `untracked` as "gone" —
 
 It takes no arguments, and it applies no migration of its own — `pnpm migrate`
 does that, and this needs it to have been run first.
+
+**The deployed universe is loaded by the pipeline, not by you.** Since Story 2.3
+a second step in `.github/workflows/deploy.yml` runs this same command on the
+runner, immediately after the migration step and before either half of the code
+rolls. It runs on **every** deploy rather than once, and that is the decision
+worth knowing: a load-once step would make editing `apps/backend/src/universe.ts`
+a change that **ships nowhere**, so the repository's universe and production's
+would drift apart silently. Because a re-run that finds nothing to do writes
+nothing at all, the recurring cost of that is a comparison rather than a write.
+A refused universe stops the deploy there, before anything has rolled.
 
 ### `pnpm test:database` — the sixth level of test
 

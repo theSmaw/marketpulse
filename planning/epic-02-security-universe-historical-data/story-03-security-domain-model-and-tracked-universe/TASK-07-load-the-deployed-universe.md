@@ -1,6 +1,6 @@
 # Task 2.3.7 — Load the deployed universe, and decide whether that happens on every deploy
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [2.3 Security Domain Model & the Tracked Universe](STORY.md)
 **Depends on:** Task 2.3.6 (every change to the list has been made locally first) — and on
 Story 2.2's Task 2.2.7, **which is Complete, so this dependency is satisfied**
@@ -227,3 +227,161 @@ twice.
 this task's own read-back plus §12.2's reader rule, not work of its own: the mechanism is
 shipped and tested, and the deployed table holds zero rows, so there is no removal to
 perform there.
+
+---
+
+## Done (2026-09-05)
+
+**The universe is in the managed database — 101 rows, all `active` — and a step in
+`.github/workflows/deploy.yml` keeps it there on every merge.** The full record is
+`UNIVERSE.md` §13; this section is the outcome and the decisions, not a second copy of the
+evidence.
+
+### What shipped
+
+**One step, in one file.** `.github/workflows/deploy.yml` gained **`Load the tracked
+universe`**, sited immediately after `Migrate the deployed database` and before the backend
+image is built. **No application source changed, no dependency was added, no lockfile line
+moved, and `apps/backend/src/universe.ts` is byte-identical to where Task 2.3.4 left it.**
+`pnpm verify` is exit 0 in **27.32 s**, `pnpm test` **287**, `pnpm test:database` **55**.
+
+### The four decisions, and which arguments actually decided them
+
+**Where it runs: a step on the runner.** Boot-time was **genuinely available here and is not
+for migrations** — measured on the shipped files, `dist/universe.js` (28,819 B) and
+`dist/load-universe.js` (31,608 B) are both in the image, so Task 2.2.7's "the image carries
+a description of the schema and nothing that can create it" does not transfer at all. It is
+rejected on **an argument that did not exist before Task 2.3.6**: the loader now writes rows
+it did not insert, a boot-time seed runs on every replica start, and during a rollout the
+two revisions carry different `universe.ts` files — so an old replica booting untracks a
+symbol the new file just added while the new replica sets it `active`, and which value
+survives depends on start order. A flip-flop against production with nothing recording it,
+unreachable from a step that runs once with one file.
+
+**Every deploy, not once.** Run-once would make editing `universe.ts` **a change that ships
+nowhere**. Two of the three costs against it do not survive measurement: a no-op run writes
+nothing (0 rows with `updated_at <> recorded_at`, one distinct `updated_at` across all 101),
+and the Consumption plan's under-1,000-bytes-per-second condition **does not apply**,
+because that is a property of the replica and this step never touches it. The third cost —
+a step nobody reads — is real, and what stands against it is the three counters it prints.
+
+**Its own deadline, `timeout 120`.** Not for the migration's advisory-lock reason: this
+takes no lock, and a hung connect is already bounded at 5 s by the pool. What is unbounded
+is a hung query behind somebody else's `ACCESS EXCLUSIVE` lock.
+
+**Nothing goes into `e2e/specs-deployed/`.** No route serves a security until Story 2.9.
+Reversal trigger stated: that route.
+
+### What was produced rather than asserted
+
+- **Idempotence deployed, three times.** `101 inserted` then `0 / 0 / 101 unchanged` twice,
+  and the database's own stronger version: one distinct `updated_at` across all 101 rows.
+- **Both reachable failure classes, against a POPULATED table**, with the table
+  fingerprinted before and after — `af810ff6671f05938a0d027e45c1a28d` throughout. A refused
+  universe (a duplicated symbol) exits 1 **without opening a connection at all**; an
+  unreachable host exits 1 in 5.43 s. Both left the table byte-identical.
+- **Every verb the loader issues, executed as `marketpulse-github-deploy`** under `set role`
+  and rolled back. **Nothing had to be granted** — that role owns the table — so
+  `HOSTING.md` gains no `grant` statement, which is recorded there as the answer.
+- **Both branches of the step's shell logic**, with a `timeout` stand-in. The failure branch
+  exits 1 and emits its annotation, which is not ceremony: the `if ! cmd; then status=$?`
+  form shipped in the migration step on 2026-09-05 and made a **refused migration report
+  success**.
+- **`0003` confirmed from the deployed database** rather than inferred from a merge, because
+  a missing `securities_status_check` would let the untrack path write an unconstrained
+  value. It is applied, and all four checks are on the table.
+
+### Three things the brief did not anticipate
+
+**A mid-transaction database refusal is not producible, and the reason is a good one.**
+`0003` aligned the three levels so completely that **nothing the compiler accepts is
+rejected by the database** — every constraint on the deployed table is mirrored in the
+discriminated union. The one exception, a duplicate symbol, the validator catches first. So
+the reachable deployed failure modes are exactly two, and both were produced. The
+whole-load-transaction property itself is a property of the code, proved locally at 2.3.5.
+
+**`set role` is the cheap way to test another principal's authority.** Task 2.2.7 built a
+throwaway branch with a temporary federated credential to answer the equivalent question.
+From the Entra administrator's own session, `set role "marketpulse-github-deploy"` executes
+the loader's statements as that role and rolls back — no branch, no credential, no runner.
+
+**The `developer-laptop` firewall rule moved back.** Task 2.2.7 moved it `122.11.246.19` →
+`58.182.90.91`; this task moved it back. The hazard is not a drift in one direction, it is
+that it changes on almost every task needing an operator connection. `HOSTING.md` now says
+so instead of naming a current address.
+
+### The honest gap
+
+**The step's BODY ran; the step has not.** A step in `deploy.yml` only runs on `main`, so
+its first execution is the first merge after this story — Task 2.2.7's gap, arriving again
+and stated in the same words. What was proved is the same commands against the same server
+over the same code path, plus both branches of its shell logic. What is unproven is the
+runner's network path (which the migration step one line above proves on every merge) and
+the token mint as the deploy principal (a laptop cannot impersonate a service principal with
+no secret) — but **the thing that mint is _for_ was proved** by `set role`. The first real
+run will print `0 inserted, 0 updated, 101 unchanged`, because this task loaded the rows by
+hand.
+
+---
+
+## For the stakeholder — what this actually did, in plain terms
+
+**The short version: MarketPulse's live system now knows which ~100 companies it is
+watching, and it will never quietly forget.**
+
+Every task in this story so far has been building up to one thing: a definitive list of the
+securities the product tracks — 86 individual companies like NVIDIA, Tesla and JPMorgan,
+plus 15 funds that stand in for whole sectors and for the market as a whole. Up to now that
+list existed only on a developer's laptop and in the source code. **This task put it into
+the real, live database that the deployed application talks to**, and — the more important
+half — decided _when and how it gets there in future_, so nobody has to remember.
+
+**The decision that mattered most was about forgetting.** There were three ways to load the
+list. The tempting one was to load it once, by hand, and be done. That was rejected for a
+reason that would have cost us months later: it would mean that when someone edits the list
+— adds a company, corrects a sector, removes one that got taken over — **the change would go
+nowhere**. The version in the code and the version customers see would silently drift apart,
+and nobody would find out until something looked wrong on screen and no one could explain
+why. So instead the list is re-applied on **every** deployment. If the file and the live
+database ever disagree, the next deployment settles it in favour of the file.
+
+The obvious worry about that is cost and risk: are we rewriting a hundred rows of a
+production database every time anyone merges anything? **We measured it, and no.** When
+nothing has changed, the load writes literally nothing — it compares and moves on. We proved
+that by running it three times and asking the database whether any row had been touched. Not
+one had.
+
+**The second decision was about safety when things go wrong.** A deployment that half-works
+is worse than one that fails outright, so the load happens _before_ the new code goes live.
+If the list is broken, the deployment stops there and the currently-running application
+carries on untouched. We didn't take that on trust — we deliberately broke it twice against
+the real production database. Once by putting a duplicate company in the list, once by
+pointing it at a database that doesn't exist. Both times it refused, said clearly what was
+wrong, and left the production data **byte-for-byte identical**. We took a fingerprint of
+the table before and after to prove it rather than assume it.
+
+**And the live application never noticed any of it.** Throughout every load, every
+deliberate failure and every re-run, the deployed backend answered every health check, never
+restarted, and reported its database connection healthy the whole time.
+
+**One quiet but genuinely valuable outcome: there is still no password anywhere.** The
+system that writes to the production database authenticates with a short-lived identity
+token that nothing stores — the deployed application holds no secrets at all, and we
+re-confirmed that after adding a step that writes production data. That is unusual and it is
+worth keeping.
+
+**What this unlocks.** The universe is the foundation everything else in the product hangs
+off. Story 2.8 will download years of historical price data — and it needs to know _which_
+companies to download. The anomaly detection in Epic 5 compares a company against its own
+sector — and it needs to know _which_ sector. The market topology visualisation in Epic 6
+draws one node per security — and this is the list of nodes. None of that could start
+without a real, deployed list.
+
+**What a user still cannot do: anything.** This story remains invisible on screen. Nobody
+visiting MarketPulse today sees these hundred companies — there is no page that lists them
+yet, because nothing serves them over the network. That is **Story 2.4**, which was inserted
+into the plan specifically because three consecutive stories had gone by with no visible
+change: it takes a thin vertical slice — an endpoint that hands the list to the browser, and
+a page that shows it — so that the next thing we can demonstrate is a real screen showing
+real, tracked securities rather than the placeholder data that is on the landing page today.
+This task is the last piece that story was waiting on.

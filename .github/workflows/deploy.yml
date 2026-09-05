@@ -345,6 +345,137 @@ jobs:
           fi
 
       # ---------------------------------------------------------------------
+      # AND THEN THE UNIVERSE, BEFORE EITHER HALF OF THE CODE (Task 2.3.7).
+      #
+      # A SECOND step and not a phase of the one above, which is the cost Task
+      # 2.3.5 named in advance rather than a duplication: the universe is a SEED
+      # and not a migration, and the two mean different things by *idempotent*.
+      # A migration does nothing the second time; this CONVERGES ON THE FILE, so
+      # an edited sector, a corrected name, an added symbol and a removed one
+      # are all picked up on the next run. Those are different programs. Its own
+      # step rather than two commands in one is what makes a red result say
+      # WHICH of them failed.
+      #
+      # WHERE IT RUNS. Three shapes weighed, and unlike the migration above the
+      # boot-time one was genuinely available:
+      #
+      #   - A JOB THE CONTAINER RUNS AT BOOT. The argument that killed this for
+      #     migrations does NOT transfer — `files` is
+      #     `["dist", "!dist/**/*.test.*"]` and both halves compile into `dist/`,
+      #     so the image carries `universe.js` (28,819 B) AND
+      #     `load-universe.js` (31,608 B). Measured on the shipped files, not
+      #     inferred. It is rejected on a DIFFERENT argument, and one that only
+      #     came into existence at Task 2.3.6: the loader now writes rows it did
+      #     not insert. A symbol in the database and not in *that* loader's file
+      #     is marked `untracked`. A boot-time seed runs on EVERY REPLICA START,
+      #     and during a rollout the outgoing and incoming revisions carry
+      #     DIFFERENT `universe.ts` files — so an old replica booting would
+      #     untrack a symbol the new file has just added, while the new replica
+      #     sets it `active`, and which value survives depends on start order.
+      #     That is a flip-flop against production with nothing recording it,
+      #     and it is unreachable from here, because this step runs ONCE with
+      #     ONE file. The migration step's other objection transfers unchanged:
+      #     the startup probe is 2 s / 3 s / 30, so a replica waiting on a lock
+      #     is killed at roughly 90 s, and at `minReplicas: 1` in `Single`
+      #     revision mode an unready replica is not a degraded service — it is
+      #     no service.
+      #   - A MANUAL COMMAND. A step somebody forgets, and the universe would
+      #     then be whatever the last person to remember made it.
+      #   - THIS: a step on the runner, from a checkout, before anything rolls.
+      #
+      # WHY EVERY DEPLOY AND NOT ONCE. Run-once is the tempting answer because
+      # the table is populated after the first one and every run afterwards
+      # writes nothing. It is rejected because it would make editing
+      # `apps/backend/src/universe.ts` a change that SHIPS NOWHERE: the
+      # repository's copy of the universe and production's would diverge
+      # silently, which is precisely what Task 2.3.5's converge-on-the-file
+      # design exists to make impossible. Two costs were weighed and measured
+      # rather than assumed. A no-op run genuinely writes nothing — proved on
+      # this database by running it three times and reading back
+      # `count(distinct updated_at) = 1` across all 101 rows, which is stronger
+      # than the counters' own report — so "a write against production on every
+      # merge" is a comparison and not a write. And the Consumption plan's
+      # under-1,000-bytes-per-second idle condition does NOT apply: that is a
+      # property of the container app's replica, and this step talks to
+      # Postgres from a runner and never touches the replica at all. What is
+      # left is the real cost, that a step which usually does nothing is a step
+      # nobody reads — which is why it prints its three counters, and why
+      # `0 inserted, 0 updated, 101 unchanged` is the line that says the file
+      # and the database agree.
+      #
+      # WHY AFTER THE MIGRATION AND BEFORE THE CODE. After, because a seed that
+      # runs before its own migration is the one ordering that cannot work; the
+      # loader fails loudly and by name if it does, its error path naming
+      # `pnpm migrate`. Before the code, for the reason the migration is: a
+      # failure here means NOTHING ROLLED, so the deploy is a no-op rather than
+      # half-done. It leaves the database ahead of the code, which is the
+      # survivable direction while the universe only ever adds rows the old
+      # revision does not read — and stops being survivable the moment a
+      # revision's code depends on a symbol that only its own `universe.ts`
+      # names, which is Story 2.9's first route and is the same expand-then-
+      # contract rule `apps/backend/migrations/README.md` §9 states for schema.
+      #
+      # WHO IT CONNECTS AS. `marketpulse-github-deploy`, exactly as the
+      # migration does and for the same forced reason. Nothing had to be
+      # granted: that role OWNS `securities`, and every verb this loader uses —
+      # INSERT, ON CONFLICT DO UPDATE, the UPDATE that untracks, and SELECT —
+      # was executed against the deployed table under `SET ROLE
+      # "marketpulse-github-deploy"` in Task 2.3.7 and rolled back, rather than
+      # inferred from `has_table_privilege`. The grants are in HOSTING.md.
+      #
+      # IT INHERITS `dist/` FROM THE MIGRATION STEP ABOVE, deliberately. A
+      # second `pnpm --filter @marketpulse/backend build` here would be a second
+      # place the build lives for a `tsc -b` that has nothing to do, and
+      # reordering these two steps does not fail silently: `pnpm universe`
+      # guards on the presence of `dist/load-universe.js` with a message naming
+      # `pnpm build`.
+      - name: Load the tracked universe
+        env:
+          DATABASE_HOST: psql-marketpulse-dev.postgres.database.azure.com
+          DATABASE_PORT: "5432"
+          DATABASE_NAME: marketpulse
+          DATABASE_USER: marketpulse-github-deploy
+          DATABASE_AUTH: password
+          DATABASE_SSL: verify-full
+        run: |
+          set -euo pipefail
+
+          DATABASE_PASSWORD="$(az account get-access-token \
+            --resource https://ossrdbms-aad.database.windows.net \
+            --query accessToken -o tsv)"
+          echo "::add-mask::$DATABASE_PASSWORD"
+          export DATABASE_PASSWORD
+
+          # ITS OWN DEADLINE, for a related but different reason to the
+          # migration's. This takes no advisory lock, and a hung CONNECT is
+          # already bounded by the pool's 5-second `connectionTimeoutMillis`.
+          # What is unbounded is a hung QUERY — a concurrent migration holding
+          # an ACCESS EXCLUSIVE lock on `securities` is the realistic cause —
+          # and without a deadline the runner would wait on it indefinitely.
+          # 120 s against a load measured at ~3 s wall against this database
+          # from a laptop across the Pacific, and against a migration the runner
+          # completes in 1.181 s: generous by more than an order of magnitude
+          # against the thing it is timing. The same number as the step above
+          # because two deadlines to explain is worse than one.
+          #
+          # `status=$?` is captured FROM THE COMMAND and never from inside
+          # `if ! cmd`, where `$?` is the status of the negated test and is 0
+          # exactly when the command failed. That form shipped here on
+          # 2026-09-05 and made a REFUSED MIGRATION REPORT SUCCESS; it is not
+          # repeated.
+          status=0
+          timeout 120 pnpm universe || status=$?
+
+          if [ "$status" -ne 0 ]; then
+            if [ "$status" -eq 124 ]; then
+              echo "::error::the universe load did not finish inside 120 s. It takes no lock of its own, so the likeliest cause is something else holding one on securities — check pg_stat_activity, where this loader appears as application_name marketpulse-universe. The whole write is one transaction, so nothing was written."
+            else
+              echo "::error::the universe was not loaded and nothing after this step ran. The table is exactly as it was — validation runs before a connection is opened and the write itself is one transaction. Read the step's output above for which symbol and why."
+            fi
+            exit "$status"
+          fi
+
+      # ---------------------------------------------------------------------
       # The backend goes first, deliberately. Its contract (`GET /health`) is
       # unchanged by a frontend deploy, so the currently-published page keeps
       # working against the new revision; the reverse — publishing a page that

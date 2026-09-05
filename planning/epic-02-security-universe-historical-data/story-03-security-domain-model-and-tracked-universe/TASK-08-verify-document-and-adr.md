@@ -299,3 +299,106 @@ arriving a second time before the task did.
 was declined for the reason 2.3.4 kept the count out of the code: none of those readers
 exists yet, so a check would assert the shape of an empty set. It is prose with its durable
 copy named, which is what `CLAUDE.md`'s third kind of gap is for.
+
+---
+
+## Amended after Task 2.3.7 (2026-09-05)
+
+**Four sweep items, one genuinely new piece of work, two figures that did NOT move, and one
+new member for the ADR's second list. No task added, deleted or re-ordered** — 2.3.8 is
+still the only task left and is still correctly last.
+
+### The new work, and it is the one thing only this task can do
+
+**Read the first real execution of the `Load the tracked universe` step on `main`, and say
+what it printed.** 2.3.7 handed forward Task 2.2.7's gap word for word — the step's **body**
+ran and the step has not, because a step in `deploy.yml` only runs on `main`. Confirmed
+rather than assumed: the three most recent `deploy.yml` runs (`33973992671`, `33972585993`,
+`33972034897`, all green) predate the step's existence. **So its first execution is the
+merge of 2.3.7's own pull request, and this task is the first one that runs afterwards** —
+which makes it the only place in this story where that gap can be closed at all.
+
+It is one CI log and it is cheap. What to look for, and why each half matters:
+
+- **`0 inserted, 0 updated, 101 unchanged`**, because 2.3.7 loaded the rows by hand. That is
+  a **weaker** demonstration than the body run and the write-up says so; what it proves that
+  the body run cannot is that the step is **wired into the workflow at all** — the same
+  thing Task 2.2.7's first `main` run proved for the migration.
+- **That it ran as `marketpulse-github-deploy` from the runner.** 2.3.7 proved that role can
+  issue every statement the loader does, by `set role`, but could not prove the **token
+  mint** as that principal, because a laptop cannot impersonate a service principal with no
+  secret. This run does.
+- **Its wall time**, against the ~3 s measured from a laptop across the Pacific. The runner
+  is in the United States and the database is in North Central US, so expect it to be
+  **faster**, which would be the same geography finding Task 1.13.5 recorded for the
+  deployed browser check.
+
+**If it is red, that is a finding rather than a blocker** — the deploy stops before either
+half of the code rolls, which is the ordering 2.3.7 chose precisely so a failure is a no-op.
+
+### Four new sweep items
+
+- **`.github/workflows/deploy.yml`'s new comment block is now the most figure-dense thing
+  2.3.7 shipped, and nothing re-takes any of it**: `dist/universe.js` at 28,819 B and
+  `dist/load-universe.js` at 31,608 B (both of which move the next time either file is
+  edited, which is every universe change), the migration's 1.181 s on the runner, the ~3 s
+  load, and the pool's 5-second `connectionTimeoutMillis`. The two `dist/` sizes are the
+  ones worth actually re-taking, because they are the evidence for the whole boot-time
+  paragraph and they go stale silently — a `.js` size is checked by nothing.
+- **`UNIVERSE.md` §13**, the largest single addition this story has made to that document
+  and the one most likely to have gone stale inside its own story, for the reason §7 and §9
+  already are. Its live figures: the deployed fingerprint
+  **`af810ff6671f05938a0d027e45c1a28d`**, `securities_id_seq` at 305 then 406, the 5.43 s
+  connection failure, and `0003`'s applied timestamp.
+- **`HOSTING.md`'s new section** — _"What the migration role can do to a table it owns"_ —
+  which is the answer to this story's only `HOSTING.md`-shaped question and is unusual in
+  recording that **nothing was granted**. Two claims in it are live: that the role owns all
+  four tables, and that `set role` works from the Entra administrator's session. 2.3.7 also
+  corrected two claims in that file — the `developer-laptop` rule now records the **pattern**
+  rather than an address, and the "all empty of rows" line is struck through.
+- **`README.md`'s new deployed-load paragraph** under `pnpm universe`, and **`CLAUDE.md`'s
+  `deploy.yml` tree entry**, which now carries the boot-time argument in miniature. Both are
+  prose of the fourth-gap kind.
+
+### Two figures did NOT move, and that is a confirm rather than an expect-stale
+
+**`pnpm test` is still 287 (55 + 129 + 103) and `pnpm test:database` is still 55**, re-run
+after 2.3.7 rather than assumed: that task shipped no application source and no test. So
+the instruction stands unchanged — re-take all four commands at the close — but the
+expectation is that they reproduce, and **a reproduction is the check rather than a
+coincidence**, exactly as the frontend artefact's 361,664 B already is. This is the second
+time in this story that a "expect this to have moved" line has been corrected to "confirm it
+did not" (2.3.6 was the first, over `universe.ts`), which is worth noticing as a pattern
+rather than fixing twice.
+
+### One new member for the ADR's "what a green load cannot certify" list
+
+**The type, the validator and the deployed database are aligned, and nothing checks that
+they stay aligned.** 2.3.7 tried to produce a mid-transaction database refusal and could
+not: `0003` mirrors every constraint on `securities` in the discriminated union, so
+**nothing the compiler accepts is rejected by the deployed database**, the single exception
+being a duplicate symbol the validator catches first. That is a genuinely good property and
+it is **an unchecked invariant of this repository's third kind** — it stops being true the
+moment a column is added to a migration and not to `Security`, or a `check` is widened on
+one side only, and the symptom would be a load that passes `pnpm verify`, passes
+`pnpm test:database` against a database built from those same migrations, and fails **in
+the deploy step against production**. Say it out loud in the ADR rather than presenting the
+two-failure-classes result as a permanent fact.
+
+**A second member, considered and stated rather than left to be rediscovered: nothing
+detects drift between deploys.** The step converges on the file when it runs, so a
+hand-edited production row stands until the next deploy corrects it. That is the design
+working rather than a hole — but a green load certifies the file was applied **at that
+moment**, not that the database matches the file **now**, and the two are different claims.
+A drift detector was **not** proposed, because a thing that watches production on a timer is
+uptime monitoring, which Tasks 1.13.5 and 2.1.7 have each declined with a stated reason.
+
+### One line in this file that 2.3.7 made slightly wrong
+
+The clean-clone bullet frames criterion 2 as the one a clone tests — _"one documented
+command into a clean database"_. That is still true and is now **half** the criterion: there
+is a deployed half as well, and it is **not re-runnable from a clone**, because it needs
+Azure credentials `pnpm verify` deliberately does not have and it writes to a database with
+a `CanNotDelete` lock. Re-run the local half from the clone as written; for the deployed
+half, read the rows back and compare the fingerprint, which is what 2.3.7 did and is the
+only honest form of it.

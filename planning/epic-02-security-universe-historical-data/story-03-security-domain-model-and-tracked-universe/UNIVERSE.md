@@ -1119,6 +1119,251 @@ add-or-remove commit, or the correct "101 updated" reads as a bug and somebody
 
 ---
 
+## 13. The deployed universe, and where the load runs (Task 2.3.7, 2026-09-05)
+
+**101 rows are in the managed database.** Read back off it rather than trusted from the
+step's output: `securities` holds **101 rows, all `active`, none `untracked`**, split
+**86 equities / 11 `sector_etf` / 4 `index_etf`**, and the per-sector distribution is
+**identical to §9's table row for row** — technology 12, health care 9, financials 9,
+consumer discretionary 9, industrials 8, communication services 7, consumer staples 7,
+energy 7, utilities 6, real estate 6, materials 6, each beside its own ETF. Identical is
+the check rather than a coincidence: §9's figures were printed from the compiled file on a
+laptop and these were read out of a server in North Central US.
+
+### 13.1 The decision: a step in `deploy.yml`, after the migration, before either half of the code
+
+`.github/workflows/deploy.yml` gained one step, **`Load the tracked universe`**, sited
+immediately after `Migrate the deployed database` and before the backend image is built.
+The two other shapes were weighed rather than dismissed.
+
+**A boot-time job was genuinely available here and is not for migrations, which is the
+half worth stating first.** Task 2.2.7 killed boot-time migration on a fact about the
+image: `apps/backend/package.json`'s `files` is `["dist", "!dist/**/*.test.*"]`, so the
+container carries `migrate.js` and **not** `apps/backend/migrations/` — a description of
+the schema with nothing that can create it. Neither half of that transfers. Both halves of
+this mechanism compile into `dist/` and were measured on the shipped files:
+`dist/universe.js` **28,819 B** and `dist/load-universe.js` **31,608 B**, neither a
+`*.test.*` file. So the image carries the data **and** the mechanism, and the argument had
+to be found somewhere else.
+
+**It was, and it did not exist before Task 2.3.6.** That task made the loader write rows it
+did not insert — a symbol in the database and not in _that_ loader's file is marked
+`untracked`. A boot-time seed runs on **every replica start**, and during a rollout the
+outgoing and incoming revisions carry **different `universe.ts` files**. So an old replica
+booting would untrack a symbol the new file has just added while the new replica sets it
+`active`, and **which value survives depends on start order** — a flip-flop against
+production with nothing recording it. Before 2.3.6 the loader could only converge upward:
+every write named a symbol in its own file, so two loaders with different files produced
+the union and removed nothing. The removal seam is what closed the boot-time option.
+Task 2.2.7's other objection transfers unchanged: the startup probe is 2 s / 3 s / 30, so a
+replica waiting on a lock is killed at roughly 90 s, and `Single` revision mode at
+`minReplicas: 1` makes an unready replica **no service** rather than a degraded one.
+
+**A manual command** is rejected for 2.2.7's reason: it is a step somebody forgets, and the
+universe would then be whatever the last person to remember made it.
+
+**It is a second step and not a phase of the migration step**, which is the cost Task 2.3.5
+named in advance rather than a duplication. A migration and a seed mean different things by
+_idempotent_. The step boundary is what makes a red result say **which** of them failed.
+
+**After the migration** because a seed that runs before its own migration is the one
+ordering that cannot work — and the loader fails loudly and by name if it does, its error
+path naming `pnpm migrate`. **Before the code** for the reason the migration is: a failure
+here means **nothing rolled**, so the deploy is a no-op rather than half-done. It leaves
+the database ahead of the code, which is survivable while the universe only ever adds rows
+the old revision does not read, and stops being survivable the moment a revision's code
+depends on a symbol only its own `universe.ts` names. That is Story 2.9's first route, and
+it is the same expand-then-contract rule `apps/backend/migrations/README.md` §9 already
+states for schema.
+
+### 13.2 Every deploy, and two of the arguments against it do not survive measurement
+
+**It runs on every deploy.** Run-once is tempting precisely because the table is populated
+after the first one, and it is rejected on one decisive ground: it would make editing
+`apps/backend/src/universe.ts` **a change that ships nowhere**. The repository's universe
+and production's would diverge silently, which is exactly what §11's converge-on-the-file
+design exists to make impossible.
+
+The three costs the task named were weighed, and two of them are smaller than they look.
+
+- **"A write against production on every merge."** A no-op run writes **nothing**, proved
+  rather than asserted: after the first load, two further runs reported `0 inserted, 0
+updated, 101 unchanged`, and the database says the same thing more strongly — **0 rows
+  where `updated_at <> recorded_at`, and exactly one distinct `updated_at` across all 101
+  rows**. That is the `on conflict … where … is distinct from` comparison of §11 holding
+  against a database this project cannot drop. So the recurring cost is a comparison, not a
+  write.
+- **"The Consumption plan's idle rate is conditional on under 1,000 bytes per second."**
+  **This does not apply**, and saying so is a correction rather than a concession: that
+  condition is a property of the **container app's replica**, and this step runs on a
+  GitHub runner talking to Postgres. It never touches the replica. The backend's
+  `uptimeSeconds` rose from 161.5 to 591.8 across every load, refusal and re-run in this
+  task with no restart, which is the same fact from the other end.
+- **"A step that usually does nothing is a step nobody reads."** This one is real and has
+  no measurement to dissolve it. What is left is that the step prints its three counters,
+  and `0 inserted, 0 updated, 101 unchanged` is the line that says the file and the
+  database agree — which is worth more than silence.
+
+**Its own deadline is `timeout 120`**, the same number as the migration step and for a
+related but different reason. This takes no advisory lock, and a hung _connect_ is already
+bounded by the pool's 5-second `connectionTimeoutMillis`; what is unbounded is a hung
+_query_, of which a concurrent migration holding an `ACCESS EXCLUSIVE` lock on `securities`
+is the realistic cause. Measured against a load that takes **~3 s wall** against this
+database from a laptop across the Pacific, and a migration the runner completes in 1.181 s,
+that is generous by more than an order of magnitude. The same number as the step above
+because two deadlines to explain is worse than one.
+
+### 13.3 The identity: nothing had to be granted, and that was executed rather than inferred
+
+The step connects as **`marketpulse-github-deploy`**, exactly as the migration does and for
+the same forced reason — Task 2.1.6 measured that a service principal cannot mint a token
+for another principal's Postgres role, so CI could not be the backend even if that were
+wanted.
+
+**Whether its grants cover a loader was the open question, and the answer is that they
+already did.** That role **owns** `securities` — read back from `pg_tables`, along with the
+other three tables in `public` — and ownership carries DML. Confirmed twice, weakly and
+then strongly. `has_table_privilege('marketpulse-github-deploy', 'securities', …)` returns
+true for `SELECT`, `INSERT`, `UPDATE` and `DELETE`. And then, because a privilege function
+is a claim about a privilege rather than about a statement, **every verb the loader
+actually uses was executed against the deployed table under `set role
+"marketpulse-github-deploy"` and rolled back**: the `insert … on conflict (symbol) do
+update`, the `update … set status = 'untracked'` that 2.3.6 added, and the `select` the
+untrack sweep reads. All three succeeded as that role. **No `grant` statement was needed,
+so `HOSTING.md` gains none** — which is the outcome worth recording, because the grants
+that _do_ exist live only there.
+
+The loader appears in `pg_stat_activity` as **`application_name = marketpulse-universe`**,
+not as the runtime service, which is Task 2.2.7's labelling decision applied a second time.
+
+### 13.4 Both failure classes were produced against the deployed table, populated
+
+Task 2.2.7's question — what a failure leaves behind — asked again, and answered by
+producing it rather than by asserting the transaction. The table was fingerprinted first:
+`md5` over every column of all 101 rows, ordered by symbol,
+**`af810ff6671f05938a0d027e45c1a28d`**.
+
+**A refused universe.** `MU`'s symbol was changed to `INTC` in `apps/backend/src/universe.ts`,
+rebuilt, and run against the deployed database. Exit **1**, naming the symbol: _"INTC
+appears more than once."_ Afterwards the fingerprint is **`af810ff6…`**, the row count 101
+and the identity sequence unmoved at 305 — and **no connection was opened at all**, because
+validation runs before the pool is built. So a bad universe is refused without the database
+hearing about it.
+
+**An unreachable database, against a populated table.** `DATABASE_HOST` set to
+`203.0.113.7` (RFC 5737, guaranteed unroutable, so a genuine packet-drop timeout rather
+than a refusal). Exit **1** in **5.43 s** — the pool's `connectionTimeoutMillis` — with
+`Connection terminated due to connection timeout`. Fingerprint **`af810ff6…`** again.
+
+**And the third class turns out not to exist, which is the finding.** The task expected a
+mid-transaction database refusal to be producible. It is not, and the reason is that `0003`
+aligned the three levels: every constraint the deployed `securities` carries —
+`securities_kind_check`, `securities_sector_check`, `securities_sector_matches_kind`,
+`securities_status_check`, `not null` on `exchange` — is mirrored in the discriminated
+union, so **nothing the compiler accepts is rejected by the database**. The one exception is
+a duplicate symbol, which the validator catches first. So the reachable deployed failure
+modes are exactly two, validation and connection, and both were produced. The
+whole-load-transaction property itself was proved locally at Task 2.3.5 by lowering the
+bind-parameter ceiling, and it is a property of the code rather than of the environment.
+
+**The fingerprint is `af810ff6671f05938a0d027e45c1a28d` before the breaks, after both of
+them, and after two further successful loads** — the deployed table has not changed one
+byte since the first load committed.
+
+### 13.5 What the deployed rows say, spot-checked
+
+`NVDA` reads `NVIDIA Corporation` / `NASDAQ` / `equity` / `technology` / `Semiconductors` /
+`active`; `SPY` reads `SPDR S&P 500 ETF Trust` / `ARCA` / `index_etf` with a **null**
+sector and industry; `XLK` reads `Technology Select Sector SPDR Fund` / `ARCA` /
+`sector_etf` / `technology` with a null industry. All eight symbols `PRODUCT_SPEC.md` names
+by hand are present — **AMD, AVGO, DIA, IWM, NVDA, QQQ, SPY, TSLA**. `cik` is **null on all
+101 rows**, which is Epic 9's to populate.
+
+**Provenance is uniform and it is the file's date rather than the load's**: all 101 rows
+read `profile_source` `curated`, `classification_source` `curated`, and both
+`*_retrieved_at` columns **`2026-09-05 00:00:00+00`** — midnight, which is
+`UNIVERSE_PROVENANCE.checkedOn` copied verbatim. The loads themselves ran at 15:15 UTC. So
+§11's decision that the column means _when the list was checked_ and not _when the loader
+ran_ is visible in production, and the mitigation §5 offers against silent staleness is
+intact.
+
+**Nothing else in `public` changed.** Four tables before and four after; `kysely_migration`
+holds three rows and `migration_checksum` three.
+
+### 13.6 `0003` confirmed from the database rather than inferred from a merge
+
+The task file was amended twice on the assumption that `0003_security_vocabulary` had
+reached production. **Confirmed here rather than assumed**, which matters because a missing
+`status` check would let the untrack path write a value nothing constrains:
+`kysely_migration` holds `0001_baseline`, `0002_securities` and
+`0003_security_vocabulary` (applied `2026-09-05T12:37:50.356Z`), and all four checks are on
+the table, `securities_status_check` reading
+`CHECK ((status = ANY (ARRAY['active'::text, 'untracked'::text])))`.
+
+### 13.7 The identity sequence runs ahead deployed, exactly as it does locally
+
+Read off `securities_id_seq` at each stage: **305** after the privilege probe (2) and three
+loads (303), and **406** after a fourth. `min(id)` is 3 and `max(id)` is 103, so **ids are
+stable across runs and the sequence is not**. That is §11's "an upsert consumes an identity
+value per row per run whether or not anything changed", confirmed on the managed server —
+and a gap in a surrogate key is not something anyone can act on, which is why the loader
+does not mention it.
+
+### 13.8 Nothing goes into `e2e/specs-deployed/`, and the trigger is named
+
+**No.** No route serves a security until Story 2.9, so there is nothing browser-visible to
+make a rollback decision from — which is the argument Task 2.2.7 already made about a
+schema and Task 2.1.7 made about the database behind `/health`. **The reversal trigger is
+Story 2.9's first route that serves the universe**, at which point a deployed check has a
+list to assert on and a wrong one is a user-visible fault.
+
+### 13.9 The deployed backend did not notice, and the leak check is clean
+
+`/health` answered **200 throughout**, `uptimeSeconds` rising **161.5 → 394.0 → 591.8** and
+**never resetting**; the replica is the same one throughout (created `2026-09-05T15:12:07Z`,
+revision `0000082`), `ready: true`, `restartCount: 0`; and `/diagnostics/database` reported
+`reachable: true` in 154–166 ms with a matching `x-request-id`. This is the first deploy
+step that writes **rows** rather than DDL, and it is as invisible to the running system as
+the migration was.
+
+**The leak check on this task's five producers is zero.** The loader's own output on every
+run — the successful loads, the refusal and the connection failure — holds no `eyJ`, no
+`Bearer `, no `access_token` and no `ossrdbms`; the new workflow step holds none; and **the
+deployed rows hold none by construction**, confirmed by a pattern match across every text
+column. Log Analytics is not a producer here at all, because the loader runs on a runner and
+never writes to that workspace. **The container app's `secrets` array was re-read and is
+still `null`** — on a deployment whose database now holds 101 rows written by a role
+authenticated with a token nothing stores — so ADR 0011's claim that nothing deployed holds
+a credential is confirmed for the third story running.
+
+Every operator query in this task passed the token through `docker exec -e PGPASSWORD` with
+**no `=value`**, which is Task 2.1.5's terminal-echo finding applied rather than recalled.
+
+### 13.10 The honest gap: the step's BODY ran, the step has not
+
+**Task 2.2.7's gap arrives again and it is worth stating in the same words.** A step added
+to `deploy.yml` only runs on `main`, so **its first execution is the first merge after this
+story**. What was proved here is the step's **body** — the same commands, against the same
+server, over the same code path — run from a laptop, plus **both branches of its shell
+logic** exercised with a `timeout` stand-in: the success branch exits 0, and the failure
+branch exits **1** and emits its `::error::` annotation. That last one is not ceremony. The
+`if ! cmd; then status=$?` form shipped in the migration step on 2026-09-05 and made a
+**refused migration report success**; this step captures `status` from the command and the
+failure branch was executed rather than read.
+
+**Two things the body could not prove and one it could.** It could not prove the runner's
+network path, which the migration step already proves on every merge. It could not prove
+the token mint as the deploy principal, because a laptop cannot impersonate a service
+principal that has no secret — **but the thing that mint is _for_ was proved**, by executing
+the loader's every statement under `set role "marketpulse-github-deploy"` (§13.3). What is
+left unproven is a step that already works one line above it.
+
+The first real run will print `0 inserted, 0 updated, 101 unchanged`, because this task
+loaded the rows by hand — which is a weaker demonstration than the body run above, and is
+the only thing that proves the step is wired into the workflow at all.
+
+---
+
 ## What this task deliberately did not decide
 
 - ~~**The actual symbols.** Task 2.3.4's, and it is a product conversation. Writing them
