@@ -161,7 +161,7 @@ closes the story and records ADR 0016 — 0016 and not 0014, which is reserved f
 | 2.3.4 | [The universe itself: ~100 securities, and the rule that produced them](TASK-04-the-universe-itself.md)                                             | Complete    |
 | 2.3.5 | [The loader: one documented command, idempotent, and it refuses a bad universe](TASK-05-the-loader.md)                                              | Complete    |
 | 2.3.6 | [Change the universe: add one, remove one, and say what expansion costs](TASK-06-change-the-universe.md)                                            | Complete    |
-| 2.3.7 | [Load the deployed universe, and decide whether that happens on every deploy](TASK-07-load-the-deployed-universe.md)                                | Not started |
+| 2.3.7 | [Load the deployed universe, and decide whether that happens on every deploy](TASK-07-load-the-deployed-universe.md)                                | Complete    |
 | 2.3.8 | [Verify from a clean clone, document, and record ADR 0016](TASK-08-verify-document-and-adr.md)                                                      | Not started |
 
 **Four things about this split are decisions rather than consequences.**
@@ -393,3 +393,28 @@ was wrong.
 **Nothing needed adding.** The candidate — a task for the ticker-change case — was declined
 and given an owner instead (Story 2.7, `UNIVERSE.md` §12.6): there is no rename in the
 current list, and a mechanism built against no instance is one nobody can test.
+
+### Amended after Task 2.3.7 — no task added, deleted or re-ordered
+
+**The universe is in the managed database and a `deploy.yml` step keeps it there.** The
+record is `UNIVERSE.md` §13. Three things this changes for what remains.
+
+- **2.3.8 inherits a deployed environment to verify against rather than a claim.** Its
+  clean-clone run now has a fifth first-run step (`pnpm universe`) whose effect is
+  observable in production, and one figure it should re-take rather than cite: the deployed
+  table's fingerprint, `af810ff6671f05938a0d027e45c1a28d`.
+- **One honest gap is handed forward, and it is 2.2.7's word for word**: the step's **body**
+  ran, the step has not, because a step in `deploy.yml` only runs on `main`. Its first
+  execution is the first merge after this story and will print `0 inserted, 0 updated, 101
+unchanged`. That is a weaker demonstration than the body run, and it is the only thing
+  that proves the step is wired into the workflow at all.
+- **A candidate that is not a task**: nothing goes into `e2e/specs-deployed/`, because no
+  route serves a security until Story 2.9. Stated with its reversal trigger rather than left
+  open.
+
+**And one finding worth carrying past this story**: `0003` aligned the type, the validator
+and the database so completely that **nothing the compiler accepts is rejected by the
+deployed database**. That is why only two deployed failure classes are reachable — a refused
+universe and an unreachable database — and both were produced. It is also a claim that stops
+being true the moment a column is added to the migration and not to `Security`, which is the
+kind of thing 2.3.8's ADR should say out loud.
