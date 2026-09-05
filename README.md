@@ -981,8 +981,9 @@ pnpm migrate
 
 ```
   ✓ 0001_baseline
+  ✓ 0002_securities
 
-  Applied 1 migration.
+  Applied 2 migrations.
 ```
 
 Every migration the database has not seen, in order, inside a transaction each.
@@ -1041,6 +1042,12 @@ That exit code is the one thing about this command worth knowing:
 `migrateToLatest()` **resolves** rather than throwing, so a runner that does not
 read its `error` field is a green migration step over a database whose tables do
 not exist. It is read, and the reading is unit-tested.
+
+**What is in the database today: `securities`, and nothing else.** Task 2.2.4
+put one table through the mechanism, sized by Story 2.3's vocabulary — symbol,
+name, exchange, kind, sector, industry, status and a CIK — and **no seed data**,
+so it is created empty and Story 2.3 fills it. `market_bars` is deliberately not
+here: Story 2.7 owns it, because its shape is driven by measured ingestion.
 
 **Read [`apps/backend/migrations/README.md`](apps/backend/migrations/README.md)
 before writing a migration.** The conventions every table in this schema

@@ -378,6 +378,19 @@ export async function runMigrations(): Promise<MigrationOutcome> {
 
   // The one `Kysely` instance in this repository, and it does not leave this
   // function. See the header.
+  //
+  // **`unknown` and not `Database`, decided in Task 2.2.4 rather than left at a
+  // default.** `apps/backend/src/schema.ts` now exists and names `securities`,
+  // so the tidy-up presents itself; it is wrong three times over. That
+  // interface describes the schema **after** every migration has run, so a
+  // migrator typed with it asserts a shape that is false for the whole duration
+  // of the thing it is doing — during `0002` there is no `securities` table. It
+  // would buy nothing, because a migration body goes through `sql.raw()` and no
+  // `selectFrom` exists in this file. And it would make the runner depend at
+  // compile time on the description of its own output, so a future migration
+  // that dropped a table would break the compilation of the runner that has to
+  // apply it. A migrator is the one place in this repository that should not
+  // know the schema.
   const db = new Kysely<unknown>({ dialect: new PostgresDialect({ pool }) });
 
   const migrator = new Migrator({

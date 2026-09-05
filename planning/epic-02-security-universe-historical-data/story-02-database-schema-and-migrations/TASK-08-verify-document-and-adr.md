@@ -17,7 +17,14 @@ epics read instead of re-deriving it.
   applied twice is a no-op, which was true of an empty migration in 2.2.2 and of one table
   in 2.2.4 and should be re-taken against everything that now exists — and criterion 7,
   `pnpm verify` with no database, which every task in this story could have broken and only
-  the close can prove none did
+  the close can prove none did. **Criterion 6 — "the conventions are written where the next
+  person writing a migration will look" — is met by `apps/backend/migrations/README.md`, and
+  it is the one most likely to have quietly stopped being true rather than never having been
+  true**: that document ends with two lists, checked and prose, and Task 2.2.5 is supposed to
+  have moved entries from the second to the first. Re-read the lists against what 2.2.5
+  actually built and amend the document if they disagree, because a document claiming a
+  convention is only prose when a test now checks it is the same class of stale as a wrong
+  figure
 - **From a clean clone with an empty store**, because that is the only place several of
   these claims are testable: install cold and record packages, store entries,
   `node_modules` size and lockfile lines against Story 2.1's baseline; `pnpm verify` cold
@@ -31,7 +38,14 @@ epics read instead of re-deriving it.
   and step timings both with and without a database, the frontend artefact's four files —
   which should be **byte-identical**, and that is the check rather than a coincidence, since
   this story ships no frontend source — and the new database-backed suite's count and
-  duration
+  duration. **Two counts moved in Task 2.2.4 and are the kind that go stale silently**:
+  `packages/shared` gained `security.ts`, which ships **no test** — consistent with
+  `feed-status.ts` and `anomaly.ts`, and a decision rather than an omission, because the one
+  thing worth asserting about `SECURITY_KINDS` needs a database — so that package's **file
+  count** moved while its test count did not, and its **coverage percentage will have
+  fallen**, for a file with no test sitting in the denominator. That last figure is exactly
+  the one this repository has twice found carried forward as "unchanged" across several
+  stories
 - **Sweep for claims this story falsified, and read each occurrence rather than replacing
   it.** Story 2.1 closed by finding four, one of which made `CLAUDE.md` contradict itself.
   The candidates here are specific: `apps/backend/src/database.ts` is described as the only
@@ -45,7 +59,19 @@ epics read instead of re-deriving it.
   hardens from "the only one today" into "the only one" in the retelling. The
   distinction that a naive grep destroys is the one Task 1.12.8 named and Task 1.13.6
   re-proved: a **live** claim gets amended, a **historical record** of what a task measured
-  at the time is correct in its own context and stays. **Three more candidates arrived with
+  at the time is correct in its own context and stays. **Tasks 2.2.3 and 2.2.4 added two more
+  documents that make claims, and both rot rather than break.**
+  `apps/backend/migrations/README.md` states that a `.sql` file is read by no tool here — so
+  re-run `prettier --file-info` and `eslint` on `0002_securities.sql` rather than citing it —
+  and its §6 says the `Database` interface is unchecked against the schema, which **Task
+  2.2.5 is supposed to have falsified on purpose**. `apps/backend/src/schema.ts` says in its
+  own header that _"nothing consumes this interface today"_, which stops being true the moment
+  2.2.5 imports it and stops being true again in Story 2.8 — the exact shape of wording that
+  hardens from "not yet" into "never" in the retelling. **And one claim to re-read rather than
+  wave through**: `database.ts` and `CLAUDE.md` both say that file is the only place this
+  application knows there is a database driver. `schema.ts` imports from `kysely`, which is a
+  query builder rather than a driver and is types-only, so the claim survives — but it
+  survives on a distinction fine enough to be worth checking rather than assuming. **Three more candidates arrived with
   Task 2.2.1, and two of them are claims that task wrote itself.** `DATA-LAYER.md` says the
   query layer is Kysely and that the temporal seam is structural — which stays a **claim**
   until a query exists, and 2.2.1 said so, but a closing task should check the wording did
@@ -88,7 +114,16 @@ epics read instead of re-deriving it.
   and it is the cheapest of the three to state**: `pnpm migrate` refuses arguments and is
   forward-only, so nothing in this repository can move a schema backwards — which belongs in
   the first list as a property rather than the second as a gap, while its consequence belongs
-  in the second, since it means a rollback of code past a migration has no schema counterpart
+  in the second, since it means a rollback of code past a migration has no schema counterpart.
+  **Task 2.2.4 adds a fourth, created deliberately and in the open**: `SECURITY_KINDS` in
+  `packages/shared` and `securities_kind_check` in the database are two spellings of one
+  vocabulary, and whether they agree is either a check Task 2.2.5 built or another entry in
+  the second list — which of those it is depends on what 2.2.5 did, so **read that rather than
+  assuming either**. The two lists also have a ready-made shape to borrow rather than invent:
+  `apps/backend/migrations/README.md` already ends with a checked-versus-prose split, and the
+  line it draws — **whether the thing being checked is reachable from an assembled
+  instance** — is the line ADR 0013 drew, and is worth stating once in an ADR rather than a
+  third time in a directory README
 - **Update the gap lists in `CLAUDE.md` by re-measurement**, not by editing the text: re-run
   `prettier --file-info` and `eslint` on whatever this story added, since a `.sql` file is
   read by nothing here and a `.ts` migration is read by everything, and those are two

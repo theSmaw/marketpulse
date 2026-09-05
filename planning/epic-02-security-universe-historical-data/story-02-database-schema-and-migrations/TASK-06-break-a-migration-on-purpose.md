@@ -2,7 +2,8 @@
 
 **Status:** Not started
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
-**Depends on:** Tasks 2.2.4 (a real migration) and 2.2.5 (a database-backed suite to run afterwards)
+**Depends on:** Tasks 2.2.4 (complete — there is a real migration and a real table) and
+2.2.5 (a database-backed suite to run afterwards)
 
 **What Task 2.2.1 already answered, so this task does not re-derive it.** Against spike
 migrations it produced the partial-migration case on three tools and found that **it
@@ -26,6 +27,27 @@ transactional-rollback property is confirmed on the shipped code **against an em
 database**; what is not confirmed is any of it **against a table with rows in it**, which is
 the shape every migration after Story 2.3 has.
 
+**And Task 2.2.4 changed what "with rows in it" costs, in both directions.** There is now a
+real table — `securities`, eleven columns with a `check` constraint and a unique constraint —
+so the classes below are reachable at last. But it is **deliberately empty**, and Story 2.3,
+which fills it, comes _after_ this story. So this task supplies its own throwaway rows as a
+fixture and removes them, rather than waiting for a universe or seeding one here. That is a
+sentence rather than a decision, and it is written down so nobody reads the empty table as a
+blocker and re-orders the story around it.
+
+**One thing 2.2.4 observed in passing that this task should confirm and then decide about,
+because it bears on a live claim in shipped code.** After a failed insert, the successful ones
+took `id` 2 and 3: the rolled-back statement had **consumed identity value 1**. Sequences are
+non-transactional in Postgres by design, and a rollback does not give the number back. That
+matters here because `migrate.ts` prints, verbatim, _"It ran inside a transaction, so it left
+nothing behind and was not recorded."_ — which is true of tables, of rows and of the
+bookkeeping row, and **not quite true of a sequence**. Confirm it on a migration rather than
+on a bare insert, then take the decision either way: it is defensible to leave the message
+alone, because a gap in an identity sequence is not something anybody can act on and
+lengthening that sentence costs more than it buys, and it is equally defensible to make "left
+nothing behind" one degree more precise. What is not defensible is neither noticing nor
+deciding.
+
 ## Objective
 
 Produce every way a migration can fail, against a database it is safe to ruin, and write
@@ -43,7 +65,13 @@ on deploy, and that choice is entirely determined by the answers here.
   an empty database, so what is left here is the same shape **against `securities` with rows
   in it**. One that fails against a **non-empty** table — a `NOT NULL` added to a column
   with nulls in it — which neither 2.2.1 nor 2.2.2 could produce at all, since neither had a
-  table with rows. And one that **succeeds and is then edited**, where **the answer is
+  table with rows; Task 2.2.4's `securities` gives that class a second and sharper member for
+  free, **adding a `check` constraint to a table whose existing rows violate it**, which is a
+  different failure from a `NOT NULL` and is the shape Story 2.3's `status` vocabulary will
+  actually produce the first time it is narrowed. Watch what a failed `NOT NULL` addition
+  _says_ on PostgreSQL 18 specifically, because that major materialises `NOT NULL` as a named
+  `pg_constraint` row where older ones did not, so the message may not be the one an older
+  Postgres gave. And one that **succeeds and is then edited**, where **the answer is
   already known and is the bad one**: Kysely does not checksum, Task 2.2.2 deferred that gap
   rather than closing it, and Task 2.2.5 is the task that either closed it or did not — so
   run this one **both** ways round, with 2.2.5's check in place and with it disabled, because
@@ -91,7 +119,11 @@ on deploy, and that choice is entirely determined by the answers here.
 ## Done when
 
 - At least four failure classes **beyond Task 2.2.2's four** were produced against a real
-  database and reverted, at least one of them against a table with rows in it
+  database and reverted, at least one of them against a table with rows in it — supplied as
+  a throwaway fixture, since Story 2.3 has not seeded anything yet and `securities` ships
+  empty
+- Whether a rolled-back migration consumes an identity value is confirmed, and
+  `migrate.ts`'s "it left nothing behind" message is either amended or deliberately left
 - What the tracking table holds after each is recorded
 - Concurrency behaviour is established rather than assumed
 - Recovery for each class is written down where it will be read
