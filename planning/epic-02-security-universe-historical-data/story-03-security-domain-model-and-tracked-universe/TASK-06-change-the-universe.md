@@ -31,6 +31,14 @@ nobody tested.
   honestly: a status that readers must filter on is an **invisible predicate**, and that
   document's own argument is that one is a design and two is a bug waiting for whoever
   forgets. Say which readers filter and which do not
+- **Note that the vocabulary is now enforced, so a removal cannot be improvised.**
+  `securities_status_check` in `0003` permits `active` and `untracked` and nothing else, so
+  a loader that invented `removed` or `inactive` is refused by the database rather than
+  quietly storing a fourth word. `delisted` is specifically refused, which is Task 2.3.1's
+  deferral to Story 2.6 made into a fact rather than a comment — and it means this task
+  cannot reach for that member even if the removal being demonstrated feels like a
+  delisting. A `DELETE` is not refused by anything, which is why the decision below is
+  still a decision
 - **Distinguish the two removals if Task 2.3.1's vocabulary did.** A security delisted by
   the market and a security we stopped tracking are different events, and the second one is
   reversible — a symbol removed and later re-added must not arrive as a second row, because

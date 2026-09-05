@@ -172,6 +172,56 @@ rather than hidden behind a mechanism nobody runs.
 **`market_bars` is in none of these tasks**, per Story 2.2's out-of-scope note and this
 story's: Story 2.7 owns it, and its shape is driven by measured ingestion.
 
+### Amended after Tasks 2.3.2 and 2.3.3 — no task added, deleted or re-ordered
+
+The eight-task split survived contact with the first two implementation tasks. Five task
+files were amended and one sequencing hazard was found that is **not** this story's to fix.
+
+- **2.3.4** gained the three mechanical consequences of the type 2.3.2 actually shipped,
+  none of which was predictable from "make the file typecheck against `Security`": it is a
+  discriminated union, so an index proxy carrying a sector fails to compile too; `symbol` is
+  a branded `Ticker`, so `symbol: "AAPL"` does not satisfy it and the rows need a
+  constructor; and nullable is not optional under `exactOptionalPropertyTypes`, so a row
+  that omits `cik` does not compile. It also lost a bullet it could not honour — **the rows
+  cannot carry provenance**, because `Security` deliberately does not embed it, so that
+  became a single negative check about the file having one source.
+- **2.3.5** gained the decision this pair surfaced and no task file named: **what
+  `*_retrieved_at` means on a re-run.** The obvious implementation stamps `now()` every
+  load, which makes the timestamp mean "when this program last ran", carries no information,
+  and destroys the one mitigation `UNIVERSE.md` §5 offers against the curated file's silent
+  staleness. It also gained the note that `0003` now backs the row-level half of criterion 3,
+  which changes what its validation is _for_ — to fail first with a usable message, since a
+  Postgres constraint error names one row by an identifier nobody wrote.
+- **2.3.6** gained the note that `securities_status_check` makes the removal vocabulary
+  enforced rather than agreed: an invented `removed` or `inactive` is refused, `delisted` is
+  specifically refused, and a `DELETE` is refused by nothing — which is why the decision
+  there is still a decision.
+- **2.3.7** gained a **sequencing hazard**, and it is the one thing here worth raising
+  outside this story. That file is written as though migrations already reach the deployed
+  database; they do not. **Task 2.2.7 and 2.2.8 are Not started, `deploy.yml` has no
+  migration step, and the managed database has never had a migration applied to it** — it
+  holds no `securities` table. So 2.3.7 cannot run before 2.2.7, and absorbing 2.2.7 into it
+  would be the wrong shape, because migrating a production database is Story 2.2's subject
+  with its own rollout and failure-behaviour questions. **Settle with the user rather than
+  deciding here.** The half 2.3.7 _can_ settle is now confirmed rather than conditional: the
+  universe is a `.ts` module under `src/`, so the container image carries it where it does
+  not carry `apps/backend/migrations/`, and the argument that killed a boot-time job for
+  migrations genuinely does not transfer.
+- **2.3.8** gained a **conflict** rather than another sweep item. `0002_securities.sql`'s
+  four numbered decisions are now substantially false, and `migrations/README.md`'s own
+  final convention is _never edit a migration that has been applied_ — a rule nothing can
+  enforce, since there is no checksum and `migrate.ts` matches by name, which makes it
+  exactly the rule that erodes by being harmless the first time. 2.3.3 left `0002`
+  byte-identical; 2.3.8 must resolve that explicitly and say so in the ADR, because Story
+  2.7's stale migration comment will be read against the precedent. It also gained the two
+  new figure-dense files, and a re-count of the `equity | etf` sites showing the shape
+  changed rather than shrank.
+
+**Nothing needed adding.** The two candidates were considered and both belong elsewhere: a
+task for the deployed migration is Story 2.2's 2.2.7, and the foreign-key naming rule that
+survived this story untested is Story 2.7's `market_bars.security_id`, recorded in
+`migrations/README.md` rather than turned into work here.
+
 ## Design surface
 
 Sector naming is user-visible from Epic 4 onward, and the equity/ETF distinction will need

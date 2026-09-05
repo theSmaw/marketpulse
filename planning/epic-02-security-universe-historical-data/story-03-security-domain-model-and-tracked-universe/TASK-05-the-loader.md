@@ -37,7 +37,15 @@ Acceptance criteria 2 and 3.
   2.2.6 confirmed on a rolled-back migration and which is worth knowing before anybody
   reads a gap in the sequence as a fault
 - **Validate the whole list before writing anything**, and validate it as a set rather than
-  row by row. Acceptance criterion 3 is two claims: every equity has a sector, and every
+  row by row. **Note what `0003` now backs and what it does not, because the overlap changes
+  what this validation is _for_.** The database refuses an unknown `kind`, `status` or
+  `sector`, and refuses an equity with no sector or an index proxy carrying one
+  (`securities_sector_matches_kind`). So the row-level half of criterion 3 has a backstop,
+  and this program's job is no longer to be the only guard — it is to fail **first**, with
+  a message naming every offending symbol, because a Postgres constraint error names one
+  row, uses the constraint's own identifier, and arrives from inside a transaction the
+  operator did not write. A loader that let the database do the refusing would satisfy the
+  criterion and be unusable. What has **no** backstop at all is the set-level half, below. Acceptance criterion 3 is two claims: every equity has a sector, and every
   sector present has a corresponding sector ETF. The second is a statement about the whole
   universe — the reason Task 2.2.4 refused to encode it as a row-level `check` — so it is
   this program's job. **A security with neither fails the load**, so the whole load is one
@@ -55,7 +63,27 @@ Acceptance criteria 2 and 3.
 - **Write the provenance the schema now carries**, per field, from where the data actually
   came rather than from a constant — a field the loader filled from the curated file and a
   field it filled from a provider are different claims, and Story 2.13 renders the
-  difference
+  difference. **`0003` shipped the four columns `not null` with no default**, so this is
+  enforced rather than requested: an insert that omits one is refused by the database
+  naming the column, and `pnpm test:database` asserts exactly that. The universe file
+  carries none of it — `Security` deliberately does not embed provenance, because a file in
+  a repository cannot know when it was retrieved — so all four values originate here
+- **Decide what `*_retrieved_at` means on a re-run, which is a real decision nobody has
+  taken and which the obvious implementation gets wrong.** The tempting answer is `now()`
+  on every load. That makes the timestamp mean _when this program last ran_, which is
+  always today and therefore carries no information — and it destroys the one thing
+  `UNIVERSE.md` §5 says the column is for. That section records the curated file's silent
+  staleness as a gap of this repository's third kind, states the reversal trigger, and names
+  `classification_retrieved_at` as the **mitigation**: it "makes the file's age visible on
+  screen through Story 2.13 rather than only in git history". A loader that stamps `now()`
+  every run makes the file's age permanently invisible and turns the mitigation into
+  decoration. So the column has to carry **when the data was last checked against its
+  source**, which for a curated file is a value the file states or a date a person moved —
+  and that is a decision about where that value lives, taken here and written down.
+  Note the same question applies to `profile_retrieved_at` and has a different answer the
+  day Story 2.6 fills it from Alpaca, which is a genuine retrieval. Whatever is chosen,
+  it must interact correctly with the `updated_at` rule in the bullet above: a row that did
+  not change must not move either timestamp
 - **Say what it does about a symbol in the database that is not in the file**, and note
   that this is Task 2.3.6's decision to make and this task's to leave a seam for. The three
   answers are delete the row, change its `status`, and refuse — and they are not
@@ -64,6 +92,13 @@ Acceptance criteria 2 and 3.
 - **Make it fail loudly with no database**, the way `pnpm migrate` does, and make the exit
   code real. A loader that reports success having written nothing is the failure mode Task
   2.2.2 spent three deliberate breaks on
+- **Extend `pnpm test:database` rather than inventing a place for database-backed tests.**
+  Task 2.3.3 left that suite at 37 tests with two things this task should reuse:
+  `insertProbe()`, which supplies a valid row and lets a test override only the field it is
+  breaking, and the `CLOSED_SETS` table that drives the vocabulary checks. Note the
+  arrangement it also left: **every constraint test there is negative**, and one positive
+  insert is what stops a constraint that refuses everything passing all of them — a loader
+  test that only asserts refusals is in the same position
 - **Add tests at the level each thing belongs to.** Validation is a pure function over a
   list and belongs in the **fast** suite — no database, no build, no socket — which is what
   keeps `pnpm test`'s three stated properties. Anything that needs a real server is
@@ -86,7 +121,9 @@ Acceptance criteria 2 and 3.
 - A universe with an unclassified equity, and one with a sector whose ETF is missing, each
   fail the load at a non-zero exit naming every offending symbol, leaving the table
   unchanged — produced, not reasoned about
-- Provenance is written per field and a reader can tell where each field came from
+- Provenance is written per field and a reader can tell where each field came from, and
+  what `*_retrieved_at` means on a re-run is decided and written down rather than defaulted
+  to `now()`
 - `pnpm verify` passes with no database running, and `pnpm test` still needs no database
 
 ## Notes

@@ -29,10 +29,18 @@ interesting to show.
   relative-move is only interesting where a sector has peers to be relative to. A sector
   with one constituent is a sector that will look broken in Epic 4 and will look like a
   bug rather than a choice
-- **Fill in the metadata each row needs from the source Task 2.3.1 chose**, per field, with
-  its provenance. Note where a field is genuinely unknown — `cik` is Epic 9's, and an ETF
-  does not file — and leave it null rather than guessing, because a guessed identifier is
-  worse than an absent one: Epic 9 will trust it
+- **Fill in the metadata each row needs from the source Task 2.3.1 chose.** Note where a
+  field is genuinely unknown — `cik` is Epic 9's, and an ETF does not file — and leave it
+  null rather than guessing, because a guessed identifier is worse than an absent one:
+  Epic 9 will trust it.
+  **Amended after 2.3.2 and 2.3.3: the rows do NOT carry provenance and cannot.** `Security`
+  deliberately does not embed it, because a file checked into a repository cannot know when
+  it was retrieved — the loader supplies `profile_source`, `profile_retrieved_at`,
+  `classification_source` and `classification_retrieved_at` at load time, and `0003` makes
+  all four `not null` with no default so it cannot forget. What this task owes provenance is
+  therefore one negative check: that the file is a **single source** for every row, so a
+  per-row source override is unnecessary. If any row's classification came from somewhere
+  else, say so here, because 2.3.5 will otherwise write one source string for the whole file
 - **Record the count, the sector distribution and the selection rule in `UNIVERSE.md`**,
   and **inspect the distribution against the "not 40% technology" criterion rather than
   asserting it** — acceptance criterion 4 says inspected, and the difference is a table of
@@ -47,7 +55,22 @@ interesting to show.
 - **Make the file typecheck against `Security`.** Task 2.3.1 chose a `.ts` module at
   `apps/backend/src/universe.ts`, and this is the whole reason that format won: a row
   missing a sector, or carrying a sector that is not in the taxonomy, is a **compile
-  error** rather than a load-time failure
+  error** rather than a load-time failure.
+  **Three mechanical consequences of the type 2.3.2 actually shipped, none of which is
+  obvious from that sentence:**
+  - **`Security` is a discriminated union on `kind`, not one interface.** An `equity` and a
+    `sector_etf` **require** a `Sector`; an `index_etf`'s sector is required to be `null`.
+    So the compile error above is real in both directions, and an index proxy that arrived
+    carrying a sector does not compile either
+  - **`symbol` is a `Ticker`, a branded type, so `symbol: "AAPL"` does not satisfy it.**
+    Either every row wraps it — `toTicker("AAPL")` — or the file maps plain rows through one
+    small constructor. Prefer the constructor: it is one place to validate, it keeps the
+    rows reading as data, and a curated file is exactly where a boundary check belongs. This
+    is the one cost 2.3.2 stated in advance so this task is not surprised by it
+  - **`industry` is nullable and `cik` is nullable, but neither is optional.** Under
+    `exactOptionalPropertyTypes` an omitted key and an explicit `null` are different types,
+    and the type requires the key. A row that simply leaves `cik` out does not compile —
+    which is deliberate, because an absent key is an author who never decided
 - **Derive the eleven `sector_etf` rows from the sector-to-ETF mapping rather than typing
   them twice.** Task 2.3.2 puts that mapping in `packages/shared` as a `Record` total over
   the taxonomy, and a `sector_etf` row's `sector` is precisely the key it is the value of —
@@ -73,6 +96,14 @@ interesting to show.
 - `pnpm verify` passes; `securities` is still empty
 
 ## Notes
+
+**Three guards stand behind this list now, and this task only meets the first.** The
+compiler refuses a row whose sector is not in the taxonomy or whose kind and sector
+disagree (2.3.2's union); the loader refuses the whole-list rules a type cannot express
+(2.3.5); and the database refuses all of it again through `securities_kind_check`,
+`securities_status_check`, `securities_sector_check` and `securities_sector_matches_kind`
+(2.3.3). If a row here is wrong in a way the compiler catches, that is the arrangement
+working — do not reach for a cast.
 
 The two ways to get this wrong are opposite. Picking by market cap gives a list that is
 40% technology and makes half of Epic 5 uninteresting. Picking for spread alone gives

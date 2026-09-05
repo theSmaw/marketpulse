@@ -78,12 +78,13 @@ import type { Ticker } from "./ticker.js";
  * `unsafe use of new value "etf" of enum type`. **This is the first time that
  * argument pays**, and Task 2.3.3 writes the migration.
  *
- * **Until it does, this array and `0002_securities.sql`'s
- * `check (kind in ('equity', 'etf'))` deliberately disagree**, and saying so
- * here is better than a reader finding it. The table holds zero rows and
- * nothing writes to it, so nothing can be in the state the constraint refuses —
- * and `pnpm test:database` compares the two and is *expected* to go red for
- * exactly one task, which is that check working rather than failing.
+ * ~~Until it does, this array and `0002_securities.sql`'s
+ * `check (kind in ('equity', 'etf'))` deliberately disagree.~~ **Task 2.3.3
+ * landed and they agree again**, held by `securities_kind_check` in
+ * `0003_security_vocabulary.sql`. The struck-through sentence is kept because
+ * the gap it describes was real for exactly one commit and is the only evidence
+ * this repository has that the check works: `pnpm test:database` reported
+ * `1 failed | 22 passed` naming both sides, which is what that suite is for.
  *
  * A `const` array rather than a bare `type`, the shape {@link HEALTH_STATUSES},
  * `FEED_STATUSES`, `ANOMALY_BANDS` and `API_ERROR_CODES` already have, so the

@@ -2,7 +2,21 @@
 
 **Status:** Not started
 **Story:** [2.3 Security Domain Model & the Tracked Universe](STORY.md)
-**Depends on:** Task 2.3.6 (every change to the list has been made locally first)
+**Depends on:** Task 2.3.6 (every change to the list has been made locally first) — **and,
+added after Task 2.3.3, on Story 2.2's Task 2.2.7, which has not been done**
+
+> **Sequencing hazard, found by Task 2.3.3 and recorded here because this is the task it
+> blocks.** This file is written as though migrations already reach the deployed database
+> ("this is not simply Task 2.2.7's decision repeated"). They do not. Task 2.2.7 and 2.2.8
+> are **Not started**, `.github/workflows/deploy.yml` contains no migration step, and **the
+> managed database has never had a single migration applied to it** — it holds no
+> `securities` table at all. So this task cannot run first: a universe loaded into a
+> database with no schema fails on the first insert, and the decision this task is supposed
+> to weigh against 2.2.7's ("not simply that decision repeated") has no decision to weigh
+> against. Either 2.2.7 lands before this task, or this task absorbs it — and absorbing it
+> is the wrong shape, because migrating a production database is Story 2.2's subject and
+> carries its own rollout, deadline and failure-behaviour questions. **Settle this with the
+> user before starting.**
 
 ## Objective
 
@@ -17,12 +31,15 @@ recovery**.
 
 ## Work
 
-- **Decide where the load runs**, and note that this is not simply Task 2.2.7's decision
-  repeated, because two of its inputs are different. That task rejected a boot-time job
-  partly because `apps/backend/package.json`'s `files` field keeps `apps/backend/
-migrations/` out of the container image — but if Task 2.3.1 put the universe in a `.ts`
-  module under `src/`, the image **does** carry it, compiled, so that argument does not
-  transfer. Check which is true before reusing the conclusion. The other half does
+- **Decide where the load runs.** ~~Not simply Task 2.2.7's decision repeated~~ — **there
+  is no decision to repeat, because 2.2.7 has not been done**; see the hazard above. The
+  half of it this task can settle on its own is now confirmed rather than conditional:
+  Task 2.3.1 put the universe in a `.ts` module under `src/`, so it compiles into `dist/`,
+  and `apps/backend/package.json`'s `files` field is `["dist", "!dist/**/*.test.*"]` —
+  **the container image carries the universe**, where it does not carry
+  `apps/backend/migrations/`. So the argument that killed a boot-time job for migrations
+  genuinely does not transfer to this, and a boot-time seed is available in a way a
+  boot-time migration is not. Weigh it anyway rather than taking it. The other half does
   transfer unchanged: the startup probe (2 s / 3 s / 30) kills a replica at roughly 90
   seconds, and `Single` mode at `minReplicas: 1` makes an unready replica **no service**
 - **Decide whether it runs on every deploy or once.** Idempotence makes "every deploy"
