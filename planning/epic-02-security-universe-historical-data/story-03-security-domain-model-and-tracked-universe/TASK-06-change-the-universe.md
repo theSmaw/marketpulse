@@ -19,7 +19,14 @@ nobody tested.
 - **Add a symbol and run the loader**, on a database that already holds the universe.
   Record what changed: one new row, every other row untouched, `updated_at` unmoved on
   rows that did not change — that last one is the property with no trigger behind it and
-  therefore the one most likely to be wrong
+  therefore the one most likely to be wrong.
+  **Amended after 2.3.4: which sector you pick is constrained, and picking the wrong one
+  demonstrates a change that breaks the selection rule in the same breath.** The shipped
+  distribution sits **on both bounds at once** — technology is at the ceiling of 12, and
+  utilities, real estate and materials are each at the floor of 6 (`UNIVERSE.md` §9). So
+  **add to a sector below 12 and remove from a sector above 6**, and say which you chose and
+  why. Health care, financials and consumer discretionary sit at 9 and have slack in both
+  directions, which makes one of them the obvious subject for all three operations
 - **Remove a symbol and run the loader, having decided first what removal means.** This is
   the real decision in the task and it is a decision about _data that does not exist yet_:
   Story 2.7 will store bars against these rows, and Epic 13 will replay a date on which a
@@ -31,6 +38,14 @@ nobody tested.
   honestly: a status that readers must filter on is an **invisible predicate**, and that
   document's own argument is that one is a design and two is a bug waiting for whoever
   forgets. Say which readers filter and which do not
+- **Note that the vocabulary is now enforced, so a removal cannot be improvised.**
+  `securities_status_check` in `0003` permits `active` and `untracked` and nothing else, so
+  a loader that invented `removed` or `inactive` is refused by the database rather than
+  quietly storing a fourth word. `delisted` is specifically refused, which is Task 2.3.1's
+  deferral to Story 2.6 made into a fact rather than a comment — and it means this task
+  cannot reach for that member even if the removal being demonstrated feels like a
+  delisting. A `DELETE` is not refused by anything, which is why the decision below is
+  still a decision
 - **Distinguish the two removals if Task 2.3.1's vocabulary did.** A security delisted by
   the market and a security we stopped tracking are different events, and the second one is
   reversible — a symbol removed and later re-added must not arrive as a second row, because
@@ -51,9 +66,24 @@ nobody tested.
   whatever Story 2.6 finds Alpaca's request limits to be. **Do not load 500** — this story
   says demonstrated by argument, and a synthetic 500-row load would prove the loader scales
   and nothing else
+- **Update what the change falsifies inside `apps/backend/src/universe.ts` itself, because
+  that file describes its own shape and nothing checks that the description is true.**
+  **Added after 2.3.4.** Each sector block carries a comment stating its count and its
+  relation to §7's bounds — `// 12 — at §7's ceiling, and the ceiling is why…`, `// 6 — at
+§7's floor, and that is a decision rather than a shortfall…` — and the technology block's
+  comment states that eight of its twelve are semiconductors, which is the argument for the
+  whole file's shape. A symbol added or removed without editing the comment beside it leaves
+  the file making a false claim about itself, in the most-read place, and **there is no
+  instrument anywhere that would catch it**: it compiles, lints, formats and loads. This is
+  the same class as `migrations/README.md`'s "never edit an applied migration" — a rule only
+  a person can hold — and this task is the first thing that will break it
 - **Record all of it in `UNIVERSE.md`**, in the imperative, where the next person changing
   the list will look — which is that document and not this task file, the same treatment
-  `e2e/README.md` and `migrations/README.md` got and for the same stated reason
+  `e2e/README.md` and `migrations/README.md` got and for the same stated reason. Two
+  sections there now need editing rather than only appending: **§9's distribution table**,
+  which is the count this task moves, and **§8's expansion table**, whose "The universe
+  file — no, Task 2.3.4" row became "yes" and whose walk is this task's to re-take rather
+  than cite
 
 ## Done when
 
@@ -71,3 +101,17 @@ The temptation is to build a diffing report, a dry-run mode and a removal-confir
 prompt. None of those is asked for and each is a second mechanism to keep correct against
 a list that changes a handful of times a year. What is asked for is that the two changes
 have been done once, on purpose, with the results written down.
+
+---
+
+## Amended after Task 2.3.4 (2026-09-05)
+
+Three edits above, no work added or removed. The list 2.3.4 produced constrains this task
+in one way nobody anticipated and creates one obligation nothing can enforce:
+
+- **The distribution sits on both bounds at once.** Technology is at the ceiling of 12 and
+  three sectors are at the floor of 6, so an add and a remove are not free choices — pick
+  from the sectors at 9.
+- **`universe.ts` describes its own shape in comments** that this task is the first thing to
+  falsify, and no instrument would notice.
+- **`UNIVERSE.md` §8 and §9 both need editing rather than appending.**

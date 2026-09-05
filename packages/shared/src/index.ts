@@ -14,13 +14,38 @@ export { ANOMALY_BANDS } from "./anomaly.js";
 export type { AnomalyBand } from "./anomaly.js";
 export { FEED_STATUSES } from "./feed-status.js";
 export type { FeedStatus } from "./feed-status.js";
-// What kind of thing a tracked security is (Task 2.2.4). Here rather than in
-// apps/backend because the `securities` table's `check (kind in (…))` needs a
-// source of truth that is not the constraint — see
-// apps/backend/migrations/README.md. Deliberately NOT the `Security` interface,
-// which is Story 2.3's along with the rest of its vocabulary.
-export { SECURITY_KINDS } from "./security.js";
-export type { SecurityKind } from "./security.js";
+// What a security IS in this product, and every vocabulary that describes one
+// (Task 2.3.2, completing what Task 2.2.4 started with SECURITY_KINDS alone).
+// Here rather than in apps/backend for two reasons that are not the same one:
+// the `securities` table's `check` constraints need a source of truth that is
+// not the constraint (apps/backend/migrations/README.md), and Epics 4, 5, 6, 7
+// and 9 all read this vocabulary, so it is a fact both sides depend on rather
+// than a fact about one process's transport. The ROW type stays in
+// apps/backend/src/schema.ts and is deliberately a different type.
+export {
+  ETF_KINDS,
+  isEtf,
+  isSecurity,
+  SECTOR_ETFS,
+  SECTOR_LABELS,
+  SECTORS,
+  SECURITY_FIELD_GROUP,
+  SECURITY_FIELD_GROUPS,
+  SECURITY_KINDS,
+  SECURITY_STATUSES,
+} from "./security.js";
+export type {
+  EquitySecurity,
+  EtfKind,
+  EtfSecurity,
+  IndexEtfSecurity,
+  Sector,
+  SectorEtfSecurity,
+  Security,
+  SecurityFieldGroup,
+  SecurityKind,
+  SecurityStatus,
+} from "./security.js";
 
 // The wire contract with the API: the shape every error response takes, and the
 // name of the header that correlates any response with its log records. Both

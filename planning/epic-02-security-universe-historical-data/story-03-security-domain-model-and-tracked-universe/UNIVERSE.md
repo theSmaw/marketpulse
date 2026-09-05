@@ -474,10 +474,282 @@ disk, where it costs a factor of five against a figure Story 2.1 already took.
 
 ---
 
+## 9. The list, and the distribution read against §7 (Task 2.3.4, 2026-09-05)
+
+**Written by Task 2.3.4, into this document rather than into a task file**, because §7's
+rule and the list that satisfies it disagreeing is the failure the split exists to catch,
+and a reader who has to open two files to notice will not notice.
+
+The list is `apps/backend/src/universe.ts`. **101 securities: 86 equities, the 11 sector
+proxies and the 4 index proxies.**
+
+### The distribution, printed from the file rather than asserted
+
+Acceptance criterion 4 says the distribution is **inspected**, and the difference between
+inspected and asserted is this table. It was produced by importing the compiled module and
+counting — the throwaway script is not kept, because Task 2.3.5's loader is where a
+standing check belongs and a second one here would be the copy that disagrees.
+
+| Sector                 | ETF    | Equities | % of equities |
+| ---------------------- | ------ | -------: | ------------: |
+| Technology             | `XLK`  |       12 |         14.0% |
+| Health Care            | `XLV`  |        9 |         10.5% |
+| Financials             | `XLF`  |        9 |         10.5% |
+| Consumer Discretionary | `XLY`  |        9 |         10.5% |
+| Industrials            | `XLI`  |        8 |          9.3% |
+| Communication Services | `XLC`  |        7 |          8.1% |
+| Consumer Staples       | `XLP`  |        7 |          8.1% |
+| Energy                 | `XLE`  |        7 |          8.1% |
+| Utilities              | `XLU`  |        6 |          7.0% |
+| Real Estate            | `XLRE` |        6 |          7.0% |
+| Materials              | `XLB`  |        6 |          7.0% |
+
+**Read against §7's rules, one at a time, rather than summarised as "it passes":**
+
+1. **Every sector present, with its ETF.** Eleven of eleven, and the eleven `sector_etf`
+   rows are generated from `SECTOR_ETFS` rather than typed, so this one cannot fail by
+   data entry. Confirmed against the actual symbols in the list, not against the mapping.
+2. **Floor of 6.** Met exactly — utilities, real estate and materials sit **on** the line
+   rather than above it. See "where the rule bit" below; that is a decision, not a
+   shortfall.
+3. **Ceiling of 12.** Met exactly — technology sits **on** the line. The largest sector is
+   **14.0%** of the equities against the criterion's 40%, so the criterion is met with
+   margin rather than approached.
+4. **Liquid on IEX.** Every name is a large, heavily traded US listing. This is the rule
+   that is **not checkable from the file** and is the one most likely to be wrong: it is a
+   claim about IEX activity taken on judgement, and Story 2.6 is the first thing that can
+   measure it. Recorded as a claim rather than presented as verified.
+5. **Market-cap spread within a sector.** Present by construction in the blocks where it
+   matters: TSLA sits beside GM and F, NVDA beside INTC and MU, GOOGL and META beside T
+   and VZ. A sector of ten mega-caps has a breadth number that is always ~0% or ~100%.
+6. **Every symbol PRODUCT_SPEC.md names by hand.** All eight present — **NVDA**, **SPY**,
+   **AMD**, **AVGO**, **TSLA**, **QQQ**, **DIA**, **IWM** — checked by lookup against the
+   compiled list rather than by reading. Nothing is absent, so nothing needs arguing.
+7. **A deep semiconductor group.** **8 constituents** on `Semiconductors`, which is the
+   deepest industry in the file and the whole reason technology is at the ceiling. §38's
+   "semiconductor weakness is broad" and §11's "82% of semiconductor securities currently
+   negative" are **industry**-level claims, and a group of three makes both of them
+   arithmetic over nothing.
+
+Ten industries carry three or more constituents (`Semiconductors` 8, `Electric Utilities`
+5, `Pharmaceuticals` 4, `Diversified Banks` 4, then six at 3), across **45 distinct
+industries**. That spread is what stops the industry column being decorative: a
+sector-level breadth number and an industry-level one can disagree, which is exactly the
+distinction §11's worked example draws.
+
+### Where the rule bit, stated rather than smoothed over
+
+**Rules 3 and 4 pull against each other and rule 4 won twice.** Utilities, real estate and
+materials are at the floor of 6 and not above it, because there are not many large,
+IEX-liquid US names in them and padding a block with thin ones would give Epic 5 an
+anomaly score computed over noise — which is worse than a small sector, because it is
+wrong rather than merely coarse. §7 anticipated this tension and the ~19 discretionary
+slots absorbed it in the other direction instead: they went to technology, health care,
+financials and consumer discretionary, where liquidity is not the constraint.
+
+**The rule was not relaxed and the list was not padded.** No number in §7 changed.
+
+### The classification is a single source, which is what Task 2.3.5 needs to know
+
+**Every row's profile and classification came from the same place: hand curation in this
+repository, with no per-row exception.** No sector, industry, name or venue was taken from
+a different source. So Task 2.3.5's loader may write **one** `classification_source` and
+one `profile_source` string for the whole file and needs no per-row override — which is
+the one negative fact this task owed §4's arrangement, and it holds.
+
+`cik` is `null` on all 101 rows. Epic 9 populates it, and a guessed identifier is worse
+than an absent one because Epic 9 will trust it.
+
+**The technology / communication services / consumer discretionary boundary is where this
+file is most arguable**, exactly as §1 warned: AMZN and TSLA are consumer discretionary,
+GOOGL and META are communication services, and a reasonable person would put all four in
+technology. That assignment is a recorded claim with a provenance of `curated`, not a
+fact — which is why provenance is per field group and why it is worth having at all.
+
+### What holds it, and what this task did not build
+
+The compiler holds the row-level rules, and all four were **made to fail before being
+believed**: a sector outside the taxonomy is `TS2345` naming the eleven members; an index
+proxy carrying a sector is `TS2322`; a row that omits `industry` is `TS2741`, because
+under `exactOptionalPropertyTypes` an omitted key is not a `null` one; and a twelfth
+sector added to `SECTORS` is `TS2741` twice in `packages/shared` — once for `SECTOR_ETFS`
+and once for `SECTOR_LABELS` — before it ever reaches this file. A malformed ticker is a
+`TypeError: Not a valid US equity ticker: "NVDA CORP"` at module load, produced.
+
+**Every cross-row rule is left to Task 2.3.5 and deliberately not half-expressed here** —
+no duplicate-symbol check, no "every sector has its ETF" check, no count. Those are
+statements about the whole list, which is the same shape Task 2.2.4 refused to encode as a
+row-level `check`.
+
+**Nothing was loaded.** `securities` holds **0 rows**, read back after the work.
+
+### The count is recorded here and encoded nowhere
+
+Per §8: there is no `EXPECTED_COUNT`, no asserted array length, no page size and no
+constant anywhere that would have to change to reach 500. `UNIVERSE.length` is the only
+way to learn the count, and the only place the number 101 appears in the repository is
+this document. Task 2.3.6 owes the argument; this task owed the absence, and it is absent.
+
+---
+
+## 10. Is ~100 enough? — the sizing question, PARKED with a trigger (2026-09-05)
+
+**Raised by the user after Task 2.3.4 shipped, and worth recording rather than answering
+in a conversation that scrolls away.** The question: 100 securities does not sound like
+enough to group meaningfully, see correlation, or reason about cause.
+
+**The decision is to PARK the sizing and ship the 101, with a named trigger rather than a
+vague intention to revisit.** What follows is the evidence on both sides, because the
+trigger only makes sense against it.
+
+### The concern is right, and here is the measured form of it
+
+Printed from the shipped file, not estimated:
+
+| Reading                                      | Value                    |
+| -------------------------------------------- | ------------------------ |
+| Distinct industries across 86 equities       | **45** (mean depth 1.91) |
+| Industries with exactly one member           | **23 of 45 (51%)**       |
+| Equities in an industry of depth < 4         | **65 of 86**             |
+| Equities in an industry of depth ≥ 8         | **8 of 86**              |
+| Sector breadth granularity (one name, in pp) | **8.3 – 16.7pp**         |
+
+Three consequences that are defects rather than opinions:
+
+1. **"Relative to its industry" is undefined for 23 of 86 equities**, because their
+   industry has one member — themselves. Epic 5 reads this.
+2. **PRODUCT_SPEC.md §11's own worked example is arithmetically unreachable.** "82% of
+   semiconductor securities currently negative" cannot be produced by 8 constituents: the
+   achievable values are 0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100%. **The smallest group
+   that can produce 82% ± 0.5pp is 11.** Our deepest industry is 8.
+3. **§27 names 500 nodes as the _initial_ visualisation target**, not the synthetic one.
+   At 101 the live topology ships at a fifth of its specified size.
+
+### One part of the concern that does not survive contact
+
+**Correlation quality is not a function of security count.** It is bounded by observations
+per pair, and minute bars over sixty sessions give ~23,000 per security, which is ample.
+Going wider makes it _worse_, not better: 86 equities is 3,655 pairs and 500 would be
+124,750, so at any fixed threshold the spurious-edge count scales with the pair count.
+§10's "retain only the strongest N relationships per node" is what bounds that, and it
+works identically at either size. **And causation is not a universe-size problem at all** —
+it is an evidence problem owned by Epic 9's filings and the `CONFIRMED`/`SUPPORTED`/
+`POSSIBLE`/`UNKNOWN` ladder. Ten times the securities buys none of it.
+
+So the fix is **group depth**, not list length, and that has two levers rather than one.
+
+### The free lever, which should happen whatever the size becomes
+
+**The industry taxonomy is finer than GICS's own industry-group level (25 groups) on a
+universe a fraction of the size GICS classifies.** Merging `Semiconductors` with
+`Semiconductor Equipment`, the three REIT labels, the two oil-and-gas labels and so on
+takes 45 labels to roughly 20 and **doubles every group's depth with no new data at all**.
+That is not parked and does not depend on the trigger below; it is a taxonomy decision this
+document already owns.
+
+### What was found about the feed, and why the sizing is parked on it
+
+The blocker was expected to be Alpaca's free-tier symbol cap. Read from documentation on
+2026-09-05 — **not measured, and that distinction is the reason this is parked**:
+
+- [Alpaca's pricing page](https://alpaca.markets/data) states the free plan as
+  **"Limited to 30 symbols"**, flatly, alongside 200 API calls/min and the IEX feed.
+- [Alpaca's own streaming guide](https://alpaca.markets/learn/streaming-market-data) is
+  more precise: _"Users with Free Plan are allowed one concurrent connection and the
+  subscription is limited to **30 channels at a time for trades and quotes**. However,
+  **there is no limit to the number of channels with minute bars**."_
+- The reference documentation states **neither**.
+
+**If the bars exemption holds, the cap does not bind this product at all**, because §11's
+four calculations — price percentile, volume ratio, relative move, breadth — are every one
+of them bar-based, and nothing in the detection model consumes a trade or a quote. §7.1
+lists trades among the initial data; §11 does not need them. **If the pricing page is
+right instead, the cap binds at 30 and the current 101 is already over it**, which would be
+a much larger problem than the sizing question.
+
+Two readings of one sentence, two orders of magnitude apart, and a live account settles it
+in minutes. **That is the trigger.**
+
+### IEX coverage, which caps the useful size independently
+
+[IEX reports](https://www.iex.io/article/etf-trading-trends) **3.8% of overall US equity
+volume and 4.7% intraday as of Q2 2026** — higher than the 2–3% assumed in conversation,
+and re-read rather than recalled. As a sampling argument, an IEX minute bar is reliably
+populated down to roughly **1–2M shares/day consolidated**, which is about the **top
+1,000–1,500 US equities**. Below that, minutes with zero trades become common, and three
+things degrade together: the price series gains gaps, the volume ratio divides by a near-
+zero median, and — worst — **breadth is polluted, because a security with no trades is
+"unchanged" and is therefore neither advancing nor declining.** Adding thin names makes the
+aggregate number _less_ trustworthy, not more.
+
+One subtlety to carry: **a volume ratio survives the sample and an absolute volume does
+not.** "4.1× typical" compares IEX against IEX and is sound; a displayed share count is
+~3.8% of the truth and must be labelled, which invariant 6 already requires.
+
+### The cost, since it is not the constraint
+
+Storage re-read from the Azure Retail Prices API on 2026-09-05: **$0.115/GB/month**,
+backup $0.095 — both reproducing Story 2.1's figures. The bar arithmetic validates against
+Story 2.1's recorded 1.18 GB/year at 100 securities (390 minutes × 252 sessions × ~120
+bytes × 100 = 1.18 GB), so the model is sound:
+
+| Securities | Bars/yr | Disk/yr | Time to read-only on 22.5 GiB |
+| ---------: | ------: | ------: | ----------------------------- |
+|        101 |    9.9M |  1.2 GB | ~20 years                     |
+|        500 |     49M |  5.9 GB | ~4 years                      |
+|      1,000 |     98M | 11.8 GB | ~2 years                      |
+|      5,000 |    491M |   59 GB | ~5 months                     |
+
+**Even 5,000 securities with a year retained is about $15/month of disk**, and the write
+load is ~10 KB/s, which the measured 120 IOPS handles comfortably _provided bars are
+batched per minute rather than written per row_ (note 5,000 rows × 13 columns sits almost
+exactly on Postgres's 65,535 bind-parameter ceiling, so batches need chunking). The real
+database cost is the tier: Story 2.1 measured that an **idle B1ms banks almost no CPU
+credits**, so there is no reservoir for sustained ingestion.
+
+**So money is not what decides this.** What decides it is curation.
+
+### The constraint that actually binds at scale, and it is not the feed
+
+**Sector and industry cannot be hand-curated for a thousand securities.** "~100 rows,
+reviewable in a diff" is the stated justification for the curated file in §5, and it does
+not survive 1,000 rows. So a universe materially larger than today's **reopens §5's
+decision**, and the two free options are better than they looked when §5 declined a
+fetcher:
+
+- **The eleven sector SPDRs publish their holdings**, so ETF membership _is_ the sector
+  classification for every S&P 500 constituent — the option §5 named and set aside.
+- **SEC EDGAR gives every filer a free SIC code**, from an API Epic 9 already commits to.
+  A different taxonomy, but mappable, and it costs no licence and no new vendor.
+
+**This is now the harder limit than the feed**, and whoever un-parks the sizing should
+settle §5 before picking a number, not after.
+
+### The trigger, stated precisely
+
+**Story 2.6 confirms, against a real key, whether minute-bar subscriptions are exempt from
+the 30-channel cap.** Until then the universe stays at 101 and nothing is re-sized.
+
+- **If bars are exempt** — reopen the sizing with ~500 as the starting proposal and
+  ~1,500 as the architectural target, settle §5's metadata source first, and coarsen the
+  taxonomy in the same change.
+- **If the cap is 30 symbols across all channels** — this is not a sizing question any
+  more, it is a blocker on Epic 3, and the universe must _shrink_ or the product must buy
+  Alpaca's Algo Trader Plus at **$99/month**, which also removes the IEX quality ceiling.
+- **Either way the taxonomy coarsening above is unaffected** and should not wait.
+
+Nothing in the tree encodes the count, so un-parking costs one file edit for as long as no
+bars have been stored against these rows. **After Story 2.7 it costs a re-backfill**, which
+is the real deadline on this decision and is worth more than the trigger itself.
+
+---
+
 ## What this task deliberately did not decide
 
-- **The actual symbols.** Task 2.3.4's, and it is a product conversation. Writing them
-  here would be the rule reverse-engineered from the list.
+- ~~**The actual symbols.** Task 2.3.4's, and it is a product conversation. Writing them
+  here would be the rule reverse-engineered from the list.~~ **Task 2.3.4 wrote them; see
+  §9.** The struck-through sentence is kept because the order it describes is the point:
+  the rule in §7 was written before the list and did not move to accommodate it.
 - **The exact column names in `0003`.** Task 2.3.3's, following §2, §3 and §4.
 - **What a removal does to a reader.** §3 fixes the vocabulary and states that `status` is
   an invisible predicate; **naming the readers is Task 2.3.6's**, because it cannot be

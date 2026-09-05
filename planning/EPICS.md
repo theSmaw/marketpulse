@@ -59,7 +59,7 @@ A user can select one of the tracked securities and inspect its historical price
 - Database schema and migration mechanism
 - Alpaca credential on the platform — the first secret this system holds
 - Alpaca historical-data integration
-- Historical market-data persistence/cache
+- Historical market-data persistence — a record of what was observed, not a cache
 - Security search/select
 - Basic price chart
 - Basic volume chart

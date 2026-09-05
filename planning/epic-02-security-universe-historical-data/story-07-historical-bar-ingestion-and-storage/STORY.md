@@ -3,14 +3,17 @@
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Stories 2.2, 2.3, 2.4, 2.6
-**Epic scope covered:** Historical market-data persistence/cache
+**Epic scope covered:** Historical market-data persistence — **a record of what was observed, not a cache** (settled 2026-09-05, see open decision 1)
 
 ## Description
 
-Store the bars. Decide what the store is for — a cache in front of Alpaca, or the system's
-record of what was observed — because §24 already leans on the second: raw observations
-should be append-only timestamped events, and that is what makes replay, reproducibility
-and auditability tractable in Epic 13.
+Store the bars. ~~Decide what the store is for — a cache in front of Alpaca, or the
+system's record of what was observed~~ — **settled with the user on 2026-09-05: this is the
+system's RECORD OF WHAT WAS OBSERVED, and not a cache.** §24 already leaned on it: raw
+observations should be append-only timestamped events, and that is what makes replay,
+reproducibility and auditability tractable in Epic 13. The full argument and everything it
+decides downstream is in open decision 1 below, which is now an answer rather than a
+question.
 
 This is the largest engineering story in the epic and the one with the most arithmetic in
 it.
@@ -45,10 +48,20 @@ the read API, because what the API can serve is a property of what is stored.
   zero volume
 - Recording what has been ingested, per symbol and timeframe, so the system can answer
   "what do I have" without scanning the bar table
-- Corporate actions: what happens to stored history when a split occurs, given Story 2.5's
-  adjustment decision. A stored adjusted series is retroactively wrong after a split unless
-  something re-fetches it
-- Retention: whether anything is ever deleted, and against what trigger
+- **Corporate actions, and this is where "record not cache" stops being philosophy.** A
+  stored _adjusted_ series is retroactively wrong after a split unless something re-fetches
+  it — which is a cache's answer, and a cache is what this store is not. **So bars are
+  stored as observed and UNADJUSTED, and adjustment is applied on read** against Story 2.5's
+  adjustment decision. That is the one concrete thing decision 1 buys, it is the thing most
+  likely to be decided by accident in whichever task writes the first `insert`, and it is
+  cheap now and a full re-backfill later
+- **Retention: nothing is deleted, and the trigger is disk pressure rather than age.** A
+  record may not be evicted, which is decision 1 applied; what makes that safe rather than
+  reckless is the arithmetic above plus Story 2.1's measured **~22.5 GiB usable** and
+  `psql-storage-80pct` alert. State the headroom in years at the chosen timeframe and
+  universe size, and note that `UNIVERSE.md` §10 parks a universe re-sizing whose deadline
+  is **this story** — because re-sizing is one file edit until bars exist and a re-backfill
+  afterwards
 
 ## Out of scope, and who owns it
 
@@ -59,9 +72,57 @@ the read API, because what the API can serve is a property of what is stored.
 
 ## Open decisions — settle with the user
 
-1. **Cache or record.** A cache may be evicted and refetched; a record may not. §24 argues
-   for a record for observed market data. The decision changes retention, gap semantics and
-   whether "we do not have that" is a bug or an answer
+1. ~~**Cache or record.**~~ **SETTLED 2026-09-05 — a RECORD of what was observed.** Raised
+   by the user as "why do we have a database if we are pulling all our information from
+   another remote source?", which is the right question and was live until now. Four things
+   decide it, and none of them is that a database is normal:
+
+   - **§36 requires it, in so many words.** Its own worked failure state is _"Live feed
+     disconnected — displaying data through 10:42:17."_ That sentence is only writable if
+     the data through 10:42:17 was stored. A pass-through's answer to a vendor outage is an
+     error screen, which is exactly the "collapsing into one global error screen" §36
+     forbids. **Degrading incrementally requires something local to degrade to.**
+   - **Replay is not "show me old prices".** §24 wants append-only events including
+     `AnomalyDetected`, `InvestigationCreated`, `AgentToolCalled` and
+     `WorkspaceCommandApplied` — replay reconstructs what the system **knew and did**, and
+     half of that has no vendor to re-fetch it from. §22 then requires temporal isolation be
+     enforced at the data layer so leakage is structurally impossible, which is a
+     query-layer guarantee (`DATA-LAYER.md`'s Kysely plugin); an HTTP request has no AST to
+     rewrite.
+   - **§11's detection needs a rolling distribution per security** — ~60 days of 5-minute
+     returns, and volume against the median _for that time of day_. Held in memory that is
+     a cold re-fetch on every deploy, at `minReplicas: 1`, on every merge; held properly it
+     is a database by another name, written worse.
+   - **Invariant 5 needs the raw data to still exist.** Evidence carries a "raw-data
+     reference", and a reference into a discarded HTTP response points at nothing.
+
+   Underneath all four: Postgres reads are free and unlimited, Alpaca's are **200/min**, and
+   pass-through puts vendor latency inside §28's <500 ms interaction budget for every one of
+   §17's eighteen agent tools.
+
+   **What the decision actually changes, which is the reason to take it here rather than let
+   it be inferred:** bars are stored **unadjusted** and adjusted on read (see scope);
+   nothing is evicted; **"we do not have that" is an ANSWER rather than a bug**, which is
+   what criterion 4 is really asserting; and the write path never `UPDATE`s a bar in the
+   ordinary case.
+
+   **The honest limit, stated rather than discovered.** A pure record would keep every
+   version of a corrected bar, which is what `observed_at` / `recorded_at` were built for —
+   `migrations/README.md` §4 defines the pair and Task 2.2.4 names **this table** as the
+   first to exercise it. V1 deliberately does **not** do that: a second row per bar means a
+   version predicate on every read, and that is a **second invisible predicate** on top of
+   `securities.status`, which `migrations/README.md` §5 warns is "a bug waiting for whoever
+   forgets". So V1 stores one row per bar, a correction overwrites it, `recorded_at` moves,
+   and **Epic 13 replays a bar as currently known rather than as known at the time** — a
+   real gap in the replay guarantee, recorded here rather than papered over. **The reversal
+   trigger is the first observed correction**, not a story number; nobody has seen one yet,
+   and building for it now is a mechanism against no instance.
+
+   **Where pass-through IS right, and we already do it:** §7.2 asks V1 to detect that a
+   filing occurred and let the user inspect it, so filing **metadata** is stored and the
+   **document** is fetched on demand. Nobody is mirroring EDGAR. The line is whether the
+   product must be able to answer without the vendor.
+
 2. **TimescaleDB.** §30 offers it optionally and §37 says do not add a second data
    technology without a measurement. This is the story with the measurement in it. Note the
    Azure-specific question that must be answered first: whether the extension is available
@@ -91,3 +152,24 @@ the read API, because what the API can serve is a property of what is stored.
 ## What this story hands forward
 
 The data the rest of the epic renders, and the write path Epic 3 extends with live bars.
+
+---
+
+## Amended 2026-09-05 — open decision 1 settled
+
+**"Why do we have a database if we are pulling all our information from another remote
+source?"** — asked by the user, answered as **a record of what was observed, not a cache**,
+with the argument in open decision 1.
+
+The reframing that did most of the work is worth keeping: **§30 lists ten tables and only
+`market_bars` comes from Alpaca.** One more (`filings`) comes from the SEC; the other eight
+have no external source at all, because an Investigation, its steps, its findings, its
+evidence and the workspace commands that produced them are things this system does rather
+than things it fetches. **The database exists regardless of how bars are handled**, so the
+question was never "database or no database" — it was whether that one table joins it.
+
+Three downstream items moved from open to decided as a consequence: bars are stored
+**unadjusted**, retention is **nothing is deleted** with disk pressure as the trigger, and
+"we do not have that" is an **answer**. One new gap is recorded with a trigger rather than
+built: V1 overwrites a corrected bar, so replay reproduces a bar as currently known rather
+than as known at the time.

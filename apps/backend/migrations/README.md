@@ -146,6 +146,29 @@ in this schema**, deliberately: it is the name people reach for, and it is
 ambiguous between the two timestamps above, which is how a schema ends up unable
 to answer either question.
 
+**A third name arrived with `0003`: `<group>_retrieved_at`, and it is a genuine
+half-pair rather than an `observed_at` in disguise.** `securities` carries
+`profile_retrieved_at` and `classification_retrieved_at` — when we asked a source
+for a group of fields — which is invariant 5's _retrieval_ timestamp with **no
+event timestamp beside it, because there is no event**: a security's sector is
+not a fact about the market at an instant, and there is no moment at which "AAPL
+is in technology" became true the way a price became true. So `securities` still
+has no `observed_at`, and `market_bars` in Story 2.7 remains the first table that
+exercises the pair.
+
+It is not `recorded_at` either, and the difference is real rather than pedantic:
+`recorded_at` is when we wrote the **row**, and a row can be rewritten from
+metadata retrieved long before it — which is exactly what a loader re-run against
+an unchanged curated file does. Both are needed; neither substitutes.
+
+**A provenance column is `not null` with no default.** A default would be the
+migration inventing a source — `default 'curated'` silently attributes a
+provider's row to a file — and the point of the column is that a writer _cannot_
+insert without saying where the data came from. Note the consequence: adding one
+to a populated table is a migration that fails, so this shape is only available
+while the table is empty, and a later table gets its provenance columns in its
+own `create table`.
+
 ---
 
 ## 3. Identifiers: a surrogate `bigint` key, with the natural key beside it
@@ -639,6 +662,18 @@ What stands in for it is a **tripwire**: the suite asserts there are **no**
 Story 2.7 — with a message telling whoever added it to replace the tripwire with
 the real check and update these two lists. A rule that cannot yet be enforced is
 recorded as failing-open rather than as quietly passing.
+
+**And the foreign-key naming rule is STILL UNTESTED after the story most likely to
+have exercised it.** Task 2.2.4 recorded `<referenced_table_singularised>_id` as
+untested because `securities` has no foreign key, and Story 2.3 looked like the
+story that would add one. It did not, and both candidates were closed
+deliberately rather than by accident: the sector-to-ETF mapping went to
+`packages/shared` as a `Record` total over the taxonomy rather than becoming a
+`sectors` table, and a separate `security_field_provenance` table was rejected in
+favour of columns on the row. So `market_bars.security_id` in Story 2.7 inherits
+it. Recorded rather than left silent, because a convention that quietly survives
+the story that should have tested it is exactly this repository's third class of
+gap.
 
 The rest are **not** reachable and are prose permanently: plural table names,
 snake case, the `security_id` foreign key spelling, `text` over `varchar(n)`, and

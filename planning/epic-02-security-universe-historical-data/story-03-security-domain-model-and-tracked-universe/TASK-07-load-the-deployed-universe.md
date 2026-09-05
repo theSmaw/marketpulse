@@ -2,7 +2,33 @@
 
 **Status:** Not started
 **Story:** [2.3 Security Domain Model & the Tracked Universe](STORY.md)
-**Depends on:** Task 2.3.6 (every change to the list has been made locally first)
+**Depends on:** Task 2.3.6 (every change to the list has been made locally first) — and on
+Story 2.2's Task 2.2.7, **which is Complete, so this dependency is satisfied**
+
+> **~~Sequencing hazard, found by Task 2.3.3 and recorded here because this is the task it
+> blocks.~~ RESOLVED — re-checked at Task 2.3.4 (2026-09-05) by measurement rather than by
+> assumption, and every one of its three premises has stopped being true.** Story 2.2's
+> task table reads **Complete** for all eight tasks including 2.2.7 and 2.2.8;
+> `.github/workflows/deploy.yml` **has a migration step**, `Migrate the deployed database`,
+> which invokes `pnpm migrate` by name under a `timeout 120`; and 2.2.7's commit
+> (`8115713`) is an **ancestor of `origin/main`**, so the managed database has had `0001`
+> and `0002` applied and **does hold a `securities` table**. The struck-through paragraph is
+> kept rather than deleted because it records a real block that was real when it was
+> written, and because the resolution is the interesting half: nothing in this story fixed
+> it, Story 2.2 finishing did.
+>
+> **Two things it changes for this task, and one it does not.** The decision this task was
+> supposed to weigh against now exists to be weighed against — 2.2.7 chose _a step in
+> `deploy.yml` before either half of the code rolls_, with its own deadline, and the first
+> bullet below can finally do what it says. And 2.2.7's own recorded honest gap transfers
+> directly: a step added to `deploy.yml` only runs on `main`, so its first execution is the
+> first merge after the story that adds it. What it does **not** change is the ordering
+> constraint in the second bullet: `0003_security_vocabulary.sql` is on **this branch and
+> not on `main`**, so the deployed database does not yet have the three-member `kind`, the
+> `status` check or the provenance columns. **The first deploy after this story merges runs
+> `0003` and then this load, in that order, and a seed that ran before its own migration is
+> the one ordering that cannot work** — which is no longer hypothetical, it is what the next
+> merge actually does.
 
 ## Objective
 
@@ -17,12 +43,21 @@ recovery**.
 
 ## Work
 
-- **Decide where the load runs**, and note that this is not simply Task 2.2.7's decision
-  repeated, because two of its inputs are different. That task rejected a boot-time job
-  partly because `apps/backend/package.json`'s `files` field keeps `apps/backend/
-migrations/` out of the container image — but if Task 2.3.1 put the universe in a `.ts`
-  module under `src/`, the image **does** carry it, compiled, so that argument does not
-  transfer. Check which is true before reusing the conclusion. The other half does
+- **Decide where the load runs. Not simply Task 2.2.7's decision repeated** — and, since
+  2.2.7 is Complete, **there is now a decision to weigh against**, which there was not when
+  the struck-through hazard above was written: 2.2.7 chose a step in `deploy.yml` running
+  `pnpm migrate` by name before either half of the code rolls, under its own `timeout 120`.
+  Weigh this against that shape rather than in the abstract, and expect a **different**
+  answer to be available, for the reason below. The half this task can settle on its own is
+  confirmed rather than conditional:
+  Task 2.3.1 put the universe in a `.ts` module under `src/`, so it compiles into `dist/`,
+  and `apps/backend/package.json`'s `files` field is `["dist", "!dist/**/*.test.*"]` —
+  **the container image carries the universe**, where it does not carry
+  `apps/backend/migrations/`. **Confirmed on the shipped file rather than predicted from the
+  manifest (2.3.4): `apps/backend/dist/universe.js` exists after `pnpm build`, at 28,819 B**,
+  and it is not a `*.test.*` file, so nothing in `files` excludes it. So the argument that killed a boot-time job for migrations
+  genuinely does not transfer to this, and a boot-time seed is available in a way a
+  boot-time migration is not. Weigh it anyway rather than taking it. The other half does
   transfer unchanged: the startup probe (2 s / 3 s / 30) kills a replica at roughly 90
   seconds, and `Single` mode at `minReplicas: 1` makes an unready replica **no service**
 - **Decide whether it runs on every deploy or once.** Idempotence makes "every deploy"
@@ -86,3 +121,21 @@ The honest gap Task 2.2.7 recorded is worth expecting again: a step added to `de
 only runs on `main`, so its first real execution is the first merge after this story, and
 whatever is run from a branch is the step's **body** rather than the step. Say which was
 proved.
+
+---
+
+## Amended after Task 2.3.4 (2026-09-05)
+
+Two edits, and the first is the one that matters: **the sequencing hazard is resolved, and
+this task is unblocked.** It was resolved by Story 2.2 finishing rather than by anything
+here, and it was re-checked by measurement — Story 2.2's task table, the migration step in
+`deploy.yml`, and 2.2.7's commit being an ancestor of `origin/main` — rather than by
+assuming a status file was current. The user no longer needs to settle anything before this
+task starts.
+
+The ordering constraint it leaves behind is sharper than the one it removes: **`0003` is
+still unmerged**, so the first deploy after this story applies `0003` and then loads the
+universe, in that order, against a deployed table whose `kind` check is still the
+two-member one until that migration runs.
+
+The second edit turns the `dist/` claim from a manifest reading into a measurement.

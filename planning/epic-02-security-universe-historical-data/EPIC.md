@@ -22,7 +22,7 @@ A user can select one of the tracked securities and inspect its historical price
 - Database schema and migration mechanism
 - Alpaca credential on the platform — ~~**the first secret this system holds**~~ **the second: the database credential in Story 2.1 arrives five stories earlier, so the mechanism is built there** (2026-09-04)
 - Alpaca historical-data integration
-- Historical market-data persistence/cache
+- Historical market-data persistence — **a record of what was observed, not a cache** (settled 2026-09-05 in Story 2.7's open decision 1; §36's "displaying data through 10:42:17" is only writable if it was stored, and §24's replay reconstructs what the system knew and did rather than only what the market did)
 - Security search/select
 - Basic price chart
 - Basic volume chart
@@ -39,8 +39,9 @@ Three scope items above were **added after Epic 1 closed**, because Epic 1 named
 them and deliberately deferred them here rather than building ahead of the
 iteration that needs them. None of this was visible in this file before.
 
-**The database does not exist.** "Historical market-data persistence/cache"
-reads as though one is already there; it is not. Task 1.11.1 chose **Azure
+**The database does not exist.** The scope line above — which read "Historical
+market-data persistence/cache" when this was written, and was reworded on
+2026-09-05 — reads as though one is already there; it is not. Task 1.11.1 chose **Azure
 Database for PostgreSQL flexible server** and provisioned nothing — the full
 record is
 `../epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md`.
@@ -167,28 +168,37 @@ rather than repeating something proven here. What transfers is the **identity**,
 mechanism, and the `secrets`-array path is **exercised by nothing** in this repository. That
 is Story 2.6's largest unknown and it is named here rather than left for 2.6 to discover.
 
-**"Historical market-data persistence/cache" is two different products and the epic does not
-say which.** §24 wants raw observations stored as append-only timestamped events, which is a
-record; "cache" implies something evictable. Story 2.7 carries that as an open decision,
-because it changes retention, gap semantics, and whether "we do not have that" is a bug or
-an answer.
+~~**"Historical market-data persistence/cache" is two different products and the epic does
+not say which.**~~ **SETTLED 2026-09-05 — a record, and the scope line above now says so.**
+The observation stood and was right: §24 wants raw observations stored as append-only
+timestamped events, which is a record, while "cache" implies something evictable. It was
+settled with the user in Story 2.7's open decision 1, prompted by the fair question of why
+this system stores anything at all when the data comes from someone else's API. **The
+reframing that answered it: §30 lists ten tables and only `market_bars` comes from Alpaca**
+— one more comes from the SEC, and the other eight have no external source, because an
+investigation, its findings and its evidence are things this system does rather than things
+it fetches. So the database was never the question; whether that one table joined it was.
+What settled that one table is §36, whose own worked failure state — _"Live feed
+disconnected — displaying data through 10:42:17"_ — is only writable if the data was stored.
+Three consequences are now decided rather than open: bars are stored **unadjusted** and
+adjusted on read, **nothing is evicted**, and "we do not have that" is an **answer**.
 
 ## The decisions this epic must settle with a person
 
 Recorded here so they are visible without opening thirteen files. Each is stated in full,
 with its alternatives, in the story that owns it.
 
-| Decision                                        | Story | Why it cannot be defaulted                                                                      |
-| ----------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------- |
-| Postgres networking mode                        | 2.1   | Fixed at creation; private access needs a VNet that cannot be retrofitted                       |
-| Password or managed-identity auth               | 2.1   | The second means no secret exists at all — Epic 1 chose that shape twice                        |
-| Local development database                      | 2.1   | Becomes a prerequisite for every clean clone                                                    |
-| Migration tool and query layer                  | 2.2   | Every table in §30 arrives through it, across thirteen more epics                               |
-| Sector metadata source and taxonomy             | 2.3   | Alpaca does not provide sectors; Epics 4, 5 and 6 all group by them                             |
-| **Which ~100 securities**                       | 2.3   | A market-cap-ordered list makes breadth and relative-move structurally dull                     |
-| Which timeframes and how far back               | 2.6   | Sizes Story 2.7 and determines whether Epic 5 has enough observations                           |
-| Cache or record; TimescaleDB                    | 2.7   | Changes retention and gap semantics; §37 forbids a second data technology without a measurement |
-| Redux now, or not yet                           | 2.9   | Epic 11's generative workspace is much easier against an explicit typed state tree              |
-| Charting library or hand-built; line or candles | 2.11  | Inherited by Epics 5, 8 and 11                                                                  |
-| Which time windows                              | 2.12  | Reaches backwards into ingestion depth and payload size                                         |
-| Feed-label prominence and wording               | 2.13  | Invariant 6; read by every visitor                                                              |
+| Decision                                             | Story | Why it cannot be defaulted                                                                                                        |
+| ---------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Postgres networking mode                             | 2.1   | Fixed at creation; private access needs a VNet that cannot be retrofitted                                                         |
+| Password or managed-identity auth                    | 2.1   | The second means no secret exists at all — Epic 1 chose that shape twice                                                          |
+| Local development database                           | 2.1   | Becomes a prerequisite for every clean clone                                                                                      |
+| Migration tool and query layer                       | 2.2   | Every table in §30 arrives through it, across thirteen more epics                                                                 |
+| Sector metadata source and taxonomy                  | 2.3   | Alpaca does not provide sectors; Epics 4, 5 and 6 all group by them                                                               |
+| **Which ~100 securities**                            | 2.3   | A market-cap-ordered list makes breadth and relative-move structurally dull                                                       |
+| Which timeframes and how far back                    | 2.6   | Sizes Story 2.7 and determines whether Epic 5 has enough observations                                                             |
+| ~~Cache or record~~ **settled: record**; TimescaleDB | 2.7   | Changed retention, gap semantics and whether bars are stored adjusted; §37 forbids a second data technology without a measurement |
+| Redux now, or not yet                                | 2.9   | Epic 11's generative workspace is much easier against an explicit typed state tree                                                |
+| Charting library or hand-built; line or candles      | 2.11  | Inherited by Epics 5, 8 and 11                                                                                                    |
+| Which time windows                                   | 2.12  | Reaches backwards into ingestion depth and payload size                                                                           |
+| Feed-label prominence and wording                    | 2.13  | Invariant 6; read by every visitor                                                                                                |

@@ -53,7 +53,7 @@
 
 import type { ColumnType, Generated, GeneratedAlways } from "kysely";
 
-import type { SecurityKind } from "@marketpulse/shared";
+import type { Sector, SecurityKind, SecurityStatus } from "@marketpulse/shared";
 
 /**
  * `securities` — the tracked universe. See `../migrations/0002_securities.sql`,
@@ -87,28 +87,52 @@ export interface SecuritiesTable {
   exchange: string;
 
   /**
-   * The union, not `string` — this is the one column whose vocabulary is
-   * settled, by PRODUCT_SPEC.md §6, and the database carries the matching
-   * `check (kind in ('equity', 'etf'))`.
+   * The union, not `string`. Three members since `0003` —
+   * `equity | sector_etf | index_etf` — because a sector proxy and an index
+   * proxy are what Epic 4 and Epic 5 have to tell apart.
    *
-   * **Nothing compares the two.** Adding a member to `SECURITY_KINDS` without
-   * the corresponding migration gives a value the compiler permits and the
-   * database refuses at run time. Task 2.2.5 can close this by reading the
-   * constraint's own text out of `information_schema`.
+   * The two halves agree and **something checks that they do**, which was not
+   * true when Task 2.2.4 wrote this comment: `pnpm test:database` parses
+   * `securities_kind_check` out of `pg_constraint` and compares it against
+   * `SECURITY_KINDS`. It is the check that caught this column and the
+   * constraint disagreeing between Tasks 2.3.2 and 2.3.3, which is the only
+   * evidence worth having that it works.
    */
   kind: SecurityKind;
 
-  /** Null for an index proxy, which has neither. */
-  sector: string | null;
+  /**
+   * The taxonomy union rather than `string` since `0003`, backed by
+   * `securities_sector_check`.
+   *
+   * **Null exactly when {@link kind} is `index_etf`**, which the database holds
+   * as `securities_sector_matches_kind` and which `Security` in
+   * `packages/shared` holds as a discriminated union. This row type cannot
+   * express it — a row is one interface with one nullable column, which is the
+   * whole reason the domain type is a different type — so here the two meanings
+   * of `null` are indistinguishable and the mapping Story 2.8 writes is where
+   * they separate again.
+   */
+  sector: Sector | null;
+
+  /**
+   * Deliberately still an open `string` with no `check`, unlike {@link sector}.
+   * There is no ETF per industry, therefore no benchmark, therefore no closed
+   * set to be a source of truth for — and a constraint over a list nobody
+   * maintains refuses correct data.
+   */
   industry: string | null;
 
   /**
-   * `string` and deliberately not a union: Story 2.3 owns this vocabulary, the
-   * database carries no `check` on it for the same reason, and a union invented
-   * here would be a vocabulary that story has to migrate rather than choose.
-   * It narrows when `Security` arrives.
+   * The union since `0003`, backed by `securities_status_check`. It was
+   * `string` from Task 2.2.4 until then, deliberately, because Story 2.3 owned
+   * the vocabulary and one invented earlier would have been a vocabulary that
+   * story had to migrate rather than choose.
+   *
+   * Two members, `active` and `untracked`. It is what replaces a soft delete,
+   * and it is an **invisible predicate**: a reader that forgets to filter on it
+   * shows untracked securities.
    */
-  status: string;
+  status: SecurityStatus;
 
   /** The SEC's Central Index Key. Text, because its leading zeros are part of it. */
   cik: string | null;
@@ -128,6 +152,39 @@ export interface SecuritiesTable {
    * database would happily allow it.
    */
   recorded_at: ColumnType<Date, Date | undefined, never>;
+
+  /**
+   * Where `symbol`, `name` and `exchange` came from, and when we asked.
+   *
+   * `not null` with **no default**, so a writer cannot insert a row without
+   * saying where the data came from — which is acceptance criterion 6's
+   * enforcement half rather than a schema that merely has somewhere to put it.
+   * A `default 'curated'` would silently attribute a provider's row to a file.
+   *
+   * Plain `string` and `Date` rather than a `ColumnType`: both are supplied on
+   * insert and both are updatable, because re-running the loader against a
+   * newer source is exactly when they should change. Contrast
+   * {@link recorded_at}, whose update parameter is `never`.
+   *
+   * `SECURITY_FIELD_GROUP` in `packages/shared` maps a field to its group, so
+   * Story 2.13 can render "where did this come from" beside any field without
+   * reverse-engineering which pair to read.
+   */
+  profile_source: string;
+  profile_retrieved_at: Date;
+
+  /**
+   * Where `sector` and `industry` came from, and when we asked.
+   *
+   * The group whose staleness is a recorded gap: the curated file goes out of
+   * date silently, and a sector reclassification has **no symptom at all** — it
+   * simply benchmarks a security against the wrong ETF, indefinitely and
+   * correctly-looking. This timestamp is the mitigation, and a weak one: it
+   * makes the file's age visible on screen through Story 2.13 rather than only
+   * in git history.
+   */
+  classification_source: string;
+  classification_retrieved_at: Date;
 
   /**
    * When it last changed. `Generated<Date>` — defaulted on insert and, unlike
