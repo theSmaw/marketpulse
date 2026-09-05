@@ -26,10 +26,29 @@ const base: DatabaseConfig = {
   ssl: "disable",
 };
 
-/** Records what the pool reported, so the error handler can be asserted on. */
-function recorder(): { warn: (o: object, m: string) => void; seen: string[] } {
+/**
+ * Records what the pool reported, so the error handler can be asserted on.
+ *
+ * It records `debug` as well as `warn` since Task 2.1.6, and the two go into
+ * **separate** arrays rather than one: `seen` is what this file's existing
+ * assertions are written against, and a token-mint record landing in it would
+ * make an assertion about the error handler pass or fail for the wrong reason.
+ */
+function recorder(): {
+  warn: (o: object, m: string) => void;
+  debug: (o: object, m: string) => void;
+  seen: string[];
+  debugged: { object: object; message: string }[];
+} {
   const seen: string[] = [];
-  return { warn: (_o: object, m: string) => seen.push(m), seen };
+  const debugged: { object: object; message: string }[] = [];
+  return {
+    warn: (_o: object, m: string) => seen.push(m),
+    debug: (object: object, message: string) =>
+      debugged.push({ object, message }),
+    seen,
+    debugged,
+  };
 }
 
 describe("createDatabasePool", () => {
@@ -119,7 +138,7 @@ describe("createDatabasePool credentials", () => {
   // reached by forgetting a variable, and it fails at **connect** time rather
   // than at construction — which is what keeps a process configured for `entra`
   // starting and serving `/health` instead of crash-looping.
-  it("throws only when a connection is attempted under entra, not at construction", async () => {
+  it("supplies a credential FUNCTION under entra, evaluated per connection rather than at construction", async () => {
     // Written out rather than spread from `base` with the password removed:
     // under `exactOptionalPropertyTypes` the entra shape is genuinely a
     // different object, and building it here is what the deployed environment
@@ -141,9 +160,77 @@ describe("createDatabasePool credentials", () => {
       expect.fail("entra mode should supply a credential function");
     }
 
-    expect(() => credential()).toThrow(
-      "DATABASE_AUTH=entra is not implemented",
+    // The failure is deferred to a connection attempt rather than raised at
+    // construction, which is what makes a misconfigured deployed replica
+    // *degrade* rather than crash-loop. Driven here with no managed identity in
+    // the environment, which is exactly what a laptop is: the rejection names
+    // the platform and the way out rather than the mode.
+    await expect(credential()).rejects.toThrow("IDENTITY_ENDPOINT is not set");
+
+    await pool.end();
+  });
+
+  // **The leak assertion at this layer.** `entra-token.test.ts` proves the
+  // acquisition itself carries nothing; this proves the pool's own record of it
+  // carries nothing either, on the one line in this file that touches a token.
+  it("logs that a token was minted and never any part of the token", async () => {
+    const log = recorder();
+    const token = "eyJhbGciOiJSUzI1NiJ9.PAYLOAD.SIGNATURE";
+
+    const pool = createDatabasePool(
+      {
+        host: base.host,
+        port: base.port,
+        name: base.name,
+        user: "marketpulse-backend",
+        auth: "entra",
+        ssl: "verify-full",
+      },
+      log,
     );
+
+    // The identity endpoint stands in as a plain environment read inside the
+    // acquisition, so the pool is driven through its real path with a stub
+    // `fetch` supplied to the module rather than to the pool.
+    const credential = pool.options.password;
+    if (typeof credential !== "function") {
+      expect.fail("entra mode should supply a credential function");
+    }
+
+    const original = globalThis.fetch;
+    globalThis.fetch = (() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify({ access_token: token })),
+      })) as unknown as typeof fetch;
+    const originalEndpoint = process.env.IDENTITY_ENDPOINT;
+    const originalHeader = process.env.IDENTITY_HEADER;
+    process.env.IDENTITY_ENDPOINT = "http://localhost:42356/msi/token";
+    process.env.IDENTITY_HEADER = "header-secret-value";
+
+    try {
+      await expect(credential()).resolves.toBe(token);
+    } finally {
+      globalThis.fetch = original;
+      if (originalEndpoint === undefined) {
+        delete process.env.IDENTITY_ENDPOINT;
+      } else {
+        process.env.IDENTITY_ENDPOINT = originalEndpoint;
+      }
+      if (originalHeader === undefined) {
+        delete process.env.IDENTITY_HEADER;
+      } else {
+        process.env.IDENTITY_HEADER = originalHeader;
+      }
+    }
+
+    expect(log.debugged).toHaveLength(1);
+    const record = JSON.stringify(log.debugged);
+    expect(record).toContain("tokenLength");
+    expect(record).not.toContain(token);
+    expect(record).not.toContain("eyJ");
+    expect(record).not.toContain("header-secret-value");
 
     await pool.end();
   });

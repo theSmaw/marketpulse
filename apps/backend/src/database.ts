@@ -29,6 +29,7 @@ import pg from "pg";
 import type { PoolConfig } from "pg";
 
 import type { DatabaseConfig } from "./config.js";
+import { acquireEntraAccessToken } from "./entra-token.js";
 
 // How many connections this process may hold.
 //
@@ -60,11 +61,18 @@ const POOL_MAX = 10;
 // replica that never becomes ready.
 //
 // 5 s is chosen against the deployed path rather than the local one: the
-// backend is in East US and the database in East US 2 (Task 2.1.1, forced by
-// `OfferRestricted`), and a deployed connection additionally pays a TLS
+// backend is in East US and the database in ~~East US 2~~ **North Central US**
+// (Task 2.1.1 chose East US 2 and Task 2.1.5 found it `OfferRestricted` for
+// this subscription too), and a deployed connection additionally pays a TLS
 // handshake and, under `entra`, a token mint. A refused connection does not
 // wait for any of it — measured at **3 ms** against a closed port.
-const CONNECT_TIMEOUT_MS = 5000;
+//
+// **Task 2.1.5 measured the parts and they leave this generous rather than
+// tight**: TCP+TLS from the deployed container is 79–111 ms and a full connect
+// ~150–250 ms, under 5% of this. Task 2.1.6 adds the token mint to that, and
+// `entra-token.ts`'s own deadline is set strictly below this number on purpose
+// — see the comment there, and the test that asserts the ordering.
+export const CONNECT_TIMEOUT_MS = 5000;
 
 // What the database sees in `pg_stat_activity.application_name`.
 //
@@ -89,25 +97,54 @@ const APPLICATION_NAME = "marketpulse-backend";
  * an Entra access token needs, since it is minted per connection and valid for
  * up to 24 hours.
  */
-function resolveCredential(config: DatabaseConfig): PoolConfig["password"] {
+function resolveCredential(
+  config: DatabaseConfig,
+  log: DatabaseLogger,
+): PoolConfig["password"] {
   if (config.auth === "password") {
     return config.password;
   }
 
-  // Deliberately a throwing function rather than a missing branch or a thrown
-  // error at construction. Two reasons, and both are about what the process
-  // does rather than about tidiness. A throw at construction would stop the
-  // server starting, which is the crash-loop this task exists to avoid; and a
-  // missing branch would make `entra` silently behave like `password`, which is
-  // the inference `DATABASE_AUTH` was introduced to prevent.
+  // **The `entra` branch, filled by Task 2.1.6.** The seam Task 2.1.4 built
+  // held: this is a function body and nothing else moved. `createDatabasePool`,
+  // its callers and `index.ts` are untouched, and the one signature that
+  // changed is this private helper taking the logger it needs to say what it
+  // did — which is the amendment's own instruction rather than a widening of
+  // the change.
   //
-  // So a process configured for `entra` today starts, serves `/health`, and
-  // reports its database as unreachable with this message — which is the same
-  // shape as any other connection failure and needs no special case anywhere.
-  return () => {
-    throw new Error(
-      "DATABASE_AUTH=entra is not implemented yet: acquiring a Microsoft Entra access token is Task 2.1.6's. Use DATABASE_AUTH=password against a local database.",
+  // It stays a **function** rather than an awaited value for the reason 2.1.4
+  // measured: `pg` calls it once per *connection* — three concurrent queries on
+  // a cold pool of three produced three calls, three more on the warm pool
+  // produced none — so a token is minted per connection and reused for that
+  // connection's life. That is exactly the shape a credential valid for up to
+  // 24 hours wants, and it is why **there is deliberately no cache here**.
+  // Adding one would need a measured token-endpoint cost to justify it, not an
+  // assumption about how often this runs.
+  //
+  // The `async` is free: `pg` accepts `() => string | Promise<string>`.
+  //
+  // A throw here is an ordinary connection failure rather than a crash —
+  // measured end to end by 2.1.4 — so a broken identity endpoint on the
+  // deployed replica reports `database unreachable` and keeps serving
+  // `/health`, instead of exiting into the liveness probe's restart loop.
+  return async () => {
+    const { token, ms } = await acquireEntraAccessToken();
+
+    // What was minted, never the thing that was minted. The record carries a
+    // duration and a length; `TokenAcquisition` has no field that could hold
+    // the token, so this line cannot be edited into a leak by accident.
+    //
+    // The length is here because it is the cheapest way to tell "we got a JWT"
+    // from "we got something" without printing any of it, and the amendment's
+    // instruction — log what the token acquisition did — is otherwise
+    // unanswerable when the failure is a token for the wrong audience, which
+    // is rejected at the far end rather than here.
+    log.debug(
+      { ms, tokenLength: token.length },
+      "minted a Microsoft Entra access token for the database connection",
     );
+
+    return token;
   };
 }
 
@@ -151,6 +188,12 @@ function resolveSsl(config: DatabaseConfig): PoolConfig["ssl"] {
  */
 export interface DatabaseLogger {
   warn: (object: object, message: string) => void;
+  // Added by Task 2.1.6 so a token mint can be recorded at a level a healthy
+  // deployed process does not print. It is `debug` and not `info` because the
+  // credential is minted **per connection** — a pool churning connections would
+  // otherwise write a line each time — and because the useful case for reading
+  // it is exactly the case where something is wrong.
+  debug: (object: object, message: string) => void;
 }
 
 /**
@@ -169,7 +212,7 @@ export function createDatabasePool(
     port: config.port,
     database: config.name,
     user: config.user,
-    password: resolveCredential(config),
+    password: resolveCredential(config, log),
     ssl: resolveSsl(config),
     max: POOL_MAX,
     connectionTimeoutMillis: CONNECT_TIMEOUT_MS,

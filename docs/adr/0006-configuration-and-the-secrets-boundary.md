@@ -69,11 +69,32 @@ deeply nested input from a model, which is a different problem and may well want
 Zod. The argument here is that `process.env` is a flat record of strings and a
 library brings nothing to that shape.
 
-### 2. The environment is read in exactly one file
+### 2. The environment is read in exactly one file — ~~one~~ two since Task 2.1.6
 
-`apps/backend/src/config.ts` is the only file in the workspace that reads
+~~`apps/backend/src/config.ts` is the only file in the workspace that reads
 `process.env`, verified by grep; the single occurrence is the default parameter
-of `loadConfig(env = process.env)`.
+of `loadConfig(env = process.env)`.~~
+
+**Amended 2026-09-05 by Task 2.1.6: there are TWO files now, and the second one
+exists to protect the property this section is about.**
+`apps/backend/src/entra-token.ts` reads `IDENTITY_ENDPOINT` and
+`IDENTITY_HEADER`, and it does so precisely so that they do **not** reach
+`config.ts`. `IDENTITY_HEADER` is itself a bearer credential — it is what
+authorises a caller to mint a database token from the endpoint — so routing it
+through the configuration boundary would put a live credential on the frozen
+`Config` object, in the module whose own comment records that its
+no-credential-in-a-log guarantee here turned out to be **structural**: it never
+receives the deployed credential and so cannot leak it however carelessly it is
+used. Neither variable is application configuration — both are injected by Azure
+Container Apps, exist in no `.env.example`, and are deliberately absent from
+`CONFIG_VARIABLES`, because `pnpm env:check` would then demand they be
+documented as ours and a developer copying the example would get two blank
+platform variables they cannot set.
+
+So the invariant is now: **`config.ts` and `entra-token.ts` are the only files
+that read `process.env`**, the second reads exactly two keys, neither enters
+`Config`, and both use `loadConfig(env)`'s own parameter-with-a-default idiom so
+a test can drive them with a plain object. Verified by grep, as before.
 
 Three properties of that module, each chosen against the obvious alternative:
 

@@ -1,6 +1,6 @@
 # Story 2.1 — Managed Postgres Provisioning & the Secrets Boundary
 
-**Status:** In progress — Tasks 2.1.1 to 2.1.5 complete
+**Status:** In progress — Tasks 2.1.1 to 2.1.6 complete
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Epic 1 (Stories 1.6, 1.11)
 **Epic scope covered:** Managed Postgres provisioning; Alpaca credential on the platform (the _mechanism_ half)
@@ -143,9 +143,40 @@ Tackled in order. The story is complete when all eight are done.
 | 2.1.3 | [Put the connection settings through the configuration boundary](TASK-03-connection-settings-in-the-configuration-boundary.md)               | Complete    |
 | 2.1.4 | [The connection pool, `SELECT 1`, and closing inside the drain](TASK-04-the-pool-and-its-lifecycle.md)                                       | Complete    |
 | 2.1.5 | [Provision the managed instance, and reach it over TLS from outside the application](TASK-05-provision-the-managed-instance.md)              | Complete    |
-| 2.1.6 | [Put the credential on the platform, connect the deployed backend, and prove nothing leaked](TASK-06-the-credential-on-the-platform.md)      | Not started |
+| 2.1.6 | [Put the credential on the platform, connect the deployed backend, and prove nothing leaked](TASK-06-the-credential-on-the-platform.md)      | Complete    |
 | 2.1.7 | [Decide what `/health` says about the database, and where reachability is actually reported](TASK-07-what-health-says-about-the-database.md) | Not started |
 | 2.1.8 | [Re-take the cost question, verify from a clean clone, document, and record ADR 0014](TASK-08-cost-verify-document-and-adr.md)               | Not started |
+
+**Tasks 2.1.7 and 2.1.8 were amended again on 2026-09-05 after Task 2.1.6 landed. No
+task was added, deleted or re-ordered** — 2.1.6 shrank nothing else and opened no work
+big enough to be its own task; the two things it left are both squarely 2.1.7's, and
+adding a task for either would be scaffolding ahead of the iteration that needs it.
+**Two of 2.1.7's own recorded instructions had to be corrected rather than extended**,
+which is the amendment worth reading before the additions: the firewall lever the 2.1.5
+amendment names was **refused by this environment's permission policy** and has never
+been exercised, and that amendment's "a new connection costs ~150–250 ms" is **falsified
+under `entra`** — a new connection also pays an 866 ms token mint, so it is ~1,023 ms,
+which makes "the check must not cause a connection" a sharper rule rather than a softer
+one.
+
+**One thing this story now hands forward rather than answering**: whether an established
+connection outlives its own access token is **structurally unreachable here** — a token
+lasts 24 hours and `pg` closes an idle client after 10 seconds — so Epic 3's long-lived
+writer is the first thing that can measure it, and it is recorded in `HOSTING.md` under
+_Rotation, which is the wrong word_.
+
+**Tasks 2.1.7 and 2.1.8 were amended again on 2026-09-05 after Task 2.1.6 landed.**
+2.1.6 gives 2.1.7 the arithmetic it was missing: a cold deployed connection is
+**1,023 ms**, of which the Entra token mint is **866 ms**, and the pool holds
+**zero** connections at rest because `pg` closes an idle client after 10 s — so a
+`/health` that touches the database pays the cold path nearly every time. It also
+hands 2.1.7 a measured control on the right side of the liveness-probe trap: an
+unreachable database left the replica at 0 restarts and `/health` 200 across
+seven liveness intervals. For 2.1.8 it moves the test counts (218, `apps/backend`
+78 across 5), **confirms rather than falsifies** ADR 0011's "nothing deployed
+holds a credential" — the `secrets` array was read back and is still empty, so
+that claim expires in Story 2.6 and not here — and genuinely changes one stated
+invariant: `config.ts` is no longer the only file reading `process.env`.
 
 **Tasks 2.1.6 to 2.1.8 were each amended again on 2026-09-05 after Task 2.1.5 landed**, and
 for the fifth round running **no task was added, deleted or re-ordered** — the
