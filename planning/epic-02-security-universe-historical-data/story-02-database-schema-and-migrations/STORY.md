@@ -105,7 +105,15 @@ records what was being weighed at the time.
 dev` all introspect a **live** database and lose acceptance criterion 7). What remains for
    Task 2.2.3 is where the hand-written types live, and there are now two of them: Kysely's
    `Database` interface, which describes rows, and Story 2.3's `Security`, which is domain
-   vocabulary bound for `packages/shared`
+   vocabulary bound for `packages/shared`. **Settled by Task 2.2.3 — the `Database`
+   interface stays in `apps/backend` and the mapping between the two lives beside the
+   query, one function per domain type and never a generic mapper.** A row is not a domain
+   object (a row has a `sector_id` where a domain object has a sector), the row type
+   describes one process's transport rather than a fact both sides depend on, it carries
+   Kysely's `Generated` and `ColumnType` helpers into whatever imports it, and
+   `packages/shared` is consumed as built output. The mapping is where a nullable column
+   becomes an explicit domain answer, which is exactly the decision a generic mapper skips.
+   Task 2.2.4 writes the interface, Task 2.2.5 asserts it against `information_schema`
 
 ## Acceptance criteria
 
@@ -142,7 +150,7 @@ stops being the backend's problem alone. 2.2.8 closes the story and records ADR 
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
 | 2.2.1 | [Choose the migration tool and the query layer, installing nothing permanent](TASK-01-choose-the-migration-tool-and-the-query-layer.md) | **Complete** |
 | 2.2.2 | [Install the mechanism and make an empty migration real](TASK-02-the-mechanism-and-an-empty-migration.md)                               | **Complete** |
-| 2.2.3 | [Write the conventions down, before there is a table to argue about](TASK-03-the-schema-conventions.md)                                 | Not started  |
+| 2.2.3 | [Write the conventions down, before there is a table to argue about](TASK-03-the-schema-conventions.md)                                 | **Complete** |
 | 2.2.4 | [The first schema: `securities` and nothing more](TASK-04-the-first-schema.md)                                                          | Not started  |
 | 2.2.5 | [The sixth level of test, and what it costs `pnpm test`](TASK-05-the-sixth-level-of-test.md)                                            | Not started  |
 | 2.2.6 | [Break a migration on purpose, locally, and record what it leaves behind](TASK-06-break-a-migration-on-purpose.md)                      | Not started  |

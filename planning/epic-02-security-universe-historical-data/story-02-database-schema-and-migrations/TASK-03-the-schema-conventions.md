@@ -1,6 +1,6 @@
 # Task 2.2.3 — Write the conventions down, before there is a table to argue about
 
-**Status:** Not started
+**Status:** Complete — 2026-09-05
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
 **Depends on:** Task 2.2.2 (complete) — migrations have a home, `apps/backend/migrations/`,
 so the conventions have somewhere to sit, and one of them is already decided and enforced:
@@ -105,3 +105,46 @@ This sits before the first schema on purpose. The alternative — write `securit
 extract the conventions from it — produces conventions that describe one table rather than
 ten, and the two that would suffer most are the timestamp pair and the identifier rule,
 neither of which `securities` alone exercises.
+
+## Outcome — 2026-09-05
+
+Every convention is in **[`apps/backend/migrations/README.md`](../../../../apps/backend/migrations/README.md)**,
+pointed at from `CLAUDE.md` and `README.md` rather than copied into either. Its home is
+`e2e/README.md`'s argument applied a second time — a task file is not where the next
+person writing a migration looks, and that directory is where they already are. No table
+was invented, and every figure in it was measured against PostgreSQL 18.6 through `pg`
+8.23.0 rather than recalled.
+
+The decisions, one line each:
+
+- **Plural tables, `lower_snake_case`, `<table_singularised>_id` foreign keys** — the
+  plural half was taken away rather than taken, since §30 already names all ten tables
+- **`text` over `varchar(n)`**, and **`text` + `check` over a Postgres `enum`** — produced:
+  inside one transaction, which is what a migration is here, adding an enum value and
+  **using** it is refused (`unsafe use of new value "etf" of enum type`), so an
+  add-a-value-and-backfill migration cannot be written at all
+- **`timestamptz` always**, both types `pg_column_size` 8 so the right one is free; the
+  same bytes read under three session timezones give one instant three ways versus the
+  same digits three times, and New York's 01:30 on 2026-11-01 exists **twice**
+- **`observed_at` (event) and `recorded_at` (row written); `created_at` is banned** —
+  invariant 5 needs both, one name cannot do both jobs, and **`observed_at` never has a
+  default**, because `default now()` is invariant 4's leak on the column Epic 13 keys on
+- **`id bigint generated always as identity primary key`, natural key `unique` beside it**
+  — decided by `securities`, because a symbol is not stable across a ticker change
+- **`numeric(18, 6)` for a per-share price, `bigint` for a count, never a float** — float
+  addition is not associative, measured: `sum()` over the same three numbers returns 0 or
+  1 depending on order, where `numeric` returns 1.0 for both. `pg` hands `numeric` and
+  `bigint` to JavaScript as **strings**, which must not be "fixed"
+- **No soft deletes and no `deleted_at`** — a delisted security's rows are still what
+  happened, status is domain vocabulary Story 2.3 owns, and a second invisible predicate
+  is a bug waiting for whichever one somebody forgets
+- **The `Database` interface stays in `apps/backend`; `Security` goes in
+  `packages/shared`; the mapping lives beside the query**, one function per domain type
+  and never a generic mapper
+- **Seed data is not a migration** — a migration runs once, is recorded, and is silently
+  skipped if edited afterwards; Story 2.3 still chooses for the universe, against its own
+  idempotence criterion
+- **Two lists**: five conventions are checked today, five more are reachable from a
+  migrated database and are handed to Task 2.2.5 with the `information_schema` reading
+  that would check them, and the rest are prose permanently. A regex over SQL text was
+  considered and declined — it cannot tell a statement from a comment

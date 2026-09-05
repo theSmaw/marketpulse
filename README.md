@@ -1059,6 +1059,16 @@ That exit code is the one thing about this command worth knowing:
 read its `error` field is a green migration step over a database whose tables do
 not exist. It is read, and the reading is unit-tested.
 
+**Read [`apps/backend/migrations/README.md`](apps/backend/migrations/README.md)
+before writing a migration.** The conventions every table in this schema
+inherits live beside the migrations rather than here — table and column naming,
+why every timestamp is `timestamptz` and why a row has both an `observed_at` and
+a `recorded_at`, why identifiers are a surrogate `bigint` with the natural key
+beside it, why a price is `numeric(18, 6)` and never a float, why nothing is
+soft-deleted, where the two hand-written types live, and why seed data is not a
+migration. It ends with the two lists that matter most: which of those a tool
+actually checks, and which are prose because nothing can.
+
 ### `pnpm ready` — knowing the pair is up
 
 ```sh
@@ -2565,6 +2575,9 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
   the crash handlers and the frontend's error boundaries — including why the
   same analysis installs a process-level handler on the server and declines the
   equivalent listener in the browser
+- [`apps/backend/migrations/README.md`](apps/backend/migrations/README.md) —
+  the database's conventions, beside the migrations that have to follow them
+- [`e2e/README.md`](e2e/README.md) — the browser suite's rules, beside the specs
 - [`planning/PRODUCT_SPEC.md`](planning/PRODUCT_SPEC.md) — the authoritative
   product definition
 - [`planning/EPICS.md`](planning/EPICS.md) — the delivery roadmap
