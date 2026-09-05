@@ -14,6 +14,13 @@ export { ANOMALY_BANDS } from "./anomaly.js";
 export type { AnomalyBand } from "./anomaly.js";
 export { FEED_STATUSES } from "./feed-status.js";
 export type { FeedStatus } from "./feed-status.js";
+// What kind of thing a tracked security is (Task 2.2.4). Here rather than in
+// apps/backend because the `securities` table's `check (kind in (…))` needs a
+// source of truth that is not the constraint — see
+// apps/backend/migrations/README.md. Deliberately NOT the `Security` interface,
+// which is Story 2.3's along with the rest of its vocabulary.
+export { SECURITY_KINDS } from "./security.js";
+export type { SecurityKind } from "./security.js";
 
 // The wire contract with the API: the shape every error response takes, and the
 // name of the header that correlates any response with its log records. Both

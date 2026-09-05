@@ -303,8 +303,26 @@ export function summariseMigration(
       `\n  ${detail}\n`,
       // Said here rather than in a document, because this is where somebody is
       // reading when they need it. It is a property of Postgres's transactional
-      // DDL plus Kysely putting the bookkeeping row in the same transaction,
-      // and Task 2.2.6 is where every failure class gets produced and recorded.
+      // DDL plus Kysely putting the bookkeeping row in the same transaction.
+      //
+      // **Task 2.2.6 produced every failure class against a real database and
+      // confirmed this sentence, with one exception it deliberately does not
+      // mention: a rolled-back migration consumes identity values.** Against a
+      // `securities` holding ids 1–3, a migration that inserted two rows and
+      // then failed left three rows with max id 3 — and the next insert got id
+      // **6**. Sequences are non-transactional in Postgres by design and a
+      // rollback does not give the numbers back, so "left nothing behind" is
+      // not quite true.
+      //
+      // It is left as it is, decided rather than overlooked. This line is read
+      // by somebody who has just had a migration fail and is deciding whether
+      // to go and look at the database, and for *that* question it is correct:
+      // a gap in a surrogate key's sequence is not something anyone can or
+      // should act on, ids here are explicitly not contiguous, and lengthening
+      // the sentence spends a reader's attention on a non-problem at the moment
+      // they have least of it. The precise version lives in
+      // `../migrations/README.md` §8, along with every class, what each leaves
+      // behind, and the recovery for each.
       "It ran inside a transaction, so it left nothing behind and was not recorded. Fix\n" +
         "the file and run `pnpm migrate` again.\n",
     );
@@ -378,6 +396,19 @@ export async function runMigrations(): Promise<MigrationOutcome> {
 
   // The one `Kysely` instance in this repository, and it does not leave this
   // function. See the header.
+  //
+  // **`unknown` and not `Database`, decided in Task 2.2.4 rather than left at a
+  // default.** `apps/backend/src/schema.ts` now exists and names `securities`,
+  // so the tidy-up presents itself; it is wrong three times over. That
+  // interface describes the schema **after** every migration has run, so a
+  // migrator typed with it asserts a shape that is false for the whole duration
+  // of the thing it is doing — during `0002` there is no `securities` table. It
+  // would buy nothing, because a migration body goes through `sql.raw()` and no
+  // `selectFrom` exists in this file. And it would make the runner depend at
+  // compile time on the description of its own output, so a future migration
+  // that dropped a table would break the compilation of the runner that has to
+  // apply it. A migrator is the one place in this repository that should not
+  // know the schema.
   const db = new Kysely<unknown>({ dialect: new PostgresDialect({ pool }) });
 
   const migrator = new Migrator({

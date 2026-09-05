@@ -151,9 +151,9 @@ stops being the backend's problem alone. 2.2.8 closes the story and records ADR 
 | 2.2.1 | [Choose the migration tool and the query layer, installing nothing permanent](TASK-01-choose-the-migration-tool-and-the-query-layer.md) | **Complete** |
 | 2.2.2 | [Install the mechanism and make an empty migration real](TASK-02-the-mechanism-and-an-empty-migration.md)                               | **Complete** |
 | 2.2.3 | [Write the conventions down, before there is a table to argue about](TASK-03-the-schema-conventions.md)                                 | **Complete** |
-| 2.2.4 | [The first schema: `securities` and nothing more](TASK-04-the-first-schema.md)                                                          | Not started  |
-| 2.2.5 | [The sixth level of test, and what it costs `pnpm test`](TASK-05-the-sixth-level-of-test.md)                                            | Not started  |
-| 2.2.6 | [Break a migration on purpose, locally, and record what it leaves behind](TASK-06-break-a-migration-on-purpose.md)                      | Not started  |
+| 2.2.4 | [The first schema: `securities` and nothing more](TASK-04-the-first-schema.md)                                                          | **Complete** |
+| 2.2.5 | [The sixth level of test, and what it costs `pnpm test`](TASK-05-the-sixth-level-of-test.md)                                            | **Complete** |
+| 2.2.6 | [Break a migration on purpose, locally, and record what it leaves behind](TASK-06-break-a-migration-on-purpose.md)                      | **Complete** |
 | 2.2.7 | [Migrate the deployed database, and decide what a failed migration does to a rollout](TASK-07-migrate-the-deployed-database.md)         | Not started  |
 | 2.2.8 | [Verify from a clean clone, document, and record ADR 0015](TASK-08-verify-document-and-adr.md)                                          | Not started  |
 
@@ -184,6 +184,98 @@ migration pool reports `application_name` as `marketpulse-backend`, which is mis
 moment a separate migration identity is chosen; and 2.2.8 gains the first-run **sequence** as
 a thing to re-take separately from the command table, plus an open flake to close or carry
 forward rather than drop.
+
+**Amended again after Tasks 2.2.3 and 2.2.4 (2026-09-05), with no task added, deleted or
+re-ordered.** Four task files were amended, and the sweep confirmed the story's own stated
+ordering rather than merely surviving it: writing the conventions before the first table
+produced three decisions `securities` alone would never have exercised — the
+`observed_at`/`recorded_at` pair, the identifier rule, and the finding that a Postgres `enum`
+cannot be extended and used in one transaction. **Task 2.2.5 was owed the most and was owed
+it twice**: 2.2.3 named five conventions as reachable from a migrated database and handed
+over the `information_schema` reading for each, and 2.2.4 created one new unchecked invariant
+deliberately — `SECURITY_KINDS` against `securities_kind_check` — so that task now owns both,
+plus two mechanical traps that change how the checks must be written (Postgres **rewrites** a
+check constraint's text, and PostgreSQL 18 materialises `NOT NULL` as `pg_constraint` rows,
+which makes a count of those rows a statement about the engine version rather than the
+schema). It also gained a warning it could not have had before: three of those five
+conventions are **vacuous** against a schema with no money column, so a green result would
+certify nothing — Task 1.13.6's blind-renderer problem in a new place. **2.2.6** gained a real
+table to break and the fact that it is **empty**, so it supplies its own fixture rows rather
+than waiting for Story 2.3; a second failure class for free (a `check` added to a table whose
+rows violate it); and one observation to confirm and then decide about, since a rolled-back
+statement **consumes an identity value**, which makes `migrate.ts`'s "it left nothing behind"
+very slightly false. **2.2.7** gained the observation that the image now carries a
+_description_ of the schema and not the schema itself, which is the clearest statement of why
+the boot-time shape needs the `files` change; the note that the first deployed migration is a
+`CREATE TABLE` against an empty schema with no data to damage; and the readback recipe with
+its identity-column trap. **2.2.8** gained two new documents to sweep for claims that rot,
+`packages/shared`'s moved file count and fallen coverage, and the note that ADR 0015's two
+lists have a shape to borrow rather than invent.
+
+**Amended a third time after Task 2.2.5 (2026-09-05), with no task added, deleted or
+re-ordered.** Three task files were amended, and **one of the amendments corrects an
+instruction that had become unrunnable**, which is the class this sweep exists to catch.
+2.2.6 was told to produce the edited-applied-migration case "both ways round, with 2.2.5's
+check in place and with it disabled" — and **2.2.5 declined to build that check**, weighing
+the checksum table and recording why rather than deferring it again. So there is nothing to
+disable. What 2.2.6 owes instead is the other half of the argument, produced: edit an
+applied migration, and record that `pnpm migrate` **and** `pnpm test:database` both report
+success against a database that is wrong, because neither instrument looks at it. Two green
+results side by side is the finding. 2.2.6 also gains the scratch-database pattern 2.2.5
+established, so a task whose purpose is to leave a database broken does it somewhere meant to
+be ruined.
+
+**2.2.7** gains two things. It is now named as the **reversal trigger** for that checksum
+decision, because from there onward "drop it and re-migrate" stops being an available answer.
+And the engine-pin bullet changed shape: there are **three** pins now and exactly one pair is
+compared, since 2.2.5 made CI check its service image against `LOCAL_DATABASE_VERSION` rather
+than leaving a second silent copy — so the deployed pin is the only uncompared one, and 2.2.7
+is the cheapest place it will ever be taken by hand.
+
+**2.2.8** gains the sixth level of test and a fourth test command to re-take figures for, the
+verification that 2.2.5 already amended both of `migrations/README.md`'s lists, a third
+required check on `main` to re-read from the API, and a sharper second list for ADR 0015:
+`SECURITY_KINDS` moved into the _checked_ column, while the **three-glob partition** joined
+the gaps as the second and weaker instance of Task 1.13.2's class — weaker because there the
+mitigation is a missing script and here it is only a comment, in a package that has one.
+
+**Two live claims outside the task files were falsified by 2.2.5 and were amended at the
+time rather than left for the closing sweep**, which is the rule this repository states and
+has twice failed to follow: `README.md`'s levels table said **five** levels and now says six,
+and `CLAUDE.md`'s "nothing compares those two numbers" entry for the engine pin was **half
+closed** and now says which half.
+
+**Amended a fourth time after Task 2.2.6 (2026-09-05), with no task added, deleted or
+re-ordered.** **Two** task files were amended, 2.2.7 and 2.2.8, and the sweep confirmed the
+story's own ordering argument a second time: breaking a migration before deploying one
+produced three answers 2.2.7 was about to have to guess at.
+
+**2.2.7 gained the most, and one of its gaps was real rather than a refinement — it said
+nothing at all about two migrations running at once.** Concurrency is now established:
+Kysely takes a session-level `pg_advisory_lock` on a hard-coded id with a one-hour
+`lock_timeout`, it is **per-database**, and a failing first runner does **not** poison a
+second — both report the failure and neither reports success. **Overlap is therefore safe and
+_hanging_ is the exposure**, and it falls unevenly across the three shapes that task chooses
+between: a `deploy.yml` step waiting on the lock waits an hour before erroring, so it needs a
+deadline of its own, and a boot-time job is worse, because Task 2.1.7's startup probe kills a
+replica at roughly **90 seconds** — so a rolling revision that briefly runs two replicas is
+exactly what produces the wait. That is a cost to weigh beside the `files` cost rather than
+separately. **The checksum reversal trigger is now backed by a produced failure rather than an
+argument**, so 2.2.7 is told to _take_ that decision rather than defer it a third time, and to
+write down the deployed recovery if it defers again — an edited applied migration takes
+`pnpm migrate` and `pnpm test:database` both to exit 0 over a database missing what the files
+say it has, and the only recovery that worked was dropping the database, which is what a
+`CanNotDelete`-locked server does not offer. It also gained what a red deployed migration
+will actually print, which is less than expected: the file and a SQLSTATE, no statement.
+
+**2.2.8** gained a third document to sweep — `migrations/README.md` §8, the most figure-dense
+thing in the story, whose SQLSTATE values and advisory-lock constants are pinned to
+PostgreSQL 18.6 and Kysely 0.29.5 and so rot on either upgrade without breaking anything —
+and **two entries for ADR 0015's lists**. One moves into the _first_: two concurrent
+migrations cannot interleave. The other is the sharpest sentence the story has produced and
+belongs in the second: **a green `pnpm migrate` does not certify that the database matches the
+migration files**, only that every migration _named_ on disk is recorded as applied, which is
+a different claim — and 2.2.6 produced the gap between them.
 
 **`market_bars` is in none of these tasks and that is deliberate**, per this story's own
 out-of-scope note: its shape is driven by measured ingestion, and creating it here would be
