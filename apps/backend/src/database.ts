@@ -412,6 +412,20 @@ export type DatabaseCheckFn = () => Promise<DatabaseCheck>;
  * would turn an unreachable database into an *unbounded* query rate at the
  * moment the ceiling matters most, which is the failure mode inverted.
  *
+ * **Task 2.1.8 measured that deployed and found the caching contributes nothing
+ * on the worst failure mode, while the ceiling still holds — which is worth
+ * knowing before anyone "simplifies" either half.** Against an unroutable
+ * `DATABASE_HOST`, every check costs the full `CONNECT_TIMEOUT_MS`
+ * (5,000.58–5,005.02 ms across twelve deployed polls), and that is exactly
+ * `DIAGNOSTIC_CACHE_TTL_MS`. So the entry is already expired the instant it is
+ * written: `ageMs` read **0 on every poll after the first**, and no caller was
+ * ever served a cached failure. The rate ceiling is unharmed — the query
+ * occupies the whole window rather than the cache excluding it — and **single
+ * flight is what is actually load-bearing there**, because it is the only thing
+ * left bounding twenty-five simultaneous callers to one connection. A locally
+ * *refused* connection fails in 1–3 ms and does cache normally, so the two
+ * failure modes behave differently and only the slow one is deployed-shaped.
+ *
  * `now` is a parameter so the TTL is testable without a fake clock or a real
  * wait, the same reason `loadConfig(env)` takes its environment.
  */
