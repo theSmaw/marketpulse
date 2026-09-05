@@ -34,21 +34,28 @@ export default defineConfig({
     // the entry nobody added.
     include: ["src/**/*.test.ts"],
 
-    // The one exclude in this file, and it is the complement of an allowlist
-    // rather than a denylist (Task 1.10.5). The process suite is
-    // `src/**/*.process.test.ts` and runs under `vitest.process.config.ts`,
-    // whose `include` is that same glob — the two configs partition
-    // `src/**/*.test.ts` between them, and the pair has to be read as one
-    // decision. It is here rather than as a narrower `include` because a
-    // narrower include is the trap Task 1.9.4 measured: `apps/frontend`'s glob
-    // silently skipped every `.tsx` test, and a shallow `src/*.test.ts` here
-    // would silently skip the first nested one.
+    // The only exclude in this file, and both entries are the complement of an
+    // allowlist rather than a denylist (Tasks 1.10.5 and 2.2.5). The process
+    // suite is `src/**/*.process.test.ts` under `vitest.process.config.ts` and
+    // the database suite is `src/**/*.database.test.ts` under
+    // `vitest.database.config.ts`, whose `include`s are those same two globs —
+    // so the **three** configs partition `src/**/*.test.ts` between them and
+    // have to be read as one decision. It is here rather than as a narrower
+    // `include` because a narrower include is the trap Task 1.9.4 measured:
+    // `apps/frontend`'s glob silently skipped every `.tsx` test, and a shallow
+    // `src/*.test.ts` here would silently skip the first nested one.
     //
-    // What this protects is this suite's speed. It is 49 tests in a few hundred
-    // milliseconds, it needs no build and no socket, and it is the one
-    // developers run all day; the process suite spawns real processes, binds
-    // real ports, and spends five seconds proving the shutdown ceiling.
-    exclude: ["src/**/*.process.test.ts"],
+    // **Nothing enforces the naming**, and the failure is silent both ways: a
+    // slow test named `foo.test.ts` lands in this suite, and a
+    // `foo.database.test.ts` in a package with no such config runs nowhere at
+    // all. The comments in all three files are the only mitigation there has
+    // ever been for that class.
+    //
+    // What this protects is this suite's speed and its independence. It is the
+    // one developers run all day — it needs no build and no socket, and since
+    // Task 2.2.5 it must also stay independent of a running database, which is
+    // the property `pnpm test` is measured against with the database stopped.
+    exclude: ["src/**/*.process.test.ts", "src/**/*.database.test.ts"],
 
     // Coverage (Task 1.9.5). Same shape as `packages/shared`'s and for the same
     // reasons; only the honest hole below is this package's own. Runs under

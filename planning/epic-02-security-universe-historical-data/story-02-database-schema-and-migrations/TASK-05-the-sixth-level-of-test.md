@@ -1,6 +1,6 @@
 # Task 2.2.5 — The sixth level of test, and what it costs `pnpm test`
 
-**Status:** Not started
+**Status:** Complete — 2026-09-05
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
 **Depends on:** Tasks 2.2.3 (complete) and 2.2.4 (complete) — there is a schema to assert
 against, `apps/backend/src/schema.ts` describes it, and **both of those tasks handed this one
@@ -164,3 +164,121 @@ instance of it: Task 1.13.2 recorded that **the only thing keeping the browser s
 stays absent. This suite adds a second such absence, in a package that _does_ have a `test`
 script, so the mitigation is the glob comment rather than a missing file — which is weaker,
 and should be said so rather than glossed.
+
+## Outcome — 2026-09-05
+
+`pnpm test:database` is **23 tests in ~0.5 s** against a real PostgreSQL server, under
+`apps/backend/vitest.database.config.ts` and `apps/backend/src/migrate.database.test.ts`.
+Seven of `migrations/README.md`'s conventions moved from its prose list into its checked
+one; one deliberately did not.
+
+### The arrangement
+
+A **third** config in `apps/backend`, the `test:process` treatment reused rather than
+re-derived. **The three globs are one decision**, and the unit config's `exclude` now has
+two entries with the reason written in all three files — nothing enforces the naming, and a
+database test named `foo.test.ts` lands in the fast suite while a `foo.database.test.ts` in
+a package with no such config runs **nowhere at all**.
+
+**What it does to the database you are working in: nothing.** It creates
+`marketpulse_vitest`, migrates it, reads it and drops it — at the end of a run **and again
+at the start of the next**, so a crashed run is self-healing. The three alternatives each
+fail a property this repository already holds: a transaction per test cannot work when a
+migration opens its own and that is the thing under test; truncation destroys the universe
+Story 2.3 loads, costing a developer a command on every run; a schema-per-run needs
+`search_path` games the unqualified migration SQL would silently follow. Confirmed after a
+run: `\l` shows only `marketpulse`, and its `securities` is still empty with both
+migrations recorded.
+
+**No `skipIf`.** With the database stopped it fails in `beforeAll` at **exit 1**, naming
+`pnpm db`. It points the runner at its own database through `DATABASE_NAME`, which is the
+supported operator interface — measured first, because the whole arrangement rests on a real
+environment variable beating a `.env` entry, and it does. `migrate.ts` is untouched and
+still exports no `Kysely` instance, so the suite opens its own `pg` client.
+
+### The three-hop arrangement, which is the strongest thing here
+
+A TypeScript interface is erased, so it cannot be read at run time. `EXPECTED_SECURITIES` is
+declared `satisfies Record<keyof SecuritiesTable, ExpectedColumn>` — the idiom the API's
+response schemas already use — so a column added to the interface and not described there is
+**`TS1360`**, and the suite then compares that description against `information_schema` **in
+both directions**. Interface → spec by the compiler, spec → database by the test, therefore
+interface → database. That is what makes a hand-written type safe without generating
+anything.
+
+### What is checked now, and the one thing that is not
+
+Moved: idempotence asserted on the **schema** rather than on the runner's own report; no
+naive `timestamp`; no `double precision` or `real`; no `created_at`/`deleted_at`/
+`is_deleted`/`archived_at`; an identity `bigint` `id` on every table; `schema.ts` against the
+real schema; and **`SECURITY_KINDS` against `securities_kind_check`**, which closes the
+invariant Task 2.2.4 created deliberately.
+
+**Not moved: "every price column is `numeric(18, 6)`", because `securities` holds no money.**
+A check would pass by having nothing to look at — a green result that certifies nothing,
+indistinguishable from one that certifies something. What ships instead is a **tripwire**
+asserting there are **zero** `numeric` columns, which fails the moment `market_bars` arrives
+in Story 2.7 with a message telling whoever added it to replace it and update the two lists.
+A rule that cannot yet be enforced is recorded as failing-open rather than as quietly
+passing, and the sweep carries its own non-vacuity guard.
+
+### Made to fail, six ways, each reverted
+
+A column renamed in the **migration** only (2 failed, one of them naming
+`securities.industry`); a member added to **`SECURITY_KINDS`** only; a column added to the
+**interface** only, which is a **compile error** rather than a test failure and is the other
+direction of the same check; a naive `timestamp` column; a `numeric` column tripping the
+tripwire with its instruction message; and the database stopped.
+
+### Two mechanical facts anyone extending these checks needs
+
+**Postgres rewrites a check constraint** — `check (kind in ('equity', 'etf'))` reads back as
+`CHECK ((kind = ANY (ARRAY['equity'::text, 'etf'::text])))` — so the vocabulary check parses
+the rewritten form rather than string-matching the migration. And **PostgreSQL 18
+materialises `NOT NULL` as `pg_constraint` rows**, so counting those rows asserts the engine
+major rather than the schema; nullability comes from `information_schema`, which is stable
+across majors.
+
+### CI, and the third pin turned into a check
+
+A third job, **`database`**, in `verify.yml`, with a Postgres service — and it **gates a
+merge**, making it the third required check on `main`. Three costs stated: the gate keys on
+the **job name**, so renaming un-requires it silently (Task 1.10.2's failure mode, now
+tripled); the job invokes `pnpm test:database` **by name** and defines no database step of
+its own; and the service image is a second place the engine version is pinned.
+
+**That pin is compared rather than merely noted**, which is the one thing this task added
+that was not asked for: a step reads `LOCAL_DATABASE_VERSION` out of
+`scripts/local-database.mjs` and compares it against what the server reports, so a bump on
+one side and not the other is a red job naming both numbers. Its body was run locally
+before being pushed, which caught two real bugs — `node -p` cannot take a dynamic import
+that way, and **`require('pg')` does not resolve from the repository root**, because pnpm
+links a workspace dependency only into the package that declares it, so the step runs from
+`apps/backend`. The deployed version stays uncompared, because comparing it needs Azure
+credentials `pnpm verify` deliberately does not have.
+
+### The checksum gap: deliberately not closed, with the reasoning recorded
+
+This suite migrates from **empty** every run, so it proves _these files produce this schema_
+and structurally cannot prove _that database matches these files_ — only a stored hash could,
+which Task 2.2.2 declined as a second bookkeeping mechanism with a bootstrap ordering
+problem. What bounds the damage is that the divergence is confined to one developer's
+laptop: CI and every deploy migrate from the same files into an empty database, so a
+mismatch never reaches a shared environment, and the local recovery is
+`pnpm db down -v && pnpm db && pnpm migrate`. **The reversal trigger is an environment where
+dropping and re-migrating is not an option**, which is production from Task 2.2.7 onward.
+
+### Task 2.1.2's trigger, re-taken by measurement
+
+**It has still not fired.** `pnpm test` is **239** and exit 0 with the database **stopped**;
+`pnpm verify` is exit 0 with it stopped. So `pnpm ready`'s third check stays a reporting
+`○`, and the `e2e` job still needs no Postgres service. Measured rather than read, which is
+how Task 2.1.4 answered the same question.
+
+### Figures
+
+`pnpm test:database` **23 tests, 431–579 ms**. `pnpm test` **239**, unchanged and needing no
+database, no build and no socket. `pnpm verify` **exit 0** with and without a database.
+Four lint errors were caught by `pnpm verify` on the first run and every one was this task's
+own — including the `disableTypeChecked` entry the new config's own header had predicted it
+would need.

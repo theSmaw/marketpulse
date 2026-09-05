@@ -730,6 +730,172 @@ jobs:
   # and the reason. That is the whole argument for this job in one incident: no
   # other level in this repository can see contrast or a whole-document rule at
   # all.
+  # ---------------------------------------------------------------------------
+  # The database suite (Task 2.2.5).
+  #
+  # A THIRD job, and the same three-way argument the `e2e` job settled, taken
+  # again rather than inherited — because the answer is the same and the reasons
+  # are not.
+  #
+  # NOT A `verify` STEP, for the reason `pnpm ready` is not one and `pnpm e2e`
+  # is not one: `pnpm verify` runs with nothing listening and, since Story 2.1,
+  # with no database either. Eleven clean-clone runs have measured that
+  # property, and a chain that needs a Postgres server stops being runnable from
+  # a cold tree. Acceptance criterion 7 of this story is exactly that sentence.
+  #
+  # NOT A SEPARATE WORKFLOW, for the reason the `e2e` job is not one: all three
+  # of `deploy.yml`'s reasons are properties of a deploy rather than of a check,
+  # and two argue the other way. A schema that no longer matches the interface
+  # IS a claim about the commit, and the badge should report it.
+  #
+  # A JOB, therefore, in parallel with the other two — it answers a different
+  # question and serialising would add the chain's time for feedback that is not
+  # better. And it GATES A MERGE, which makes `database` the THIRD required
+  # check on `main` after `verify` and `e2e`. Three consequences, each a real
+  # cost rather than a footnote:
+  #
+  #   1. The gate keys on the JOB NAME. Renaming this job un-requires it
+  #      silently, with no error anywhere — the failure mode Task 1.10.2 settled
+  #      the names early to avoid, now doubled to three. No file in this tree
+  #      records the ruleset; `CLAUDE.md` and the ADR are its only durable copy.
+  #   2. This job invokes `pnpm test:database` BY NAME and defines no database
+  #      step of its own — no `psql`, no `CREATE DATABASE`, no migration
+  #      command. Story 1.10's founding rule. The suite creates and drops its
+  #      own database, so there is nothing here to define.
+  #   3. The service's image is a SECOND PLACE THE ENGINE VERSION IS PINNED,
+  #      against `LOCAL_DATABASE_VERSION` in `scripts/local-database.mjs` and
+  #      the deployed server's `--version`, which is a third. Two of those three
+  #      are now COMPARED — see "Confirm the engine version" below, which turns
+  #      what would have been a new unchecked invariant into a red job. The
+  #      third stays unchecked, because comparing it needs Azure credentials
+  #      that `pnpm verify` deliberately does not have.
+  #
+  # WHY A SERVICE CONTAINER rather than `pnpm db`. `pnpm db` drives Docker
+  # Compose through a script that reads the backend's BUILT `dist/config.js`, so
+  # using it here would make this job depend on a build before it could start a
+  # database. A service container is the runner's own mechanism, it is up before
+  # the first step runs, and its readiness is the platform's problem rather than
+  # a poll this file would have to write.
+  database:
+    name: database
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # PINNED TO THE MAJOR ONLY, matching `LOCAL_DATABASE_VERSION`. The minor
+        # is deliberately unpinned for the reason `compose.yaml` gives: Azure
+        # patches the managed server underneath us, and a pin this repository
+        # cannot honour is a pin that lies.
+        image: postgres:18
+        env:
+          # The backend's own defaults, from `apps/backend/.env.example`. They
+          # are duplicated here because a service container is configured by the
+          # platform before any of this repository's code runs, so there is
+          # nothing to read them from — which is why the step below asserts the
+          # suite actually connected rather than trusting these three lines.
+          POSTGRES_USER: marketpulse
+          POSTGRES_PASSWORD: marketpulse
+          POSTGRES_DB: marketpulse
+        ports:
+          - 5432:5432
+        # Without this the job races the server: the container exists long
+        # before Postgres accepts connections, and the suite's own loud failure
+        # would fire for the wrong reason.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node from .nvmrc
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Resolve the pnpm store path
+        id: store
+        run: |
+          set -euo pipefail
+          path="$(pnpm store path)"
+          echo "pnpm store path: $path"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          echo "node-major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+
+      # RESTORE and never SAVE, for the reason the `e2e` job gives: three jobs
+      # from one commit compute the same key, and two savers race to a "Cache
+      # already exists" warning that reads like a fault. The `verify` job owns
+      # saving it.
+      - name: Restore the pnpm store
+        id: store-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-
+
+      - name: Install
+        run: |
+          set -euo pipefail
+          echo "cache-hit (exact key): ${{ steps.store-cache.outputs.cache-hit }}"
+          pnpm install --frozen-lockfile
+
+      # The suite imports `dist/config.js` and `dist/migrate.js` through their
+      # sources, but `packages/shared` is consumed as BUILT OUTPUT — Task
+      # 1.13.5 learned expensively that a fresh checkout has no `dist/`, and the
+      # failure arrives as `Cannot find module .../@marketpulse/shared/dist/
+      # index.js` long after a readiness probe has passed. `pnpm build` by name,
+      # for the reason every other build in these workflows is by name.
+      - name: Build
+        run: pnpm build
+
+      # THE THIRD PIN, MADE INTO A CHECK. The service image above is a literal,
+      # because a service container is configured before any step runs and
+      # cannot read a value out of this repository. So this step reads
+      # `LOCAL_DATABASE_VERSION` from `scripts/local-database.mjs` and compares
+      # it against the major the server actually reports — which means a bump on
+      # one side and not the other is a RED JOB naming both numbers, rather than
+      # a silent divergence of the kind this repository already carries one of.
+      - name: Confirm the engine version matches the local pin
+        run: |
+          set -euo pipefail
+          pinned="$(node --input-type=module -e "
+            import { LOCAL_DATABASE_VERSION } from './scripts/local-database.mjs';
+            process.stdout.write(LOCAL_DATABASE_VERSION);
+          ")"
+          # Run from `apps/backend`, because `pg` is a dependency of THAT
+          # package and pnpm links a workspace dependency only into the package
+          # that declares it — `require('pg')` from the repository root is
+          # MODULE_NOT_FOUND, measured rather than assumed.
+          actual="$(cd apps/backend && node -e "
+            const pg = require('pg');
+            const c = new pg.Client({ host: '127.0.0.1', port: 5432, user: 'marketpulse', password: 'marketpulse', database: 'marketpulse' });
+            c.connect()
+              .then(() => c.query('show server_version'))
+              .then((r) => { process.stdout.write(r.rows[0].server_version.split('.')[0]); return c.end(); })
+              .catch((e) => { console.error(e.message); process.exit(1); });
+          ")"
+          echo "local pin (scripts/local-database.mjs): $pinned"
+          echo "service reports:                        $actual"
+          if [ "$pinned" != "$actual" ]; then
+            echo "::error::The CI Postgres service is major $actual and LOCAL_DATABASE_VERSION is $pinned. Bump both or neither."
+            exit 1
+          fi
+
+      # BY NAME, and it defines no database step of its own. The suite creates
+      # its own database, migrates it, reads it and drops it — see the header of
+      # `apps/backend/src/migrate.database.test.ts` for why a separate database
+      # rather than a transaction, a truncation or a schema.
+      - name: Database journeys
+        run: pnpm test:database
+
   e2e:
     name: e2e
     runs-on: ubuntu-latest
