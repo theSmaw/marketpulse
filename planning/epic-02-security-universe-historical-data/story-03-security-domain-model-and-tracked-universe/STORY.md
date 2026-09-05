@@ -1,6 +1,6 @@
 # Story 2.3 — Security Domain Model & the Tracked Universe
 
-**Status:** Not started
+**Status:** In progress
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.2
 **Epic scope covered:** Security domain model; initial ~100-security universe; ETF/sector metadata
@@ -66,22 +66,46 @@ shape** that acceptance criterion 6 asks for, and **what format the universe fil
 where the deciding measurement is that a `.ts` module is inside `tsc -b` and a data file is
 read by Prettier for formatting and by nothing for meaning.
 
-1. **Where sector and industry metadata comes from.** This is the decision people assume
+**All eight are settled, and the record is [`UNIVERSE.md`](UNIVERSE.md)** — Task 2.3.1
+decided them and shipped nothing, finishing with the tree byte-identical. In one paragraph:
+the taxonomy is the **eleven GICS-shaped sectors**, each mapped one-to-one onto a sector
+SPDR, chosen against the ETFs rather than against familiarity; **`SECURITY_KINDS` widens to
+three members** — `equity`, `sector_etf`, `index_etf` — so the proxy distinction is one
+column with one source of truth; **`status` gets exactly two members**, `active` and
+`untracked`, because those are the two this story can produce, with `delisted` deferred to
+its producer in Story 2.6; sector and industry come from a **curated file in this
+repository**, with its silent-staleness cost recorded as a gap of this repository's third
+kind and a reversal trigger stated; provenance is a **source and a retrieval timestamp per
+field group** rather than one column on the row; the universe is a **seed script and not a
+migration**, per `apps/backend/migrations/README.md` §7; it lives in a **`.ts` module at
+`apps/backend/src/universe.ts`**, on two measurements — a data file is invisible to `tsc`,
+and it is also absent from `dist/` and therefore from the container image; and the
+**selection rule is a floor of 6 and a ceiling of 12 equities per sector**, which puts the
+largest sector at 14.1% of the equities. Only **the actual symbols** remain open, and they
+are Task 2.3.4's product conversation. The original wording is kept below rather than
+deleted, because it records what was being weighed at the time.
+
+1. ~~**Where sector and industry metadata comes from.**~~ **Settled — a curated file in
+   this repository, with the staleness cost recorded rather than glossed.** This is the decision people assume
    is free and is not: **Alpaca's assets endpoint does not carry sector or industry**, so
    the options are a curated dataset checked into the repository, a third-party source
    with its own licence and key, or deriving sector membership from ETF holdings. The
    curated file is the honest V1 answer — ~100 rows, reviewable in a diff, no new
    dependency, no new credential — and its cost is that it goes stale silently. Whatever
    is chosen, **provenance for this metadata is displayed like any other** (invariant 6)
-2. **Which taxonomy.** GICS names are the familiar ones and are proprietary; a plain
+2. ~~**Which taxonomy.**~~ **Settled — the eleven GICS-shaped sectors, one per sector
+   SPDR.** GICS names are the familiar ones and are proprietary; a plain
    eleven-sector approximation is free and is what the sector SPDRs already imply. Prefer
    the one that matches the ETFs, since Epic 5 compares a security against its sector ETF
-3. **The actual 100.** This wants a product conversation, not a generated list. A
+3. **The actual 100 — still open, and Task 2.3.4's.** The _rule_ that produces it is
+   settled: a floor of 6 and a ceiling of 12 equities per sector. This wants a product conversation, not a generated list. A
    defensible starting shape: the eleven sector SPDRs plus four index proxies, then ~85
    equities allocated across sectors so every sector has enough constituents for a breadth
    number to mean something, weighted toward names with liquid IEX activity and
    recognisable to a demo audience (§38's flagship demo uses NVDA)
-4. **Whether the universe is a migration or a seed script**, given Story 2.2's answer
+4. ~~**Whether the universe is a migration or a seed script**, given Story 2.2's answer~~
+   **Settled — a seed script, because "idempotent" here has to mean "picks up an edited
+   list", which a migration structurally cannot do.**
 
 ## Acceptance criteria
 
@@ -112,7 +136,7 @@ closes the story and records ADR 0016 — 0016 and not 0014, which is reserved f
 
 | #     | Task                                                                                                                                                | Status      |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 2.3.1 | [Choose the vocabulary, the taxonomy and where the metadata comes from, shipping nothing](TASK-01-choose-the-vocabulary-and-the-metadata-source.md) | Not started |
+| 2.3.1 | [Choose the vocabulary, the taxonomy and where the metadata comes from, shipping nothing](TASK-01-choose-the-vocabulary-and-the-metadata-source.md) | Complete    |
 | 2.3.2 | [`Security` in `packages/shared`, and the vocabularies it fixes](TASK-02-the-security-type.md)                                                      | Not started |
 | 2.3.3 | [The schema the vocabulary needs: the first migration written by a reader of the conventions](TASK-03-the-schema-the-vocabulary-needs.md)           | Not started |
 | 2.3.4 | [The universe itself: ~100 securities, and the rule that produced them](TASK-04-the-universe-itself.md)                                             | Not started |
