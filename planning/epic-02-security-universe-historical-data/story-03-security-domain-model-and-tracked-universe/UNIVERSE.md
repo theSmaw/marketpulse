@@ -744,6 +744,94 @@ is the real deadline on this decision and is worth more than the trigger itself.
 
 ---
 
+## 11. The loader, and what `*_retrieved_at` means on a re-run (Task 2.3.5, 2026-09-05)
+
+**Written here rather than only in a task file**, because it is a rule about
+_this document's own §5 mitigation_ and about what somebody editing the list has
+to remember to do.
+
+### The decision: the file states the date, and the loader copies it
+
+`0003` made `profile_retrieved_at` and `classification_retrieved_at` `not null`
+with no default, so the loader has to supply a value. **The obvious value is
+`now()` and it is wrong**, in a way that leaves no trace: it makes the column
+mean _when the loader last ran_, which is always today, and §5 above names
+`classification_retrieved_at` as the mitigation that "makes the file's age
+visible on screen through Story 2.14 rather than only in git history". A
+timestamp that resets on every deploy makes the age permanently invisible and
+turns the mitigation into decoration — while looking, on screen, exactly like a
+freshly-checked classification.
+
+So the column means **when the data was last checked against its source**, and
+for a curated list that is a value only the file can state. It is
+`UNIVERSE_PROVENANCE` in `apps/backend/src/universe.ts`, two groups matching the
+two `0003` gave columns to, each a `source` string and a `YYYY-MM-DD` `checkedOn`
+that the loader parses as UTC midnight. The loader validates it — a malformed
+date is a refused load rather than an `Invalid Date` reaching Postgres — and
+otherwise copies it verbatim.
+
+**The obligation this creates, and nothing enforces it:** move the date **when
+you have actually re-checked the list against a source**, in the same commit as
+whatever that check changed. Leaving it while the file drifts is exactly the
+state Story 2.14 is meant to be able to show a user, so this is a gap of the
+third kind by construction rather than by accident — the column is _designed_ to
+be able to say "nobody has looked at this in a year", which it can only do if
+nobody moves it dishonestly.
+
+**`profile_retrieved_at` will diverge from `classification_retrieved_at` the day
+Story 2.7 fills the profile fields from Alpaca**, which is a genuine retrieval
+and where `now()` is the correct answer. Two columns rather than one is what
+makes that expressible; today they carry the same date because the same person
+typed both.
+
+### What the loader does, in one paragraph
+
+`pnpm universe` — a separate command and not a phase of `pnpm migrate`, per §6.
+It validates the whole list as a **set** before opening a connection, reports
+every violation rather than the first, and writes in one transaction, so a
+refused universe leaves the table byte-for-byte as it was — produced three ways
+(an unclassified equity, a sector with no ETF, a duplicate symbol), each at exit
+1, with the table's fingerprint identical before and after all three. It upserts
+on `symbol`, so re-running converges on the file rather than merely doing
+nothing, and `updated_at` moves on a row that changed and **not** on one that did
+not — which is a real behaviour with a real test, because Task 2.2.4 removed the
+trigger and recorded that maintaining that column is the writer's obligation.
+
+### One finding that corrects a premise this story was working from
+
+Task 2.3.4 and Task 2.3.5's brief both recorded that a **duplicate symbol has no
+backstop at all**, on the reasoning that an upsert is the one write shape a
+unique index cannot refuse. Produced with the check disabled, that is **half
+right, and the half that holds is the half you can see today**:
+
+- **Both copies in the same `insert` statement** — Postgres refuses it outright,
+  SQLSTATE `21000`, _"ON CONFLICT DO UPDATE command cannot affect row a second
+  time"_. Exit 1, nothing written. **This is what happens at 101 securities**,
+  because the loader puts 5,461 rows in one statement.
+- **Copies in different statements** — completely silent. The load printed
+  **`✓ 102 securities in the universe`** at **exit 0** while `securities` held
+  **101 rows**, counting the second write as _unchanged_. Which copy survives
+  depends on chunk ordering, which nobody controls and nothing reports.
+
+So the database's protection here is **a property of the list being small**, and
+it disappears past ~5,461 securities or the first time anybody changes the
+batching — a performance edit nobody would review as a correctness one. The
+check is worth having for that reason rather than the stated one, and §8's list
+of places a hard-coded count could hide gains a row it did not have: the batch
+size, which is derived from Postgres's bind-parameter ceiling and the column
+count rather than chosen.
+
+### The removal seam, left open on purpose
+
+A symbol in the database and not in the file is **counted, reported and left
+untouched**. Deleting it, changing its `status` and refusing the load are the
+three answers; they are not interchangeable, and one of them destroys the bars
+Story 2.8 will have stored against the row. **Task 2.3.6 chooses.** Leaving the
+row alone is the only option all three remain reachable from, which is why it is
+what a loader written before that decision does.
+
+---
+
 ## What this task deliberately did not decide
 
 - ~~**The actual symbols.** Task 2.3.4's, and it is a product conversation. Writing them

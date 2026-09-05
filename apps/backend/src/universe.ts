@@ -17,18 +17,24 @@
 // (which securities?) and an engineering one (how do they reach the database?)
 // should fail separately when they fail.
 //
-// **It does not carry provenance, and it cannot.** `Security` deliberately does
-// not embed a source or a retrieval timestamp, because a file checked into a
-// repository cannot know when it was retrieved — a `git log` date is when
-// somebody typed it, which is a different claim. The loader supplies
-// `profile_source`, `profile_retrieved_at`, `classification_source` and
+// **No ROW carries provenance, and no row can.** `Security` deliberately does
+// not embed a source or a retrieval timestamp, because a row in a checked-in
+// file cannot know when it was retrieved — a `git log` date is when somebody
+// typed it, which is a different claim. The loader supplies `profile_source`,
+// `profile_retrieved_at`, `classification_source` and
 // `classification_retrieved_at` at load time, and `0003_security_vocabulary.sql`
 // makes all four `not null` with no default so it cannot forget. What this file
 // owes that arrangement is one negative fact, and it holds: **every row below
 // has the same source.** The profile fields (`symbol`, `name`, `exchange`) and
 // the classification fields (`sector`, `industry`) were both hand-curated here,
-// so the loader may write one source string for the whole file and no row needs
-// an override.
+// so the loader writes one source string for the whole file and no row needs an
+// override.
+//
+// **The FILE does carry one thing, and Task 2.3.5 put it here on purpose:
+// {@link UNIVERSE_PROVENANCE}, the date this list was last checked against a
+// source.** That is not the same claim as "when was this row retrieved" and it
+// is the only honest home for it — see the constant's own comment, and
+// `UNIVERSE.md` §5 for what it is a mitigation against.
 //
 // **It states no count.** There is no `EXPECTED_COUNT`, no asserted array
 // length and no number anywhere below that would have to change to reach §6's
@@ -64,6 +70,7 @@ import {
   type Sector,
   type SectorEtfSecurity,
   type Security,
+  type SecurityFieldGroup,
 } from "@marketpulse/shared";
 
 /**
@@ -885,3 +892,50 @@ export const UNIVERSE: readonly Security[] = [
   ...INDEX_PROXIES,
   ...EQUITIES,
 ];
+
+/**
+ * When this file was last checked against a source, and what that source is.
+ *
+ * **This exists because the obvious implementation of the loader is wrong**, and
+ * the wrongness is invisible. `0003_security_vocabulary.sql` makes
+ * `profile_retrieved_at` and `classification_retrieved_at` `not null` with no
+ * default, so the loader has to supply a value; the tempting one is `now()`, and
+ * `now()` makes the column mean *when the loader last ran*. That is always
+ * today, carries no information, and destroys the one thing `UNIVERSE.md` §5
+ * offers against this file's silent staleness — it names
+ * `classification_retrieved_at` as the mitigation that "makes the file's age
+ * visible on screen through Story 2.14 rather than only in git history". A
+ * timestamp that resets on every deploy makes the age permanently invisible and
+ * turns the mitigation into decoration.
+ *
+ * So the column means **when the data was last checked against its source**, and
+ * for a curated list that is a value only the file can state. It lives here
+ * rather than in the loader for the same reason the rows do: the loader is a
+ * mechanism and does not know when a person last read a fund's fact sheet. Move
+ * the date **when you have actually re-checked the list**, in the same commit as
+ * whatever that check changed — and note that moving it is the whole point.
+ * Leaving it at 2026-09-05 while the file drifts is exactly the state Story 2.14
+ * is meant to be able to show a user.
+ *
+ * `Date`-free on purpose: a plain `YYYY-MM-DD` string is what a person edits and
+ * reviews in a diff, and the loader parses it as UTC midnight so a run in any
+ * timezone stores the same instant. A malformed value is a violation the loader
+ * reports beside every other one rather than an `Invalid Date` reaching Postgres.
+ *
+ * **Two groups and not four**, matching the two `0003` gave columns to.
+ * `identity` (`cik`) waits for Epic 9 and `ours` (`kind`, `status`) gets no pair
+ * at all, because "we decided this" is not a retrieval — the reasoning is
+ * `SECURITY_FIELD_GROUP`'s in `packages/shared` and `UNIVERSE.md` §4.
+ *
+ * The `source` strings are what Story 2.14 renders. `curated` rather than a file
+ * path or a git SHA: a path is a fact about this repository's layout that a
+ * screen has no use for, and a SHA is a claim about *when it was typed*, which
+ * is the claim this constant exists to separate from.
+ */
+export const UNIVERSE_PROVENANCE: Record<
+  Extract<SecurityFieldGroup, "profile" | "classification">,
+  { readonly source: string; readonly checkedOn: string }
+> = {
+  profile: { source: "curated", checkedOn: "2026-09-05" },
+  classification: { source: "curated", checkedOn: "2026-09-05" },
+};

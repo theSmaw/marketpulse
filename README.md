@@ -5,7 +5,7 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all **229** fast tests passed, and
+files still agree with the configuration table, all **286** fast tests passed, and
 the 14-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
@@ -58,7 +58,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of **229** fast tests plus a 14-test process suite, with
+and a test suite of **286** fast tests plus a 14-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -174,29 +174,33 @@ If `pnpm install` fails complaining about a dependency's install scripts, see
 allowlist that one package, never to disable the check.
 
 Nothing in that sequence needs a database, and nothing in it needs Docker. The
-database is a separate, longer-lived thing, and it is **two** commands rather
+database is a separate, longer-lived thing, and it is **three** commands rather
 than one:
 
 ```sh
 pnpm db          # starts PostgreSQL 18 and waits until it is accepting connections
 pnpm migrate     # applies every migration the database has not seen
+pnpm universe    # loads the ~100 securities MarketPulse tracks
 ```
 
-So the first run of a clean clone is **four** steps in this order —
+So the first run of a clean clone is **five** steps in this order —
 `pnpm install`, `pnpm build` (or `pnpm verify`, which builds), `pnpm db`,
-`pnpm migrate`. It was three until Story 2.2, and the two things that make the
-order matter are worth knowing before you reorder them. **`pnpm db` and
-`pnpm migrate` both need a built tree**, because where the database is comes out
-of `apps/backend/dist/config.js` rather than out of a second copy of the port;
-both say ``run `pnpm build` first`` rather than throwing a resolver error.
-And a database started but not migrated is an **empty** database that every tool
-here reports as perfectly healthy — `pnpm ready` ticks it, `pnpm verify` passes,
-`pnpm dev` serves — so skipping the fourth step has no symptom at all until
-something reads a table.
+`pnpm migrate`, `pnpm universe`. It was three until Story 2.2 and four until
+Story 2.3, and the two things that make the order matter are worth knowing
+before you reorder them. **All three database commands need a built tree**,
+because where the database is comes out of `apps/backend/dist/config.js` rather
+than out of a second copy of the port; each says ``run `pnpm build` first``
+rather than throwing a resolver error. And **the last two steps have no symptom
+if you skip them.** A database started but not migrated is an empty database
+that every tool here reports as perfectly healthy — `pnpm ready` ticks it,
+`pnpm verify` passes, `pnpm dev` serves — and a migrated database with no
+universe in it is a `securities` table with **zero rows**, which is equally
+healthy-looking and equally useless to anything that reads it.
 
 Run `pnpm db` once and leave it running. See
 [`pnpm db` — the local database](#pnpm-db--the-local-database) and
-[`pnpm migrate` — bringing the database up to date](#pnpm-migrate--bringing-the-database-up-to-date).
+[`pnpm migrate` — bringing the database up to date](#pnpm-migrate--bringing-the-database-up-to-date),
+and [`pnpm universe` — loading the tracked universe](#pnpm-universe--loading-the-tracked-universe).
 
 **The database is one per machine, not one per checkout.** `compose.yaml`
 declares `name: marketpulse`, a fixed Compose project name, so a second clone or
@@ -505,12 +509,13 @@ Run from the repository root:
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Every package's tests — 229 across the workspace — see below          |
+| `pnpm test`         | Every package's tests — 286 across the workspace — see below          |
 | `pnpm test:process` | The backend's process half — 14 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
 | `pnpm db`           | Starts the local PostgreSQL 18 container — see below                  |
 | `pnpm migrate`      | Applies every migration the database has not seen — see below         |
+| `pnpm universe`     | Loads the ~100 tracked securities into that database — see below      |
 | `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
 | `pnpm image`        | Builds the backend's `linux/amd64` container image — see below        |
 | `pnpm e2e`          | The browser suite, against a pair you started — see below             |
@@ -603,8 +608,8 @@ the same second half for the same reason.
 ### What `pnpm test` covers
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
-in this workspace. `packages/shared` runs 37 tests across 4 files,
-`apps/backend` 106 across 7, and `apps/frontend` 103 across 12 — **246 in
+in this workspace. `packages/shared` runs 55 tests across 5 files,
+`apps/backend` 128 across 8, and `apps/frontend` 103 across 12 — **286 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -667,7 +672,7 @@ answer.
 
 Three things about it worth knowing before changing it.
 
-**It is a separate command because it is a separate cost.** `pnpm test` is 229
+**It is a separate command because it is a separate cost.** `pnpm test` is 286
 tests in a few seconds, needs no build and no socket, and is the one you run all
 day; this suite takes about 8.2 s, of which 5 s is the shutdown ceiling being
 what it says it is. Both are steps in `pnpm verify`, so both gate.
@@ -1143,6 +1148,55 @@ soft-deleted, where the two hand-written types live, and why seed data is not a
 migration. It ends with the two lists that matter most: which of those a tool
 actually checks, and which are prose because nothing can.
 
+### `pnpm universe` — loading the tracked universe
+
+```sh
+pnpm universe
+```
+
+Loads the ~100 securities MarketPulse tracks — the equities, the eleven sector
+ETFs and the four index proxies — into the `securities` table `pnpm migrate`
+created. It is the **fifth** step of a first run and the one with no symptom if
+you skip it: an empty `securities` table looks exactly like a full one to
+`pnpm ready`, `pnpm verify` and `pnpm dev`.
+
+**The list is [`apps/backend/src/universe.ts`](apps/backend/src/universe.ts)**,
+and it is a curated file in this repository rather than something fetched. Why
+those securities and not others — the eleven-sector taxonomy, the floor of six
+and ceiling of twelve equities per sector, and why "the top 100 by market cap"
+is the wrong list — is in `UNIVERSE.md` under
+`planning/epic-02-security-universe-historical-data/story-03-…/`.
+
+**Re-running it converges on that file**, which is a stronger promise than "it
+is safe to run twice". Edit a sector, fix a company name or add a symbol, run it
+again, and the database matches the file: nothing is duplicated, changed rows are
+updated, and unchanged rows are not touched at all. It reports which of the three
+each row was.
+
+```text
+  ✓ 101 securities in the universe
+      0 inserted
+      1 updated
+      100 unchanged
+```
+
+**A universe that breaks its own rules fails the load and writes nothing.** An
+equity with no sector, a sector with no ETF, a duplicated symbol and a sector
+proxy that disagrees with `SECTOR_ETFS` are each refused at exit 1 — with
+**every** offending symbol named in one run, so a file with three faults takes
+one run to fix rather than three. Validation happens before a connection is
+opened, and the write itself is one transaction, so a refused load leaves the
+table byte-for-byte as it was.
+
+**A symbol in the database and not in the file is left alone**, reported, and
+does not fail the load. What _should_ happen to a security removed from the list
+is a decision Story 2.3 takes in its next task, and it is not a free one: one of
+the three plausible answers destroys price history stored against that row.
+Leaving the row untouched is the only option all three are still reachable from.
+
+It takes no arguments, and it applies no migration of its own — `pnpm migrate`
+does that, and this needs it to have been run first.
+
 ### `pnpm test:database` — the sixth level of test
 
 ```sh
@@ -1151,16 +1205,19 @@ pnpm build         # and a built tree
 pnpm test:database
 ```
 
-**25 tests against a real PostgreSQL server**, in about half a second. It is the
+**53 tests against a real PostgreSQL server**, in about a second. It is the
 sixth level of test in this repository and the third command that runs tests,
-after `pnpm test` and `pnpm test:process`, and it exists because three things
+after `pnpm test` and `pnpm test:process`, and it exists because four things
 this repository claims are only answerable by a database: that a migration
 applied to an empty one produces the expected schema and applying it twice is a
 no-op; that the hand-written `Database` interface in `apps/backend/src/schema.ts`
 matches what the migrations actually produce, which nothing generates and nothing
-else compares; and the conventions in
+else compares; the conventions in
 [`apps/backend/migrations/README.md`](apps/backend/migrations/README.md) that are
-readable from a migrated database.
+readable from a migrated database; and — since Story 2.3 — that `pnpm universe`
+converges on its file, that it moves `updated_at` on a row that changed and
+leaves it alone on a row that did not, and that a refused universe leaves the
+table byte-for-byte as it was.
 
 **It never touches the database you are working in.** It creates one of its own
 (`marketpulse_vitest`), migrates that, reads it, and drops it — at the end of a
