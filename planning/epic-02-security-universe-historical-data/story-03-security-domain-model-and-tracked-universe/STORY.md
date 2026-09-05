@@ -407,7 +407,15 @@ record is `UNIVERSE.md` §13. Three things this changes for what remains.
   ran, the step has not, because a step in `deploy.yml` only runs on `main`. Its first
   execution is the first merge after this story and will print `0 inserted, 0 updated, 101
 unchanged`. That is a weaker demonstration than the body run, and it is the only thing
-  that proves the step is wired into the workflow at all.
+  that proves the step is wired into the workflow at all. **2.3.8 is the only task that can
+  close it** — it runs after 2.3.7 merges, so reading that one CI log is now a bullet in its
+  brief rather than a gap this story ships with. Confirmed rather than assumed: the three
+  most recent `deploy.yml` runs all predate the step.
+- **Two figures did NOT move and 2.3.8's expectation is corrected accordingly**: `pnpm test`
+  is still 287 and `pnpm test:database` still 55, because 2.3.7 shipped no application
+  source and no test. That is the second time in this story an expect-stale line has become
+  a confirm-still-true one, after 2.3.6 over `universe.ts` — a pattern worth noticing rather
+  than fixing twice.
 - **A candidate that is not a task**: nothing goes into `e2e/specs-deployed/`, because no
   route serves a security until Story 2.9. Stated with its reversal trigger rather than left
   open.
