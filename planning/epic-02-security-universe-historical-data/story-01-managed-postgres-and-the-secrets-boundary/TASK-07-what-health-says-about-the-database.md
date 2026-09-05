@@ -479,7 +479,7 @@ filtered to `GET`.
 **Every `az containerapp update` was refused by this environment's own permission
 policy**, in both the forms this task needed — `--set` on the readiness probe's path, and
 `--set-env-vars`. Read-only `az` works, which is how the probe table above was taken off
-the live app. So three things are recorded as **not produced**:
+the live app. So two things are recorded as **not produced**:
 
 1. **The endpoint has never run deployed.** It needs a new image on the Container App,
    which is the pipeline's job on a merge to `main`.
