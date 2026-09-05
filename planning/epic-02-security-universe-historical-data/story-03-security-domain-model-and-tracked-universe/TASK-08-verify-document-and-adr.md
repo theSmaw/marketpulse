@@ -47,9 +47,24 @@ renumbered.
     "it narrows when `Security` arrives", and says the sector column's rule is "deliberately
     NOT encoded"
   - `apps/backend/migrations/0002_securities.sql` carries four numbered decisions, at least
-    two of which (`status` has no check; Story 2.3 owns the vocabulary) stop being true
+    **three** of which stop being true: `status` has no check, Story 2.3 owns the
+    vocabulary, and decision 1's worked example is the `'etf'` enum value that 2.3.3's
+    widening actually consumed
   - `apps/backend/migrations/README.md` §7 on seed data, which is what this story read to
     decide, and its checked-versus-prose lists, which 2.3.3 moved entries between
+  - **The `equity | etf` two-member claim, which Task 2.3.1 counted at eleven sites** so
+    this sweep does not have to rediscover them. Four are code and belong to 2.3.3
+    (`packages/shared/src/security.ts` ×2, `apps/backend/src/schema.ts`,
+    `0002_securities.sql`, plus the `migrate.database.test.ts` comment). **The rest are
+    historical and must be left standing** — Story 2.2's own task files record the
+    constraint as it was when they were written, and `UNIVERSE.md` names `equity | etf`
+    inside a _rejected alternative_, where it is correct. That is the live-versus-historical
+    distinction a naive grep-and-replace destroys, arriving with a count attached for once
+  - **`UNIVERSE.md` itself**, which is the one document this story wrote and the one most
+    likely to have gone stale inside its own story: §7's selection rule against the
+    distribution 2.3.4 actually produced, §8's storage arithmetic, and the §5 reversal
+    trigger. A record that contradicts the tree it describes is the failure Task 1.11.8
+    found in `CLAUDE.md`'s own artefact paragraph
   - `CLAUDE.md` and `README.md`: test counts, the first-run sequence, the command table,
     the levels of test, and the "three engine pins" and gap lists if 2.3.3 touched them
 - **Count the duplicated blocks before correcting them.** This repository has twice

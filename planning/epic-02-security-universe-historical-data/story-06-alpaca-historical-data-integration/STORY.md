@@ -46,6 +46,18 @@ Story 2.7's ingestion design — so it must precede it.
   **structurally unable to reach the browser** — the frontend talks to the MarketPulse
   backend and never to Alpaca (§7.1's provider isolation and ADR 0006's boundary)
 - Recording fixtures from real responses, so the fixture provider stays honest
+- **Inherited from Story 2.3: this is where `delisted` becomes producible.**
+  `SECURITY_STATUSES` ships with exactly two members, `active` and `untracked`, because
+  those are the two Story 2.3 could produce — following this repository's own rule that a
+  member is added when the thing it names can be produced, the rule `API_ERROR_CODES` has
+  now been held to three times. `delisted` is a genuinely different event from `untracked`
+  (one is a fact about the market, the other a fact about us, and a symbol we stopped
+  tracking is reversible where a delisted one is not), and **Alpaca's assets endpoint is
+  the first thing in this product with any opinion about whether a symbol is still
+  listed**. Note that this is a _different endpoint_ from the bars endpoint this story is
+  otherwise about, so adopting it is a real scope choice rather than a free consequence —
+  see open decision 4. `UNIVERSE.md` §3 is the record, and the migration is one of a shape
+  proved twice: drop the check, add the member, add the check
 
 ## Out of scope, and who owns it
 
@@ -65,6 +77,18 @@ Story 2.7's ingestion design — so it must precede it.
 3. **What a missing or invalid key does at startup.** Refuse to start, or start degraded
    and report it. The second is more consistent with §36 and with Story 1.12's `degraded`
    vocabulary; the first fails earlier and louder
+4. **Whether this story adds the `delisted` status member, and if not, who does.** Story
+   2.3 deferred it here by naming the producer rather than by leaving it open, so the one
+   thing this story must not do is leave it unanswered — that is how a deferral with an
+   owner becomes a deferral with none. Three shapes, and the middle one is probably right:
+   call the assets endpoint during ingestion and transition a symbol's status when Alpaca
+   says it is no longer active; call it once as a **reporting** check that names symbols
+   worth looking at and changes no row, which is Task 2.1.7's shape for exactly this kind
+   of question; or decline it here and hand it to Story 2.7's ingestion, which is the first
+   thing that will actually notice bars stopping. Whichever it is, **an honest deferral
+   with a named owner beats a mechanism built against no instance** — and note the answer
+   is worth taking on evidence, because a symbol whose bars stop arriving and a symbol
+   Alpaca reports inactive are two different signals and only one of them needs a request
 
 ## Acceptance criteria
 

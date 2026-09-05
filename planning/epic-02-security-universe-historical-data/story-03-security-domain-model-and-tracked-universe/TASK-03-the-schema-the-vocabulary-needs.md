@@ -18,9 +18,17 @@ honest test of whether that document is usable. Record anything it failed to ans
 
 - **Write `0003_*.sql`** — one migration, following the naming rule (`NNNN_lower_snake_case
 .sql`, a four-digit sequence and not a timestamp; a name that does not match is an error
-  rather than a skipped file). Everything it does is **additive**, which matters beyond
-  tidiness: Task 2.2.7 made "the schema may be left ahead of the code" survivable only
-  while migrations are additive, and that is a written convention enforced by nothing
+  rather than a skipped file). **It is this repository's first non-additive migration, and
+  that has to be argued rather than waved through**: Task 2.2.7 chose a step in
+  `deploy.yml` before the container rolls, and that shape is survivable only because a
+  migration leaves the database _ahead_ of the code — which is true of an added column and
+  is **not** true of the `kind` widening below, which drops `'etf'` from the check
+  constraint and so leaves the database able to store strictly less than before. It is
+  safe here for two reasons that must both be stated in the file and will not both hold
+  next time: `securities` holds **zero rows**, so there is nothing the tightened check can
+  reject, and **nothing writes to the table at all** until Task 2.3.5's loader, which ships
+  after this migration. Everything else in `0003` is additive. That convention is enforced
+  by nothing, so the exception is worth a comment where the next author will read it
 - **Add the `check` on `status`**, whose absence Task 2.2.4 recorded as deliberate and
   temporary: `status`'s vocabulary was Story 2.3's and did not exist, so a check would
   have been a vocabulary this story had to migrate rather than choose. It exists now.
@@ -29,13 +37,22 @@ honest test of whether that document is usable. Record anything it failed to ans
   `CHECK ((x = ANY (ARRAY[…])))`, so a check on the constraint cannot be a string match on
   the migration's own text; and inside one transaction — which is what a migration is here
   — a Postgres `enum` cannot be extended and used, which is why this is `text` + `check`
-- **Make the proxy distinction real in the schema**, in whichever shape Task 2.3.1 chose.
-  If it widened `SECURITY_KINDS`, this is the "add a member and backfill" migration that
-  Task 2.2.4's refusal of `enum` was specifically protecting — say so, because that
-  decision was taken on an argument and this is the first time it pays. If it added a
-  column, give it the same source-of-truth treatment: the union in `packages/shared`, the
-  `check` as the database's backstop
-- **Add whatever per-field provenance needs**, per Task 2.3.1's shape. Two things to hold
+- **Widen `kind` to `equity | sector_etf | index_etf`**, which is the shape Task 2.3.1
+  chose. This is the migration Task 2.2.4's refusal of a Postgres `enum` was specifically
+  protecting — inside one transaction an enum value cannot be added _and used_ — so say so
+  in the file, because that decision was taken on an argument and this is the first time it
+  pays. **There is no backfill**, and the absence is worth writing down rather than leaving
+  a reader to look for the `update` this kind of migration usually carries: the table is
+  empty, so it is drop-check, add-check, and nothing else. The dropped member is what makes
+  it non-additive — see the bullet above
+- **Add the two provenance pairs Task 2.3.1 chose** — `profile_source` /
+  `profile_retrieved_at` and `classification_source` / `classification_retrieved_at`. Note
+  what is deliberately absent and why, so it does not read as an omission: `cik`'s pair
+  waits for Epic 9, which is what populates `cik`, because a column null in every row in
+  every environment cannot be checked against anything; and `kind` and `status` get no pair
+  at all, because "we decided this" is not a retrieval. Their nullability is its own small
+  decision — `not null` is available only because the table is empty, and a default would
+  be this migration inventing a source. Two things to hold
   while writing it. It is **metadata about a row's fields rather than a fact about the
   market**, so `migrations/README.md` §2's `observed_at` is still not the answer here and a
   defaulted one would still be the leak that convention forbids — but a _retrieval_
@@ -43,14 +60,14 @@ honest test of whether that document is usable. Record anything it failed to ans
   table with any claim on that pair. Decide it explicitly rather than by omission, the way
   Task 2.2.4 did. And it must be renderable by Story 2.13 without that story having to
   reverse-engineer it, so write down what it will read
-- **Add the first foreign key in this schema if the sector-to-ETF relationship is one.**
-  This is a genuine decision rather than an obvious yes: the mapping might be a self
-  reference from an equity to its sector ETF's row, a `sectors` table, or not in the
-  database at all because Task 2.3.2 put it in `packages/shared`. Whichever it is, the
-  **foreign-key naming rule (`<table_singularised>_id`) is the convention Task 2.2.4
-  recorded as untested**, and if this task creates one, it is the first thing to exercise
-  it — and if it does not, say so, because that convention is then still untested and
-  Story 2.7 inherits it
+- **Expect to create no foreign key, and say so rather than leaving it unmentioned.** Task
+  2.3.1 closed both candidates: the sector-to-ETF mapping goes in `packages/shared` as a
+  `Record` total over the taxonomy, and the separate `security_field_provenance` table was
+  rejected in favour of columns. So the **foreign-key naming rule
+  (`<table_singularised>_id`) that Task 2.2.4 recorded as untested stays untested**, and
+  Story 2.7 inherits it. Record that explicitly — a convention that is silently still
+  untested after the story that looked most likely to exercise it is exactly the kind of
+  thing this repository's third class of gap is made of
 - **Do not add an index for a query that does not exist.** Story 2.8 writes the first read.
   The exception worth arguing rather than assuming: the loader itself is about to look rows
   up by `symbol` on every run, and `symbol` already has a unique constraint with a btree

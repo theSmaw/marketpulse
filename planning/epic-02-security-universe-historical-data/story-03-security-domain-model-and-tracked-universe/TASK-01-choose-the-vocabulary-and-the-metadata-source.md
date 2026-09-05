@@ -1,6 +1,6 @@
 # Task 2.3.1 — Choose the vocabulary, the taxonomy and where the metadata comes from, shipping nothing
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [2.3 Security Domain Model & the Tracked Universe](STORY.md)
 **Depends on:** Story 2.2 (a migration mechanism, applied locally and deployed, and one
 empty `securities` table)

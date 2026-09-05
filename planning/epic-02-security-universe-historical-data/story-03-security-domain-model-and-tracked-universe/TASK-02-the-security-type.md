@@ -31,6 +31,13 @@ schema.ts` already holds `SecuritiesTable`, and the two are deliberately differe
   relative-move reads it and Epic 4's sector rows group by it, so it is a fact both sides
   depend on rather than a fact about our particular list. The argument against is that it
   is a table of strings that changes when the ETF set changes. Say which and why
+- **Ship the one derived helper the `kind` widening costs.** Task 2.3.1 widened
+  `SECURITY_KINDS` to `equity | sector_etf | index_etf`, and the single stated cost of that
+  choice is that "is this an ETF" stops being an equality and becomes a membership test.
+  That helper — `ETF_KINDS` as a const array, or an `isEtf()` beside the union, whichever
+  reads better — belongs here beside the vocabulary rather than at each call site, for the
+  reason `isHealthResponse` and `isApiError` are in this package: a predicate written
+  anywhere but beside its shape drifts from it. Epic 4 is its first real reader
 - **Do not widen the type to carry anything Story 2.7 or Epic 9 owns.** No price, no bar,
   no filing, no CIK-derived anything beyond the identifier field that already exists. The
   test is whether the field is a fact about the security or a fact about something that
