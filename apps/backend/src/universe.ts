@@ -904,7 +904,7 @@ export const UNIVERSE: readonly Security[] = [
  * today, carries no information, and destroys the one thing `UNIVERSE.md` §5
  * offers against this file's silent staleness — it names
  * `classification_retrieved_at` as the mitigation that "makes the file's age
- * visible on screen through Story 2.13 rather than only in git history". A
+ * visible on screen through Story 2.14 rather than only in git history". A
  * timestamp that resets on every deploy makes the age permanently invisible and
  * turns the mitigation into decoration.
  *
@@ -914,7 +914,7 @@ export const UNIVERSE: readonly Security[] = [
  * mechanism and does not know when a person last read a fund's fact sheet. Move
  * the date **when you have actually re-checked the list**, in the same commit as
  * whatever that check changed — and note that moving it is the whole point.
- * Leaving it at 2026-09-05 while the file drifts is exactly the state Story 2.13
+ * Leaving it at 2026-09-05 while the file drifts is exactly the state Story 2.14
  * is meant to be able to show a user.
  *
  * `Date`-free on purpose: a plain `YYYY-MM-DD` string is what a person edits and
@@ -927,7 +927,7 @@ export const UNIVERSE: readonly Security[] = [
  * at all, because "we decided this" is not a retrieval — the reasoning is
  * `SECURITY_FIELD_GROUP`'s in `packages/shared` and `UNIVERSE.md` §4.
  *
- * The `source` strings are what Story 2.13 renders. `curated` rather than a file
+ * The `source` strings are what Story 2.14 renders. `curated` rather than a file
  * path or a git SHA: a path is a fact about this repository's layout that a
  * screen has no use for, and a SHA is a claim about *when it was typed*, which
  * is the claim this constant exists to separate from.

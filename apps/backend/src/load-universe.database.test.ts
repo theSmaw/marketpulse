@@ -200,7 +200,7 @@ describe("loading the universe into a clean database", () => {
   it("renders the union's two meanings of a null sector", async () => {
     // Not a restatement of the database's own constraint: this is the loader
     // getting the discriminated union onto a table that has one nullable
-    // column, which is the mapping Story 2.8 will do in the other direction.
+    // column, which is the mapping Story 2.4 will do in the other direction.
     expect((await row("SPY")).sector).toBeNull();
     expect((await row("XLK")).sector).toBe("technology");
     expect((await row("NVDA")).sector).toBe("technology");
@@ -235,7 +235,7 @@ describe("running it again", () => {
   });
 
   it("keeps the same ids, so anything referencing a security still does", async () => {
-    // Story 2.7 stores bars against `security_id`. A loader that deleted and
+    // Story 2.8 stores bars against `security_id`. A loader that deleted and
     // reinserted would renumber every row and orphan them, which is why the
     // write is an upsert on the natural key rather than a truncate-and-load.
     const before = await row("NVDA");
@@ -313,7 +313,7 @@ describe("a symbol in the database and not in the file", () => {
   it("is reported, left untouched, and does not fail the load", async () => {
     // **The seam.** Deleting the row, changing its `status` and refusing are the
     // three answers, they are not interchangeable, and one of them destroys data
-    // Story 2.7 will have stored against it. Task 2.3.6 decides; this asserts
+    // Story 2.8 will have stored against it. Task 2.3.6 decides; this asserts
     // that until then nothing happens to it, because "leave it alone" is the
     // only option all three remain reachable from.
     await db().query(

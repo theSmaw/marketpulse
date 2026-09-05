@@ -757,7 +757,7 @@ with no default, so the loader has to supply a value. **The obvious value is
 `now()` and it is wrong**, in a way that leaves no trace: it makes the column
 mean _when the loader last ran_, which is always today, and §5 above names
 `classification_retrieved_at` as the mitigation that "makes the file's age
-visible on screen through Story 2.13 rather than only in git history". A
+visible on screen through Story 2.14 rather than only in git history". A
 timestamp that resets on every deploy makes the age permanently invisible and
 turns the mitigation into decoration — while looking, on screen, exactly like a
 freshly-checked classification.
@@ -773,13 +773,13 @@ otherwise copies it verbatim.
 **The obligation this creates, and nothing enforces it:** move the date **when
 you have actually re-checked the list against a source**, in the same commit as
 whatever that check changed. Leaving it while the file drifts is exactly the
-state Story 2.13 is meant to be able to show a user, so this is a gap of the
+state Story 2.14 is meant to be able to show a user, so this is a gap of the
 third kind by construction rather than by accident — the column is _designed_ to
 be able to say "nobody has looked at this in a year", which it can only do if
 nobody moves it dishonestly.
 
 **`profile_retrieved_at` will diverge from `classification_retrieved_at` the day
-Story 2.6 fills the profile fields from Alpaca**, which is a genuine retrieval
+Story 2.7 fills the profile fields from Alpaca**, which is a genuine retrieval
 and where `now()` is the correct answer. Two columns rather than one is what
 makes that expressible; today they carry the same date because the same person
 typed both.
@@ -826,7 +826,7 @@ count rather than chosen.
 A symbol in the database and not in the file is **counted, reported and left
 untouched**. Deleting it, changing its `status` and refusing the load are the
 three answers; they are not interchangeable, and one of them destroys the bars
-Story 2.7 will have stored against the row. **Task 2.3.6 chooses.** Leaving the
+Story 2.8 will have stored against the row. **Task 2.3.6 chooses.** Leaving the
 row alone is the only option all three remain reachable from, which is why it is
 what a loader written before that decision does.
 

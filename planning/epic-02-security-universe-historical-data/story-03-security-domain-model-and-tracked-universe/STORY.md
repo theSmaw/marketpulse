@@ -349,5 +349,5 @@ a row's provenance changed. And a task to make the loader's column lists check e
 (the `insert` list and the `is distinct from` list, which must agree and do not) was
 declined for the reason Task 2.3.4 kept the count out of the code: it is recorded as a gap
 of the third kind in `CLAUDE.md`, the two lists sit one above the other with a comment
-saying so, and the real answer is Story 2.8's mapping layer rather than a check bolted onto
+saying so, and the real answer is Story 2.4's mapping layer rather than a check bolted onto
 a loader.

@@ -51,7 +51,7 @@
 // **Nothing, and that is a seam rather than an answer.** It counts them and says
 // so; it does not delete them, does not change their `status`, and does not
 // refuse. Task 2.3.6 chooses between those three, and the choice is not free:
-// one of them destroys data Story 2.7 will have stored against the row, which is
+// one of them destroys data Story 2.8 will have stored against the row, which is
 // exactly what a loader does by default if nobody decides. Leaving the row
 // untouched is the only option that is reversible by whichever answer 2.3.6
 // picks.
@@ -298,7 +298,7 @@ export function validateUniverse(
 
   // Widened to `unknown` deliberately, and it is the one cast in this file.
   // `isSecurity` exists for values that are **not** what the declared type says
-  // — something that arrived through a cast, or as parsed JSON from Story 2.8's
+  // — something that arrived through a cast, or as parsed JSON from Story 2.4's
   // API — and narrowing an already-`Security` element gives the negative branch
   // the type `never`, so the check could not report what it found. The widening
   // is the honest statement of what is being checked.
@@ -485,7 +485,7 @@ export function summariseLoad(counts: LoadCounts): LoadOutcome {
       `      ${counts.absentFromFile.join(", ")}`,
       "\n    This loader does not delete, does not change `status`, and does not refuse.",
       "    What should happen to a removed symbol is Task 2.3.6's decision, and one of the",
-      "    three answers destroys data Story 2.7 will have stored against the row.",
+      "    three answers destroys data Story 2.8 will have stored against the row.",
     );
   }
 

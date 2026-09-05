@@ -136,7 +136,7 @@ describe("validateUniverse", () => {
       // The cast is what the compiler makes necessary and is the point: this
       // state cannot be written in `universe.ts` at all, because `Security` is a
       // discriminated union. What it stands in for is a row reaching the loader
-      // from somewhere the compiler did not check — Story 2.8's API, or a future
+      // from somewhere the compiler did not check — Story 2.4's API, or a future
       // generator.
       const universe = [
         ...valid(),
@@ -343,7 +343,7 @@ describe("summariseLoad", () => {
   it("reports a symbol in the database and not in the file, and still exits 0", () => {
     // The seam. This loader does not delete, does not change `status` and does
     // not refuse — Task 2.3.6 chooses, and one of the three answers destroys
-    // data Story 2.7 will have stored against the row.
+    // data Story 2.8 will have stored against the row.
     const outcome = summariseLoad({
       inserted: 0,
       updated: 0,

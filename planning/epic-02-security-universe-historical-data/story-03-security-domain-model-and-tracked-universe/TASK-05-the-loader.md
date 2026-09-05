@@ -223,7 +223,7 @@ mitigation `UNIVERSE.md` §5 offers against the curated file's silent staleness.
 obligation that creates is recorded as a gap of the third kind **by design**: nothing can
 enforce that a person moves the date when they actually re-check, and a check is
 structurally impossible because whether somebody read a fact sheet is not observable here.
-`profile_retrieved_at` diverges from `classification_retrieved_at` the day Story 2.6 fills
+`profile_retrieved_at` diverges from `classification_retrieved_at` the day Story 2.7 fills
 the profile fields from Alpaca, which is a genuine retrieval where `now()` is correct — two
 columns rather than one is what makes that expressible.
 
@@ -244,7 +244,7 @@ and which therefore arrives alone.
 
 **A symbol in the database and not in the file is counted, reported and left untouched.**
 The seam is left open on purpose: Task 2.3.6 chooses between deleting it, changing its
-`status` and refusing, and one of the three destroys data Story 2.7 will have stored.
+`status` and refusing, and one of the three destroys data Story 2.8 will have stored.
 
 ### What was produced rather than reasoned about
 
@@ -262,7 +262,7 @@ The seam is left open on purpose: Task 2.3.6 chooses between deleting it, changi
   atomic anyway — said plainly, because implying otherwise would be a false comfort.
 - **An upsert consumes an identity value per row per run whether or not anything changed.**
   After four runs of 101, `securities_id_seq.last_value` read **404** and `max(id)` read
-  **101**. Ids are stable across re-runs, which is what Story 2.7 needs; the sequence runs
+  **101**. Ids are stable across re-runs, which is what Story 2.8 needs; the sequence runs
   ahead of them.
 
 ### One premise this task was given, corrected by measuring it
