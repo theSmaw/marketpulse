@@ -29,11 +29,29 @@
 // fail on — was rejected on cost rather than on principle, and the cost is
 // measured. The pool holds **zero connections at rest** (Task 2.1.6, because
 // `pg` closes an idle client after ten seconds and nothing queries afterwards),
-// so a check on `/health` pays the **cold** path nearly every time: ~1,023 ms
-// deployed, of which the Entra token mint is 866 ms. That is a third of the
-// startup probe's 3-second timeout, on a route hit every 2 seconds during
+// so a check on `/health` pays the **cold** path nearly every time.
+//
+// **Task 2.1.8 measured that cold path deployed and it is ~200 ms, not the
+// ~1,023 ms written here — falsified in the reassuring direction, and the
+// decision is unchanged.** 1,023 ms is the *first connection of a replica's
+// life*, and 866 ms of it is a token mint that the identity **sidecar then
+// caches for 24 hours**. `index.ts` already pays that once, after `listen()`,
+// so by the time any request arrives the mint is a cached read: measured on
+// revision 67, the first check after a restart cost **220.19 ms** and the next
+// two **22.34 / 21.34 ms**, and on revision 65 **193.09 ms** then **17.89 ms**.
+// So the real shape is ~200 ms for a connection and ~20 ms for a pooled query —
+// which reproduces Task 2.1.5's "~23 ms pooled" exactly. That is still 10% of
+// the startup probe's 3-second timeout on a route hit every 2 seconds during
 // startup, every 10 seconds by readiness, every 30 seconds by liveness, and
-// once per 30 seconds per **visible browser tab**. It would also widen a wire
+// once per 30 seconds per **visible browser tab** — and the argument below
+// about widening a five-reader wire contract never depended on the latency at
+// all.
+//
+// The number that did **not** move is the failing path, and it is the one that
+// matters: pointed at an unroutable address, a check costs the **full
+// `connectionTimeoutMillis`** — 5,000.58–5,005.02 ms across twelve deployed
+// polls — because a packet-drop timeout is not a refused connection. On
+// `/health` that would be a hard timeout against every probe this app has. It would also widen a wire
 // contract with five readers — the schema, the `satisfies` guard,
 // `HealthResponse`, `isHealthResponse()` and the frontend's `BackendStatus` —
 // for a field with no consumer, which is the brief's own "do not widen the
