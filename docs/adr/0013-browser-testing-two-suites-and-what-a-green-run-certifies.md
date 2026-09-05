@@ -511,6 +511,7 @@ what separates the ones worth checking from the ones worth writing down.**
    exactly one entry. It printed exactly `axe-core@4.13.0` when this was written.
 3. **The ruleset requires two checks keyed on two job names**, so renaming either
    job in `verify.yml` un-requires it silently — ADR 0010 §17's failure, doubled.
+   _(Amended 2026-09-05: **three**, since Task 2.2.5 added `database`. Tripled.)_
    And the `e2e` job **restores the pnpm store cache and never saves it**, so it
    depends on `verify` continuing to save it. **Prose**, for ADR 0010 §17's
    reason: no file here can hold a repository ruleset.

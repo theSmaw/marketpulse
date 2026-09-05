@@ -201,9 +201,9 @@ production check looks.
 ### It is not required, and it is not a monitor
 
 **Not in the ruleset**, and that is a decision rather than an omission: ruleset
-`main` requires `verify` and `e2e`, and this runs after a merge, so requiring it
-would gate on something that cannot have happened yet — the same reason `deploy`
-itself is not required.
+`main` requires `verify`, `e2e` and — since Task 2.2.5 — `database`, and this
+runs after a merge, so requiring it would gate on something that cannot have
+happened yet — the same reason `deploy` itself is not required.
 
 **No `schedule:`, and adding one would quietly make this uptime monitoring**,
 which is not this story's and has no owner anywhere in the roadmap. It also has

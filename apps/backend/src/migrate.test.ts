@@ -23,7 +23,14 @@ import { join } from "node:path";
 import type { MigrationResultSet } from "kysely/migration";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { SqlFileMigrationProvider, summariseMigration } from "./migrate.js";
+import {
+  SqlFileMigrationProvider,
+  checkMigrationChecksums,
+  checksumOf,
+  readMigrationFiles,
+  summariseChecksumFailure,
+  summariseMigration,
+} from "./migrate.js";
 
 describe("summariseMigration", () => {
   it("exits 0 and says so when there was nothing to apply", () => {
@@ -178,5 +185,139 @@ describe("SqlFileMigrationProvider", () => {
     ).getMigrations();
 
     expect(Object.keys(migrations)).toEqual(["0001_baseline"]);
+  });
+});
+
+// The checksum pass (Task 2.2.7). Task 2.2.5 declined this and named 2.2.7 as
+// the trigger; 2.2.6 produced the consequence — an index appended to an
+// already-applied `0002_securities.sql` left `pnpm migrate` and
+// `pnpm test:database` both green over a database that did not have it, and the
+// only recovery was dropping the database, which the deployed server does not
+// offer.
+describe("checkMigrationChecksums", () => {
+  const file = (name: string, body: string) => ({
+    name,
+    body,
+    checksum: checksumOf(body),
+  });
+
+  it("verifies an applied migration whose file has not changed", () => {
+    const one = file("0001_baseline", "-- nothing\n");
+
+    const report = checkMigrationChecksums(
+      [one],
+      new Set(["0001_baseline"]),
+      new Map([["0001_baseline", one.checksum]]),
+    );
+
+    expect(report).toEqual({
+      diverged: [],
+      adopt: [],
+      verified: ["0001_baseline"],
+    });
+  });
+
+  // The one this whole mechanism exists for.
+  it("reports an applied migration whose file has changed", () => {
+    const edited = file("0002_securities", "create table securities ();\n");
+
+    const report = checkMigrationChecksums(
+      [edited],
+      new Set(["0002_securities"]),
+      new Map([["0002_securities", checksumOf("create table securities;\n")]]),
+    );
+
+    expect(report.diverged).toEqual([
+      {
+        name: "0002_securities",
+        recorded: checksumOf("create table securities;\n"),
+        actual: edited.checksum,
+      },
+    ]);
+    expect(report.verified).toEqual([]);
+  });
+
+  // A file that has never run can be edited freely — that is what a pull
+  // request is — so the rule is narrower than "migrations are immutable".
+  it("says nothing about a migration that has not been applied", () => {
+    const pending = file("0003_market_bars", "select 1;\n");
+
+    const report = checkMigrationChecksums([pending], new Set(), new Map());
+
+    expect(report).toEqual({ diverged: [], adopt: [], verified: [] });
+  });
+
+  // The bootstrap. Every database migrated before this existed has
+  // `kysely_migration` rows and no checksum rows, so failing on a missing row
+  // would fail all of them on the first run.
+  it("adopts an applied migration that predates the checksum table", () => {
+    const one = file("0001_baseline", "-- nothing\n");
+
+    const report = checkMigrationChecksums(
+      [one],
+      new Set(["0001_baseline"]),
+      new Map(),
+    );
+
+    expect(report.adopt).toEqual([one]);
+    expect(report.diverged).toEqual([]);
+  });
+});
+
+describe("summariseChecksumFailure", () => {
+  it("exits 1, names the file and prints both hashes", () => {
+    const outcome = summariseChecksumFailure([
+      { name: "0002_securities", recorded: "aaaa", actual: "bbbb" },
+    ]);
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.lines).toEqual([]);
+    const text = outcome.errors.join("");
+    expect(text).toContain("0002_securities");
+    expect(text).toContain("aaaa");
+    expect(text).toContain("bbbb");
+  });
+
+  // There is no command that repairs this, so the message must not imply one.
+  // Locally the answer is a reset; deployed it is a new forward migration,
+  // because that server has a CanNotDelete lock on it.
+  it("says nothing was migrated, and gives both recoveries", () => {
+    const text = summariseChecksumFailure([
+      { name: "0002_securities", recorded: "aaaa", actual: "bbbb" },
+    ])
+      .errors.join("")
+      .toLowerCase();
+
+    expect(text).toContain("nothing was migrated");
+    expect(text).toContain("new migration");
+    expect(text).toContain("pnpm db down -v");
+  });
+});
+
+describe("readMigrationFiles", () => {
+  let directory: string;
+
+  beforeEach(async () => {
+    directory = await mkdtemp(join(tmpdir(), "marketpulse-migrations-"));
+  });
+
+  afterEach(async () => {
+    await rm(directory, { recursive: true, force: true });
+  });
+
+  // The hash has to be of the bytes that ran, which is why the provider and
+  // this pass read through one function rather than two.
+  it("hashes the file body", async () => {
+    await writeFile(join(directory, "0001_baseline.sql"), "-- nothing\n");
+
+    const files = await readMigrationFiles(directory);
+
+    expect(files).toEqual([
+      {
+        name: "0001_baseline",
+        body: "-- nothing\n",
+        checksum: checksumOf("-- nothing\n"),
+      },
+    ]);
   });
 });

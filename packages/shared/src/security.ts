@@ -23,13 +23,15 @@
  * and {@link FEED_STATUSES} already have, so the members are readable at run
  * time by anything that has to compare them against the database.
  *
- * **Nothing checks that this list and that constraint agree**, which is a real
- * gap rather than an oversight: they are in two files that no single tool
- * reads, a `.sql` file is read by nothing in this repository at all, and the
- * failure is silent in the direction that matters — adding a member here and
- * not there means a row the type system permits and the database refuses, at
- * run time, in whatever writes it. Task 2.2.5 is where that becomes a check,
- * because `information_schema` can be read for the constraint's own text.
+ * **This list and that constraint are checked against each other by
+ * `pnpm test:database`** (Task 2.2.5). They are in two files that no single
+ * tool reads — a `.sql` file is read by nothing in this repository at all — and
+ * the failure was silent in the direction that matters: adding a member here
+ * and not there means a row the type system permits and the database refuses,
+ * at run time, in whatever writes it. The check reads the constraint's own text
+ * back out of `pg_constraint` and parses it, which it has to, because Postgres
+ * **rewrites** `check (kind in (…))` into `CHECK ((kind = ANY (ARRAY[…])))` —
+ * so a string match against the migration would never have worked.
  */
 export const SECURITY_KINDS = ["equity", "etf"] as const;
 
