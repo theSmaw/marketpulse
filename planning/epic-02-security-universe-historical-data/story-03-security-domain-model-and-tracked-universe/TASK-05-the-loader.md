@@ -54,12 +54,45 @@ Acceptance criteria 2 and 3.
   `sector_etf` row's `sector` agrees with the `packages/shared` mapping, and every entry in
   that mapping has a row**. The compiler makes the mapping total over the taxonomy and can
   say nothing about whether the universe file's rows match it, which is exactly the seam a
-  generated-then-hand-edited row slips through
+  generated-then-hand-edited row slips through.
+  **Amended after 2.3.4: this check is VACUOUS against the shipped file, and that is a
+  reason to be careful rather than a reason to skip it.** 2.3.4 took the instruction to
+  derive the eleven rows from `SECTOR_ETFS`, mapping over `SECTORS` — so today both halves
+  are true by construction and **the check cannot fail no matter how it is written**,
+  including if it is written wrongly. That is Task 2.2.5's blind-check problem in a new
+  place: a green result that certifies nothing is indistinguishable from one that certifies
+  something. So it must be **made to fail against a hand-built list** rather than against
+  the universe, and it is still worth having, because it guards the two seams the
+  derivation does not cover — somebody replacing the generated block with typed rows, and
+  somebody typing a sector proxy's symbol into an equity block
+- **Add the set-level check nothing else in the system will catch: a DUPLICATE SYMBOL.**
+  **Amended after 2.3.4, and this is the one hole that hole-checking found.** The reflex is
+  that `symbol` is `unique` in the database, so a duplicate is refused there and this
+  program only has to fail first with a better message — which is what the bullet above
+  argues for every other constraint. **That reflex is wrong here, and the reason is the
+  upsert.** A loader that upserts on `symbol` — which is what "converges on the file"
+  requires — sends the same key twice, the unique index is never violated, the second write
+  silently wins, and **the load reports success having applied a row nobody meant**. So the
+  duplicate is invisible at every level: the compiler cannot see it (two valid rows), the
+  database cannot see it (an upsert is the anti-constraint), and the count is one lower than
+  the file's length with nothing saying so. Task 2.3.4 deliberately left every cross-row
+  rule here and named this one as unowned; this task owns it, and it should be **made to
+  fail** rather than assumed, because a duplicate is the one violation whose test passes
+  vacuously if the check is missing
 - **Report every violation rather than the first**, in the shape `config.ts`'s accumulator
   already has, because a curated file with three unclassified symbols should take one run
   to fix rather than three. Reuse the existing predicates rather than writing new ones —
   `isTicker` holds the symbol pattern and `packages/shared` deliberately holds no second
-  copy of it, which is a stated gap created on purpose
+  copy of it, which is a stated gap created on purpose.
+  **Amended after 2.3.4: the accumulator has a hole it cannot close, and it is better to
+  know than to discover.** The universe file wraps every symbol through `toTicker` in its
+  constructors, so **a malformed ticker throws a `TypeError` at module load** — produced,
+  `Not a valid US equity ticker: "NVDA CORP"` — which is _before_ any validation function
+  receives the list. So a bad symbol can never be reported beside the other violations; it
+  arrives on its own, as an import failure, naming one value. That is the right trade (a
+  boundary check at the boundary, one place to validate) and it means this program must not
+  advertise "every violation" without the exception, and its own bad-ticker test cannot be
+  written against a list at all without a cast the tree does not otherwise need
 - **Write the provenance the schema now carries**, per field, from where the data actually
   came rather than from a constant — a field the loader filled from the curated file and a
   field it filled from a provider are different claims, and Story 2.13 renders the
@@ -100,7 +133,11 @@ Acceptance criteria 2 and 3.
   insert is what stops a constraint that refuses everything passing all of them — a loader
   test that only asserts refusals is in the same position
 - **Add tests at the level each thing belongs to.** Validation is a pure function over a
-  list and belongs in the **fast** suite — no database, no build, no socket — which is what
+  list — **it takes the list as a parameter and does not import `UNIVERSE`**, which is the
+  shape `loadConfig(env)` and `resolveApiBaseUrl(raw)` already have and which is what lets
+  the fast suite hand it small deliberately-broken fixtures instead of the real universe.
+  A validator that reaches for the module directly can only ever be tested against a list
+  that passes. It belongs in the **fast** suite — no database, no build, no socket — which is what
   keeps `pnpm test`'s three stated properties. Anything that needs a real server is
   `pnpm test:database`, which creates and drops its own `marketpulse_vitest` and does
   nothing to the database you are working in. Note the naming trap that partition carries:
@@ -131,3 +168,27 @@ Acceptance criteria 2 and 3.
 The seam this task must not close is what happens to a symbol removed from the file.
 Getting it wrong in the direction of "delete the row" is unrecoverable once Story 2.7 has
 stored bars against it, and it is exactly the kind of thing a loader does by default.
+
+---
+
+## Amended after Task 2.3.4 (2026-09-05)
+
+Four edits above, three of them caused by what 2.3.4 actually shipped rather than by what
+it was asked to ship. In one line each:
+
+- **A duplicate symbol has no backstop at all**, because an upsert is the one write shape a
+  unique index cannot refuse — a new named set-level check, and the strongest finding here.
+- **`toTicker` runs at module load**, so a malformed symbol is an import failure rather than
+  an accumulated violation; the "every violation" promise has a stated exception.
+- **The `sector_etf`-agrees-with-mapping check is vacuous against the shipped file**, because
+  the rows are generated from the mapping — so it must be made to fail against a hand-built
+  list or it certifies nothing.
+- Validation takes the list as a **parameter**, so the fast suite can build bad fixtures.
+
+Two things 2.3.4 did **not** change here, checked rather than assumed. The provenance
+bullets stand exactly as written: the file carries none of it, every row has the same
+source, so one `profile_source` and one `classification_source` for the whole file is
+correct and no per-row override is needed — which is the negative fact 2.3.4 owed and
+confirmed in `UNIVERSE.md` §9. And the `*_retrieved_at` decision is untouched and still
+open, because nothing in a curated list of symbols answers when it was last checked against
+a source.

@@ -30,10 +30,20 @@ renumbered.
   is decided in 2.3.1, given columns in 2.3.3 and filled in 2.3.5, and nothing renders it
   until Story 2.13. Check it by reading a row and asking whether a person could tell where
   each field came from without reading the loader
-- **Re-take every figure**, and note the two this story has already moved: `pnpm test` is
+- **Re-take every figure**, and note the two this story has already moved: ~~`pnpm test` is
   **257** (55 + 99 + 103) after 2.3.2's eighteen tests, and `pnpm test:database` is **37**
-  after 2.3.3's fourteen, both of which appear in `README.md` and `CLAUDE.md` and were
-  updated in those tasks rather than left for this one. Neither 2.3.2 nor 2.3.3 added a
+  after 2.3.3's fourteen~~ — **both figures were wrong when written and were corrected at
+  Task 2.3.4 by running the four commands rather than by re-reading the tasks that recorded
+  them.** `pnpm test` is **264** (55 + **106** + 103) and `pnpm test:database` is **39**. The
+  backend's 99 appears to be a count that predates Story 2.2's own additions; the database
+  suite's 37 is two short. The struck-through numbers are kept because **this is the exact
+  failure this task's own closing note warns about, arriving before the task started** — a
+  correction to a recorded figure is itself a claim, and 257 was a claim nobody measured.
+  Re-take all four again at the close rather than citing this line, which is a measurement
+  taken three tasks earlier and will have moved if 2.3.5 or 2.3.6 adds a test — both of
+  which are expected to. Both figures also appear in `README.md` and `CLAUDE.md` and **were
+  not** updated by 2.3.2 or 2.3.3 as this bullet originally claimed, so that sweep is this
+  task's. Neither 2.3.2 nor 2.3.3 added a
   dependency, so the install baseline below should reproduce exactly — and that
   reproduction is the check rather than a coincidence. Store entries, `node_modules` size
   and lockfile lines against
@@ -71,9 +81,23 @@ renumbered.
   - **`apps/backend/migrations/0003_security_vocabulary.sql` and
     `apps/backend/src/migrate.database.test.ts`**, both new in 2.3.3 and both figure-dense.
     `0003`'s header states that Task 2.2.7 has not been done, that `deploy.yml` has no
-    migration step and that the deployed database has never been migrated — **all three stop
-    being true the moment Story 2.2 is finished**, which may well be before this story
-    closes
+    migration step and that the deployed database has never been migrated — ~~**all three
+    stop being true the moment Story 2.2 is finished**, which may well be before this story
+    closes~~ **and all three are false already**, checked at 2.3.4: Story 2.2's eight tasks
+    all read Complete, `deploy.yml` carries a `Migrate the deployed database` step, and
+    2.2.7's commit is an ancestor of `origin/main`. So this is a live wrong claim rather than
+    a pending one — **and it is inside a migration that will have been applied by the time
+    this task runs**, which puts it under the same `0002` conflict below rather than beside
+    it. Resolve the two together and with one rule, because a reader arriving at
+    `migrations/` in order meets both
+  - **`apps/backend/src/universe.ts`**, new in 2.3.4 and the most figure-dense file this
+    story shipped — **and the one whose figures a task inside this story is expected to
+    falsify.** Each sector block's comment states its count and its relation to §7's bounds,
+    and the technology block's states that eight of its twelve are semiconductors; Task 2.3.6
+    adds a symbol and removes one, and **nothing anywhere would catch a comment left
+    behind** — it compiles, lints, formats and loads either way. Check the comments against
+    the rows rather than against `UNIVERSE.md` §9, since §9 is the other thing 2.3.6 edits
+    and two stale copies agreeing with each other is the failure mode
   - `apps/backend/migrations/README.md` §7 on seed data, which is what this story read to
     decide, and its checked-versus-prose lists, which 2.3.3 moved entries between
   - **The `equity | etf` two-member claim, which Task 2.3.1 counted at eleven sites** so
@@ -134,3 +158,21 @@ The failure this close is most likely to produce is a correction that is itself 
 Task 1.7.7 rebuilt four commits to find two of those, and the rule that came out of it is
 the one to apply here: **a correction to a recorded figure is itself a claim and needs the
 same measurement the original did.**
+
+---
+
+## Amended after Task 2.3.4 (2026-09-05)
+
+Two corrections and one new sweep item. No work added or removed.
+
+- **Two recorded figures were wrong and are corrected by measurement**: `pnpm test` is
+  **264** (55 + 106 + 103), not 257, and `pnpm test:database` is **39**, not 37 — run per
+  package rather than re-read. The bullet's claim that 2.3.2 and 2.3.3 updated `README.md`
+  and `CLAUDE.md` is also wrong; that sweep is still this task's. This is this task's own
+  closing note arriving before the task did.
+- **`0003`'s three "will stop being true" claims are already false**, because Story 2.2
+  finished — so they join the `0002` conflict rather than waiting behind it, and both should
+  be resolved by one rule.
+- **`apps/backend/src/universe.ts` is a new sweep item**, and an unusual one: it describes
+  its own shape in comments that **Task 2.3.6 is expected to falsify**, with no instrument
+  anywhere that would notice.

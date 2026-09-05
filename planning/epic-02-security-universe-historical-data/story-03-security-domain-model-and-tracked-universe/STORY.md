@@ -82,8 +82,10 @@ migration**, per `apps/backend/migrations/README.md` §7; it lives in a **`.ts` 
 `apps/backend/src/universe.ts`**, on two measurements — a data file is invisible to `tsc`,
 and it is also absent from `dist/` and therefore from the container image; and the
 **selection rule is a floor of 6 and a ceiling of 12 equities per sector**, which puts the
-largest sector at 14.1% of the equities. Only **the actual symbols** remain open, and they
-are Task 2.3.4's product conversation. The original wording is kept below rather than
+largest sector at 14.1% of the equities — **14.0% as actually built, over 86 equities
+rather than the ~85 that arithmetic assumed.** ~~Only **the actual symbols** remain open, and
+they are Task 2.3.4's product conversation.~~ **Task 2.3.4 settled them; all eight decisions
+and the list are now closed, and §9 of that document is the distribution.** The original wording is kept below rather than
 deleted, because it records what was being weighed at the time.
 
 1. ~~**Where sector and industry metadata comes from.**~~ **Settled — a curated file in
@@ -98,8 +100,14 @@ deleted, because it records what was being weighed at the time.
    SPDR.** GICS names are the familiar ones and are proprietary; a plain
    eleven-sector approximation is free and is what the sector SPDRs already imply. Prefer
    the one that matches the ETFs, since Epic 5 compares a security against its sector ETF
-3. **The actual 100 — still open, and Task 2.3.4's.** The _rule_ that produces it is
-   settled: a floor of 6 and a ceiling of 12 equities per sector. This wants a product conversation, not a generated list. A
+3. ~~**The actual 100 — still open, and Task 2.3.4's.**~~ **Settled — 101 securities: 86
+   equities, the 11 sector SPDRs and the 4 index proxies, in `apps/backend/src/universe.ts`,
+   with the distribution read against the rule in `UNIVERSE.md` §9.** The _rule_ that
+   produces it was settled first, deliberately: a floor of 6 and a ceiling of 12 equities per
+   sector. The list met it without the rule moving — floor and ceiling hit **exactly**, the
+   largest sector at **14.0%** of the equities, and all eight of the spec's hand-named
+   symbols present. The original wording follows, because it records the shape being aimed
+   at: this wants a product conversation, not a generated list. A
    defensible starting shape: the eleven sector SPDRs plus four index proxies, then ~85
    equities allocated across sectors so every sector has enough constituents for a breadth
    number to mean something, weighted toward names with liquid IEX activity and
@@ -140,7 +148,7 @@ closes the story and records ADR 0016 — 0016 and not 0014, which is reserved f
 | 2.3.1 | [Choose the vocabulary, the taxonomy and where the metadata comes from, shipping nothing](TASK-01-choose-the-vocabulary-and-the-metadata-source.md) | Complete    |
 | 2.3.2 | [`Security` in `packages/shared`, and the vocabularies it fixes](TASK-02-the-security-type.md)                                                      | Complete    |
 | 2.3.3 | [The schema the vocabulary needs: the first migration written by a reader of the conventions](TASK-03-the-schema-the-vocabulary-needs.md)           | Complete    |
-| 2.3.4 | [The universe itself: ~100 securities, and the rule that produced them](TASK-04-the-universe-itself.md)                                             | Not started |
+| 2.3.4 | [The universe itself: ~100 securities, and the rule that produced them](TASK-04-the-universe-itself.md)                                             | Complete    |
 | 2.3.5 | [The loader: one documented command, idempotent, and it refuses a bad universe](TASK-05-the-loader.md)                                              | Not started |
 | 2.3.6 | [Change the universe: add one, remove one, and say what expansion costs](TASK-06-change-the-universe.md)                                            | Not started |
 | 2.3.7 | [Load the deployed universe, and decide whether that happens on every deploy](TASK-07-load-the-deployed-universe.md)                                | Not started |
@@ -221,6 +229,56 @@ files were amended and one sequencing hazard was found that is **not** this stor
 task for the deployed migration is Story 2.2's 2.2.7, and the foreign-key naming rule that
 survived this story untested is Story 2.7's `market_bars.security_id`, recorded in
 `migrations/README.md` rather than turned into work here.
+
+### Amended after Task 2.3.4 — no task added, deleted or re-ordered
+
+The eight-task split has now survived contact with four implementation tasks. **Four task
+files were amended and one blocked task was unblocked**, and the unblocking was not this
+story's doing.
+
+- **2.3.5** gained the one hole the list actually opened, and it is the sharpest thing here:
+  **a duplicate symbol has no backstop anywhere.** The reflex is that `symbol` is `unique`,
+  so the database refuses it — but this loader **upserts** on `symbol`, and an upsert is the
+  one write shape a unique index cannot refuse. Two identical keys, the second silently
+  wins, the load reports success, and the row count is one short with nothing saying so.
+  Invisible to the compiler (two valid rows), to the database, and to the count. It also
+  gained two consequences of the file's shape: **`toTicker` runs at module load**, so a
+  malformed symbol is an import failure rather than an accumulated violation and the "report
+  every violation" promise has a stated exception; and **the `sector_etf`-agrees-with-mapping
+  check is now vacuous**, because 2.3.4 took the instruction to generate those rows from
+  `SECTOR_ETFS`, so the check cannot fail against the shipped file however wrongly it is
+  written — Task 2.2.5's blind-check problem in a new place, and it must be made to fail
+  against a hand-built list.
+- **2.3.6** gained a constraint nobody anticipated: **the distribution sits on both bounds at
+  once.** Technology is at the ceiling of 12 and three sectors are at the floor of 6, so the
+  add and the remove are not free choices — a removal from utilities breaks §7's floor in the
+  same commit that demonstrates a removal. Pick from the sectors at 9. It also gained an
+  obligation nothing can enforce: **`universe.ts` describes its own shape in comments** —
+  each block's count and its relation to the bounds — and this task is the first thing that
+  will make one of them false, with no instrument that would notice.
+- **2.3.7** is **unblocked**, and that is the one change here this story did not cause.
+  Its sequencing hazard had three premises and re-checking them found all three false: Story
+  2.2's eight tasks read **Complete**, `deploy.yml` **has** a `Migrate the deployed database`
+  step, and 2.2.7's commit is an **ancestor of `origin/main`**, so the managed database holds
+  `securities`. The user no longer needs to settle anything before it starts. What replaces
+  the hazard is a sharper ordering fact: **`0003` is still unmerged**, so the first deploy
+  after this story applies `0003` and then loads the universe, in that order — and "a seed
+  that runs before its own migration cannot work" stops being hypothetical.
+- **2.3.8** gained a new sweep item and lost two wrong figures. **`pnpm test` is 264
+  (55 + 106 + 103) and `pnpm test:database` is 39**, not the 257 and 37 that file recorded —
+  measured per package rather than re-read, which is that task's own closing rule arriving
+  before the task did. The new item is **`universe.ts`**, whose self-describing comments
+  2.3.6 is expected to falsify. And `0003`'s three "will stop being true when Story 2.2
+  finishes" claims are **already false**, so they join the `0002` conflict rather than
+  waiting behind it.
+
+**Nothing needed adding.** The two candidates were considered and both were declined. A
+task for a duplicate-symbol or cross-row validator is 2.3.5's existing scope, not a ninth
+task — it is one more accumulator entry in a program that already has one. And a task to
+put a standing check on the universe's distribution was rejected for the reason 2.3.4 kept
+the count out of the code: a check that asserts the shape of today's list is the
+`EXPECTED_COUNT` problem wearing a different hat, and §7's rule is a product judgement a
+person re-reads when the list changes, not an invariant a runner can hold.
 
 ## Design surface
 
