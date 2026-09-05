@@ -52,8 +52,12 @@ limit exists, express it as a `check` beside the column, which is what a
 constraint is for and what can be relaxed in one transaction.
 
 **A closed set of values is `text` with a `check` constraint, never a Postgres
-`enum` type.** The reason is specific to this repository's migration shape — one
-transaction per file — and it was produced rather than read:
+`enum` type.** The reason is specific to this repository's migration shape — the
+migrator runs **one transaction for the whole run**, corrected by Task 2.2.7
+from the "one per file" this said before, which makes the argument below
+_stronger_ rather than weaker: a value added in `0004` and used in `0005` is
+still inside the same transaction, so splitting the change across two files does
+not escape it. Produced rather than read:
 
 | Change, inside one transaction              | Postgres `enum`                              | `text` + `check` |
 | ------------------------------------------- | -------------------------------------------- | ---------------- |
@@ -357,9 +361,11 @@ database and reverted, rather than read from documentation (Task 2.2.6).
 
 **The headline, and it is the same answer for every execution failure: the
 database is exactly as it was.** Postgres has transactional DDL, the whole file
-body runs as one `sql.raw()` inside one transaction, and Kysely writes the
-bookkeeping row in that _same_ transaction — so there is no half-applied state
-and nothing to repair. A failed migration is not recorded, so the next run
+body runs as one `sql.raw()`, and Kysely writes the bookkeeping row in the
+_same_ transaction — so there is no half-applied state and nothing to repair.
+**That transaction covers the whole run rather than one file** (Task 2.2.7,
+corrected by measurement), so a run of three migrations whose third fails rolls
+back all three, which is stronger than what this section originally claimed. A failed migration is not recorded, so the next run
 retries it.
 
 **So the recovery for every row below is the same, and it is not "drop the

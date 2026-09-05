@@ -2,7 +2,13 @@
 
 **Status:** Not started
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
-**Depends on:** Tasks 2.2.1 to 2.2.7
+**Depends on:** Tasks 2.2.1 to 2.2.7 (all complete). **Task 2.2.7 resolved three things this
+task was written predicting**: it took the checksum decision by **building** it, it migrated
+the deployed database — so acceptance criterion 3 is met and re-running it means connecting
+to Azure — and it corrected the "one transaction per migration" claim to **one per run**,
+which this file's sweep list was written against. The bullets below are amended where that
+changed them; nothing was added, deleted or re-ordered, because 2.2.7 built the checksum
+inside itself rather than spawning a ninth task
 
 ## Objective
 
@@ -13,7 +19,14 @@ epics read instead of re-deriving it.
 ## Work
 
 - **Re-run every acceptance criterion against the shipped tree**, not against the task
-  files that claimed them. The two most likely to have rotted are criterion 2 — a migration
+  files that claimed them. **Criterion 3 is the new one and it is the only one that cannot
+  be re-run from a clean clone**: "the deployed database is migrated by the chosen
+  mechanism, observed rather than assumed" now means connecting to the managed server and
+  reading `securities`, `kysely_migration` and `migration_checksum` back. Task 2.2.7 left
+  the operator recipe — Node with `ssl: { rejectUnauthorized: true }` and an
+  `az account get-access-token` in the environment, never on a command line, because `psql`
+  from a laptop cannot do `verify-full` at all. Expect to move the `developer-laptop`
+  firewall rule first; it moved once already inside 2.2.7 and it is one address. The two most likely to have rotted are criterion 2 — a migration
   applied twice is a no-op, which was true of an empty migration in 2.2.2 and of one table
   in 2.2.4 and should be re-taken against everything that now exists — and criterion 7,
   `pnpm verify` with no database, which every task in this story could have broken and only
@@ -39,8 +52,12 @@ epics read instead of re-deriving it.
   and warm with the per-step split; the migration mechanism run against a database created
   from nothing; and the **install-script sweep** against the clone's own store, which
   should still return `esbuild@0.28.2` and nothing else. Note what a clean clone still
-  cannot prove — a stale `dist`, a nested worktree, and now a database that already has
-  migrations in it, which is the state every environment after this story is permanently in
+  cannot prove — a stale `dist`, a nested worktree, and now **three** database states it
+  structurally cannot reach: one that already has migrations in it, which is what every
+  environment after this story is permanently in; one migrated **before** the checksum
+  existed, which is the only place the `○ … checksum adopted` line appears and which a clone
+  reaches only by migrating, deleting `migration_checksum` and migrating again; and the
+  **deployed** one, which needs Azure. Say which were reached and how
 - **Re-take the numbers this story moved**, because they are quoted in several places and
   go stale silently: `pnpm test`'s count and its per-package split, `pnpm verify`'s total
   and step timings both with and without a database, the frontend artefact's four files —
@@ -54,7 +71,8 @@ epics read instead of re-deriving it.
   fallen**, for a file with no test sitting in the denominator. That last figure is exactly
   the one this repository has twice found carried forward as "unchanged" across several
   stories. **Task 2.2.5 added a fourth command that runs tests and a sixth level of test**,
-  so `pnpm test:database`'s count (23) and duration join the list, and the levels table in
+  so `pnpm test:database`'s count — **25 since Task 2.2.7, not 23** — and its duration join
+  the list, as does `pnpm test`'s, which 2.2.7 moved to **246 (37 + 106 + 103)**, and the levels table in
   `README.md` plus the levels paragraph in `CLAUDE.md` are now **six** rather than five —
   both were amended when the claim was falsified rather than left for this sweep, so check
   they say six and that nothing else in the tree still says five
@@ -79,7 +97,14 @@ epics read instead of re-deriving it.
   2.2.5 is supposed to have falsified on purpose**. **Task 2.2.6 added §8 to that same
   document and it is the most figure-dense thing in the story**: a table of eight failure
   classes with their verbatim messages and exit codes, four SQLSTATE values, a
-  `position` offset, an advisory lock id and its one-hour timeout. Those were measured
+  `position` offset, an advisory lock id and its one-hour timeout. **Task 2.2.7 already
+  falsified one claim in that section and corrected it in place**: the transaction is the
+  **run's** and not one per file, read out of Kysely 0.29.5's own `migrator.js` and confirmed
+  by two migrations recording an identical `recorded_at`. Two places said "per file" and both
+  were amended — §8's headline and §1's enum argument, where the correction makes the
+  argument stronger — so what this sweep owes is a check that **nothing else** in the tree
+  still says per-migration, and `README.md`'s `pnpm migrate` section is where a third copy
+  would be. Those were measured
   against PostgreSQL 18.6 through Kysely 0.29.5, so a **Kysely upgrade** moves the lock
   constants and an **engine upgrade** may move the messages — neither of which breaks
   anything, which is exactly why they rot silently. Re-take the ones cheapest to re-take
@@ -116,6 +141,16 @@ epics read instead of re-deriving it.
   CPU-saturating background processes, and was left open with the suspicion named. This
   story runs `pnpm verify` many more times before it closes: say whether it recurred, and
   either diagnose it or carry it forward with a count rather than dropping it silently
+- **Watch the `deploy.yml` migration step's first real run, because Task 2.2.7 could not.**
+  That step only runs on a push to `main`, so what 2.2.7 executed was its **body** — the same
+  commands, the same identity, the same network path — from a throwaway branch with a
+  temporary federated credential. Its first run on `main` will report `Nothing pending.` and
+  `Already up to date`, which is a weaker demonstration than 2.2.7's and is the one that
+  proves the step is wired into the workflow at all. Record its duration beside the deploy's
+  other steps, confirm the run summary carries the database-rollback paragraph 2.2.7 added,
+  and confirm a running page noticed nothing — 2.2.7 measured `uptimeSeconds` rising through
+  the migration with no restart, and a deploy that also rolls a revision is the case it could
+  not take
 - **Record `docs/adr/0015-*`** — the fifteenth, and the second outside Epic 1. Written from
   the facts rather than from the task files, in the shape ADR 0013 and 0014 use, and it
   owes the two lists the recent ones have made standard: **what a green migration certifies
@@ -151,16 +186,39 @@ epics read instead of re-deriving it.
   second-list candidates come with it: the advisory lock's **one-hour** timeout means a hung
   migration blocks another for an hour rather than failing fast, and a failed migration
   **names the file and not the statement**, carrying a `position` only for a syntax error.
-  **What 2.2.5
-  put into the second list instead is sharper and there are three of them.** The **three-glob
+  **Task 2.2.7 moved that sentence rather than deleting it, and getting the new
+  wording right is the single most valuable thing in this ADR.** It built the checksum, so a
+  green `pnpm migrate` now **does** certify that every applied migration's file is unchanged
+  since it ran — that belongs in the first list. What it still does **not** certify belongs in
+  the second and is narrower and easier to state wrongly: that the database matches the
+  files. Three gaps survive, each worth naming. A schema changed by something **other than a
+  migration** — a hand-written `alter table` against the deployed server — is hashed by
+  nothing. A file edited **before** the checksum existed is **adopted** on the first run
+  rather than refused, silently blessing one pre-existing divergence per database, which is
+  a bootstrap hole with no version that does not have it. And a migration that has **not**
+  run is deliberately unhashed, because a file that has never been applied can be edited
+  freely. Write those three rather than "there is no checksum", which is now simply false.
+  **Task 2.2.7 adds three more second-list entries and one more first-list one.** Into the
+  first: **a merge to `main` migrates the deployed database before either half of the code
+  rolls**, so the schema is never behind the code. Into the second, in order of sharpness:
+  the **additive rule** — a deploy that fails after a successful migration leaves the schema
+  ahead of the code, survivable only while migrations add rather than remove, and "expand
+  then contract" is enforceable by nothing because whether a column is still read is a fact
+  about code; the **migration identity's five connection values live in `deploy.yml`** and
+  have to agree with a role and grants that exist only in the platform, with nothing
+  comparing them, which is the `VITE_API_BASE_URL` / `CORS_ORIGIN` shape arriving for a
+  third time; and `migration_checksum` is **created by the runner rather than by a
+  migration**, so it is the one table in this database that no migration describes and
+  `pnpm test:database`'s conventions deliberately exclude it. **What 2.2.5
+  put into the second list is sharper and there are three of them.** The **three-glob
   partition** across that package's Vitest configs is a naming convention with nothing behind
   it, and it is now the _second_ instance of the class Task 1.13.2 named — weaker than that
   one, because there the mitigation is a missing `test` script and here it is only a comment,
-  in a package that does have one. The **migration checksum** is still open and is now
-  deliberately so, with its reasoning recorded and Task 2.2.7 named as the reversal trigger —
-  and it should be written up as a **produced failure rather than a hypothesis**, since 2.2.6
-  ran it and 2.2.7 was required to take the decision rather than defer it again; check which
-  way 2.2.7 went before describing it.
+  in a package that does have one. The **migration checksum** is **no longer one of them** — 2.2.5
+  deferred it, 2.2.6 produced the failure, and **2.2.7 built it**, so it moves to the first
+  list with the three surviving gaps named above. Write it up as a produced failure rather
+  than a hypothesis: an index appended to an applied `0002_securities.sql` took
+  `pnpm migrate` from exit 0 to **exit 1** naming the file and printing both hashes.
   And the **third engine pin** — the CI service image — is compared against the local one on
   every pull request, which moves half of an existing gap into the first list while leaving
   the deployed half in the second; ADR 0015 should say which half is which rather than
@@ -192,7 +250,10 @@ epics read instead of re-deriving it.
 
 ## Done when
 
-- All seven acceptance criteria are re-run against the shipped tree and recorded
+- All seven acceptance criteria are re-run against the shipped tree and recorded —
+  including criterion 3, which means connecting to the managed database rather than reading
+  Task 2.2.7's record of having done so
+- The `deploy.yml` migration step has been observed running on `main` at least once
 - The clean clone's first-run **sequence** is re-taken, not just its command table row
 - Every figure is re-taken rather than cited, from a clean clone where that is the only
   honest place
