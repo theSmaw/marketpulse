@@ -682,7 +682,7 @@ export function loadConfig(
   // this file has to keep; it is a promise Task 2.1.4's pool has to keep, and
   // that is where the leak check belongs.
   //
-  // The rule stays exactly as it was, because Story 2.6's Alpaca key **will**
+  // The rule stays exactly as it was, because Story 2.7's Alpaca key **will**
   // arrive through here and it is a bearer secret with no identity behind it.
   return Object.freeze({
     port,

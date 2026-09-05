@@ -7,7 +7,7 @@
 
 ## Objective
 
-Make the deployed backend execute a query against the managed database over TLS, through whichever credential path Task 2.1.1 chose — and establish the secrets mechanism Story 2.6 will reuse for the Alpaca key, including the leak check that proves it holds.
+Make the deployed backend execute a query against the managed database over TLS, through whichever credential path Task 2.1.1 chose — and establish the secrets mechanism Story 2.7 will reuse for the Alpaca key, including the leak check that proves it holds.
 
 ## Work
 
@@ -17,7 +17,7 @@ Make the deployed backend execute a query against the managed database over TLS,
 - **Now do the leak check, and do it by producing a failure rather than by reading code.** The criterion names four places: the repository, `dist/`, `storybook-static/`, and any log record. The first three are greps — and Story 1.6's measurement is the precedent, where a secret placed in `apps/frontend/.env` was absent from the bundle by name _and_ by value, and where `storybook-static/` was checked because `pnpm build` produces it too. The fourth is the one that needs work: **make a connection fail** — wrong password, wrong host, refused TLS — and read every record the process wrote, in both `json` and `pretty`, including the level-50 and level-60 paths, because a driver that helpfully includes the connection string in an error message is the failure this criterion exists to catch and it only appears when something goes wrong
 - **Check the same thing on the platform's own log destination.** Container Apps collects stdout and stderr together — Task 1.11.3 found that a bare configuration-failure line _is_ visible there — so a credential that never reaches our log lines can still reach Log Analytics through a line we did not format. Read the actual records
 - **State what the deployed backend does when the database is unreachable**, now against the real one: it must not exit, because the liveness probe restarts a replica that dies and a database blip would become a crash-loop. Produce it — the firewall is the cheapest lever — and watch what the replica does across at least one probe interval
-- **Write down the rotation story even if nothing rotates today.** Story 2.6 inherits this path for a key that will eventually need replacing, and "how is this changed without a deploy, and what happens to open connections when it is" is the question that is free to answer now and expensive later
+- **Write down the rotation story even if nothing rotates today.** Story 2.7 inherits this path for a key that will eventually need replacing, and "how is this changed without a deploy, and what happens to open connections when it is" is the question that is free to answer now and expensive later
 
 ## Done when
 
@@ -38,11 +38,11 @@ This is the task that makes two of Epic 1's standing claims stop being true, and
 Task 2.1.1 chose **Microsoft Entra authentication only, with password authentication `Disabled` and no admin user created at all**, so several of the branches above have collapsed to one and one instruction had become actively wrong.
 
 - **The `secrets` array stays empty, and this task's job is to prove that rather than to fill it.** The "if it was a password" branch above is dead; the "if it was managed identity" branch is the one that runs. Read the deployed configuration back and record the array as still `null`.
-- **ADR 0011's "nothing deployed holds a credential" is NOT falsified by this story and must not be swept.** `EPIC.md` predicted that it expires here; it expires in **Story 2.6**, where a third-party bearer token with no Azure identity behind it genuinely has to be stored. Leaving the original "Done when" item in place would have driven a change that made a true claim false — which is the exact failure mode the repository's sweep habit exists to prevent, arriving from the other direction.
+- **ADR 0011's "nothing deployed holds a credential" is NOT falsified by this story and must not be swept.** `EPIC.md` predicted that it expires here; it expires in **Story 2.7**, where a third-party bearer token with no Azure identity behind it genuinely has to be stored. Leaving the original "Done when" item in place would have driven a change that made a true claim false — which is the exact failure mode the repository's sweep habit exists to prevent, arriving from the other direction.
 - **The leak check's target changed and it is sharper, not softer.** There is no password to grep for, but **the Entra access token is a bearer credential** — it is used verbatim as the password field, it is valid for up to 24 hours, and anything holding it can connect. So the connection-failure log reading must look for **a JWT**, not for a password: a driver that includes the credential in an error message leaks a live token. Produce the failure with an **expired or malformed token** as well as with a wrong host, because those are different code paths in every driver.
 - **Token acquisition is written here, not in Task 2.1.4.** 2.1.4 is local and uses a password, so this is the first task in which the application asks for a token at all. The trap is recorded in `HOSTING.md`: Azure's own managed-identity-for-Postgres page is written for a VM and sends you to `http://169.254.169.254/...`, which **is not how a container app gets a token** — Container Apps uses `IDENTITY_ENDPOINT` with an `X-IDENTITY-HEADER` and `api-version` 2019-08-01 or later.
 - **The rotation story is reframed rather than dropped.** There is nothing to rotate: the credential is minted per connection and expires in at most 24 hours. What this task should write down instead is what _replaces_ rotation — what happens to open connections when a token expires (the token is validated at connect time, so an established connection is expected to survive its own token's expiry; **verify that rather than assume it**), and what revocation looks like, which is deleting the database role or the identity rather than changing a value.
-- **The `secrets`-array mechanism Story 2.6 needs is therefore NOT exercised by this story.** That is a gap this task should name explicitly rather than let Story 2.6 discover: 2.6 is the first task in the project to put a secret on the platform, and it will be doing it for the first time rather than repeating something proven here.
+- **The `secrets`-array mechanism Story 2.7 needs is therefore NOT exercised by this story.** That is a gap this task should name explicitly rather than let Story 2.7 discover: 2.7 is the first task in the project to put a secret on the platform, and it will be doing it for the first time rather than repeating something proven here.
 
 ## Amended after Task 2.1.2 (2026-09-04)
 
@@ -390,7 +390,7 @@ same treatment: a test, because two constants in two files are invisible to
 an inconvenience: `pg`'s default `idleTimeoutMillis` is 10 s and nothing queries
 the database after the startup probe, so **the deployed backend holds zero
 connections at rest**. A first attempt four minutes after a deploy correctly
-returned `(0 rows)`. Story 2.8 and Epic 3 should not assume a warm pool.
+returned `(0 rows)`. Story 2.9 and Epic 3 should not assume a warm pool.
 
 **The control was worth taking.** The six variables set against the _old_ image
 gave a replica that started, served `/health` 200, and wrote Task 2.1.4's "not
@@ -431,10 +431,10 @@ firewall-rule` commands were **refused by this environment's own permission
   hours and `pg` closes an idle client after 10 seconds. Epic 3's long-lived
   writer is what makes it reachable and should measure it.
 
-### What Story 2.6 inherits, named rather than assumed
+### What Story 2.7 inherits, named rather than assumed
 
 **The `secrets`-array mechanism is still not exercised by anything.** This story
-ends with the array empty and that is its strongest outcome, so Story 2.6 will
+ends with the array empty and that is its strongest outcome, so Story 2.7 will
 be putting a secret on the platform for the **first** time rather than repeating
 something proven here. What does transfer is the identity: the recommended (not
 decided) shape is a Container App secret sourced from Key Vault and read by this

@@ -1,8 +1,8 @@
-# Story 2.5 — Market-Data Provider Abstraction
+# Story 2.6 — Market-Data Provider Abstraction
 
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
-**Depends on:** Story 2.4
+**Depends on:** Story 2.5
 **Epic scope covered:** Market-data provider abstraction; market-data provenance (the model half)
 
 ## Description
@@ -14,6 +14,20 @@ SDK types leak into the domain model" — and §7.1 requires it explicitly for A
 This is the same move Story 1.12 made twice and both times it paid: the contract lands
 first, in `packages/shared` or beside it, with a fake implementation, and the vendor
 client is then written against something that already exists.
+
+## What the user can see when this story lands
+
+**Nothing on screen.** This story defines the interface every market-data provider is read
+through, before any vendor code exists — invariant 7, and the reason a later provider swap
+is a new implementation rather than a rewrite.
+
+What it unblocks is Story 2.7, and through it every price in the product. **The payoff is
+visible in Story 2.12.**
+
+**One thing it decides that the user does eventually see**: the provenance vocabulary — that
+the feed is IEX and not the consolidated tape, and whether a price is adjusted. Invariant 6
+requires that to be displayed rather than implied, so the words chosen here are the words
+Story 2.14 renders on screen.
 
 ## Why it sits here in the sequence
 
@@ -31,7 +45,7 @@ against the same abstraction, and at whatever point a second provider is evaluat
   engineering weight. §7.1 and invariant 6 require the feed to be displayed and require us
   not to imply full US coverage. So provenance is a **field on the data**, not a caption
   on a component: which feed, which provider, whether the value is adjusted, when it was
-  retrieved. Story 2.13 renders it; this story makes it impossible to have data without it
+  retrieved. Story 2.14 renders it; this story makes it impossible to have data without it
 - Adjustment semantics — splits and dividends — as an explicit part of the request, since
   an unadjusted historical series through a split is a chart with a cliff in it that is
   not a market event
@@ -42,17 +56,17 @@ against the same abstraction, and at whatever point a second provider is evaluat
   seven-outcome result shape, which exists precisely so a caller cannot forget a case
 - A **fixture provider**: deterministic, offline, seeded from recorded fixtures, usable by
   tests and by a developer with no Alpaca key. This is what keeps `pnpm test` free of
-  network access and what makes Story 2.11's chart work on a laptop on a train
+  network access and what makes Story 2.12's chart work on a laptop on a train
 - Rate-limit and retry **policy shape** (where it lives, what it is allowed to do), not
-  the numbers, which Story 2.6 measures
+  the numbers, which Story 2.7 measures
 
 ## Out of scope, and who owns it
 
-- Alpaca — Story 2.6
+- Alpaca — Story 2.7
 - Streaming, subscriptions, connection state — Epic 3, which extends this abstraction
   rather than replacing it. Design so that is an addition
-- Persistence and caching — Story 2.7. The provider fetches; it does not store
-- Rendering provenance — Story 2.13
+- Persistence and caching — Story 2.8. The provider fetches; it does not store
+- Rendering provenance — Story 2.14
 
 ## Open decisions — settle with the user
 
@@ -61,10 +75,10 @@ against the same abstraction, and at whatever point a second provider is evaluat
    backend alone if not. Story 1.12's rule applies: shared means both sides depend on the
    same fact, not "shared is where types go"
 2. **Whether provenance is per-series or per-bar.** Per-series is cheap and is right until
-   a series is stitched from two sources — which Story 2.7's cache does the moment stored
+   a series is stitched from two sources — which Story 2.8's cache does the moment stored
    bars and freshly fetched bars appear in one response
 3. **Adjusted or raw as the stored default**, and whether both are kept. This is
-   effectively irreversible for stored history, so it belongs here rather than in 2.7
+   effectively irreversible for stored history, so it belongs here rather than in 2.8
 
 ## Acceptance criteria
 

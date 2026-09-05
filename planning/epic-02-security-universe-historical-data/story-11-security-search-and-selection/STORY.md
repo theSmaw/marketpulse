@@ -1,8 +1,8 @@
-# Story 2.10 — Security Search & Selection
+# Story 2.11 — Security Search & Selection
 
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
-**Depends on:** Story 2.9
+**Depends on:** Story 2.10
 **Epic scope covered:** Security search/select
 
 ## Description
@@ -11,10 +11,29 @@ The first half of the epic's exit criterion: **a user can search for a security 
 NVDA and open it.** This is the story that turns the `/securities` placeholder route into
 the Security Explorer shell (§8.3) and gives the product its first real user interaction.
 
+## What the user can see when this story lands
+
+**Search, and the ability to open a security** — the half of the epic's exit criterion that
+is about getting to a security rather than looking at one.
+
+Concretely: a search control that finds NVDA by symbol and Nvidia by name, tolerant of case
+and partial input; results showing symbol, name, sector and the equity/ETF distinction; and
+**clicking a result opens that security's own page at its own URL**, which can be
+bookmarked and shared. The Security Explorer shell (§8.3) appears here, with honest
+placeholders naming the epic that fills each region.
+
+**Scope note added 2026-09-05: Story 2.4 took the list**, so `/securities` already shows
+the tracked universe before this story starts. What remains here is everything interactive —
+search, the combobox and its keyboard behaviour, selection, the per-security route and the
+Explorer shell. This story is consequently **the first genuinely interactive control in the
+product** rather than the first data on screen, which sharpens what it is for.
+
+What the user still cannot do afterwards: see a price or a chart. That is Story 2.12.
+
 ## Why it sits here in the sequence
 
 Before the charts, because a chart needs a security to be about. It is also the smallest
-useful vertical slice through Story 2.9's layer, which is a good way to find out whether
+useful vertical slice through Story 2.10's layer, which is a good way to find out whether
 that layer is right while it is still cheap to change.
 
 ## Scope
@@ -26,8 +45,8 @@ that layer is right while it is still cheap to change.
   from NVDA
 - Selection, and the route it leads to — a per-security URL that deep-links, which Epic 1
   already proved the deployed host serves correctly
-- The Security Explorer shell: the page §8.3 describes, with the regions Stories 2.11 to
-  2.13 fill and honest placeholders for the ones later epics fill (abnormal-move
+- The Security Explorer shell: the page §8.3 describes, with the regions Stories 2.12 to
+  2.14 fill and honest placeholders for the ones later epics fill (abnormal-move
   indicators, connected securities, relevant filings, anomaly history) — following Story
   1.5's convention that an empty region says which epic fills it rather than pretending
 - **Keyboard and accessibility as a first-class requirement, not a pass afterwards.** A
@@ -40,7 +59,7 @@ that layer is right while it is still cheap to change.
 
 ## Out of scope, and who owns it
 
-- Any chart — Stories 2.11 and 2.12
+- Any chart — Stories 2.12 and 2.13
 - Selecting a security from the market overview — Epic 4
 - Selecting from the topology graph — Epic 6
 - Comparing two securities — Epic 8 and Epic 11

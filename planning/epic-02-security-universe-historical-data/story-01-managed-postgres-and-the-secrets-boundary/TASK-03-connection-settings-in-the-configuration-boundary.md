@@ -136,7 +136,7 @@ interpolate the value.
 `config.ts` never holds the deployed credential at all.** The Entra token does not come
 from `process.env`, so the module that promised never to log a credential turns out
 never to receive one. That is structural rather than disciplined. The rule stays exactly
-as written, because Story 2.6's Alpaca key is a bearer secret with no identity behind it
+as written, because Story 2.7's Alpaca key is a bearer secret with no identity behind it
 and **will** arrive through here; and the deployed half of the promise now belongs to
 Task 2.1.4's pool, which is where the leak check should live.
 

@@ -1,8 +1,8 @@
-# Story 2.12 — Volume Chart & Time-Window Selection
+# Story 2.13 — Volume Chart & Time-Window Selection
 
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
-**Depends on:** Story 2.11
+**Depends on:** Story 2.12
 **Epic scope covered:** Basic volume chart; time-window selection
 
 ## Description
@@ -14,6 +14,19 @@ both charts, and volume is only meaningful when it is aligned to the price it be
 Volume is not decoration here. §11's anomaly detection is half a volume calculation, and
 the flagship demo's line — "Volume 3.8× normal" — is a claim a user must be able to check
 by looking. This story is where the product first shows the evidence behind that.
+
+## What the user can see when this story lands
+
+**Volume beneath the price, and the ability to change what period they are looking at** —
+which is the first control in the product that changes what the data _says_ rather than how
+it looks.
+
+Concretely: a volume series aligned to the price chart above it, and a time-window control
+that moves both together. Changing the window re-reads and redraws, with the loading and
+partial states already established rather than a blank flash.
+
+After this story, **the epic's exit criterion is met**: a user can search for NVDA, open it,
+and inspect recent historical price and volume data.
 
 ## Why it sits here in the sequence
 
@@ -30,11 +43,11 @@ epic's exit criterion: recent historical **price and volume** data.
   moment
 - Volume formatting — millions and billions abbreviate, and the abbreviation must not break
   Story 1.4's tabular alignment
-- The time-window control: a small set of named windows resolved through Story 2.4's
+- The time-window control: a small set of named windows resolved through Story 2.5's
   calendar, so "5 days" means five **sessions**
 - The mapping from window to timeframe — an intraday window wants minute bars, a multi-year
   window wants daily ones — and whether the user sees that mapping or only its effect
-- Window state in the URL (Story 2.9's decision), so a window is shareable and survives a
+- Window state in the URL (Story 2.10's decision), so a window is shareable and survives a
   reload
 - Behaviour on change: what happens to the visible chart while the new window loads. A
   chart that empties and refills flickers; one that keeps the old data and marks it stale is
@@ -47,7 +60,7 @@ epic's exit criterion: recent historical **price and volume** data.
 - Volume **baselines** and "3.8× normal" — Epic 5 computes that; this story shows the raw
   series it is computed from
 - Scrubbing, zooming and panning as free-form gestures, unless they fall out cheaply from
-  Story 2.11's choice
+  Story 2.12's choice
 - The replay timeline scrubber — Epic 13, which is a different control with a different
   meaning and should not be confused with this one
 - Comparison windows across securities — Epic 8
@@ -55,7 +68,7 @@ epic's exit criterion: recent historical **price and volume** data.
 ## Open decisions — settle with the user
 
 1. **Which windows.** A defensible set: 1 day, 5 days, 1 month, 3 months, 1 year. Each one
-   added costs ingestion depth in Story 2.7 and payload in Story 2.8, so this decision
+   added costs ingestion depth in Story 2.8 and payload in Story 2.9, so this decision
    reaches backwards
 2. **Whether the timeframe is user-visible** or is derived from the window. Deriving it is
    simpler and is what most products do; exposing it is more honest and is closer to what an

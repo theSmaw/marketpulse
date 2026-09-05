@@ -361,7 +361,7 @@ and
 
 — [Compute options](https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-compute), read 2026-09-04
 
-**So the reversal trigger is named in advance: Story 2.7's backfill depleting CPU credits, or Epic 3's continuous writes.** The mitigation the documentation asks for is an Azure Monitor alert on **CPU Credits Remaining**, which belongs to whichever of Tasks 2.1.5 and 2.1.8 sets alerts.
+**So the reversal trigger is named in advance: Story 2.8's backfill depleting CPU credits, or Epic 3's continuous writes.** The mitigation the documentation asks for is an Azure Monitor alert on **CPU Credits Remaining**, which belongs to whichever of Tasks 2.1.5 and 2.1.8 sets alerts.
 
 **And the tier is the least expensive of these decisions to get wrong, which is the correction worth carrying.** `--tier` and `--sku-name` are both arguments of `az postgres flexible-server update`, verified today — so tier is a setting, not a door. Being wrong costs money and a restart, and leaves the offer; it does not cost a rebuild.
 
@@ -440,7 +440,7 @@ So a stable outbound IP and private access are the _same_ project: re-creating t
 - **Every restore is public, forever.** "If you configure your source server with a _public access_ network, you can only restore to public access. … You can't perform PITR across public and private access." So the one-way door binds the recovery path too, not only the running server.
 - **The database can dial out and cannot be stopped from it.** "Public access database servers can connect to the public internet; for example, through `postgres_fdw`. **You can't restrict this access.**"
 
-**What makes this acceptable is stated as a condition rather than a shrug**, in the shape the _development environment_ section above uses. Nothing in this database is a credential, nothing in it is personal data, and everything in it is **re-derivable from Alpaca by re-running Story 2.7's backfill** — so the loss from a read is a market-data cache somebody else could have fetched themselves, and the loss from a write is a backfill. **The reversal trigger is the first row that is none of those things**: a stored Alpaca key, anything about a user, or Epic 12's investigation history, whose value is the analysis rather than the prices.
+**What makes this acceptable is stated as a condition rather than a shrug**, in the shape the _development environment_ section above uses. Nothing in this database is a credential, nothing in it is personal data, and everything in it is **re-derivable from Alpaca by re-running Story 2.8's backfill** — so the loss from a read is a market-data cache somebody else could have fetched themselves, and the loss from a write is a backfill. **The reversal trigger is the first row that is none of those things**: a stored Alpaca key, anything about a user, or Epic 12's investigation history, whose value is the analysis rather than the prices.
 
 **The firewall gets exactly two rules and they are both narrow in the ways available**: `0.0.0.0` for Azure, and the developer's own address for Tasks 2.1.5 and Story 2.2's migrations. Note that "changes to the firewall configuration … can take up to five minutes to take effect", which is a real wait to plan for rather than a failure to debug, and that rules must be IPv4 — "If you specify firewall rules in IPv6 format, you get a validation error."
 
@@ -452,7 +452,7 @@ So a stable outbound IP and private access are the _same_ project: re-creating t
 
 **The argument is the previous section's.** With `0.0.0.0` in the firewall, every Azure tenant can reach the endpoint, so the credential is the entire boundary — and the strongest available answer to "what if the credential leaks" is that **there is no credential**. That is the same reasoning that put `acrPull` on a managed identity rather than a registry password, and a federated identity credential rather than a service-principal secret; this is the third time, and it is the first time the alternative would have been genuinely dangerous rather than merely untidy.
 
-**The result is that ADR 0011's "nothing deployed holds a credential" survives this story**, which is not what Epic 2's own framing predicted. `EPIC.md` says this epic "is the first thing that puts a credential on the platform" and that the claim expires here. Measured today, `marketpulse-backend`'s `configuration.secrets` is **`null`** — still empty, as Task 1.11.3 left it — and this decision keeps it that way. **The claim expires in Story 2.6 instead**, for the reason below.
+**The result is that ADR 0011's "nothing deployed holds a credential" survives this story**, which is not what Epic 2's own framing predicted. `EPIC.md` says this epic "is the first thing that puts a credential on the platform" and that the claim expires here. Measured today, `marketpulse-backend`'s `configuration.secrets` is **`null`** — still empty, as Task 1.11.3 left it — and this decision keeps it that way. **The claim expires in Story 2.7 instead**, for the reason below.
 
 **The mechanism, so that Tasks 2.1.4 to 2.1.6 implement it rather than research it:**
 
@@ -493,9 +493,9 @@ with `api-version` "2019-08-01" or later and the header sent as `X-IDENTITY-HEAD
 - **The Entra administrator is a guest account.** The subscription owner is `…#EXT#@bensmawfieldoutlook.onmicrosoft.com` — an external identity in the default directory, read today — and this document should not pretend that a guest principal as the sole database administrator is the well-trodden path. **Task 2.1.5 must connect as the Entra administrator and see it work _before_ it relies on it**, and if it cannot, that is the trigger to fall back to password authentication and record the divergence here with its reason.
 - **Lock-out is a control-plane problem, not a database one.** `--microsoft-entra-auth` and `--password-auth` are **both arguments of `az postgres flexible-server update`**, verified today, so password authentication can be switched back on and an admin password set without any database access. **Authentication is therefore the most reversible decision in this section**, which is the opposite of where the brief placed it.
 
-**What Story 2.6 inherits, and it is not what Story 2.1's summary predicts.** Story 2.1 says it hands forward "a credential path that Story 2.6 reuses rather than reinvents". **The path does not transfer as-is, and saying so now is cheaper than discovering it under time pressure.** An Alpaca key is a bearer secret issued by a third party that has no Azure identity behind it; no identity mechanism can hold it, because there is nothing to be an identity _of_. So Story 2.6 genuinely must place a secret, and it is the first thing to do so.
+**What Story 2.7 inherits, and it is not what Story 2.1's summary predicts.** Story 2.1 says it hands forward "a credential path that Story 2.7 reuses rather than reinvents". **The path does not transfer as-is, and saying so now is cheaper than discovering it under time pressure.** An Alpaca key is a bearer secret issued by a third party that has no Azure identity behind it; no identity mechanism can hold it, because there is nothing to be an identity _of_. So Story 2.7 genuinely must place a secret, and it is the first thing to do so.
 
-What _does_ transfer is the identity rather than the credential type: the recommended shape for Story 2.6 is a Container App secret **sourced from Azure Key Vault and fetched by this same system-assigned managed identity**, so the thing stored on the platform is a reference and the thing that authorises reading it is the identity this task already relies on. That keeps one credential path in the system. **Story 2.6 owns that decision** — this is a recommendation with a reason, not a decision taken on its behalf.
+What _does_ transfer is the identity rather than the credential type: the recommended shape for Story 2.7 is a Container App secret **sourced from Azure Key Vault and fetched by this same system-assigned managed identity**, so the thing stored on the platform is a reference and the thing that authorises reading it is the identity this task already relies on. That keeps one credential path in the system. **Story 2.7 owns that decision** — this is a recommendation with a reason, not a decision taken on its behalf.
 
 ### The migration identity — a second Postgres role, added by Task 2.2.7
 
@@ -595,7 +595,7 @@ deleted; the credential list is back to the two `main` subjects.
 
 **What replaces autogrow is an alert, which the documentation itself recommends** — "set alert rules for `storage used` or `storage percent` … For example, you can set an alert if the storage percentage exceeds 80% usage" — and which belongs to whichever of Tasks 2.1.5 and 2.1.8 owns monitoring. The failure autogrow protects against is real and worth naming: at 95% used, **or fewer than 5 GiB free, whichever is more**, "the system automatically switches the server to _read-only mode_". ~~**On a 32 GiB disk the binding clause is the 5 GiB one, so the usable capacity is about 27 GiB, not 32.**~~ **Corrected by Task 2.1.5 on 2026-09-05: it is ~22.5 GiB.** This calculation assumed the disk is empty when the database is empty, and it is not — the created server reads `storage_used` **3.740 GiB** and `storage_free` **27.461 GiB** with 47 MB of databases on it, the rest being filesystem overhead on the formatted P4 volume. Free space starts at 27.46 GiB, not 32, so subtracting the 5 GiB read-only floor leaves **~22.5 GiB**.
 
-**The ingestion arithmetic, with its assumptions visible, because that is what the brief asks for and what makes it checkable later.** Story 2.7 states the shape: ~100 securities × 390 minute bars per session × ~252 sessions, which is **9,828,000 minute-bar rows per year**, and ~25,200 daily-bar rows per year.
+**The ingestion arithmetic, with its assumptions visible, because that is what the brief asks for and what makes it checkable later.** Story 2.8 states the shape: ~100 securities × 390 minute bars per session × ~252 sessions, which is **9,828,000 minute-bar rows per year**, and ~25,200 daily-bar rows per year.
 
 Assume the narrowest reasonable row — `security_id int4`, `ts timestamptz`, four `float8` prices, `volume int8` — which is 52 bytes of column data:
 
@@ -607,9 +607,9 @@ Assume the narrowest reasonable row — `security_id int4`, `ts timestamptz`, fo
 | One btree index on `(security_id, ts)`, at the default fill factor | ~27           |
 | **Assumed total, rounded up for bloat and alignment slack**        | **~120**      |
 
-- **A year of minute bars is ~1.18 GB.** A year of daily bars is ~3 MB and is, as Story 2.7 says, effectively free.
+- **A year of minute bars is ~1.18 GB.** A year of daily bars is ~3 MB and is, as Story 2.8 says, effectively free.
 - Against ~~~27 GiB~~ **~22.5 GiB** usable that is roughly ~~**24 years**~~ **~20 years** of minute history for 100 securities — or ~~**~5 years**~~ **~4 years if this estimate is wrong by a factor of five**, which is the number worth remembering, because it is the one that still says "comfortable". (Re-taken by Task 2.1.5 against the created server; the conclusion is unchanged and the arithmetic was ~17% optimistic.)
-- **Two things this estimate deliberately does not include**, both of which Story 2.7 must add: WAL, which shares the same volume and which a bulk backfill generates in quantity, and any index beyond the primary key. Story 2.7's instruction to "do this arithmetic with real row sizes measured after loading a sample, not estimated" stands unchanged — **this is the prediction that measurement checks**, not a replacement for it.
+- **Two things this estimate deliberately does not include**, both of which Story 2.8 must add: WAL, which shares the same volume and which a bulk backfill generates in quantity, and any index beyond the primary key. Story 2.8's instruction to "do this arithmetic with real row sizes measured after loading a sample, not estimated" stands unchanged — **this is the prediction that measurement checks**, not a replacement for it.
 
 **Backup retention is 7 days, and geo-redundancy is `Disabled`.** Three reasons, in order of weight:
 
@@ -695,8 +695,8 @@ Against Epic 1's re-derived totals, and the budget was re-read today rather than
 - **2.1.6** — the Container App's `secrets` array should still be **empty** when this story closes; if it is not, this decision was reversed and the reversal belongs in this document.
 - **2.1.7** — B1MS is a tier the documentation says can become **unreachable** under sustained CPU load, which is a new way for `/health` to be interesting and an argument for keeping the liveness probe away from the database.
 - **2.1.8** — the three predictions above, the budget left at `$20` with the reason, and the cost question with its sharper form.
-- **Story 2.6** — the credential path does **not** transfer unchanged; see the authentication section.
-- **Story 2.7** — the ~120 bytes/row assumption is a prediction to measure, and the usable capacity is **~27 GiB**, not 32.
+- **Story 2.7** — the credential path does **not** transfer unchanged; see the authentication section.
+- **Story 2.8** — the ~120 bytes/row assumption is a prediction to measure, and the usable capacity is **~27 GiB**, not 32.
 
 ## The database — the local development database (Task 2.1.2)
 
@@ -768,7 +768,7 @@ The two bold cells are the argument for the extra eight bytes.
 
 `pnpm ready` prints the database as `○` rather than `✗` and **its exit code does not change**. The exit code answers _can the application run?_, and today nothing opens a connection to anything: `pnpm verify` has never needed a server, and `pnpm e2e` gates on this very script, so a failing third check would refuse to start a browser suite with no interest in a database — on a laptop and on the runner alike. Making it gating today would be inventing a requirement one task ahead of the code that has it.
 
-**The reversal trigger is a condition rather than a task number**, which is the shape `src/report-error.ts` already uses for the same kind of deferral, and it is **the first check in `pnpm verify` or `pnpm e2e` that fails without a database**. ~~Task 2.1.4, the first thing here that opens a connection.~~ **Corrected on the same day it was written**: that sentence named a task and a condition that are not the same day, and Task 2.1.4's own brief is the proof — it keeps `pnpm verify` passing with no database running and `pnpm test:process` passing both ways, so after it the backend still starts, `/health` still answers, and nothing in either chain fails. Story 2.2's migrations and Story 2.8's routes are the realistic candidates. On that day the line becomes a `✗` and the `e2e` job in `.github/workflows/verify.yml` gains a service — a workflow change with a cache key, a startup wait and a second definition of the database's address in a file that currently defines none of the pair, which is worth knowing in advance rather than in a red CI run. **Task 2.1.4 owns re-taking the decision**, not executing it.
+**The reversal trigger is a condition rather than a task number**, which is the shape `src/report-error.ts` already uses for the same kind of deferral, and it is **the first check in `pnpm verify` or `pnpm e2e` that fails without a database**. ~~Task 2.1.4, the first thing here that opens a connection.~~ **Corrected on the same day it was written**: that sentence named a task and a condition that are not the same day, and Task 2.1.4's own brief is the proof — it keeps `pnpm verify` passing with no database running and `pnpm test:process` passing both ways, so after it the backend still starts, `/health` still answers, and nothing in either chain fails. Story 2.2's migrations and Story 2.9's routes are the realistic candidates. On that day the line becomes a `✗` and the `e2e` job in `.github/workflows/verify.yml` gains a service — a workflow change with a cache key, a startup wait and a second definition of the database's address in a file that currently defines none of the pair, which is worth knowing in advance rather than in a red CI run. **Task 2.1.4 owns re-taking the decision**, not executing it.
 
 **The database is also checked once with no polling, and that is not the shape of the other two.** They are polled because they are started by the command you run this alongside, so the check has to wait out a cold tree compiling. `pnpm db --wait` does not return until the server is accepting connections, so there is nothing to wait for. The cost of getting that wrong was measured rather than argued: with a five-second poll, `pnpm ready` against a stopped database took **5.1 s** instead of **0.093 s**, and `pnpm e2e` gates on this script — five seconds added to every browser run for a developer who has not started a database, to print a line no exit code depends on.
 
@@ -863,7 +863,7 @@ Provisioning took **217 s** from accepted PUT to `state: Ready`.
 | `dataEncryption.type`            | `SystemManaged`                                    | the irreversible decision nobody listed |
 | `highAvailability.mode`          | `Disabled`                                         | Burstable cannot do HA                  |
 
-**`storage.iops` is 120, not the 640 the SKU list advertises.** `list-skus` reports `supportedIops: 640` for `Standard_B1ms`, but the provisioned P4 disk delivers 120 — the SKU's ceiling and the disk's entitlement are different numbers, and the disk is what a bulk backfill will meet. Story 2.7 should size against **120**.
+**`storage.iops` is 120, not the 640 the SKU list advertises.** `list-skus` reports `supportedIops: 640` for `Standard_B1ms`, but the provisioned P4 disk delivers 120 — the SKU's ceiling and the disk's entitlement are different numbers, and the disk is what a bulk backfill will meet. Story 2.8 should size against **120**.
 
 **The database is `marketpulse`**, matching `DATABASE_NAME`'s default in `CONFIG_VARIABLES` exactly, UTF8 / `en_US.utf8`, empty. Creating it took 17 s. Note the CLI's `--database-name` on `create` is elastic-cluster-only in 2.90.0, so the database is a separate `db create` call and its flag is `--name`.
 
@@ -975,7 +975,7 @@ All six databases together are **47 MB** (`marketpulse` itself is 7.7 MB), and t
 - **Usable for data: ~22.5 GiB, not ~27 GiB.**
 - Against Task 2.1.1's ~1.18 GB/year of minute bars, that is **~20 years** rather than 24 — or **~4 years if the estimate is wrong by a factor of five**.
 
-The conclusion is unchanged and still says "comfortable"; the arithmetic behind it was wrong by ~17% and is corrected here. **Story 2.7's instruction to re-do this with real row sizes measured after loading a sample stands**, and it now has a real starting free-space figure to subtract from rather than the provisioned one.
+The conclusion is unchanged and still says "comfortable"; the arithmetic behind it was wrong by ~17% and is corrected here. **Story 2.8's instruction to re-do this with real row sizes measured after loading a sample stands**, and it now has a real starting free-space figure to subtract from rather than the provisioned one.
 
 ### Idle behaviour on a Burstable tier, and why the credit alert earns its place
 
@@ -988,7 +988,7 @@ The server does **not** pause, sleep or throttle when idle — there is no auto-
 | `cpu_percent`           | **10.5 – 12.1%**    |
 | `active_connections`    | 7 – 10              |
 
-**The uncomfortable reading is `cpu_percent`.** A `Standard_B1ms` earns credits below a **10%** baseline and spends them above it, and an _idle_ server with no application attached sits at 10.5–12.1% — on the line, dipping either side of it, with the balance observed moving 29.00 → 29.83 → 30.00 across consecutive five-minute windows. So **this server banks almost nothing at rest**, and the 30-credit ceiling is not a reservoir it arrives at a backfill holding. That makes the CPU-credits alert below more valuable than it looked when Task 2.1.1 asked for it, and it is a real input to Story 2.7: a bulk load starts with roughly the credits it can earn during the load, not with a bank.
+**The uncomfortable reading is `cpu_percent`.** A `Standard_B1ms` earns credits below a **10%** baseline and spends them above it, and an _idle_ server with no application attached sits at 10.5–12.1% — on the line, dipping either side of it, with the balance observed moving 29.00 → 29.83 → 30.00 across consecutive five-minute windows. So **this server banks almost nothing at rest**, and the 30-credit ceiling is not a reservoir it arrives at a backfill holding. That makes the CPU-credits alert below more valuable than it looked when Task 2.1.1 asked for it, and it is a real input to Story 2.8: a bulk load starts with roughly the credits it can earn during the load, not with a bank.
 
 ### Monitoring: two alerts and a lock, all three of which 2.1.1 left unowned
 
@@ -1036,8 +1036,8 @@ over TLS, authenticating as its own system-assigned managed identity. **The
 rather than assumed** — so the strongest available outcome held: there is no
 credential on the platform, and ADR 0011's _"nothing deployed holds a
 credential"_ is **confirmed by this task rather than falsified by it**. That
-claim expires in Story 2.6, where a third-party bearer token with no Azure
-identity behind it genuinely has to be stored, and 2.6 will be doing that for
+claim expires in Story 2.7, where a third-party bearer token with no Azure
+identity behind it genuinely has to be stored, and 2.7 will be doing that for
 the first time rather than repeating something proven here — a gap named
 deliberately rather than left for that story to discover.
 
@@ -1155,7 +1155,7 @@ of the token having been accepted, not merely of a connection.
 default `idleTimeoutMillis` is 10,000 ms and **nothing in this application
 queries the database after the startup probe**. So the deployed backend holds
 **zero** connections at rest, and a first attempt to read `pg_stat_activity` four
-minutes after a deploy correctly returned `(0 rows)`. Anything in Story 2.8 or
+minutes after a deploy correctly returned `(0 rows)`. Anything in Story 2.9 or
 Epic 3 that expects a warm pool should know that today there is not one.
 
 ### The leak check — produced rather than read, and clean in all four places
@@ -2122,7 +2122,7 @@ matching, `reachable: true` again.
 ADR 0011's "nothing deployed holds a credential" is **confirmed for the second
 time in this story**, on a revision that queries a managed database on every
 diagnostic request. Eleven environment variables, no secret. It expires in
-**Story 2.6**, and `EPIC.md`'s prediction that it expires in this epic is
+**Story 2.7**, and `EPIC.md`'s prediction that it expires in this epic is
 corrected there.
 
 ### The `developer-laptop` firewall rule is confirmed rather than left on

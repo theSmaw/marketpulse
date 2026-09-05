@@ -32,7 +32,7 @@ renumbered.
   rule's stated floor
 - **Criterion 6 is the one most likely to have quietly become false**, because provenance
   is decided in 2.3.1, given columns in 2.3.3 and filled in 2.3.5, and nothing renders it
-  until Story 2.13. Check it by reading a row and asking whether a person could tell where
+  until Story 2.14. Check it by reading a row and asking whether a person could tell where
   each field came from without reading the loader
 - **Re-take every figure**, and note the two this story has already moved: ~~`pnpm test` is
   **257** (55 + 99 + 103) after 2.3.2's eighteen tests, and `pnpm test:database` is **37**
@@ -84,7 +84,7 @@ renumbered.
     `0003`'s header be the correction, since a reader arrives at these files in order and
     `0003` already says what it changed and why; a header note in `0002` pointing forward is
     the middle option and is still an edit. Whatever is chosen, say so in the ADR, because
-    the next stale migration comment is Story 2.7's and it will be read against this
+    the next stale migration comment is Story 2.8's and it will be read against this
     precedent
   - **`apps/backend/migrations/0003_security_vocabulary.sql` and
     `apps/backend/src/migrate.database.test.ts`**, both new in 2.3.3 and both figure-dense.
@@ -169,12 +169,12 @@ renumbered.
   distinction, the removal semantics and the provenance shape, because those are the
   decisions Epics 4, 5, 6 and 9 inherit
 - **Do NOT close the sizing question, and do not let the ADR imply it is closed.**
-  `UNIVERSE.md` §10 parks it on a Story 2.6 measurement with both branches written out, and
+  `UNIVERSE.md` §10 parks it on a Story 2.7 measurement with both branches written out, and
   an ADR that records "101 securities" as a settled decision would quietly retire a parked
   one — which is the failure mode this repository already records for deferrals that lose
   their owner. ADR 0016's "what the universe is not" list should carry it explicitly: the
-  count is provisional, the trigger is named, and **the deadline is Story 2.7 rather than
-  Story 2.6**, because re-sizing is free until bars are stored. Note the related item that
+  count is provisional, the trigger is named, and **the deadline is Story 2.8 rather than
+  Story 2.7**, because re-sizing is free until bars are stored. Note the related item that
   is _not_ parked and may well be actionable by the time this task runs: the industry
   taxonomy is finer than GICS's own industry-group level on a universe a fraction of the
   size, half the groups are singletons, and coarsening it needs no new data

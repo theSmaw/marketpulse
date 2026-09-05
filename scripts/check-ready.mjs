@@ -384,7 +384,7 @@ for (const { name, url, result } of results) {
 // database**. Not "the first code that opens a connection" — a pool that logs
 // its failure and lets the server start leaves this exit code honest — and so
 // not Task 2.1.4, which explicitly keeps `pnpm verify` and `test:process`
-// passing with no database. Story 2.2's migrations and Story 2.8's routes are
+// passing with no database. Story 2.2's migrations and Story 2.9's routes are
 // the realistic candidates. On that day this line becomes a `✗` and the `e2e`
 // job in `.github/workflows/verify.yml` gains a service, which is a workflow
 // change worth knowing about in advance. It is written here rather than only in

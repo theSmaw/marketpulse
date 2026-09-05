@@ -32,11 +32,11 @@ them is most of what the record is for.**
   expires here. It does not.** The authentication decision means the platform ends
   this story holding no secret at all; the `secrets` array was read back from the
   live app after the database was wired, and again after the diagnostic route
-  deployed, and is `null` both times. That claim expires in **Story 2.6**.
-- **The credential path does not transfer to Story 2.6.** An Alpaca key is a
+  deployed, and is `null` both times. That claim expires in **Story 2.7**.
+- **The credential path does not transfer to Story 2.7.** An Alpaca key is a
   bearer secret from a party with no Azure identity. What transfers is the
   _identity_, not the mechanism, and the `secrets`-array path this project has
-  never used is Story 2.6's largest unknown rather than something proven here.
+  never used is Story 2.7's largest unknown rather than something proven here.
 
 ## Decisions
 
@@ -194,13 +194,13 @@ step is a 2× jump to 64 GiB at $7.36/month that cannot be undone.
 **Usable capacity is ~22.5 GiB, not the 32 provisioned**, and not the ~27 Task
 2.1.1 predicted: read-only mode triggers under 5 GiB free, and an _empty_ server
 already reports `storage_used` of **3.740 GiB** of filesystem overhead. Against
-Story 2.7's ~1.18 GB/year of minute bars at an assumed ~120 bytes/row that is
+Story 2.8's ~1.18 GB/year of minute bars at an assumed ~120 bytes/row that is
 ~20 years of headroom, or ~4 at five times the estimate — **a prediction for
-Story 2.7 to measure rather than a substitute for measuring**.
+Story 2.8 to measure rather than a substitute for measuring**.
 
 **`storage.iops` is 120, not the 640 `list-skus` advertises** for `Standard_B1ms`.
 The SKU's ceiling and the provisioned disk's entitlement are different numbers,
-and Story 2.7 should size against 120.
+and Story 2.8 should size against 120.
 
 Backups are **7 days with geo-redundancy off**, because included backup storage is
 100% of provisioned storage, retention is the one knob that moves freely in both
@@ -214,7 +214,7 @@ subscription had **no action groups and no metric alerts at all**.
 
 **An idle Burstable server banks almost nothing.** `cpu_credits_remaining` sits at
 its **30** cap while `cpu_percent` reads 10.5–12.1% against a 10% baseline, so
-Story 2.7's backfill starts with roughly what it can earn rather than a reservoir.
+Story 2.8's backfill starts with roughly what it can earn rather than a reservoir.
 
 ### 7. The version is 18, pinned in two places that nothing compares
 
@@ -312,7 +312,7 @@ The stated cost is that `pnpm db` now needs a built tree, and says so.
 **The strongest result here is one nobody planned: `config.ts` never holds the
 deployed credential at all.** The Entra token does not come from `process.env`, so
 the module that promised not to log a credential turns out never to receive one.
-The promise stays as written, because Story 2.6's Alpaca key genuinely will arrive
+The promise stays as written, because Story 2.7's Alpaca key genuinely will arrive
 through there.
 
 ### 10. `pg` 8.23.0, and its two most dangerous defaults are absences
@@ -356,7 +356,7 @@ configuration, no build and no socket, so ADR 0009's property survives.
 **It deliberately does not enter `buildServer()`.** Nothing serves data yet, so
 putting it in `ServerOptions` would be a dependency declared for a route that does
 not exist, and every test building a server would have to supply or fake one. The
-reversal trigger is **Story 2.8's first route that needs data**, at which point
+reversal trigger is **Story 2.9's first route that needs data**, at which point
 ADR 0002 §3's warning about the first `await` in the factory applies.
 
 **The startup probe runs once, after `listen()`, and never stops the process.**
@@ -365,7 +365,7 @@ platform's startup probe is waiting on. At `warn` rather than `error`, because t
 server is still healthy by `/health`'s own definition. And **never an exit**,
 because that is the crash-loop again — and a Burstable server can make _itself_
 unreachable by exhausting its CPU credits, so this is a state the database can
-enter on its own under Story 2.7's backfill.
+enter on its own under Story 2.8's backfill.
 
 **The pool closes after `app.close()` resolves and inside the 5-second ceiling.**
 With an idle pool the drain is 0–1 ms in-process and 25–30 ms wall, so the pool
@@ -421,7 +421,7 @@ to this deployment rather than the one everyone will assume.
 
 **The route always answers 200, including when the database is down.** The
 question was answered correctly; a 503 would need the `SERVICE_UNAVAILABLE` code
-`database.ts` reserves for Story 2.8's first route that actually needs data.
+`database.ts` reserves for Story 2.9's first route that actually needs data.
 
 **The body says _whether_, the log says _why_, and `x-request-id` joins them.** No
 error message, host, port or SQLSTATE reaches the wire, because the ingress is
@@ -436,7 +436,7 @@ browser rather than an omission: with the database fully down the `Backend servi
 region reads `healthy`. That is correct — `degraded` means _something answered and
 it was not a readable health report_, and a backend whose database is down is
 answering perfectly about itself, while nothing a user can do today needs the
-database. The reversal trigger is Story 2.8's first route that serves data.
+database. The reversal trigger is Story 2.9's first route that serves data.
 
 ### 13. The bound is a TTL plus single flight, and a shorter TTL is cheaper
 
@@ -487,8 +487,8 @@ _unbounded_ query rate at the moment the ceiling matters most.
 ## Consequences worth stating separately
 
 **The `secrets`-array mechanism is exercised by nothing.** This is the story's
-strongest outcome and Story 2.6's largest unknown at the same time, and naming it
-here is the point: 2.6 will be placing a bearer secret on the platform for the
+strongest outcome and Story 2.7's largest unknown at the same time, and naming it
+here is the point: 2.7 will be placing a bearer secret on the platform for the
 first time, not repeating something proven.
 
 **Whether an open connection outlives its own access token is unverified, and
@@ -537,7 +537,7 @@ server is ours. What it does report that is genuinely useful is **`no TLS
 offered`**, the real local-versus-deployed difference. The trigger for it becoming
 gating is a **condition rather than a task number** — _the first check in
 `pnpm verify` or `pnpm e2e` that fails without a database_ — which is Story 2.2's
-migrations or Story 2.8's routes.
+migrations or Story 2.9's routes.
 
 **The cost question is still unanswered, and its refusal is now two shapes at
 once.** `az consumption usage list` returns two shaped records with every cost field
@@ -636,7 +636,7 @@ first — leaving single flight as the only thing bounding concurrent callers.
 - ADR 0010 — what the tick certifies; the reason no deployed-configuration check
   can be a `verify` step
 - ADR 0011 — deploying both halves; its "nothing deployed holds a credential" is
-  **confirmed** by this story and expires in Story 2.6
+  **confirmed** by this story and expires in Story 2.7
 - ADR 0012 — client-side status; why `BackendStatus` deliberately does not move
 - `HOSTING.md`, _The database — the creation decisions_, _the local development
   database_, and _closing the story_ — the full record, including the

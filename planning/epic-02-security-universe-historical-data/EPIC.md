@@ -22,7 +22,7 @@ A user can select one of the tracked securities and inspect its historical price
 - Database schema and migration mechanism
 - Alpaca credential on the platform — ~~**the first secret this system holds**~~ **the second: the database credential in Story 2.1 arrives five stories earlier, so the mechanism is built there** (2026-09-04)
 - Alpaca historical-data integration
-- Historical market-data persistence — **a record of what was observed, not a cache** (settled 2026-09-05 in Story 2.7's open decision 1; §36's "displaying data through 10:42:17" is only writable if it was stored, and §24's replay reconstructs what the system knew and did rather than only what the market did)
+- Historical market-data persistence — **a record of what was observed, not a cache** (settled 2026-09-05 in Story 2.8's open decision 1; §36's "displaying data through 10:42:17" is only writable if it was stored, and §24's replay reconstructs what the system knew and did rather than only what the market did)
 - Security search/select
 - Basic price chart
 - Basic volume chart
@@ -76,7 +76,7 @@ token minted per connection from the container's own managed identity and
 nothing is stored. The `secrets` array was read back from the live app **after**
 that change, and again by Task 2.1.8 after the diagnostic route deployed: it is
 still `null`. **So ADR 0011's claim is confirmed by Story 2.1 rather than
-falsified by it, and it expires in Story 2.6**, which is genuinely the first
+falsified by it, and it expires in Story 2.7**, which is genuinely the first
 task in this project to place a bearer secret from a party with no Azure
 identity. ADR 0006's boundary is the half that did move: Story 2.1 is the first
 thing to test it, and it held — see `docs/adr/0014-*`.
@@ -87,7 +87,7 @@ mechanism for exactly this key and used none of it, and re-read in Tasks 2.1.6
 and 2.1.8. Note the deployed
 environment is **public**, accepted in Epic 1 on the stated grounds that nothing
 deployed holds a credential and the backend's entire surface is `GET /health`;
-~~that argument expires here~~ **that argument expires in Story 2.6 — Story 2.1
+~~that argument expires here~~ **that argument expires in Story 2.7 — Story 2.1
 left both halves of it standing, and it added one route,
 `GET /diagnostics/database`, which is public, unauthenticated, and deliberately
 carries no error message, host, port or SQLSTATE for that reason**.
@@ -112,25 +112,93 @@ re-takes it, for the reason recorded in that epic's own file.
 | 2.1  | [Managed Postgres Provisioning & the Secrets Boundary](story-01-managed-postgres-and-the-secrets-boundary/STORY.md) | Epic 1 (1.6, 1.11) |
 | 2.2  | [Database Schema & Migration Mechanism](story-02-database-schema-and-migrations/STORY.md)                           | 2.1                |
 | 2.3  | [Security Domain Model & the Tracked Universe](story-03-security-domain-model-and-tracked-universe/STORY.md)        | 2.2                |
-| 2.4  | [Trading Calendar & Market Time Handling](story-04-trading-calendar-and-market-time/STORY.md)                       | 2.3                |
-| 2.5  | [Market-Data Provider Abstraction](story-05-market-data-provider-abstraction/STORY.md)                              | 2.4                |
-| 2.6  | [Alpaca Historical Data Integration](story-06-alpaca-historical-data-integration/STORY.md)                          | 2.1, 2.5           |
-| 2.7  | [Historical Bar Ingestion, Storage & Backfill](story-07-historical-bar-ingestion-and-storage/STORY.md)              | 2.2, 2.3, 2.4, 2.6 |
-| 2.8  | [Market Data API](story-08-market-data-api/STORY.md)                                                                | 2.3, 2.7           |
-| 2.9  | [Frontend Market-Data Layer & Application State](story-09-frontend-market-data-layer/STORY.md)                      | 2.8                |
-| 2.10 | [Security Search & Selection](story-10-security-search-and-selection/STORY.md)                                      | 2.9                |
-| 2.11 | [Price Chart](story-11-price-chart/STORY.md)                                                                        | 2.10               |
-| 2.12 | [Volume Chart & Time-Window Selection](story-12-volume-chart-and-time-window/STORY.md)                              | 2.11               |
-| 2.13 | [Market-Data Provenance, Partial States & Epic Close](story-13-provenance-partial-states-and-epic-close/STORY.md)   | 2.12               |
+| 2.4  | [**The Tracked Universe On Screen** (the first vertical slice)](story-04-tracked-universe-on-screen/STORY.md)       | 2.3                |
+| 2.5  | [Trading Calendar & Market Time Handling](story-05-trading-calendar-and-market-time/STORY.md)                       | 2.3                |
+| 2.6  | [Market-Data Provider Abstraction](story-06-market-data-provider-abstraction/STORY.md)                              | 2.5                |
+| 2.7  | [Alpaca Historical Data Integration](story-07-alpaca-historical-data-integration/STORY.md)                          | 2.1, 2.6           |
+| 2.8  | [Historical Bar Ingestion, Storage & Backfill](story-08-historical-bar-ingestion-and-storage/STORY.md)              | 2.2, 2.3, 2.5, 2.7 |
+| 2.9  | [Market Data API](story-09-market-data-api/STORY.md)                                                                | 2.3, 2.8           |
+| 2.10 | [Frontend Market-Data Layer & Application State](story-10-frontend-market-data-layer/STORY.md)                      | 2.9                |
+| 2.11 | [Security Search & Selection](story-11-security-search-and-selection/STORY.md)                                      | 2.10               |
+| 2.12 | [Price Chart](story-12-price-chart/STORY.md)                                                                        | 2.11               |
+| 2.13 | [Volume Chart & Time-Window Selection](story-13-volume-chart-and-time-window/STORY.md)                              | 2.12               |
+| 2.14 | [Market-Data Provenance, Partial States & Epic Close](story-14-provenance-partial-states-and-epic-close/STORY.md)   | 2.13               |
 
-The sequence is deliberately linear — each story depends on the one before it — and it has
-three phases: **2.1–2.2 make a database exist**, **2.3–2.8 make market data exist behind an
-API**, and **2.9–2.13 make it visible**. The one place parallel work is genuinely available
-is 2.4 and 2.5, which touch nothing each other touches.
+**The number is the position, and it is kept that way deliberately.** Story 2.4 was
+inserted on 2026-09-05 and what used to be Stories 2.4 to 2.13 became 2.5 to 2.14. The first
+draft avoided that, giving the new story the next free number and delivering it fourth, on
+the argument that story numbers are referenced across the tree and renumbering would falsify
+those references silently. **It was overruled**, and the reasoning is worth keeping: a
+sequence whose numbers do not reflect its order is a trap for every future reader, and the
+cost of renumbering is paid once by whoever does it, where the cost of a mismatch is paid by
+everybody who reads it afterwards.
 
-**Stories 2.5 to 2.8 are the load-bearing middle.** Story 2.5 lands the provider interface
-before any vendor code, which is invariant 7 rather than a preference; Story 2.7 is the
-largest engineering story in the epic; and Story 2.8's contract is consumed by three later
+**So the rule for this epic is that inserting a story means renumbering the ones after it,
+and remapping every reference in the same change.** That is a real cost — the insertion
+above moved **505 references across 62 files**, including source comments and ADRs — and it
+is a cost with a technique. Do it context-aware rather than by substitution: a blind
+find-and-replace of `2.7` turns `jiti@2.7.0` into a version that does not exist,
+`eastus2.5.azurestaticapps.net` into a different hostname, `build 2.44 s` into `2.54 s`, and
+a `2.14` contrast ratio into `2.4`. Replace only where a `Story`/`Stories` prefix or a list
+continuing one puts it beyond doubt, then **read the residue by hand** — that pass found 10
+genuine references the rules could not see and 27 measurements they correctly left alone.
+
+**ADRs are still never renumbered.** The two are different: an ADR number is cited in
+external notes and in commit messages as a permanent identifier, and ADRs have no order to
+disagree with.
+
+The sequence is otherwise linear — each story depends on the one before it — and it has
+three phases: **2.1–2.2 make a database exist**, **2.3–2.9 make market data exist behind an
+API**, and **2.10–2.14 make it visible**. The one place parallel work is genuinely available
+is 2.5 and 2.6, which touch nothing each other touches.
+
+## Story 2.4 is an addition, and it is a delivery decision as much as a technical one
+
+**Added 2026-09-05, after Stories 2.1 to 2.3 had shipped and the shape of the problem was
+visible.** The epic as originally planned is layered — everything backend until 2.9, then
+everything frontend — which means **nothing a user can see arrives until Story 2.11, seven
+stories and roughly fifty-five tasks after Story 2.3.** For that whole stretch the deployed
+application shows what it showed when Epic 1 closed: four placeholder routes, and a landing
+page whose only market-looking content is Story 1.4's render check, which is **invented
+data** including two rows deliberately marked stale and disconnected.
+
+The technical opportunity is what makes the fix cheap rather than cosmetic: **the universe
+is in the database as of Story 2.3, and putting it on screen needs none of Stories 2.5 to
+2.8.** The calendar, the provider abstraction, Alpaca and bar ingestion are prerequisites
+for _charts_, not for _a list of securities_. So 2.4 takes a thin first cut of 2.9, 2.10 and
+2.11 — the universe endpoints, one fetch, and the list — and leaves each of those stories
+its actual subject. Story 2.11's own file already argued for this shape about itself, calling
+a security list "the smallest useful vertical slice through Story 2.10's layer, which is a
+good way to find out whether that layer is right while it is still cheap to change."
+
+**What it costs, stated rather than hidden:** it re-orders rather than removes, so it does
+not bring the charts closer, and it takes the temporal-seam obligation out of Story 2.9 and
+into a story where `securities` — having no `observed_at` — cannot exercise it. That second
+one is a real risk and 2.4.1 is written around it.
+
+## Every story and task states what the user will be able to see
+
+**A convention adopted 2026-09-05, and it applies to task files as well as story files.**
+Each carries a **What the user can see** section, and the honest answer is often _nothing_ —
+Story 2.1 provisioned a database and Story 2.2 built a migration mechanism, and neither
+changed a pixel. That is fine and it is not the failure mode. The failure mode is a run of
+stories where nobody wrote it down, because then "what has changed for a user?" has no
+answer at all and the only available one is a status table.
+
+Three rules for writing it:
+
+- **Say "nothing visible" plainly when that is the answer**, and say what it unblocks and
+  which story pays it off. A task that changes nothing visible is fine; a task that changes
+  nothing visible and does not say so reads as work that was not done.
+- **Describe what is on the screen, not what was built.** "A `/securities` page listing 101
+  securities with symbol, name, sector and kind" rather than "a securities endpoint and a
+  read path".
+- **Say what the user still cannot do**, so a demonstration does not promise more than it
+  is. This is the half that protects the next story.
+
+**Stories 2.6 to 2.9 are the load-bearing middle.** Story 2.6 lands the provider interface
+before any vendor code, which is invariant 7 rather than a preference; Story 2.8 is the
+largest engineering story in the epic; and Story 2.9's contract is consumed by three later
 epics.
 
 ## Three stories are additions to this epic's stated scope
@@ -139,17 +207,17 @@ The scope list above names thirteen items and assumes three more. Each addition 
 here rather than folded in silently, because Epic 1's experience was that unstated work
 lands somewhere by accident and then has no owner.
 
-**Story 2.4 — Trading Calendar & Market Time.** Not named anywhere in the roadmap. Story 2.7
-cannot decide which bars ought to exist without a session definition, Story 2.12's "last 5
+**Story 2.5 — Trading Calendar & Market Time.** Not named anywhere in the roadmap. Story 2.8
+cannot decide which bars ought to exist without a session definition, Story 2.13's "last 5
 days" is wrong if it means calendar days, and Epic 13's temporal isolation — invariant 4 —
 is a comparison against a market clock. Three stories need it and none of them is the right
 place to invent it.
 
-**Story 2.8 — Market Data API.** The scope list names the ingestion and it names the charts,
+**Story 2.9 — Market Data API.** The scope list names the ingestion and it names the charts,
 and assumes the wire between them. That wire is a contract Epics 3, 5 and 8 also consume,
 and Epic 1 spent a whole story on how this codebase declares one.
 
-**Story 2.9 — Frontend Market-Data Layer & Application State.** §25 recommends Redux and
+**Story 2.10 — Frontend Market-Data Layer & Application State.** §25 recommends Redux and
 RxJS and immediately says not to add heavyweight state libraries before complexity
 demonstrates the need. This epic is the first place there is any domain state at all, so it
 is where that judgement is exercised. Left unowned, it gets answered three times by three UI
@@ -159,20 +227,20 @@ stories.
 
 **The Alpaca key is not the first secret this system holds — the database credential is**,
 and it arrives in Story 2.1, five stories earlier. ~~So the secrets mechanism is built in 2.1
-and Story 2.6 places a second key through a proven path rather than inventing one.~~
+and Story 2.7 places a second key through a proven path rather than inventing one.~~
 **Corrected 2026-09-04 by Task 2.1.1 and confirmed 2026-09-05 by Task 2.1.8: the second half
 of that does not follow.** The database credential turned out to need no storage mechanism at
 all, so **the path does not transfer** — an Alpaca key is a bearer secret from a party with no
-Azure identity, and Story 2.6 will be putting a secret on the platform for the first time
+Azure identity, and Story 2.7 will be putting a secret on the platform for the first time
 rather than repeating something proven here. What transfers is the **identity**, not the
 mechanism, and the `secrets`-array path is **exercised by nothing** in this repository. That
-is Story 2.6's largest unknown and it is named here rather than left for 2.6 to discover.
+is Story 2.7's largest unknown and it is named here rather than left for 2.7 to discover.
 
 ~~**"Historical market-data persistence/cache" is two different products and the epic does
 not say which.**~~ **SETTLED 2026-09-05 — a record, and the scope line above now says so.**
 The observation stood and was right: §24 wants raw observations stored as append-only
 timestamped events, which is a record, while "cache" implies something evictable. It was
-settled with the user in Story 2.7's open decision 1, prompted by the fair question of why
+settled with the user in Story 2.8's open decision 1, prompted by the fair question of why
 this system stores anything at all when the data comes from someone else's API. **The
 reframing that answered it: §30 lists ten tables and only `market_bars` comes from Alpaca**
 — one more comes from the SEC, and the other eight have no external source, because an
@@ -196,9 +264,9 @@ with its alternatives, in the story that owns it.
 | Migration tool and query layer                       | 2.2   | Every table in §30 arrives through it, across thirteen more epics                                                                 |
 | Sector metadata source and taxonomy                  | 2.3   | Alpaca does not provide sectors; Epics 4, 5 and 6 all group by them                                                               |
 | **Which ~100 securities**                            | 2.3   | A market-cap-ordered list makes breadth and relative-move structurally dull                                                       |
-| Which timeframes and how far back                    | 2.6   | Sizes Story 2.7 and determines whether Epic 5 has enough observations                                                             |
-| ~~Cache or record~~ **settled: record**; TimescaleDB | 2.7   | Changed retention, gap semantics and whether bars are stored adjusted; §37 forbids a second data technology without a measurement |
-| Redux now, or not yet                                | 2.9   | Epic 11's generative workspace is much easier against an explicit typed state tree                                                |
-| Charting library or hand-built; line or candles      | 2.11  | Inherited by Epics 5, 8 and 11                                                                                                    |
-| Which time windows                                   | 2.12  | Reaches backwards into ingestion depth and payload size                                                                           |
-| Feed-label prominence and wording                    | 2.13  | Invariant 6; read by every visitor                                                                                                |
+| Which timeframes and how far back                    | 2.7   | Sizes Story 2.8 and determines whether Epic 5 has enough observations                                                             |
+| ~~Cache or record~~ **settled: record**; TimescaleDB | 2.8   | Changed retention, gap semantics and whether bars are stored adjusted; §37 forbids a second data technology without a measurement |
+| Redux now, or not yet                                | 2.10  | Epic 11's generative workspace is much easier against an explicit typed state tree                                                |
+| Charting library or hand-built; line or candles      | 2.12  | Inherited by Epics 5, 8 and 11                                                                                                    |
+| Which time windows                                   | 2.13  | Reaches backwards into ingestion depth and payload size                                                                           |
+| Feed-label prominence and wording                    | 2.14  | Invariant 6; read by every visitor                                                                                                |

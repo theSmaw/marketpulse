@@ -42,7 +42,7 @@ updated, 0 unchanged`** and moves **every** row's `updated_at`. Measured, not pr
   mean anything
 - **Remove a symbol and run the loader, having decided first what removal means.** This is
   the real decision in the task and it is a decision about _data that does not exist yet_:
-  Story 2.7 will store bars against these rows, and Epic 13 will replay a date on which a
+  Story 2.8 will store bars against these rows, and Epic 13 will replay a date on which a
   removed security was in the universe. `migrations/README.md` §5 already argues the shape
   — nothing is soft-deleted, there is no `deleted_at`, and what changes is a **status**
   that is displayed rather than filtered away — so the expected answer is a status
@@ -65,7 +65,7 @@ updated, 0 unchanged`** and moves **every** row's `updated_at`. Measured, not pr
   `securities_status_check` in `0003` permits `active` and `untracked` and nothing else, so
   a loader that invented `removed` or `inactive` is refused by the database rather than
   quietly storing a fourth word. `delisted` is specifically refused, which is Task 2.3.1's
-  deferral to Story 2.6 made into a fact rather than a comment — and it means this task
+  deferral to Story 2.7 made into a fact rather than a comment — and it means this task
   cannot reach for that member even if the removal being demonstrated feels like a
   delisting. A `DELETE` is not refused by anything, which is why the decision below is
   still a decision
@@ -94,7 +94,7 @@ updated, 0 unchanged`** and moves **every** row's `updated_at`. Measured, not pr
   the parts of the system that do not exist yet, so a later story inherits the number
   rather than rediscovering it: bars per security per day times 500 against Story 2.1's
   measured **~22.5 GiB usable** and its ~1.18 GB/year estimate, and 500 symbols against
-  whatever Story 2.6 finds Alpaca's request limits to be. **Do not load 500** — this story
+  whatever Story 2.7 finds Alpaca's request limits to be. **Do not load 500** — this story
   says demonstrated by argument, and a synthetic 500-row load would prove the loader scales
   and nothing else
 - **Update what the change falsifies inside `apps/backend/src/universe.ts` itself, because

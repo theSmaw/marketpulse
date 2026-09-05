@@ -69,7 +69,7 @@ this task is about the machinery, and separating the two means a failure has one
   one are **different objects**, and Epic 13's seam holds only if there is no unplugged handle
   to import. The cheap and probably right answer is that the instance lives **inside the
   migration runner and nowhere else** and `database.ts` gains nothing at all — Story 2.2
-  ships no route and no read, so the first `selectFrom` is Story 2.8's. Say which; and if a
+  ships no route and no read, so the first `selectFrom` is Story 2.9's. Say which; and if a
   handle does reach `database.ts`, the comment beside it is the mechanism rather than a line
   in a document
 - **Run an empty migration against the local database and then run it again.** Applying it
@@ -90,7 +90,7 @@ this task is about the machinery, and separating the two means a failure has one
   and the artefact reviewed is not the artefact executed. So this is certain rather than
   conditional now: a `.sql` file is read by nothing here — not Prettier, not ESLint, not
   `tsc` — and the mechanism adds a **sixth** kind to `CLAUDE.md`'s gap list, with the entry
-  belonging in this task rather than being discovered in Story 2.7. Take the reading with `prettier --file-info` and
+  belonging in this task rather than being discovered in Story 2.8. Take the reading with `prettier --file-info` and
   `eslint` on a real file rather than assuming it, which is the one-liner that has caught
   this list drifting every time it has been re-run
 - **`pnpm verify` still passes with no database running**, which is criterion 7, and it is

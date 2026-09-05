@@ -1,8 +1,8 @@
-# Story 2.11 — Price Chart
+# Story 2.12 — Price Chart
 
 **Status:** Not started
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
-**Depends on:** Story 2.10
+**Depends on:** Story 2.11
 **Epic scope covered:** Basic price chart
 
 ## Description
@@ -11,6 +11,22 @@ Render a security's price history. This is the story that answers a question thi
 repository has deferred since Story 1.4: **how MarketPulse draws a chart** — and it
 answers it for the whole product, because Epic 6's WebGL topology, Epic 8's comparison
 charts and Epic 11's AI-opened charts all inherit whatever is chosen.
+
+## What the user can see when this story lands
+
+**The first chart in MarketPulse, and the moment the product looks like the thing it is
+meant to be.** A security's price history, drawn, on its own page, from real market data.
+
+Concretely: open NVDA and see its price over a recent window, with a correct time axis that
+skips weekends and holidays because Story 2.5 exists, labelled with the feed it came from
+because invariant 6 requires it, and honest about where the data stops rather than drawing a
+line to the edge.
+
+**This is the story to demonstrate.** Everything from 2.1 to 2.11 is visible in it: the
+database, the universe, the calendar, the provider, the backfill, the API, the state layer
+and the security page all have to be right for one line to be drawn correctly.
+
+What the user still cannot do: see volume, or change the time window. Story 2.13.
 
 ## Why it sits here in the sequence
 
@@ -35,7 +51,7 @@ model, and building the second one first would settle those decisions by acciden
   range, the change, the period — and its interactive parts need to be reachable by
   keyboard
 - Number and date formatting: tabular figures, the alignment property Story 1.4 measured at
-  a 14.3 px spread, and market timestamps through Story 2.4
+  a 14.3 px spread, and market timestamps through Story 2.5
 - The states, again as product states rather than exceptions: loading, no data for this
   security, partial data, and a failed load that leaves the rest of the page intact
 - Performance: the render cost at the largest series this epic serves, against §28's
@@ -43,8 +59,8 @@ model, and building the second one first would settle those decisions by acciden
 
 ## Out of scope, and who owns it
 
-- Volume — Story 2.12, deliberately, so this story is not two charts
-- Time-window controls — Story 2.12
+- Volume — Story 2.13, deliberately, so this story is not two charts
+- Time-window controls — Story 2.13
 - Anomaly markers and abnormal-move indicators — Epic 5
 - Comparison and overlay of multiple securities — Epic 8
 - Live updating — Epic 3

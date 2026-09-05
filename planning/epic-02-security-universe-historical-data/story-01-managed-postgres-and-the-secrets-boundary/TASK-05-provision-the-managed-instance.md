@@ -294,7 +294,7 @@ change, though the useful figure is that Azure's own sessions already hold 7–1
   than 24, or ~4 at five times the estimate. The conclusion still says "comfortable".
 - **`storage.iops` is 120, not the 640 `list-skus` advertises** for `Standard_B1ms` — the
   SKU's ceiling and the provisioned P4 disk's entitlement are different numbers, and
-  Story 2.7 should size against 120.
+  Story 2.8 should size against 120.
 
 ### Three things nobody had owned, now created
 

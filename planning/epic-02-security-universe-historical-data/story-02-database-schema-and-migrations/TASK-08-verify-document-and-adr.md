@@ -85,7 +85,7 @@ epics read instead of re-deriving it.
   **Task 2.2.2 already amended two of those and its own amendments are worth re-reading
   rather than trusting**: it moved the counts to 239 (37 + 99 + 103), and it describes
   `migrate.ts` as building "the repository's one `Kysely` instance" — a claim that stops
-  being true the moment Story 2.8 writes a query, and exactly the kind of wording that
+  being true the moment Story 2.9 writes a query, and exactly the kind of wording that
   hardens from "the only one today" into "the only one" in the retelling. The
   distinction that a naive grep destroys is the one Task 1.12.8 named and Task 1.13.6
   re-proved: a **live** claim gets amended, a **historical record** of what a task measured
@@ -110,7 +110,7 @@ epics read instead of re-deriving it.
   anything, which is exactly why they rot silently. Re-take the ones cheapest to re-take
   rather than all of them, and say which were re-taken. `apps/backend/src/schema.ts` says in its
   own header that _"nothing consumes this interface today"_, which stops being true the moment
-  2.2.5 imports it and stops being true again in Story 2.8 — the exact shape of wording that
+  2.2.5 imports it and stops being true again in Story 2.9 — the exact shape of wording that
   hardens from "not yet" into "never" in the retelling. **And one claim to re-read rather than
   wave through**: `database.ts` and `CLAUDE.md` both say that file is the only place this
   application knows there is a database driver. `schema.ts` imports from `kysely`, which is a
@@ -245,7 +245,7 @@ epics read instead of re-deriving it.
 - **Say what this story hands forward**, in two halves: the mechanism every table in §30
   arrives through, and — the one that matters more — **where Epic 13's temporal constraint
   will be made structural**. That seam was chosen in Task 2.2.1 and nothing in this story
-  uses it, so it is a claim until Story 2.8 writes the first query. Recording it as a claim
+  uses it, so it is a claim until Story 2.4 writes the first query. Recording it as a claim
   is more useful than recording it as a property
 
 ## Done when

@@ -95,7 +95,7 @@ Acceptance criteria 2 and 3.
   written against a list at all without a cast the tree does not otherwise need
 - **Write the provenance the schema now carries**, per field, from where the data actually
   came rather than from a constant — a field the loader filled from the curated file and a
-  field it filled from a provider are different claims, and Story 2.13 renders the
+  field it filled from a provider are different claims, and Story 2.14 renders the
   difference. **`0003` shipped the four columns `not null` with no default**, so this is
   enforced rather than requested: an insert that omits one is refused by the database
   naming the column, and `pnpm test:database` asserts exactly that. The universe file
@@ -108,19 +108,19 @@ Acceptance criteria 2 and 3.
   `UNIVERSE.md` §5 says the column is for. That section records the curated file's silent
   staleness as a gap of this repository's third kind, states the reversal trigger, and names
   `classification_retrieved_at` as the **mitigation**: it "makes the file's age visible on
-  screen through Story 2.13 rather than only in git history". A loader that stamps `now()`
+  screen through Story 2.14 rather than only in git history". A loader that stamps `now()`
   every run makes the file's age permanently invisible and turns the mitigation into
   decoration. So the column has to carry **when the data was last checked against its
   source**, which for a curated file is a value the file states or a date a person moved —
   and that is a decision about where that value lives, taken here and written down.
   Note the same question applies to `profile_retrieved_at` and has a different answer the
-  day Story 2.6 fills it from Alpaca, which is a genuine retrieval. Whatever is chosen,
+  day Story 2.7 fills it from Alpaca, which is a genuine retrieval. Whatever is chosen,
   it must interact correctly with the `updated_at` rule in the bullet above: a row that did
   not change must not move either timestamp
 - **Say what it does about a symbol in the database that is not in the file**, and note
   that this is Task 2.3.6's decision to make and this task's to leave a seam for. The three
   answers are delete the row, change its `status`, and refuse — and they are not
-  interchangeable, because one of them destroys data Story 2.7 will have stored against it.
+  interchangeable, because one of them destroys data Story 2.8 will have stored against it.
   Do not pick silently
 - **Make it fail loudly with no database**, the way `pnpm migrate` does, and make the exit
   code real. A loader that reports success having written nothing is the failure mode Task
@@ -166,7 +166,7 @@ Acceptance criteria 2 and 3.
 ## Notes
 
 The seam this task must not close is what happens to a symbol removed from the file.
-Getting it wrong in the direction of "delete the row" is unrecoverable once Story 2.7 has
+Getting it wrong in the direction of "delete the row" is unrecoverable once Story 2.8 has
 stored bars against it, and it is exactly the kind of thing a loader does by default.
 
 ---
