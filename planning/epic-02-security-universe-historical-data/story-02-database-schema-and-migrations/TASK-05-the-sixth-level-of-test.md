@@ -20,7 +20,13 @@ without letting it near the one developers run all day.
   globs are one decision** — the unit config excludes what the second config includes —
   and nothing enforces the naming, so a database test named the wrong way runs in the fast
   suite and a correctly named one in another package runs nowhere at all. Write the reason
-  in both files, which is the only mitigation there has ever been for that class
+  in both files, which is the only mitigation there has ever been for that class.
+  **Task 2.2.2 gave that trap a concrete neighbour**: `apps/backend/src/migrate.test.ts` is
+  ten fast tests about the migration mechanism that deliberately open no socket — the
+  provider reads files from a temporary directory and the summariser is pure — so the
+  package now holds migration tests on **both** sides of the partition, and a file named a
+  hair differently lands in the wrong one. Do not duplicate those ten; what this suite adds
+  is what they structurally cannot reach
 - **`skipIf` is not available and the reason is recorded twice.** A skipped test reports
   green, which this repository has already called the worst failure mode available. Task
   2.1.4's answer is the model: the one test that cared whether a database existed **asked
@@ -41,11 +47,21 @@ without letting it near the one developers run all day.
   renamed in a migration and not in the interface typechecks, lints and builds, and fails at
   run time. That is a new gap of this repository's third kind and this suite is the only
   place it is reachable: migrate, read `information_schema.columns`, and assert the two
-  agree on names, types and nullability. **And if Task 2.2.2 deferred the checksum gap here
-  rather than closing it, this is where it lands too** — Kysely's `kysely_migration` is
-  `(name, timestamp)` with no hash, so an applied migration whose file was edited is skipped
-  silently, and a test that re-reads the files and compares them to what the schema actually
-  looks like is the cheapest thing standing between that and a divergence nobody notices
+  agree on names, types and nullability. **Task 2.2.2 deferred the checksum gap here, so it
+  lands here too — this is no longer conditional.** Kysely's `kysely_migration` is
+  `(name, timestamp)` with no hash, read out of `information_schema` twice now, so an applied
+  migration whose file was edited is skipped silently and the database diverges from the file
+  that claims to describe it. A test that re-reads the files and compares them to what the
+  schema actually looks like is the cheapest thing standing between that and a divergence
+  nobody notices. **What 2.2.2 rejected, so it is not re-taken from scratch:** a second table
+  the provider writes beside Kysely's is genuinely feasible — the provider's `up(db)` runs
+  inside the migration's own transaction, so a hash row would be atomic with the change — and
+  it was declined because it is a second bookkeeping mechanism with a bootstrap ordering
+  problem, guarding a failure whose only realistic cause is a developer editing an applied
+  file, against which this repository's stated rule already prefers a test. **The half that
+  argues the other way and should be weighed here rather than ignored: a table is checked in
+  every environment including the deployed one, where no test runs.** If that decides it, the
+  answer is a table and a note in `DATA-LAYER.md` saying why the recommendation was reversed
 - **Decide what a test does to the database it ran against**, which is the decision that
   makes this suite either trustworthy or a source of Monday-morning confusion: a
   transaction rolled back per test, a schema per run, a separate database entirely, or

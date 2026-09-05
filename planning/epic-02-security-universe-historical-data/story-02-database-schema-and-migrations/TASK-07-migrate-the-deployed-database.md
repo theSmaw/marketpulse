@@ -11,6 +11,16 @@ assumed, and settle where that happens relative to a deploy.
 
 ## Work
 
+- **One fact narrows the three shapes before you weigh them, and Task 2.2.2 handed it over
+  deliberately rather than letting it be discovered here.** `apps/backend/package.json`'s
+  `files` field is `["dist", "!dist/**/*.test.*"]`, so `pnpm deploy` — and therefore the
+  container image — carries `dist/migrate.js` and **not** `apps/backend/migrations/`. The
+  mechanism ships and the migrations do not. So "a job the container runs at boot" is not
+  free: it needs `migrations` added to `files` in the same commit, which puts the SQL into
+  every image and makes the image's contents a thing this story changed. "A step in
+  `deploy.yml`" needs no such change, because the runner runs from a checkout. That is a
+  cost to weigh rather than a decision already taken, and it must not be found out by a
+  rollout failing on a missing directory
 - **Choose between the three shapes, and choose on the failure rather than the happy
   path.** A **step in `deploy.yml` before the container rolls** means a migration that
   succeeds and a deploy that then fails leaves a database ahead of the code — which is the
@@ -27,9 +37,18 @@ assumed, and settle where that happens relative to a deploy.
   pool of three produced **three** credential calls and three more on the warm pool produced
   **none**. So a migration that builds its pool through `createDatabasePool` gets the Entra
   token path, TLS `verify-full`, the `pool.on("error")` handler and the connection deadline
-  for free, and `DATABASE_AUTH=entra` needs no new token code anywhere. That removes the
-  mechanical half of this task and leaves the half below, which is the part with a decision
-  in it
+  for free, and `DATABASE_AUTH=entra` needs no new token code anywhere. **Task 2.2.2 built
+  exactly that** — `runMigrations()` calls `createDatabasePool(config.database, …)` and reads
+  its address from the same `loadConfig()` every other script does — so this is confirmed
+  rather than expected, and it removes the mechanical half of this task and leaves the half
+  below, which is the part with a decision in it. **Two consequences of that reuse worth
+  knowing before choosing an identity.** The pool sets `application_name` to
+  `marketpulse-backend`, so a migration connection appears in `pg_stat_activity` as the
+  runtime service — which is harmless if they are the same principal and actively misleading
+  if the bullet below chooses a separate one, in which case the name has to move into the
+  pool's configuration rather than staying a constant. And the pool carries `POOL_MAX: 10`
+  against roughly 25 genuinely free connections, which is fine for one migration and is a
+  number to notice if a migration ever runs beside a rolling replica
 - **Answer who the migration connects as, which is this task's real work.** The deployed
   server is **Entra-only**, `passwordAuth` is `Disabled` and `administratorLogin` is
   `null`, so there is no connection string with a password in it anywhere. Three identities
@@ -72,6 +91,14 @@ assumed, and settle where that happens relative to a deploy.
   and whether a running page notices anything — Task 1.12.7 measured a full pipeline deploy
   of both halves as invisible to a polling page, and a schema change on a database no route
   reads should be at least as quiet. If it is not, that is the finding
+- **Note what the runner deliberately does not offer, and decide whether the chosen shape
+  needs it.** `pnpm migrate` refuses arguments — there is no `down`, no "migrate to `0003`",
+  no dry run and no "list what is pending". That was right for a local command and it is
+  worth re-taking here rather than inheriting, because a deploy step that cannot say what it
+  is about to apply is a deploy step nobody can review in advance. If a pending-list is
+  wanted, it is a small addition to the existing runner (`migrator.getMigrations()` already
+  returns each migration's executed state) and it belongs in this task rather than in a new
+  one; if it is not wanted, say so, because the next person will ask
 - **Write down what a red migration means for a rollback.** Task 1.11.7's asymmetry still
   holds — the backend rolls back in 43 s with `az containerapp update --image <digest>` and
   is silently undone by the next merge, the frontend takes a 3 min 42 s revert commit — and

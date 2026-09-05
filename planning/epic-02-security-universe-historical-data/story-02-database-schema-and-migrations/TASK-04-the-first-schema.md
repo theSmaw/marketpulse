@@ -39,8 +39,20 @@ column more — and prove the conventions survive contact with something that ex
   identifier decision applied to a table with a genuine natural key, and the naming rule
   in a foreign key if there is one to have — and if there is not, say so, because that is a
   convention this story cannot test and Story 2.3 or 2.7 will be the first to
+- **Write the `Database` interface, because nothing has yet and this is the task that gives
+  it something to describe.** Task 2.2.1 decided nothing is generated and Task 2.2.3 decides
+  where the hand-written type lives; Task 2.2.5 asserts it against `information_schema`. In
+  between, **no task owned actually writing it**, and Task 2.2.2 left the migrator on
+  `Kysely<unknown>` because there was no table and therefore nothing true to say. That gap
+  closes here: add the interface with a `securities` entry, and decide in the same change
+  whether `migrate.ts`'s instance becomes `Kysely<Database>` or stays `Kysely<unknown>` —
+  a migrator that names the schema it is about to change is arguably wrong, since the
+  interface describes the schema **after** the migration and not before it, so this is a
+  real decision rather than a tidy-up. Say which and why beside the line
 - **Say what a second copy of this database now needs to become correct**, which is one
-  command and is the whole point of the mechanism existing
+  command and is the whole point of the mechanism existing — and note that the command
+  changes nothing structurally here, since `pnpm migrate` already exists and applies
+  everything pending; what this task adds is the first thing worth applying
 
 ## Done when
 
@@ -49,6 +61,8 @@ column more — and prove the conventions survive contact with something that ex
 - The schema was verified by reading the database, and the reading is recorded
 - Applying the migration twice is a no-op, observed
 - The table is empty and seeding is somebody else's task
+- The `Database` interface exists, describes `securities`, and the migrator's own generic
+  parameter is decided rather than left at `Kysely<unknown>` by default
 - Any convention this table could not exercise is named as untested
 
 ## Notes

@@ -1,6 +1,6 @@
 # Task 2.2.2 — Install the mechanism and make an empty migration real
 
-**Status:** Not started
+**Status:** Complete — 2026-09-05
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
 **Depends on:** Task 2.2.1 (complete) — the tool is **Kysely's `Migrator`** driving plain
 SQL files through a provider we own, migrations are **forward-only**, nothing is generated,
@@ -118,3 +118,86 @@ artefact was run outside the workspace before any platform saw it, because "a pl
 failing on an artefact that was never correct is the most expensive failure to read". A
 migration mechanism whose first migration is also its first schema is exactly that
 artefact.
+
+## What was done
+
+The record with the figures is [`DATA-LAYER.md`](DATA-LAYER.md) under _The mechanism, as
+built_, because Story 2.2 has one document about this subject and a second one is a copy
+waiting to disagree. What follows is what changed and the decisions behind it.
+
+**Four new files and one new root script.** `apps/backend/src/migrate.ts` is the mechanism —
+the provider, the summariser and `runMigrations()`; `apps/backend/src/migrate.test.ts` is ten
+fast tests; `apps/backend/migrations/0001_baseline.sql` is a migration that creates nothing;
+`scripts/run-migrations.mjs` is the wrapper `pnpm migrate` names. `apps/backend/src/database.ts`
+gained **nothing at all**, which is the check rather than an omission.
+
+**The install reproduced the spike to the byte** — 418 → **419** store entries, 291,912 →
+**295,356 KB**, 4,757 → **4,766** lockfile lines, `pnpm-workspace.yaml` md5 unchanged — taken
+from a fresh install, because a virtual-store count is only comparable that way. The
+install-script sweep returns **one line**, counted rather than read as a binary, since 2.2.1
+found `allowBuilds` is keyed on a package name.
+
+**Migrations live in `apps/backend/migrations/`, named `NNNN_lower_snake_case.sql`.** The home
+is forced rather than preferred: a bare top-level directory fails the two ways Task 1.13.1
+measured, a fifth workspace package would have one consumer, and `apps/backend` is the only
+thing here that connects to a database. The naming rule is a **sequence number and not a
+timestamp**, chosen on which failure is loud — a sequence collides into a merge conflict a
+human resolves in the pull request, a timestamp interleaves silently into an order neither
+author tested — with Kysely's default `allowUnorderedMigrations: false` as the backstop at
+the database. A filename that does not match is an **error rather than a skipped file**, and
+so is an empty directory.
+
+**The exit code was made to fail before the mechanism was called working**, which was 2.2.1's
+sharpest handover. `migrateToLatest()` resolves rather than throwing, so `summariseMigration()`
+is a pure function with its own tests and `run-migrations.mjs` turns its `exitCode` into a
+process result. Four failing paths were produced against the local database — a unique-constraint
+violation, a refused filename, a stopped database and `pnpm migrate down` — all exit **1**;
+and three deliberate breaks were each seen to fail and reverted. The second break is the one
+worth remembering: reading `results` for a `status: "Error"` **instead of** reading `error`
+catches the ordinary case and misses the whole class where Kysely fails before working out
+what to run.
+
+**The empty migration applied, and applying it twice is a no-op** — both observed, exit 0 both
+times, with the tracking table read by hand afterwards: `kysely_migration` is
+`(name, timestamp)` where `timestamp` is a **`character varying` holding an ISO 8601 string**,
+plus `kysely_migration_lock`. **There is no checksum, and it is deferred to Task 2.2.5**, whose
+task file now says so definitely rather than conditionally, with the rejected alternative — a
+second table the provider writes inside the migration's own transaction — recorded there
+alongside the one argument that would reverse it.
+
+**The `Kysely` instance is built inside the runner and is not exported**, which is the whole of
+2.2.1's query-layer decision: Epic 13's plugin is attached with `withPlugin` and returns a
+different object, so the seam holds only if no unplugged handle can be imported.
+
+**A sixth kind of `pnpm verify` gap**, measured with the one-liner rather than assumed: a
+`.sql` file reports `"inferredParser": null` to Prettier and `File ignored because no matching
+configuration was supplied` to ESLint — the signature `scripts/dev.sh`, the `Dockerfile` and
+the root `.dockerignore` carry. It is in `CLAUDE.md`'s gap list. The runner and its wrapper are
+**inside** the net, which is why the mechanism is TypeScript in `src/` behind a thin wrapper
+rather than a script.
+
+**`pnpm verify` is exit 0 in 26.16 s with the database stopped**, and `pnpm test` is **239**
+(37 + **99** + 103), still needing no database, no build and no socket. Task 2.1.2's stated
+trigger for `pnpm ready`'s third check becoming a gate has **not** fired.
+
+**One thing handed to Task 2.2.7 rather than left to be discovered:**
+`apps/backend/package.json`'s `files` field means the container image does not carry
+`apps/backend/migrations/`, which is the fact that decides between a step in `deploy.yml` and a
+job the container runs at boot.
+
+**And one correction to 2.2.1's record:** the migrator's separate subpath export is worse at
+compile time than at run time. `import { Migrator } from "kysely"` is the `SyntaxError` 2.2.1
+recorded, but the root package still exports the _names_ as
+`KyselyTypeError<"import from 'kysely/migration' instead">` stubs, so the mistake first
+arrives as a confusing type rather than a missing one.
+
+**Two things went red that this task did not set out to touch, both in
+`apps/backend/src/index.process.test.ts`, and only one of them was diagnosed.** The
+reachability test used a fixed `await delay(200)` before asserting a record that requires a
+real connection when a database is up; it lost that race once under full-chain load and
+**polls now**, made to fail first. The drain-ordering test failed once with
+`expected 4 to be greater than 7` — an ordering the process cannot produce — and did **not**
+reproduce in five further runs or under eight CPU-saturating background processes. It is left
+open with the numbers written down and the suspicion named (the harness concatenates `stdout`
+and `stderr` into one buffer), because inventing a fix for a mechanism nobody has reproduced
+is worse than recording it.

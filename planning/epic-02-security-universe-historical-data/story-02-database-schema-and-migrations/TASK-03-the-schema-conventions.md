@@ -2,7 +2,11 @@
 
 **Status:** Not started
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
-**Depends on:** Task 2.2.2 (migrations have a home, so the conventions have somewhere to sit)
+**Depends on:** Task 2.2.2 (complete) — migrations have a home, `apps/backend/migrations/`,
+so the conventions have somewhere to sit, and one of them is already decided and enforced:
+the **filename** rule, `NNNN_lower_snake_case.sql`, checked by `SqlFileMigrationProvider`
+rather than written down and hoped for. That is the model for this task's two lists rather
+than a detail — see the last bullet
 
 ## Objective
 
@@ -64,14 +68,29 @@ table is a convention with two exceptions in it.
 - **Name the place these live and make it the place somebody looks**, which is acceptance
   criterion 6. `e2e/README.md` is the precedent and its reason is stated: a task file is
   not where the next person writing a spec looks. The same applies to the next person
-  writing a migration, and the same rule applies to duplication — point at it from
-  `CLAUDE.md` and `README.md` rather than copying it, because copying a paragraph for
-  legibility is how Epic 1 ended with twelve near-identical blocks and a task spent
-  reconciling them
+  writing a migration, and **Task 2.2.2 made the obvious candidate exist** —
+  `apps/backend/migrations/README.md` sits in the directory somebody is already in when
+  they need it, which is exactly the `e2e/README.md` argument. Weigh it against a
+  `docs/` document; what decides it is where a person is looking, not which directory is
+  tidier. The same rule applies to duplication — point at it from `CLAUDE.md` and
+  `README.md` rather than copying it, because copying a paragraph for legibility is how
+  Epic 1 ended with twelve near-identical blocks and a task spent reconciling them. **Note
+  that document is itself outside `pnpm verify`'s net if it is Markdown and inside it only
+  as formatting**, which is the same standing gap this repository already records for
+  prose figures
 - **Say which of these a tool enforces and which are prose**, in the two-list shape Task
   1.13.6 used. The line is not effort — it is whether the thing being checked is reachable
   from an assembled instance. A `numeric` column type is readable from a live database and
-  therefore checkable; a naming convention across tables that do not exist yet is not
+  therefore checkable; a naming convention across tables that do not exist yet is not.
+  **Two facts from Task 2.2.2 bound this list and neither should be re-derived.** The
+  enforceable end has a working precedent: the migration **filename** convention is a
+  regex in `SqlFileMigrationProvider` that refuses a non-matching file rather than skipping
+  it, and it has a test that was made to fail — so "a convention nothing checks" is a
+  choice here rather than a limitation. And the unenforceable end has a hard floor: a
+  `.sql` file is read by **nothing** in this repository — `"inferredParser": null` to
+  Prettier, `File ignored` to ESLint, invisible to `tsc` — so no convention expressed only
+  in SQL text can be linted at all, and the only two places one can be checked are the
+  provider (before the file runs) and Task 2.2.5's database-backed suite (after it has)
 
 ## Done when
 

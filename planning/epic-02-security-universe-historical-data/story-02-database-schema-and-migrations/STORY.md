@@ -94,7 +94,11 @@ records what was being weighed at the time.
    ergonomic: **Epic 13 enforces temporal isolation in the data layer**, so whatever is
    chosen must make "no query may read past the replay clock" expressible in one place
    rather than remembered at every call site
-3. **Where migrations run on deploy**, and what a failed migration does to the rollout
+3. **Where migrations run on deploy**, and what a failed migration does to the rollout —
+   still open and Task 2.2.7's, and Task 2.2.2 handed it the fact that decides it:
+   `apps/backend/package.json`'s `files` field means the container image does **not** carry
+   `apps/backend/migrations/`, so "a job the container runs at boot" needs that field
+   changed in the same commit and "a step in `deploy.yml`" does not
 4. **Whether the schema or the TypeScript types are the source of truth** — **the generation
    half is answered: nothing is generated**, the schema is the source of truth and the
    TypeScript follows it by hand (`kysely-codegen`, `drizzle-kit pull` and `prisma migrate
@@ -137,7 +141,7 @@ stops being the backend's problem alone. 2.2.8 closes the story and records ADR 
 | #     | Task                                                                                                                                    | Status       |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
 | 2.2.1 | [Choose the migration tool and the query layer, installing nothing permanent](TASK-01-choose-the-migration-tool-and-the-query-layer.md) | **Complete** |
-| 2.2.2 | [Install the mechanism and make an empty migration real](TASK-02-the-mechanism-and-an-empty-migration.md)                               | Not started  |
+| 2.2.2 | [Install the mechanism and make an empty migration real](TASK-02-the-mechanism-and-an-empty-migration.md)                               | **Complete** |
 | 2.2.3 | [Write the conventions down, before there is a table to argue about](TASK-03-the-schema-conventions.md)                                 | Not started  |
 | 2.2.4 | [The first schema: `securities` and nothing more](TASK-04-the-first-schema.md)                                                          | Not started  |
 | 2.2.5 | [The sixth level of test, and what it costs `pnpm test`](TASK-05-the-sixth-level-of-test.md)                                            | Not started  |
@@ -154,6 +158,24 @@ alone does not exercise. And **breaking a migration comes before deploying one**
 before 2.2.7), because "what happens when the migration succeeds and the deploy then fails"
 is not answerable until what a half-applied migration leaves behind has been produced
 rather than read.
+
+**Amended after Task 2.2.2 (2026-09-05), with no task added, deleted or re-ordered.** Five
+task files were amended because 2.2.2 turned questions into facts they were still written
+around. The one that is a genuine gap rather than a refinement: **nobody owned writing the
+`Database` interface.** 2.2.3 decides where the hand-written type lives, 2.2.5 asserts it
+against `information_schema`, and 2.2.2 left the migrator on `Kysely<unknown>` because there
+was no table to describe — so **2.2.4 now owns creating it**, in the change that creates the
+table it describes. The other four are inheritances: 2.2.3 learns that a `.sql` file is read
+by no tool at all, which puts a hard floor under its "checked versus prose" lists, and that
+the filename rule is already an enforced convention it can copy; 2.2.6 learns that four
+failure classes have already been produced on the shipped runner, so its list is now the ones
+2.2.2 could not reach — including every one that needs a table **with rows in it**; 2.2.7
+learns that `files` keeps `migrations/` out of the container image, which is the fact that
+prices "a job the container runs at boot" against "a step in `deploy.yml`", and that the
+migration pool reports `application_name` as `marketpulse-backend`, which is misleading the
+moment a separate migration identity is chosen; and 2.2.8 gains the first-run **sequence** as
+a thing to re-take separately from the command table, plus an open flake to close or carry
+forward rather than drop.
 
 **`market_bars` is in none of these tasks and that is deliberate**, per this story's own
 out-of-scope note: its shape is driven by measured ingestion, and creating it here would be

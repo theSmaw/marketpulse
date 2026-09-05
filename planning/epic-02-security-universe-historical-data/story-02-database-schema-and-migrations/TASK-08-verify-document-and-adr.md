@@ -37,7 +37,12 @@ epics read instead of re-deriving it.
   The candidates here are specific: `apps/backend/src/database.ts` is described as the only
   file that knows there is a driver and as **not a query layer**, `pingDatabase()` is
   described as the whole query surface, `README.md` and `CLAUDE.md` both carry a test count
-  and a command list, and the levels-of-test paragraph says five and will say six. The
+  and a command list, and the levels-of-test paragraph says five and will say six.
+  **Task 2.2.2 already amended two of those and its own amendments are worth re-reading
+  rather than trusting**: it moved the counts to 239 (37 + 99 + 103), and it describes
+  `migrate.ts` as building "the repository's one `Kysely` instance" — a claim that stops
+  being true the moment Story 2.8 writes a query, and exactly the kind of wording that
+  hardens from "the only one today" into "the only one" in the retelling. The
   distinction that a naive grep destroys is the one Task 1.12.8 named and Task 1.13.6
   re-proved: a **live** claim gets amended, a **historical record** of what a task measured
   at the time is correct in its own context and stays. **Three more candidates arrived with
@@ -51,7 +56,21 @@ epics read instead of re-deriving it.
   the kind of figure a clean clone re-takes and the one most likely to have moved
 - **Write the conventions into `README.md`'s command reference**, because `pnpm migrate`
   and the database-test command are both things a developer runs and neither is discoverable
-  from a task file. Point at Task 2.2.3's document rather than copying it
+  from a task file. Point at Task 2.2.3's document rather than copying it. **And check the
+  setup narrative separately from the command table, because they are two documents that
+  happen to share a file.** Task 2.2.2 added `pnpm migrate` to the reference and gave it a
+  section; what nothing has re-taken is the **first-run sequence** a clean clone follows,
+  which is now `pnpm install` → `pnpm build` → `pnpm db` → `pnpm migrate` and was three
+  steps when it was last written. A developer following the old sequence gets an empty
+  database and a symptom nobody predicted
+- **Re-check the two `index.process.test.ts` flakes Task 2.2.2 recorded**, because one of
+  them is open and a closing task is where an open thing goes to be forgotten. The
+  reachability test was diagnosed and fixed — a fixed 200 ms sleep before asserting a record
+  that needs a real connection — and the drain-ordering test failed once with
+  `expected 4 to be greater than 7`, did not reproduce in five further runs or under eight
+  CPU-saturating background processes, and was left open with the suspicion named. This
+  story runs `pnpm verify` many more times before it closes: say whether it recurred, and
+  either diagnose it or carry it forward with a count rather than dropping it silently
 - **Record `docs/adr/0015-*`** — the fifteenth, and the second outside Epic 1. Written from
   the facts rather than from the task files, in the shape ADR 0013 and 0014 use, and it
   owes the two lists the recent ones have made standard: **what a green migration certifies
@@ -65,7 +84,11 @@ epics read instead of re-deriving it.
   whose file was later edited is skipped in silence unless something this story built checks
   it; and the temporal-isolation seam is a **plugin attached to one handle**, so it holds
   only while no unplugged `Kysely` instance is exported — which nothing enforces, and which
-  is the same class as `e2e/package.json`'s missing `test` script
+  is the same class as `e2e/package.json`'s missing `test` script. **Task 2.2.2 adds a third
+  and it is the cheapest of the three to state**: `pnpm migrate` refuses arguments and is
+  forward-only, so nothing in this repository can move a schema backwards — which belongs in
+  the first list as a property rather than the second as a gap, while its consequence belongs
+  in the second, since it means a rollback of code past a migration has no schema counterpart
 - **Update the gap lists in `CLAUDE.md` by re-measurement**, not by editing the text: re-run
   `prettier --file-info` and `eslint` on whatever this story added, since a `.sql` file is
   read by nothing here and a `.ts` migration is read by everything, and those are two
@@ -80,6 +103,7 @@ epics read instead of re-deriving it.
 ## Done when
 
 - All seven acceptance criteria are re-run against the shipped tree and recorded
+- The clean clone's first-run **sequence** is re-taken, not just its command table row
 - Every figure is re-taken rather than cited, from a clean clone where that is the only
   honest place
 - Claims this story falsified are found by sweep, read individually, and amended or left
