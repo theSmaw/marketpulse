@@ -35,6 +35,17 @@ without letting it near the one developers run all day.
   closed a gap no `verify` step could by walking the route table from an assembled
   instance, and the rule it wrote is that a test beats another `verify` step whenever the
   thing being checked is reachable from a running instance
+- **Assert the second thing too, because Task 2.2.1 handed it over by name: the hand-written
+  `Database` interface against `information_schema`.** Kysely generates nothing, so that
+  interface is written by hand and **nothing checks it against the schema** — a column
+  renamed in a migration and not in the interface typechecks, lints and builds, and fails at
+  run time. That is a new gap of this repository's third kind and this suite is the only
+  place it is reachable: migrate, read `information_schema.columns`, and assert the two
+  agree on names, types and nullability. **And if Task 2.2.2 deferred the checksum gap here
+  rather than closing it, this is where it lands too** — Kysely's `kysely_migration` is
+  `(name, timestamp)` with no hash, so an applied migration whose file was edited is skipped
+  silently, and a test that re-reads the files and compares them to what the schema actually
+  looks like is the cheapest thing standing between that and a divergence nobody notices
 - **Decide what a test does to the database it ran against**, which is the decision that
   makes this suite either trustworthy or a source of Monday-morning confusion: a
   transaction rolled back per test, a schema per run, a separate database entirely, or
@@ -64,6 +75,8 @@ without letting it near the one developers run all day.
   reason written beside both
 - It exits non-zero when it fails, seen rather than assumed
 - It is not in `pnpm test`, and `pnpm test` runs green with no database
+- The `Database` interface is asserted against `information_schema`, and the check was made
+  to fail before it was believed
 - What it does to the database it ran against is decided and stated
 - Whether CI runs it is decided, with the required-check and version-pin consequences named
 - Task 2.1.2's trigger is re-taken by measurement and its answer recorded either way
