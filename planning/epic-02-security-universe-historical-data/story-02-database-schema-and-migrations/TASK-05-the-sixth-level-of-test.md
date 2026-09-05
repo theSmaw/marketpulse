@@ -2,7 +2,14 @@
 
 **Status:** Not started
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
-**Depends on:** Task 2.2.4 (a schema for a test to assert against)
+**Depends on:** Tasks 2.2.3 (complete) and 2.2.4 (complete) — there is a schema to assert
+against, `apps/backend/src/schema.ts` describes it, and **both of those tasks handed this one
+work by name rather than by implication**. 2.2.3 named five conventions as reachable from a
+migrated database and gave each the `information_schema` reading that would check it; 2.2.4
+created a new unchecked invariant deliberately and in the open, and produced two traps that
+change how these checks have to be written. Read
+[`apps/backend/migrations/README.md`](../../../../apps/backend/migrations/README.md)'s closing
+two lists before starting: this task is what moves entries from the second list to the first
 
 ## Objective
 
@@ -47,8 +54,46 @@ without letting it near the one developers run all day.
   renamed in a migration and not in the interface typechecks, lints and builds, and fails at
   run time. That is a new gap of this repository's third kind and this suite is the only
   place it is reachable: migrate, read `information_schema.columns`, and assert the two
-  agree on names, types and nullability. **Task 2.2.2 deferred the checksum gap here, so it
-  lands here too — this is no longer conditional.** Kysely's `kysely_migration` is
+  agree on names, types and nullability. **The interface now exists, at
+  `apps/backend/src/schema.ts`, and Task 2.2.4 already made the comparison once by hand** —
+  every column matched on name, type, nullability and default, and the row was then checked
+  field-by-field against what `pg` actually returns (`id` a **string**, both timestamps
+  `Date`, a null `industry`). So this is a measurement being turned into a check rather than
+  a question being opened, and the check should be **made to fail** by renaming a column in
+  the interface, which is the failure it exists for. Two mechanical facts from that
+  reading, both of which will otherwise cost a session. **Postgres rewrites a check
+  constraint**: `check (kind in ('equity', 'etf'))` reads back as
+  `CHECK ((kind = ANY (ARRAY['equity'::text, 'etf'::text])))`, so nothing can string-match
+  the migration's own text. And **PostgreSQL 18 materialises `NOT NULL` as `pg_constraint`
+  rows** (`contype = 'n'`, e.g. `securities_symbol_not_null`) where older majors do not —
+  confirmed to be the engine rather than anything this repository wrote, because Kysely's own
+  `kysely_migration` table has them too — so **a check that counts or enumerates
+  `pg_constraint` rows is asserting the Postgres major version**, not the schema, and would
+  go red against a correct database on a different one. Read nullability from
+  `information_schema.columns.is_nullable`, which is stable across majors.
+- **Close the invariant Task 2.2.4 created deliberately, because it is the one this suite is
+  most obviously the home for.** `SECURITY_KINDS` in `packages/shared` and
+  `securities_kind_check` in the database are two spellings of one vocabulary and **nothing
+  compares them**: add a member to the union without the matching migration and the compiler
+  permits a value the database refuses, at run time, in whatever writes it. Both halves are
+  readable from here — the union is an ordinary import, and the constraint's own text is in
+  `information_schema.check_constraints` — so by this repository's rule that a test beats
+  another `verify` step whenever the thing is reachable from an assembled instance, this
+  should be a check rather than a third paragraph of prose. Write it against the **rewritten**
+  form above, and make it fail first
+- **Watch for a check that passes by having nothing to check, which is the failure mode this
+  particular list is most exposed to.** Of the five conventions Task 2.2.3 handed over, the
+  schema as it stands exercises **two**: `securities` has `timestamptz` columns and an
+  identity `id`, and it has **no price column, no `double precision`, and no naive
+  `timestamp`** — so "every price column is `numeric(18, 6)`" and "no `double precision`
+  exists" would both pass against a schema containing no numbers at all. That is Task
+  1.13.6's blind-renderer problem in a new place: a green result that certifies nothing,
+  indistinguishable from a green result that certifies something. Either assert the sweep saw
+  a non-zero number of columns, or say in writing which of the five are vacuous today and
+  which table first makes them real — `market_bars` (Story 2.7) for the money rule, and Story
+  2.3 or 2.7 for the foreign-key naming rule, which is prose permanently in any case
+- **The checksum gap lands here too, and this is no longer conditional — Task 2.2.2 deferred
+  it to this task by name.** Kysely's `kysely_migration` is
   `(name, timestamp)` with no hash, read out of `information_schema` twice now, so an applied
   migration whose file was edited is skipped silently and the database diverges from the file
   that claims to describe it. A test that re-reads the files and compares them to what the
@@ -67,7 +112,16 @@ without letting it near the one developers run all day.
   transaction rolled back per test, a schema per run, a separate database entirely, or
   truncation between tests. Whatever is chosen, the property to protect is that running the
   suite does not destroy the rows a developer was mid-way through debugging — which is the
-  same argument Task 2.1.2 used to keep the database out of `pnpm dev`
+  same argument Task 2.1.2 used to keep the database out of `pnpm dev`. **That property is
+  concrete rather than hypothetical from this task onward**: `securities` exists, Task 2.2.4
+  deliberately left it **empty**, and Story 2.3 is about to fill it with a ~100-row universe
+  that takes a documented command to rebuild. A suite that truncates it is a suite that costs
+  a developer that command every time they run it, and one that leaves rows behind is a suite
+  whose own next run starts from a state it did not choose. Note also that **this suite needs
+  its own `Kysely` handle or its own `pg` client**: `migrate.ts` deliberately does not export
+  the one it builds, which is Task 2.2.1's query-layer seam and must not be relaxed for a
+  test's convenience — the same shape Task 1.13.3 refused when it declined to move two
+  constants into `packages/shared`
 - **Decide whether CI runs it, and take the consequences out loud.** A second job in
   `verify.yml` with a Postgres service is the obvious shape, and it has three costs that
   are each a decision: it is a **third required check** on `main` if it gates a merge —
@@ -93,6 +147,10 @@ without letting it near the one developers run all day.
 - It is not in `pnpm test`, and `pnpm test` runs green with no database
 - The `Database` interface is asserted against `information_schema`, and the check was made
   to fail before it was believed
+- `SECURITY_KINDS` and `securities_kind_check` are asserted to agree, made to fail first —
+  or the reason that check was not built is written down
+- Which of Task 2.2.3's five reachable conventions are **vacuous** against the current
+  schema is stated, and no check is left able to pass by having nothing to look at
 - What it does to the database it ran against is decided and stated
 - Whether CI runs it is decided, with the required-check and version-pin consequences named
 - Task 2.1.2's trigger is re-taken by measurement and its answer recorded either way

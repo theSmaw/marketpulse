@@ -20,7 +20,12 @@ assumed, and settle where that happens relative to a deploy.
   every image and makes the image's contents a thing this story changed. "A step in
   `deploy.yml`" needs no such change, because the runner runs from a checkout. That is a
   cost to weigh rather than a decision already taken, and it must not be found out by a
-  rollout failing on a missing directory
+  rollout failing on a missing directory. **Task 2.2.4 sharpened that into something worth
+  saying out loud when the shapes are weighed**: `apps/backend/src/schema.ts` compiles into
+  `dist/` and therefore _does_ ship, so the image currently carries a **description of the
+  schema** and not the schema itself, and nothing inside it can create the table it
+  describes. Harmless while nothing queries, and the clearest possible statement of why the
+  boot-time shape needs the `files` change rather than merely benefiting from it
 - **Choose between the three shapes, and choose on the failure rather than the happy
   path.** A **step in `deploy.yml` before the container rolls** means a migration that
   succeeds and a deploy that then fails leaves a database ahead of the code — which is the
@@ -74,9 +79,27 @@ assumed, and settle where that happens relative to a deploy.
   options are a firewall rule per run, which is a write to platform state from CI, or a
   shape that does not connect from CI at all — and that discovery would change the choice
   above, which is why it comes before committing to one
+- **Note what the first deployed migration actually does, because it is smaller than it
+  sounds and that is the reassuring half.** Task 2.2.4 shipped `securities` with **no seed
+  data**, so what reaches the managed server is a `CREATE TABLE` against an empty schema and
+  nothing else: no backfill, no rewrite, no lock on a table anything reads, and no data a
+  failed run could damage. This is the cheapest first DDL this project will ever run against
+  something carrying a `CanNotDelete` lock, which is an argument for doing it now rather than
+  for treating it as routine
 - **Apply it and read the result off the managed database**, which is acceptance criterion
   3: connect, read the schema back, confirm it matches the local one column for column, and
-  confirm the tracking table records what it should. Task 2.1.5's operator-connection
+  confirm the tracking table records what it should. **Task 2.2.4 did that reading locally
+  and it is worth copying rather than re-inventing** — `information_schema.columns` for
+  names, types, nullability and defaults, then `pg_constraint` for the check and the unique
+  constraint — with one trap it found that bites harder here than it did there:
+  **`column_default` is `null` for an identity column** (`is_identity` is `'YES'`), so a
+  comparison written against the default concludes there is no identity and finds nothing
+  wrong. Read nullability from `information_schema` rather than by counting `pg_constraint`
+  rows, because PostgreSQL 18 materialises `NOT NULL` as named constraint rows where older
+  majors do not — which makes that count a statement about the engine version rather than
+  about the schema. **The local pin and the deployed version are two numbers nothing in this
+  repository compares**, and confirming they still agree is one of the cheapest useful things
+  this task can do while it happens to be connected to both. Task 2.1.5's operator-connection
   traps apply — `psql` from a laptop cannot do `verify-full` where Node can, because the
   container has no CA store, and `pnpm db exec` **echoes its arguments**, which is how a
   live bearer token was printed into a terminal once already

@@ -185,6 +185,33 @@ moment a separate migration identity is chosen; and 2.2.8 gains the first-run **
 a thing to re-take separately from the command table, plus an open flake to close or carry
 forward rather than drop.
 
+**Amended again after Tasks 2.2.3 and 2.2.4 (2026-09-05), with no task added, deleted or
+re-ordered.** Four task files were amended, and the sweep confirmed the story's own stated
+ordering rather than merely surviving it: writing the conventions before the first table
+produced three decisions `securities` alone would never have exercised — the
+`observed_at`/`recorded_at` pair, the identifier rule, and the finding that a Postgres `enum`
+cannot be extended and used in one transaction. **Task 2.2.5 was owed the most and was owed
+it twice**: 2.2.3 named five conventions as reachable from a migrated database and handed
+over the `information_schema` reading for each, and 2.2.4 created one new unchecked invariant
+deliberately — `SECURITY_KINDS` against `securities_kind_check` — so that task now owns both,
+plus two mechanical traps that change how the checks must be written (Postgres **rewrites** a
+check constraint's text, and PostgreSQL 18 materialises `NOT NULL` as `pg_constraint` rows,
+which makes a count of those rows a statement about the engine version rather than the
+schema). It also gained a warning it could not have had before: three of those five
+conventions are **vacuous** against a schema with no money column, so a green result would
+certify nothing — Task 1.13.6's blind-renderer problem in a new place. **2.2.6** gained a real
+table to break and the fact that it is **empty**, so it supplies its own fixture rows rather
+than waiting for Story 2.3; a second failure class for free (a `check` added to a table whose
+rows violate it); and one observation to confirm and then decide about, since a rolled-back
+statement **consumes an identity value**, which makes `migrate.ts`'s "it left nothing behind"
+very slightly false. **2.2.7** gained the observation that the image now carries a
+_description_ of the schema and not the schema itself, which is the clearest statement of why
+the boot-time shape needs the `files` change; the note that the first deployed migration is a
+`CREATE TABLE` against an empty schema with no data to damage; and the readback recipe with
+its identity-column trap. **2.2.8** gained two new documents to sweep for claims that rot,
+`packages/shared`'s moved file count and fallen coverage, and the note that ADR 0015's two
+lists have a shape to borrow rather than invent.
+
 **`market_bars` is in none of these tasks and that is deliberate**, per this story's own
 out-of-scope note: its shape is driven by measured ingestion, and creating it here would be
 creating it against no measurement at all.
