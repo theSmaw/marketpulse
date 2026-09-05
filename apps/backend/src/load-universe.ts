@@ -88,7 +88,7 @@ const CHECKED_ON = /^\d{4}-\d{2}-\d{2}$/;
  * The reason this constant exists at all is `UNIVERSE.md` §8, which lists the
  * places a hard-coded 100 could hide and names this one: a single multi-row
  * `insert` built as one statement stops working somewhere between here and 500
- * securities × 13 columns. It does not, because {@link chunkSize} derives the
+ * securities × 12 columns. It does not, because {@link chunkSize} derives the
  * batch from the ceiling and the column count rather than from a number
  * somebody picked. **Nothing in this file knows how many securities there are.**
  */

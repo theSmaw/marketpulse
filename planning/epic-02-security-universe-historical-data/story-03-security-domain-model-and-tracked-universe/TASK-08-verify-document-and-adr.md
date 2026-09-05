@@ -402,3 +402,229 @@ Azure credentials `pnpm verify` deliberately does not have and it writes to a da
 a `CanNotDelete` lock. Re-run the local half from the clone as written; for the deployed
 half, read the rows back and compare the fingerprint, which is what 2.3.7 did and is the
 only honest form of it.
+
+---
+
+## What shipped (2026-09-06)
+
+**Status: Complete.** All seven acceptance criteria re-run against the shipped tree,
+criteria 3, 4 and 5 re-made rather than cited, every figure re-taken from a clean clone,
+`docs/adr/0016-the-tracked-universe-what-a-green-load-certifies.md` written, and Story 2.3
+closed.
+
+### The one thing only this task could do
+
+**The `Load the tracked universe` step ran on `main` for the first time** — deploy run
+`33975545926`, the merge of 2.3.7's own pull request — and printed
+`0 inserted, 0 updated, 101 unchanged` at exit 0, exactly as predicted. Its value is not
+the counters, which were always going to read that way because 2.3.7 loaded the rows by
+hand; it is that **the step is wired into the workflow at all**, and that the token mint as
+`marketpulse-github-deploy` from a runner works, which a laptop structurally cannot prove.
+**2 s wall, 0.428 s in the loader**, against ~3 s from a laptop — the geography finding.
+
+### The three findings the brief did not anticipate
+
+**1. The frontend artefact moved 115 bytes on a story that shipped no frontend file, and
+the mechanism is the finding.** 348,135 → **348,250 B**, 278 → 279 modules. `packages/shared`
+is inlined into the bundle, so a change there is a change to the artefact. But the
+interesting half is _which_ change: `SECURITY_KINDS`, `SECTORS` and `SECURITY_STATUSES` are
+plain `as const` array literals and are tree-shaken out **completely** — grepping the bundle
+for `sector_etf`, `untracked` or any sector name returns **zero** — while **`SECTOR_ETFS`
+is built by calling `toTicker()` eleven times**, and a call expression is not provably
+side-effect-free, so the bundler keeps the eleven calls and discards the object they build.
+That is Task 1.7.7's _"a module can join the graph and cost nothing"_ meeting its
+counter-example. Confirmed by **rebuilding Story 2.2's close commit**, which reproduces
+348,135 B / `b98aeaa5…` exactly, so the recorded figure was right when taken and stopped
+being right one story later. The bytes were deliberately left; the **rule** is what ships:
+a vocabulary declared as a literal is free to the browser and one declared through a
+constructor is not.
+
+**2. Two recorded figures were wrong WHEN WRITTEN rather than gone stale**, and only
+rebuilding could tell the difference — Task 1.7.7's rule paying for itself a third time.
+Storybook's output is **65 files**, and Story 2.2's close commit rebuilds to 65 as well, so
+the recorded 63 had been carried as "unchanged" across two closes that never re-took it.
+And `UNIVERSE.md` §13.1's `dist/universe.js` **28,819 B** / `dist/load-universe.js`
+**31,608 B** are actually 31,792 and 35,004, measured in both the clone and the working tree
+with the sources byte-identical to 2.3.7's commit.
+
+**3. The twelve convention blocks were stale by TWO story closes, not one.** They read
+`229 … as of Task 2.1.8` against a tree running 287, and Story 2.2's close did not touch
+them despite running the sweep. All ten identical copies were amended together — verified to
+land on **one md5** afterwards — with Stories 1.2 and 1.3's two historical variants left at
+103 as previous sweeps left them, plus five sites in Epic 1's `EPIC.md`.
+
+### The `0002` / `0003` conflict is resolved, and the answer is forced
+
+Both files were left **byte-identical**. This is no longer a judgement call: both are
+applied and checksummed, the checksum hashes the whole file **including comments**, and the
+2026-09-05 story renumber already proved it — it edited story numbers inside those comments
+and the next deploy's migration step refused with `2 applied migrations have been edited
+since they were applied`, having applied nothing. So `0002`'s claim that `status` has no
+check, and `0003`'s claim that `deploy.yml` has no migration step, both stand as
+**historical records inside immutable files**. A reader meets them in order and `0003`'s
+header is the correction. Recorded in the ADR, because Story 2.8's migration comments will
+be read against this precedent.
+
+### Everything else corrected
+
+`README.md` said **286** fast tests twice and named 0014 as the most recent ADR when there
+are sixteen files. `CLAUDE.md` said **246** in two live sites and **fourteen** ADRs, and
+its ADR sentence has now been wrong three times, so it no longer carries a number at all —
+`ls docs/adr/` is the count. `apps/backend/migrations/README.md` §7 said "Story 2.3
+**chooses**" in the future tense in a live conventions document. `load-universe.ts` said
+**13 columns** against a 12-entry `WRITTEN_COLUMNS`. `schema.ts` named two different
+stories for the same mapping layer. `UNIVERSE.md` §8's bind-parameter arithmetic was wrong
+by an order of magnitude. And **one factual error inside the shipped universe**: the
+industrials block called three aerospace names "the second-deepest industry group", where
+three is **joint-fifth** — counted from the database rather than read.
+
+### The sizing question is NOT closed
+
+101 remains **provisional**, parked on Story 2.7's Alpaca measurement, with **Story 2.8** as
+the deadline. The ADR's "what the universe is not" list carries it explicitly, so the ADR
+does not quietly retire a parked decision. What is **not** parked, and is actionable now
+with no new data, is the industry taxonomy being too fine: 45 industries across 86 equities,
+**51% singletons**.
+
+### Figures
+
+`pnpm verify` **exit 0 in 33.21 s cold from the clone**, **27.0 s warm with a database and
+27.0 s with none**. `pnpm test` **287** (55 + 129 + 103), `test:process` **14**,
+`test:database` **55** (exit 1 with no database, not skipped). Clean clone **419 store
+entries / 285,008 KB / 4,766 lockfile lines**, reproducing Story 2.2's baseline exactly —
+the check, because this story added no dependency — with the install-script sweep returning
+`esbuild@0.28.2` alone. Local and deployed universes byte-identical at
+**`ee27fda00f3fc6838b054b285630c19c`**; all three migration checksums agreeing across both
+databases and `shasum`; PostgreSQL **18.6** at both ends.
+
+### Two hazards that reappeared
+
+The `developer-laptop` firewall rule had moved again (`.19` → `.11`), its third sighting —
+which cost one command rather than a diagnosis, because `HOSTING.md` records the pattern
+rather than an address. And `libpq` still cannot do `verify-full` where Node can, so the
+read-back went through the repository's own `pg` rather than `psql`.
+
+---
+
+## For the non-technical reader — where the product is, and what this task actually did
+
+**In one sentence: MarketPulse now knows which ~100 companies it is watching, that list
+lives in the real cloud database as well as on a developer's laptop, and this task was the
+final check that all of it is genuinely true rather than merely believed.**
+
+### What "the tracked universe" is, and why it is the whole product's foundation
+
+MarketPulse's job is to spot unusual behaviour in the US stock market and help someone
+investigate it. Before it can do any of that, it has to know **which companies it is
+watching**. That list is what this story built, and it is called the _tracked universe_.
+
+It is 101 securities: **86 companies** — Nvidia, Apple, JPMorgan, Exxon and so on — plus
+**15 baskets** used as yardsticks (things like the S&P 500 tracker, and one basket per
+industry sector).
+
+This sounds mundane. It is not, because **almost every interesting thing the product will
+do is a statement about this list**:
+
+- "Technology is down today" is a calculation over the technology companies _in this list_.
+- "Nvidia fell much harder than its peers" needs the list to know who Nvidia's peers are.
+- The network diagram on the home screen draws one dot per entry in this list.
+- "82% of semiconductor companies are falling" is arithmetic over however many
+  semiconductor companies this list contains.
+
+So if the list is badly chosen, everything downstream is quietly wrong in ways nobody can
+diagnose four months later. That is why the list was chosen against a **written rule**
+rather than by grabbing the hundred biggest companies — the obvious approach produces a
+list that is roughly 40% technology, which would make "the market is down" and "technology
+is down" the same sentence, and would make the product's headline feature meaningless.
+
+The rule we used: **at least 6 and at most 12 companies from each of the eleven sectors.**
+The result is a list where the largest sector is 14% rather than 40%, and where every
+sector has enough companies for a percentage to mean something.
+
+### What this particular task did
+
+The previous seven tasks built and deployed all of that. This task's job was **verification
+and record-keeping** — deliberately, and it is the pattern every story here closes on.
+
+The reason it exists as its own task is a simple and slightly uncomfortable observation:
+**the person who builds something is the worst person to confirm it works**, because they
+confirm the thing they remember building. So this task starts from a _fresh copy of the
+project_, as a new team member would, and re-runs every promise the story made — not by
+re-reading the notes that say it worked, but by making it happen again.
+
+That found things. Three of them mattered:
+
+**1. A change with no visible cause.** The website's downloaded files got 115 bytes bigger,
+even though this story never touched the website. Rather than shrug, we tracked it down: a
+small shared piece of code is bundled into the website, and one particular way of writing a
+list of values causes it to be shipped to every visitor's browser while another way does
+not. Trivial in size — but the _rule_ matters, because the next time it happens it might be
+the whole 101-company list being sent to every browser that loads the page. That rule is
+now written down.
+
+**2. Two numbers in our own documentation were wrong from the day they were written**, not
+merely out of date. We only found out by rebuilding an older version of the project and
+comparing. This is worth mentioning to a stakeholder because it is the single most common
+way engineering documentation becomes actively harmful: a figure that was never checked
+gets copied forward, and each copy makes it look more authoritative.
+
+**3. A shared note about how many automated tests exist had been stale for two rounds of
+work.** It said 229; the real number is 287. It appears in twelve places for readability,
+and all of them were corrected together — because fixing only the copy in front of you is
+how the problem started.
+
+### Decisions worth explaining, and why we made them
+
+**The company list is a file in our own code, not something fetched from a data provider.**
+Our market-data supplier does not actually publish which sector a company belongs to, so we
+would have needed a second supplier, a second contract and a second password. For ~100
+companies that change sector once in a blue moon, a hand-maintained file that anyone can
+review is the honest answer. **Its cost is that it goes out of date silently**, and rather
+than pretend otherwise we made the file record _the date it was last checked_, and made
+that date visible in the database so a future screen can tell a user "nobody has verified
+this in a year."
+
+**Removing a company from the list does not delete it.** It gets flagged as "no longer
+tracked" and everything we ever stored about it is kept. This looks like extra work for no
+benefit until you remember the product's flagship feature: replaying a past trading day
+exactly as it was. A company we stopped tracking last month _was_ being tracked on the day
+being replayed, and deleting its history would make that replay silently wrong. We proved
+this works by removing a company, putting it back, and confirming it returned with its
+original identity and history intact.
+
+**Loading the list happens automatically on every deployment.** The alternative — doing it
+once, by hand — means that editing the list would change nothing in the live product, and
+somebody would eventually spend a day working out why. The trade-off is that the step runs
+even when nothing has changed; we measured that a no-change run writes literally nothing to
+the database, so the cost is about half a second.
+
+**We deliberately did NOT decide how big the list should ultimately be.** The product spec
+allows 100–500 companies. There is an unresolved question about whether our data provider's
+free tier will actually let us stream 500, and the answer changes the number. Rather than
+quietly writing "101" into the architecture as though it were settled, we recorded it as an
+open question with a named owner and a deadline. Nothing in the code assumes 101, so
+changing it later costs one file edit — **that is the real deliverable**, not the number
+itself.
+
+### The honest status report
+
+**What works:** MarketPulse has a properly designed, sector-balanced list of 101 securities.
+It is loaded into both the local development database and the live cloud database, and we
+have proved by cryptographic fingerprint that the two are identical. Adding, removing and
+restoring companies all work correctly. A malformed list is refused before it can touch the
+database.
+
+**What a user can see today: nothing.** This is worth being blunt about. The data is in the
+database and no screen reads it yet. If you opened the deployed site right now you would
+see the same page as a week ago.
+
+**What unblocks next:** the very next story, 2.4, is the first _vertical slice_ — it puts
+this list on screen. That is deliberate sequencing: rather than build all the backend
+plumbing for the whole epic and show something in three months, we reordered the work so
+the securities appear in the product as soon as the data exists to show. After that come
+prices, charts, and then the anomaly detection that makes the product interesting.
+
+**One risk we are carrying openly:** the sector labels in our list are correct today and
+nothing automatically checks that they stay correct. We know this, it is written in three
+places, and the mitigation is that every row carries the date it was last verified so the
+staleness will be visible rather than silent.

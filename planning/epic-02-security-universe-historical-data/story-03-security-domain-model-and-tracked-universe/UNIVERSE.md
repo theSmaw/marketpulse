@@ -456,16 +456,16 @@ quietly relaxed to fit a list is the failure this split exists to prevent.
 2.3.6 owes the walk; this task owes the list of places a hard-coded 100 could hide and
 which of them exist today:
 
-| Place                    | Exists today?                   | What would make expansion cost something                                                                                                                                                                                                                             |
-| ------------------------ | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The universe file        | no — Task 2.3.4                 | An `EXPECTED_COUNT`, or an array length asserted anywhere                                                                                                                                                                                                            |
-| The loader               | no — Task 2.3.5                 | A batch size or a single multi-row `insert` built as one statement; Postgres's 65,535 bind-parameter ceiling is reachable at 500 rows × 13 columns                                                                                                                   |
-| The schema               | **yes** — `0002_securities.sql` | Nothing. `bigint` identity, no partitioning, no size assumption                                                                                                                                                                                                      |
-| The validation           | no — Task 2.3.5                 | An O(n²) cross-row check; trivial at 100, still trivial at 500                                                                                                                                                                                                       |
-| An API default page size | no — Story 2.9                  | A limit sized to "the whole universe fits in one response"                                                                                                                                                                                                           |
-| A frontend list          | no — Story 2.10/2.11            | Rendering all of them without virtualisation                                                                                                                                                                                                                         |
-| The bar ingestion        | no — Story 2.8                  | Alpaca's per-request symbol limit and rate limits, which Story 2.7 measures                                                                                                                                                                                          |
-| Storage                  | **yes** — measured              | Story 2.1 measured **~22.5 GiB usable** and estimated **~1.18 GB/year** of minute bars at 100 securities. Linear in security count: ~5.9 GB/year at 500, so **~4 years** of headroom against the current disk before the read-only threshold, against **~20** at 100 |
+| Place                    | Exists today?                   | What would make expansion cost something                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------ | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The universe file        | no — Task 2.3.4                 | An `EXPECTED_COUNT`, or an array length asserted anywhere                                                                                                                                                                                                                                                                                                                              |
+| The loader               | no — Task 2.3.5                 | A batch size or a single multi-row `insert` built as one statement. ~~Postgres's 65,535 bind-parameter ceiling is reachable at 500 rows × 13 columns~~ — **wrong by an order of magnitude, corrected in Task 2.3.8**: 500 × 13 is 6,500, and the loader writes **12** columns, so the ceiling arrives at **5,461** rows. The loader chunks anyway (§11), so 500 is still one statement |
+| The schema               | **yes** — `0002_securities.sql` | Nothing. `bigint` identity, no partitioning, no size assumption                                                                                                                                                                                                                                                                                                                        |
+| The validation           | no — Task 2.3.5                 | An O(n²) cross-row check; trivial at 100, still trivial at 500                                                                                                                                                                                                                                                                                                                         |
+| An API default page size | no — Story 2.9                  | A limit sized to "the whole universe fits in one response"                                                                                                                                                                                                                                                                                                                             |
+| A frontend list          | no — Story 2.10/2.11            | Rendering all of them without virtualisation                                                                                                                                                                                                                                                                                                                                           |
+| The bar ingestion        | no — Story 2.8                  | Alpaca's per-request symbol limit and rate limits, which Story 2.7 measures                                                                                                                                                                                                                                                                                                            |
+| Storage                  | **yes** — measured              | Story 2.1 measured **~22.5 GiB usable** and estimated **~1.18 GB/year** of minute bars at 100 securities. Linear in security count: ~5.9 GB/year at 500, so **~4 years** of headroom against the current disk before the read-only threshold, against **~20** at 100                                                                                                                   |
 
 Of the eight, exactly two exist today and neither constrains the count. **The storage row
 is the one with a real number in it**, and it is the one Task 2.3.6 should hand forward
@@ -591,8 +591,11 @@ row-level `check`.
 
 Per §8: there is no `EXPECTED_COUNT`, no asserted array length, no page size and no
 constant anywhere that would have to change to reach 500. `UNIVERSE.length` is the only
-way to learn the count, and the only place the number 101 appears in the repository is
-this document. Task 2.3.6 owes the argument; this task owed the absence, and it is absent.
+way to learn the count, and ~~the only place the number 101 appears in the repository is
+this document~~ — **true of shipped source and no longer true tree-wide** (Task 2.3.8): it
+now appears in `CLAUDE.md`, `README.md` and several task files, all of them prose. §12.5's
+narrower re-take — no `EXPECTED_COUNT`, no asserted length, no page size **in code** — is
+the accurate form and is the one that matters. Task 2.3.6 owes the argument; this task owed the absence, and it is absent.
 
 ---
 
@@ -704,10 +707,11 @@ bytes × 100 = 1.18 GB), so the model is sound:
 |      1,000 |     98M | 11.8 GB | ~2 years                      |
 |      5,000 |    491M |   59 GB | ~5 months                     |
 
-**Even 5,000 securities with a year retained is about $15/month of disk**, and the write
+**Even 5,000 securities with a year retained is about ~~$15~~ $12.40/month of disk** (re-derived in Task 2.3.8 from this document's own meters: 59 GB × $0.115 storage + 59 GB × $0.095 backup), and the write
 load is ~10 KB/s, which the measured 120 IOPS handles comfortably _provided bars are
-batched per minute rather than written per row_ (note 5,000 rows × 13 columns sits almost
-exactly on Postgres's 65,535 bind-parameter ceiling, so batches need chunking). The real
+batched per minute rather than written per row_ (note 5,000 rows × **12** columns is 60,000, just inside
+Postgres's 65,535 bind-parameter ceiling — the loader chunks at **5,461** rows regardless,
+so this is a margin rather than a limit; the ~~13~~ 12 is Task 2.3.8's correction). The real
 database cost is the tier: Story 2.1 measured that an **idle B1ms banks almost no CPU
 credits**, so there is no reservoir for sustained ingestion.
 
@@ -1056,8 +1060,13 @@ whole of the gap.
 ### 12.7 §9's distribution did not move, and that is a decision
 
 The obvious reading of "add one and remove one" is that this task ships a changed list. It
-does not: `apps/backend/src/universe.ts` is **byte-identical** to where Task 2.3.4 left it,
-and §9's distribution table is untouched.
+does not: **every ROW is byte-identical to where Task 2.3.4 left it**, and §9's distribution
+table is untouched. ~~`apps/backend/src/universe.ts` is byte-identical~~ — **narrowed in Task
+2.3.8, which checked rather than repeated it**: the file is not, because 2.3.5 added
+`UNIVERSE_PROVENANCE` and a story-number sweep and 2.3.8 corrected a wrong comment, but
+`git diff 7c4d844 HEAD -- apps/backend/src/universe.ts` touches **no `symbol`, `name`,
+`exchange` or `industry` line at all**. The rows are the claim; the file was the wrong unit
+to make it in.
 
 The list is a **product decision** taken in 2.3.4 against §7's rule, and churning it to
 satisfy a demonstration is the failure that split exists to prevent — a list edited for a
@@ -1142,8 +1151,15 @@ image: `apps/backend/package.json`'s `files` is `["dist", "!dist/**/*.test.*"]`,
 container carries `migrate.js` and **not** `apps/backend/migrations/` — a description of
 the schema with nothing that can create it. Neither half of that transfers. Both halves of
 this mechanism compile into `dist/` and were measured on the shipped files:
-`dist/universe.js` **28,819 B** and `dist/load-universe.js` **31,608 B**, neither a
-`*.test.*` file. So the image carries the data **and** the mechanism, and the argument had
+~~`dist/universe.js` **28,819 B** and `dist/load-universe.js` **31,608 B**~~ — **re-taken
+in Task 2.3.8 from a clean clone AND from the working tree, with both sources byte-identical
+to this commit, and neither figure reproduces: they are `dist/universe.js` **31,792 B** and
+`dist/load-universe.js` **35,004 B**.** ~~31,792~~ **32,039 B once 2.3.8's own
+one-comment correction landed in that file, which is the point rather than a footnote: a
+`.js` size is checked by NOTHING and moves on a comment edit, so a byte count recorded in
+prose about compiled output is the most perishable figure this repository keeps.** The recorded pair was almost certainly measured
+against a `dist/` built before 2.3.6's `untrackAbsent` landed. Neither is a
+`*.test.*` file, which is the claim these numbers exist to support and is unaffected. So the image carries the data **and** the mechanism, and the argument had
 to be found somewhere else.
 
 **It was, and it did not exist before Task 2.3.6.** That task made the loader write rows it
@@ -1391,3 +1407,150 @@ lockfile line changed. Three probe files (`probe-universe.json`, `probe-universe
 `probe-import.ts`) were created under `apps/backend/src/` to take the §6 measurements and
 were deleted; `apps/backend/dist/` was rebuilt afterwards. `git status --porcelain` reports
 only this file and the task file.
+
+---
+
+## 14. The close (Task 2.3.8, 2026-09-06)
+
+Every figure in this section was taken against the shipped tree — from a clean clone where
+a clone is the honest place — and **re-taken rather than cited**, which is the rule this
+document's own §13 exists under.
+
+### 14.1 The deployed step ran, and that is the gap 2.3.7 could not close
+
+`deploy.yml`'s `Load the tracked universe` step had never executed on `main` when 2.3.7
+shipped, because a step in that workflow only runs there. Its first real execution is the
+merge of 2.3.7's own pull request — **deploy run `33975545926`** — and it printed:
+
+```text
+  ✓ 101 securities in the universe
+      0 inserted
+      0 updated
+      101 unchanged
+```
+
+Exit 0. That is the weaker demonstration 2.3.7 predicted, because the rows were already
+loaded by hand, and it proves the one thing the body run could not: **the step is wired
+into the workflow at all.** It also proves the token mint as `marketpulse-github-deploy`
+from the runner, which a laptop structurally cannot do — 2.3.7 could only prove the role's
+_authority_, by `set role` from the administrator's session.
+
+**Its cost is 2 s wall, of which the loader itself is 0.428 s**, against the ~3 s §13.2
+measured from a laptop. The runner and the database are both in the United States and the
+laptop is not; this is Task 1.13.5's geography finding a second time. The migration step
+beside it reported `Nothing pending.` / `Already up to date` in **0.62 s**, against the
+**1.181 s** §13.2 recorded.
+
+### 14.2 The two databases hold the same universe, proved by fingerprint
+
+The honest form of criterion 2's deployed half. It is **not re-runnable from a clone** —
+it needs Azure credentials `pnpm verify` deliberately does not have, and writes to a
+database carrying a `CanNotDelete` lock — so it was read back instead.
+
+With one stated expression over every column that must agree
+(`symbol|name|exchange|kind|sector|industry|cik|status` plus the four provenance columns,
+ordered by symbol):
+
+|          |                                    |
+| -------- | ---------------------------------- |
+| Local    | `ee27fda00f3fc6838b054b285630c19c` |
+| Deployed | `ee27fda00f3fc6838b054b285630c19c` |
+
+That is a stronger statement than a column-by-column comparison: **the same file produced
+both.** The deployed table holds 101 rows, all `active`, 86 / 11 / 4, with the sector
+distribution identical to §9 row for row, and both `*_retrieved_at` columns reading
+`2026-09-05 00:00:00+00` — the file's date, in production, which is §11's decision visible
+where it matters.
+
+All three migration checksums agree **three ways** — the local database, the deployed
+database, and `shasum -a 256` of the files:
+
+```text
+0001_baseline            cdebe2eabc21e2d0b555b9351c597fb9c102eeee2f678c7c6db188ccbbd56ca5
+0002_securities          8a944594c3fdf6e5cd0b9cbb88a45a19e28c85a815a1c27df7ff7faf903b540a
+0003_security_vocabulary b52847a22b9260f53accb8034b802c005578f71e34008c8e0fc9e5ac72e36cfe
+```
+
+`0003` is recorded as applied at **`2026-09-05T12:37:50.356Z`**, reproducing §13.6.
+Engine: **PostgreSQL 18.6** at both ends.
+
+**`securities_id_seq.last_value` moved 406 → 507 across the CI load**, with ids still
+3–103. That is §11's "an upsert consumes an identity value per row per run whether or not
+anything changed", visible in production for the first time — and it is also independent
+evidence that the deploy step really did write through the upsert rather than short-circuit.
+
+### 14.3 Criteria 3 and 5, re-made
+
+**Criterion 3.** An equity with no sector — which the discriminated union refuses at
+compile time, so a cast is what lets the _runtime_ validator be exercised at all — exits 1
+naming the symbol. A sector whose ETF is missing, together with a duplicated symbol,
+reports **three problems in one run**:
+
+```text
+The universe was refused and nothing was written. 3 problems:
+  ✗ NVDA appears more than once. …
+  ✗ Sector `materials` is on 6 securities and the universe has no sector_etf row for it. …
+  ✗ The taxonomy names `materials`, SECTOR_ETFS maps it to XLB, and the universe has no sector_etf row for it.
+```
+
+**The table's fingerprint is identical before and after all three**, because validation
+runs before the pool is built.
+
+**Criterion 5**, run end to end against a real database:
+
+| Step          | Reported                                      | Row                                         |
+| ------------- | --------------------------------------------- | ------------------------------------------- |
+| Add `VRTX`    | `1 inserted, 0 updated, 101 unchanged`        | new id                                      |
+| Remove `GILD` | `0 / 0 / 101` plus `1 … now marked untracked` | **id 34 kept, original `recorded_at` kept** |
+| Run again     | `1 already untracked, unchanged`              | `updated_at` **byte-identical**             |
+| Re-add `GILD` | `0 inserted, 1 updated, 100 unchanged`        | **same id 34, same `recorded_at`**          |
+
+The re-add returning the **same surrogate key** is the whole argument for §12, because
+Story 2.8's bars hang off exactly that key. The table was restored to its pre-probe
+fingerprint afterwards.
+
+### 14.4 Three things the close found that no task predicted
+
+**The frontend artefact moved 115 bytes and this story shipped no frontend file.**
+`packages/shared` is inlined into the bundle, so a change there is a change to the
+artefact. The array-literal vocabularies (`SECURITY_KINDS`, `SECTORS`,
+`SECURITY_STATUSES`) are tree-shaken out **completely** — a grep of the bundle for
+`sector_etf`, `untracked` or any sector name returns **zero** — but **`SECTOR_ETFS` is
+built by calling `toTicker()` eleven times**, and the bundler cannot prove a call
+side-effect-free, so it keeps the eleven calls and drops the object. Confirmed by
+rebuilding Story 2.2's close commit, which reproduces 348,135 B exactly. **The rule to
+carry: a vocabulary declared as a literal is free to the browser and one declared through
+a constructor is not.**
+
+**Two recorded figures were wrong when written rather than gone stale**, both found by
+rebuilding rather than by reading: Storybook's output is **65 files** and reproduces 65 at
+Story 2.2's close commit as well, so the recorded 63 had been carried as "unchanged" across
+two closes that never re-took it; and §13.1's built-file sizes do not reproduce, corrected
+in place above.
+
+**The twelve convention blocks were stale by two story closes**, not one — the first time
+that sweep has found more than one increment outstanding.
+
+### 14.5 The figures
+
+|                                                |                                                                                                                                                                       |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clean clone                                    | 417 packages; **419 store entries / 285,008 KB / 4,766 lockfile lines**, reproducing Story 2.2's baseline exactly — the check, because this story added no dependency |
+| Install-script sweep                           | `esbuild@0.28.2` and nothing else                                                                                                                                     |
+| `pnpm verify`                                  | exit 0 in **33.21 s** cold from the clone; **27.0 s** warm with a database, **27.0 s** with none                                                                      |
+| `pnpm test` / `test:process` / `test:database` | **287** / **14** / **55** (2 files, 939 ms; exit 1 with no database, not skipped)                                                                                     |
+| Local first load                               | `pnpm migrate` 3 migrations in **0.504 s**; `pnpm universe` 101 inserted in **0.329 s**                                                                               |
+| Frontend artefact                              | 348,250 B `1a92544a…` + 12,128 B `134d5dd8…` + 1,101 B `bcb28338…` + 300 B = **361,779 B**, 279 modules                                                               |
+| Storybook                                      | **65 files**, 9.3 MB                                                                                                                                                  |
+
+### 14.6 Two hazards that reappeared on the way in
+
+**The `developer-laptop` firewall rule had moved again** — `122.11.246.19` → `.11`, its
+third sighting. `HOSTING.md` already records the _pattern_ rather than an address, which
+is why this cost one command rather than a diagnosis.
+
+**`libpq` still cannot do `verify-full` where Node can.** A `postgres:18` container's
+`psql` refuses with `root certificate file … does not exist`, and then with
+`certificate verify failed` even against `sslrootcert=system`, while the repository's own
+`pg` connects with nothing shipped. That is Task 2.1.5's finding — "no CA file in the
+Dockerfile" is a property of the **runtime**, not of the certificate — arriving unchanged.

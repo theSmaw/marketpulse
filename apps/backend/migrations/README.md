@@ -367,13 +367,17 @@ only write a second migration correcting the first, and the append-only history 
 both. That is right for shape, where the history of how the schema got here is
 the point, and wrong for content, where only the current answer matters.
 
-**Story 2.3 chooses for the ~100-security universe**, and this section exists so
-the choice is made against a stated rule rather than re-litigated. The criterion
-it should be judged on is its own acceptance criterion 2: the universe loads in
-one documented command and **re-running it is idempotent** — where "idempotent"
-has to mean "picks up an edited list", which a migration structurally cannot do,
-rather than "does nothing the second time", which a migration does trivially and
-uselessly.
+~~**Story 2.3 chooses for the ~100-security universe**~~ — **it chose, and the
+answer is a seed script: `pnpm universe` over `scripts/load-universe.mjs` (Task
+2.3.5).** This section exists so the choice was made against a stated rule rather
+than re-litigated, and the rule is what decided it. The criterion it was judged on
+is that story's own acceptance criterion 2: the universe loads in one documented
+command and **re-running it is idempotent** — where "idempotent" has to mean
+"picks up an edited list", which a migration structurally cannot do, rather than
+"does nothing the second time", which a migration does trivially and uselessly.
+The loader converges on the file by upserting on `symbol`, which is that sentence
+built; a symbol dropped from the file is marked `untracked` rather than deleted,
+which is the half a migration could not have expressed at all.
 
 The honest exception, so it is not discovered later as a contradiction: a **lookup
 table whose rows the schema depends on** — one a foreign key or a check references

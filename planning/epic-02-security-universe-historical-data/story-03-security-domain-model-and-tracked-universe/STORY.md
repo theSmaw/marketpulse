@@ -1,6 +1,6 @@
 # Story 2.3 — Security Domain Model & the Tracked Universe
 
-**Status:** In progress
+**Status:** Complete (2026-09-06)
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.2
 **Epic scope covered:** Security domain model; initial ~100-security universe; ETF/sector metadata
@@ -153,16 +153,16 @@ way the list changes (2.3.6). 2.3.7 is the half that gets skipped and then hurts
 closes the story and records ADR 0016 — 0016 and not 0014, which is reserved for Story
 2.1's own close, and ADRs are never renumbered.
 
-| #     | Task                                                                                                                                                | Status      |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 2.3.1 | [Choose the vocabulary, the taxonomy and where the metadata comes from, shipping nothing](TASK-01-choose-the-vocabulary-and-the-metadata-source.md) | Complete    |
-| 2.3.2 | [`Security` in `packages/shared`, and the vocabularies it fixes](TASK-02-the-security-type.md)                                                      | Complete    |
-| 2.3.3 | [The schema the vocabulary needs: the first migration written by a reader of the conventions](TASK-03-the-schema-the-vocabulary-needs.md)           | Complete    |
-| 2.3.4 | [The universe itself: ~100 securities, and the rule that produced them](TASK-04-the-universe-itself.md)                                             | Complete    |
-| 2.3.5 | [The loader: one documented command, idempotent, and it refuses a bad universe](TASK-05-the-loader.md)                                              | Complete    |
-| 2.3.6 | [Change the universe: add one, remove one, and say what expansion costs](TASK-06-change-the-universe.md)                                            | Complete    |
-| 2.3.7 | [Load the deployed universe, and decide whether that happens on every deploy](TASK-07-load-the-deployed-universe.md)                                | Complete    |
-| 2.3.8 | [Verify from a clean clone, document, and record ADR 0016](TASK-08-verify-document-and-adr.md)                                                      | Not started |
+| #     | Task                                                                                                                                                | Status   |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| 2.3.1 | [Choose the vocabulary, the taxonomy and where the metadata comes from, shipping nothing](TASK-01-choose-the-vocabulary-and-the-metadata-source.md) | Complete |
+| 2.3.2 | [`Security` in `packages/shared`, and the vocabularies it fixes](TASK-02-the-security-type.md)                                                      | Complete |
+| 2.3.3 | [The schema the vocabulary needs: the first migration written by a reader of the conventions](TASK-03-the-schema-the-vocabulary-needs.md)           | Complete |
+| 2.3.4 | [The universe itself: ~100 securities, and the rule that produced them](TASK-04-the-universe-itself.md)                                             | Complete |
+| 2.3.5 | [The loader: one documented command, idempotent, and it refuses a bad universe](TASK-05-the-loader.md)                                              | Complete |
+| 2.3.6 | [Change the universe: add one, remove one, and say what expansion costs](TASK-06-change-the-universe.md)                                            | Complete |
+| 2.3.7 | [Load the deployed universe, and decide whether that happens on every deploy](TASK-07-load-the-deployed-universe.md)                                | Complete |
+| 2.3.8 | [Verify from a clean clone, document, and record ADR 0016](TASK-08-verify-document-and-adr.md)                                                      | Complete |
 
 **Four things about this split are decisions rather than consequences.**
 
@@ -426,3 +426,46 @@ deployed database**. That is why only two deployed failure classes are reachable
 universe and an unreachable database — and both were produced. It is also a claim that stops
 being true the moment a column is added to the migration and not to `Security`, which is the
 kind of thing 2.3.8's ADR should say out loud.
+
+---
+
+## Outcome (2026-09-06)
+
+**Story 2.3 is complete. All seven acceptance criteria are met, all eight open decisions
+are settled, and `docs/adr/0016-the-tracked-universe-what-a-green-load-certifies.md`
+records the reasoning.** Task 2.3.8 re-ran every criterion against the shipped tree rather
+than citing a task file, re-made criteria 3, 4 and 5 rather than reading them, and re-took
+every figure from a clean clone.
+
+| #   | Criterion                                                                            | How it was met                                                                                                                                                                                                                             |
+| --- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `Security` defined once in `packages/shared`; both apps compile                      | A discriminated union on `kind`. `tsc -b` green from a clean clone                                                                                                                                                                         |
+| 2   | Loads into a clean database in one documented command; re-running is idempotent      | `pnpm universe` — 101 inserted in 0.329 s into a database emptied with `pnpm db down -v`; re-run `0 / 0 / 101`, **one** distinct `updated_at`, **zero** rows where `updated_at <> recorded_at`. Deployed half read back rather than re-run |
+| 3   | Every equity has a sector; every sector present has an ETF; a bad one fails the load | Both refusals **re-made**: exit 1 naming the symbol, and **three problems in one run** for a missing ETF plus a duplicate. Table fingerprint identical before and after all three                                                          |
+| 4   | Count, distribution and rule recorded, and inspected against "not 40% technology"    | 86 equities / 11 sector proxies / 4 index proxies; floor 6 and ceiling 12 hit **exactly**; largest sector **14.0%**                                                                                                                        |
+| 5   | Adding and removing a symbol demonstrated, including stored data                     | Add `1 inserted`; remove → **`untracked`, id 34 and `recorded_at` preserved**; re-add → `1 updated` on the **same id**                                                                                                                     |
+| 6   | Metadata source recorded per-field for Story 2.14                                    | Four columns in two field groups, carrying the **file's** stated date and never `now()`                                                                                                                                                    |
+| 7   | `pnpm verify` passes                                                                 | Exit 0 in **27.0 s with a database and 27.0 s with none**, and 33.21 s cold from the clone                                                                                                                                                 |
+
+**The gap 2.3.7 handed forward is closed.** The `Load the tracked universe` step's first
+real execution on `main` (deploy run `33975545926`) printed `0 inserted, 0 updated, 101
+unchanged` at exit 0 — the weaker demonstration 2.3.7 predicted, and the only thing that
+proves the step is wired into the workflow at all. It ran as `marketpulse-github-deploy`
+with a token minted on the runner, in **2 s** wall of which the loader is **0.428 s**,
+against ~3 s from a laptop across the Pacific.
+
+**Three things this close found that no task predicted.** The frontend artefact moved 115
+bytes on a story that shipped no frontend file, because `SECTOR_ETFS` is built by _calling_
+`toTicker()` and a call expression survives tree-shaking where an array literal does not.
+The twelve convention blocks were stale by **two** story closes rather than one. And two
+recorded figures were wrong **when written** rather than gone stale — Storybook's file
+count and `UNIVERSE.md` §13.1's built-file sizes — both caught by rebuilding rather than by
+reading, which is Task 1.7.7's rule paying for itself a third time.
+
+**What is deliberately left open**: the sizing. 101 is provisional, parked on Story 2.7's
+Alpaca measurement, with **Story 2.8** as the deadline because nothing encodes the count
+until bars exist. The industry taxonomy being too fine is **not** parked and is actionable
+now with no new data.
+
+**Story 2.4 — the first vertical slice — is next, and it is the first story in this epic
+that puts anything on a screen.**
