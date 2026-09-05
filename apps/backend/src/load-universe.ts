@@ -48,13 +48,12 @@
 //
 // ## What it does about a symbol in the database and not in the file
 //
-// **Nothing, and that is a seam rather than an answer.** It counts them and says
-// so; it does not delete them, does not change their `status`, and does not
-// refuse. Task 2.3.6 chooses between those three, and the choice is not free:
-// one of them destroys data Story 2.8 will have stored against the row, which is
-// exactly what a loader does by default if nobody decides. Leaving the row
-// untouched is the only option that is reversible by whichever answer 2.3.6
-// picks.
+// **It marks the row `untracked` and keeps it, along with everything stored
+// against it.** Task 2.3.6 took that decision; the argument for it, and against
+// the `DELETE` and the refusal, is on {@link untrackAbsent}. The consequence
+// that leaves the file is the one worth carrying: `status` is an **invisible
+// predicate**, so every later reader of `securities` owes an answer about it,
+// and `UNIVERSE.md` §12 is where those answers are written down.
 
 import { Kysely, PostgresDialect, sql } from "kysely";
 
@@ -435,8 +434,21 @@ export interface LoadCounts {
   readonly inserted: number;
   readonly updated: number;
   readonly unchanged: number;
-  /** In the database and not in the file. See the header — this is a seam. */
-  readonly absentFromFile: readonly string[];
+  /**
+   * In the database, not in the file, and `active` until this run — so this
+   * run moved them to `untracked`. See {@link untrackAbsent}.
+   */
+  readonly untracked: readonly string[];
+  /**
+   * In the database, not in the file, and already `untracked` — so this run
+   * did nothing to them and did not move their `updated_at`.
+   *
+   * Reported separately rather than folded into {@link untracked} because the
+   * two are different events: one is a removal happening, and the other is the
+   * steady state afterwards. A loader that shouted the same line on every run
+   * forever is one whose output stops being read.
+   */
+  readonly alreadyUntracked: readonly string[];
 }
 
 /**
@@ -479,13 +491,20 @@ export function summariseLoad(counts: LoadCounts): LoadOutcome {
     `      ${String(counts.unchanged)} unchanged`,
   ];
 
-  if (counts.absentFromFile.length > 0) {
+  if (counts.untracked.length > 0) {
     lines.push(
-      `\n  ○ ${String(counts.absentFromFile.length)} in the database and not in the file, left untouched:`,
-      `      ${counts.absentFromFile.join(", ")}`,
-      "\n    This loader does not delete, does not change `status`, and does not refuse.",
-      "    What should happen to a removed symbol is Task 2.3.6's decision, and one of the",
-      "    three answers destroys data Story 2.8 will have stored against the row.",
+      `\n  ○ ${String(counts.untracked.length)} in the database and not in the file, now marked untracked:`,
+      `      ${counts.untracked.join(", ")}`,
+      "\n    The rows are kept and so is everything stored against them. `status` is not a",
+      "    soft delete: a reader that shows a human a security shows the status, and a",
+      "    reader that computes over the tracked market filters on it. See",
+      "    `UNIVERSE.md` §12 for which readers do which.",
+    );
+  }
+
+  if (counts.alreadyUntracked.length > 0) {
+    lines.push(
+      `\n  ○ ${String(counts.alreadyUntracked.length)} already untracked, unchanged: ${counts.alreadyUntracked.join(", ")}`,
     );
   }
 
@@ -569,7 +588,7 @@ async function applyUniverse(
   return db.transaction().execute(async (trx) => {
     const before = await trx
       .selectFrom("securities")
-      .select("symbol")
+      .select(["symbol", "status"])
       .execute();
     const existing = new Set(before.map((row) => row.symbol));
 
@@ -638,15 +657,83 @@ async function applyUniverse(
 
     const inFile = new Set<string>(rows.map((row) => row.symbol));
 
+    const absent = before
+      .filter((row) => !inFile.has(row.symbol))
+      .sort((left, right) => left.symbol.localeCompare(right.symbol));
+
+    const untracked = await untrackAbsent(
+      trx,
+      absent
+        .filter((row) => row.status !== "untracked")
+        .map((row) => row.symbol),
+    );
+
     return {
       inserted: [...written].filter((symbol) => !existing.has(symbol)).length,
       updated: [...written].filter((symbol) => existing.has(symbol)).length,
       unchanged: rows.length - written.size,
-      absentFromFile: [...existing]
-        .filter((symbol) => !inFile.has(symbol))
-        .sort(),
+      untracked,
+      alreadyUntracked: absent
+        .filter((row) => row.status === "untracked")
+        .map((row) => row.symbol),
     };
   });
+}
+
+/**
+ * What a removal from the file does to the row it leaves behind: **its
+ * `status` becomes `untracked`, and nothing else about it changes.**
+ *
+ * Task 2.3.6's decision, and it is a decision about data that does not exist
+ * yet. Three answers were available and they are not interchangeable:
+ *
+ *   * **`DELETE`** — refused. Story 2.8 stores `market_bars` against
+ *     `security_id`, so deleting the row either orphans those bars or cascades
+ *     and destroys them; and Epic 13 replays a date on which the security *was*
+ *     in the universe, which a row that no longer exists cannot answer. It is
+ *     also the only one of the three that is irreversible, and a removal is the
+ *     reversible event — `untracked` is a fact about *us*, not about the market
+ *     (`UNIVERSE.md` §3).
+ *   * **Refuse the load** — refused. It makes the one edit this file exists to
+ *     receive — deleting a line — into an error, and the workaround somebody
+ *     would reach for is a `DELETE` run by hand, which is the answer above with
+ *     no record of it.
+ *   * **A status transition** — this. `migrations/README.md` §5 already argued
+ *     the shape: nothing is soft-deleted, there is no `deleted_at`, and what
+ *     changes is a status that is *displayed* rather than filtered away.
+ *
+ * **Its second-order cost is stated rather than discovered:** `status` is an
+ * invisible predicate, and `migrations/README.md` §5's own argument is that one
+ * is a design and two is a bug waiting for whoever forgets. This is the one.
+ * `UNIVERSE.md` §12 names which readers filter on it and which must not, and
+ * that list is the obligation this function creates.
+ *
+ * **The re-add needs no code at all**, which is the property that made this the
+ * cheap answer: a symbol put back in the file arrives at the upsert above with
+ * `status: "active"`, `status` is in its `is distinct from` list, and the row
+ * flips back on its original `id` with its `updated_at` moved. It is only
+ * *because* the row was never removed that the surrogate key survives, so the
+ * re-add is not independent evidence for this choice — see `UNIVERSE.md` §12,
+ * which produced the `DELETE` alternative to get evidence that is.
+ *
+ * The write is guarded on the status the caller already read, so a run over a
+ * steady state writes **nothing** and moves no `updated_at` — the same
+ * discipline the upsert's `where` clause has, for the same reason.
+ */
+async function untrackAbsent(
+  trx: Kysely<Database>,
+  symbols: readonly string[],
+): Promise<readonly string[]> {
+  if (symbols.length === 0) return [];
+
+  const updated = await trx
+    .updateTable("securities")
+    .set({ status: "untracked", updated_at: sql<Date>`now()` })
+    .where("symbol", "in", symbols)
+    .returning("symbol")
+    .execute();
+
+  return updated.map((row) => row.symbol).sort();
 }
 
 /**

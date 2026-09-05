@@ -160,7 +160,7 @@ closes the story and records ADR 0016 — 0016 and not 0014, which is reserved f
 | 2.3.3 | [The schema the vocabulary needs: the first migration written by a reader of the conventions](TASK-03-the-schema-the-vocabulary-needs.md)           | Complete    |
 | 2.3.4 | [The universe itself: ~100 securities, and the rule that produced them](TASK-04-the-universe-itself.md)                                             | Complete    |
 | 2.3.5 | [The loader: one documented command, idempotent, and it refuses a bad universe](TASK-05-the-loader.md)                                              | Complete    |
-| 2.3.6 | [Change the universe: add one, remove one, and say what expansion costs](TASK-06-change-the-universe.md)                                            | Not started |
+| 2.3.6 | [Change the universe: add one, remove one, and say what expansion costs](TASK-06-change-the-universe.md)                                            | Complete    |
 | 2.3.7 | [Load the deployed universe, and decide whether that happens on every deploy](TASK-07-load-the-deployed-universe.md)                                | Not started |
 | 2.3.8 | [Verify from a clean clone, document, and record ADR 0016](TASK-08-verify-document-and-adr.md)                                                      | Not started |
 
@@ -351,3 +351,30 @@ declined for the reason Task 2.3.4 kept the count out of the code: it is recorde
 of the third kind in `CLAUDE.md`, the two lists sit one above the other with a comment
 saying so, and the real answer is Story 2.4's mapping layer rather than a check bolted onto
 a loader.
+
+### Amended after Task 2.3.6 — no task added, deleted or re-ordered
+
+The eight-task split has now survived contact with six implementation tasks. **The removal
+decision was taken — a status transition to `untracked`, never a `DELETE` — and the record
+is `UNIVERSE.md` §12.** Two task files gain something and one expectation this story held
+was wrong.
+
+- **2.3.7** inherits one new fact and it is the one that would be discovered the expensive
+  way: **the deployed `securities` table can now hold rows the file does not contain**, so
+  the first deployed run of `pnpm universe` after any future removal writes an `update`
+  rather than only inserts, and the row count and the universe count stop being the same
+  number. Nothing about the step changes; what changes is what its output means.
+- **2.3.8** gains `load-universe.ts`'s new `untrackAbsent` and the `README.md` paragraph
+  that used to say a removed symbol is "left alone" (rewritten here), plus moved figures:
+  **`pnpm test` is 287 and `pnpm test:database` is 55**. It also inherits the one live
+  claim this task created and nothing checks — the seven readers of `status` in
+  `UNIVERSE.md` §12.2, which is a gap of the third kind by construction.
+- **The expectation that was wrong:** 2.3.6's own brief said §9's distribution table is
+  "the count this task moves". It is not. `universe.ts` is byte-identical to Task 2.3.4's,
+  and the demonstrations were produced in a scratch database and reverted — Task 2.2.6's
+  precedent, and for its reason: the list is a product decision and editing it to satisfy a
+  demonstration is the failure the 2.3.4/2.3.5 split exists to prevent. §12.7 records that.
+
+**Nothing needed adding.** The candidate — a task for the ticker-change case — was declined
+and given an owner instead (Story 2.7, `UNIVERSE.md` §12.6): there is no rename in the
+current list, and a mechanism built against no instance is one nobody can test.

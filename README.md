@@ -509,7 +509,7 @@ Run from the repository root:
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Every package's tests — 286 across the workspace — see below          |
+| `pnpm test`         | Every package's tests — 287 across the workspace — see below          |
 | `pnpm test:process` | The backend's process half — 14 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
@@ -609,7 +609,7 @@ the same second half for the same reason.
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
 in this workspace. `packages/shared` runs 55 tests across 5 files,
-`apps/backend` 128 across 8, and `apps/frontend` 103 across 12 — **286 in
+`apps/backend` 129 across 8, and `apps/frontend` 103 across 12 — **287 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -672,7 +672,7 @@ answer.
 
 Three things about it worth knowing before changing it.
 
-**It is a separate command because it is a separate cost.** `pnpm test` is 286
+**It is a separate command because it is a separate cost.** `pnpm test` is 287
 tests in a few seconds, needs no build and no socket, and is the one you run all
 day; this suite takes about 8.2 s, of which 5 s is the shutdown ceiling being
 what it says it is. Both are steps in `pnpm verify`, so both gate.
@@ -1188,11 +1188,18 @@ one run to fix rather than three. Validation happens before a connection is
 opened, and the write itself is one transaction, so a refused load leaves the
 table byte-for-byte as it was.
 
-**A symbol in the database and not in the file is left alone**, reported, and
-does not fail the load. What _should_ happen to a security removed from the list
-is a decision Story 2.3 takes in its next task, and it is not a free one: one of
-the three plausible answers destroys price history stored against that row.
-Leaving the row untouched is the only option all three are still reachable from.
+**Deleting a symbol from the file does not delete its row — it marks it
+`untracked`.** The row stays, and so does everything stored against it, because
+a security we stopped following still has real price history behind it and Epic
+13 will replay a date on which it was in the list. Putting the symbol back in
+the file brings the same row back to `active`, on the same id. Nothing in this
+product deletes a security, and no reader may treat `untracked` as "gone" —
+`UNIVERSE.md` §12 names which readers filter on that column and which must not.
+
+```text
+  ○ 1 in the database and not in the file, now marked untracked:
+      GILD
+```
 
 It takes no arguments, and it applies no migration of its own — `pnpm migrate`
 does that, and this needs it to have been run first.
@@ -1205,7 +1212,7 @@ pnpm build         # and a built tree
 pnpm test:database
 ```
 
-**53 tests against a real PostgreSQL server**, in about a second. It is the
+**55 tests against a real PostgreSQL server**, in about a second. It is the
 sixth level of test in this repository and the third command that runs tests,
 after `pnpm test` and `pnpm test:process`, and it exists because four things
 this repository claims are only answerable by a database: that a migration

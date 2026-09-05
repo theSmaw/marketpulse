@@ -1,6 +1,6 @@
 # Task 2.3.6 — Change the universe: add one, remove one, and say what expansion costs
 
-**Status:** Not started
+**Status:** Complete (2026-09-05)
 **Story:** [2.3 Security Domain Model & the Tracked Universe](STORY.md)
 **Depends on:** Task 2.3.5 (a loader to run twice)
 
@@ -164,3 +164,99 @@ way nobody anticipated, and makes one of its stated checks weaker than it reads:
   decision, not the mechanism.
 - **The re-add check is trivial under the expected answer** and is only evidence against
   the `DELETE` alternative.
+
+---
+
+## What was done (2026-09-05)
+
+**The record is [`UNIVERSE.md` §12](UNIVERSE.md)**, not this file — the change procedure
+belongs where the next person changing the list will look. This section is the summary and
+the layman's report.
+
+**Shipped:** `untrackAbsent` in `apps/backend/src/load-universe.ts`, the `LoadCounts` shape
+it needed, and three rewritten database tests. **Not shipped:** any change to
+`apps/backend/src/universe.ts`, which is byte-identical to Task 2.3.4's — see §12.7 for why
+that is a decision rather than an omission.
+
+- **The removal decision is a status transition** (§12.1), with `DELETE` and "refuse the
+  load" refused in writing. Both alternatives were produced, not argued.
+- **The readers are named** (§12.2) — seven of them, with replay called out as the one that
+  must **not** filter, because a security untracked today was tracked on the date being
+  replayed.
+- **Add, remove, re-add and the steady state were each produced** against a real database
+  in a scratch database (§12.3), with the development database confirmed untouched.
+- **The `DELETE` contrast was produced** (§12.4) precisely because the re-add's
+  id-stability check is vacuous under the chosen answer: `id` 34 preserved against `id` 541
+  under the rejected one.
+- **The 500 walk was re-taken** (§12.5). Nothing here constrains the count; the feed might,
+  and that sentence goes to Story 2.7.
+- **The ticker change is a gap with an owner** (§12.6), produced rather than assumed: a
+  rename becomes two rows with two ids and nothing joining them.
+- **Whether adding a symbol counts as re-checking the list: no** (§12.9), with the
+  understating-freshness cost stated as the safe direction.
+
+Three deliberate breaks, each seen to fail and reverted: never untracking, rewriting an
+already-untracked row, and a `DELETE` in place of the transition. `pnpm verify` is exit 0,
+`pnpm test` is **287** (55 + 129 + 103) and `pnpm test:database` is **55**.
+
+---
+
+## For the stakeholder — what this means for the product
+
+**In one line: MarketPulse can now change its watchlist without losing anything.**
+
+Up to this task the system could load its list of ~100 tracked companies into the
+database, but nobody had decided what happens when a company comes **off** the list. That
+sounds like a small housekeeping question. It is not, and here is why.
+
+Everything MarketPulse is being built to do rests on stored history. The flagship feature
+in the product spec — "take me back to 11:07 on a past morning and show me what was
+knowable then" — only works because we keep every price we ever recorded. If removing a
+company from today's watchlist quietly deleted its history, then the moment we ever changed
+the list, we would have silently made parts of the past unreplayable. That failure would
+not announce itself. It would show up months later as a replay that was wrong, with nothing
+to point at.
+
+**So the decision taken here is: nothing is ever deleted.** A company removed from the list
+is marked _untracked_. Its row stays, its stored price history stays, and if we put it back
+next week it comes back as the same company rather than as a new one — proven, not assumed:
+we removed a company, put it back, and confirmed it landed on the identical database
+identity. We also built the alternative we rejected, deleting the row, and confirmed it did
+exactly the damage we expected — the company came back as a **different** record, orphaning
+everything filed against the old one. Having both results side by side is what turns "we
+chose the safe option" from an assertion into evidence.
+
+**The second half of the work is a discipline, not code.** Because removed companies stay
+in the database, every future screen has to answer one question: does it count them or not?
+A market-breadth number ("62% of the sector is falling") must not include companies we no
+longer follow, or the number is simply wrong. A page showing one company's history must
+include them, or we would be hiding data we hold. Replay must include them, always. Rather
+than let each future story work that out on its own — and get it wrong once — the answer
+for all seven kinds of reader is now written down in one place, with the reasoning.
+
+**Third: we checked the growth story is real.** The product spec says start at ~100
+companies and expand toward 500 "without requiring a redesign". That is easy to claim and
+easy to have quietly broken. We went looking for anywhere the number 100 is baked in — the
+list file, the loader, the database, the validation — and there is nowhere: the only limits
+in the system are derived from the database's own capabilities rather than picked by hand.
+Deliberately, we did **not** load 500 fake companies to prove it; that would have proved the
+loader can count, not that the design holds. What we did find is the real constraint, and it
+is not our code: our market-data provider's free tier limits how many live feeds we can
+subscribe to at once, and that question is already flagged for the story that will measure
+it. It is more honest to hand forward "our software does not limit this, the provider might"
+than to declare the problem solved.
+
+**One thing we chose to leave undone, on purpose.** When a company changes its ticker
+symbol — Facebook becoming META is the famous case — our system currently treats it as one
+company leaving and a different one arriving, so the old price history does not follow the
+new name. We reproduced that, wrote down exactly what it costs, and named the story that
+will fix it. Building a rename mechanism now would mean building something we cannot test
+against a real case, which is how features arrive already broken.
+
+**What a user can see today: still nothing.** This is infrastructure — the last of Story
+2.3's local work before the tracked universe goes to the live deployed database (next task)
+and then, in Story 2.4, onto a screen. That story is the one that pays this off: the first
+time a real list of real companies, with real sectors, appears in the browser instead of
+the placeholder data currently on the landing page. What this task guarantees is that when
+that list changes — and it will, several times a year — the change is safe, reversible, and
+does not cost us any of the history the whole product depends on.

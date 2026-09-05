@@ -472,6 +472,10 @@ is the one with a real number in it**, and it is the one Task 2.3.6 should hand 
 rather than have Story 2.8 rediscover: expansion to 500 is free everywhere except the
 disk, where it costs a factor of five against a figure Story 2.1 already took.
 
+**Task 2.3.6 re-took this walk rather than citing it — see §12.5.** Four of the eight rows
+now exist and none of them constrains the count; the table above is the prediction and
+§12.5 is the reading.
+
 ---
 
 ## 9. The list, and the distribution read against §7 (Task 2.3.4, 2026-09-05)
@@ -826,9 +830,292 @@ count rather than chosen.
 A symbol in the database and not in the file is **counted, reported and left
 untouched**. Deleting it, changing its `status` and refusing the load are the
 three answers; they are not interchangeable, and one of them destroys the bars
-Story 2.8 will have stored against the row. **Task 2.3.6 chooses.** Leaving the
+Story 2.8 will have stored against the row. ~~**Task 2.3.6 chooses.**~~ **Task 2.3.6 chose the status transition — §12.** Leaving the
 row alone is the only option all three remain reachable from, which is why it is
 what a loader written before that decision does.
+
+---
+
+## 12. Changing the list: what a removal means, and what 500 costs (Task 2.3.6, 2026-09-05)
+
+**This is the section somebody changing the universe reads**, which is why it is here and
+not in a task file — the same treatment `e2e/README.md` and `apps/backend/migrations/README.md`
+got, and for the same stated reason.
+
+Every figure below was taken against a real PostgreSQL 18.6 in a **scratch database**
+(`marketpulse_scratch`, created, ruined and dropped), which is Task 2.2.6's pattern applied
+for the same reason: this task's whole purpose is to leave a database in states nobody
+wants to keep. **The development database was never pointed at** — confirmed afterwards, it
+still holds 101 rows, all `active`, all with `updated_at` identical to `recorded_at`, so
+nothing in this task touched it.
+
+### 12.1 The decision: a removal is a status transition, and nothing is ever deleted
+
+**A symbol removed from `universe.ts` has its row marked `status = 'untracked'`. The row
+stays. Everything stored against it stays.** `apps/backend/src/load-universe.ts`'s
+`untrackAbsent` is the whole of it.
+
+The three answers were not interchangeable and the other two are refused in writing:
+
+| Answer                | Why not                                                                                                                                                                                                                                                                                       |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DELETE`              | Story 2.8 stores `market_bars` against `security_id`, so it either orphans that history or cascades and destroys it; Epic 13 replays a date on which the security **was** tracked, which a row that no longer exists cannot answer; and it is the only one of the three that cannot be undone |
+| Refuse the load       | It turns the one edit this file exists to receive — deleting a line — into an error, and the workaround anybody would reach for is a hand-run `DELETE`, which is the row above with no record of it                                                                                           |
+| **Status transition** | **Chosen.** `migrations/README.md` §5 already argued the shape: nothing is soft-deleted, there is no `deleted_at`, and what changes is a status that is _displayed_ rather than filtered away                                                                                                 |
+
+**A removal is a fact about us and not about the market**, which is §3's argument for
+keeping `untracked` and `delisted` apart, and it is why the reversible answer is the
+correct one: we may put the symbol back next week, and the market cannot un-delist a
+company.
+
+### 12.2 The cost, stated rather than discovered: `status` is an invisible predicate
+
+`migrations/README.md` §5's own argument is that **one invisible predicate is a design and
+two is a bug waiting for whoever forgets**. This is the one, and it is the price of not
+having a `deleted_at`. So the readers are named here rather than left for each of them to
+decide alone:
+
+| Reader                                        | Owner                   | Filters on `status`?                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bar ingestion — which symbols to subscribe to | Stories 2.7, 2.8        | **Yes — `active` only.** Paying a rate-limited feed for a symbol nobody tracks is the clearest case in the list                                                                                                                                                                                          |
+| Market breadth, sector performance            | Epics 4, 5              | **Yes — `active` only.** "62% of the sector is negative" over securities we stopped following is a wrong number, not a coarse one                                                                                                                                                                        |
+| Topology nodes and edges                      | Epic 6                  | **Yes — `active` only.** An untracked node has no live price to size or colour it by                                                                                                                                                                                                                     |
+| Anomaly detection                             | Epic 5                  | **Yes — `active` only.** It runs over the tracked market by definition                                                                                                                                                                                                                                   |
+| The universe list and search                  | Stories 2.4, 2.10, 2.11 | **No — show it, with its status.** §3's rule: "we stopped tracking this" is information, and silently vanishing rows is the failure `deleted_at` would have caused                                                                                                                                       |
+| Security Explorer for one symbol              | Epic 7                  | **No.** A deep link to an untracked security shows its stored history and says it is untracked; a 404 would be a lie about data we hold                                                                                                                                                                  |
+| **Replay**                                    | **Epic 13**             | **No, and this is the one that matters.** Replay asks what was knowable on a past date, and a security untracked _today_ was tracked _then_. A replay that filtered on today's `status` would silently rewrite history — invariant 4's failure arriving through a column rather than through a timestamp |
+
+**The rule in one sentence, for anybody adding a reader that is not in this table:** filter
+on `status` when you are computing over _the market we track now_, and never when you are
+showing or replaying _something we stored_.
+
+### 12.3 The three changes, produced against a real database
+
+The subject sector is **health care**, chosen because §9's distribution sits on **both**
+bounds at once — technology is at the ceiling of 12 and utilities, real estate and
+materials are each at the floor of 6 — so an add to technology or a removal from utilities
+would break §7's own selection rule in the same commit that demonstrated a change. Health
+care, financials and consumer discretionary sit at 9 and have slack in both directions.
+
+**Add — `BMY` (Bristol-Myers Squibb, Pharmaceuticals), health care 9 → 10.**
+
+```text
+  ✓ 102 securities in the universe
+      1 inserted
+      0 updated
+      101 unchanged
+```
+
+One new row, `active`, with `sector` and `industry` as written. **Nothing else moved**:
+`0` of the other 101 rows have an `updated_at` different from their `recorded_at`, and all
+101 still share one identical `updated_at`. That is the property with no trigger behind it
+and therefore the one most likely to be wrong.
+
+One detail worth knowing before somebody reads it as a fault: the new row's `id` was
+**138**, not 102, against a `max(id)` of 101 beforehand. An upsert consumes an identity
+value **per row per run** whether or not anything changed (Task 2.3.5 measured the same
+mechanism from the other side), so the value a new row lands on reflects its position in
+the file within that run rather than any ordering in time. Ids are stable and explicitly
+not contiguous.
+
+**Remove — `GILD` deleted from the file, health care 10 → 9.**
+
+```text
+  ✓ 101 securities in the universe
+      0 inserted
+      0 updated
+      101 unchanged
+
+  ○ 1 in the database and not in the file, now marked untracked:
+      GILD
+```
+
+`GILD` kept `id` 34, its name, its sector, its industry and its `recorded_at`; `status`
+became `untracked` and `updated_at` moved. The table went to **102 rows** while the file
+held 101 — which is the whole point: the row count and the universe count are different
+numbers from the first removal onward. Nothing else was touched.
+
+**Removed and then run again — the steady state.**
+
+```text
+  ○ 1 already untracked, unchanged: GILD
+```
+
+`updated_at` was **byte-identical** across that second run. This is deliberately a
+different line from the one above: a removal is a one-off event and the row will be absent
+from the file for the rest of the project, so a loader that rewrote it on every run would
+move `updated_at` forever and make that column mean "when the loader last ran" — the same
+failure the upsert's own `where` clause exists to prevent, arriving through a second door.
+It is also why the loader stops shouting the paragraph: an output nobody reads is how the
+_next_ removal goes unnoticed.
+
+**Re-add — `GILD` put back.**
+
+```text
+      0 inserted
+      1 updated
+```
+
+Back to `active`, on **`id` 34**, with `recorded_at` still the original insert — so the row
+genuinely never left — and `updated_at` moved. **This needed no code at all**: `status` is
+in the upsert's `is distinct from` list, so a file that says `active` over a row that says
+`untracked` is a row that changed.
+
+### 12.4 The `DELETE` alternative, produced — because otherwise the id check proves nothing
+
+Under the chosen answer the re-add landing on the original `id` is **nearly vacuous**: the
+row never left the table, so of course its key survived. Presenting that as evidence for
+the surrogate key would be presenting a trivial pass as a demonstration. So the rejected
+answer was produced by hand — `delete from securities where symbol = 'GILD'`, then re-run
+the loader, which is exactly what a `DELETE`-based removal followed by a re-add would do:
+
+|                                   | Chosen (`untracked`) | Rejected (`DELETE`)                 |
+| --------------------------------- | -------------------- | ----------------------------------- |
+| `id` after re-add                 | **34** — unchanged   | **541** — a new row                 |
+| `recorded_at`                     | the original insert  | the re-insert                       |
+| Anything referencing the old `id` | still correct        | orphaned, or destroyed by a cascade |
+
+That is the contrast the check is worth having for, and it is why `market_bars.security_id`
+(Story 2.8) can reference `securities.id` at all.
+
+### 12.5 The walk for 500, re-taken rather than cited
+
+§6 asks for expansion to 500 to be shown **by argument and by absence**, never by loading
+500 — a synthetic 500-row load would prove the loader scales and nothing else. §8 predicted
+where a hard-coded 100 could hide; this is the reading, four tasks later, with four of the
+eight rows now built.
+
+**The absence, by grep over shipped source** (`apps/backend/src/*.ts`,
+`packages/shared/src/*.ts`, `apps/backend/migrations/*.sql`, `scripts/*.mjs`, comments and
+tests excluded): the only occurrences of `100`, `101` or `500` are an HTTP status in
+`errors.ts`, a millisecond rounding factor in `index.ts`, and the words "S&P 500" inside
+`SPY`'s fund name. **There is no `EXPECTED_COUNT`, no asserted array length, no page size
+and no limit anywhere.** `UNIVERSE.length` is still the only way to learn the count.
+
+| Place                    | Exists now?                  | Reading at 500                                                                                                                            |
+| ------------------------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| The universe file        | **yes** — `universe.ts`      | Free. Sector blocks are arrays; §7's floor and ceiling are a product rule a person re-reads, not a constant                               |
+| The loader's batching    | **yes** — `load-universe.ts` | Free, and **derived**: `chunkSize` is `65,535 ÷ 12 columns` = **5,461 rows per statement**, so 500 is still one statement                 |
+| The loader's untrack     | **yes** — this task          | Free. Its `where symbol in (…)` is bound by the number of _absentees_, not by the universe                                                |
+| The validation           | **yes** — `validateUniverse` | Free. Set-based, `O(n)`; there is no `O(n²)` cross-row check                                                                              |
+| The schema               | **yes** — `0002`/`0003`      | Free. `bigint` identity, no partitioning, no size assumption                                                                              |
+| An API default page size | no — Story 2.4/2.9           | The first real one. A limit sized to "the whole universe fits in one response" is the trap, and it is cheap to avoid before it is written |
+| A frontend list          | no — Stories 2.10, 2.11      | Rendering 500 rows without virtualisation                                                                                                 |
+| The feed                 | no — Stories 2.7, 2.8        | **The binding constraint.** See below                                                                                                     |
+
+**Two costs are real and neither is in this repository.**
+
+**Storage**, derived rather than quoted: ~390 minutes × 252 trading days = **98,280 bars
+per security per year**, at Story 2.1's assumed ~120 bytes per row = **~11.8 MB per
+security per year** — 1.18 GB/year at 100, **5.9 GB/year at 500**. Against Story 2.1's
+measured **~22.5 GiB usable** (27.46 GiB free on an empty disk, read-only below 5 GiB),
+that is **~20 years of headroom at 100 and ~4 at 500**. Expansion costs a factor of five
+against a figure already taken, and the disk is resizable upward.
+
+**The feed is what actually binds, and it binds well below 500.** §10 parked the sizing on
+one unmeasured fact Story 2.7 owns — whether minute-bar subscriptions are exempt from
+Alpaca's free tier's 30-channel cap, which two of Alpaca's own pages disagree about. If
+they are not exempt, **101 is already over the cap** and 500 is not a question. So the
+honest form of "500 needs no redesign" is: **nothing we have written constrains the count,
+and the provider might.** That is the sentence Story 2.7 should inherit.
+
+### 12.6 The ticker change is a recorded gap, with an owner
+
+`FB` → `META` is the case the surrogate key exists for — `0002_securities.sql` names it —
+and **this story does not handle it**, deliberately. A rename is not an add plus a remove,
+because the bars belong to the same company; but the loader keys on `symbol`, so nothing
+here can join the old rows to the new name.
+
+Produced rather than assumed, by renaming one row's symbol in the file:
+
+```text
+      1 inserted
+  ○ 1 in the database and not in the file, now marked untracked:
+      GILD
+
+  id | symbol | status
+  541| GILD   | untracked
+  643| GILDX  | active
+```
+
+**Two rows, two ids, and nothing joining them.** The old row keeps its history and is
+correctly marked untracked; the new row starts empty. That is not wrong — it is exactly
+what the data model says happened, from a file that cannot express "these are the same
+company".
+
+**It is a gap and not a defect, and the honest gap is preferred to a mechanism built
+against no instance** — there is no rename in the current list, and a `previous_symbol`
+column, a rename map or a `company_id` above `securities` would each be a mechanism nobody
+can test. **The owner is Story 2.7**, which is the first thing in this product with any
+opinion about a symbol's lifecycle: Alpaca's assets endpoint carries an asset status and a
+stable per-asset identifier, and the migration that adds `delisted` to `SECURITY_STATUSES`
+is the natural place to decide whether a rename gets an identity too. Until then, **a
+rename loses the link between the old bars and the new symbol**, and that sentence is the
+whole of the gap.
+
+### 12.7 §9's distribution did not move, and that is a decision
+
+The obvious reading of "add one and remove one" is that this task ships a changed list. It
+does not: `apps/backend/src/universe.ts` is **byte-identical** to where Task 2.3.4 left it,
+and §9's distribution table is untouched.
+
+The list is a **product decision** taken in 2.3.4 against §7's rule, and churning it to
+satisfy a demonstration is the failure that split exists to prevent — a list edited for a
+task's convenience rather than for a reason about the market. Task 2.2.6 set the precedent
+in the same shape: it broke a migration eight ways, recorded every one, and finished with
+the tree byte-identical. What this task ships is the **mechanism and the procedure**; what
+it demonstrates, it demonstrates and reverts.
+
+### 12.8 The procedure — read this before editing the list
+
+1. **Edit `apps/backend/src/universe.ts`.** Add a row to the right sector block, or delete
+   one. A symbol is a `Ticker` and goes through `toTicker`, so a malformed one throws at
+   module load rather than accumulating with the other violations.
+2. **Check §7's bounds by hand.** A floor of 6 and a ceiling of 12 equities per sector.
+   **Nothing checks this** — deliberately, because it is a product judgement and a check
+   asserting the shape of today's list is the `EXPECTED_COUNT` problem wearing a different
+   hat. §9's table is the current distribution; three sectors are at the floor and one is
+   at the ceiling, so an add to technology or a removal from utilities, real estate or
+   materials breaks the rule.
+3. **Fix the block's own comment.** Each sector block in `universe.ts` states its count and
+   its relation to §7's bounds (`// 9 — three industries deep enough…`). **No instrument
+   anywhere would catch a comment left stale** — it compiles, lints, formats and loads — so
+   this is a rule only a person can hold, exactly like `migrations/README.md`'s "never edit
+   an applied migration". Edit §9's table in the same commit.
+4. **Do _not_ move `UNIVERSE_PROVENANCE.checkedOn`** for an add or a remove. See §12.9.
+5. **`pnpm build && pnpm universe`.** The loader converges on the file. Read what it says
+   it did: an added symbol is `inserted`, a removed one appears under `now marked
+untracked`, and everything else should be `unchanged`.
+6. **If it refuses**, it named every violation in one run and wrote nothing. Fix the file
+   and run it again; the table is exactly as it was.
+7. **Deployed, `pnpm universe` runs from the deploy** (Task 2.3.7), so a merge is what
+   makes the change live.
+
+### 12.9 Does adding a symbol count as re-checking the list? — **No**
+
+This had to be decided rather than left to habit, because of an interaction Task 2.3.5
+measured: the loader compares `classification_retrieved_at` like any other column, so
+**moving `checkedOn` by one day reports `0 inserted, 101 updated, 0 unchanged`** and moves
+every row's `updated_at`.
+
+**`checkedOn` means the whole list was checked against a source on that date.** Adding one
+symbol is checking _that symbol_ — it says nothing about the other hundred, whose sector
+assignments may have been stale for a year. Moving the date would claim a hundred
+verifications that did not happen, in the exact column §5 nominates as the mitigation for
+the curated file going stale silently, and Story 2.14 would then show a user a freshly
+checked classification that is nothing of the kind.
+
+The cost of the other direction is real and is the safe one: a newly added row carries a
+`classification_retrieved_at` **older than the moment it was written**, so the column
+understates that row's freshness. It never overstates it. Provenance is per _field group_
+and not per row (§4), so a per-row exception is not available and would be the wrong shape
+if it were — it would put a hundred dates in a file whose whole claim is that one person
+curated all of it at once.
+
+**Move the date when you have actually re-checked the list against a source**, in the same
+commit as whatever that check changed — and take that commit **separately** from an
+add-or-remove commit, or the correct "101 updated" reads as a bug and somebody
+"simplifies" away the `is distinct from` clause that makes `updated_at` mean anything.
 
 ---
 
