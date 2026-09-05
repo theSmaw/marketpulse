@@ -53,7 +53,11 @@ import { basename, resolve } from "node:path";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { SECURITY_KINDS } from "@marketpulse/shared";
+import {
+  SECTORS,
+  SECURITY_KINDS,
+  SECURITY_STATUSES,
+} from "@marketpulse/shared";
 
 import { loadConfig, loadEnvFile } from "./config.js";
 import { runMigrations } from "./migrate.js";
@@ -127,6 +131,16 @@ const EXPECTED_SECURITIES = {
   industry: { dataType: "text", nullable: true },
   status: { dataType: "text", nullable: false },
   cik: { dataType: "text", nullable: true },
+  profile_source: { dataType: "text", nullable: false },
+  profile_retrieved_at: {
+    dataType: "timestamp with time zone",
+    nullable: false,
+  },
+  classification_source: { dataType: "text", nullable: false },
+  classification_retrieved_at: {
+    dataType: "timestamp with time zone",
+    nullable: false,
+  },
   recorded_at: {
     dataType: "timestamp with time zone",
     nullable: false,
@@ -156,6 +170,43 @@ function db(): pg.Pool {
     throw new Error("beforeAll did not create the test database.");
   }
   return testPool;
+}
+
+/**
+ * Insert one row, overriding whichever fields a test is about.
+ *
+ * The defaults are a valid equity, so every test below states only the thing it
+ * is trying to break — which is what stops a constraint test passing because a
+ * *different* constraint refused the row first. Each test asserts on the
+ * constraint's own name for the same reason.
+ */
+async function insertProbe(
+  overrides: Readonly<Record<string, string | null>> = {},
+): Promise<void> {
+  const row: Record<string, string | null> = {
+    symbol: "ZZZZ",
+    name: "Probe",
+    exchange: "PROBE",
+    kind: "equity",
+    sector: "technology",
+    industry: null,
+    status: "active",
+    cik: null,
+    profile_source: "test",
+    profile_retrieved_at: new Date().toISOString(),
+    classification_source: "test",
+    classification_retrieved_at: new Date().toISOString(),
+    ...overrides,
+  };
+
+  const names = Object.keys(row);
+  const placeholders = names.map((_, index) => `$${String(index + 1)}`);
+
+  await db().query(
+    `insert into securities (${names.join(", ")})
+     values (${placeholders.join(", ")})`,
+    names.map((name) => row[name] ?? null),
+  );
 }
 
 async function readColumns(pool: pg.Pool): Promise<readonly ColumnRow[]> {
@@ -319,48 +370,202 @@ describe("the Database interface in schema.ts", () => {
   );
 });
 
-describe("SECURITY_KINDS and the check constraint that backs it", () => {
-  // Task 2.2.4 created this gap deliberately and in the open: the union in
-  // `packages/shared` and `securities_kind_check` in the database are two
+describe("the closed vocabularies and the check constraints that back them", () => {
+  // Task 2.2.4 created this gap deliberately and in the open: a union in
+  // `packages/shared` and a `check` constraint in the database are two
   // spellings of one vocabulary, and adding a member to one without the other
   // gives a value the compiler permits and the database refuses, at run time,
   // in whatever writes it. Both halves are readable from here, so by this
   // repository's rule — a test beats another `verify` step whenever the thing
   // is reachable from an assembled instance — it is a check rather than a third
   // paragraph of prose.
+  //
+  // **It is worth knowing that this check has caught something.** Task 2.3.2
+  // widened `SECURITY_KINDS` to three members and Task 2.3.3 wrote the
+  // migration; in between, this reported `1 failed | 22 passed` naming both
+  // sides. That is the only evidence worth having that a check works.
+  //
+  // Table-driven rather than one test per vocabulary, because `0003` took this
+  // schema from one closed set to three and the next table will add more. The
+  // spec below is the thing to extend.
+  const CLOSED_SETS = [
+    { constraint: "securities_kind_check", members: SECURITY_KINDS },
+    { constraint: "securities_status_check", members: SECURITY_STATUSES },
+    { constraint: "securities_sector_check", members: SECTORS },
+  ] as const;
 
-  it("permits exactly the members of SECURITY_KINDS", async () => {
-    const constraint = await db().query<{ definition: string }>(
+  async function constraintDefinition(name: string): Promise<string> {
+    const result = await db().query<{ definition: string }>(
       `select pg_get_constraintdef(oid) as definition
          from pg_constraint
         where conrelid = 'securities'::regclass and conname = $1`,
-      ["securities_kind_check"],
+      [name],
     );
 
-    expect(constraint.rows).toHaveLength(1);
-    const definition = constraint.rows[0]?.definition ?? "";
+    expect(result.rows, `no constraint named ${name}`).toHaveLength(1);
+    return result.rows[0]?.definition ?? "";
+  }
 
-    // Parsed rather than string-matched, because **Postgres rewrites the
-    // constraint**: `check (kind in ('equity', 'etf'))` reads back as
-    // `CHECK ((kind = ANY (ARRAY['equity'::text, 'etf'::text])))`, so an
-    // assertion written against what the migration says would never match what
-    // the database holds.
-    const permitted = [...definition.matchAll(/'([^']*)'::text/g)]
-      .map((match) => match[1])
-      .sort();
+  it.each(CLOSED_SETS)(
+    "$constraint permits exactly the members of its union",
+    async ({ constraint, members }) => {
+      const definition = await constraintDefinition(constraint);
 
-    expect(permitted).toEqual([...SECURITY_KINDS].sort());
+      // Parsed rather than string-matched, because **Postgres rewrites the
+      // constraint**: `check (kind in ('equity', 'etf'))` reads back as
+      // `CHECK ((kind = ANY (ARRAY['equity'::text, 'etf'::text])))`, so an
+      // assertion written against what the migration says would never match
+      // what the database holds.
+      const permitted = [...definition.matchAll(/'([^']*)'::text/g)]
+        .map((match) => match[1])
+        .sort();
+
+      expect(permitted).toEqual([...members].sort());
+    },
+  );
+
+  it("refuses a kind outside SECURITY_KINDS", async () => {
+    // The compile-time half is `SecurityKind`; this is the run-time half, and
+    // it is what a writer that bypassed the type would meet. Note the value
+    // chosen is `etf` — the member `0003` REMOVED — rather than an invented
+    // one, because the non-additive half of that migration is the half worth
+    // proving actually took effect.
+    await expect(
+      insertProbe({ kind: "etf", sector: "technology" }),
+    ).rejects.toThrow(/securities_kind_check/);
   });
 
-  it("refuses a value outside it", async () => {
-    // The compile-time half is `SecurityKind`; this is the run-time half, and
-    // it is what a writer that bypassed the type would meet.
+  it("refuses a status outside SECURITY_STATUSES", async () => {
+    // `delisted` specifically: it is the member Task 2.3.1 deferred to Story
+    // 2.6 because nothing here can produce it, and a database that accepted it
+    // would make that deferral a comment rather than a fact.
+    await expect(insertProbe({ status: "delisted" })).rejects.toThrow(
+      /securities_status_check/,
+    );
+  });
+
+  it("refuses a sector outside the taxonomy", async () => {
+    // The label rather than the slug — the realistic mistake, and the one with
+    // the most expensive silent failure, because Epic 5 indexes SECTOR_ETFS
+    // with this value and an unrecognised sector is a security with no
+    // benchmark.
+    await expect(insertProbe({ sector: "Technology" })).rejects.toThrow(
+      /securities_sector_check/,
+    );
+  });
+});
+
+describe("the cross-column invariant between kind and sector", () => {
+  // `Security` in `packages/shared` is a discriminated union rather than one
+  // interface with a nullable sector, because the nullability has two distinct
+  // meanings: on an index proxy null is the correct and complete answer, and on
+  // an equity it is a row that should have failed to load. The row type cannot
+  // express that — a row is one interface with one nullable column — so the
+  // database is the only place the two halves can be held together, and
+  // `securities_sector_matches_kind` is where.
+  //
+  // This is deliberately **not** Story 2.3's acceptance criterion 3, whose
+  // second half ("every sector present has a corresponding sector ETF") is a
+  // statement about the whole table and stays Task 2.3.5's loader's.
+
+  it("refuses an equity with no sector", async () => {
+    await expect(insertProbe({ kind: "equity", sector: null })).rejects.toThrow(
+      /securities_sector_matches_kind/,
+    );
+  });
+
+  it("refuses an index proxy that carries a sector", async () => {
+    await expect(
+      insertProbe({ kind: "index_etf", sector: "technology" }),
+    ).rejects.toThrow(/securities_sector_matches_kind/);
+  });
+
+  it("accepts an index proxy with no sector, and a sector ETF with one", async () => {
+    // The positive half. Without it every assertion above could be passing
+    // because the constraint refuses everything, which is the same class of
+    // blind-green result the tripwire below exists for.
+    //
+    // Cleared first rather than assumed empty: if a constraint above is broken
+    // its probe row *succeeded*, and a row count that then reads 4 is a second
+    // failure pointing at the wrong test.
+    await db().query("delete from securities");
+
+    await insertProbe({ symbol: "SPY", kind: "index_etf", sector: null });
+    await insertProbe({
+      symbol: "XLK",
+      kind: "sector_etf",
+      sector: "technology",
+    });
+
+    const rows = await db().query("select symbol from securities");
+    expect(rows.rowCount).toBe(2);
+
+    // Left empty for whatever runs next: this suite's other assertions read
+    // `information_schema` rather than rows, but a table that quietly gained
+    // rows halfway through a file is the kind of thing that makes a later
+    // failure impossible to attribute.
+    await db().query("delete from securities");
+  });
+});
+
+describe("the provenance columns", () => {
+  // Acceptance criterion 6 is that the metadata's source is recorded PER FIELD
+  // in a way Story 2.13 can display. The compiler holds the field-to-group
+  // mapping (`SECURITY_FIELD_GROUP` is `Record<keyof Security, …>`, so a field
+  // added without a group is TS1360); what the database holds is that a row
+  // cannot exist without saying where it came from.
+
+  it("refuses a row that does not say where its data came from", async () => {
+    // The enforcement half, and the reason those columns are `not null` with no
+    // default. A `default 'curated'` would make this insert succeed and would
+    // silently attribute a provider's row to a file — a schema that has
+    // somewhere to put provenance rather than one that requires it.
     await expect(
       db().query(
-        `insert into securities (symbol, name, exchange, kind, status)
-         values ('ZZZZ', 'Probe', 'PROBE', 'mutual_fund', 'active')`,
+        `insert into securities (symbol, name, exchange, kind, sector, status)
+         values ('ZZZZ', 'Probe', 'PROBE', 'equity', 'technology', 'active')`,
       ),
-    ).rejects.toThrow(/securities_kind_check/);
+    ).rejects.toThrow(/profile_source/);
+  });
+
+  it("has no source column for a judgement or for an identifier we do not hold", async () => {
+    // Two groups deliberately get no columns, and their absence is as much a
+    // decision as the two that do. `ours` (`kind`, `status`) gets none because
+    // "we decided this" is not a retrieval; `identity` (`cik`) gets none until
+    // Epic 9 populates `cik`, because a column null in every row in every
+    // environment cannot be checked against anything.
+    const names = (await readColumns(db()))
+      .filter((column) => column.table_name === "securities")
+      .map((column) => column.column_name);
+
+    for (const absent of [
+      "kind_source",
+      "status_source",
+      "identity_source",
+      "cik_source",
+      "cik_retrieved_at",
+    ]) {
+      expect(names, `${absent} exists; see 0003's section 5`).not.toContain(
+        absent,
+      );
+    }
+  });
+
+  it("has no observed_at, because a sector is not a fact about the market", async () => {
+    // README.md §2 asks every table to answer this explicitly rather than by
+    // omission. `*_retrieved_at` is invariant 5's RETRIEVAL timestamp and there
+    // is no event timestamp beside it, because there is no instant at which
+    // "AAPL is in technology" became true the way a price became true. A
+    // defaulted `observed_at` here would be exactly the leak that convention
+    // forbids. `market_bars` in Story 2.7 is the first table that exercises the
+    // pair, and this assertion fails there — deliberately, so whoever adds it
+    // reads this comment.
+    const names = (await readColumns(db()))
+      .filter((column) => column.table_name === "securities")
+      .map((column) => column.column_name);
+
+    expect(names).not.toContain("observed_at");
+    expect(names).toContain("recorded_at");
   });
 });
 

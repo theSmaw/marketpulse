@@ -1101,7 +1101,7 @@ pnpm build         # and a built tree
 pnpm test:database
 ```
 
-**23 tests against a real PostgreSQL server**, in about half a second. It is the
+**37 tests against a real PostgreSQL server**, in about half a second. It is the
 sixth level of test in this repository and the third command that runs tests,
 after `pnpm test` and `pnpm test:process`, and it exists because three things
 this repository claims are only answerable by a database: that a migration

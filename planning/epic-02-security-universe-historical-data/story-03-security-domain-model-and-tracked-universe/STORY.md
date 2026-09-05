@@ -139,7 +139,7 @@ closes the story and records ADR 0016 — 0016 and not 0014, which is reserved f
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
 | 2.3.1 | [Choose the vocabulary, the taxonomy and where the metadata comes from, shipping nothing](TASK-01-choose-the-vocabulary-and-the-metadata-source.md) | Complete    |
 | 2.3.2 | [`Security` in `packages/shared`, and the vocabularies it fixes](TASK-02-the-security-type.md)                                                      | Complete    |
-| 2.3.3 | [The schema the vocabulary needs: the first migration written by a reader of the conventions](TASK-03-the-schema-the-vocabulary-needs.md)           | Not started |
+| 2.3.3 | [The schema the vocabulary needs: the first migration written by a reader of the conventions](TASK-03-the-schema-the-vocabulary-needs.md)           | Complete    |
 | 2.3.4 | [The universe itself: ~100 securities, and the rule that produced them](TASK-04-the-universe-itself.md)                                             | Not started |
 | 2.3.5 | [The loader: one documented command, idempotent, and it refuses a bad universe](TASK-05-the-loader.md)                                              | Not started |
 | 2.3.6 | [Change the universe: add one, remove one, and say what expansion costs](TASK-06-change-the-universe.md)                                            | Not started |
