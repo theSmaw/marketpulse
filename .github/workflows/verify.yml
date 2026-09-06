@@ -899,6 +899,43 @@ jobs:
   e2e:
     name: e2e
     runs-on: ubuntu-latest
+
+    # A DATABASE, since Task 2.4.5, and the trigger for it is one this
+    # repository wrote down two stories in advance and then met somewhere else.
+    #
+    # `scripts/check-ready.mjs` stated the condition as "the first check in
+    # `pnpm verify` or `pnpm e2e` that fails without a database", naming Story
+    # 2.2's migrations and Story 2.9's routes as the likely candidates. It was
+    # neither: `/securities` renders the tracked universe, so the browser suite
+    # became that check. It fired HERE and not on a laptop, because every
+    # developer already has `pnpm db` running — six journeys went red 10 s at a
+    # time on `element(s) not found` while the real cause sat three lines above
+    # in the readiness output as a note nobody read.
+    #
+    # This is a copy of the `database` job's block and the duplication is
+    # deliberate: a service container is configured by the platform before any
+    # of this repository's code runs, so there is nothing to read the values
+    # from. What keeps the copies honest is that `pnpm migrate` and
+    # `pnpm universe` below connect using the BACKEND's own configuration, so a
+    # value that disagrees is a red step naming it rather than a silent
+    # divergence.
+    services:
+      postgres:
+        # Pinned to the major only, matching `LOCAL_DATABASE_VERSION`, for the
+        # reason `compose.yaml` gives.
+        image: postgres:18
+        env:
+          POSTGRES_USER: marketpulse
+          POSTGRES_PASSWORD: marketpulse
+          POSTGRES_DB: marketpulse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1061,6 +1098,34 @@ jobs:
           pnpm build
           end=$(date +%s%N)
           echo "build: $(( (end - start) / 1000000 )) ms"
+
+      # The database this job's browser journeys actually read, filled by the
+      # SAME TWO COMMANDS a developer's first run uses — `pnpm migrate` and then
+      # `pnpm universe`, by name, with no SQL, no seed fixture and no ordering
+      # rule of its own. That matters more here than it looks: the alternative
+      # is a CI-shaped universe, and a suite asserting on 101 securities that CI
+      # inserted itself would be asserting on CI.
+      #
+      # After `Build` because both need a built tree — they read the backend's
+      # own `dist/config.js` for where the database is, which is also what makes
+      # them agree with the service block above rather than with a copy of it.
+      #
+      # It is two steps and not one, for `deploy.yml`'s reason: a seed and a
+      # migration mean different things by idempotent, and a red result has to
+      # say which failed.
+      - name: Migrate the database
+        run: |
+          set -euo pipefail
+          start=$(date +%s%N)
+          pnpm migrate
+          echo "migrate: $(( ($(date +%s%N) - start) / 1000000 )) ms"
+
+      - name: Load the tracked universe
+        run: |
+          set -euo pipefail
+          start=$(date +%s%N)
+          pnpm universe
+          echo "universe: $(( ($(date +%s%N) - start) / 1000000 )) ms"
 
       # `pnpm dev` BY NAME — the same three watchers a developer runs, not a
       # CI-shaped pair assembled here. This is the largest single thing this job

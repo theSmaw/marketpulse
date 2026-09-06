@@ -51,11 +51,30 @@ the job; the short version is that `pnpm verify` runs with nothing listening —
 which is why `pnpm ready` is not a chain step — while `deploy.yml`'s reasons for
 being a separate _workflow_ are properties of a deploy rather than of a check.
 
-The job runs three commands by name and defines no port, browser command or
-readiness rule of its own: `pnpm build` (which has to come first, because
-`pnpm e2e` resolves both addresses from the backend's **built** `dist/config.js`
-and exits 1 on an unbuilt tree), then `pnpm dev` in the background, then
-`pnpm e2e` — which gates on `pnpm ready` itself.
+The job runs **five** commands by name and defines no port, browser command,
+readiness rule or seed data of its own: `pnpm build` (which has to come first,
+because `pnpm e2e` resolves both addresses from the backend's **built**
+`dist/config.js` and exits 1 on an unbuilt tree), then `pnpm migrate` and
+`pnpm universe` against a Postgres service container, then `pnpm dev` in the
+background, then `pnpm e2e` — which gates on `pnpm ready` itself.
+
+**It gained the database at Task 2.4.5, and how it gained it is the part worth
+keeping.** `scripts/check-ready.mjs` had stated the condition two stories in
+advance — "the first check in `pnpm verify` or `pnpm e2e` that fails without a
+database" — and named Story 2.2's migrations and Story 2.9's routes as the
+candidates. It was neither: `/securities` renders the tracked universe, so this
+suite became that check. And it fired **here rather than on a laptop**, because
+every developer already has `pnpm db` running. Six journeys went red 10 s at a
+time on `element(s) not found` while the real cause sat three lines above in the
+readiness output as an `○` nobody was reading. The third check now **gates**, so
+that failure is one loud refusal naming the cause instead of a handful of quiet
+ones with none. `pnpm verify` is not a caller of that script and still runs with
+no database at all — Story 2.2's criterion 7, re-measured at **exit 0 in
+31.2 s**.
+
+The seed is the same two commands a developer's first run uses, deliberately: a
+CI-shaped universe would mean this suite asserting on rows CI inserted rather
+than on the ones the product ships.
 
 Four things it measured that are worth not rediscovering.
 

@@ -1004,16 +1004,20 @@ scripts/
                                    Postgres port answers HTTP by waiting, so it
                                    sends an SSLRequest and reads the one-byte
                                    reply, which is what tells a real server
-                                   apart from a mere listener. It REPORTS the
-                                   database and does not gate on it (`○`, exit
-                                   code unchanged), because nothing opens a
-                                   connection yet and `pnpm e2e` gates on this
-                                   script. The stated trigger for that becoming
-                                   a `✗` is a CONDITION rather than a task
-                                   number — the first check in `pnpm verify` or
-                                   `pnpm e2e` that fails without a database,
-                                   which is Story 2.2's migrations or Story
-                                   2.9's routes and NOT the pool
+                                   apart from a mere listener. It REPORTED the
+                                   database until Task 2.4.5 and now GATES on
+                                   it (`✗`): the condition Task 2.1.2 stated —
+                                   the first check in `pnpm verify` or
+                                   `pnpm e2e` that fails without a database —
+                                   fired, and at NEITHER of the two candidates
+                                   it named. `/securities` renders the tracked
+                                   universe, so the BROWSER SUITE became that
+                                   check, and it fired ON THE RUNNER because a
+                                   laptop always has `pnpm db` up: six journeys
+                                   went red on `element(s) not found` while the
+                                   cause sat three lines above as an `○` nobody
+                                   read. `pnpm verify` is NOT a caller of this
+                                   script and is unaffected
   local-database.mjs               `pnpm db` (Task 2.1.2), and since Task 2.1.3
                                    a READER of the definition rather than the
                                    definition itself. The address, the
@@ -1306,10 +1310,13 @@ pnpm universe      # load the tracked universe into that database (Task 2.3.5).
                    # running on EVERY deploy — because run-once would make editing
                    # universe.ts a change that ships nowhere
 pnpm ready         # is the running pair actually up? NOT part of verify — see below.
-                   # THREE checks since Task 2.1.2: the database is REPORTED (`○`) and
-                   # does not change the exit code, because nothing opens a connection
-                   # yet and `pnpm e2e` gates on this script. What flips it is a
-                   # CONDITION rather than a task: the first check that fails without one
+                   # THREE checks, and since Task 2.4.5 the database GATES (`✗`) rather
+                   # than reporting. The condition Task 2.1.2 wrote down fired — "the first
+                   # check in `pnpm verify` or `pnpm e2e` that fails without a database" —
+                   # and it was neither Story 2.2's migrations nor Story 2.9's routes: it
+                   # is the BROWSER SUITE, because `/securities` renders the universe. It
+                   # fired ON THE RUNNER and not on a laptop, where `pnpm db` is always up.
+                   # `pnpm verify` is unaffected and must stay so: it is not a caller
 pnpm image         # builds the backend's linux/amd64 container image. NOT part of verify,
                    # and pushes nothing (Task 1.11.2). Since Task 1.11.3 it is
                    # scripts/build-image.mjs rather than a one-liner: a clean tree gets the

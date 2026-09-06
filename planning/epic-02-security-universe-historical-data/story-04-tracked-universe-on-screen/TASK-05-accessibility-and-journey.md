@@ -496,6 +496,68 @@ production traffic to a check whose bill is counted. The reversal trigger is a
 failure mode specific to this endpoint, which today means Story 2.7 giving the
 universe a second source that can disagree with the curated file.
 
+### 11. The gate went red on the runner, and it fired a trigger written two stories ago
+
+**This is the most transferable finding in the task and it was not in the
+brief.** Everything above passed on a laptop. The `e2e` job then went red on the
+runner with six journeys failing 10 s at a time on `element(s) not found`.
+
+The cause was printed calmly three lines above, in the suite's own readiness
+output:
+
+```
+○ database  127.0.0.1:5432  ECONNREFUSED — not running; `pnpm db` starts it
+The pair is up. The database is not — start it with `pnpm db`.
+Nothing needs it yet, so this is exit 0.
+```
+
+**The `e2e` job had no database**, so `/securities` answered with an empty
+universe and the table never rendered. `Nothing needs it yet` had stopped being
+true in the same commit that made it untrue.
+
+Task 2.1.2 predicted this precisely, and got the location wrong in a way worth
+recording. It left the third check reporting rather than gating and stated the
+reversal as a **condition rather than a task number** — _the first check in
+`pnpm verify` or `pnpm e2e` that fails without a database_ — naming **Story
+2.2's migrations and Story 2.9's routes** as the realistic candidates. It is
+neither. It is a **browser suite in Story 2.4**, because putting the universe on
+screen is what made a page depend on the database, and nobody was looking there.
+
+**It fired on the runner and not on a laptop, and that asymmetry is the lesson.**
+Every developer has `pnpm db` running, so the condition is structurally
+invisible locally. The reporting line was accurate on every machine that could
+have read it and useless on the only machine where it mattered.
+
+So the trigger was taken rather than worked around:
+
+- **`scripts/check-ready.mjs`'s third check now gates.** `✗` rather than `○`,
+  and the exit code includes it. Produced both ways: with a database it is three
+  ticks at exit 0; without one it is a single `✗` naming `pnpm db`, `pnpm migrate`
+  and `pnpm universe` at exit 1, and `pnpm e2e` refuses to start a browser at
+  all. **One loud failure with a named cause instead of six quiet ones with
+  none** — which is the whole argument, because a reporting line is only honest
+  while nothing depends on it.
+- **The `e2e` job gained a Postgres service**, a copy of the `database` job's
+  block, plus `pnpm migrate` and `pnpm universe` **by name** between `Build` and
+  `Start the pair`. Two steps and not one, for `deploy.yml`'s reason: a seed and
+  a migration mean different things by idempotent, and a red result has to say
+  which failed. The seed is the same two commands a developer's first run uses,
+  deliberately — a CI-shaped universe would mean this suite asserting on rows CI
+  inserted rather than on the ones the product ships.
+- **`scripts/run-e2e.mjs`'s refusal message was corrected**, because it said
+  "there is not [a running pair]" for a case where the pair is up and only the
+  database is down.
+
+**`pnpm verify` is untouched and must stay so.** It is not a caller of
+`check-ready.mjs`, and Story 2.2's criterion 7 — the chain runs with no database
+— was re-measured rather than assumed: **exit 0 in 31.2 s with the database
+stopped**.
+
+The whole CI sequence was rehearsed locally from a genuinely empty volume
+(`pnpm db down -v`): 3 migrations applied, 101 securities inserted, a second
+`pnpm universe` reporting `0 inserted, 0 updated, 101 unchanged`, and the suite
+**21 passed**.
+
 ### What a green run here does not certify
 
 - **Not that the data is correct.** Every assertion is about the page rendering
@@ -617,6 +679,34 @@ How a page announces that its content has changed was an open question until
 today; it is now answered once, in shared code, with the reasoning written down
 and a test holding it in place. The same is true of the animation problem in the
 checker and of two traps we found and corrected in the testing harness itself.
+
+### One thing broke in the shared build system, and it was worth breaking
+
+Everything above passed on the development machine. The shared build server then
+rejected the change, because **it had no database** — so the page it was testing
+came back correctly empty, and six of the new checks failed with an unhelpful
+"couldn't find the table".
+
+The genuinely interesting part is that we had written this exact problem down
+**two stories ago**, along with what would set it off: "the first automated
+check that fails without a database". We guessed it would happen when we built
+the database migrations, or later when we built the data endpoints. It happened
+here instead — because putting the list of securities on a screen is what first
+made a _page_ depend on the database, and nobody was watching that direction.
+
+It could only ever have shown up on the build server, never on a developer's
+machine, because every developer already has a database running. Our readiness
+check had been printing a polite note about it for weeks — accurate on every
+machine that could read it, and invisible on the one machine where it mattered.
+
+So we did the thing the note said to do when this day came: that check now
+**fails** rather than notes, and the build server was given a database of its
+own, filled by exactly the same two commands a new developer runs on their first
+day. The result is that this failure is now one clear message naming the cause,
+instead of six confusing ones naming none.
+
+The principle is worth keeping: **a warning is only useful while nothing depends
+on it.** The moment something does, the same warning is worse than silence.
 
 ### Where we are
 
