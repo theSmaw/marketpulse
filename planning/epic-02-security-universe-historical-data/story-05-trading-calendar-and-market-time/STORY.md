@@ -79,19 +79,46 @@ anything that fetches or renders a time series.
   the `LIVE` state, and anything claiming data is arriving. Story 2.13 still consumes the
   session functions for its window control
 
-## Open decisions — settle with the user
+## Open decisions — ~~settle with the user~~ **all three SETTLED by Task 2.5.1 (2026-09-06)**
+
+**The record is [`CALENDAR.md`](CALENDAR.md)**, which answers these three plus the two this
+section does not name — where the code lives (`packages/shared`) and what a market timestamp
+is on the wire (a UTC ISO 8601 instant, with a market **date** as a separate `YYYY-MM-DD`
+type). The original wording is kept below rather than rewritten, per the convention, with the
+answer beside each. In short: **1 — a checked-in table of exceptions covering 2024–2028**;
+**2 — pre- and post-market are OUT, the session is 09:30–16:00 ET**; **3 — the middle answer,
+but sharper than "probably right": no injected clock and no `Clock` interface, because every
+function is a pure function of an instant it is given and exactly one module reads the wall
+clock.**
 
 1. **Calendar source.** A provider calendar endpoint is authoritative and adds a network
    dependency to something that must work offline in tests; a checked-in table is offline
    and goes stale at a known rate (one edit a year). Consider fetching it and caching it
-   into the database, which is the shape Story 2.8 uses for bars
+   into the database, which is the shape Story 2.8 uses for bars.
+   **Settled: a checked-in table** (`CALENDAR.md` §1). A provider endpoint is circular — it
+   needs Story 2.6, which depends on this story — and breaks criterion 5. Caching it into the
+   database was rejected for criterion 5's reason too, and because a migration is the wrong
+   mechanism for data that gets edited. The reversal is recorded: once the provider's calendar
+   is reachable, this table becomes the thing you **check against** it rather than replace, as
+   a Story 2.7 opportunity.
 2. **Pre- and post-market.** Excluding them is simpler and is what most charts show;
    including them changes the volume baseline Epic 5 builds and changes what "the session"
-   means in replay. Cheaper to decide now than to add
+   means in replay. Cheaper to decide now than to add.
+   **Settled: excluded** (`CALENDAR.md` §2). The deciding argument is the feed — our free tier
+   is IEX, a single venue, and its extended-hours volume is thin enough that an Epic 5 baseline
+   built on it measures the venue rather than the market. §21's own replay sketch already runs
+   09:30–16:00. Consequences: a regular session is **390** minute bars and a half day **210**.
 3. **Whether the abstract clock is built now or its seam merely reserved.** Building the
    substitution now is speculative; leaving no seam at all is the retrofit invariant 4
    warns against. The middle answer — one module that answers "what time is it, in market
-   terms", with a single implementation today — is probably right
+   terms", with a single implementation today — is probably right.
+   **Settled, and sharper than the middle answer** (`CALENDAR.md` §3): there is **no injected
+   clock and no `Clock` interface**, because a pure function of an instant is _already_
+   replay-ready — injection would be a second mechanism buying nothing. The seam is an
+   **absence**: `Date.now()` appears in exactly one module and everything else takes the
+   instant it needs as an argument, which is Task 2.4.1's unexported-handle shape and Task
+   1.12.2's one-file-calls-`fetch` shape a third time. Epic 13 replaces one function and one
+   hook.
 
 ## Acceptance criteria
 

@@ -48,15 +48,22 @@ not meant to be.
 - **Run the sweep, and expect it to find something**, because every close in this project has.
   The candidates here: the "reserved market clock" claim, which is in `CLAUDE.md`'s tree
   block, `README.md`'s list of things that read as faults on a correct first run, `AppHeader`'s
-  own source comment and Story 1.5's files; and any claim that nothing in this codebase
-  handles time. Apply the distinction Task 1.10.8 established and every close since has
+  own source comment and Story 1.5's files; the `--:--:-- ET` string itself, which appears in
+  `README.md`'s first-run list as one of the seven things that read as faults and stops being
+  one at Task 2.5.5; and any claim that nothing in this codebase handles time. **Sweep for
+  "252" as well** — Task 2.5.1 corrected it in this story's own files, and the ADR must not
+  reintroduce it. Apply the distinction Task 1.10.8 established and every close since has
   re-applied: **a live claim gets corrected and a historical record of what a task believed
   is left standing**, because rewriting the second destroys the record. Read each hit
-- **Re-take the artefact figures.** The bundle moved at Task 2.5.2 or 2.5.3 (`packages/shared`
-  is inlined) and again at 2.5.5 (real frontend source), so the four-file figure this file
-  carries is stale. Confirm the tree-shaking prediction Task 2.5.1 made about the holiday
-  table while you are there — a literal should be free to a build that does not use it, and
-  a table built by a call expression will not be
+- **Re-take the artefact figures, against Task 2.5.1's table of predictions** rather than
+  the assumption this bullet originally carried. ~~The bundle moved at Task 2.5.2 or 2.5.3~~
+  — **`CALENDAR.md` §4.3 predicts it did not**: 0 bytes and an unchanged hash at 2.5.2, 2.5.3
+  and 2.5.4, and **+5 to +8 kB raw at 2.5.5**, which is the first task with a real frontend
+  consumer. Check all four. **An unchanged bundle at 2.5.2–2.5.4 is evidence rather than a
+  null result** — it means the holiday table stayed a plain literal and the
+  `Intl.DateTimeFormat` was constructed lazily rather than at module load. If any of the three
+  moved, that is the finding, and Task 2.3.8's `SECTOR_ETFS` mechanism is the first thing to
+  look at
 - **Re-take the test counts and the `pnpm verify` split**, with and without a database
   running, which is criterion 5 and is the one this story could plausibly have broken by
   putting the calendar in Postgres
@@ -75,6 +82,19 @@ not meant to be.
 The one thing worth being suspicious of at close: this story's tests are entirely
 self-referential — the calendar's tests assert against the calendar's own dates. That is
 unavoidable and it is worth naming in the ADR, along with the two things that are not
-self-referential and are therefore the real checks: the **252-session arithmetic** across a
-full year, and the **DST assertion** that a session is 6.5 hours on both transition days
-while its UTC bounds move by an hour.
+self-referential and are therefore the real checks. **Both were stated wrongly here and were
+corrected by Task 2.5.1 on 2026-09-06; the corrected forms are what belongs in the ADR:**
+
+- ~~the **252-session arithmetic** across a full year~~ → the **per-year session count**,
+  which is **2024: 252, 2025: 251, 2026: 251, 2027: 251, 2028: 251** (`CALENDAR.md` §7.2).
+  252 is not a constant — the count follows how many weekdays a year contains and how many
+  holidays land on one, and a test asserting 252 is red on four of the five covered years
+- ~~the **DST assertion** that a session is 6.5 hours on both transition days while its UTC
+  bounds move by an hour~~ → **there is no session on either transition day**; they are
+  always Sundays. The assertion is on the **Friday before and the Monday after** — both 6.5
+  hours, UTC open moving 14:30Z → 13:30Z — plus **the Tuesday after**, which is the case that
+  catches an implementation that special-cased the transition weekend (`CALENDAR.md` §7.3)
+
+This correction is the reason the amendment convention exists: this file writes ADR 0017, and
+an ADR is a permanent identifier cited outside this repository. Both errors would have been
+recorded as findings in it.
