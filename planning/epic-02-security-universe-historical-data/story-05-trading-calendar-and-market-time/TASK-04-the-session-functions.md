@@ -74,9 +74,29 @@ What can be demonstrated is worth a line in the write-up anyway: after this, the
     This is the assertion that fails if anything anywhere did arithmetic on instants
   - a holiday observed on the Friday before, and one on the Monday after
 - **Assert the arithmetic check Task 2.5.3 named**, against `CALENDAR.md` §7.2's **per-year
-  table** — 2024: 252, 2025: 251, 2026: 251, 2027: 251, 2028: 251. This file's own hedge
-  turned out to be the right one: 252 is not a constant, and a test asserting it would be red
-  on four of the five covered years.
+  table** — 2024: 252, ~~2025: 251~~ **2025: 250**, 2026: 251, 2027: 251, 2028: 251. This
+  file's own hedge turned out to be the right one: 252 is not a constant, and a test asserting
+  it would be red on four of the five covered years. **Corrected a second time on 2026-09-06
+  by Task 2.5.3, which checked the published record rather than deriving it: 2025 has ELEVEN
+  weekday closures and 250 sessions**, because `2025-01-09` was a full closure for the
+  National Day of Mourning — an unscheduled closure §7.2's derivation could not contain
+  (`CALENDAR.md` §7.7). `market-calendar.test.ts` already asserts all five figures, so this
+  task can consume them rather than re-derive them; what it owes is the same check reached
+  through the **session functions** rather than through the table.
+- **What Task 2.5.3 shipped, so this task builds on it (added 2026-09-06).**
+  `MARKET_CALENDAR` is a plain array literal of `MarketCalendarException` rows —
+  a discriminated union on `kind`, so a full closure cannot carry a close time and an early
+  close cannot omit one. Read it through **`marketCalendarExceptionOn(date)`**, which returns
+  `undefined` for _both_ an ordinary weekday and a weekend and refuses a date outside
+  2024–2028 with a `MarketCalendarRangeError`; **turning that `undefined` into a session is
+  this task's job, and it is the piece that also has to know about Saturdays.**
+  `marketEarlyCloseOn(date)` gives the close as a parsed `MarketTimeOfDay`, so nothing here
+  touches the `"13:00"` string form. `assertWithinMarketCalendar(date)` is exported so the
+  session functions refuse out-of-range dates through the same check rather than a second copy
+  of the range. The table's own validation — real weekday dates, ascending, no duplicates,
+  in range, parseable close times — runs lazily on first read and **throws naming the offending
+  row**, so a calendar typo fails where it was typed rather than as a wrong session months
+  later.
   It is one line and it catches a missing or invented holiday that every individual named
   date passes
 - **Make the interesting ones fail before believing them.** Removing Good Friday from the

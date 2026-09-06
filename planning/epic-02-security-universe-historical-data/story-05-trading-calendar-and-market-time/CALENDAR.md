@@ -637,13 +637,13 @@ year has 252 trading days, so a year in this table that produces 253 or 251 has 
 invented holiday in it."_ **Measured, that is wrong for four of the five covered years, and
 a test asserting 252 would ship red.**
 
-| Year | Weekdays | Holidays on a weekday | **Sessions** |
-| ---- | -------- | --------------------- | ------------ |
-| 2024 | 262      | 10                    | **252**      |
-| 2025 | 261      | 10                    | **251**      |
-| 2026 | 261      | 10                    | **251**      |
-| 2027 | 261      | 10                    | **251**      |
-| 2028 | 260      | 9 (see §7.4)          | **251**      |
+| Year | Weekdays | Holidays on a weekday | **Sessions**    |
+| ---- | -------- | --------------------- | --------------- |
+| 2024 | 262      | 10                    | **252**         |
+| 2025 | 261      | ~~10~~ **11** (§7.7)  | ~~251~~ **250** |
+| 2026 | 261      | 10                    | **251**         |
+| 2027 | 261      | 10                    | **251**         |
+| 2028 | 260      | 9 (see §7.4)          | **251**         |
 
 The session count is a function of how many weekdays the year happens to contain (260–262)
 and how many holidays land on one — it is not a property of the calendar being correct. 252
@@ -652,6 +652,13 @@ is the _common_ value and folklore has rounded it into a constant.
 **The check is still worth having and is still cheap** — it catches a missing or invented
 holiday that every individual named date passes. It is just a **per-year table** rather than
 a single number, and the table above is it. Task 2.5.4 asserts against these five figures.
+
+**Corrected 2026-09-06 by Task 2.5.3, which checked this table against the published record
+rather than deriving it: 2025 is 250 sessions, not 251.** The eleventh weekday closure is
+**2025-01-09**, the National Day of Mourning for President Carter — an unscheduled closure no
+rule set can produce and which the derivation above therefore could not contain. See §7.7. A
+test asserting 251 would have shipped red, which is the second figure in this section to have
+been wrong in exactly the way this section was written to catch.
 
 ### 7.3 Correction to Task 2.5.4: **there is no session on a DST transition day**
 
@@ -721,11 +728,60 @@ preceding Friday, per the 2021 precedent) is the least uniform part of the rule.
 Note 2027 shows both observance directions in one year (`06-18` Friday-before, `07-05`
 Monday-after) and 2028 shows the exception (no January row).
 
+**Both tables were confirmed against the published record on 2026-09-06 by Task 2.5.3, and
+they hold exactly** — all 49 derived scheduled closures and all 11 derived half days, 2028's
+missing January row included. That is a better result than this section expected: it warned
+that the 3 July rows were the ones to look at hardest, and they are right. The source read was
+NYSE's own `markets/hours-calendars` page for 2026–2028 and archived editions of that same
+page for 2024 and 2025, which NYSE no longer publishes because it carries three years forward
+and drops years as they pass.
+
+**Two things that reading changed, and only one of them is in these tables.**
+
+**§1.4's conditional instruction did not fire.** It told Task 2.5.3 to narrow the range to
+2027 if 2028 turned out not to be published. **It is published**, footnotes and all, so the
+range is 2024–2028 as chosen and nothing in this calendar is derived.
+
+**And the derived tables are missing a row that no derivation could have contained** — which
+is §7.7, and which is the strongest confirmation of §1.2 available.
+
+### 7.7 The row no rule set can produce: 2025-01-09
+
+**The US equity market was fully closed on Thursday 9 January 2025** for the National Day of
+Mourning for President Carter, announced on 2024-12-30 and effective eleven days later. It is
+absent from §7.6's derived list — correctly, because that list is derived — and it is absent
+from the NYSE calendar page as it stood before Carter died, which is the page a
+forward-looking source is.
+
+Two consequences, and the second is the one that would have cost a task.
+
+**§1.2's argument is confirmed by something stronger than Good Friday.** Good Friday shows
+that a rule set needs an awkward rule; this shows that **no rule set is sufficient in
+principle**, because the closure was a decision taken eleven days beforehand and no function
+of the calendar produces it. `MARKET_CALENDAR` holds it because it was checked against what
+happened rather than computed from what was scheduled.
+
+**§7.2's 2025 figure was wrong, and Task 2.5.4 would have shipped a red test.** 2025 has
+**eleven** weekday closures and **250** sessions. That correction is applied in §7.2 above.
+
+It also retires a hypothetical: §1.3 kept the early-close time on the row rather than in a
+constant so that "an unscheduled closure or an unusual close time is expressible as data".
+That is no longer a defence of a possibility — the table already carries an unscheduled
+closure, in range, today.
+
 **Provenance, per `UNIVERSE.md` §11's convention rather than a second one of our own:** the
 source is **NYSE's published holiday and hours calendar** (the SEC's and Nasdaq's agree), and
 the file records **the date the list was last checked against it** — never `now()`, for
 exactly the reason §11 gives: a provenance date that is always today cannot report staleness.
-Task 2.5.3 sets that date to the day it actually does the check.
+Task 2.5.3 sets that date to the day it actually does the check. **It did: `checkedOn` is
+`2026-09-06`, and `nextEditDue` is `2028-01-01` per §1.4.** One departure from `UNIVERSE.md`
+§11 is recorded rather than absorbed: that file owes its per-group provenance the negative
+fact that _every row shares one source_, and here it does not — 2025-01-09 came from the
+closure announcement rather than from the calendar page. A per-row `source` field was declined
+under Task 1.7.3's rule that a field ships with its first reader, since nothing renders
+calendar provenance where Story 2.14 does render the universe's; the fact is written in the
+constant's own comment instead. **The reversal trigger is the first screen that shows where a
+trading day came from, or a second row from a third source.**
 
 ---
 
