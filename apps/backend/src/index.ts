@@ -20,6 +20,8 @@ import {
   pingDatabase,
 } from "./database.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
+import { createSecuritiesRoutes } from "./routes/securities.js";
+import { createSecuritiesRepository } from "./securities.js";
 import { buildServer } from "./server.js";
 
 // Declared before the try rather than assigned inside it, because everything
@@ -59,9 +61,11 @@ const app = buildServer({
 //
 // It is a process resource with a lifecycle — it is opened once, it has to be
 // closed inside the drain below, and every test that builds a server would
-// otherwise have to supply or fake one. Nothing in this application serves data
-// yet, so it deliberately does not reach the factory; database.ts's header
-// records the reversal trigger, which is Story 2.9's first route that needs it.
+// otherwise have to supply or fake one. It stayed out of the factory because
+// nothing served data; **Task 2.4.2's `/securities` does, and it still stays
+// out** — see database.ts's header, where the reversal trigger is restated as a
+// condition rather than a story, and routes/securities.ts for why that route is
+// registered below rather than inside `buildServer()`.
 //
 // This opens no socket. `new Pool()` is lazy, so construction cannot fail and
 // cannot delay startup, which is why reachability needs the explicit probe
@@ -84,6 +88,22 @@ const database = createDatabasePool(config.database, app.log);
 // which is what makes a public unauthenticated endpoint safe to point at a
 // 35-connection ceiling with no PgBouncer under it.
 app.register(createDiagnosticsRoutes(createCachedDatabaseCheck(database)));
+
+// The first route in this application that serves data (Task 2.4.2), and the
+// second registered here rather than inside `buildServer()`. The ordering that
+// forces it is the same one: the repository is built over the pool, the pool
+// takes `app.log`, so neither can be an argument to the call that creates the
+// logger. `routes/securities.ts` carries the whole decision, including the
+// three ways out that were rejected and what `server.test.ts` does about the
+// route-table walk.
+//
+// There is deliberately **no bound** on this one, unlike the diagnostic above.
+// That check exists to be polled by an operator against a public unauthenticated
+// endpoint on a 35-connection ceiling; this is a page load, it is cached by
+// nothing yet, and a TTL invented before Story 2.10 has decided how the client
+// caches would be a second cache nobody asked for. Story 2.10's is the layer
+// that gets to want one.
+app.register(createSecuritiesRoutes(createSecuritiesRepository(database)));
 
 // Signal handling lives here rather than in buildServer(), because it is a
 // property of this process, not of the application. A factory that installs

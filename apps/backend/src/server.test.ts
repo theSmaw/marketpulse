@@ -21,6 +21,8 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { apiErrorSchema } from "./errors.js";
+import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
+import { createSecuritiesRoutes } from "./routes/securities.js";
 
 import { buildServer } from "./server.js";
 
@@ -405,6 +407,17 @@ describe("the response-schema declaration", () => {
   // `setNotFoundHandler` is not a route and can never have a response schema,
   // so it is structurally outside this check; `apiError()` is what holds there,
   // asserted above.
+  //
+  // **It covers the routes `index.ts` registers too, since Task 2.4.2**, and
+  // that is the closing of a gap Task 2.1.7 stated rather than a widening for
+  // its own sake. Two of this application's routes are registered outside
+  // `buildServer()` because the pool takes `app.log` and neither the cached
+  // check nor the securities repository can therefore be an argument to it —
+  // see routes/securities.ts. Registered here the same way, against stubs, they
+  // are inside the walk. What the walk still cannot see is a route added to
+  // `index.ts` and not added below, which is a stated invariant of the third
+  // kind: prose, because the thing being checked is a *registration site* and
+  // not something reachable from an assembled instance.
   it("declares apiErrorSchema on 500 for every registered route", async () => {
     const seen: { url: string; method: string; schema: unknown }[] = [];
 
@@ -419,13 +432,41 @@ describe("the response-schema declaration", () => {
           schema: response?.["500"],
         });
       });
+
+      // What `index.ts` registers, registered the same way. Both take a
+      // function or an interface rather than a pool, which is what makes a
+      // stub enough — no database, no socket, and this stays a fast test.
+      app.register(
+        createDiagnosticsRoutes(() =>
+          Promise.resolve({
+            ok: true as const,
+            ms: 0,
+            ageMs: 0,
+            checkedAt: 0,
+          }),
+        ),
+      );
+      app.register(
+        createSecuritiesRoutes({
+          listSecurities: () => Promise.resolve([]),
+          listSecuritiesProvenance: () => Promise.resolve([]),
+        }),
+      );
     });
 
     // A guard on the guard: if the hook ever stops seeing routes, this test
     // would pass vacuously — which is exactly the failure mode it exists to
-    // prevent elsewhere.
+    // prevent elsewhere. Every route this application serves is named, so a
+    // registration that silently stops happening is a red test rather than a
+    // shorter list nobody counted.
     expect(seen.length).toBeGreaterThan(0);
-    expect(seen.map((route) => route.url)).toContain("/health");
+    expect(seen.map((route) => route.url)).toEqual(
+      expect.arrayContaining([
+        "/health",
+        "/diagnostics/database",
+        "/securities",
+      ]),
+    );
 
     // The one exemption, and it is a finding rather than a convenience: this
     // check's first run reported `OPTIONS *`, a route **nobody in this

@@ -193,7 +193,7 @@ as a URL rather than as a page; from 2.4.3 onward every task changes what is on 
 | #     | Task                                                                                                    | Status      |
 | ----- | ------------------------------------------------------------------------------------------------------- | ----------- |
 | 2.4.1 | [The first read: the query, the mapping, and the seam](TASK-01-the-first-read.md)                       | Complete    |
-| 2.4.2 | [`GET /securities` and the wire contract](TASK-02-the-endpoint.md)                                      | Not started |
+| 2.4.2 | [`GET /securities` and the wire contract](TASK-02-the-endpoint.md)                                      | Complete    |
 | 2.4.3 | [Real data on screen: the frontend read path and the plainest honest list](TASK-03-on-screen.md)        | Not started |
 | 2.4.4 | [The states, and making it look like the product](TASK-04-states-and-presentation.md)                   | Not started |
 | 2.4.5 | [Keyboard, screen reader, and the browser journey](TASK-05-accessibility-and-journey.md)                | Not started |
