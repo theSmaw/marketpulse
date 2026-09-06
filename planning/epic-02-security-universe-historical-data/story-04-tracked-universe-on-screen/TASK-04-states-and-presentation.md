@@ -120,3 +120,50 @@ This is the first page in the product with real content, so it sets the pattern 
 table after it. It is worth more care than its size suggests — and it is also the task most
 likely to expand, because everything on it could be a little better. The scope fence is the
 list of things deliberately not added above.
+
+---
+
+## Amended 2026-09-06, after Task 2.4.2
+
+One design obligation this file did not carry, found by measuring the wire rather than by
+reading the schema. It changes nothing about this task's scope or position.
+
+### An absent sector needs a rendering, and a blank cell is the wrong one
+
+Four of the 101 securities — `SPY`, `QQQ`, `DIA`, `IWM` — have a `sector` of `null`, and
+that null is **the complete and correct answer** rather than a missing value: an index proxy
+does not belong to a sector. Task 2.3.1 rejected reading it as "unclassified" so firmly that
+`Security` is a discriminated union instead of one interface with a nullable field, purely
+to keep those two meanings apart in the type system.
+
+**A blank cell puts them back together.** It is indistinguishable from a row whose sector we
+have not worked out, which is the inference the domain model spent a whole task refusing —
+and this page is where that refusal either survives contact with a screen or quietly does
+not. So an index proxy's sector cell states the absence rather than being empty, in the same
+register as everything else on the page, and it should read as a property of what the thing
+_is_ rather than as missing data. It is the same distinction the kind column carries, which
+is worth noticing before drawing both: if the kind column already says "index ETF", the
+sector cell may only need to not contradict it.
+
+Task 2.4.2 makes this reachable rather than theoretical. Declaring the field the obvious way
+sent SPY's sector to the wire as the **empty string** — falsy, so every branch kept working
+while the cell rendered blank — and `type: ["string", "null"]` is what fixes it at the
+transport. The wire is now honest; this task decides whether the screen is.
+
+`industry` is null for all fifteen ETFs and needs the same judgement, and it may well
+deserve a different answer from `sector`: an ETF has no industry for the same structural
+reason, but nothing in the domain model was built to protect that distinction, so the cost
+of getting it wrong is lower. Say which and why.
+
+### Two smaller things the shipped contract settles
+
+**The summary line's two numbers are both derived from the array**, because 2.4.2 put no
+`count` on the wire — rows held is `securities.length`, securities tracked is the rows whose
+`status` is `"active"`. That is the "nothing anywhere states 101 as a constant" clause in
+_Done when_ already satisfied by the transport rather than by discipline.
+
+**Provenance is on the envelope and is optional**, so if this page ever renders "last
+checked on …" it has to handle its absence — which is not an error and means either an empty
+list or, from Story 2.7, rows that no longer agree. Rendering provenance is **Story 2.14's**
+and is not in this task's scope; this note exists so that if it is added here anyway, it is
+added knowing the field can legitimately be missing.

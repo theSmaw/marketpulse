@@ -101,3 +101,36 @@ decisions it makes, the temporal seam's shape and the store deferral, belong to 
 and Story 2.10's ADRs respectively. Recording that refusal here is the point: an ADR per
 story is a convention nobody chose, and this repository's rule is one ADR per decision worth
 arguing about.
+
+---
+
+## Amended 2026-09-06, after Task 2.4.2
+
+Three small corrections. None changes this task's scope, and the sweep's count was checked
+rather than assumed — it is still **twelve files** carrying the `first selectFrom` claim
+plus this file itself, of which Story 2.4's own two are correct.
+
+**Part of the `CLAUDE.md` update is already done.** Task 2.4.2 added tree entries for
+`apps/backend/src/routes/securities.ts` and `packages/shared/src/securities-response.ts`,
+and corrected the stale reversal-trigger comments in `database.ts` and `index.ts` in the
+same commit as the change they describe. What is left here is the **routes paragraph**,
+which still calls `/securities` a placeholder, and `README.md`'s list of things a correct
+first run shows that read as faults.
+
+**`database.ts`'s reversal trigger now names a condition rather than a story**, because
+Task 2.4.2 could not fire it: the repository needs the pool, the pool needs `app.log`, and
+`pino` is not importable from `apps/backend`, so `ServerOptions.securities` cannot be
+constructed before the call it would be an argument to. What that means for this task is
+that the hand-forward to Story 2.9 should say the trigger is **still unfired and why**,
+rather than recording it as spent — and that `server.test.ts`'s route-table walk now covers
+every route the application serves, including the diagnostics one, which closes a cost Task
+2.1.7 stated and is worth naming in the hand-forward as something Story 2.9 inherits rather
+than has to build.
+
+**Do not try to produce the missing-`provenance` case deployed.** The envelope omits
+provenance when the rows disagree, and in production that condition arrives only with Story
+2.7 filling profile fields from Alpaca. It was produced locally against a real database at
+Task 2.4.2 and needs no second demonstration; deliberately putting the deployed table into
+a disagreeing state would mean writing rows the loader would then have to unwrite. The
+untracked-row verification above is different and does belong here, because it is produced
+through the pipeline's own `Load the tracked universe` step.

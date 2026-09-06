@@ -82,3 +82,53 @@ The temptation is to do this task and Task 2.4.4 together, because a plain table
 unfinished. Resist it: the two failures they catch are different — this one catches "the
 data is not what we thought", and that one catches "the page does not read as a product" —
 and merging them means a single large change where neither is clearly the cause of the other.
+
+---
+
+## Amended 2026-09-06, after Task 2.4.2
+
+Two things this file did not know, and the first is a piece of work that had **no owner in
+any of the six tasks** until 2.4.2 shipped. Neither changes this task's scope or position.
+
+### `isSecuritiesResponse` is this task's, and it is the load-bearing half
+
+Task 2.4.2 shipped the contract in `packages/shared/src/securities-response.ts` and
+deliberately shipped **no predicate**, under Task 1.7.3's rule that a validator ships with
+its first reader — and this task is that reader. So writing it is work here rather than
+there, and it goes beside the shape in `packages/shared` for the reason `isHealthResponse`
+and `isApiError` do: a validator written at the call site is the copy that drifts.
+
+It is `isHealthResponse`'s case rather than `isApiError`'s, with one exception. `isSecurity`
+already exists next door, is total, and **does** check `kind`, `sector` and `status` against
+their const arrays — so the predicate here is a shape check over the envelope plus a
+`.every(isSecurity)`, and nothing about a security needs re-validating.
+
+**The trap is `provenance`, and getting it wrong turns a correct response into the failed
+state.** It is **optional**, and its absence is not a malformed body — it means one of
+exactly two things, both of which this task has to render as `loaded`:
+
+| On the wire                              | What it means                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------------- |
+| `{"securities": [...], "provenance": …}` | The normal case: every security came from one place                        |
+| `{"securities": []}`                     | **The empty state.** Nothing to attribute a source to                      |
+| `{"securities": [...]}`                  | The rows no longer agree, so the server does not make the claim. Story 2.7 |
+
+A predicate that requires `provenance` makes the **loaded-but-empty state fail as
+`unreadable-body`** — which `api-client.ts` maps to `degraded`, so the page would render
+"the service could not be reached" against a perfectly healthy backend and an empty
+database. That is the fourth state this task exists to get right, arriving through the
+validator rather than through the component. It is cheap to produce: point at a migrated
+database with no universe loaded, or drive the client against `{"securities": []}`.
+
+### Two smaller facts from the shipped contract
+
+**There is no `count` on the wire** — 2.4.2 rejected it, because without pagination
+`securities.length` is the count and a field beside it can only disagree. Both of Task
+2.4.4's numbers are derived here: rows held is `securities.length`, and securities tracked
+is the rows whose `status` is `"active"`.
+
+**A null `sector` arrives as a genuine `null`**, not as `""` and not as the string
+`"null"` — 2.4.2 found that the obvious schema produced the empty string and fixed it with
+`type: ["string", "null"]`, asserted on the raw body. So this table can rely on `null`
+meaning "there is no answer". What that should _look_ like is Task 2.4.4's, and it now has
+an amendment saying so.
