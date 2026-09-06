@@ -29,6 +29,8 @@ failure states rather than reasoning about them.
 - An **empty state** that says the universe has not been loaded and names the command,
   because that is what a migrated-but-unseeded database looks like and it is a real state a
   developer will hit on their first run
+- An **untracked security shown as untracked**, rather than missing — a row-level state
+  beside the three page-level ones above, and the story's acceptance criterion 6
 
 ## The bar this task is held to
 
@@ -41,7 +43,23 @@ Two of the four tests are genuinely at risk on a table of 101 rows and should be
 - **Produce each state from a named cause rather than a flag**, which is the standard Story
   1.12 set and met: stop the backend for `failed`, point at an empty database for `empty`,
   and use a throttled connection or a route intercept for `loading`. A state produced by
-  flipping a boolean in a component proves the component and not the wiring
+  flipping a boolean in a component proves the component and not the wiring. **There are
+  four, not three**: an untracked row is produced by removing a symbol from
+  `apps/backend/src/universe.ts`, running `pnpm universe`, and putting it back — which costs
+  nothing and is the only way to see the rendering against a row that is genuinely in that
+  state
+- **Render an untracked security visibly rather than filtering it, and say which number the
+  count is reporting.** This is the story's acceptance criterion 6 and the amendment
+  `STORY.md` took on 2026-09-06 after Task 2.3.6; it lands here because it is presentation,
+  and Task 2.4.1's read already refuses to filter it away. Three things it needs. The row is
+  **marked**, not merely present — and by the same rule as the kind distinction below, so
+  not by colour alone; `FeedIndicator`'s marker-plus-word is the nearest precedent, and
+  `BackendIndicator` is the second. The **summary line has to say which of two numbers it
+  reports** — `count(*)` over the table and "how many securities we track" are different
+  from the first removal onward, and today they are equal at 101, so the wrong one passes
+  every check this story can run and is silently wrong later. And the tone is
+  `UNIVERSE.md` §3's: "we stopped tracking this" is **information**, not a failure and not
+  an error state, so it must not borrow the failed state's language or its red
 - **Use the existing design language rather than inventing one.** `tokens.css` and
   `market.css` already hold the ground, the surfaces, the hairlines, the 4px grid and the
   semantic market colours; `SecurityRow` already exists from Story 1.4 and this is the first
@@ -84,11 +102,16 @@ Two of the four tests are genuinely at risk on a table of 101 rows and should be
 - The first motion tokens exist, are used for the loading-to-loaded transition, and honour
   `prefers-reduced-motion`
 
-- All three non-loaded states are produced from a named cause and seen on screen
+- All three non-loaded page states are produced from a named cause and seen on screen, and
+  so is an untracked row — four causes, not three
+- An untracked security is rendered, visibly distinguished without relying on colour, and
+  the summary line says which of the two counts it is reporting
 - The kind distinction is legible without colour
 - The summary line is derived from the response rather than written down — nothing anywhere
   states 101 as a constant, which is `UNIVERSE.md` §8's rule arriving on the frontend
-- Grouping versus sorting is decided with a stated reversal trigger
+- Grouping versus sorting is decided with a stated reversal trigger — noting the API already
+  returns rows ordered by symbol, so grouping is this page adding structure rather than
+  correcting an unordered response
 - `pnpm verify` passes and the artefact's new size is recorded
 
 ## Notes
