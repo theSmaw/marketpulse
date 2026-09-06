@@ -53,6 +53,16 @@ not meant to be.
   with a hard-coded `-5` and no timezone name, which is a reimplementation rather
   than a duplicate — and **not** list it beside the two genuine unenforced
   obligations, which are the calendar's annual edit and the runtime's tzdata
+- **The ADR owes one decision Task 2.5.4 took that this file predates (added 2026-09-06):
+  what happens when a session walk leaves the calendar's covered range.** It **propagates**
+  `MarketCalendarRangeError` rather than truncating, in all four walking functions, and that
+  belongs in an ADR rather than only in `CALENDAR.md` for the same reason the other two do —
+  it is consumed **outside this epic**. Epic 5's baseline is specified at 60 trading days
+  (`PRODUCT_SPEC.md` §5.1), so asking for it from early January crosses the lower bound
+  routinely, and the alternative — hand back the 47 sessions that exist — is indistinguishable
+  from a correct answer at the call site and surfaces as an anomaly score computed over the
+  wrong window. **Task 2.5.5's clock is the single stated exception**, because its input is
+  always today and it cannot refuse; record the exception with the decision, not separately.
 - **Number it 0017 and do not renumber anything.** ADR numbers are permanent identifiers and
   the file number is not the ordinal — this file already records that 0014 was written after
   0015
@@ -89,9 +99,14 @@ not meant to be.
   null result** — it means the holiday table stayed a plain literal and the
   `Intl.DateTimeFormat` was constructed lazily rather than at module load. If any of the three
   moved, that is the finding, and Task 2.3.8's `SECTOR_ETFS` mechanism is the first thing to
-  look at. **Two of the four are already measured and hold (added 2026-09-06): 2.5.2 and
+  look at. ~~**Two of the four are already measured and hold (added 2026-09-06): 2.5.2 and
   2.5.3 both read 357,216 B, the baseline exactly**, with every calendar string absent from
-  `dist/` and `storybook-static/` — so what is genuinely open is 2.5.4 and 2.5.5, and 2.5.5's
+  `dist/` and `storybook-static/` — so what is genuinely open is 2.5.4 and 2.5.5~~ **THREE of
+  the four are measured and hold (updated 2026-09-06 by Task 2.5.4): 2.5.2, 2.5.3 and 2.5.4
+  all read 357,216 B on an unchanged 18,058 B stylesheet**, with `before_open`, `after_close`
+  and `Good Friday` all zero in the bundle alongside the calendar strings — every function in
+  `market-session.ts` is a function declaration and its three exported constants are plain
+  literals, so the whole module drops. **So only 2.5.5's is genuinely open**, and 2.5.5's
   is the only one of the four with a number in it worth being wrong about
 - **Re-take the test counts and the `pnpm verify` split**, with and without a database
   running, which is criterion 5 and is the one this story could plausibly have broken by
@@ -132,14 +147,31 @@ corrected by Task 2.5.1 on 2026-09-06; the corrected forms are what belongs in t
 **Three more sweep candidates, added 2026-09-06 after Task 2.5.2 shipped.** The
 claim that criterion 2 is held by a grep and a written rule, which is in
 `CALENDAR.md` §3.4 and in `CLAUDE.md`'s third-kind-of-gap list — both are live
-claims and both are now false. `CLAUDE.md`'s tree block and `Commands` section,
+claims and both are now false. ~~`CLAUDE.md`'s tree block and `Commands` section,
 which mention neither `packages/shared/src/market-time.ts` nor the two new lint
-rules. And `README.md`'s first-run list, which calls the market clock
+rules.~~ **Half of that is closed and half is not (checked 2026-09-06 by Task
+2.5.4): the tree block now carries all three of `market-time.ts`,
+`market-calendar.ts` and `market-session.ts`, so what remains is the `Commands`
+section and the two lint rules — re-read rather than assumed, because a sweep
+candidate that has silently been closed is how a close spends its time on work
+already done.** And `README.md`'s first-run list, which calls the market clock
 `--:--:-- ET` a reserved region that **Epic 3 supplies** — that was already wrong
 when Story 2.5 was split (Task 2.5.5 supplies it) and stops being true altogether
 at 2.5.5. Note also that the `BackendIndicator` timestamp now reads
 `Last confirmed HH:MM:SS local`, which no first-run list mentions and which is
 deliberate rather than an omission.
+
+**A fourth sweep candidate, added 2026-09-06 by Task 2.5.4: the session functions have real
+names now and two live documents use the provisional ones.** `CALENDAR.md` §3.2 threads a
+hypothetical `Clock` through `isMarketOpen`, `sessionBounds` and `nextSession`, and §7.1's
+case 2 says `nextSession`/`previousSession`. What shipped is `marketSessionStateAt`,
+`marketSessionOn`, `nextMarketSession` and `previousMarketSession`. §3.2 is **the section
+Epic 13 reads**, so an engineer arriving there will grep for a `sessionBounds` that does not
+exist. This is the one sweep hit in the story where the distinction Task 1.10.8 established
+needs care in the other direction: §3.2's names are **illustrative of a shape it is arguing
+against** rather than claims about the API, so the fix is to name the real functions beside
+them rather than to strike them out — and the task files that used the provisional names are
+historical records and stay exactly as they are.
 
 This correction is the reason the amendment convention exists: this file writes ADR 0017, and
 an ADR is a permanent identifier cited outside this repository. Both errors would have been

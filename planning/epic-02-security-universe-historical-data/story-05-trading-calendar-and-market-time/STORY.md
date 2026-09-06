@@ -152,7 +152,7 @@ story, and the space it fills has been reserved in the chrome since Story 1.5.
 | 2.5.1 | [Choose the calendar source, the session definition and the clock's shape, shipping nothing](TASK-01-choose-the-calendar-source-and-the-session.md) | Complete    |
 | 2.5.2 | [The one conversion boundary: UTC in, market time out](TASK-02-the-timezone-boundary.md)                                                            | Complete    |
 | 2.5.3 | [The calendar as data: holidays, half days, provenance and staleness](TASK-03-the-calendar-data.md)                                                 | Complete    |
-| 2.5.4 | [The session functions, and the named dates that prove them](TASK-04-the-session-functions.md)                                                      | Not started |
+| 2.5.4 | [The session functions, and the named dates that prove them](TASK-04-the-session-functions.md)                                                      | Complete    |
 | 2.5.5 | [The clock seam, and the header's reserved region starts working](TASK-05-the-market-clock-on-screen.md)                                            | Not started |
 | 2.5.6 | [Verify, document, and ADR 0017](TASK-06-verify-document-and-adr.md)                                                                                | Not started |
 
