@@ -155,8 +155,12 @@ describe("SecurityExplorer", () => {
     stubFetch(() => json(200, { securities: [] }));
     render();
 
+    // `getAllByText`, because there are two channels saying it: the visible
+    // headline and the `role="status"` region that announces the arrival to a
+    // screen reader (Task 2.4.5). Asserting the count is what keeps that
+    // deliberate — a third copy would be a mistake.
     await waitFor(() => {
-      expect(screen.getByText(/has not been loaded/)).toBeTruthy();
+      expect(screen.getAllByText(/has not been loaded/)).toHaveLength(2);
     });
     expect(screen.queryByRole("table")).toBeNull();
     expect(screen.queryByText("no response")).toBeNull();

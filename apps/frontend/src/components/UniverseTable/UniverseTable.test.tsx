@@ -223,6 +223,54 @@ describe("UniverseTable", () => {
     expect(screen.getByText("3f1c")).toBeTruthy();
   });
 
+  // A live region in every state, so a state change can be announced at all
+  // (Task 2.4.5). The property that matters is one a browser test cannot see
+  // and this one can: the element is present in *all four* states, because a
+  // live region that is added or removed with the content it describes
+  // announces nothing — which is what Task 2.4.3 shipped and this replaced.
+  it("carries a live region in every state", () => {
+    for (const view of [
+      { state: "loading" },
+      { state: "empty" },
+      { state: "failed", failure: "unreachable", requestId: null },
+      { state: "loaded", securities: [equity()], provenance: null },
+    ] satisfies readonly SecuritiesView[]) {
+      const { unmount } = render(<UniverseTable view={view} />);
+
+      expect(
+        screen.getByRole("status"),
+        `no live region in the ${view.state} state`,
+      ).toBeTruthy();
+      unmount();
+    }
+  });
+
+  // It is `status` and never `alert`: PRODUCT_SPEC.md §36 makes an unreachable
+  // service a product state rather than a failure of the application, and
+  // `role="alert"` is what `ErrorFallback` carries — the one thing the browser
+  // suite looks for on every route to decide that nothing failed to render.
+  it("announces a failure politely and never as an alert", () => {
+    render(
+      <UniverseTable
+        view={{ state: "failed", failure: "unreachable", requestId: null }}
+      />,
+    );
+
+    expect(screen.getByRole("status").textContent).toContain(
+      "The tracked universe is not available.",
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  // Nothing is announced on arrival at the page, because there was no
+  // transition into it — see `announce` for why that is a decision rather than
+  // an omission, and why the region is present anyway.
+  it("announces nothing while loading, and is present to announce later", () => {
+    render(<UniverseTable view={{ state: "loading" }} />);
+
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+
   // The skeleton is decoration for a screen reader; the sentence is the answer.
   it("offers one sentence to a screen reader while loading, not seven bars", () => {
     const { container } = render(<UniverseTable view={{ state: "loading" }} />);

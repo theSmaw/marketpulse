@@ -366,8 +366,37 @@ for (const { name, url, result } of results) {
   }
 }
 
-// The database is **reported and not gating**, and that is a decision with a
-// stated trigger rather than a softness.
+// **The database GATES, as of Task 2.4.5, and the trigger fired exactly as it
+// was written — somewhere nobody predicted.**
+//
+// Task 2.1.2 left this check reporting rather than gating and stated the
+// reversal as a *condition* rather than a task number: **the first check in
+// `pnpm verify` or `pnpm e2e` that fails without a database**. It named Story
+// 2.2's migrations and Story 2.9's routes as the realistic candidates. It was
+// neither. What fired it is Story 2.4's browser suite: `/securities` renders
+// the tracked universe, so a browser journey against a databaseless pair drives
+// a page whose service is up and whose table is empty.
+//
+// It fired **on the runner and not on a laptop**, which is the half worth
+// keeping. Every developer has a database running from `pnpm db`, so the
+// condition is invisible locally; the `e2e` job in
+// `.github/workflows/verify.yml` had none, and six journeys went red 10 s at a
+// time on `element(s) not found` with the real cause printed calmly three lines
+// above, in this script's own output, as an `○` nobody was reading.
+//
+// That is the argument for the change rather than a story about it. **A
+// reporting line is only honest while nothing depends on it.** The moment
+// something does, the same line is worse than silence: it turns one loud
+// failure with a named cause into a handful of quiet ones with none.
+//
+// `pnpm verify` is unaffected and must stay so — it is not a caller of this
+// script, and Story 2.2's criterion 7 ("the chain runs with no database") is
+// still true and still measured. What changed is `pnpm e2e`, which gates on
+// this script and now refuses to start a browser rather than driving one at a
+// page that cannot be filled.
+//
+// What the old comment said, kept because the reasoning was right and only its
+// premise expired:
 //
 // The exit code of this script answers one question — *can the application
 // run?* — and today the application does not open a connection to anything.
@@ -400,8 +429,8 @@ if (!localDatabase.ok) {
   // Indented per line, because the resolver's message is multi-line whenever
   // `config.ts` reports more than one bad key — the fix Task 1.8.7 made after
   // 1.8.6 found `pair-addresses.mjs` indenting only the first line.
-  console.log(
-    `  ○ database\n${localDatabase.message
+  console.error(
+    `  ✗ database\n${localDatabase.message
       .trimEnd()
       .split("\n")
       .map((line) => `      ${line}`)
@@ -415,32 +444,40 @@ if (!localDatabase.ok) {
   // The diagnosis goes on this line rather than into the hint block below,
   // because that block only runs when the pair itself failed — and the
   // interesting database cases are exactly the ones where everything else is
-  // green. `○` and not `✗` on purpose: it is a report, not a failure.
+  // green — which is precisely the shape the runner produced.
   const diagnosis = {
     NOT_POSTGRES:
       "something is on this port and it did not answer an SSLRequest",
     NO_RESPONSE: "something is holding this port and not answering at all",
   };
 
-  console.log(
-    `  ○ database  ${databaseAddress}  ${database.code} — ${diagnosis[database.code] ?? "not running; `pnpm db` starts it"}`,
+  console.error(
+    `  ✗ database  ${databaseAddress}  ${database.code} — ${diagnosis[database.code] ?? "not running; `pnpm db` starts it"}`,
   );
 }
 
-if (backend.ready && frontend.ready) {
-  console.log(
-    !localDatabase.ok
-      ? "\nThe pair is up. Where the database is could not be worked out — see above.\n" +
-          "Nothing needs it yet, so this is exit 0."
-      : database.ok
-        ? "\nThe pair is up, and so is the database."
-        : "\nThe pair is up. The database is not — start it with `pnpm db`.\n" +
-          "Nothing needs it yet, so this is exit 0. That changes when a check starts failing without one.",
-  );
+// One name for "the third check passed", so the exit code and the hint below
+// cannot disagree about it.
+const databaseReady = localDatabase.ok && database.ok;
+
+if (backend.ready && frontend.ready && databaseReady) {
+  console.log("\nThe pair is up, and so is the database.");
   process.exit(0);
 }
 
 console.error("");
+
+// The database's hint is printed FIRST, deliberately: it is the failure most
+// likely to arrive with everything else green, and the one whose cause sits
+// furthest from its symptom. A databaseless pair does not look broken — it
+// looks like a `/securities` page that renders correctly and holds nothing.
+if (!databaseReady) {
+  console.error(
+    !localDatabase.ok
+      ? "  Where the database is could not be worked out — see above. That is usually an unbuilt\n  tree rather than a database that is down, because the address comes from\n  `apps/backend/dist/config.js`."
+      : "  The database is not running. `pnpm db` starts it, and a first run then needs `pnpm migrate`\n  and `pnpm universe` — neither of which has a symptom if you skip it, beyond a\n  `/securities` page that renders correctly and holds nothing. This became a failure rather\n  than a note in Task 2.4.5; the comment above says why.",
+  );
+}
 
 // The hints, because the two services fail for different reasons and the
 // reason is the expensive part to work out from a scrolled terminal.

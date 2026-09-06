@@ -418,8 +418,20 @@ function UniverseRows({
                         ? group.detail
                         : `Benchmark ${group.benchmark}`}
                     </span>
+                    {/*
+                     * The count, and the unit is present for a listener and
+                     * absent for a reader. Measured: the band's accessible
+                     * name reads `Technology Benchmark XLK 13`, so a bare
+                     * figure arrives at the end of a heard sentence with
+                     * nothing saying what it counts. On screen the column of
+                     * figures says it by alignment, which is the whole reason
+                     * the number is right-aligned and tabular — so this is the
+                     * third channel `PriceChange` established rather than a
+                     * second copy of anything.
+                     */}
                     <span className={styles.groupCount}>
                       {group.securities.length}
+                      <span className={styles.visuallyHidden}> securities</span>
                     </span>
                   </span>
                 </th>
@@ -446,16 +458,17 @@ function UniverseRows({
  *
  * The bars are `aria-hidden` and the sentence above them is the accessible
  * answer: a screen reader gets one honest statement instead of a description of
- * eight grey rectangles. `aria-live="polite"` is on the sentence rather than on
- * the region, so what is announced is "loading" and not the table that replaces
- * it.
+ * seven grey rectangles.
+ *
+ * **`aria-live="polite"` used to be on this sentence and Task 2.4.5 took it
+ * off**, having reproduced what it actually did. See `Announcement` below: the
+ * announcing element was the one being removed, so the page said it had started
+ * and never said it had finished.
  */
 function LoadingState() {
   return (
     <div>
-      <p className={styles.state} aria-live="polite">
-        Loading the tracked universe…
-      </p>
+      <p className={styles.state}>Loading the tracked universe…</p>
       <div className={styles.skeleton} aria-hidden="true">
         {SKELETON_ROWS.map((row) => (
           <span className={styles.skeletonRow} key={row} />
@@ -577,13 +590,139 @@ function FailedState({
 }
 
 /**
+ * One sentence, written to be heard, saying which of the four states this is
+ * (Task 2.4.5).
+ *
+ * ## The defect this replaces, reproduced rather than reasoned about
+ *
+ * Task 2.4.3 put `aria-live="polite"` on the *loading* paragraph, which is the
+ * reflex answer and is wrong in a way that is invisible to a sighted reviewer.
+ * Measured in a browser across the real transition: before the response the DOM
+ * holds `<p aria-live="polite">Loading the tracked universe…</p>`, and after it
+ * there is **no live region in the document at all** — because the announcing
+ * element is the one being removed. So a screen-reader user was told the page
+ * had started and never told it had finished, which is exactly the "page that
+ * appears to do nothing" the announcement existed to prevent.
+ *
+ * A live region has to be **present before the content it announces changes**.
+ * That is the whole reason this element renders in every state and never
+ * unmounts.
+ *
+ * ## Why it is hidden rather than being each state's own lead line
+ *
+ * The nicer-looking design is to hoist each state's first sentence up here, so
+ * the announcement *is* the visible line and nothing is written twice. It was
+ * tried and it does not survive the failed state: there, a marker and a status
+ * word come **before** the headline, so the element could not hold a constant
+ * position across all four states — and a live region that moves in the tree is
+ * a live region React unmounts and recreates, which is the defect being fixed.
+ *
+ * What is left is not really duplication either, and `PriceChange` is the
+ * precedent: visible text is written to be **scanned** and an announcement is
+ * written to be **heard, once, out of context**. `101 securities tracked · 11
+ * sectors · 15 ETFs` is a good line to scan and a poor sentence to hear — and
+ * measurably so, since those separators are CSS `::before` content, so the
+ * element's own text runs together as `101 securities tracked11 sectors15 ETFs`.
+ * That is `e2e/README.md`'s `Backend servicehealthy` trap arriving in a place
+ * where it would have been *heard* rather than merely mis-asserted on.
+ *
+ * ## `role="status"` and deliberately never `role="alert"`
+ *
+ * `status` implies `aria-live="polite"` and `aria-atomic="true"` — polite so it
+ * waits for a pause rather than interrupting, atomic so the whole sentence is
+ * read rather than the words that changed.
+ *
+ * `alert` is the tempting upgrade for the two failed states and is refused
+ * twice over. PRODUCT_SPEC.md §36 makes an unreachable service a product state
+ * rather than a failure of the application, and assertive delivery says the
+ * opposite. And `role="alert"` is what `ErrorFallback` carries, which is the
+ * one thing `expectNothingFailedToRender` looks for across every route in the
+ * browser suite: putting one here would mean a page reporting a backend it
+ * cannot reach was indistinguishable, to that assertion, from a page that
+ * failed to render.
+ */
+function Announcement({ view }: { readonly view: SecuritiesView }) {
+  return (
+    <p className={styles.visuallyHidden} role="status">
+      {announce(view)}
+    </p>
+  );
+}
+
+/**
+ * What each state sounds like.
+ *
+ * The loaded sentence carries the two figures that answer the question this
+ * screen exists for — how much is covered, and across how much of the market —
+ * and deliberately not the third (`ETFs`), which is a detail somebody reads
+ * rather than hears. It is `securities in N sectors` rather than the summary
+ * line's own clauses because a heard sentence wants a preposition where a
+ * scanned line wants a separator.
+ *
+ * **The three settled sentences do repeat text that is also on screen, and that
+ * is accepted rather than worked around.** The alternative is deliberately
+ * different wording for one fact, which is two vocabularies for the same state
+ * — exactly what the failure states' shared marker language exists to avoid.
+ * A live region duplicating visible text is the ordinary shape of one: the
+ * announcement and the browse are two different interactions, and only one of
+ * them happens at the moment the page changes.
+ */
+function announce(view: SecuritiesView): string {
+  switch (view.state) {
+    case "loading":
+      // **Deliberately nothing, and this is the one place the duplication was
+      // worth removing.** A live region only has to be *present* before the
+      // content it announces changes; content that is already there when the
+      // region is created is not an announcement, because there was no change.
+      // So a loading sentence here would never be heard as one — it would only
+      // be a second copy of the visible line for anyone browsing the page.
+      //
+      // The asymmetry has a reason rather than being an oversight: `loading` is
+      // the state this page starts in and can never return to, because
+      // `useSecurities` fetches once. There is no transition *into* it to
+      // announce.
+      return "";
+
+    case "loaded": {
+      const { tracked } = summarise(view.securities);
+      const sectors = groupUniverse(view.securities).filter(
+        (group) => group.benchmark !== null,
+      ).length;
+
+      return `The tracked universe loaded. ${String(tracked)} securities in ${String(sectors)} sectors.`;
+    }
+
+    case "empty":
+      return "The universe has not been loaded. This service holds no securities.";
+
+    case "failed":
+      return view.failure === "unreachable"
+        ? "The tracked universe is not available. Nothing answered at the service’s address."
+        : "The tracked universe could not be read. Something answered at the service’s address and it was not this service.";
+  }
+}
+
+/**
  * Render the state, rather than infer it.
  *
  * A `switch` over the discriminated union: `tsc` refuses this function if a
  * member is added and not handled, and there is no combination of flags here
  * that could contradict itself.
+ *
+ * The announcement is a sibling of it rather than part of it, which is the one
+ * thing here not to tidy away: it has to survive every transition the `switch`
+ * makes, and folding it into a branch is how it stops doing that.
  */
 export function UniverseTable({ view }: { readonly view: SecuritiesView }) {
+  return (
+    <>
+      <Announcement view={view} />
+      <StateBody view={view} />
+    </>
+  );
+}
+
+function StateBody({ view }: { readonly view: SecuritiesView }) {
   switch (view.state) {
     case "loading":
       return <LoadingState />;

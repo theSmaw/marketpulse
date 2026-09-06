@@ -196,7 +196,7 @@ as a URL rather than as a page; from 2.4.3 onward every task changes what is on 
 | 2.4.2 | [`GET /securities` and the wire contract](TASK-02-the-endpoint.md)                                      | Complete    |
 | 2.4.3 | [Real data on screen: the frontend read path and the plainest honest list](TASK-03-on-screen.md)        | Complete    |
 | 2.4.4 | [The states, and making it look like the product](TASK-04-states-and-presentation.md)                   | Complete    |
-| 2.4.5 | [Keyboard, screen reader, and the browser journey](TASK-05-accessibility-and-journey.md)                | Not started |
+| 2.4.5 | [Keyboard, screen reader, and the browser journey](TASK-05-accessibility-and-journey.md)                | Complete    |
 | 2.4.6 | [Deploy it, verify it in a browser, and hand forward what was pre-empted](TASK-06-deploy-and-verify.md) | Not started |
 
 ## Amended 2026-09-06, after Story 2.3 closed

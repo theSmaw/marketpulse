@@ -36,6 +36,7 @@ chromium`, ~554 MB, once per machine.
 | `specs/backend-health.spec.ts`         | the two halves talking — the journey this story exists for           |
 | `specs/backend-failure-states.spec.ts` | the three states from named causes, and §36's "the rest still works" |
 | `specs/backend-recovery.spec.ts`       | recovery across a real poll interval, with no page reload            |
+| `specs/securities-route.spec.ts`       | the first page whose content arrives over the network                |
 | `support/`                             | locators, timings and the axe pass — not collected as tests          |
 | `playwright.deployed.config.ts`        | the post-deploy check's config — a second file, not a second project |
 | `specs-deployed/two-halves.spec.ts`    | the two failures no other instrument here can see                    |
@@ -50,18 +51,53 @@ the job; the short version is that `pnpm verify` runs with nothing listening —
 which is why `pnpm ready` is not a chain step — while `deploy.yml`'s reasons for
 being a separate _workflow_ are properties of a deploy rather than of a check.
 
-The job runs three commands by name and defines no port, browser command or
-readiness rule of its own: `pnpm build` (which has to come first, because
-`pnpm e2e` resolves both addresses from the backend's **built** `dist/config.js`
-and exits 1 on an unbuilt tree), then `pnpm dev` in the background, then
-`pnpm e2e` — which gates on `pnpm ready` itself.
+The job runs **five** commands by name and defines no port, browser command,
+readiness rule or seed data of its own: `pnpm build` (which has to come first,
+because `pnpm e2e` resolves both addresses from the backend's **built**
+`dist/config.js` and exits 1 on an unbuilt tree), then `pnpm migrate` and
+`pnpm universe` against a Postgres service container, then `pnpm dev` in the
+background, then `pnpm e2e` — which gates on `pnpm ready` itself.
+
+**It gained the database at Task 2.4.5, and how it gained it is the part worth
+keeping.** `scripts/check-ready.mjs` had stated the condition two stories in
+advance — "the first check in `pnpm verify` or `pnpm e2e` that fails without a
+database" — and named Story 2.2's migrations and Story 2.9's routes as the
+candidates. It was neither: `/securities` renders the tracked universe, so this
+suite became that check. And it fired **here rather than on a laptop**, because
+every developer already has `pnpm db` running. Six journeys went red 10 s at a
+time on `element(s) not found` while the real cause sat three lines above in the
+readiness output as an `○` nobody was reading. The third check now **gates**, so
+that failure is one loud refusal naming the cause instead of a handful of quiet
+ones with none. `pnpm verify` is not a caller of that script and still runs with
+no database at all — Story 2.2's criterion 7, re-measured at **exit 0 in
+31.2 s**.
+
+Measured on the runner once it was green: `pnpm migrate` **723 ms**,
+`pnpm universe` **692 ms** (`101 inserted`), `pnpm e2e` **70.6 s** for 21 tests,
+and the whole job **2 m 16 s** against the 99–103 s above. **The suite did not
+get slower** — 70.6 s against 69.2–72.6 s for ten tests, because the recovery
+journey dominates on two workers exactly as it does on four. Nearly all of the
+job's extra ~35 s is the Postgres container booting, which is the honest price
+of the gate.
+
+The seed is the same two commands a developer's first run uses, deliberately: a
+CI-shaped universe would mean this suite asserting on rows CI inserted rather
+than on the ones the product ships.
 
 Four things it measured that are worth not rediscovering.
 
 - **`ubuntu-latest` reports 2 workers, not the laptop's 4** — Playwright's
   default is half the CPU count — so the suite is **69.2–72.6 s** there against
-  62–64 s locally. The nine short journeys still finish underneath the recovery
-  journey. The whole job is **99–103 s** across three green readings.
+  62–64 s locally, and the whole job is **99–103 s** across three green
+  readings. Those are Task 1.13.4's figures on ten tests and have not been
+  re-taken since. **The short journeys still finish underneath the recovery
+  journey, and that is now a much stronger statement than it was**: Task 2.4.5
+  took the suite from 10 tests to 21 and the local wall time is **1:02.3**,
+  which is Task 1.13.2's 62–64 s unchanged. Eleven new tests cost **no wall
+  time at all**, because 9.8 s of them fits inside the minute the recovery
+  journey spends waiting out two real poll intervals. The corollary is the one
+  to keep: the marginal cost of a journey here is zero until the suite grows
+  past that minute, and then it is not.
 - **The browser is `--only-shell chromium` and it is 267 MB on Linux**, in _two_
   directories (`chromium_headless_shell` 262 MB and `ffmpeg` 4.9 MB) — not the
   ~199 MB single artefact macOS shows. Cached under an OS- and
@@ -277,12 +313,24 @@ browser.** There is already one, and it is the important one — see below.
 
 ## What interception cannot produce, and what catches it instead
 
-**`route.fulfill()` bypasses the browser's CORS check entirely.** Measured
-against this pair: a fulfilled response carrying **no CORS headers at all** is
-accepted by Chromium and read normally by the page. So the obvious trick —
-stripping `access-control-allow-origin` from a real response to reproduce a
-wrong allowlist — does not work, and route interception can produce every state
-in this suite except the one the story exists for.
+**`route.fulfill()` bypasses the browser's CORS check.** Measured against this
+pair: a fulfilled response carrying **no CORS headers at all** is accepted by
+Chromium and read normally by the page. So the obvious trick — stripping
+`access-control-allow-origin` from a real response to reproduce a wrong
+allowlist — does not work, and route interception can produce every state in
+this suite except the one the story exists for.
+
+**It does not bypass the exposed-headers filter, and that is sharper than this
+file used to say** (Task 2.4.5). "Entirely" was too strong: the _body_ is read
+with no CORS headers at all, and a **header** still is not. Measured on a
+fulfilled response carrying `x-request-id` and no
+`access-control-expose-headers`, script sees `content-length` and `content-type`
+and nothing else — so the page rendered its failure state correctly and the
+correlation id it should have quoted simply was not there. The spec that found
+this was asserting the reference line and got "element not found"; the fix is
+one header, and the general rule is that **a fulfilled response has to declare
+anything the real server declares in `exposedHeaders`**, which today is exactly
+`x-request-id`.
 
 That one is caught rather than produced. `specs/backend-health.spec.ts` asserts
 the healthy path, and **its purpose is to go red when `CORS_ORIGIN` does not
@@ -329,6 +377,14 @@ below, because the thing that made them impossible is gone.
   suite compares is the poll interval, with a five-second tolerance, and what it
   is checking is that two files hold the same _number_ — not that a timer is
   accurate.
+- **Not a state produced by a glob that also matches the page.** A `**` glob
+  over `/health` is safe because this application has no `/health` route.
+  `/securities` **is** a route, so the same glob matches the document
+  navigation and fulfils the _page_ with the API's body — measured, the spec
+  then reported five whole-document axe violations against a blank document it
+  believed was a rendered state. `support/pair.ts` matches that endpoint by
+  port, derived from the backend's own built configuration. Check whether the
+  path you are intercepting is also a route before reaching for a glob.
 - **Not `checking` as a state.** It is what every page load renders until the
   first poll settles — a fact about this client's own startup, not about the
   server. Wait past it. It is deliberately not a `BackendStatus` member and must
@@ -376,6 +432,23 @@ found a real 2.09:1 violation on the very component these specs exercise.
 **Deployed it is a report rather than a gate**, and the asymmetry is argued in
 `support/axe.ts` and summarised under the post-deploy section above.
 
+**Both paths wait for the page to stop moving first, and that is a correction
+the gate produced rather than a precaution** (Task 2.4.5). Task 2.4.4 gave the
+tracked universe a 240 ms entrance — opacity and a 4 px rise, played once as the
+table arrives — and a spec that ran axe the instant the content appeared
+reported **203 `color-contrast` violations**: `--ink-secondary` (`#5a5d5c`)
+blended toward white by the fade and read back as `#939594` at **3.01:1**
+against a 4.5 threshold. Waiting for the animation and re-running the identical
+check on the identical page gives **0**, and the nodes axe could evaluate rise
+from 247 to 450. So the reading was of a _frame_ rather than of a page, and it
+would have been non-deterministic in the worst way — the same commit red on a
+slow runner and green on a fast laptop. `settleAnimations` in `support/axe.ts`
+waits for every **finite** animation; infinite ones are excluded rather than
+waited for, because the loading state's skeleton bars breathe forever and their
+`finished` promise never resolves. It deliberately does **not** force
+`prefers-reduced-motion`, which would make the gate green by removing the thing
+it has to cope with.
+
 **Both paths assert one thing about the instrument rather than the page**
 (Task 1.13.6). `expectTheRendererComputedStyles` checks that `color-contrast`
 appears in axe's `passes` with **more than zero nodes**, because a renderer that
@@ -421,7 +494,7 @@ In the same shape ADR 0010 states it for the tick.
 - **Not that the artefact it drove is the artefact that ships.** The dev server
   does not typecheck and does not bundle; `pnpm verify` is what covers that.
 - **Not coverage, and not that a journey exists for a behaviour.** There are
-  five specs.
+  **five** spec files and 21 tests.
 
 ## Why there is no render-failure journey
 

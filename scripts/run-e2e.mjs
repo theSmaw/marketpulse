@@ -70,9 +70,12 @@ const ready = spawnSync(
 
 if (ready.status !== 0) {
   console.error(
-    "The browser suite drives a running pair and there is not one. Start it with `pnpm dev`\n" +
-      "in another terminal, then run this again. This script does not start the servers —\n" +
-      "see the note in e2e/playwright.config.ts for why.\n",
+    "The browser suite needs a running pair AND a loaded database, and one of them is not\n" +
+      "there — the ticked lines above say which. `pnpm dev` in another terminal starts the\n" +
+      "pair; `pnpm db` starts the database, and a first run then needs `pnpm migrate` and\n" +
+      "`pnpm universe`. This script starts none of them — see the note in\n" +
+      "e2e/playwright.config.ts for why, and `scripts/check-ready.mjs` for why the database\n" +
+      "became a failure here rather than a note (Task 2.4.5).\n",
   );
   process.exit(1);
 }
