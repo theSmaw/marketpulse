@@ -357,6 +357,14 @@ a table that arrives once and sits still would be guessed against the easy case.
 
 ### A mono face is the second family, and it is a change to the design language
 
+**`VISUAL-LANGUAGE.md` was amended in the same change, because `tokens.css`'s own header
+requires it**: "a divergence from it is a change to that document rather than a local
+adjustment here". That document gained a **Motion** section — the two durations, the one
+easing, the reduced-motion rule and the explicit statement of what Epic 3 still owns — and a
+note under its typography decisions recording the second family and the rule that it is never
+for numbers in a table. Both are changes to the design language rather than to a page, which
+is exactly the case that header describes.
+
 `--font-mono`, with the rule that comes with it written beside it: **it is for a value
 somebody is expected to transcribe or type back**, never for numbers in tables. Two
 consumers, both here — the correlation id beside `answered-badly`, and `pnpm universe` in the

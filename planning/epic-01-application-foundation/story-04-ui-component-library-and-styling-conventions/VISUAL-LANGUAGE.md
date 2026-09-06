@@ -156,6 +156,23 @@ The reference leans hard on **weight 300** — headings are light, not bold, and
 
 So the weights here are **400 and 600**, and hierarchy is carried by **size and grey** instead — which is how the reference gets most of its hierarchy anyway. This is the one deliberate, known departure from the target look, and it is the price of decision 3. If the light headings are later judged essential, the fix is a self-hosted variable font and it is a contained change: a `--font-sans` token value plus font files.
 
+### The second family, added 2026-09-06 by Task 2.4.4
+
+Decision 3 is "the system font stack, no webfont" and it is **not reversed**: nothing is
+fetched, and the display and body faces are unchanged. What was added is a **utility face**,
+`--font-mono`, from the system's own monospace stack.
+
+It exists for exactly one category of string: **a value a person is expected to transcribe or
+type back.** Its two consumers are a correlation id beside a failure and a shell command in an
+empty state — neither is prose and neither is data in a column, so neither is served by the
+body face. The Numerals section below fixes alignment _within a column_; it does nothing for
+`l` against `1` or `O` against `0` in a string that has no column to align to, which is
+precisely what a mistyped UUID costs.
+
+**The rule that comes with it: this is not for numbers in tables.** A price, a change, a
+volume and an anomaly score are all set in the body face with tabular figures. Reaching for
+mono to make a column look technical is the failure this paragraph exists to prevent.
+
 ### Numerals
 
 **`font-variant-numeric: tabular-nums` is a token-level decision, not a per-component fix.** Every digit that appears in a column — price, change, percentage, volume, score — must occupy the same width, or the column jitters on every tick. Epic 3 updates these continuously, so a proportional figure set turns a live price column into visible noise.
@@ -212,6 +229,53 @@ The other two values ship unchanged. The amber's status is unchanged too, and Ta
 One measurement to carry into any future palette work, because it is the reason the redundant channel is not optional: under `grayscale(1)` the positive green and the negative red differ by **1.05:1**. They are the same tone. The hue is the whole of the difference, which is exactly what the rule below says cannot be relied on.
 
 **And the rule that outranks all three values:** colour is never the sole encoding. A negative change is red **and** carries its sign; a positive one is green **and** carries its sign. Roughly one man in twelve has a red-green deficiency and this product's primary signal is direction of price movement. With a neutral chrome the redundant channel is doing _more_ work than it would in a colourful interface, not less, because there is no other colour on screen to contrast against.
+
+## Motion — added 2026-09-06 by Task 2.4.4
+
+**This document said nothing at all about motion until this section existed**, which for a
+live market application was the largest gap in it: it specifies colour, ink, geometry and
+spacing to the pixel, and had no opinion on what happens when a number changes or data
+arrives. That is why test 4 of _The bar_ — **does it feel alive?** — failed outright on every
+screen built before it.
+
+What is here is a **thin first cut**, not a system, and the restraint is the decision rather
+than a shortfall.
+
+| Token                      | Value                     | For                              |
+| -------------------------- | ------------------------- | -------------------------------- |
+| `--motion-duration-quick`  | 120ms                     | a state change under the pointer |
+| `--motion-duration-settle` | 240ms                     | content arriving                 |
+| `--motion-ease-standard`   | `cubic-bezier(0.2,0,0,1)` | both                             |
+
+One easing, and it is asymmetric on purpose: fast out of the gate and slow into rest, which
+reads as something coming to a stop rather than something being tweened.
+
+### Two rules, and the second is the one that will be argued with
+
+**`prefers-reduced-motion` is answered here, once, at the token layer** — the durations
+resolve to `0ms` under the preference, so a consumer that reads the tokens honours it by
+construction and a consumer that hard-codes `240ms` is the only way to get it wrong. A
+per-component media query is a thing each author has to remember and whose failure is silent:
+the animation simply plays for somebody who asked it not to. Zero rather than "smaller",
+because a transition of `0ms` still ends in the same final state and an animation of `0ms`
+does not run — nothing disappears and nothing is left half-played.
+
+**Motion must never make a number harder to read.** A value that fades or slides while an
+analyst is reading it is worse than one that changes instantly. This is the constraint that
+makes a market application's motion vocabulary genuinely hard, and it is why the set above is
+deliberately small.
+
+### What is deliberately not decided here
+
+**Epic 3 owns the full vocabulary**, and waiting is the decision rather than a deferral. The
+hard question in this product is what should happen when a **price** changes on screen, and
+that has to be answered against real moving numbers. A vocabulary settled against the first
+screen that needed any — a table that arrives once and then sits still — would be a
+vocabulary designed for the easy case and then inherited by the hard one.
+
+So: nothing here about a value updating, nothing about a row entering or leaving a live list,
+nothing about a chart redrawing, and no third duration. Add those against something that
+actually moves.
 
 ## What this is not
 

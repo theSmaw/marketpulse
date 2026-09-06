@@ -174,3 +174,102 @@ now genuinely reachable from the browser, where the sector vocabulary previously
 That is correct — the page renders sector names — but it makes `packages/shared`'s
 tree-shaking behaviour a live concern rather than a curiosity, and it is the concrete case
 the rule recorded in `CLAUDE.md` was written against.
+
+---
+
+## Amended 2026-09-06, after Task 2.4.4
+
+Four things. The `first selectFrom` sweep is untouched — Task 2.4.4 shipped no backend
+source — and this task's scope and position are unchanged.
+
+### The `packages/shared` tree-shaking check is no longer a curiosity, and the answer flipped
+
+The amendment above says `SECTOR_LABELS` and `isSecuritiesResponse` are "now genuinely
+reachable from the browser" and calls that the concrete case the tree-shaking rule was
+written against. Task 2.4.4 went considerably further, and the change is worth stating
+precisely because it **reverses a measurement `CLAUDE.md` records**.
+
+Task 2.3.8 found that `SECURITY_KINDS`, `SECTORS` and `SECURITY_STATUSES` were plain array
+literals and were tree-shaken out **completely** — a grep of the bundle for `sector_etf`,
+`untracked` or any sector name returned **zero** — with only `SECTOR_ETFS`' eleven
+`toTicker()` calls surviving, at a cost of 115 bytes, because a call expression is not
+provably side-effect-free.
+
+**That is now false in the ordinary way**: the page iterates `SECTORS` to order its groups,
+reads `SECTOR_ETFS` to name each benchmark and `SECTOR_LABELS` to write the heading, and
+renders the `kind` and `status` vocabularies, so a grep for `sector_etf`, `technology`,
+`XLK`, `Consumer Discretionary` and `untracked` now returns **one each**. Nothing crossed the
+boundary that should not have — every one of those is a user-visible string this page
+renders — but the rule's example has changed from "a vocabulary declared as a literal is free
+to the browser" to a case where it is not free and is correctly paid for. Re-take that
+paragraph rather than citing it, and note the reversal trigger it states (anything
+**backend-only** reaching `packages/shared`) is still unfired.
+
+### The artefact baseline to compare against is this story's, not Story 2.3's
+
+The amendment above says to expect the four-file bundle to move from Task 2.3.8's
+**361,779 B** and to state what the page cost. It has now moved twice — Task 2.4.3 and Task
+2.4.4 — and the figure to re-take **from a clean build** is:
+
+|                 | Task 2.3.8      | after Task 2.4.4            |
+| --------------- | --------------- | --------------------------- |
+| JavaScript      | 348,250 B       | **356,324 B** (`3c02056c…`) |
+| CSS             | 12,128 B        | **17,905 B** (`66ad6676…`)  |
+| `index.html`    | 1,101 B         | 1,101 B (`e4115c91…`)       |
+| config          | 300 B           | 300 B                       |
+| total / modules | 361,779 B / 279 | **375,630 B / 284**         |
+
+The CSS moved proportionally further than the JavaScript, which is worth a sentence rather
+than a shrug: `UniverseTable.module.css` is the first component stylesheet in this product
+with any real size, and every table after it inherits that shape. Re-take both from a clean
+build, and re-run the bundle-purity grep — `AllPermutations`, `UniverseTable`,
+`stories.module` and the story fixtures all returned **zero** when Task 2.4.4 took it.
+
+### The deployed verification has more to check than a count and eleven sectors
+
+This file's third bullet reads the deployed page's numbers back against the database: the
+count, the eleven sectors, and three spot-checked securities. Task 2.4.4 gave the page three
+more things that are worth reading back deployed, because each is derived rather than
+transported and each could be right locally and wrong live:
+
+- **The summary line's three figures** — securities tracked, sectors and ETFs — are all
+  derived from the array in the browser. The middle one is counted off the **rendered
+  groups**, so it is a statement about what is on that screen rather than about `SECTORS`.
+- **Each band's benchmark ETF**, which comes from `SECTOR_ETFS` in `packages/shared` rather
+  than from the response. So the eleven `Benchmark XL*` labels are the first thing on a
+  deployed page whose correctness depends on the **shared package having been rebuilt**,
+  which is a class of staleness this project has met before.
+- **The group ordering**, which follows `SECTORS` rather than the row order or the counts. A
+  deployed page whose bands are alphabetical would mean the wrong build shipped.
+
+The untracked verification in this file's own bullet gains something from Task 2.4.4 too: the
+row now renders with a `No longer tracked` chip and receding ink **in its original sector
+group**, so the deployed check is that it is marked and in place, not merely present. And the
+summary line splits into `100 securities tracked · … · 1 no longer tracked` for that window,
+which is the wording being right for a non-trivial reason exactly as this file predicts.
+
+### The `CLAUDE.md` list is down to two items, and `VISUAL-LANGUAGE.md` joined it
+
+The amendment above lists four things in `CLAUDE.md` describing a tree that no longer exists.
+Task 2.4.4 closed two of them in the same commit as the change they describe, which is this
+repository's convention:
+
+- ~~the **tree block**~~ — `components/UniverseTable/` and the two `tokens.css` additions are
+  in, and the three `pnpm test` counts are corrected to **344** (68 + 146 + 130)
+- **the routes paragraph**, which still calls `/securities` a placeholder — **outstanding**
+- **the frontend summary paragraph** — **outstanding**, and note the `fetch`-in-one-file
+  claim in it was re-verified by grep and is still true
+- **`README.md`'s list of things a correct first run shows that read as faults** —
+  **outstanding**, and unchanged in shape: the Security Explorer placeholder item is the one
+  that stopped being true, and Task 2.4.4 added nothing new to that list
+- `apps/frontend/src/use-securities.ts` is **still missing** from the tree block, which Task
+  2.4.3 owed and neither task added
+
+**One item is new and it is a documentation obligation Task 2.4.4 created and discharged**,
+recorded here so this task does not re-open it: `tokens.css`'s own header says "every value
+here comes from `VISUAL-LANGUAGE.md` … **a divergence from it is a change to that document**
+rather than a local adjustment here", and Task 2.4.4 added a second font family and the first
+motion tokens. Both are changes to the design language rather than to a page, so
+`VISUAL-LANGUAGE.md` gained a **Motion** section and a note under its typography decision, in
+the same commit. Nothing is left for this task there — the entry exists so that a sweep does
+not find the tokens and conclude the document was never updated.
