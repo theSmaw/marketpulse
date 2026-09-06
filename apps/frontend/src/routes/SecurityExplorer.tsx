@@ -203,8 +203,27 @@ export function SecurityExplorer() {
 
   return (
     <div className={universe.page}>
-      <p className={styles.label}>Epic 2</p>
-      <h1 className={styles.title}>Securities</h1>
+      {/*
+       * **The heading is the route's own name and matches the navigation link
+       * that reaches it**, which is PRODUCT_SPEC.md §8.3's vocabulary. The first
+       * draft of this task called it "Securities" and the browser gate caught
+       * it: `backend-failure-states.spec.ts` walks every route asserting its
+       * `<h1>`, and `specs-deployed/host-routing.spec.ts` deep-links to this
+       * path and asserts the same. Both went red, correctly — a page whose
+       * heading disagrees with the link a user clicked to reach it is a real
+       * defect, and the specs were right where the rename was wrong.
+       *
+       * There is no micro-label above it. `routes.module.css`'s `.label` says
+       * *what kind of thing this screen is* — "Placeholder", "Not found" — and
+       * this is no longer either, so a label here would be furniture rather
+       * than information.
+       *
+       * Whether this route should be called something else now that its first
+       * content is the universe rather than one security is Task 2.4.4's, and
+       * it moves three things together if so: this heading, `AppHeader`'s link
+       * label, and both specs.
+       */}
+      <h1 className={styles.title}>Security Explorer</h1>
 
       {/*
        * Inside `Region` so the table inherits the landmark, the heading and the

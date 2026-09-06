@@ -62,3 +62,56 @@ appears to do nothing.
 This is the first table in the product and the first page whose content arrives
 asynchronously. Both patterns repeat — Stories 2.11, 2.12, 2.13 and every epic after — so
 what is decided here about announcing a state change is decided for all of them.
+
+---
+
+## Amended 2026-09-06, after Task 2.4.3
+
+Three things this file did not know. None changes its scope or position, and the first is a
+half-decision this task has to **re-take rather than make**, which is worse than an open
+question because it looks finished.
+
+### An `aria-live` already ships, and it is probably the wrong one
+
+This file says to "decide how a state change is announced, and prefer the smallest correct
+thing", noting that a live region is easy to make worse than nothing. Task 2.4.3 shipped
+`aria-live="polite"` on the **loading** paragraph, which is the reflex answer and is very
+likely wrong in the specific way this file warns about: it announces _"Loading the tracked
+universe"_ and then says nothing at all when 101 rows replace it, because the announcing
+element is the thing that gets removed. So a screen-reader user is told the page has started
+and never told it finished — which is the exact failure this file describes as "a page that
+appears to do nothing", arriving through the mechanism that was supposed to prevent it.
+
+**Treat it as a defect to reproduce, not as an implementation to keep.** It was written to
+put _something_ honest in the markup rather than to settle the question, and the plausible
+answers all move it: a live region wrapping the **content slot** so the announcement is
+whatever replaces the loading line; a `role="status"` on the settled state; or nothing at
+all, on the argument that a page whose main content changes is announced by the browser
+already. Listen to each rather than inspecting it, which is what this file already asks.
+
+### The table's markup is built and is the thing to verify
+
+Task 2.4.3 shipped `<th scope="col">` column headings over `<th scope="row">` symbols, so a
+screen reader announces the symbol with each cell — "NVDA, Sector, Technology" rather than a
+bare "Technology". That is the arrangement this task should confirm rather than build, and
+the two things worth checking are that it survives Task 2.4.4's restyling (the symbol cell
+has its heading weight explicitly undone, which is a class a redesign could drop) and that
+101 rows of it is not exhausting to move through.
+
+**The axe gate has not been run against this page at all** — not locally, not in CI, at no
+viewport. Every reading this repository holds is for the four Epic 1 routes, so there is no
+baseline for `/securities` and nothing has yet had the chance to fail. That is the position
+this file already assumes, and it is confirmed rather than changed.
+
+### The failed path has two sentences, and a journey asserting one will pass while the other rots
+
+Task 2.4.3 shipped **two** failure renderings — `unreachable` and `answered-badly` — plus a
+`Reference: <uuid>` line on the second. A browser journey that produces one failure and
+asserts on "the failed state" covers half of it, and the half it misses is the one carrying a
+UUID into the accessibility tree.
+
+Two consequences for the specs. The uncovered failure is cheap to add and should be, because
+these are the states a real user is most likely to meet. And the reference line is a string
+nothing should ever assert the **value** of — it is a fresh UUID per request — so assert the
+label and the shape, which is also the rule that keeps the assertion honest if Task 2.4.4
+changes how it is set.

@@ -144,7 +144,9 @@ describe("SecurityExplorer", () => {
     expect(
       screen.getByRole("region", { name: "Tracked universe" }),
     ).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Securities" })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Security Explorer" }),
+    ).toBeTruthy();
   });
 
   // The other failure, which is a different diagnosis: something answered and

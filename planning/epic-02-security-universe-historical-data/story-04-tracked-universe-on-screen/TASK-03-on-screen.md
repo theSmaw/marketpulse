@@ -176,7 +176,7 @@ The two failure branches were reached by intercepting at the **network boundary*
 is stated rather than glossed: it is not a substitute for Task 2.4.6 producing them against
 the deployed pair.
 
-### Four findings
+### Five findings
 
 **1. `isSecuritiesResponse` had to be written before it could be got wrong, and the wrong
 version was produced.** The amendment above predicted that requiring `provenance` turns the
@@ -209,6 +209,22 @@ exactly like the poll this hook deliberately does not have. **A test asserts one
 no second one**, which is what would catch a real regression: a poll here would be standing
 billable traffic per open tab against a fact that moves a handful of times a year.
 
+**5. The `e2e` gate caught a real defect in this change, on the pull request, and the specs
+were right where the change was wrong.** The first draft gave the page an `<h1>` of
+_"Securities"_ — which reads better in isolation and disagrees with the navigation link a
+user clicked to reach it. Two specs went red for that reason:
+`backend-failure-states.spec.ts` walks all four routes asserting each one's `<h1>`, and
+`specs-deployed/host-routing.spec.ts` deep-links to `/securities` and asserts the same name.
+
+Worth recording for two reasons beyond the fix. **The tempting response was to edit the two
+specs**, and it would have been wrong — a heading that contradicts its own link is a defect,
+and PRODUCT_SPEC.md §8.3, `AppHeader`'s link and both specs already agreed on the name. And
+**the failure was invisible to `pnpm verify`**: this is a property of the assembled
+application across a route change, which no unit test in this repository is positioned to
+see. It is the fifth thing the browser gate has caught that nothing else could, and the
+first that was a naming inconsistency rather than a wiring one. Whether the route should be
+renamed is a real question and is Task 2.4.4's, moving three things together.
+
 ### Three decisions worth not undoing
 
 **No store.** Story 2.10's, deliberately left there — §25 says avoid a heavyweight state
@@ -228,7 +244,7 @@ shows a security we no longer track presented as one we do, which is the argumen
 
 ### Figures
 
-`pnpm verify` **exit 0**, seven steps, with no database needed. `pnpm test` is **331**
+`pnpm verify` **exit 0**, seven steps, with no database needed. `pnpm e2e` **10 passed**. `pnpm test` is **331**
 (shared 68 across 6 · backend 146 across 10 · frontend 117 across 14) — shared +13 and the
 frontend +14. `pnpm test:process` **14**, unchanged.
 
