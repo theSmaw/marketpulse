@@ -41,7 +41,23 @@ work to be proved end to end.
 - The request contract for a series: symbol, timeframe, window, and how the window is
   expressed — an absolute range, or a named window like "5 sessions" resolved server-side
   through Story 2.5's calendar. The second keeps one definition of a session; the first
-  keeps the server dumber
+  keeps the server dumber.
+  **Story 2.5 is complete and it settled the wire format this bullet needs (added 2026-09-06
+  by Task 2.5.6).** Three things bind this story:
+  **a market timestamp on the wire is a UTC ISO 8601 instant**, and `America/New_York`
+  exists only at the moment of display — there is no timezone in the payload and there must
+  not be one;
+  **a market DATE is a separate wire type**, a `YYYY-MM-DD` string, because a session is a
+  date rather than an instant and sending it as an instant is how "which session is this"
+  becomes a timezone question at every call site;
+  and `lastMarketSessions(n, endDate)` from `@marketpulse/shared` is what resolves a named
+  window, returning sessions **oldest first** and **refusing** rather than truncating when
+  the window runs off the calendar's 2024–2028 range (ADR 0017, decision 9). That refusal is
+  the one to design the error path for: it is a **400-shaped** condition — the caller asked
+  for a window this system cannot express — rather than a 500, so it wants
+  `BAD_REQUEST` and a message naming the range, not a stack trace.
+  **`packages/shared` may not read the wall clock**, which is enforced by lint, so "the last
+  5 sessions from today" resolves `today` in the route handler and passes it in
 - The response contract, in `packages/shared`, with the `satisfies` guard idiom Task 1.7.3
   established so a field added to the interface and forgotten in the schema is a compile
   error rather than a field that silently vanishes from the wire

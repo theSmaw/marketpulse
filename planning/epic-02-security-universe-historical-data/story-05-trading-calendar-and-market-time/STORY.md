@@ -1,6 +1,6 @@
 # Story 2.5 — Trading Calendar & Market Time Handling
 
-**Status:** In progress
+**Status:** Complete
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.3
 **Epic scope covered:** **Addition to this epic's stated scope** — see the note in [`../EPIC.md`](../EPIC.md)
@@ -156,15 +156,26 @@ story says so plainly rather than apologising for it.** What makes that acceptab
 2.5.5 is not deferred polish — it is the fifth of six, it needs nothing from outside this
 story, and the space it fills has been reserved in the chrome since Story 1.5.
 
-| #     | Task                                                                                                                                                | Status      |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 2.5.1 | [Choose the calendar source, the session definition and the clock's shape, shipping nothing](TASK-01-choose-the-calendar-source-and-the-session.md) | Complete    |
-| 2.5.2 | [The one conversion boundary: UTC in, market time out](TASK-02-the-timezone-boundary.md)                                                            | Complete    |
-| 2.5.3 | [The calendar as data: holidays, half days, provenance and staleness](TASK-03-the-calendar-data.md)                                                 | Complete    |
-| 2.5.4 | [The session functions, and the named dates that prove them](TASK-04-the-session-functions.md)                                                      | Complete    |
-| 2.5.5 | [The clock seam, and the header's reserved region starts working](TASK-05-the-market-clock-on-screen.md)                                            | Complete    |
-| 2.5.6 | [Verify, document, and ADR 0017](TASK-06-verify-document-and-adr.md)                                                                                | Not started |
+| #     | Task                                                                                                                                                | Status   |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| 2.5.1 | [Choose the calendar source, the session definition and the clock's shape, shipping nothing](TASK-01-choose-the-calendar-source-and-the-session.md) | Complete |
+| 2.5.2 | [The one conversion boundary: UTC in, market time out](TASK-02-the-timezone-boundary.md)                                                            | Complete |
+| 2.5.3 | [The calendar as data: holidays, half days, provenance and staleness](TASK-03-the-calendar-data.md)                                                 | Complete |
+| 2.5.4 | [The session functions, and the named dates that prove them](TASK-04-the-session-functions.md)                                                      | Complete |
+| 2.5.5 | [The clock seam, and the header's reserved region starts working](TASK-05-the-market-clock-on-screen.md)                                            | Complete |
+| 2.5.6 | [Verify, document, and ADR 0017](TASK-06-verify-document-and-adr.md)                                                                                | Complete |
 
 ## What this story hands forward
 
-One definition of a trading session, and the seam Epic 13's clock later slots into.
+One definition of a trading session, and the seam Epic 13's clock later slots into —
+recorded in
+[`docs/adr/0017-the-trading-calendar-market-time-and-what-a-correct-calendar-certifies.md`](../../../docs/adr/0017-the-trading-calendar-market-time-and-what-a-correct-calendar-certifies.md).
+
+**Which of those is a property and which is a claim (Task 2.5.6):** the session definition,
+the conversion boundary, `lastMarketSessions` and the clock in the chrome are all built and
+exercised. The **seam** is a claim — `use-market-clock.ts` is the one module that reads the
+wall clock **today**, the `packages/shared` half of that is enforced by lint and the frontend
+half is prose. Epic 13 replaces that hook, and must not read this story as saying temporal
+isolation is solved: this story makes replay's **clock** substitutable and constrains not a
+single **query**. A correct clock handed to a query that ignores it leaks the future just as
+thoroughly.

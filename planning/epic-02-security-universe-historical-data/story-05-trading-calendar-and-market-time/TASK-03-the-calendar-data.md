@@ -122,7 +122,16 @@ and no database.**
 
 ### The table
 
-Sixty rows across 2024–2028: **49 full closures and 11 early closes**, each carrying a `date`,
+~~Sixty rows across 2024–2028: **49 full closures and 11 early closes**~~ — **corrected
+2026-09-06 by Task 2.5.6, which counted the shipped table rather than citing this line: it is
+**61 rows, 50 full closures and 11 early closes**, per year `10 / 11 / 10 / 10 / 9` closures
+and `3 / 3 / 2 / 1 / 2` early closes. `market-calendar.ts` has not been edited since this task
+shipped it, so **the figure was wrong when it was written rather than gone stale** — and the
+row it is missing is the one this task's own headline is about. 10 + 10 + 10 + 10 + 9 is
+exactly 49, which is the count `CALENDAR.md` §7.2's _derivation_ gives before §7.7's
+`2025-01-09` National Day of Mourning is added back. So the number was taken from the rule set
+rather than from the table, in the very task that exists to prove a rule set is not enough.**
+Each row carries a `date`,
 a `kind`, a `name`, and — on an early close only — a `closesAt`.
 
 It is a **discriminated union on `kind`**, which is `Security`'s shape and is here for

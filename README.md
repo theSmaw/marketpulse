@@ -5,7 +5,7 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all **401** fast tests passed, and
+files still agree with the configuration table, all **468** fast tests passed, and
 the 14-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
@@ -58,7 +58,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of **401** fast tests plus a 14-test process suite, with
+and a test suite of **468** fast tests plus a 14-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -541,7 +541,7 @@ Run from the repository root:
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Every package's tests — 401 across the workspace — see below          |
+| `pnpm test`         | Every package's tests — 468 across the workspace — see below          |
 | `pnpm test:process` | The backend's process half — 14 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
@@ -704,9 +704,9 @@ answer.
 
 Three things about it worth knowing before changing it.
 
-**It is a separate command because it is a separate cost.** `pnpm test` is 287
+**It is a separate command because it is a separate cost.** `pnpm test` is 468
 tests in a few seconds, needs no build and no socket, and is the one you run all
-day; this suite takes about 8.2 s, of which 5 s is the shutdown ceiling being
+day; this suite takes about 9.2 s, of which 5 s is the shutdown ceiling being
 what it says it is. Both are steps in `pnpm verify`, so both gate.
 
 **It needs a build.** `dist/index.js` is what has the process behaviour in it,
@@ -2583,6 +2583,38 @@ an eighth `verify` step:
 - The local Postgres major matching the deployed one is the third, and it is the
   one above: not checked, and structurally unable to be.
 
+**Story 2.5 moved one OFF this list and added one to it.** The full argument is
+in [ADR 0017](docs/adr/0017-the-trading-calendar-market-time-and-what-a-correct-calendar-certifies.md),
+and the working record — the rejected candidates, the sixteen named dates and
+every measurement — is in
+[CALENDAR.md](planning/epic-02-security-universe-historical-data/story-05-trading-calendar-and-market-time/CALENDAR.md),
+which is to Story 2.5 what `HOSTING.md` is to Story 1.11. Read that rather than
+looking for a copy of it here.
+
+- **"One module owns UTC-to-ET conversion" LEFT this list.** It is held by four
+  `no-restricted-syntax` rules now, not by a grep: two forbid constructing an
+  `Intl.DateTimeFormat` or spelling `America/New_York` anywhere but
+  `packages/shared/src/market-time.ts`, and two forbid `Date.now()` and a
+  zero-argument `new Date()` anywhere in `packages/shared/src`, with no
+  exception at all. All four have been made to fail. What they cannot see is a
+  conversion written with a hard-coded `-5` and no timezone name — a
+  reimplementation rather than a duplicate
+- **The FRONTEND half of the clock rule stays prose**, in
+  `apps/frontend/src/use-market-clock.ts`'s own header. That is deliberate: a
+  workspace-wide `Date.now()` rule needs **two** exceptions, because
+  `use-backend-health.ts` legitimately stamps `new Date()` for a local
+  diagnostic — and a rule with two exceptions teaches every reader to consult
+  the exception list rather than the rule
+- **The trading calendar's annual edit.** The table covers 2024-2028 and
+  `nextEditDue` is 2028-01-01. Nothing can check that a person actually re-read
+  NYSE's published calendar, and `checkedOn` is deliberately never `now()`,
+  because a provenance date that is always today cannot report staleness. The
+  sharper half is that the obligation has **no due date**: a year you have
+  already checked can acquire a row, as 2025 did
+- **The runtime's timezone database.** Every conversion here is
+  `Intl.DateTimeFormat` over the platform's tzdata, and a stale one is wrong in
+  a way nothing in this repository can see
+
 **Story 1.13 added four more, and moved one of them out of this list by
 building a check for it.** The full argument — including what separates the ones
 worth checking from the ones worth writing down — is in
@@ -2763,12 +2795,20 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 ## Documentation
 
 - [`docs/adr/`](docs/adr/) — architecture decision records, newest last.
-  **There are sixteen files, 0001 to 0016.** This list said "0010 is the most
+  **There are seventeen files, 0001 to 0017.** This list said "0010 is the most
   recent" for four ADRs and then "fourteen" for two more, which is the prose-rot
   this README's own gap list warns about, so **read the directory rather than
   this sentence** — `ls docs/adr/` is the check and it takes a second.
+  [0017](docs/adr/0017-the-trading-calendar-market-time-and-what-a-correct-calendar-certifies.md)
+  is the most recent: what a trading day is, why the calendar is a checked-in
+  table of exceptions rather than a provider call or a computed rule set, why a
+  date outside its range refuses instead of assuming, why exactly one module
+  converts between UTC and market time and why that is enforced by lint rather
+  than written down, why there is no `Clock` interface and the replay seam is an
+  **absence**, and what a correct calendar certifies and what it cannot —
+  including that a year you have already checked can acquire a row.
   [0016](docs/adr/0016-the-tracked-universe-what-a-green-load-certifies.md)
-  is the most recent: what a security is, which ~100 of them MarketPulse tracks
+  covers the tracked universe: what a security is, which ~100 of them MarketPulse tracks
   and by what rule, why the list is a curated file in this repository rather
   than a provider call, why loading it is a seed script and not a migration,
   why removing a symbol marks it `untracked` rather than deleting it, and what

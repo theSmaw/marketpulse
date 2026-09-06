@@ -108,7 +108,7 @@ neither of which `securities` alone exercises.
 
 ## Outcome — 2026-09-05
 
-Every convention is in **[`apps/backend/migrations/README.md`](../../../../apps/backend/migrations/README.md)**,
+Every convention is in **[`apps/backend/migrations/README.md`](../../../apps/backend/migrations/README.md)**,
 pointed at from `CLAUDE.md` and `README.md` rather than copied into either. Its home is
 `e2e/README.md`'s argument applied a second time — a task file is not where the next
 person writing a migration looks, and that directory is where they already are. No table

@@ -217,7 +217,7 @@ once per connection and the second per query, and conflating them is what makes 
 ## What was done (2026-09-05)
 
 The full record is in
-[`HOSTING.md`](../../epic-01-application-foundation/story-11-deployment-and-hosting/HOSTING.md)
+[`HOSTING.md`](../../epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md)
 under _The database — provisioning the managed instance (Task 2.1.5)_, beside Tasks
 2.1.1's and 2.1.2's, because this story's habit is one document per subject.
 
