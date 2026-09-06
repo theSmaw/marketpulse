@@ -77,6 +77,24 @@ the read API, because what the API can serve is a property of what is stored.
   universe size, and note that `UNIVERSE.md` §10 parks a universe re-sizing whose deadline
   is **this story** — because re-sizing is one file edit until bars exist and a re-backfill
   afterwards
+- **Which symbols get backfilled: `status = 'active'`, and that is a decision rather than an
+  obvious default** (added 2026-09-06). Task 2.3.6 made `status` this schema's one invisible
+  predicate and `UNIVERSE.md` §12.2 names its seven readers; this is one of the four that
+  **filter**, on the same argument as Story 2.7's — a metered API is not spent on a security
+  nobody tracks. The half to get right is the other side of the same table: **Story 2.9's
+  read path and Epic 13's replay must NOT filter**, because bars stored for a security we
+  have since stopped tracking are still what happened, and a replay that filtered on today's
+  `status` would silently rewrite history. That asymmetry — write path filters, read path
+  does not — is the whole of the cost of not having a `deleted_at` column
+- **The universe re-curation, which is two edits to one file and should be one pass**
+  (added 2026-09-06). The parked sizing above is one of them. The other is the **industry
+  taxonomy**, which Story 2.3 closed with flagged as _not_ parked and actionable now with no
+  new data: 45 industries across 86 equities, **51% of them singletons**, which makes
+  "industry" a field that groups almost nothing. It needed no owner while nothing read it
+  and it needs one now, because re-curating after a backfill costs a re-backfill where
+  re-curating before it costs a file edit. It is a product judgement about the list rather
+  than an engineering task, so it is stated here and settled with the user — see open
+  decision 5
 
 ## Out of scope, and who owns it
 
@@ -148,6 +166,22 @@ the read API, because what the API can serve is a property of what is stored.
 4. **Where the backfill runs.** A local command against the deployed database, a one-off
    container job, or a step somewhere in the pipeline. Running it locally is simplest and
    means the deployed system's data has a provenance of "somebody's laptop"
+5. **The universe, re-curated once before the first backfill** (added 2026-09-06, from
+   Story 2.3's close). Two questions, and they are one editing session on
+   `apps/backend/src/universe.ts`:
+   - **The size.** `UNIVERSE.md` §10 parks 101 as provisional on Story 2.7's measurement of
+     Alpaca's channel cap, with **this story** as the deadline. Both branches are written
+     out there.
+   - **The industry taxonomy**, which is _not_ parked and needs no new data: 45 industries
+     across 86 equities with **51% singletons**, so the field groups almost nothing today.
+     The options are to coarsen it to a taxonomy where a group has members, to keep it as a
+     descriptive label and accept that nothing groups by it, or to drop it. Note which
+     epics would be affected: Epics 4, 5 and 6 group by **sector**, which is sound at 11
+     members and 6–12 per group, so this is about a second axis rather than about anything
+     currently load-bearing.
+
+   Doing both in one pass is the point: after this story there are bars behind
+   `security_id`, and a change to the list costs a re-backfill rather than a file edit.
 
 ## Acceptance criteria
 
@@ -162,7 +196,9 @@ the read API, because what the API can serve is a property of what is stored.
 6. Query performance for the access patterns Story 2.9 needs is measured against the real
    row count, not a sample
 7. Storage consumption is checked against the 32 GB offer, with the headroom stated
-8. `pnpm verify` passes; database-backed tests run under their own command
+8. The universe re-curation of open decision 5 has been settled and applied **before** the
+   full backfill runs, or explicitly declined with the reason recorded in `UNIVERSE.md`
+9. `pnpm verify` passes; database-backed tests run under their own command
 
 ## What this story hands forward
 

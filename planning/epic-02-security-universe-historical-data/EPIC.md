@@ -1,6 +1,6 @@
 # Epic 2 — Security Universe & Historical Market Data
 
-**Status:** Not started
+**Status:** In progress — Stories 2.1, 2.2 and 2.3 complete (2026-09-06); Story 2.4 next
 **Sequence:** 2 of 15 — follows Epic 1 (Application Foundation)
 **Spec references:** PRODUCT_SPEC.md §6 (initial market universe), §7.1 (Alpaca), §8.3 (Security Explorer), §30 (storage)
 
@@ -223,6 +223,38 @@ when a value changes — so the fourth test currently fails by construction. Tas
 the first two tokens, deliberately scoped to the one transition it needs, and **Epic 3 is
 where the vocabulary is decided against something that actually moves.**
 
+## What Story 2.3 changed for the stories after it (2026-09-06)
+
+**No story was added, deleted or re-ordered** — the sequence survived contact with the
+first three stories intact, and Story 2.3 shipped what the files after it assumed it would.
+Five things were amended, and one of them is a hole rather than tidying.
+
+**The hole was `status`.** Task 2.3.6 decided that a symbol removed from the curated file is
+marked `untracked` and **kept** rather than deleted, because Story 2.8's bars hang off
+`security_id` and Epic 13 replays a date on which that security _was_ tracked. The stated
+cost is that `status` becomes **this schema's one invisible predicate**, and
+`UNIVERSE.md` §12.2 names its seven readers and which of them filter — a table that nothing
+checks and that lived in one story's document. Four of those readers are in this epic and
+none of their files mentioned it, so each now says which side it is on:
+
+- **Stories 2.7 and 2.8 filter** (`active` only), because a metered feed is not spent on a
+  security nobody tracks
+- **Stories 2.4 and 2.9 do not**, because showing or replaying something we stored is the
+  other half of the rule — an `untracked` row is rendered and marked, and a series request
+  for one returns its stored history
+
+**The rule in one sentence, for anything that becomes a reader later:** filter on `status`
+when computing over _the market we track now_, never when showing or replaying _something
+we stored_.
+
+The other four: Story 2.7 gained the **ticker-change** gap `UNIVERSE.md` §12.6 hands it, as
+an open decision beside `delisted` since they are the same migration; Story 2.8 gained the
+**universe re-curation** as one editing session covering both the parked sizing and the
+too-fine industry taxonomy, which had no owner anywhere; Story 2.9 had its
+universe-endpoint residue struck, since Story 2.4's insertion took those and its scope list
+still claimed them; and this file's status header and decisions table were brought up to
+date.
+
 **Stories 2.6 to 2.9 are the load-bearing middle.** Story 2.6 lands the provider interface
 before any vendor code, which is invariant 7 rather than a preference; Story 2.8 is the
 largest engineering story in the epic; and Story 2.9's contract is consumed by three later
@@ -283,17 +315,18 @@ adjusted on read, **nothing is evicted**, and "we do not have that" is an **answ
 Recorded here so they are visible without opening thirteen files. Each is stated in full,
 with its alternatives, in the story that owns it.
 
-| Decision                                             | Story | Why it cannot be defaulted                                                                                                        |
-| ---------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Postgres networking mode                             | 2.1   | Fixed at creation; private access needs a VNet that cannot be retrofitted                                                         |
-| Password or managed-identity auth                    | 2.1   | The second means no secret exists at all — Epic 1 chose that shape twice                                                          |
-| Local development database                           | 2.1   | Becomes a prerequisite for every clean clone                                                                                      |
-| Migration tool and query layer                       | 2.2   | Every table in §30 arrives through it, across thirteen more epics                                                                 |
-| Sector metadata source and taxonomy                  | 2.3   | Alpaca does not provide sectors; Epics 4, 5 and 6 all group by them                                                               |
-| **Which ~100 securities**                            | 2.3   | A market-cap-ordered list makes breadth and relative-move structurally dull                                                       |
-| Which timeframes and how far back                    | 2.7   | Sizes Story 2.8 and determines whether Epic 5 has enough observations                                                             |
-| ~~Cache or record~~ **settled: record**; TimescaleDB | 2.8   | Changed retention, gap semantics and whether bars are stored adjusted; §37 forbids a second data technology without a measurement |
-| Redux now, or not yet                                | 2.10  | Epic 11's generative workspace is much easier against an explicit typed state tree                                                |
-| Charting library or hand-built; line or candles      | 2.12  | Inherited by Epics 5, 8 and 11                                                                                                    |
-| Which time windows                                   | 2.13  | Reaches backwards into ingestion depth and payload size                                                                           |
-| Feed-label prominence and wording                    | 2.14  | Invariant 6; read by every visitor                                                                                                |
+| Decision                                                                                    | Story                 | Why it cannot be defaulted                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Postgres networking mode                                                                    | 2.1                   | Fixed at creation; private access needs a VNet that cannot be retrofitted                                                                                                                                                                                       |
+| Password or managed-identity auth                                                           | 2.1                   | The second means no secret exists at all — Epic 1 chose that shape twice                                                                                                                                                                                        |
+| Local development database                                                                  | 2.1                   | Becomes a prerequisite for every clean clone                                                                                                                                                                                                                    |
+| Migration tool and query layer                                                              | 2.2                   | Every table in §30 arrives through it, across thirteen more epics                                                                                                                                                                                               |
+| ~~Sector metadata source and taxonomy~~ **settled: a curated file, 11 GICS-shaped sectors** | 2.3                   | Alpaca does not provide sectors; Epics 4, 5 and 6 all group by them. **The _industry_ half is settled and wrong-shaped** — 45 industries across 86 equities, 51% singletons — and is re-opened as Story 2.8 open decision 5                                     |
+| ~~**Which ~100 securities**~~ **settled provisionally: 101**                                | 2.3, re-opened in 2.8 | A market-cap-ordered list makes breadth and relative-move structurally dull. The rule is settled; the **count is parked** on Story 2.7's measurement of Alpaca's channel cap, with Story 2.8 as the deadline because nothing encodes the count until bars exist |
+| **Whether a ticker rename gets an identity**                                                | 2.7                   | Added 2026-09-06. Story 2.3 produced the case — a rename gives two rows, two ids and nothing joining them — and left it as an honest gap. It is cheapest before 2.8 puts bars behind those ids                                                                  |
+| Which timeframes and how far back                                                           | 2.7                   | Sizes Story 2.8 and determines whether Epic 5 has enough observations                                                                                                                                                                                           |
+| ~~Cache or record~~ **settled: record**; TimescaleDB                                        | 2.8                   | Changed retention, gap semantics and whether bars are stored adjusted; §37 forbids a second data technology without a measurement                                                                                                                               |
+| Redux now, or not yet                                                                       | 2.10                  | Epic 11's generative workspace is much easier against an explicit typed state tree                                                                                                                                                                              |
+| Charting library or hand-built; line or candles                                             | 2.12                  | Inherited by Epics 5, 8 and 11                                                                                                                                                                                                                                  |
+| Which time windows                                                                          | 2.13                  | Reaches backwards into ingestion depth and payload size                                                                                                                                                                                                         |
+| Feed-label prominence and wording                                                           | 2.14                  | Invariant 6; read by every visitor                                                                                                                                                                                                                              |
