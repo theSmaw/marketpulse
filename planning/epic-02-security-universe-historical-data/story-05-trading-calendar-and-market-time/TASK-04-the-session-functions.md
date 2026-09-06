@@ -48,12 +48,20 @@ What can be demonstrated is worth a line in the write-up anyway: after this, the
   - a full holiday — and Good Friday separately, because it is the one a rule set misses
   - a half day, asserting the 13:00 close and the shortened bar count
   - a weekend, and the Friday and Monday either side
-  - **both DST transitions**, asserting that the session is 6.5 hours on both days and that
-    the UTC open moves by an hour between them — which is the assertion that fails if
-    anything anywhere did arithmetic on instants
+  - **both DST transitions** — ~~asserting that the session is 6.5 hours on both days~~
+    **corrected by Task 2.5.1 on 2026-09-06: there is no session on either day.** Every US
+    DST transition is a Sunday, without exception, so no trading session ever begins in, ends
+    in or contains one. The assertion that was meant, and the one that catches the bug, is on
+    the **Friday before and the Monday after**: both 6.5 hours, with the UTC open moving by an
+    hour between them (2026: 14:30Z on Fri 03-06 -> 13:30Z on Mon 03-09). Assert **the Tuesday
+    after** as well, which is `CALENDAR.md` §7.1 case 11 and is the one that catches an
+    implementation that special-cased the transition weekend and got the new offset wrong.
+    This is the assertion that fails if anything anywhere did arithmetic on instants
   - a holiday observed on the Friday before, and one on the Monday after
-- **Assert the arithmetic check Task 2.5.3 named**: a full year counts to 252 sessions (or
-  whatever the covered years genuinely are — count them, do not assume 252 for every year).
+- **Assert the arithmetic check Task 2.5.3 named**, against `CALENDAR.md` §7.2's **per-year
+  table** — 2024: 252, 2025: 251, 2026: 251, 2027: 251, 2028: 251. This file's own hedge
+  turned out to be the right one: 252 is not a constant, and a test asserting it would be red
+  on four of the five covered years.
   It is one line and it catches a missing or invented holiday that every individual named
   date passes
 - **Make the interesting ones fail before believing them.** Removing Good Friday from the
