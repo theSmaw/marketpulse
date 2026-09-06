@@ -1,6 +1,6 @@
 # Task 2.3.8 — Verify from a clean clone, document, and record ADR 0016
 
-**Status:** Not started
+**Status:** Complete (2026-09-06)
 **Story:** [2.3 Security Domain Model & the Tracked Universe](STORY.md)
 **Depends on:** Tasks 2.3.1 to 2.3.7
 
