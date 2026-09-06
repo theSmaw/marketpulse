@@ -55,6 +55,7 @@
  * whole argument for the envelope above.
  */
 
+import { isSecurity } from "./security.js";
 import type { Security, SecurityFieldGroup } from "./security.js";
 
 /**
@@ -134,4 +135,88 @@ export interface SecuritiesResponse {
    * — which is exactly what `SECURITY_FIELD_GROUP` exists to make expressible.
    */
   readonly provenance?: SecuritiesProvenance;
+}
+
+/**
+ * Is `value` a {@link FieldGroupProvenance}?
+ *
+ * Not exported: nothing outside this module has a bare provenance record to
+ * check, and an exported predicate with no caller is a second definition
+ * waiting to disagree with the one below it.
+ */
+function isFieldGroupProvenance(value: unknown): value is FieldGroupProvenance {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.source === "string" &&
+    typeof candidate.retrievedAt === "string"
+  );
+}
+
+/**
+ * Is `value` a {@link SecuritiesResponse}?
+ *
+ * **This ships here, beside the shape, and it ships now rather than with the
+ * contract** — Task 1.7.3's rule is that a predicate arrives with its first
+ * reader, and Task 2.4.3's frontend is that reader. The reason it is not
+ * written at the call site is the reason `isHealthResponse` and `isApiError`
+ * are not: a validator written where it is used is a second description of the
+ * same judgement, and it is the copy that drifts when the interface moves.
+ *
+ * It is {@link isSecurity}'s customer rather than its competitor. That
+ * predicate is already total over the row — it checks the ticker's form, both
+ * nullable fields, and `kind`, `sector` and `status` against their const arrays,
+ * including the rule that only an `index_etf` may have a null sector — so there
+ * is nothing about a security to re-validate here. What is left is the
+ * envelope.
+ *
+ * ## `provenance` being absent is not a malformed body, and getting that wrong
+ * breaks the empty state
+ *
+ * The field is optional and its absence carries meaning (see
+ * {@link SecuritiesResponse.provenance}): the list is empty, or the rows no
+ * longer share one source. **A predicate that required it would make an empty
+ * universe fail**, and `api-client.ts` maps a 2xx whose body fails its
+ * predicate to `unreadable-body` — which the frontend renders as *something
+ * answered here and it was not this service*. So a perfectly healthy backend
+ * over a migrated-but-unseeded database would read as broken, which is exactly
+ * the state Story 2.4 exists to render honestly. The cheapest way to produce it
+ * is `{"securities": []}`.
+ *
+ * ## What it deliberately tolerates
+ *
+ * Unknown extra keys on the envelope, for the reason `isHealthResponse` accepts
+ * them: a newer server is a version skew rather than a broken one, and a client
+ * that refuses a field it has not been taught cannot be deployed before the
+ * backend that adds one. What it refuses is a missing `securities`, a
+ * `securities` that is not an array, any element that is not a security, and a
+ * `provenance` that is present and malformed.
+ */
+export function isSecuritiesResponse(
+  value: unknown,
+): value is SecuritiesResponse {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+
+  if (!Array.isArray(candidate.securities)) return false;
+  if (!candidate.securities.every(isSecurity)) return false;
+
+  // Absent is valid; present-and-wrong is not. A JSON body cannot carry an
+  // explicit `undefined`, so the `undefined` check is precisely "the key is
+  // missing" — which is also the shape `exactOptionalPropertyTypes` gives the
+  // interface above.
+  return (
+    candidate.provenance === undefined ||
+    isSecuritiesProvenance(candidate.provenance)
+  );
+}
+
+/** The two field groups the envelope attributes, checked as a pair. */
+function isSecuritiesProvenance(value: unknown): value is SecuritiesProvenance {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    isFieldGroupProvenance(candidate.profile) &&
+    isFieldGroupProvenance(candidate.classification)
+  );
 }

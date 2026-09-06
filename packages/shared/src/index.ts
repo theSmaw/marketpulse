@@ -50,9 +50,11 @@ export type {
 // The wire contract for GET /securities (Task 2.4.2). A separate file from
 // security.ts on purpose: that one says what a security IS and every epic reads
 // it, this one says what one RESPONSE looks like and only the two ends of this
-// API do. There is deliberately no `isSecuritiesResponse` yet — Task 1.7.3's
-// rule is that a predicate ships with its first reader, which is Task 2.4.3's
-// frontend, and `isSecurity` beside it is already the hard half.
+// API do. `isSecuritiesResponse` arrived with Task 2.4.3's frontend rather than
+// with the contract, which is Task 1.7.3's rule that a predicate ships with its
+// first reader — and `isSecurity` beside it was already the hard half, so what
+// this one checks is the envelope and nothing about a row.
+export { isSecuritiesResponse } from "./securities-response.js";
 export type {
   FieldGroupProvenance,
   SecuritiesProvenance,

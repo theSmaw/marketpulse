@@ -3,7 +3,9 @@ import {
   type HealthResponse,
   isApiError,
   isHealthResponse,
+  isSecuritiesResponse,
   REQUEST_ID_HEADER,
+  type SecuritiesResponse,
 } from "@marketpulse/shared";
 
 import { apiBaseUrl } from "./api-base-url.js";
@@ -298,4 +300,34 @@ export function getHealth(
   options?: ApiRequestOptions,
 ): Promise<ApiResult<HealthResponse>> {
   return apiRequest("/health", isHealthResponse, options);
+}
+
+/**
+ * `GET /securities` — the tracked universe (Task 2.4.3).
+ *
+ * **The second request shape this client has, and it is a second call to
+ * `apiRequest` rather than a second arrangement.** Everything that made
+ * `getHealth` worth having is invisible at a call site and would have to be
+ * remembered again: the base URL, the five-second deadline, composing the
+ * caller's abort signal with it, reading the correlation id off a response the
+ * browser only lets us see because `exposedHeaders` names it, and the seven
+ * outcomes. A second `fetch` anywhere in `apps/frontend/src` would reimplement
+ * all five or, more likely, four of them.
+ *
+ * The predicate is `isSecuritiesResponse`, imported from `packages/shared`
+ * beside the shape it checks. Read its header before interpreting an
+ * `unreadable-body` result from this endpoint: **an absent `provenance` is a
+ * valid body**, and a predicate that required it would report an empty universe
+ * as a host that is not this API.
+ *
+ * No pagination parameter, because there is none — the whole universe is one
+ * response, measured at 17,299 bytes for 101 securities and ~13 kB gzipped at
+ * §6's 500. And no `?q=`: Story 2.11 owns search and has an open decision about
+ * whether matching happens here or in the server, which a parameter added now
+ * would settle by accident.
+ */
+export function getSecurities(
+  options?: ApiRequestOptions,
+): Promise<ApiResult<SecuritiesResponse>> {
+  return apiRequest("/securities", isSecuritiesResponse, options);
 }

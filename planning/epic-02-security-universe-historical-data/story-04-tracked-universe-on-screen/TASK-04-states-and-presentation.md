@@ -167,3 +167,86 @@ checked on …" it has to handle its absence — which is not an error and means
 list or, from Story 2.7, rows that no longer agree. Rendering provenance is **Story 2.14's**
 and is not in this task's scope; this note exists so that if it is added here anyway, it is
 added knowing the field can legitimately be missing.
+
+---
+
+## Amended 2026-09-06, after Task 2.4.3
+
+Five things this file did not know, and the first is the one that changes the size of the
+work rather than only its detail. None changes this task's position, and nothing moved to or
+from another task.
+
+### There are TWO failure renderings to design, not one
+
+This file says "a **failed state** that says the service could not be reached", singular.
+Task 2.4.3 shipped **two**, because the seven transport outcomes collapse onto two failures a
+person can act on rather than one:
+
+| `failure`        | What ships today                                                              | What it means                                         |
+| ---------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `unreachable`    | _The service could not be reached, so the tracked universe is not available._ | Nothing arrived. Is it up? Are we allowed to call it? |
+| `answered-badly` | _Something answered at the service's address and it was not this service._    | Something is there and it is the wrong thing          |
+
+They are separate because they send a reader to two different places, and a single
+"something went wrong" would send them to the wrong one half the time. So this task designs
+**two** sentences in one visual treatment rather than one — and the treatment has to make
+them read as the same _kind_ of thing, or the page will look like it has two unrelated
+error states.
+
+### The first correlation id in the product is on screen, and it has no typeface
+
+`answered-badly` renders a **`Reference: <uuid>`** line when the response carried an
+`x-request-id`, which is the first time this product has put an internal identifier in front
+of a user. It obeys `api-client.ts`'s rule verbatim — the whole UUID, never a prefix,
+labelled, only beside a failure — and that rule is not this task's to revisit.
+
+**What is this task's is that it is set in the body face, and it should not be.** A monospace
+face is the obvious right answer for a string somebody is expected to transcribe, and Task
+2.4.3 deliberately did not add one: `tokens.css` has exactly one family, `--font-sans`, and a
+second is a change to the **design language** rather than to a page. That makes it
+`VISUAL-LANGUAGE.md`'s and therefore this task's, alongside the motion tokens it already
+owns — and it is the same shape of decision, a thin first cut of a vocabulary that does not
+exist. `base.css` already sets tabular figures globally, which is the half of the problem
+that matters most, so the honest options are a mono token, letter-spacing, or deciding the
+body face is good enough and saying why.
+
+### `SecurityRow` was not used, and that finding is half-made
+
+This file asks whether Story 1.4's `SecurityRow` "was the right component" and says to
+record the answer if it was not. Task 2.4.3 did not use it, and the reason is available
+without re-deriving it: `SecurityRow` composes `PriceChange`, `AnomalyBadge` and
+`FeedIndicator` into a `<tr>`, and **this page has no price, no anomaly score and no feed
+state** — three of its four columns are things Epics 3 and 5 bring. So a component built
+before there was data turns out to have been built for a _different table_ from the first one
+that arrived, which is a real finding rather than an oversight and is worth stating plainly.
+What is left for this task is the forward-looking half: whether `SecurityRow` is what Story
+2.12's security list becomes, or whether the table this task styles is.
+
+### The absent-sector rendering already exists — judge it, do not invent it
+
+The amendment above asks for an index proxy's null sector to state the absence rather than
+be blank. Task 2.4.3 ships an **em dash**, and its own comment says the choice of glyph is
+this task's. So the decision is now a review rather than a design: `SPY` reads
+`SPY · SPDR S&P 500 ETF Trust · — · Index ETF`, and the question the amendment actually
+poses is still open — the kind column already says "Index ETF", so the sector cell may only
+need to not contradict it. `industry` is not rendered at all today, so its judgement is
+untouched.
+
+### The promotion trigger has fired, and this is the task it fires on
+
+Task 2.4.3 left the page in `src/routes/` rather than `src/components/`, on Task 1.5.3's
+test — _does it have states worth reviewing side by side?_ — with the reason stated: it has
+four, so the answer is yes, but the states are **this task's** subject and promoting the
+table before the task that designs them would fix a shape one task early.
+
+That deferral expires here. Designing four states without a workshop grid to see them side by
+side is exactly the thing `scripts/check-stories.mjs` exists to prevent, and moving the table
+into `src/components/` makes it owe an `AllPermutations` story — which is not overhead, it is
+the instrument this task needs. `Region` is the precedent for the move and for its timing:
+it lived beside the route it served until it acquired a failed state, and then it moved.
+
+Note what moves and what does not. The **hook stays** in `src/`, and the **route module
+stays** a route module holding the page's frame — what is workshop material is the table and
+its four states, rendered from props, with no `fetch` in it. That is also what makes the
+states reviewable without a backend, which is the property `BackendIndicator` has and the
+reason it could be designed before it was wired.

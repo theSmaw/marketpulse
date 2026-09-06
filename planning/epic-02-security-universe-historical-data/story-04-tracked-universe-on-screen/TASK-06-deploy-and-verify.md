@@ -134,3 +134,43 @@ Task 2.4.2 and needs no second demonstration; deliberately putting the deployed 
 a disagreeing state would mean writing rows the loader would then have to unwrite. The
 untracked-row verification above is different and does belong here, because it is produced
 through the pipeline's own `Load the tracked universe` step.
+
+---
+
+## Amended 2026-09-06, after Task 2.4.3
+
+Two additions to the documentation sweep and one figure. Nothing changes this task's scope,
+and the `first selectFrom` sweep's count is untouched — Task 2.4.3 shipped no backend source.
+
+### The `CLAUDE.md` update is larger than "the routes paragraph"
+
+Task 2.4.2's amendment above narrowed what was left to the routes paragraph and `README.md`.
+Task 2.4.3 added frontend source, so there are now **four** things in that file describing a
+tree that no longer exists:
+
+- the **routes paragraph**, which still calls `/securities` a placeholder — already recorded
+- the **tree block**, which needs `apps/frontend/src/use-securities.ts` and the
+  `routes/SecurityExplorer.tsx` entry, in the shape the other frontend entries take
+- the **frontend summary paragraph**, which says the application "has no state management"
+  and describes `api-client.ts`'s single consumer — there are two hooks now, and the
+  `fetch`-in-one-file claim is still true and worth re-verifying by grep rather than citing
+- **`README.md`'s list of things a correct first run shows that read as faults**, which is
+  where this task's real content is: that list is currently seven items long and one of them
+  — the Security Explorer placeholder — has stopped being true, which is the first time
+  anything has left that list rather than joined it
+
+### The artefact moved, and this is the first time it has moved for shipped frontend source since Story 1.13
+
+`CLAUDE.md` records the four-file bundle at **361,779 B** (348,250 B JavaScript, 12,128 B
+CSS, 1,101 B `index.html`, 300 B config) as of Task 2.3.8, and notes that figure moved 115
+bytes on a story that touched **no** `apps/frontend` file — `packages/shared` is inlined, and
+`SECTOR_ETFS` is built by calling `toTicker()` eleven times, which a bundler cannot prove
+side-effect-free. This task's re-take is the first in three stories where the number is
+expected to move for the ordinary reason, so state both halves: what the page cost, and
+whether anything crossed the `packages/shared` boundary that should not have.
+
+One thing worth checking while re-taking it: `SECTOR_LABELS` and `isSecuritiesResponse` are
+now genuinely reachable from the browser, where the sector vocabulary previously was not.
+That is correct — the page renders sector names — but it makes `packages/shared`'s
+tree-shaking behaviour a live concern rather than a curiosity, and it is the concrete case
+the rule recorded in `CLAUDE.md` was written against.
