@@ -69,6 +69,14 @@ happens when they run out, and that the paragraph is the hard part.
 
 Two ways to check this list rather than trusting it. Cross-check the half days specifically
 against a second published source — they are where lists disagree. And sanity-check the
-count: a normal year has **252 trading days**, so a year in this table that produces 253 or
-251 has a missing or invented holiday in it, which is a cheap arithmetic check Task 2.5.4
-can assert once it can count sessions.
+count — but ~~a normal year has **252 trading days**, so a year in this table that produces
+253 or 251 has a missing or invented holiday in it~~ **corrected by Task 2.5.1 on
+2026-09-06: 252 is not a constant and four of the five covered years are 251.** The count is
+a function of how many weekdays the year contains (260-262) and how many holidays land on
+one, so the check is a **per-year table** — 2024: 252, 2025: 251, 2026: 251, 2027: 251,
+2028: 251 — which `CALENDAR.md` §7.2 derives. It is still the cheap arithmetic check that
+catches a missing or invented holiday; it is just not one number. **`CALENDAR.md` §7.5 and
+§7.6 carry the derived half-day and full-closure tables to cross-check against, and §7.4 the
+observance exception** (New Year's Day falling on a Saturday is not observed on the preceding
+Friday — which is why 2028 has nine weekday holidays, and why 2028 in particular must be
+confirmed against NYSE's published calendar rather than derived).

@@ -1,6 +1,6 @@
 # Story 2.5 — Trading Calendar & Market Time Handling
 
-**Status:** Not started
+**Status:** In progress
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.3
 **Epic scope covered:** **Addition to this epic's stated scope** — see the note in [`../EPIC.md`](../EPIC.md)
@@ -122,7 +122,7 @@ story, and the space it fills has been reserved in the chrome since Story 1.5.
 
 | #     | Task                                                                                                                                                | Status      |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 2.5.1 | [Choose the calendar source, the session definition and the clock's shape, shipping nothing](TASK-01-choose-the-calendar-source-and-the-session.md) | Not started |
+| 2.5.1 | [Choose the calendar source, the session definition and the clock's shape, shipping nothing](TASK-01-choose-the-calendar-source-and-the-session.md) | Complete    |
 | 2.5.2 | [The one conversion boundary: UTC in, market time out](TASK-02-the-timezone-boundary.md)                                                            | Not started |
 | 2.5.3 | [The calendar as data: holidays, half days, provenance and staleness](TASK-03-the-calendar-data.md)                                                 | Not started |
 | 2.5.4 | [The session functions, and the named dates that prove them](TASK-04-the-session-functions.md)                                                      | Not started |
