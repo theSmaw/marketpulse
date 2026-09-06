@@ -70,12 +70,9 @@
 }
 
 .microLabel {
+  composes: microLabel from "../../styles/type.module.css";
   margin: 0;
   color: var(--ink-secondary);
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
-  text-transform: uppercase;
 }
 
 /*

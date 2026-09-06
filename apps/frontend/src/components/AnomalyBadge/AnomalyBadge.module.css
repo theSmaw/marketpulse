@@ -6,15 +6,12 @@
  */
 
 .badge {
+  composes: microLabel from "../../styles/type.module.css";
   display: inline-block;
   min-width: 6rem;
   padding: var(--space-4) var(--space-8);
   border-radius: var(--radius);
   color: var(--ink-primary);
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
-  text-transform: uppercase;
   text-align: center;
 }
 

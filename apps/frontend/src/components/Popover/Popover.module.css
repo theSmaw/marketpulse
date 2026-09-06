@@ -57,12 +57,9 @@
 /* A micro-label, like every other small heading in this language: uppercase,
    letterspaced, grey. Hierarchy from size and colour, not from weight. */
 .title {
+  composes: microLabel from "../../styles/type.module.css";
   margin: 0 0 var(--space-4);
   color: var(--ink-secondary);
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
-  text-transform: uppercase;
   font-weight: var(--font-weight-regular);
 }
 

@@ -26,12 +26,9 @@
    else. Without it every one of these screens would have to apologise for
    itself in its title. */
 .label {
+  composes: microLabel from "../styles/type.module.css";
   margin: 0 0 var(--space-4);
   color: var(--ink-secondary);
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
-  text-transform: uppercase;
 }
 
 .title {

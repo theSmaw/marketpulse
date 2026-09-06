@@ -23,10 +23,7 @@
 }
 
 .label {
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
-  text-transform: uppercase;
+  composes: microLabel from "../../styles/type.module.css";
 }
 
 .detail {

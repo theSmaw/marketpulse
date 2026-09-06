@@ -146,13 +146,10 @@
  * against every ten rows.
  */
 .heading {
+  composes: microLabel from "../../styles/type.module.css";
   padding: var(--space-8) var(--space-12);
   text-align: left;
   color: var(--ink-secondary);
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
-  text-transform: uppercase;
   font-weight: var(--font-weight-regular);
   border-bottom: var(--border-width) solid var(--rule-hairline);
 }
@@ -218,11 +215,8 @@ tbody:first-of-type .group {
  * is set as a micro-label because it is a relationship rather than a value.
  */
 .groupDetail {
+  composes: microLabel from "../../styles/type.module.css";
   color: var(--ink-secondary);
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
-  text-transform: uppercase;
 }
 
 /* Right-aligned so the eleven of them form a column down the page a reader can
@@ -298,11 +292,8 @@ tbody:last-of-type .row:last-child {
  * its own sector and an index ETF is in a group that is not a sector at all.
  */
 .kind {
+  composes: microLabel from "../../styles/type.module.css";
   color: var(--ink-secondary);
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -328,16 +319,13 @@ tbody:last-of-type .row:last-child {
  * as an extreme market event.
  */
 .chip {
+  composes: microLabel from "../../styles/type.module.css";
   display: inline-block;
   margin-left: var(--space-8);
   padding: 0 var(--space-4);
   border: var(--border-width) solid var(--rule-soft);
   border-radius: var(--radius);
   color: var(--ink-secondary);
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -405,13 +393,10 @@ tbody:last-of-type .row:last-child {
  * three.
  */
 .stateLabel {
+  composes: microLabel from "../../styles/type.module.css";
   display: inline-block;
   margin-bottom: var(--space-8);
   color: var(--ink-primary);
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
-  text-transform: uppercase;
 }
 
 .marker {
@@ -465,23 +450,18 @@ tbody:last-of-type .row:last-child {
  * of which remove the element from the accessibility tree as well as from the
  * page — which for a live region would mean it announced nothing at all.
  *
- * **This is the second copy of this rule in the tree** (`PriceChange` has the
- * first) and the cost is the same one the marker language already carries: a
- * change to the idiom means editing both. It is copied rather than shared for
- * the reason every other cross-component style here is — there is no shared
- * stylesheet layer below the tokens, and inventing one for nine declarations
- * would be the larger change.
+ * ~~**This is the second copy of this rule in the tree** ... It is copied rather
+ * than shared for the reason every other cross-component style here is — there
+ * is no shared stylesheet layer below the tokens, and inventing one for nine
+ * declarations would be the larger change.~~
+ * **Reversed 2026-09-06, by its own trigger.** `MarketClock` made a third copy,
+ * and three is where "two similar things" becomes a pattern — so the nine
+ * declarations moved to `styles/a11y.module.css` and this composes them. The
+ * layer that did not exist now does, and it holds exactly two classes: this and
+ * the micro-label idiom, which had been hand-copied into fourteen rules.
  */
 .visuallyHidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
+  composes: visuallyHidden from "../../styles/a11y.module.css";
 }
 
 /* --- The skeleton --- */
