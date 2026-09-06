@@ -1,0 +1,175 @@
+/*
+ * The market clock. Like every other stylesheet in this application there is
+ * not one literal colour, length, weight or font here — every declaration reads
+ * a token.
+ *
+ * It is the **third** component to hold the indicator language by imitation:
+ * a marker whose shape carries the state, a lowercase letterspaced word beside
+ * it, and a sentence hanging under the word. `BackendIndicator` stated the cost
+ * of that convention when it was the second — a change to the marker idiom is
+ * now three edits — and this is that cost arriving rather than a surprise. It
+ * is still cheaper than a shared component with a `variant` prop, because the
+ * three report facts that have nothing to do with each other and the day one of
+ * them needs a different silhouette the other two must not follow.
+ *
+ * Nothing here is `--status-error` red and nothing is green. A closed market is
+ * what the market does for two-thirds of every week — see the market-session
+ * token block in `market.css`.
+ */
+
+.clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-4);
+  text-align: right;
+}
+
+/*
+ * The figure. No `font-variant-numeric` here: `body` sets `tabular-nums` and it
+ * is inherited, which is what stops the strip's right edge breathing as the
+ * seconds change. Re-declaring it would suggest this component is what keeps
+ * that true, and a component that *breaks* alignment has overridden it.
+ *
+ * This is the value the reserved placeholder was sized against. `--:--:--` was
+ * eight characters of which six were hyphens, and a hyphen is not a digit, so
+ * `AppHeader`'s comment predicted a small one-off shift the first time real
+ * digits rendered. Measured: it is small, and it is a shift rather than a jump.
+ */
+.time {
+  margin: 0;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+.zone {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  letter-spacing: var(--letter-spacing-micro);
+}
+
+/*
+ * Present to a screen reader, absent to everyone else — the clip-rect idiom
+ * `PriceChange` established, rather than `display: none` or
+ * `visibility: hidden`, both of which remove the element from the accessibility
+ * tree as well as from the page.
+ */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * The session state: the marker and the word on one line, the sentence under
+ * them, both hard right because this region is the end of the strip.
+ *
+ * **A flex row and a sibling, rather than the grid the two indicators to the
+ * left use, and the difference is forced rather than stylistic.** They put the
+ * sentence in a third cell spanning both columns; that works there because they
+ * are left-aligned and their `1fr` word column absorbs the slack. Here the
+ * region is right-aligned, so the slack would land in the *marker's* column —
+ * and a spanning item inflates the columns it spans, which `justify-content`
+ * then has no free space left to correct. The visible result is the marker
+ * drifting away from the word it belongs to, by exactly the amount the sentence
+ * is wider than the word.
+ *
+ * **Found in the workshop rather than in the browser**, on
+ * `National Day of Mourning (President Carter)` — the longest sentence this
+ * component renders and a permutation the running application cannot be put
+ * into on an ordinary day. That is the argument for the permutation grid,
+ * arriving as a defect it caught rather than as a convention.
+ */
+.state {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+.label {
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+}
+
+/* Right-aligned by `.clock`, like everything else in this region. */
+.detail {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+}
+
+/*
+ * The marker. Same 8px circle, same optical-centre nudge and same
+ * `box-sizing: border-box` as the two indicators to the left — there is no
+ * global `box-sizing` in `base.css`, checked rather than assumed, and the one
+ * marker here that uses a real border would otherwise be a pixel larger.
+ *
+ * **This is the one place motion is used**, and it is used on a *state change*
+ * rather than on a value change. That distinction is the whole of Task 2.4.4's
+ * motion note: a digit changing sixty times a minute must not animate, and the
+ * market opening — which happens twice a day and is the thing this region
+ * exists to report — should read as a transition rather than as a silent swap.
+ * `settle` rather than `quick`, because nothing is under the pointer.
+ *
+ * `prefers-reduced-motion` is answered once, at the token layer, by setting
+ * both durations to `0ms`. A transition of `0ms` still ends in the same final
+ * state, so nothing is left half-played and there is no media query here — that
+ * is the entire reason the durations are tokens.
+ */
+.marker {
+  flex: none;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: 50%;
+  transform: translateY(-1px);
+  box-sizing: border-box;
+  transition:
+    background-color var(--motion-duration-settle) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-settle) var(--motion-ease-standard),
+    border-color var(--motion-duration-settle) var(--motion-ease-standard);
+}
+
+/* --- The three markers, each a different silhouette --- */
+
+/* Filled: the market is trading. The ordinary state, and the same grey as
+   `closed` — the two differ by shape alone, which is what survives greyscale. */
+.open .marker {
+  background: var(--market-open);
+}
+
+/* Hollow. */
+.closed .marker {
+  background: none;
+  box-shadow: inset 0 0 0 var(--border-width) var(--market-closed);
+}
+
+/*
+ * Not a market state — what a clock past the trading calendar's covered range
+ * renders. Dashed rather than hollow so it is not mistaken for `closed` at a
+ * glance, which is `BackendIndicator`'s `checking` placeholder idiom reused for
+ * the same reason: this is the one rendering here saying nothing about the
+ * market at all.
+ *
+ * `box-shadow` cannot be dashed, so this is the one marker with a real border —
+ * which is what `box-sizing: border-box` above exists for.
+ */
+.unknown .marker {
+  background: none;
+  border: var(--border-width) dashed var(--market-unknown);
+}
+
+/* It recedes, for the reason above. `--ink-secondary` and not
+   `--ink-disabled`: axe measured that at 2.09:1 at this size against the page
+   ground where 4.5 is the threshold, on this exact idiom in Task 1.12.4.
+   Receding is a job for weight and hierarchy, never for ink below the floor. */
+.unknown .label {
+  color: var(--ink-secondary);
+}

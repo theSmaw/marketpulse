@@ -1,6 +1,6 @@
 # Task 2.5.5 — The clock seam, and the header's reserved region starts working
 
-**Status:** Not started
+**Status:** Complete (2026-09-06)
 **Story:** [2.5 Trading Calendar & Market Time Handling](STORY.md)
 **Depends on:** Task 2.5.4
 
@@ -215,3 +215,189 @@ The failure to avoid is a clock that implies more than it knows. It says what ti
 the market and whether the market is open. It does **not** say data is arriving, and nothing
 about it should read as `LIVE` — that word belongs to Epic 3 and putting it here would be the
 first thing in this product that overstates its own evidence.
+
+---
+
+## What was built, in plain language — a status report for stakeholders
+
+### The short version
+
+**MarketPulse now has a working clock in its header, on every page, and beside it a
+plain-English statement of whether the US stock market is open.** It is the first thing on
+this product's screen that moves on its own.
+
+That sounds small. It is the visible tip of five tasks of invisible work, and it is the
+first time any of that work has been pointed at a user.
+
+### What you will actually see
+
+Open the application and look at the top-right of the header. Where there used to be
+`--:--:-- ET` — a deliberate placeholder that never pretended to be a time — there is now a
+live clock ticking once a second, and under it a short status:
+
+```
+MARKET CLOCK
+15:42:07 ET
+● OPEN
+  Closes at 16:00
+```
+
+Come back at the weekend and it reads `CLOSED / Weekend`. On Thanksgiving it reads
+`CLOSED / Thanksgiving Day`. On the half day after Thanksgiving it reads
+`OPEN / Closes early at 13:00` in the morning and `CLOSED / Closed early at 13:00` in the
+afternoon.
+
+### Why this matters more than a clock usually would
+
+Three reasons, in order of how much they matter to the product.
+
+**1. It is the first sign of life.** The product specification is unusually blunt about
+this: a market application whose every number sits still "is technically correct and feels
+dead". Until today every figure on every screen of MarketPulse was static — a table of
+securities that loads once, a status indicator that changes twice a minute at most. A
+stakeholder shown the product could be told it was live and had no way to see it. Now there
+is something on screen that is visibly, continuously true.
+
+**2. It is the right time, wherever you are.** The clock does not show your computer's
+time. It shows New York's, converted properly, including the twice-a-year daylight-saving
+change. That is the point of the four tasks that came before this one, and this is the first
+place anybody can see whether they worked. Someone demonstrating this product from London or
+Singapore sees the same time an analyst in New York sees, which is the only useful thing for
+a market clock to show.
+
+**3. It tells you something a clock alone cannot.** "Is the market open?" sounds like a
+yes/no question and is not. There are four different reasons the market might be shut — it
+is early morning, it is late evening, it is a public holiday, or it is the weekend — and a
+trader cares about the difference. Before the bell you want to know when it opens; after the
+close you want to know that it _has_ closed rather than that it never opened. And "the
+market closes early today at 1pm" is a fact that a simple open/closed switch throws away
+entirely, and one that matters: half-days are real, and data pipelines that do not know about
+them quietly report a third of a day's trading as missing.
+
+### The decisions worth explaining
+
+**We say `ET`, not `EDT` or `EST`.** New York's time zone has two names — one for summer,
+one for winter — and the software knows which is in effect. We deliberately do not show it.
+`ET` is what the product's own design has promised since day one, it is what a trader
+actually says out loud ("the market opens 9:30 ET"), it is always true, and it never changes
+width in a strip where things sitting still matters. Showing `EDT` in July and `EST` in
+December would be strictly more information that nobody asked for, changing twice a year in a
+way a reader notices and cannot explain. The precise name is still available to the parts of
+the system where an exact offset is the point — a chart's axis, a log entry.
+
+**The clock is your computer's clock, shown in market time — and we are explicit that this
+is a _time-zone_ claim and not a _synchronisation_ one.** If a viewer's laptop is three
+minutes fast, this clock is three minutes fast. Nothing in the product today has a better
+source of truth: the server reports how long it has been running, not what time it is, and
+inventing a time authority for a header would be over-engineering. When Epic 3 brings the
+live market feed, that feed carries exchange timestamps and the clock can take its time from
+there — and because of how this was built, that is a change to one small file and to nothing
+else.
+
+**We built it so it does not slow the application down, and we measured that rather than
+assuming it.** A clock that updates once a second is sixty times more frequent than anything
+else in this product, and the naive way to build it would cause the entire page — including
+a table of a hundred securities — to be recalculated every single second. We deliberately
+confined it to the header. Then we measured both ways: with our arrangement the page content
+was recalculated **zero** times across twenty seconds of ticking; with the naive arrangement
+it was recalculated **forty** times. Over a full minute of ticking, the browser recorded no
+slow frames at all, and the only thing that changed on screen was the clock's own digits.
+That headroom matters because Epic 3 will bring live prices updating far faster than once a
+second, and this is the shape that work inherits.
+
+**It stops ticking when you are not looking at it.** A tab left open in the background does
+no work, and catches up the instant you return to it. That is the same courtesy the backend
+status indicator already extends, and it exists because a browser tab somebody forgot about
+should not be burning battery to redraw a clock nobody is reading.
+
+**A closed market is not an error.** Nothing about this indicator is red, and that is a
+deliberate rule the product follows everywhere: the market being shut is what the market does
+for two-thirds of every week. The status is shown by the _shape_ of a small marker — solid
+when open, hollow when closed — rather than by colour, so it remains readable to someone who
+cannot distinguish the colours we would otherwise have used.
+
+**It does not say `LIVE`.** The original design sketch for this header has the word `LIVE`
+next to the clock. We deliberately did not add it. `LIVE` is a claim that market _data is
+arriving_, and no market data arrives in this product yet — that is Epic 3. Putting the word
+there because the sketch shows it would be the first place this product overstated what it
+actually knows, and the whole architecture is built around not doing that. The indicator two
+cells to the left still correctly reads `DISCONNECTED`.
+
+### The one that will save somebody a very confusing day
+
+Our trading calendar is a hand-checked table of every US market holiday and early close from
+2024 through 2028 — because that is exactly as far as the New York Stock Exchange publishes.
+Ask it about a date it does not cover and it **refuses to answer**, deliberately, rather than
+guessing that there were no holidays that year.
+
+That refusal is correct everywhere else in the system, because everywhere else is handed a
+date by a query and can decline it. **The clock is the one place that cannot**, because it
+reads today's date, and on 1 January 2029 today's date will be outside the table.
+
+Left alone, that would have taken the _entire header_ off every page of the application, on
+New Year's Day, for a reason nobody debugging it at the time would have guessed.
+
+So the clock catches that specific case and degrades honestly: it keeps showing the time —
+which is a time-zone conversion that works for ever and needs no calendar — and says
+`UNKNOWN / Trading calendar ends 2028-12-31` instead of guessing whether the market is open.
+Rather than wait three years to find out whether that works, we tested it by asking the clock
+what time it is in 2029. It does the right thing. And it catches _only_ that specific
+problem — any other fault still surfaces loudly, because a component that hides faults is
+worse than one that shows them.
+
+That message also turns a note in a file into something with a visible consequence: the
+calendar carries a reminder that it needs extending in 2028, and this is the one place in
+the running product that will ever tell anybody the reminder was missed.
+
+### How we know it works
+
+- **17 automated tests** on the clock's engine, and **11** on what it renders — including
+  the two states that cannot be produced in a browser at all: a public holiday, and a date
+  past 2028.
+- **2 browser tests** driving a real Chrome against the real application. One of them makes
+  the assertion no cheaper test can: **the clock advances**. A clock that renders correctly
+  once and then freezes looks perfect to every other kind of test. We deliberately broke the
+  timer to confirm that test goes red — it does, in under six seconds, while everything else
+  stays green.
+- **Every check was made to fail before it was believed.** Six deliberate breaks, each
+  reverted. One of them taught us something: our first attempt to test "a hidden tab does not
+  tick" passed even with the safeguard removed, because a different safeguard was covering
+  for it. We wrote the missing test rather than accepting a green result we could not
+  explain.
+- **The accessibility audit is unchanged**: zero violations across every page, at three
+  screen sizes, exactly as before this task. The clock announces itself to a screen reader
+  as "Market time, US Eastern" rather than as two bare letters, and it deliberately does
+  _not_ read the seconds aloud, which would make the page unusable.
+- **The full quality gate passes** with 466 automated tests across the project, plus 23
+  browser journeys and 61 database tests.
+- **The component workshop earned its keep.** Reviewing all six states side by side showed a
+  layout fault — on a long closure name, the small status dot drifted away from the word it
+  belongs to — that the running application could not have shown us on an ordinary day,
+  because it only appears on one specific historical date. Fixed before anyone saw it.
+
+### What this cost, honestly
+
+The application's download grew by about 11.7 kB — roughly 3%. Around 3.9 kB of that is the
+trading calendar itself: sixty hand-verified rows of real holidays and early closes, now
+travelling to the browser for the first time because this is the first screen that needs
+them. That was a known and accepted price, and an earlier decision in this story — keeping
+those dates as plain text rather than wrapping each one — is what stops it being larger.
+
+### What this unlocks
+
+The clock is the visible payoff, but the durable thing this task built is a **single place
+in the entire system that asks what time it is**. Everything else — every session
+calculation, every holiday lookup, every "last five trading days" — is handed a moment in
+time rather than looking one up.
+
+That is the foundation of MarketPulse's signature feature. Market Replay lets a user wind the
+clock back to 11:07 on a past trading day and see only what was knowable at that moment.
+Making that work means substituting a different answer to "what time is it" — and because of
+how this was built, that is a change to **one file**, not to every screen in the product. We
+also added an automatic check that enforces it: the shared code that all this rests on is now
+forbidden from reading the clock at all, and the build fails if anyone tries.
+
+The next task closes the story with its architecture record. After that, Epic 2 continues
+towards historical price data — and the chart it eventually draws will have a correct time
+axis, with no weekend gaps and no holidays plotted as trading days, because of the work in
+this story.

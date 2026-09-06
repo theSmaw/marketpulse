@@ -88,21 +88,13 @@
   text-align: right;
 }
 
-.clockValue {
-  margin: 0;
-  font-size: var(--font-size-dense);
-  line-height: var(--line-height-dense);
-  /* No `font-variant-numeric` here. `body` sets `tabular-nums` and it is
-     inherited; re-declaring it would suggest this component is the thing
-     keeping the clock from jittering, and it is not. A component that *breaks*
-     alignment has overridden it. */
-}
-
-.clockZone {
-  color: var(--ink-secondary);
-  font-size: var(--font-size-micro);
-  letter-spacing: var(--letter-spacing-micro);
-}
+/*
+ * `.clockValue` and `.clockZone` lived here until Task 2.5.5 and moved into
+ * `components/MarketClock/MarketClock.module.css` with the markup they style.
+ * The rule this region keeps is the alignment above: the clock is the end of
+ * the strip, so its digits grow leftwards from a fixed edge rather than pushing
+ * the label around.
+ */
 
 /* --- Navigation --- */
 

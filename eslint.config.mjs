@@ -17,6 +17,23 @@ import reactHooks from "eslint-plugin-react-hooks";
 import storybook from "eslint-plugin-storybook";
 import tseslint from "typescript-eslint";
 
+// The two patterns that hold Story 2.5's conversion boundary, hoisted because
+// two blocks below need them and a second copy is how two rules stop agreeing.
+// See the block that applies them for the argument.
+const MARKET_TIME_RESTRICTIONS = [
+  {
+    selector:
+      "NewExpression[callee.object.name='Intl'][callee.property.name='DateTimeFormat']",
+    message:
+      "Timezone conversion outside the boundary. packages/shared/src/market-time.ts is the one module that converts between a UTC instant and market time (Story 2.5, criterion 2) — import from @marketpulse/shared instead. A second converter is wrong twice a year, silently, on the two days nobody tests.",
+  },
+  {
+    selector: "Literal[value='America/New_York']",
+    message:
+      "The market's timezone is named in packages/shared/src/market-time.ts and nowhere else (Story 2.5, criterion 2). Import from @marketpulse/shared rather than spelling it again.",
+  },
+];
+
 export default tseslint.config(
   {
     // Global ignores. A config object with only `ignores` applies workspace-wide.
@@ -277,24 +294,63 @@ export default tseslint.config(
       "scripts/**/*.mjs",
     ],
     rules: {
+      "no-restricted-syntax": ["error", ...MARKET_TIME_RESTRICTIONS],
+    },
+  },
+
+  // --- The clock seam (Task 2.5.5) ---
+  //
+  // `CALENDAR.md` §3.1's rule has two halves, and this is the second: *every
+  // function in Story 2.5 takes the instant it needs as an argument, and
+  // exactly one module reads the wall clock.* §3.4 anticipated a rule of this
+  // shape and declined it, correctly, because the module it would have had to
+  // permit did not exist. It does now — `apps/frontend/src/use-market-clock.ts`
+  // — so the rule is written in the same change that created it, exactly as
+  // that section instructed.
+  //
+  // **Scoped to `packages/shared/src`, and it permits nothing at all.** That is
+  // the stronger rule rather than the weaker one, and it is deliberate rather
+  // than a shortcut. A clock read inside a session function is the failure
+  // invariant 4 names by name — it would make Epic 13's replay a rewrite of
+  // every call site instead of one hook — and this package is where every one of
+  // those functions lives, so a rule with no exception here says precisely the
+  // thing that matters and needs no reader to check which file is excused.
+  //
+  // Widening it to `apps/frontend` was considered and rejected on the shape of
+  // the result: it would need **two** exceptions rather than one, because
+  // `use-backend-health.ts` stamps a `new Date()` for "when this client last got
+  // an answer" — a genuine second clock read and a legitimate one, since it is a
+  // diagnostic about *this browser* rather than about the market. A rule with
+  // two exceptions is weaker than the sentence it is holding, so the frontend
+  // half stays prose, in `use-market-clock.ts`'s own header.
+  //
+  // Both patterns, because a clock read has two tells and either alone leaks:
+  // `Date.now()` and a zero-argument `new Date()`. Anything constructed *from*
+  // an argument is untouched, which is what leaves the calendar's own
+  // `new Date(...T00:00:00Z)` — legitimate UTC arithmetic on a date string —
+  // alone.
+  {
+    files: ["packages/shared/src/**/*.ts"],
+    rules: {
       "no-restricted-syntax": [
         "error",
+        ...MARKET_TIME_RESTRICTIONS,
         {
           selector:
-            "NewExpression[callee.object.name='Intl'][callee.property.name='DateTimeFormat']",
+            "CallExpression[callee.object.name='Date'][callee.property.name='now']",
           message:
-            "Timezone conversion outside the boundary. packages/shared/src/market-time.ts is the one module that converts between a UTC instant and market time (Story 2.5, criterion 2) — import from @marketpulse/shared instead. A second converter is wrong twice a year, silently, on the two days nobody tests.",
+            "packages/shared must not read the wall clock. Every function in Story 2.5 takes the instant it needs as an argument, which is what makes them replay-ready without a Clock interface (CALENDAR.md §3) — apps/frontend/src/use-market-clock.ts is the one module that reads it. A Date.now() here is the failure invariant 4 names: it would make Epic 13 a rewrite of every call site rather than of one hook.",
         },
         {
-          selector: "Literal[value='America/New_York']",
+          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
           message:
-            "The market's timezone is named in packages/shared/src/market-time.ts and nowhere else (Story 2.5, criterion 2). Import from @marketpulse/shared rather than spelling it again.",
+            "packages/shared must not read the wall clock. Take the instant as an argument (CALENDAR.md §3) — apps/frontend/src/use-market-clock.ts is the one module that reads it. `new Date(someValue)` is fine; it is the zero-argument form that is a clock read.",
         },
       ],
     },
   },
 
-  // The one exception, and the whole point of the block above.
+  // The one exception, and the whole point of the two blocks above.
   {
     files: ["packages/shared/src/market-time.ts"],
     rules: { "no-restricted-syntax": "off" },

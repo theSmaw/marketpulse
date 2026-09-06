@@ -321,6 +321,32 @@ it would permit — does not exist yet, which is the same objection unchanged. *
 should write it in the same change that creates that module**, at which point it is a third
 entry beside two that already work, rather than a new idea.
 
+**Written 2026-09-06 by Task 2.5.5, and it is scoped differently from what that paragraph
+imagined — deliberately, and the difference is the finding.** The sketch above was a
+workspace-wide rule with `use-market-clock.ts` excepted. What shipped is a rule over
+**`packages/shared/src` with no exception at all**, forbidding both `Date.now()` and a
+zero-argument `new Date()`; anything constructed _from_ an argument is untouched, which
+leaves the calendar's own `new Date(...T00:00:00Z)` alone.
+
+Two reasons, and the second is why the narrower rule is the stronger one.
+
+- **It permits nothing, so nobody has to check which file is excused.** A clock read inside a
+  session function is the failure invariant 4 names by name, and `packages/shared` is where
+  every one of those functions lives — so a rule with no exception there says exactly the
+  thing that matters.
+- **The workspace-wide version would have needed _two_ exceptions rather than one.**
+  `apps/frontend/src/use-backend-health.ts` stamps `new Date()` for "when this client last
+  got an answer" — a genuine second clock read and a legitimate one, because it is a
+  diagnostic about _this browser_ and has nothing to do with market time. **A rule with two
+  exceptions is weaker than the sentence it is trying to hold**, and it would have taught
+  every future reader that the list of excused files is the thing to consult rather than the
+  rule.
+
+So the frontend half of §3.1's sentence stays prose — in `use-market-clock.ts`'s own header —
+and remains on `CLAUDE.md`'s third-kind list. Both new patterns were **made to fail** in
+`market-session.ts` before being believed, and the tree was confirmed byte-identical after the
+revert.
+
 ---
 
 ## 4. Where the code lives: `packages/shared`
