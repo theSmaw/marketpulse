@@ -742,7 +742,27 @@ apps/
       Placeholder.tsx              label, name, one sentence naming the epic
       NotFound.tsx                 a route, not a fallback. Not an error
     src/styles/tokens.css          the design tokens and the theming
-                                   mechanism (Task 1.4.3). Achromatic
+                                   mechanism (Task 1.4.3). Achromatic.
+                                   TWO additions since Task 2.4.4, both changes
+                                   to the design LANGUAGE rather than to a page.
+                                   `--font-mono` is the second family — it does
+                                   not reverse "the system font stack, no
+                                   webfont", because nothing is fetched, and its
+                                   rule is that it is for a value somebody is
+                                   expected to TRANSCRIBE (a correlation id, a
+                                   command) and never for numbers in a table,
+                                   which are `tabular-nums` in the body face.
+                                   And the first MOTION tokens — two durations
+                                   and one easing, a thin first cut, with Epic
+                                   3 owning the full vocabulary because the hard
+                                   question is what happens when a NUMBER
+                                   changes and this page has none.
+                                   `prefers-reduced-motion` is answered HERE,
+                                   once, by setting both durations to `0ms` —
+                                   which is the whole argument for them being
+                                   tokens, since a per-component media query is
+                                   a thing each author has to remember and whose
+                                   failure is silent
     src/styles/market.css          the chromatic palette and the semantic
                                    market tokens over it (Task 1.4.4).
                                    The only colour with meaning in the app.
@@ -775,6 +795,47 @@ apps/
       PriceChange/                 signed figure, arrow glyph, hidden word
       AnomalyBadge/                the band chip, its name inside the fill
       FeedIndicator/               marker shape plus word; stale is not an error
+      UniverseTable/               the tracked universe and its four states
+                                   (Task 2.4.4), and the first table in this
+                                   product with real data in it. It moved here
+                                   from `src/routes/` the day somebody had to
+                                   DESIGN those states, which is `Region`'s
+                                   precedent exactly: two of them — an empty
+                                   universe and a service answering with the
+                                   wrong thing — cannot be reached in a browser
+                                   without breaking something first, so the
+                                   workshop grid is the only place they are
+                                   reviewable side by side.
+                                   It takes `view: SecuritiesView` rather than
+                                   four props, which is the OPPOSITE of
+                                   BackendIndicator on purpose: that union
+                                   exists so the impossible combinations cannot
+                                   be built, and four props would hand the
+                                   renderer back the eight-way boolean space it
+                                   removed. `import type`, so it is erased.
+                                   Grouped by sector in `SECTORS` order — not by
+                                   the counts, which reshuffle when one security
+                                   is added — with each band naming the sector's
+                                   BENCHMARK ETF, which is the first time this
+                                   product has rendered `SECTOR_ETFS`. There is
+                                   no Sector column: grouping states it once per
+                                   group, and the freed column carries
+                                   `industry`, which the wire had always sent
+                                   and nothing had ever shown.
+                                   Two failure renderings and one treatment,
+                                   because "nothing answered" and "something
+                                   answered and it was not us" send a reader to
+                                   two different places. Nothing in it is
+                                   `--status-error` red, per §36 — including the
+                                   untracked row, which is INFORMATION
+                                   (`UNIVERSE.md` §3) and is marked by a chip,
+                                   receding ink and its kept position rather
+                                   than by hue.
+                                   Sticky column headings are absent and that is
+                                   a finding: `Region`'s `overflow: auto` makes
+                                   it the scrollport a sticky descendant is
+                                   measured against, and on this page it never
+                                   scrolls, so they had nowhere to stick
       SecurityRow/                 the representative component (Task 1.4.5),
                                    composing the four above into one <tr>
       AppHeader/                   the chrome (Task 1.5.3). The first component
@@ -1218,7 +1279,7 @@ pnpm image         # builds the backend's linux/amd64 container image. NOT part 
                    # scripts/build-image.mjs rather than a one-liner: a clean tree gets the
                    # bare short SHA, a DIRTY tree gets `<sha>-dirty` and a warning not to push
                    # it, and MARKETPULSE_IMAGE_TAG overrides both (Task 1.11.6's door)
-pnpm test          # real in all three packages — 304 tests (55 + 146 + 103). Fast: no build, no socket
+pnpm test          # real in all three packages — 344 tests (68 + 146 + 130). Fast: no build, no socket
 pnpm test:process  # the backend's process half — 14 tests spawning dist/index.js (Tasks 1.10.5, 2.1.4).
                    # A verify step in its own right; ~7.6 s, of which 5 s IS the shutdown ceiling
 pnpm test:database # the SIXTH level of test (Task 2.2.5). 61 tests in ~1.1 s against a REAL
@@ -1266,11 +1327,11 @@ pnpm format:check  # prettier --check .
 
 # Working on one package — the same six verbs, meaning the same thing:
 pnpm --filter @marketpulse/shared build       # or typecheck / lint / lint:fix / test
-pnpm --filter @marketpulse/shared test        # vitest run — 55 tests, 5 files
+pnpm --filter @marketpulse/shared test        # vitest run — 68 tests, 6 files
 pnpm --filter @marketpulse/backend test       # vitest run — 146 tests, 10 files
 pnpm --filter @marketpulse/backend run test:process   # vitest run --config vitest.process.config.ts — 14 tests
 pnpm --filter @marketpulse/backend run test:database  # vitest run --config vitest.database.config.ts — 61 tests
-pnpm --filter @marketpulse/frontend test      # vitest run — 103 tests, 12 files
+pnpm --filter @marketpulse/frontend test      # vitest run — 130 tests, 15 files
 pnpm --filter @marketpulse/backend coverage   # one package's report
 
 # Running less than everything (Task 1.9.6). The path is relative to the

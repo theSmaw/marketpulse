@@ -57,7 +57,7 @@ afterEach(() => {
 });
 
 describe("SecurityExplorer", () => {
-  it("renders the universe as a table of symbol, name, sector and kind", async () => {
+  it("renders the universe as a table of symbol, name, industry and kind", async () => {
     stubFetch(() => json(200, { securities: [NVDA, SPY] }));
     render();
 
@@ -66,22 +66,49 @@ describe("SecurityExplorer", () => {
     });
 
     // By role and accessible name rather than by class: the column headings are
-    // what a screen reader announces with each cell, and they are the part of
-    // this table Task 2.4.4 must not silently drop while restyling it.
-    for (const heading of ["Symbol", "Name", "Sector", "Kind"]) {
+    // what a screen reader announces with each cell.
+    //
+    // **`Sector` is deliberately not among them since Task 2.4.4.** The table
+    // groups by sector, so a sector cell would repeat the heading above it down
+    // every row of a group; the freed column carries `industry`, which the wire
+    // has always sent and nothing had ever rendered. Story acceptance criterion
+    // 2's four fields are all still on screen — the sector is now stated once
+    // per group instead of once per row.
+    for (const heading of ["Symbol", "Name", "Industry", "Kind"]) {
       expect(screen.getByRole("columnheader", { name: heading })).toBeTruthy();
     }
 
     expect(screen.getByRole("rowheader", { name: "NVDA" })).toBeTruthy();
     expect(screen.getByText("NVIDIA Corporation")).toBeTruthy();
-    expect(screen.getByText("Technology")).toBeTruthy();
+    expect(screen.getByText("Semiconductors")).toBeTruthy();
     expect(screen.getByText("Company")).toBeTruthy();
 
-    // The sector cell of a security that structurally has no sector says so,
-    // rather than being blank — a blank cell reads as data we failed to load.
+    // The sector reaches the screen as the group heading a row sits under.
+    expect(screen.getByRole("rowheader", { name: /Technology/ })).toBeTruthy();
+
+    // An index proxy is not in a sector at all, and the group it is in says so
+    // in words rather than leaving a reader to infer it from a blank.
     expect(screen.getByRole("rowheader", { name: "SPY" })).toBeTruthy();
     expect(screen.getByText("Index ETF")).toBeTruthy();
-    expect(screen.getByText("—")).toBeTruthy();
+    expect(
+      screen.getByRole("rowheader", { name: /Market proxies/ }),
+    ).toBeTruthy();
+  });
+
+  // The first sentence in this product that states a fact about our own data,
+  // and it has to say *which* number it is reporting: rows held and securities
+  // tracked stop being the same figure at the first removal.
+  it("summarises the universe from the response rather than from a constant", async () => {
+    stubFetch(() => json(200, { securities: [NVDA, SPY, GILD] }));
+    render();
+
+    await waitFor(() => {
+      expect(screen.getByRole("table")).toBeTruthy();
+    });
+
+    const summary = screen.getByText("securities tracked").parentElement;
+    expect(summary?.textContent).toContain("2 securities tracked");
+    expect(summary?.textContent).toContain("1 no longer tracked");
   });
 
   // Story acceptance criterion 6, in its plainest form: `UNIVERSE.md` §12.2 puts
@@ -94,7 +121,12 @@ describe("SecurityExplorer", () => {
     await waitFor(() => {
       expect(screen.getByRole("rowheader", { name: "GILD" })).toBeTruthy();
     });
-    expect(screen.getAllByRole("row")).toHaveLength(3);
+    // Marked rather than merely present, which is Task 2.4.4's half of
+    // acceptance criterion 6.
+    expect(screen.getByText("No longer tracked")).toBeTruthy();
+    // Two securities, both in Technology: the column headings, the group band
+    // and two rows.
+    expect(screen.getAllByRole("row")).toHaveLength(4);
   });
 
   it("says there are no prices yet rather than looking broken", async () => {
@@ -124,10 +156,10 @@ describe("SecurityExplorer", () => {
     render();
 
     await waitFor(() => {
-      expect(screen.getByText(/holds no securities/)).toBeTruthy();
+      expect(screen.getByText(/has not been loaded/)).toBeTruthy();
     });
     expect(screen.queryByRole("table")).toBeNull();
-    expect(screen.queryByText(/could not be reached/)).toBeNull();
+    expect(screen.queryByText("no response")).toBeNull();
   });
 
   it("says the service could not be reached, and keeps the page usable", async () => {
@@ -135,7 +167,7 @@ describe("SecurityExplorer", () => {
     render();
 
     await waitFor(() => {
-      expect(screen.getByText(/could not be reached/)).toBeTruthy();
+      expect(screen.getByText("no response")).toBeTruthy();
     });
 
     // The failure is a value the hook stored rather than an exception, so no
@@ -168,8 +200,8 @@ describe("SecurityExplorer", () => {
     render();
 
     await waitFor(() => {
-      expect(screen.getByText(/was not this service/)).toBeTruthy();
+      expect(screen.getByText("unexpected response")).toBeTruthy();
     });
-    expect(screen.getByText(/Reference: 3f1c/)).toBeTruthy();
+    expect(screen.getByText("3f1c")).toBeTruthy();
   });
 });
