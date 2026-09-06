@@ -1,0 +1,21 @@
+/*
+ * Workshop furniture for `Marker`'s stories, and it exists because this
+ * component reads a colour it does not own.
+ *
+ * `Marker` takes `--marker-color` from whatever carries the state class above
+ * it, so a story that set no colour would render four invisible dots — which is
+ * exactly the failure mode the component's own comment names, demonstrated by
+ * accident rather than on purpose. One wrapper sets it, so the specimens differ
+ * only in silhouette.
+ *
+ * Imported only by a story file, so none of it reaches the application bundle.
+ */
+
+.ink {
+  --marker-color: var(--ink-primary);
+}
+
+/* The one colour the application actually uses on a marker. */
+.attention {
+  --marker-color: var(--service-degraded);
+}

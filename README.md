@@ -641,7 +641,7 @@ the same second half for the same reason.
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
 in this workspace. `packages/shared` runs 159 tests across 9 files,
-`apps/backend` 146 across 10, and `apps/frontend` 161 across 17 — **466 in
+`apps/backend` 146 across 10, and `apps/frontend` 163 across 18 — **468 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -774,7 +774,7 @@ pnpm coverage                                   # all three packages
 pnpm --filter @marketpulse/backend coverage     # one of them
 ```
 
-It is the same 466 tests with `--coverage` added, fanning out through
+It is the same 468 tests with `--coverage` added, fanning out through
 `pnpm -r` exactly as `pnpm test` does, so there are **three reports and no
 merged one** — each package answers for its own sources. It is deliberately
 not part of `pnpm test` and not a `pnpm verify` step of its own: nothing gates

@@ -3,6 +3,8 @@ import { MARKET_CALENDAR_RANGE, marketWallClockAt } from "@marketpulse/shared";
 
 import { cx } from "../../cx.js";
 import type { MarketClockReading } from "../../use-market-clock.js";
+import { Marker } from "../Marker/Marker.js";
+import type { MarkerShape } from "../Marker/Marker.js";
 import styles from "./MarketClock.module.css";
 
 // The market clock, and the first thing on this product's screen that is
@@ -124,6 +126,7 @@ function render(session: MarketSessionState | null): {
   readonly word: string;
   readonly detail: string;
   readonly className: string | undefined;
+  readonly shape: MarkerShape;
 } {
   if (session === null) {
     return {
@@ -136,6 +139,10 @@ function render(session: MarketSessionState | null): {
       // corrects this line for free.
       detail: `Trading calendar ends ${MARKET_CALENDAR_RANGE.lastDate}`,
       className: styles.unknown,
+      // `dashed` reads as "not yet" rather than as a state, which is exactly
+      // what this rendering is — `BackendIndicator`'s `checking` placeholder
+      // uses it for the same reason.
+      shape: "dashed",
     };
   }
 
@@ -144,6 +151,7 @@ function render(session: MarketSessionState | null): {
       word: "open",
       detail: sessionDetail(session),
       className: styles.open,
+      shape: "disc",
     };
   }
 
@@ -151,6 +159,9 @@ function render(session: MarketSessionState | null): {
     word: SESSION_WORD,
     detail: sessionDetail(session),
     className: styles.closed,
+    // Hollow, and the same colour as `open`. The shape is the whole difference,
+    // which is what survives greyscale.
+    shape: "ring",
   };
 }
 
@@ -228,7 +239,7 @@ function pad(value: number): string {
 export function MarketClock({ reading }: MarketClockProps) {
   const { time, session } = reading;
   const clock = `${pad(time.hour)}:${pad(time.minute)}:${pad(time.second)}`;
-  const { word, detail, className } = render(session);
+  const { word, detail, className, shape } = render(session);
 
   return (
     <div className={styles.clock}>
@@ -253,7 +264,7 @@ export function MarketClock({ reading }: MarketClockProps) {
           renders. Caught in the workshop, on the one permutation the running
           application cannot be put into on an ordinary day. */}
       <span className={cx(styles.state, className)}>
-        <span aria-hidden="true" className={styles.marker} />
+        <Marker shape={shape} />
         <span className={styles.label}>{word}</span>
       </span>
       <span className={styles.detail}>{detail}</span>

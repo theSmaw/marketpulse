@@ -3,14 +3,20 @@
  * not one literal colour, length, weight or font here — every declaration reads
  * a token.
  *
- * It is the **third** component to hold the indicator language by imitation:
- * a marker whose shape carries the state, a lowercase letterspaced word beside
- * it, and a sentence hanging under the word. `BackendIndicator` stated the cost
- * of that convention when it was the second — a change to the marker idiom is
- * now three edits — and this is that cost arriving rather than a surprise. It
- * is still cheaper than a shared component with a `variant` prop, because the
- * three report facts that have nothing to do with each other and the day one of
- * them needs a different silhouette the other two must not follow.
+ * It was the **third** component to hold the indicator language by imitation,
+ * and being the third is what ended the imitation: `BackendIndicator` had stated
+ * the cost when it was the second — a change to the marker idiom meant editing
+ * every copy — and three is where two similar things become a pattern. The
+ * geometry and the four silhouettes live in `components/Marker` now.
+ *
+ * **What did not move is the `variant`-prop status indicator that was rejected
+ * twice, and it is still rejected**: the three report facts that have nothing to
+ * do with each other, so each keeps its own vocabulary, its own colours and its
+ * own state-to-shape table, and the day one of them needs a different silhouette
+ * the other two are free not to follow. What is left in this file is the
+ * *layout* around the marker, which genuinely is this component's own — see
+ * `.state` below, the one place it diverges from the two indicators to its
+ * left.
  *
  * Nothing here is `--status-error` red and nothing is green. A closed market is
  * what the market does for two-thirds of every week — see the market-session
@@ -95,69 +101,33 @@
 }
 
 /*
- * The marker. Same 8px circle, same optical-centre nudge and same
- * `box-sizing: border-box` as the two indicators to the left — there is no
- * global `box-sizing` in `base.css`, checked rather than assumed, and the one
- * marker here that uses a real border would otherwise be a pixel larger.
+ * --- The three renderings, as a colour each ---
  *
- * **This is the one place motion is used**, and it is used on a *state change*
- * rather than on a value change. That distinction is the whole of Task 2.4.4's
- * motion note: a digit changing sixty times a minute must not animate, and the
- * market opening — which happens twice a day and is the thing this region
- * exists to report — should read as a transition rather than as a silent swap.
- * `settle` rather than `quick`, because nothing is under the pointer.
+ * The geometry and the silhouettes live in `components/Marker`: this component
+ * was the **third** to copy them by hand, which is what tipped the extraction.
+ * What stays here is what is this component's own — which colour, and (in
+ * `MarketClock.tsx`) which shape.
  *
- * `prefers-reduced-motion` is answered once, at the token layer, by setting
- * both durations to `0ms`. A transition of `0ms` still ends in the same final
- * state, so nothing is left half-played and there is no media query here — that
- * is the entire reason the durations are tokens.
+ * `--marker-color` is a custom property because it inherits: it is set on the
+ * element carrying the state class and read by the `Marker` inside it.
+ *
+ * All three are the **same value**, which is stronger than the two indicators to
+ * the left manage: nothing about the market's session is carried by colour at
+ * all, only by silhouette. A closed market is what the market does for
+ * two-thirds of every week and colouring it would say otherwise.
  */
-.marker {
-  flex: none;
-  width: var(--space-8);
-  height: var(--space-8);
-  border-radius: 50%;
-  transform: translateY(-1px);
-  box-sizing: border-box;
-  transition:
-    background-color var(--motion-duration-settle) var(--motion-ease-standard),
-    box-shadow var(--motion-duration-settle) var(--motion-ease-standard),
-    border-color var(--motion-duration-settle) var(--motion-ease-standard);
+.open {
+  --marker-color: var(--market-open);
 }
 
-/* --- The three markers, each a different silhouette --- */
-
-/* Filled: the market is trading. The ordinary state, and the same grey as
-   `closed` — the two differ by shape alone, which is what survives greyscale. */
-.open .marker {
-  background: var(--market-open);
+.closed {
+  --marker-color: var(--market-closed);
 }
 
-/* Hollow. */
-.closed .marker {
-  background: none;
-  box-shadow: inset 0 0 0 var(--border-width) var(--market-closed);
+.unknown {
+  --marker-color: var(--market-unknown);
 }
 
-/*
- * Not a market state — what a clock past the trading calendar's covered range
- * renders. Dashed rather than hollow so it is not mistaken for `closed` at a
- * glance, which is `BackendIndicator`'s `checking` placeholder idiom reused for
- * the same reason: this is the one rendering here saying nothing about the
- * market at all.
- *
- * `box-shadow` cannot be dashed, so this is the one marker with a real border —
- * which is what `box-sizing: border-box` above exists for.
- */
-.unknown .marker {
-  background: none;
-  border: var(--border-width) dashed var(--market-unknown);
-}
-
-/* It recedes, for the reason above. `--ink-secondary` and not
-   `--ink-disabled`: axe measured that at 2.09:1 at this size against the page
-   ground where 4.5 is the threshold, on this exact idiom in Task 1.12.4.
-   Receding is a job for weight and hierarchy, never for ink below the floor. */
 .unknown .label {
   color: var(--ink-secondary);
 }

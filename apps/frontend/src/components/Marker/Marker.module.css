@@ -1,0 +1,112 @@
+/*
+ * The marker's geometry and its four silhouettes. No colour: that arrives as
+ * `--marker-color` from whichever element carries the consumer's state class.
+ *
+ * Every value here reads a token, as everywhere else — the 8px is `--space-8`
+ * from the spacing grid rather than a size invented for a dot, which is what
+ * keeps it in proportion with the micro-label beside it when either moves.
+ */
+
+.marker {
+  /*
+   * **It has to give itself a box, and finding that out is what the workshop is
+   * for.** All three components this was extracted from put their marker inside
+   * an `inline-flex` or `inline-grid` parent, which blockifies a child and makes
+   * `width` and `height` apply — so for as long as the rule lived in each of
+   * them, the declaration was genuinely unnecessary and its absence was
+   * invisible.
+   *
+   * As a shared primitive that is an unstated contract on every future call
+   * site, and the first one to break it was this component's own stories file:
+   * a plain `<span>` wrapper left all four silhouettes as zero-size inline boxes
+   * — nothing on screen but a 1px scratch where the dashed border was. A
+   * component that only works inside a flex container should say so or stop
+   * needing to, and this is cheaper than saying so.
+   */
+  display: inline-block;
+
+  /* Three of the four consumers put this in a flex row, where an 8px box would
+     otherwise be allowed to shrink. Kept: `display` decides whether the box
+     exists, `flex` decides whether it survives. */
+  flex: none;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: 50%;
+
+  /* `align-items: baseline` puts a box on the text's baseline; a dot beside a
+     word wants its optical centre. One pixel, and it is the difference between
+     the marker sitting on the line and sitting in it. */
+  transform: translateY(-1px);
+
+  /* So the one silhouette that uses a real border is the same size on screen as
+     the three that do not. There is no global `box-sizing: border-box` in
+     base.css — checked rather than assumed. */
+  box-sizing: border-box;
+
+  /*
+   * **Motion on a state CHANGE, which is the distinction Task 2.4.4's tokens
+   * exist for**: a silhouette morphing from hollow to solid is a transition, and
+   * a digit changing sixty times a minute is not.
+   *
+   * It lives here rather than in one consumer, and that is a small behaviour
+   * change made deliberately when the three markers became one component: the
+   * alternative was a `className` escape hatch on a primitive, which is how a
+   * primitive stops being one. What it buys elsewhere is real — the backend
+   * indicator's `checking → healthy` on every page load stops being a silent
+   * swap, which is PRODUCT_SPEC.md §5.6's "it must feel alive" on the one
+   * element that changes.
+   *
+   * `settle` rather than `quick` because nothing here is under the pointer, and
+   * `prefers-reduced-motion` is answered once at the token layer by setting both
+   * durations to `0ms` — so there is no media query in this file and a consumer
+   * cannot forget one.
+   */
+  transition:
+    background-color var(--motion-duration-settle) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-settle) var(--motion-ease-standard),
+    border-color var(--motion-duration-settle) var(--motion-ease-standard);
+}
+
+/*
+ * --- The four silhouettes ---
+ *
+ * They are told apart by **shape** and never by colour, which is the rule the
+ * whole marker language exists to keep: under `grayscale(1)` this palette's
+ * positive green and negative red are 1.05:1 apart, so a state carried by hue
+ * alone is a state that disappears. Two of the four consumers use the same grey
+ * for two different states and rely entirely on this file to distinguish them.
+ */
+
+/* Solid. */
+.disc {
+  background: var(--marker-color);
+}
+
+/* Hollow — an inset shadow rather than a border, so it needs no box-sizing of
+   its own and cannot disagree with `.disc` about the rendered diameter. */
+.ring {
+  background: none;
+  box-shadow: inset 0 0 0 var(--border-width) var(--marker-color);
+}
+
+/*
+ * Dashed. `box-shadow` cannot be dashed, so this is the one silhouette with a
+ * real border — which is what `box-sizing: border-box` above is for.
+ *
+ * It reads as "not yet" rather than as a state: both consumers use it for a
+ * rendering that is saying nothing about the thing it sits beside.
+ */
+.dashed {
+  background: none;
+  border: var(--border-width) dashed var(--marker-color);
+}
+
+/* Solid, square. The documented exception to the circle, and the reason it
+   exists is that `BackendIndicator`'s `degraded` is its one amber state — the
+   silhouette has to carry that on its own, because the colour must never have
+   to. `--radius` like every other rectangle here rather than a second corner
+   value. */
+.square {
+  background: var(--marker-color);
+  border-radius: var(--radius);
+}
