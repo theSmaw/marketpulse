@@ -31,8 +31,12 @@ in Story 2.12**, where the price chart's time axis is correct because this story
 
 **The one thing it may make visible early**: the chrome has carried a reserved
 `--:--:-- ET` market clock since Story 1.5, and this is the first story with any opinion
-about market time. Whether that clock starts working here or waits for Epic 3's live feed is
-an open decision below, and it is the cheapest visible win available in this epic.
+about market time. ~~Whether that clock starts working here or waits for Epic 3's live feed
+is an open decision below~~ — **settled 2026-09-06 when this story was split: it starts
+working here, at Task 2.5.5**, because a clock needs a timezone and a session definition and
+neither of those is Epic 3's. So the paragraph above is true of five of the six tasks rather
+than of the story: **Task 2.5.5 puts a live market clock and the session state in the header
+on every route**, and it is the cheapest visible win available in this epic.
 
 ## Why it sits here in the sequence
 
@@ -64,8 +68,16 @@ anything that fetches or renders a time series.
 - The replay clock itself, its controls and its state — Epic 13
 - Enforcing temporal isolation in queries — Epic 13, but this story is what makes it
   possible to express
-- Any UI — Story 2.13 consumes this, and the header's reserved market-clock region stays
-  reserved (Epic 3 fills it)
+- ~~Any UI — Story 2.13 consumes this, and the header's reserved market-clock region stays
+  reserved (Epic 3 fills it)~~ — **corrected 2026-09-06, when this story was split into
+  tasks.** That line contradicted this file's own "What the user can see" section, which
+  calls the clock an open decision and the cheapest visible win in the epic. The
+  contradiction is resolved in favour of shipping it: a clock is a fact about the
+  **calendar** rather than about the data feed, so it needs a timezone and a session
+  definition and none of Epic 3's live feed. **Task 2.5.5 fills the region.** What remains
+  Epic 3's is unchanged and must not be quietly absorbed — the feed indicator beside it,
+  the `LIVE` state, and anything claiming data is arriving. Story 2.13 still consumes the
+  session functions for its window control
 
 ## Open decisions — settle with the user
 
@@ -90,6 +102,32 @@ anything that fetches or renders a time series.
 3. "The last N sessions" is expressible and returns sessions, not calendar days
 4. Where the calendar came from is recorded, and staleness has a stated failure mode
 5. `pnpm verify` passes; these are fast unit tests with no database and no network
+
+## Tasks
+
+Tackled in order. The story is complete when all six are done.
+
+2.5.1 decides and ships nothing, which is the shape Tasks 2.1.1, 2.2.1 and 2.3.1 set. 2.5.2
+and 2.5.3 are independent of each other and both feed 2.5.4 — the **boundary** (one place
+converts) and the **data** (which days are which), kept apart because they fail differently:
+a wrong date in the table is wrong on one day a year, a wrong conversion is wrong twice a
+year for everything. 2.5.4 is the task the story exists for and is where the named dates are
+asserted. 2.5.5 spends it on the visible thing and is the only task here a stakeholder can
+see. 2.5.6 closes the story and records ADR 0017.
+
+**The ordering has one property worth stating: every task before 2.5.5 is invisible, and the
+story says so plainly rather than apologising for it.** What makes that acceptable is that
+2.5.5 is not deferred polish — it is the fifth of six, it needs nothing from outside this
+story, and the space it fills has been reserved in the chrome since Story 1.5.
+
+| #     | Task                                                                                                                                                | Status      |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 2.5.1 | [Choose the calendar source, the session definition and the clock's shape, shipping nothing](TASK-01-choose-the-calendar-source-and-the-session.md) | Not started |
+| 2.5.2 | [The one conversion boundary: UTC in, market time out](TASK-02-the-timezone-boundary.md)                                                            | Not started |
+| 2.5.3 | [The calendar as data: holidays, half days, provenance and staleness](TASK-03-the-calendar-data.md)                                                 | Not started |
+| 2.5.4 | [The session functions, and the named dates that prove them](TASK-04-the-session-functions.md)                                                      | Not started |
+| 2.5.5 | [The clock seam, and the header's reserved region starts working](TASK-05-the-market-clock-on-screen.md)                                            | Not started |
+| 2.5.6 | [Verify, document, and ADR 0017](TASK-06-verify-document-and-adr.md)                                                                                | Not started |
 
 ## What this story hands forward
 
