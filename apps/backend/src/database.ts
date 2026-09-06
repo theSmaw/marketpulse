@@ -23,13 +23,30 @@
 // which is already the file that owns the process's resources, and closed by
 // the shutdown path in the same file.
 //
-// The reversal trigger is a route that needs data — Story 2.9's — at which
-// point the pool enters `ServerOptions` beside `corsOrigin`, and the argument
-// ADR 0002 §3 records applies: the first `await` inside the factory changes
-// every caller. Note that nothing here forces one. `new Pool()` is lazy and
-// synchronous; it opens no socket until something asks it for a client, which
-// is why constructing it cannot fail and why the reachability question needs an
-// explicit probe rather than a `try` around the constructor.
+// **That reversal trigger was named as "a route that needs data — Story 2.9's",
+// and Story 2.4 took the universe endpoints from 2.9 and did not fire it.**
+// Task 2.4.2's `GET /securities` is that route, and the trigger turned out to
+// be unreachable as written rather than declined: the route needs a
+// `SecuritiesRepository`, the repository is built over this pool, and this
+// function takes a `DatabaseLogger` — of which the only instance in this
+// application is `app.log`, which `buildServer()` has to have returned to
+// exist. `pino` is not importable from this package (pnpm's strict linking
+// hides it; it arrives transitively through Fastify), so there is no second
+// logger to break the cycle with. `ServerOptions.securities` would therefore
+// have to be a closure over a binding assigned on the following line, or a
+// `createSecurities(log)` callback out of which `index.ts` recovers the pool in
+// order to close it. `routes/securities.ts` records all three rejections.
+//
+// So the trigger is **restated rather than deleted**, and it now names a
+// condition rather than a story: what would fire it is the repository becoming
+// constructible without the application's logger, or a route that must exist
+// before the pool does. On that day the pool (or the repository) enters
+// `ServerOptions` beside `corsOrigin` and the argument ADR 0002 §3 records
+// applies: the first `await` inside the factory changes every caller. Note that
+// nothing here forces one. `new Pool()` is lazy and synchronous; it opens no
+// socket until something asks it for a client, which is why constructing it
+// cannot fail and why the reachability question needs an explicit probe rather
+// than a `try` around the constructor.
 
 import pg from "pg";
 import type { PoolConfig } from "pg";

@@ -47,7 +47,11 @@
 import { Kysely, PostgresDialect } from "kysely";
 import type pg from "pg";
 
-import { isSecurity, type Security } from "@marketpulse/shared";
+import {
+  isSecurity,
+  type SecuritiesProvenance,
+  type Security,
+} from "@marketpulse/shared";
 
 import type { Database, SecuritiesTable } from "./schema.js";
 
@@ -73,6 +77,24 @@ const SECURITY_COLUMNS = [
   "industry",
   "status",
   "cik",
+] as const satisfies readonly (keyof SecuritiesTable)[];
+
+/**
+ * The provenance columns, which are deliberately **not** in
+ * {@link SECURITY_COLUMNS}.
+ *
+ * `Security` carries no provenance — its own header lists it among what is
+ * absent — so these are read by a second function rather than widened into the
+ * first. Only the two field groups that have a source: `identity` (`cik`) is
+ * Epic 9's and has no stored pair, and `ours` (`kind`, `status`) is a judgement
+ * rather than a retrieval, so a `retrieved_at` on it would be a timestamp
+ * pretending to be evidence.
+ */
+const PROVENANCE_COLUMNS = [
+  "profile_source",
+  "profile_retrieved_at",
+  "classification_source",
+  "classification_retrieved_at",
 ] as const satisfies readonly (keyof SecuritiesTable)[];
 
 /**
@@ -202,6 +224,30 @@ export interface SecuritiesRepository {
    * that would disappear is exactly the row Story 2.4 renders as untracked.
    */
   listSecurities(): Promise<readonly Security[]>;
+
+  /**
+   * The **distinct** provenance records across the whole table — where these
+   * securities came from and when we asked.
+   *
+   * A set rather than a value, and that is the whole design. The wire contract
+   * puts provenance on the envelope, which is a claim about *every* security in
+   * the response; that claim is true exactly when this returns one element.
+   * Zero means an empty table and nothing to attribute. More than one means the
+   * rows disagree — which is not a fault, it is **Story 2.7 arriving**, filling
+   * the profile fields from Alpaca while classification stays curated — and the
+   * caller's job then is to stop making a claim it cannot support rather than to
+   * pick a row. Collapsing that here, into a "the" provenance, would hide the
+   * one condition anybody needs to see.
+   *
+   * **It is a second query and not a widening of {@link listSecurities}**, and
+   * the cost of that is stated rather than hidden: the two run outside a
+   * transaction, and Postgres gives each statement its own snapshot under READ
+   * COMMITTED, so a `pnpm universe` landing between them could pair a list with
+   * the previous load's dates. The window is milliseconds, the values are
+   * per-load dates that move about once a quarter, and the alternative is
+   * `REPEATABLE READ` around a page's footnote. Recorded, accepted.
+   */
+  listSecuritiesProvenance(): Promise<readonly SecuritiesProvenance[]>;
 }
 
 /**
@@ -248,6 +294,39 @@ export function createSecuritiesRepository(
         .execute();
 
       return rows.map(toSecurity);
+    },
+
+    async listSecuritiesProvenance() {
+      const rows = await db
+        .selectFrom("securities")
+        .select(PROVENANCE_COLUMNS)
+        // `distinct` over the four columns rather than a `group by`, because the
+        // question is "how many different answers are there", not "how many rows
+        // give each". One round trip either way; this one says what it means.
+        .distinct()
+        // Total, so a table that does disagree hands its caller a stable order
+        // to report rather than whatever the plan produced. It cannot matter
+        // while there is one row and it costs nothing.
+        .orderBy("profile_source")
+        .orderBy("profile_retrieved_at")
+        .orderBy("classification_source")
+        .orderBy("classification_retrieved_at")
+        .execute();
+
+      // `Date` to an ISO 8601 instant here rather than at the route, because
+      // this is the boundary where a driver's representation becomes a domain
+      // one — the same job `toSecurity` does for a row. JSON has no date type,
+      // and epoch milliseconds is a number nobody can read in a response body.
+      return rows.map((row) => ({
+        profile: {
+          source: row.profile_source,
+          retrievedAt: row.profile_retrieved_at.toISOString(),
+        },
+        classification: {
+          source: row.classification_source,
+          retrievedAt: row.classification_retrieved_at.toISOString(),
+        },
+      }));
     },
   };
 }

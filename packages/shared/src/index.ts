@@ -47,6 +47,18 @@ export type {
   SecurityStatus,
 } from "./security.js";
 
+// The wire contract for GET /securities (Task 2.4.2). A separate file from
+// security.ts on purpose: that one says what a security IS and every epic reads
+// it, this one says what one RESPONSE looks like and only the two ends of this
+// API do. There is deliberately no `isSecuritiesResponse` yet — Task 1.7.3's
+// rule is that a predicate ships with its first reader, which is Task 2.4.3's
+// frontend, and `isSecurity` beside it is already the hard half.
+export type {
+  FieldGroupProvenance,
+  SecuritiesProvenance,
+  SecuritiesResponse,
+} from "./securities-response.js";
+
 // The wire contract with the API: the shape every error response takes, and the
 // name of the header that correlates any response with its log records. Both
 // are here for the same reason — the backend writes them and Story 1.12's

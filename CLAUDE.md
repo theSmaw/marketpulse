@@ -487,6 +487,39 @@ apps/
                                    deliberately not shared, and it now declares
                                    `enum: HEALTH_STATUSES` rather than a second
                                    literal ["ok"]
+    src/routes/securities.ts       GET /securities (Task 2.4.2) — the THIRD route
+                                   and the first that returns DATA. Takes the
+                                   SecuritiesRepository interface rather than a
+                                   pool, so it never learns there is a driver and
+                                   a test drives every branch over a stub.
+                                   The envelope is an object and not a bare
+                                   array, because there is already one thing true
+                                   of the LIST rather than of a row — where it
+                                   came from. No `count` (without pagination
+                                   `securities.length` IS the count, and the
+                                   rows-versus-tracked distinction belongs to
+                                   whoever makes the claim on screen), no page
+                                   size (101 securities are 17,299 B / 2,591
+                                   gzipped, so §6's 500 is ~13 kB on the wire —
+                                   the thing that reaches 500 without an edit is
+                                   NO number rather than a bigger one), and no
+                                   search parameter, which is Story 2.11's open
+                                   decision to settle.
+                                   The `satisfies` guard is applied THREE times —
+                                   envelope, security, provenance record —
+                                   because it checks top-level keys and does not
+                                   reach into a nested object. Nothing forces the
+                                   second and third.
+                                   Registered from index.ts like the diagnostic,
+                                   and NOT from buildServer(): the repository
+                                   needs the pool, the pool needs `app.log`, and
+                                   `pino` is not importable here — so
+                                   `ServerOptions.securities` is an argument that
+                                   cannot exist before the call it is an argument
+                                   to. Three ways out are recorded and rejected.
+                                   What closes the cost instead is server.test.ts,
+                                   whose route-table walk now registers what
+                                   index.ts registers
     src/routes/diagnostics.ts      GET /diagnostics/database (Task 2.1.7), and
                                    the answer to Story 2.1's fourth open
                                    decision: `/health` says NOTHING about the
@@ -814,6 +847,19 @@ packages/
                                    a value the interface renders
     src/request-id.ts              REQUEST_ID_HEADER and nothing else. The name
                                    both apps must import rather than spell
+    src/securities-response.ts     the /securities wire contract (Task 2.4.2).
+                                   A separate file from security.ts on purpose:
+                                   that one says what a security IS and every
+                                   epic reads it, this says what one RESPONSE
+                                   looks like and only the two ends of this API
+                                   do. Provenance rides on the ENVELOPE, keyed by
+                                   field group, and it is OPTIONAL — absent means
+                                   the list is empty, or the rows no longer agree
+                                   and the claim is therefore not made. Story
+                                   2.7 is what breaks the agreement. No
+                                   `isSecuritiesResponse` yet: Task 1.7.3's rule
+                                   is that a predicate ships with its first
+                                   reader, which is Task 2.4.3
     src/health.ts                  the /health wire contract (Task 1.12.1):
                                    HEALTH_STATUSES, HealthStatus,
                                    HealthResponse and isHealthResponse(). The
@@ -1172,10 +1218,10 @@ pnpm image         # builds the backend's linux/amd64 container image. NOT part 
                    # scripts/build-image.mjs rather than a one-liner: a clean tree gets the
                    # bare short SHA, a DIRTY tree gets `<sha>-dirty` and a warning not to push
                    # it, and MARKETPULSE_IMAGE_TAG overrides both (Task 1.11.6's door)
-pnpm test          # real in all three packages — 287 tests (55 + 129 + 103). Fast: no build, no socket
+pnpm test          # real in all three packages — 304 tests (55 + 146 + 103). Fast: no build, no socket
 pnpm test:process  # the backend's process half — 14 tests spawning dist/index.js (Tasks 1.10.5, 2.1.4).
                    # A verify step in its own right; ~7.6 s, of which 5 s IS the shutdown ceiling
-pnpm test:database # the SIXTH level of test (Task 2.2.5). 55 tests in ~1.0 s against a REAL
+pnpm test:database # the SIXTH level of test (Task 2.2.5). 61 tests in ~1.1 s against a REAL
                    # PostgreSQL server, under apps/backend/vitest.database.config.ts — a THIRD
                    # config in that package, because a database-backed test breaks all three of
                    # `pnpm test`'s stated properties at once (fast, no build, no socket). NOT a
@@ -1221,9 +1267,9 @@ pnpm format:check  # prettier --check .
 # Working on one package — the same six verbs, meaning the same thing:
 pnpm --filter @marketpulse/shared build       # or typecheck / lint / lint:fix / test
 pnpm --filter @marketpulse/shared test        # vitest run — 55 tests, 5 files
-pnpm --filter @marketpulse/backend test       # vitest run — 129 tests, 8 files
+pnpm --filter @marketpulse/backend test       # vitest run — 146 tests, 10 files
 pnpm --filter @marketpulse/backend run test:process   # vitest run --config vitest.process.config.ts — 14 tests
-pnpm --filter @marketpulse/backend run test:database  # vitest run --config vitest.database.config.ts — 55 tests
+pnpm --filter @marketpulse/backend run test:database  # vitest run --config vitest.database.config.ts — 61 tests
 pnpm --filter @marketpulse/frontend test      # vitest run — 103 tests, 12 files
 pnpm --filter @marketpulse/backend coverage   # one package's report
 
@@ -1256,7 +1302,7 @@ Every package exposes `dev`, `build`, `test`, `lint`, `typecheck`, `clean` and t
 
 **`clean` is the one verb that needs an explicit `run` when filtered, and this is a trap with teeth.** `pnpm clean` is a _built-in pnpm 11 command_ (alias `purge`) that removes `node_modules` from every workspace project. pnpm runs a `clean` script instead of the built-in only when the current project has one — which the root does, so root `pnpm clean` correctly runs `tsc -b --clean`. But `pnpm --filter <pkg> clean` dispatches to the built-in and fails with `[ERROR] Unknown option: 'recursive'` (exit 1), because `--filter` implies `--recursive` and the built-in takes no such flag. Verified in Task 1.2.6 for all three packages; the documented one-liner used to list `clean` alongside the other verbs and was simply wrong. **`pnpm --filter <pkg> run clean` works.** The failure is loud and deletes nothing, but do not "fix" it by dropping the root's `clean` script, which is the only thing shadowing a command that deletes `node_modules`.
 
-**A green `pnpm test` finally means something, and it means exactly this: ~~118~~ ~~137~~ ~~160~~ ~~170~~ ~~183~~ ~~189~~ ~~207~~ ~~218~~ ~~229~~ ~~239~~ ~~246~~ **287** tests pass.** `packages/shared` runs ~~37 across 4 files~~ **55 across 5** — it was 7 across 2 until Task 1.12.1 moved the health contract here, and 26 until Task 1.12.2 added `isApiError` beside the shape it checks — `apps/backend` ~~106 across 7~~ **129 across 8** — it was 49 across 3 until Task 2.1.4 added the pool's eleven, 67 across 4 until Task 2.1.6 added `entra-token.test.ts`'s ten and one more on the pool, 78 across 5 until Task 2.1.7 added the diagnostic route's six and the cached check's five, and 89 across 6 until Task 2.2.2 added the migration mechanism's ten — and `apps/frontend` **103 across 12** (Task 1.11.5 added 15 over the API base URL and the health probe; Task 1.12.2 re-homed most of those onto the client and took the package to 74; Task 1.12.3 deleted the probe's four and added 14 for the polling hook, taking it to 84; Task 1.12.4's status indicator added 13, taking it to 97; Task 1.12.5's wiring added 6 — two on the header, four on `App` — taking it to 103), and each exits 1 when one fails — demonstrated by breaking one in each package rather than reasoned about, with the root exit code 1 every time. The "a green tick means no tests exist" warning that stood in three places through Task 1.9.3 is gone from all three in this same change — here, in `README.md` and in ADR 0001 §5. Story 1.9 planned that removal for Task 1.9.7 to avoid an inconsistent set between tasks; the three became false **simultaneously**, the moment the last placeholder went, so removing them together here _is_ the one change, and leaving two false warnings standing for three more tasks would be the exact failure the triplication was set up to avoid. What a green tick still does **not** mean is coverage — `pnpm coverage` is the separate command that measures it. And `pnpm test` still does not reach the backend's process half at all: that is `pnpm test:process`, ten more tests under a second runner in the same package (Task 1.10.5), and both are steps in `pnpm verify`. **Task 1.9.7 checked that nothing reintroduced the warning and found the count was wrong in the other direction: it stood in thirteen places, not three.** The eleven verbatim "Conventions from Story 1.1" blocks in Epic 1's story files carried it, as did `EPIC.md` itself and Story 1.10's own notes — all of them amended in one change, with the original struck through rather than deleted, exactly as the `dev`-placeholder correction was in Task 1.3.3. The transferable half: **a sentence duplicated for legibility has to be counted with a grep before it can be corrected**, and the count that was written down was of the places somebody remembered. **Task 1.10.8 ran the same sweep and it caught the same class of drift one story later.** The eleven blocks are not eleven copies of one sentence: nine are byte-identical, and Stories 1.2 and 1.3 carry their own historical strike-throughs, so a hash comparison is the way to read them rather than a diff. What the comparison found is that **eight of them still said the backend's process half is unreachable by any runner** — false since Task 1.10.5, and amended only in Story 1.10's own copy at the time. All eight are amended here in one change, struck through rather than deleted. The rule the sweep exists for is now proven twice: **an amendment made in the copy you are editing is not an amendment to the convention.**
+**A green `pnpm test` finally means something, and it means exactly this: ~~118~~ ~~137~~ ~~160~~ ~~170~~ ~~183~~ ~~189~~ ~~207~~ ~~218~~ ~~229~~ ~~239~~ ~~246~~ ~~287~~ **304** tests pass.** `packages/shared` runs ~~37 across 4 files~~ **55 across 5** — it was 7 across 2 until Task 1.12.1 moved the health contract here, and 26 until Task 1.12.2 added `isApiError` beside the shape it checks — `apps/backend` ~~106 across 7~~ ~~129 across 8~~ **146 across 10** — it was 49 across 3 until Task 2.1.4 added the pool's eleven, 67 across 4 until Task 2.1.6 added `entra-token.test.ts`'s ten and one more on the pool, 78 across 5 until Task 2.1.7 added the diagnostic route's six and the cached check's five, and 89 across 6 until Task 2.2.2 added the migration mechanism's ten — and `apps/frontend` **103 across 12** (Task 1.11.5 added 15 over the API base URL and the health probe; Task 1.12.2 re-homed most of those onto the client and took the package to 74; Task 1.12.3 deleted the probe's four and added 14 for the polling hook, taking it to 84; Task 1.12.4's status indicator added 13, taking it to 97; Task 1.12.5's wiring added 6 — two on the header, four on `App` — taking it to 103), and each exits 1 when one fails — demonstrated by breaking one in each package rather than reasoned about, with the root exit code 1 every time. The "a green tick means no tests exist" warning that stood in three places through Task 1.9.3 is gone from all three in this same change — here, in `README.md` and in ADR 0001 §5. Story 1.9 planned that removal for Task 1.9.7 to avoid an inconsistent set between tasks; the three became false **simultaneously**, the moment the last placeholder went, so removing them together here _is_ the one change, and leaving two false warnings standing for three more tasks would be the exact failure the triplication was set up to avoid. What a green tick still does **not** mean is coverage — `pnpm coverage` is the separate command that measures it. And `pnpm test` still does not reach the backend's process half at all: that is `pnpm test:process`, ten more tests under a second runner in the same package (Task 1.10.5), and both are steps in `pnpm verify`. **Task 1.9.7 checked that nothing reintroduced the warning and found the count was wrong in the other direction: it stood in thirteen places, not three.** The eleven verbatim "Conventions from Story 1.1" blocks in Epic 1's story files carried it, as did `EPIC.md` itself and Story 1.10's own notes — all of them amended in one change, with the original struck through rather than deleted, exactly as the `dev`-placeholder correction was in Task 1.3.3. The transferable half: **a sentence duplicated for legibility has to be counted with a grep before it can be corrected**, and the count that was written down was of the places somebody remembered. **Task 1.10.8 ran the same sweep and it caught the same class of drift one story later.** The eleven blocks are not eleven copies of one sentence: nine are byte-identical, and Stories 1.2 and 1.3 carry their own historical strike-throughs, so a hash comparison is the way to read them rather than a diff. What the comparison found is that **eight of them still said the backend's process half is unreachable by any runner** — false since Task 1.10.5, and amended only in Story 1.10's own copy at the time. All eight are amended here in one change, struck through rather than deleted. The rule the sweep exists for is now proven twice: **an amendment made in the copy you are editing is not an amendment to the convention.**
 **Running one file or one test needs no `--`, and the plausible form that adds one is silently wrong (Task 1.9.6).** `pnpm --filter @marketpulse/backend test src/config.test.ts` is 1 file / 16 tests and `pnpm --filter @marketpulse/backend test -t "freezes what it returns"` is 1 passed / 48 skipped; both work identically from the package directory as `pnpm test <arg>`, and `pnpm t` is the same command again. Every form above was executed. Four things about it that were measured rather than assumed. **`test` is a pnpm built-in** — `t, test` in `pnpm help -a`, "runs a package's `test` script" — but unlike `clean` the built-in and the script do the same thing, so there is no collision and no `run` is needed; `--filter` and trailing arguments both reach `vitest` untouched, `--reporter=verbose` included, even though `--reporter` is also one of pnpm's own flags. **The path is relative to the package**, so `pnpm --filter @marketpulse/backend test apps/backend/src/config.test.ts` finds nothing — loudly, exit 1. **A bare substring is a path filter**, so `pnpm --filter @marketpulse/frontend test PriceChange` is the ergonomic form and matters most in `apps/frontend`, where a test sits under `src/components/<Name>/` and the path copied from a `packages/shared` example does not exist. And **root `pnpm test <path>` is not the way to narrow**: it is `pnpm -r run test`, so the path goes to all three packages and the two that lack it fail. Use `--filter`.
 
 **Two of those forms fail green, and that is the part to remember.** A **non-matching `-t`** reports "8 skipped | 47 skipped" and exits **0** — a typo in a test name looks like a pass. **`pnpm test -- -t "name"`** is worse: pnpm forwards the `--` literally, Vitest ignores the filter, all 49 tests run and it exits **0**, so the command reads as a successful narrow run and is a full one. Only a **non-matching path** is loud (`No test files found`, exit 1). The rule: after a `-t` run, read the skipped count, not the exit code. Related, and the same class of trap on the coverage side: `pnpm --filter @marketpulse/shared coverage src/api-error.test.ts` reports **20% against the full run's 30%**, because `coverage.include` fixes the denominator while the numerator shrinks — a single-file coverage number is not that file's coverage.
