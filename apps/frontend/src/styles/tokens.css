@@ -164,6 +164,38 @@
   --font-weight-strong: 600;
 
   /*
+   * The second family, and it is the first change to this document's
+   * typography since Story 1.4 (Task 2.4.4).
+   *
+   * VISUAL-LANGUAGE.md's decision 3 is "the system font stack, no webfont", and
+   * this does not reverse it: nothing is fetched, and the display and body faces
+   * are unchanged. What it adds is a *utility* face for the one category of
+   * string a proportional face genuinely damages — **a value a person is
+   * expected to transcribe or type back**. Two consumers, both on the securities
+   * page and both arriving in the same task:
+   *
+   *   - the correlation id beside a failure (`Reference: 3f1c…`), which is a
+   *     UUID somebody is being asked to quote, and
+   *   - the command in the empty state (`pnpm universe`), which is a thing
+   *     somebody is being asked to run.
+   *
+   * Neither is prose and neither is data in a column, so neither is served by
+   * the body face. `base.css` already sets `tabular-nums` globally, which fixes
+   * *column* alignment; it does nothing for `l` against `1` or `O` against `0`
+   * in a string with no column to align to, which is exactly what a mistyped
+   * UUID costs.
+   *
+   * **The rule that comes with it: this is not for numbers in tables.** A price,
+   * a change, a volume and an anomaly score are all set in the body face with
+   * tabular figures, which is that document's Numerals section and is not
+   * negotiable here. Reaching for mono to make a column look technical is the
+   * failure this comment exists to prevent.
+   */
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  /*
    * Size and line height are paired deliberately: they are never chosen
    * independently, and a size token without its line height is an invitation to
    * pick one by eye.
@@ -191,4 +223,59 @@
    * application"; a sentence-case grey label does not read the same way.
    */
   --letter-spacing-micro: 0.08em;
+
+  /*
+   * --- Motion (Task 2.4.4) ---
+   *
+   * **VISUAL-LANGUAGE.md said nothing at all about motion**, which for a market
+   * application is the largest gap in it: a screen that updates by silently
+   * swapping text is technically correct and reads as dead, and that is test 4
+   * of *The bar*. This is the thin first cut and deliberately not a system —
+   * two durations and one easing, because the securities page is the first
+   * screen in this product where content arrives asynchronously and something
+   * has to happen when it does.
+   *
+   * **Epic 3 owns the full vocabulary**, and waiting is the decision rather than
+   * the deferral: the hard question in this product is what happens when *a
+   * number changes*, and the honest answer is that a value which fades or slides
+   * while an analyst is reading it is worse than one that changes instantly. A
+   * vocabulary guessed here, against a table that arrives once and then sits
+   * still, would be guessed against the easy case and then inherited by the hard
+   * one.
+   *
+   *   - `quick` — a state change under the pointer. Fast enough that the
+   *     interface feels attached to the cursor rather than animated.
+   *   - `settle` — content arriving. Long enough to be seen as an arrival and
+   *     short enough that nobody waits for it.
+   *
+   * One easing, and it is asymmetric on purpose: fast out of the gate and slow
+   * into rest, which is what reads as something coming to a stop rather than
+   * something being tweened.
+   */
+  --motion-duration-quick: 120ms;
+  --motion-duration-settle: 240ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/*
+ * Reduced motion is answered **at the token layer**, once, rather than in every
+ * stylesheet that animates something.
+ *
+ * This is the whole reason the durations are tokens at all. A per-component
+ * `@media (prefers-reduced-motion: reduce)` block is a thing each future author
+ * has to remember, and the failure is silent — the animation simply plays for
+ * somebody who asked it not to. Here, a consumer that reads the tokens honours
+ * the preference by construction, and a consumer that hard-codes `240ms`
+ * instead is the only way to get it wrong.
+ *
+ * Zero rather than "smaller": a transition of `0ms` still ends in the same
+ * final state, and an animation of `0ms` does not run. So nothing disappears
+ * and nothing is left half-played — the interface simply arrives already
+ * arrived.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-quick: 0ms;
+    --motion-duration-settle: 0ms;
+  }
 }

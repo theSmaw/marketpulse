@@ -1,0 +1,529 @@
+/*
+ * The tracked universe (Task 2.4.4). Task 2.4.3 shipped the plainest honest
+ * version of this table and said so; this is the task that owes it a point of
+ * view, and PRODUCT_SPEC.md §5.6 makes that an acceptance criterion rather than
+ * polish.
+ *
+ * **Every declaration reads a token.** There is not a literal colour, length,
+ * duration or easing below except the two noted at their use — the skeleton's
+ * bar widths and the sticky heading's `z-index`, both of which are texture and
+ * stacking rather than design language, and neither of which has a ladder to
+ * belong to.
+ *
+ * --- What this page's identity actually rests on ---
+ *
+ * There is no brand hue and no distinctive typeface, so a table here is either
+ * carried by structure or it is a default admin panel with data in it. The
+ * three things doing the carrying, in order of how much they matter:
+ *
+ *   1. **The sector bands.** A near-black hairline above each group heading is
+ *      the reference's primary separator, and eleven of them down a page is the
+ *      shape of the universe rather than decoration on a list.
+ *   2. **The type hierarchy inside a row.** The ticker is the identity and is
+ *      set strong; the name is primary; the industry is secondary; the kind is
+ *      a micro-label, which is furniture and should read as furniture. Four
+ *      columns, four registers, no borders between them.
+ *   3. **Soft rules between rows, near-black between groups.** `--rule-soft` is
+ *      for repeated dividers and `--rule-hairline` for structure — reaching for
+ *      the grey one on a group boundary is the instinct that produces the
+ *      generic version of this screen.
+ */
+
+/* --- The summary line --- */
+
+/*
+ * The first sentence in this product that states a fact about our own data.
+ *
+ * Deliberately a **line of facts and not a row of stat tiles**: a big number
+ * over a small caption is what every dashboard reaches for, and it would put
+ * "there are 101 of something" in the largest type on a screen whose actual
+ * subject is the structure below it. The figures are strong and the words that
+ * say what they count are secondary, which is the whole emphasis this needs.
+ */
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  /* The middot separators are drawn between items rather than typed into the
+     strings, so a clause that is only sometimes present cannot leave a stray
+     one behind. */
+  align-items: baseline;
+  gap: var(--space-4) var(--space-16);
+  margin: 0 0 var(--space-20);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+.figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+/* Drawn between the clauses rather than typed into the strings, so a clause
+   that is only sometimes present cannot leave a stray separator behind. */
+.figure + .figure::before {
+  content: "·";
+  margin-right: var(--space-8);
+  color: var(--rule-soft);
+}
+
+/*
+ * The figure is set at subheading size against words at the product's dense
+ * default — VISUAL-LANGUAGE.md's "a large headline figure carries its label
+ * smaller" idiom, at a dense scale rather than a marketing one.
+ *
+ * It is deliberately not a row of stat tiles. Three boxes with a rule between
+ * them is what a dashboard reaches for first, and it would make the least
+ * interesting thing on this page — that there are 101 of something — the
+ * largest object on it, above a table whose actual subject is a structure.
+ */
+.figureValue {
+  color: var(--ink-primary);
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-subheading);
+  font-weight: var(--font-weight-strong);
+}
+
+/* --- The table --- */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+/*
+ * Column proportions. These are the one family of literals in this file besides
+ * the skeleton's texture, and they are the same category `MarketOverview`'s
+ * grid fractions already are: a proportion is layout rather than design
+ * language, and there is no token ladder for "38% of a table" to belong to.
+ *
+ * They exist because a `width: 100%` table with no proportions gives all of its
+ * slack to the last column boundary, so `Kind` drifts away from `Industry` and
+ * the row stops reading as one thing. The name and the industry share the room
+ * because they are the two columns that carry sentences.
+ */
+.colSymbol {
+  width: 9%;
+}
+
+.colName {
+  width: 38%;
+}
+
+.colIndustry {
+  width: 38%;
+}
+
+.colKind {
+  width: 15%;
+}
+
+/*
+ * The column headings, in the micro-label idiom the rest of the application
+ * uses for "what kind of thing is this" — so the table's furniture recedes and
+ * the data reads first.
+ *
+ * **They are deliberately not sticky, and that is a finding rather than an
+ * omission.** A 101-row table wants its column headings pinned, and
+ * `position: sticky; top: 0` here is *inert* — measured in a browser rather
+ * than reasoned about. `Region` declares `overflow: auto` so that a region
+ * sized by the landing route's grid scrolls its own content, and an ancestor
+ * with a scrolling overflow becomes the scrollport a sticky descendant is
+ * measured against. On this page that region is never height-constrained, so
+ * it never scrolls, so the headings have nowhere to stick to and simply travel
+ * up the page with everything else. The `overflow: auto` that does nothing to
+ * the layout here is what silently disables it.
+ *
+ * The three ways to get it back all cost more than it is worth: overriding a
+ * shared component's overflow from outside it, giving this page's region a
+ * bounded height and therefore a second scrollbar inside a page that already
+ * has one, or lifting the table out of `Region` and losing the landmark, the
+ * heading and the error boundary it is inside for. What stands in for it is
+ * the sector bands, which are the thing a reader is actually re-orienting
+ * against every ten rows.
+ */
+.heading {
+  padding: var(--space-8) var(--space-12);
+  text-align: left;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-regular);
+  border-bottom: var(--border-width) solid var(--rule-hairline);
+}
+
+/* --- The sector band: this page's signature --- */
+
+/*
+ * A group heading is a `<th scope="colgroup">` spanning the table, laid out as
+ * three parts: the sector, the claim about its benchmark, and how many rows are
+ * under it. It sits on the sunken ground under a near-black rule, which is the
+ * reference's own treatment for a table's structural header and is what makes
+ * eleven of these read as the shape of the universe rather than as eleven
+ * subheadings.
+ *
+ * The count is right-aligned and tabular, so the eleven of them form a column
+ * down the page a reader can compare at a glance — which is the coverage
+ * question this screen exists to answer, answered by alignment rather than by a
+ * chart.
+ */
+.group {
+  padding: var(--space-12);
+  /*
+   * The *page* ground rather than the sunken one, which is the warmest of the
+   * three and reads as the ground showing through the white table. The sunken
+   * grey is 1.03:1 against white and all but invisible at band size; the warm
+   * ground is what makes eleven of these read as the structure of the page
+   * rather than as eleven slightly-shaded rows.
+   */
+  background: var(--surface-page);
+  border-top: var(--border-width) solid var(--rule-hairline);
+  border-bottom: var(--border-width) solid var(--rule-soft);
+  text-align: left;
+  font-weight: var(--font-weight-regular);
+}
+
+/* The band's own layout. It is a child of the cell rather than the cell itself
+   because a `<th>` given `display: flex` stops being a table cell and its
+   `colspan` stops spanning. */
+.groupBand {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+}
+
+/* The first group sits directly under the column headings, which already carry
+   the near-black rule. Two of them stacked is a double line. */
+tbody:first-of-type .group {
+  border-top: none;
+}
+
+.groupName {
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  font-weight: var(--font-weight-strong);
+  letter-spacing: 0;
+}
+
+/*
+ * The benchmark claim — `Benchmark XLK` — and it is the one fact on this page
+ * that comes from the domain rather than from the database. `SECTOR_ETFS` is
+ * what says XLK is the yardstick Technology is measured against (Epic 5 reads
+ * the same table), and this is the first thing in the product to render it. It
+ * is set as a micro-label because it is a relationship rather than a value.
+ */
+.groupDetail {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+}
+
+/* Right-aligned so the eleven of them form a column down the page a reader can
+   compare at a glance — which is the coverage question this screen exists to
+   answer, answered by alignment rather than by a chart. Primary ink, because it
+   is the one figure in the band that is a measurement rather than a label. */
+.groupCount {
+  margin-left: auto;
+  color: var(--ink-primary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+/* --- Rows --- */
+
+.row {
+  /* `--rule-soft` for repeated dividers, per the token layer's own note. The
+     near-black one is reserved for the group boundaries above, and using it
+     here would stripe the page. */
+  border-bottom: var(--border-width) solid var(--rule-soft);
+  transition: background-color var(--motion-duration-quick)
+    var(--motion-ease-standard);
+}
+
+/*
+ * Hover tracks the eye across four columns on a 101-row table, which is what it
+ * is for rather than feedback — nothing here is clickable until Story 2.11.
+ * It is the ground rather than the ink, because changing the ink of a row under
+ * the pointer is a legibility change and this is a locator.
+ *
+ * `:hover` only: no `:focus-within`, because there is nothing focusable in a
+ * row yet. Story 2.11's click-through is what makes that a real state.
+ */
+.row:hover {
+  background: var(--surface-sunken);
+}
+
+/* The table's last row sits against the region's own hairline, and two rules a
+   pixel apart read as a mistake. */
+tbody:last-of-type .row:last-child {
+  border-bottom: none;
+}
+
+.cell {
+  padding: var(--space-8) var(--space-12);
+  text-align: left;
+  vertical-align: baseline;
+}
+
+/*
+ * The ticker is the row's identity and the only thing set strong.
+ *
+ * It is a `<th scope="row">` for the screen reader, so its heading weight has
+ * to be re-declared rather than inherited — `--font-weight-strong` here is a
+ * decision about emphasis and not a leftover from the element.
+ */
+.symbol {
+  font-weight: var(--font-weight-strong);
+  white-space: nowrap;
+}
+
+.industry {
+  color: var(--ink-secondary);
+}
+
+/*
+ * The kind, as a micro-label. It is the row's furniture rather than its data —
+ * "Company" is true of 86 of 101 rows — so it recedes, and the two that are not
+ * companies stand out by being different words in a column of the same one.
+ *
+ * This is the non-colour half of the kind encoding, and it is not the only
+ * half: an ETF's *position* says it too, since a sector ETF is the first row of
+ * its own sector and an index ETF is in a group that is not a sector at all.
+ */
+.kind {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/*
+ * A security we no longer track. **Information, not a failure** — see the
+ * component's comment and `UNIVERSE.md` §3.
+ *
+ * The whole row recedes to secondary ink, which is 6.66:1 on this ground and so
+ * is a hierarchy change rather than a legibility one. `--ink-disabled` would
+ * have been the instinct and is 2.32:1: that ink is for a control nobody can
+ * operate, and Task 1.12.4 already found it below the floor on exactly this
+ * kind of secondary label.
+ */
+.untracked .cell,
+.untracked .symbol {
+  color: var(--ink-secondary);
+}
+
+/*
+ * The chip. A hairline outline and no fill, so it cannot be read as a status
+ * badge — every filled chip in this product is an anomaly band, and a filled
+ * one here would put a security we stopped tracking on the same visual footing
+ * as an extreme market event.
+ */
+.chip {
+  display: inline-block;
+  margin-left: var(--space-8);
+  padding: 0 var(--space-4);
+  border: var(--border-width) solid var(--rule-soft);
+  border-radius: var(--radius);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* --- Motion: the one thing that arrives --- */
+
+/*
+ * The loaded table entering. It plays **once, before anybody is reading**,
+ * which is the line `tokens.css` draws around motion in this product: nothing
+ * animates a value that is already on screen, because a number that slides
+ * while an analyst reads it is worse than one that changes instantly.
+ *
+ * The rise is deliberately small. Four pixels reads as content settling; twenty
+ * reads as a slide transition, which is a marketing-site gesture and would be
+ * the first thing on this page a stranger identified as templated.
+ *
+ * Reduced motion is honoured with no rule here at all — the duration token
+ * resolves to `0ms` under the preference, so the animation does not run and the
+ * table is simply already arrived. That is the whole argument for putting the
+ * durations in the token layer.
+ */
+.entering {
+  animation: arrive var(--motion-duration-settle) var(--motion-ease-standard)
+    both;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-4));
+  }
+}
+
+/* --- The three states that are not a table --- */
+
+.state {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+.state p {
+  margin: 0;
+  max-width: 46rem;
+}
+
+.state p + p {
+  margin-top: var(--space-8);
+}
+
+/* The one sentence of each non-table state that is the answer, set in primary
+   ink so a reader gets it without reading the paragraph under it. */
+.stateHeadline {
+  color: var(--ink-primary);
+}
+
+/*
+ * The failure word, in `BackendIndicator`'s marker-plus-word language.
+ *
+ * That imitation is the point rather than an economy: the indicator in the
+ * chrome is reporting the same two conditions at the same moment, and a second
+ * visual vocabulary for one fact would read as two unrelated things going
+ * wrong. The cost is the one that component already records — the idiom is held
+ * by imitation in three stylesheets now, so a change to it means editing all
+ * three.
+ */
+.stateLabel {
+  display: inline-block;
+  margin-bottom: var(--space-8);
+  color: var(--ink-primary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+}
+
+.marker {
+  display: inline-block;
+  width: var(--space-8);
+  height: var(--space-8);
+  margin-right: var(--space-8);
+  box-sizing: border-box;
+  border-radius: 50%;
+  transform: translateY(-1px);
+}
+
+/* Hollow: nothing answered. The same silhouette `BackendIndicator` gives
+   `unreachable`, and told apart from the state below by shape rather than by
+   hue — which is what survives the greyscale check this palette's red and green
+   fail at 1.05:1. */
+.markerHollow {
+  box-shadow: inset 0 0 0 var(--border-width) var(--service-unreachable);
+}
+
+/* A filled square: something answered and it was the wrong thing. Amber is the
+   one colour on this page and it marks the state a glance should land on — but
+   the silhouette carries it alone, which the colour must never have to. */
+.markerAttention {
+  background: var(--service-degraded);
+  border-radius: var(--radius);
+}
+
+/*
+ * A string somebody is expected to type back — a correlation id, or a command
+ * to run. The one place on this page set in `--font-mono`, and the token's own
+ * comment carries the argument: `tabular-nums` fixes a *column*, and does
+ * nothing for `l` against `1` in a UUID that has no column to align to.
+ */
+.command {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--ink-primary);
+}
+
+.reference {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+}
+
+/* --- The skeleton --- */
+
+/*
+ * Table-shaped, so the region holds its height and the arrival of 101 rows is
+ * an arrival rather than the page jolting downward. The bars are `aria-hidden`;
+ * the sentence above them is what a screen reader is given.
+ */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  margin-top: var(--space-16);
+}
+
+.skeletonRow {
+  height: var(--space-12);
+  border-radius: var(--radius);
+  background: var(--rule-soft);
+  /*
+   * Far slower than either interaction duration and derived from one rather
+   * than declared as a third token — a waiting texture is not an interaction,
+   * and a `--motion-duration-waiting` would be a token with exactly one
+   * consumer. Under `prefers-reduced-motion` the token is `0ms`, the product is
+   * `0ms`, and the bars simply sit still.
+   */
+  animation: breathe calc(var(--motion-duration-settle) * 6)
+    var(--motion-ease-standard) infinite alternate;
+}
+
+/*
+ * The widths and the stagger, as texture rather than data. Percentages of the
+ * table width with a ragged right edge: seven identical bars read as a loading
+ * *graphic*, and an uneven edge reads as a column of names that has not
+ * arrived yet. The delays make it a slow wave down the page rather than seven
+ * things flashing in unison.
+ */
+.skeletonRow:nth-child(1) {
+  width: 78%;
+}
+.skeletonRow:nth-child(2) {
+  width: 64%;
+  animation-delay: calc(var(--motion-duration-quick) * 1);
+}
+.skeletonRow:nth-child(3) {
+  width: 88%;
+  animation-delay: calc(var(--motion-duration-quick) * 2);
+}
+.skeletonRow:nth-child(4) {
+  width: 56%;
+  animation-delay: calc(var(--motion-duration-quick) * 3);
+}
+.skeletonRow:nth-child(5) {
+  width: 72%;
+  animation-delay: calc(var(--motion-duration-quick) * 4);
+}
+.skeletonRow:nth-child(6) {
+  width: 82%;
+  animation-delay: calc(var(--motion-duration-quick) * 5);
+}
+.skeletonRow:nth-child(7) {
+  width: 60%;
+  animation-delay: calc(var(--motion-duration-quick) * 6);
+}
+
+@keyframes breathe {
+  to {
+    opacity: 0.45;
+  }
+}

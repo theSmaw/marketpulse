@@ -195,7 +195,7 @@ as a URL rather than as a page; from 2.4.3 onward every task changes what is on 
 | 2.4.1 | [The first read: the query, the mapping, and the seam](TASK-01-the-first-read.md)                       | Complete    |
 | 2.4.2 | [`GET /securities` and the wire contract](TASK-02-the-endpoint.md)                                      | Complete    |
 | 2.4.3 | [Real data on screen: the frontend read path and the plainest honest list](TASK-03-on-screen.md)        | Complete    |
-| 2.4.4 | [The states, and making it look like the product](TASK-04-states-and-presentation.md)                   | Not started |
+| 2.4.4 | [The states, and making it look like the product](TASK-04-states-and-presentation.md)                   | Complete    |
 | 2.4.5 | [Keyboard, screen reader, and the browser journey](TASK-05-accessibility-and-journey.md)                | Not started |
 | 2.4.6 | [Deploy it, verify it in a browser, and hand forward what was pre-empted](TASK-06-deploy-and-verify.md) | Not started |
 
@@ -250,3 +250,44 @@ A working read path from Postgres to the browser, exercised end to end against r
 which is the thing Stories 2.9, 2.10 and 2.11 would otherwise each have to prove for the
 first time on their own. And a page that gives every later story in this epic somewhere
 visible to land.
+
+## Amended 2026-09-06, after Task 2.4.4
+
+**One acceptance criterion needs a reading recorded against it, because what shipped meets it
+in a way its literal wording does not describe.** Nothing was added, deleted or re-ordered;
+no task moved.
+
+### Criterion 2 says "symbol, name, sector and kind", and the sector is a group heading
+
+Criterion 2 reads: _"The `/securities` route renders every tracked security with its symbol,
+name, sector and kind."_ Task 2.4.4 grouped the table by sector, which makes a sector **cell**
+the same word repeated down every row of a group directly under a heading that already says
+it. So the shipped table's four columns are **symbol, name, industry and kind**, and the
+sector is stated once per group as a `<th scope="rowgroup">` band.
+
+**The criterion is met and this is not a waiver.** Every tracked security's sector is on
+screen, more prominently than a repeated cell would put it, and the freed column carries
+`industry` — which the wire had always sent and which nothing had ever rendered — so the page
+shows strictly more than the criterion asks for. What changed is the _shape_ of the answer,
+and it is recorded here rather than left for Task 2.4.6 to discover, because a criterion whose
+wording and whose implementation disagree is exactly the thing a later reader flags as a miss.
+
+The reversal trigger is the one Task 2.4.4 recorded for the grouping itself: the universe
+reaching §6's 500-security ceiling, at which point a single group is longer than a screen and
+groups need to become jumpable or collapsible — which is a control, and controls are out of
+scope for this story.
+
+### Criterion 3 is met by four renderings rather than three
+
+Criterion 3 names loading, failed and loaded-but-empty. There are **two failed renderings**,
+not one — `unreachable` and `answered-badly`, which send a reader to two different places —
+and Task 2.4.3's amendment to Task 2.4.4 already established that. All four were produced
+from named causes at Task 2.4.4 and none of them is red, per §36.
+
+### The design bar was applied and the judgement is in Task 2.4.4's file
+
+_The design bar_ section above says the four tests must be applied to a screenshot before this
+story is called done, and that "we will polish it in Epic 15" is not available. That judgement
+was made at Task 2.4.4 and is recorded there rather than repeated here. **The story is not
+done on it yet**, though: the bar is a story-level gate and Tasks 2.4.5 and 2.4.6 both still
+change what is on the screen, so Task 2.4.6 re-applies it against the deployed page.
