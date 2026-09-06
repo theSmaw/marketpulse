@@ -72,3 +72,27 @@ export const backendHealthUrl = `${backendOrigin}/health`;
  * this repository has spent two stories reducing to one.
  */
 export const HEALTH_ROUTE_PATTERN = "**/health";
+
+/**
+ * A predicate matching the **tracked universe endpoint** and not the page that
+ * renders it (Task 2.4.5).
+ *
+ * `HEALTH_ROUTE_PATTERN` above is a glob because it can afford to be: this
+ * application has no `/health` route, so a `**` glob over `/health` matches exactly one
+ * thing. **`/securities` is a route.** A glob written the same way matches the
+ * document navigation `page.goto("/securities")` performs, so the first version
+ * of this fulfilled the *page* with a JSON body — and the spec then reported
+ * five whole-document axe violations (`document-title`, `html-has-lang`,
+ * `landmark-one-main`, `page-has-heading-one`, `region`) against a state it
+ * believed it was rendering. Green in the sense that it ran, and about nothing.
+ *
+ * The port is what separates them, and it is derived rather than written: both
+ * sides of the comparison come from the backend's own built configuration, so
+ * there is no second copy of `3000` here. Matching on the *origin* would not
+ * work — the browser dials `localhost` where this module holds `127.0.0.1`,
+ * which is the two-spellings-of-one-server trap recorded above.
+ */
+const backendPort = new URL(backendOrigin).port;
+
+export const SECURITIES_ROUTE_PATTERN = (url: URL): boolean =>
+  url.pathname === "/securities" && url.port === backendPort;

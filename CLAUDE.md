@@ -835,7 +835,31 @@ apps/
                                    a finding: `Region`'s `overflow: auto` makes
                                    it the scrollport a sticky descendant is
                                    measured against, and on this page it never
-                                   scrolls, so they had nowhere to stick
+                                   scrolls, so they had nowhere to stick —
+                                   confirmed by Task 2.4.5 at 720, 560 AND
+                                   480 px, where `scrollHeight` equals
+                                   `clientHeight` and the DOCUMENT scrolls, so
+                                   `scrollable-region-focusable` correctly does
+                                   not fire here.
+                                   Since Task 2.4.5 it also owns the page's ONE
+                                   live region: a `role="status"` rendered in
+                                   every state and NEVER unmounted, carrying one
+                                   sentence written to be heard. That is the
+                                   whole mechanism — Task 2.4.3 put
+                                   `aria-live` on the LOADING paragraph, which
+                                   is the element that gets REMOVED, so the page
+                                   said it had started and never said it had
+                                   finished. Reproduced, then fixed. It is
+                                   `status` and never `alert`: §36 makes an
+                                   unreachable service a product state, and
+                                   `alert` is what `ErrorFallback` carries, so
+                                   one here would be indistinguishable from a
+                                   render failure to the assertion the browser
+                                   suite makes on every route. It announces
+                                   NOTHING while loading, deliberately —
+                                   arriving at a page is not a change, so a
+                                   sentence there would only be a second copy of
+                                   the visible line
       SecurityRow/                 the representative component (Task 1.4.5),
                                    composing the four above into one <tr>
       AppHeader/                   the chrome (Task 1.5.3). The first component
@@ -1154,7 +1178,7 @@ e2e/                               @marketpulse/e2e — the browser suite (Task
                                    Chromium only; WebKit EXCLUDED rather than
                                    omitted, because it is frozen on macOS 14 and
                                    newPage() never returns
-  specs/                           the journeys — five files, ten tests. They
+  specs/                           the journeys — five files, 21 tests. They
                                    import the words they assert on from
                                    @marketpulse/shared, which is the whole
                                    reason this is a package. backend-health is
@@ -1179,7 +1203,19 @@ e2e/                               @marketpulse/e2e — the browser suite (Task
                                    happy accident in the one place the accident
                                    is the bug
   support/                         locators, the two poll constants and the axe
-                                   pass. Inside the tsconfig and OUTSIDE
+                                   pass. `axe.ts` WAITS FOR FINITE ANIMATIONS
+                                   before it reads anything (Task 2.4.5): the
+                                   gate reported 203 contrast violations on a
+                                   correct page because it was measuring a FRAME
+                                   of Task 2.4.4's 240 ms entrance, with
+                                   `--ink-secondary` half-faded to `#939594` at
+                                   3.01:1. Infinite ones are excluded rather
+                                   than waited for, because the loading
+                                   skeleton's `breathe` never resolves.
+                                   `pair.ts` matches the securities endpoint by
+                                   PORT rather than a glob, because
+                                   `/securities` is also a ROUTE and a glob
+                                   fulfils the document navigation. Inside the tsconfig and OUTSIDE
                                    testDir, so it typechecks and lints like a
                                    spec and is never collected as one.
                                    poll-timings.ts is a CHECKED copy: the two
@@ -1279,7 +1315,7 @@ pnpm image         # builds the backend's linux/amd64 container image. NOT part 
                    # scripts/build-image.mjs rather than a one-liner: a clean tree gets the
                    # bare short SHA, a DIRTY tree gets `<sha>-dirty` and a warning not to push
                    # it, and MARKETPULSE_IMAGE_TAG overrides both (Task 1.11.6's door)
-pnpm test          # real in all three packages — 344 tests (68 + 146 + 130). Fast: no build, no socket
+pnpm test          # real in all three packages — 347 tests (68 + 146 + 133). Fast: no build, no socket
 pnpm test:process  # the backend's process half — 14 tests spawning dist/index.js (Tasks 1.10.5, 2.1.4).
                    # A verify step in its own right; ~7.6 s, of which 5 s IS the shutdown ceiling
 pnpm test:database # the SIXTH level of test (Task 2.2.5). 61 tests in ~1.1 s against a REAL
@@ -1299,8 +1335,11 @@ pnpm e2e           # the browser suite (Tasks 1.13.2-3). Playwright, Chromium, a
                    # backend's own config; arguments are forwarded, so --headed, --debug
                    # and -g all work. The browsers are a separate explicit command:
                    # `pnpm exec playwright install chromium` (~554 MB, once per machine).
-                   # Ten journeys in ~1:02 wall, of which NINE take 3.4 s and the tenth
-                   # is the recovery journey waiting out two real 30 s poll intervals.
+                   # 21 journeys in ~1:02 wall, of which TWENTY take ~13 s between them
+                   # and the last is the recovery journey waiting out two real 30 s poll
+                   # intervals. Task 2.4.5 added eleven and the wall time did not move,
+                   # which is the shape to know: the marginal cost of a journey here is
+                   # ZERO until the suite grows past that one minute, and then it is not.
                    # `pnpm e2e --grep-invert "recovers on the next poll"` is the fast half.
                    # Read e2e/README.md before writing a spec.
                    # CI runs it as the `e2e` JOB in verify.yml — a second job, in
@@ -1331,7 +1370,7 @@ pnpm --filter @marketpulse/shared test        # vitest run — 68 tests, 6 files
 pnpm --filter @marketpulse/backend test       # vitest run — 146 tests, 10 files
 pnpm --filter @marketpulse/backend run test:process   # vitest run --config vitest.process.config.ts — 14 tests
 pnpm --filter @marketpulse/backend run test:database  # vitest run --config vitest.database.config.ts — 61 tests
-pnpm --filter @marketpulse/frontend test      # vitest run — 130 tests, 15 files
+pnpm --filter @marketpulse/frontend test      # vitest run — 133 tests, 15 files
 pnpm --filter @marketpulse/backend coverage   # one package's report
 
 # Running less than everything (Task 1.9.6). The path is relative to the

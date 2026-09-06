@@ -118,6 +118,64 @@ function expectTheRendererComputedStyles(
 }
 
 /**
+ * Wait for the page to stop moving before judging its colours (Task 2.4.5).
+ *
+ * **This is a correction to the instrument, found by the gate going red on a
+ * page that is fine.** Task 2.4.4 gave the tracked universe an entrance — 240 ms
+ * of `opacity` and a 4 px rise, played once as the table arrives — and a spec
+ * that ran axe the instant the content appeared reported **203
+ * `color-contrast` violations**: `--ink-secondary` (`#5a5d5c`) blended toward
+ * white by the fade, read back as `#939594` at **3.01:1** against a 4.5
+ * threshold. Waiting for the animation and re-running the identical check on
+ * the identical page gives **0**, and the count of nodes axe could evaluate
+ * rises from 247 to 450 — the difference being the elements that were still
+ * translucent.
+ *
+ * So the reading was of a *frame* rather than of the page, and both halves of
+ * that matter. A gate that fires mid-transition is red for a reason nobody can
+ * act on, which is the fastest way to teach everyone to ignore it. And it is
+ * **non-deterministic** in the worse direction too: on a slower machine the
+ * animation is further along when axe runs, so the same commit could pass
+ * locally and fail on a runner, or the reverse.
+ *
+ * It lives here rather than in a spec because entrance motion is now this
+ * product's house style rather than one component's decision — the durations
+ * are tokens, `PRODUCT_SPEC.md` §5.6 asks for a screen that feels alive, and
+ * every page Epics 3 to 7 build will have some. A rule each spec author has to
+ * remember is a rule that gets forgotten once and then trusted.
+ *
+ * **Infinite animations are excluded rather than waited for**, and that is not
+ * a detail: the loading state's skeleton bars breathe on an `infinite
+ * alternate` animation whose `finished` promise never resolves, so waiting on
+ * every animation would hang the gate on exactly the state it most needs to be
+ * able to judge. The filter is the computed timing's `iterations`, which is
+ * `Infinity` for those and a number for everything else.
+ *
+ * It is deliberately **not** `prefers-reduced-motion`. Forcing the preference
+ * would make the gate green by removing the thing it has to cope with, and the
+ * page a real user sees is the animated one.
+ */
+async function settleAnimations(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const finite = document
+      .getAnimations()
+      .filter(
+        (animation) =>
+          animation.effect?.getComputedTiming().iterations !== Infinity,
+      );
+
+    await Promise.all(
+      finite.map(async (animation) => {
+        // A cancelled or replaced animation rejects, which is not a failure of
+        // the page — it is one that will never paint again, which is all this
+        // needs to know.
+        await animation.finished.catch(() => undefined);
+      }),
+    );
+  });
+}
+
+/**
  * Run axe over the whole document and fail on any violation.
  *
  * The source is injected as a script tag rather than driven through a wrapper
@@ -131,6 +189,7 @@ export async function expectNoAxeViolations(
   page: Page,
   label: string,
 ): Promise<void> {
+  await settleAnimations(page);
   await page.addScriptTag({ content: axe.source });
 
   const results = await page.evaluate(async () => {
@@ -202,6 +261,7 @@ export async function expectNoAxeViolations(
  * taken.
  */
 export async function reportAxe(page: Page, label: string): Promise<void> {
+  await settleAnimations(page);
   await page.addScriptTag({ content: axe.source });
 
   const results = await page.evaluate(async () => {
