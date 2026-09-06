@@ -117,3 +117,35 @@ export type {
   MarketTimeOfDay,
   MarketWallClock,
 } from "./market-time.js";
+
+// The trading calendar as data (Task 2.5.3): every day the US equity market is
+// shut and every day it closes early, 2024-2028. A TABLE rather than a rule set,
+// because Good Friday is Easter-derived and a rule set that gets the other nine
+// right looks correct for eleven months of every year — and because the table
+// holds a row no rule can produce at all (2025-01-09, the National Day of
+// Mourning). Beside `market-time.ts` rather than inside it, because the two fail
+// differently: a wrong conversion is wrong twice a year for everything, a wrong
+// row here is wrong on one day a year.
+//
+// A date outside the covered range is a REFUSAL naming the range and the file,
+// never a silent "no holidays that year" — which would turn every 2029 holiday
+// into a phantom trading session. That is Story 2.5's acceptance criterion 4.
+//
+// It knows nothing about sessions: no `isMarketOpen`, no bounds, no "last N
+// days". Those are Task 2.5.4, built on top of this.
+export {
+  assertWithinMarketCalendar,
+  MARKET_CALENDAR,
+  MARKET_CALENDAR_EXCEPTION_KINDS,
+  MARKET_CALENDAR_PROVENANCE,
+  MARKET_CALENDAR_RANGE,
+  MarketCalendarRangeError,
+  marketCalendarExceptionOn,
+  marketEarlyCloseOn,
+} from "./market-calendar.js";
+export type {
+  MarketCalendarException,
+  MarketCalendarExceptionKind,
+  MarketEarlyClose,
+  MarketFullClosure,
+} from "./market-calendar.js";

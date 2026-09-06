@@ -1,6 +1,6 @@
 # Task 2.5.3 — The calendar as data: holidays, half days, provenance and staleness
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [2.5 Trading Calendar & Market Time Handling](STORY.md)
 **Depends on:** Task 2.5.1
 
@@ -94,10 +94,242 @@ count — but ~~a normal year has **252 trading days**, so a year in this table 
 253 or 251 has a missing or invented holiday in it~~ **corrected by Task 2.5.1 on
 2026-09-06: 252 is not a constant and four of the five covered years are 251.** The count is
 a function of how many weekdays the year contains (260-262) and how many holidays land on
-one, so the check is a **per-year table** — 2024: 252, 2025: 251, 2026: 251, 2027: 251,
-2028: 251 — which `CALENDAR.md` §7.2 derives. It is still the cheap arithmetic check that
+one, so the check is a **per-year table** — 2024: 252, ~~2025: 251~~ **2025: 250**, 2026: 251,
+2027: 251, 2028: 251 — which `CALENDAR.md` §7.2 derives. **Corrected by this task on
+2026-09-06 against the published record: 2025 has eleven weekday closures, not ten**, because
+`2025-01-09` was a full closure for the National Day of Mourning — see §7.7 and the write-up
+below. The derived figure could not have contained it, which is the point. It is still the cheap arithmetic check that
 catches a missing or invented holiday; it is just not one number. **`CALENDAR.md` §7.5 and
 §7.6 carry the derived half-day and full-closure tables to cross-check against, and §7.4 the
 observance exception** (New Year's Day falling on a Saturday is not observed on the preceding
 Friday — which is why 2028 has nine weekday holidays, and why 2028 in particular must be
 confirmed against NYSE's published calendar rather than derived).
+
+---
+
+## What was built (2026-09-06)
+
+Two new files and one barrel edit. **No dependency, no lockfile change, no new `verify` step
+and no database.**
+
+- `packages/shared/src/market-calendar.ts` — the table, the range, the provenance, the
+  refusal, and a lazy validated lookup.
+- `packages/shared/src/market-calendar.test.ts` — 20 tests.
+- `packages/shared/src/index.ts` — the export block.
+
+`packages/shared` is **122 tests across 8 files**, so `pnpm test` is **401** (122 + 146 +
+133). `pnpm verify` is **exit 0 in 30.9 s with no database running**.
+
+### The table
+
+Sixty rows across 2024–2028: **49 full closures and 11 early closes**, each carrying a `date`,
+a `kind`, a `name`, and — on an early close only — a `closesAt`.
+
+It is a **discriminated union on `kind`**, which is `Security`'s shape and is here for
+`Security`'s reason: the compiler refuses a full closure carrying a close time and an early
+close missing one, so the table cannot express a row that means nothing. That is the cheapest
+guard available on a hand-maintained file, and it costs a build rather than a test run.
+
+### The source was read rather than derived, and that is the whole task
+
+`CALENDAR.md` §7.5 and §7.6 carry **derived** tables, put there deliberately as cross-check
+targets rather than as the source, with a warning that half days are where published lists
+disagree. So the actual work was reading NYSE's own record: the live
+`markets/hours-calendars` page for 2026–2028, and archived editions of that same page for
+2024 and 2025, which NYSE no longer publishes because it carries three years forward and
+drops years as they pass.
+
+**The derived tables held exactly** — all 49 scheduled closures, all 11 half days, 2028's
+missing January row included. Better than expected: §7.5 warned that the 3 July rows were the
+ones to look at hardest, and they are right.
+
+**Three things that reading settled that a derivation could not.**
+
+**§1.4's conditional instruction did not fire.** It told this task to narrow the range to 2027
+if 2028 turned out not to be published. **It is published**, footnotes and all, so the range
+is 2024–2028 as chosen and nothing in this calendar is derived.
+
+**The published record contains a row no derivation can produce, and it is in range.**
+**2025-01-09** was a full closure for the National Day of Mourning for President Carter,
+announced on 2024-12-30 and effective eleven days later. It is absent from §7.6's derived list
+— correctly, because that list is derived — and absent from the NYSE calendar page as it
+stood before Carter died, because a forward-looking calendar is a schedule.
+
+That is a **stronger confirmation of §1.2 than Good Friday**. Good Friday shows a rule set
+needs an awkward rule. This shows **no rule set is sufficient in principle**: the closure was
+a decision taken eleven days beforehand, and no function of the calendar produces it. It also
+retires a hypothetical — §1.3 kept the close time on the row rather than in a constant so an
+unscheduled closure would be "expressible as data", and that is no longer a defence of a
+possibility, because the table carries one today.
+
+**So `CALENDAR.md` §7.2's 2025 figure was wrong and Task 2.5.4 would have shipped a red
+test.** 2025 has **eleven** weekday closures and **250** sessions, not 251. That is the second
+figure in that section to have been wrong in exactly the way the section was written to catch,
+and it is corrected in §7.2, in §7.7, in this file's own notes and in Task 2.5.4's brief.
+
+### The refusal — acceptance criterion 4
+
+A date outside 2024–2028 throws `MarketCalendarRangeError`, and the message names **the range
+and the file to edit**, because the person reading it needs to do something rather than
+understand something. There is deliberately no fallback, no `strict` flag and no "assume open
+outside the range" option — `instantFromMarketTime`'s reason applied again: a flag whose safe
+setting is the default and whose unsafe setting is available is a flag somebody sets during an
+incident. Both edges of the range are admitted, both directions of the refusal are tested, and
+the offending date is a field on the error so a caller and a test can both work without
+matching on prose.
+
+`assertWithinMarketCalendar` is exported separately so Task 2.5.4's session functions refuse
+through the same check rather than through a second copy of the range.
+
+### The dates are plain strings, and the prediction was measured
+
+`CALENDAR.md` §4.3 predicted **0 bytes** for this task, conditional on the table's dates being
+plain string literals rather than `toMarketDate("…")` calls. **Measured: 357,216 B — the
+baseline exactly**, on an unchanged 18,058 B / `ead7d5c1…` stylesheet, with `index.html` at
+1,101 B. Greps for `Good Friday`, `early_close`, `Thanksgiving`, `2026-12-25`,
+`National Day of Mourning`, `closesAt`, `13:00` and `MARKET_CALENDAR` return **zero** in both
+`dist/` and `storybook-static/`. Task 2.3.8's mechanism holds at this scale: the whole literal
+tree-shakes away.
+
+### Validation is a lazy one-time pass, and every check was made to fail
+
+The type cannot express most of what can be wrong with a hand-maintained table, so
+`marketCalendarIndex()` validates on first read — **lazily, for the reason `market-time.ts`
+constructs its formatters lazily**, because a module-load `const INDEX = build()` is a call
+expression a bundler must retain. It checks that each date exists, is in range, is a
+**weekday**, is strictly after the previous row, and that an early close parses through
+`toMarketTimeOfDay` rather than a second parser written here.
+
+The weekday check earns its place twice over: a row on a Saturday means the observance rule
+was applied wrongly, and — because every US DST transition is a Sunday — **a Sunday row is the
+only way Task 2.5.4 could ever make `instantFromMarketTime` refuse.** That task's brief says
+"if one ever fires, the calendar table has a Sunday in it"; this is what stops it.
+
+**Six deliberate breaks, each seen to fail and reverted.** A weekend row, an out-of-order row,
+an impossible date (`2026-11-31`), an unparseable close time (`"1pm"`), a removed Good Friday,
+and the range widened past the data. Five named the offending row in the message; the removed
+Good Friday took **two** tests red including the session count, which is the arithmetic check
+doing its job.
+
+One of the six is worth recording because the first attempt at it was silent: the
+close-time break's `perl` pattern did not match, so the suite stayed green and the check
+looked exercised when it was not. It was retried against a pattern that did match and then
+failed correctly. **A break that does not go red is not evidence the check works — it is
+evidence the break did not land**, and the two are indistinguishable from the exit code.
+
+### What this deliberately does not do
+
+**It knows nothing about sessions.** No `isMarketOpen`, no session bounds, no next/previous
+session, no "last N sessions" — Task 2.5.4. `marketCalendarExceptionOn` returns `undefined`
+for _both_ an ordinary weekday and a weekend, and turning that silence into a session is the
+next task's job, because it is the piece that also has to know about Saturdays.
+
+**It converts nothing.** No `Intl`, no timezone identifier, no instants. The `Date.UTC`
+arithmetic is string validation with UTC at both ends — the same thing `isMarketDate` already
+does — so the two `no-restricted-syntax` rules Task 2.5.2 added have nothing to say about this
+file, which is the check rather than a coincidence.
+
+### One departure from `UNIVERSE.md` §11, stated rather than absorbed
+
+That convention owes its per-group provenance the negative fact that _every row shares one
+source_. Here it does not: 2025-01-09 came from the closure announcement rather than from the
+calendar page. A per-row `source` field was declined under Task 1.7.3's rule that a field ships
+with its first reader — nothing renders calendar provenance, where Story 2.14 does render the
+universe's — so the fact is written in the constant's own comment instead. **The reversal
+trigger is the first screen that shows where a trading day came from, or a second row from a
+third source.**
+
+`checkedOn` is `2026-09-06` and is **never `now()`**, for §11's reason: a provenance date that
+is always today cannot report staleness. `nextEditDue` is `2028-01-01` — a full covered year
+of margin before the range runs out, so a missed obligation is late rather than fatal — and it
+lives in the same block because that is what somebody reads when they come to edit the file.
+**Nothing can check either of them**, and they join this repository's third kind of gap beside
+`UNIVERSE_PROVENANCE.checkedOn` and the runtime's timezone database.
+
+---
+
+## For the stakeholder — what this actually was, in plain terms
+
+**Short version: nothing you can see changed. The product now knows which days the stock
+market is shut — including one day that no amount of clever code could have worked out.**
+
+### The problem, without the jargon
+
+Charts have an x-axis, and an x-axis needs to know what a day is. That sounds trivial until
+you try it: the market is shut at weekends, shut on about ten public holidays a year, and — a
+few times a year — open but closing at 1pm instead of 4pm. Get any of that wrong and the
+product does something a user notices instantly and an engineer takes a day to explain. A
+price chart draws a flat line across Christmas. A "last 5 days" filter quietly shows four.
+An alarm fires because three hours of data are "missing" on the day after Thanksgiving, when
+in fact the market simply went home early.
+
+### What we did, and the decision behind it
+
+There are two ways to build this. You can write **rules** — "Thanksgiving is the fourth
+Thursday in November" — or you can write down **the actual list**. Rules look cleverer and are
+the wrong answer here, for a reason worth stating: nine of the ten holidays follow neat rules,
+and the tenth is Good Friday, which moves with Easter and can shift by three weeks year to
+year. A rule-based calendar that gets nine right **looks perfect for eleven months** and then
+invents a trading day on one Friday in spring. That is the worst kind of bug — silent, rare,
+and expensive to trace.
+
+So this is a written-down list, checked against the New York Stock Exchange's own published
+calendar. It covers 2024 through 2028 — two years of history for the analysis features, and
+just over two years ahead, which is as far as the exchange itself publishes.
+
+### The thing that justified the whole approach
+
+While checking the list against the record, we found a closure that **no rule could ever have
+produced**: the US market shut completely on **9 January 2025**, a national day of mourning
+for President Carter, announced eleven days beforehand.
+
+No formula generates that. It is not a holiday, it is not annual, and it did not exist as a
+plan until somebody decided it. A rule-based calendar would have shown the market open that
+day, forever, and any historical analysis crossing it would have been quietly wrong.
+
+That single row settles the argument. It also caught a real error in our own planning
+document, which had worked out 2025's trading-day count from the rules and got **251**. The
+true figure is **250**. The next task was scheduled to test against 251 — that test would have
+failed on day one, and someone would have spent time deciding whether the code or the number
+was wrong.
+
+### The part most calendars skip
+
+We also had to decide what happens on 1 January 2029 — the first day past the end of our list.
+
+The tempting answer is "no holidays recorded, so it's a normal trading day". That is silently
+catastrophic: every 2029 holiday becomes a phantom trading day, and the symptom shows up much
+later as a chart with a price bar on Christmas Day. The opposite guess loses a whole year of
+data.
+
+**So the calendar refuses.** Ask it about 2029 and it stops and says so, naming exactly which
+years it covers and which file to update. It is loud on the day somebody forgets rather than a
+year later, and — deliberately — there is no switch to turn the refusal off. A safety setting
+that can be disabled is a safety setting somebody disables at 3am during an incident.
+
+We also wrote the deadline into the file itself, next to the data: **update this by January
+2028**. That is a full year of slack before it actually matters.
+
+### How we know it works
+
+Every check was **broken on purpose first**, six ways. We put a holiday on a Saturday, put the
+list out of order, invented an impossible date (November 31st), wrote a close time as "1pm"
+instead of "13:00", deleted Good Friday, and stretched the covered range past the data. Each
+failure was confirmed to be caught, and each was undone.
+
+That matters because a test that has never failed is a test nobody has checked. One of the six
+made the point unusually well: the first attempt at breaking the close-time check didn't
+actually change anything, and the tests stayed green — which looks identical to the check
+working. We caught it, retried properly, and confirmed it does.
+
+### Where this leaves the product
+
+This is the third of six pieces of work on market time, and the last two invisible ones.
+Next comes the piece that answers actual questions — "is the market open right now?", "when
+does this session end?", "what were the last five trading days?" — built on this list. **The
+one after that is the visible one**: the clock in the top corner of the screen, which has been
+a placeholder since the very first version, starts telling the truth.
+
+Nothing about this shipped a single byte to anyone's browser, incidentally, and that was
+checked rather than assumed: the calendar is only loaded by the parts of the product that ask
+it a question. The page a visitor downloads is byte-for-byte the size it was this morning.

@@ -31,6 +31,17 @@ not meant to be.
   certifies and what it cannot_. The honest content of that section is that the calendar is
   a **checked-in table with a one-edit-a-year obligation nothing enforces**, and that a green
   suite says the covered years are right and says nothing about next year.
+  **Task 2.5.3 found a second and sharper thing that section has to say (added 2026-09-06):
+  a green suite does not say the covered years are still RIGHT.** `2025-01-09` was a full
+  closure announced eleven days beforehand for a National Day of Mourning. An unscheduled
+  closure inside an already-checked year is invisible to every instrument here — the table
+  passes its own tests, and the arithmetic check passes because it is derived from the table
+  it is checking. The only thing that catches one is somebody re-reading the source. So the
+  obligation is not merely "extend the range once a year"; it is also **"a year you already
+  checked can acquire a row"**, which is a different and worse obligation because it has no
+  due date. That is what makes `CALENDAR.md` §1.6's cross-check against a provider calendar
+  worth more than it looked when it was written, and the ADR should say so: it is the only
+  mechanism anybody has proposed that would notice.
   **One of this story's own claims changed at Task 2.5.2 and the ADR must not repeat
   the old one (added 2026-09-06): criterion 2 is ENFORCED rather than written down.**
   `CALENDAR.md` §3.4 predicted it would join `CLAUDE.md`'s third kind of gap — a
@@ -63,7 +74,11 @@ not meant to be.
   `README.md`'s first-run list as one of the seven things that read as faults and stops being
   one at Task 2.5.5; and any claim that nothing in this codebase handles time. **Sweep for
   "252" as well** — Task 2.5.1 corrected it in this story's own files, and the ADR must not
-  reintroduce it. Apply the distinction Task 1.10.8 established and every close since has
+  reintroduce it. **Sweep for "251" beside it (added 2026-09-06)**, because that figure was
+  corrected a second time and only for 2025: a bare `251` is correct for three of the five
+  years, so this is the one sweep in the story where the string alone cannot separate a live
+  claim from a correct one and every hit has to be read in its year's context. Apply the
+  distinction Task 1.10.8 established and every close since has
   re-applied: **a live claim gets corrected and a historical record of what a task believed
   is left standing**, because rewriting the second destroys the record. Read each hit
 - **Re-take the artefact figures, against Task 2.5.1's table of predictions** rather than
@@ -74,7 +89,10 @@ not meant to be.
   null result** — it means the holiday table stayed a plain literal and the
   `Intl.DateTimeFormat` was constructed lazily rather than at module load. If any of the three
   moved, that is the finding, and Task 2.3.8's `SECTOR_ETFS` mechanism is the first thing to
-  look at
+  look at. **Two of the four are already measured and hold (added 2026-09-06): 2.5.2 and
+  2.5.3 both read 357,216 B, the baseline exactly**, with every calendar string absent from
+  `dist/` and `storybook-static/` — so what is genuinely open is 2.5.4 and 2.5.5, and 2.5.5's
+  is the only one of the four with a number in it worth being wrong about
 - **Re-take the test counts and the `pnpm verify` split**, with and without a database
   running, which is criterion 5 and is the one this story could plausibly have broken by
   putting the calendar in Postgres
@@ -97,9 +115,14 @@ self-referential and are therefore the real checks. **Both were stated wrongly h
 corrected by Task 2.5.1 on 2026-09-06; the corrected forms are what belongs in the ADR:**
 
 - ~~the **252-session arithmetic** across a full year~~ → the **per-year session count**,
-  which is **2024: 252, 2025: 251, 2026: 251, 2027: 251, 2028: 251** (`CALENDAR.md` §7.2).
-  252 is not a constant — the count follows how many weekdays a year contains and how many
-  holidays land on one, and a test asserting 252 is red on four of the five covered years
+  which is **2024: 252, ~~2025: 251~~ 2025: 250, 2026: 251, 2027: 251, 2028: 251**
+  (`CALENDAR.md` §7.2). 252 is not a constant — the count follows how many weekdays a year
+  contains and how many holidays land on one, and a test asserting 252 is red on four of the
+  five covered years. **Corrected a SECOND time on 2026-09-06, by Task 2.5.3, and this is the
+  figure the ADR must carry**: 2025 is **250**, because `2025-01-09` was a full closure for
+  the National Day of Mourning — an unscheduled closure §7.2's derivation could not contain
+  (`CALENDAR.md` §7.7). `market-calendar.test.ts` asserts all five figures, so read them off
+  a passing run rather than off this file
 - ~~the **DST assertion** that a session is 6.5 hours on both transition days while its UTC
   bounds move by an hour~~ → **there is no session on either transition day**; they are
   always Sundays. The assertion is on the **Friday before and the Monday after** — both 6.5

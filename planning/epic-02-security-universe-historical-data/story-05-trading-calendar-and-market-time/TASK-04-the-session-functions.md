@@ -57,6 +57,19 @@ What can be demonstrated is worth a line in the write-up anyway: after this, the
   which no session bound can ever hit (both transitions are Sundays), so a
   `try`/`catch` around it here would be catching a condition that cannot occur —
   if one ever fires, the calendar table has a Sunday in it
+- **Every one of these functions can walk off the end of the calendar, and the brief did not
+  say so (added 2026-09-06, from Task 2.5.3).** `previousSession("2024-01-02")` steps back
+  into 2023, `nextSession("2028-12-29")` steps into 2029, and "the last 60 sessions" from
+  early January crosses the lower bound routinely — Epic 5's baseline is specified at exactly
+  that length. All three hit `MarketCalendarRangeError`, which is correct and is the whole
+  point of the refusal, but **each function has to decide whether it propagates or reports**,
+  and doing that by accident is how the range becomes an invisible cliff. The cheap answer is
+  to propagate, because the caller asked a question the calendar genuinely cannot answer and
+  a truncated list of sessions is a wrong answer wearing a right shape — but say so, and
+  assert both edges, because the alternative (silently returning fewer sessions than asked
+  for) is exactly what criterion 3 exists to prevent in the holiday case and is no better in
+  the range case. **Task 2.5.5's clock is the one caller that must NOT propagate**, and its
+  file now says why
 - **Assert against the named-date list rather than against reasoning**, which is criterion 1
   and is worded that way deliberately. At minimum, and each as its own named test so a
   failure says which case broke:
@@ -74,9 +87,29 @@ What can be demonstrated is worth a line in the write-up anyway: after this, the
     This is the assertion that fails if anything anywhere did arithmetic on instants
   - a holiday observed on the Friday before, and one on the Monday after
 - **Assert the arithmetic check Task 2.5.3 named**, against `CALENDAR.md` §7.2's **per-year
-  table** — 2024: 252, 2025: 251, 2026: 251, 2027: 251, 2028: 251. This file's own hedge
-  turned out to be the right one: 252 is not a constant, and a test asserting it would be red
-  on four of the five covered years.
+  table** — 2024: 252, ~~2025: 251~~ **2025: 250**, 2026: 251, 2027: 251, 2028: 251. This
+  file's own hedge turned out to be the right one: 252 is not a constant, and a test asserting
+  it would be red on four of the five covered years. **Corrected a second time on 2026-09-06
+  by Task 2.5.3, which checked the published record rather than deriving it: 2025 has ELEVEN
+  weekday closures and 250 sessions**, because `2025-01-09` was a full closure for the
+  National Day of Mourning — an unscheduled closure §7.2's derivation could not contain
+  (`CALENDAR.md` §7.7). `market-calendar.test.ts` already asserts all five figures, so this
+  task can consume them rather than re-derive them; what it owes is the same check reached
+  through the **session functions** rather than through the table.
+- **What Task 2.5.3 shipped, so this task builds on it (added 2026-09-06).**
+  `MARKET_CALENDAR` is a plain array literal of `MarketCalendarException` rows —
+  a discriminated union on `kind`, so a full closure cannot carry a close time and an early
+  close cannot omit one. Read it through **`marketCalendarExceptionOn(date)`**, which returns
+  `undefined` for _both_ an ordinary weekday and a weekend and refuses a date outside
+  2024–2028 with a `MarketCalendarRangeError`; **turning that `undefined` into a session is
+  this task's job, and it is the piece that also has to know about Saturdays.**
+  `marketEarlyCloseOn(date)` gives the close as a parsed `MarketTimeOfDay`, so nothing here
+  touches the `"13:00"` string form. `assertWithinMarketCalendar(date)` is exported so the
+  session functions refuse out-of-range dates through the same check rather than a second copy
+  of the range. The table's own validation — real weekday dates, ascending, no duplicates,
+  in range, parseable close times — runs lazily on first read and **throws naming the offending
+  row**, so a calendar typo fails where it was typed rather than as a wrong session months
+  later.
   It is one line and it catches a missing or invented holiday that every individual named
   date passes
 - **Make the interesting ones fail before believing them.** Removing Good Friday from the
@@ -86,6 +119,8 @@ What can be demonstrated is worth a line in the write-up anyway: after this, the
 ## Done when
 
 - Every named date from Task 2.5.1's list is asserted, each in a test named for its case
+- Both edges of the calendar's covered range are asserted — a session walk that steps off
+  either end refuses rather than truncating, and the decision is recorded
 - "The last N sessions" returns sessions and is proved across a holiday week — the test that
   distinguishes it from `N` calendar days
 - A half day's bounds and its expected bar count are both available to a caller
