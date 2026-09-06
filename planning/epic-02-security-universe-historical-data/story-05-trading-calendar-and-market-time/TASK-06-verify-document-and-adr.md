@@ -30,7 +30,18 @@ not meant to be.
   including the closing section this repository always writes — _what a correct calendar
   certifies and what it cannot_. The honest content of that section is that the calendar is
   a **checked-in table with a one-edit-a-year obligation nothing enforces**, and that a green
-  suite says the covered years are right and says nothing about next year
+  suite says the covered years are right and says nothing about next year.
+  **One of this story's own claims changed at Task 2.5.2 and the ADR must not repeat
+  the old one (added 2026-09-06): criterion 2 is ENFORCED rather than written down.**
+  `CALENDAR.md` §3.4 predicted it would join `CLAUDE.md`'s third kind of gap — a
+  stated invariant nothing checks, held "by a grep and a written rule" alongside
+  "one file calls `fetch`". It did not: it is held by two `no-restricted-syntax`
+  rules in `eslint.config.mjs` with `market-time.ts` as their single exception,
+  both made to fail in two packages before being believed. So the ADR should say
+  criterion 2 is checked, say what the check **cannot** see — a conversion written
+  with a hard-coded `-5` and no timezone name, which is a reimplementation rather
+  than a duplicate — and **not** list it beside the two genuine unenforced
+  obligations, which are the calendar's annual edit and the runtime's tzdata
 - **Number it 0017 and do not renumber anything.** ADR numbers are permanent identifiers and
   the file number is not the ordinal — this file already records that 0014 was written after
   0015
@@ -94,6 +105,18 @@ corrected by Task 2.5.1 on 2026-09-06; the corrected forms are what belongs in t
   always Sundays. The assertion is on the **Friday before and the Monday after** — both 6.5
   hours, UTC open moving 14:30Z → 13:30Z — plus **the Tuesday after**, which is the case that
   catches an implementation that special-cased the transition weekend (`CALENDAR.md` §7.3)
+
+**Three more sweep candidates, added 2026-09-06 after Task 2.5.2 shipped.** The
+claim that criterion 2 is held by a grep and a written rule, which is in
+`CALENDAR.md` §3.4 and in `CLAUDE.md`'s third-kind-of-gap list — both are live
+claims and both are now false. `CLAUDE.md`'s tree block and `Commands` section,
+which mention neither `packages/shared/src/market-time.ts` nor the two new lint
+rules. And `README.md`'s first-run list, which calls the market clock
+`--:--:-- ET` a reserved region that **Epic 3 supplies** — that was already wrong
+when Story 2.5 was split (Task 2.5.5 supplies it) and stops being true altogether
+at 2.5.5. Note also that the `BackendIndicator` timestamp now reads
+`Last confirmed HH:MM:SS local`, which no first-run list mentions and which is
+deliberate rather than an omission.
 
 This correction is the reason the amendment convention exists: this file writes ADR 0017, and
 an ADR is a permanent identifier cited outside this repository. Both errors would have been

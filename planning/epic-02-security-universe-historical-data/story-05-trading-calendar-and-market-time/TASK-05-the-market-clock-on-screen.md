@@ -60,6 +60,28 @@ beside it, the `LIVE` state in §9's sketch, and anything that claims data is ar
 - **Tick on the second boundary, not every 1000 ms.** A naive interval drifts and visibly
   skips a second every minute or so. Schedule to the next second boundary, which is also what
   makes a returning hidden tab correct for free
+- **Two constraints Task 2.5.2 created that this task meets first, not last
+  (added 2026-09-06).** `eslint.config.mjs` now carries two `no-restricted-syntax`
+  rules whose single exception is `packages/shared/src/market-time.ts`: one forbids
+  constructing an `Intl.DateTimeFormat` anywhere else in the workspace, one forbids
+  spelling `America/New_York` anywhere else. Both were made to fail before being
+  believed. So the clock component **cannot** reach for `Intl` to render its zone
+  label and must not try — `marketOffsetAt(instant)` returns
+  `{ minutes, abbreviation, iso }` and the `abbreviation` is where a zone label
+  comes from. `pnpm verify` fails if this is got wrong, which is the intended
+  outcome and is better than discovering it in review.
+- **`ET` and `EDT`/`EST` are different claims, and this task has to pick — a
+  decision no file in this story has taken yet (added 2026-09-06).**
+  `PRODUCT_SPEC.md` §9's sketch reads `10:42:16 ET`, and the reserved placeholder
+  in the chrome is `--:--:-- ET`, so `ET` is what the product has always promised.
+  But `marketOffsetAt` reports what is actually in effect — `EDT` in summer, `EST`
+  in winter — and `ET` is the generic name for the pair. Both are defensible and
+  they are not the same statement: `ET` is a fixed-width literal that never lies
+  and never tells you which side of the transition you are on, while `EDT`/`EST`
+  is strictly more informative and **changes meaning twice a year**, which is the
+  kind of change a reader notices and cannot explain. Whichever is chosen, record
+  it, and note the third option that looks clever and is not: showing the offset
+  (`-04:00`) is precise, unreadable at a glance, and not what any trader calls it
 - **Apply the formatting decisions that already exist rather than inventing new ones.**
   `tabular-nums` is inherited from `body` and must not be re-declared; the hand-rolled
   formatter idiom over `toLocaleTimeString` is Task 1.12.4's and its reason (a
