@@ -1,6 +1,6 @@
 # Task 2.4.3 — Real data on screen: the frontend read path and the plainest honest list
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [2.4 The Tracked Universe On Screen](STORY.md)
 **Depends on:** Task 2.4.2
 
@@ -132,3 +132,184 @@ is the rows whose `status` is `"active"`.
 `type: ["string", "null"]`, asserted on the raw body. So this table can rely on `null`
 meaning "there is no answer". What that should _look_ like is Task 2.4.4's, and it now has
 an amendment saying so.
+
+---
+
+## Completed 2026-09-06
+
+### What shipped
+
+Five files. `packages/shared/src/securities-response.ts` gained
+**`isSecuritiesResponse`** and its test; `apps/frontend/src/api-client.ts` gained
+**`getSecurities`** and nothing else; **`apps/frontend/src/use-securities.ts`** is the hook;
+and **`apps/frontend/src/routes/SecurityExplorer.tsx`** plus its stylesheet replaced the
+placeholder that had been there since Story 1.5. No dependency, no lockfile change, no new
+`verify` step, and no store.
+
+`api-client.ts` is **still the only file in `apps/frontend/src` that calls `fetch`**,
+verified by grep rather than asserted — one file, one match.
+
+### The four states were produced in a browser, not reasoned about
+
+All four against the running local pair at `/securities`, plus the fifth thing this task
+owes:
+
+| State                | How it was produced                                            | What the page said                                                        |
+| -------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `loading`            | a request that never answers                                   | _Loading the tracked universe…_, no table                                 |
+| `loaded`             | the real database                                              | **101 rows — 86 Company, 11 Sector ETF, 4 Index ETF**                     |
+| `empty`              | `{"securities": []}` at the network boundary                   | _…running and holds no securities. The database has been migrated…_       |
+| `failed` unreachable | a rejected `fetch`                                             | _The service could not be reached…_, no reference line                    |
+| `failed` badly       | a 500 carrying an `ApiError` and an `x-request-id`             | _Something answered at the service's address and it was not this service_ |
+| **untracked row**    | `update securities set status='untracked' where symbol='GILD'` | still **101 rows**, GILD present, API confirming `status: "untracked"`    |
+
+The 86 / 11 / 4 split reproduces `UNIVERSE.md` §9 exactly, which is the check that the page
+is reading the database rather than a fixture.
+
+**Through every failure: 0 error fallbacks and all 4 navigation links intact.** That is
+structural rather than lucky — `getSecurities` never throws, so a dead backend is a _value_
+the hook stores and nothing unwinds into `ErrorBoundary`.
+
+The two failure branches were reached by intercepting at the **network boundary** (patching
+`window.fetch` in the page) rather than by breaking the environment, so the real
+`api-client`, the real shared predicate, the real hook and the real component all ran. That
+is stated rather than glossed: it is not a substitute for Task 2.4.6 producing them against
+the deployed pair.
+
+### Four findings
+
+**1. `isSecuritiesResponse` had to be written before it could be got wrong, and the wrong
+version was produced.** The amendment above predicted that requiring `provenance` turns the
+empty state into `unreadable-body`. It was made to happen: removing the
+`=== undefined ||` clause takes **two** tests red — the empty list _and_ the populated list
+with no provenance, which is Story 2.7's normal case arriving early. Reverted.
+
+**2. `loaded` carries a non-empty tuple, and that is what removes the fourth state's
+ambiguity rather than a comment about it.** `readonly [Security, ...Security[]]` means
+"loaded with zero rows" cannot be constructed, so `empty` is not a case each consumer has to
+remember. It costs nothing to build: `noUncheckedIndexedAccess` already makes
+`const [first, ...rest]` give a `Security | undefined` head, so the guard that narrows it
+**is** the empty check.
+
+**3. The seven outcomes collapse onto two failures, not five, and the id survives the
+collapse.** `SECURITIES_FAILURES` is `unreachable | answered-badly` — the same judgement
+`toBackendHealth` makes, for the same reason: a person looking at an empty page can act on
+exactly two facts, _is it up_ and _what is answering there_. `api-error` and `http-error`
+merge because the client tells them apart only by whether a quotable `requestId` came back,
+and that travels on the state rather than needing a member. This is **the first place in
+MarketPulse that puts a correlation id on screen**, and it obeys `api-client.ts`'s rule
+verbatim: the whole UUID, never a prefix, labelled, and only beside a failure — `null` and
+therefore absent on every `unreachable`, because nothing arrived to carry one.
+
+**4. A page load makes two `/securities` requests in development and it is not a poll.**
+Measured off `performance.getEntriesByType('resource')`: two `fetch` entries 1 ms apart, one
+of which is aborted. That is `StrictMode`'s effect double-invoke, which this repository
+already recorded for `/health` in Task 1.13.5 — worth writing down again because it looks
+exactly like the poll this hook deliberately does not have. **A test asserts one request and
+no second one**, which is what would catch a real regression: a poll here would be standing
+billable traffic per open tab against a fact that moves a handful of times a year.
+
+### Three decisions worth not undoing
+
+**No store.** Story 2.10's, deliberately left there — §25 says avoid a heavyweight state
+library until complexity demonstrates the need, and one static list is the weakest possible
+evidence on which to decide how this application holds domain state.
+
+**Still a route module, not a `src/components/` component.** It will have states worth
+reviewing side by side, which is the test Task 1.5.3 set — but those states are Task 2.4.4's
+subject, and promoting it to workshop material now fixes a shape one task early. It moves
+then, the way `Region` moved when it acquired a failed state.
+
+**The untracked row renders identically to an active one, and that is a deliberate, visible
+gap.** `UNIVERSE.md` §12.2 puts this reader on the _do not filter_ side and the row is on
+screen; **marking it is Task 2.4.4's**, along with the page's two counts. The screenshot
+shows a security we no longer track presented as one we do, which is the argument for doing
+2.4.4 next rather than a reason to have merged them.
+
+### Figures
+
+`pnpm verify` **exit 0**, seven steps, with no database needed. `pnpm test` is **331**
+(shared 68 across 6 · backend 146 across 10 · frontend 117 across 14) — shared +13 and the
+frontend +14. `pnpm test:process` **14**, unchanged.
+
+### Handed forward
+
+- **Task 2.4.4**: the marking of an untracked row, both counts, grouping the eleven sectors,
+  and whether the em dash is the right way to say "this thing has no sector". The four
+  states exist as types and each has a rendering to improve rather than to invent.
+- **Task 2.4.5**: the table is `<th scope="col">` headers over `<th scope="row">` symbols, so
+  a screen reader announces the symbol with each cell; the axe gate has not been run against
+  this page.
+- **Task 2.4.6**: none of the above has been seen against the **deployed** pair.
+
+---
+
+## For the stakeholder — what changed, in plain terms
+
+**MarketPulse now shows real data for the first time.**
+
+Until today every screen in the product was a promise. The landing page's only
+market-looking content was a hand-written demonstration table invented back in Epic 1 — it
+was never real, and two of its rows were deliberately marked broken to show what a fault
+would look like. Click "Security Explorer" and you got a paragraph explaining what would
+eventually live there.
+
+Open it now and you get **the 101 securities MarketPulse actually tracks**, read out of the
+real database: Apple, NVIDIA, Boeing, Bank of America, the eleven sector funds, and the four
+whole-market funds like SPY. For each one, its ticker, its full name, which part of the
+economy it belongs to, and whether it is a company, a sector fund or a market fund. Nothing
+on that page is typed in by hand; if somebody changes the list we follow, the page changes.
+
+**Why that matters more than it looks.** The value is not the table — it is that a piece of
+information now travels the whole length of the product without a human touching it: out of
+the database, through the server, across the internet, into the browser, onto the screen.
+Everything Epic 2 has built over the last three stories — the database, the migrations, the
+curated list of companies — was invisible until this. It is now visible, and every future
+feature (prices, charts, the anomaly scores, the AI investigations) travels the same road we
+have just proved works.
+
+**Why it looks plain, on purpose.** This is a four-column table with no styling opinion in
+it, and that was the plan rather than an oversight. The very next task makes it look like a
+funded product — the visual bar is an acceptance criterion for this story, not something
+deferred. Splitting the two means that if the numbers turn out to be wrong we find that out
+now, and when the design lands next week it reads as a design improvement instead of
+disappearing inside a bug fix. Showing you the plain version first is the point.
+
+**Where we were careful.**
+
+- **The page never lies about prices.** There are no prices in MarketPulse yet — the live
+  market feed is Epic 3 — so the page says so on its face rather than leaving a user
+  wondering why the numbers are missing. An unfinished screen that explains itself is
+  trustworthy; one that is silently incomplete is not.
+- **The page never lies when something breaks.** Four different things can happen when it
+  asks for the list, and it tells them apart instead of showing one generic error. "We
+  couldn't reach the service" and "something answered and it wasn't our service" send you to
+  two completely different places to look. And crucially, "the service is fine and has
+  nothing in it" is treated as an honest answer rather than a failure — that is exactly what
+  a freshly set-up environment looks like, and calling it a fault would send somebody
+  hunting for a bug that isn't there.
+- **Nothing else breaks when this does.** Every failure was produced and watched: the
+  navigation still works, the rest of the page is untouched, and the product does not
+  collapse into an error screen. That is a founding rule of this product and it now has
+  evidence behind it on a real screen.
+- **When something does go wrong, you get a reference number to quote.** Each failure shows
+  the identifier of the exact request that failed, which an engineer can search for in the
+  server's logs. This is the first place in the product that offers one.
+- **We did not build the big machinery early.** There is a well-known temptation to install a
+  heavyweight data-management library the moment a page fetches something. We deliberately
+  didn't: a list that changes a few times a year is the worst possible evidence for a
+  decision about how to handle prices that change several times a second. That decision stays
+  where it belongs, with the story that has real streaming data to judge it against.
+
+**What you still cannot do**, so nobody demonstrates this and over-promises: you cannot
+search the list, cannot click a security to open it, and cannot see any price or chart.
+Those are three separate later stories. And one honest gap this task leaves for the next one:
+if we ever stop tracking a company, it currently still appears in the list looking exactly
+like one we do track. Keeping the row is deliberate — its history matters, and a company
+that silently vanishes is the failure we designed against — but _labelling_ it is the very
+next task's job.
+
+**Where we are.** Epic 2 is roughly halfway through. The database, the schema, the tracked
+list of companies and now the route from database to screen are all done. What remains in
+this epic is the market-data provider, the connection to Alpaca, and the historical price
+bars — at which point this page stops being a list of names and starts being a market.

@@ -1,0 +1,92 @@
+/*
+ * The tracked universe's own styles (Task 2.4.3), and they are deliberately the
+ * plainest thing that is not wrong.
+ *
+ * Every declaration reads a token — the rule every stylesheet in this
+ * application follows, and the one thing about this file that is not
+ * provisional. **Task 2.4.4 owns what this page looks like**, so what is here
+ * is the table's structure and nothing that expresses a point of view: no
+ * grouping, no zebra, no column widths, no emphasis. Shipping the plain version
+ * first is what makes that task's changes read as a design improvement rather
+ * than disappear inside a fix.
+ *
+ * The table idioms are `SecurityRow.module.css`'s, borrowed rather than
+ * reinvented: a collapsed table, a soft rule between rows instead of a grid,
+ * and cells that align to the baseline.
+ */
+
+.page {
+  /* Wider than `routes.module.css`'s 52rem prose measure: that is a column of
+     sentences and this is a four-column table, and a table squeezed to reading
+     width wraps names that have no reason to wrap. */
+  max-width: 68rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+/* The column headings, in the micro-label idiom the rest of the application
+   already uses for "what kind of thing is this" — so the table's own furniture
+   recedes and the data is what reads first. */
+.heading {
+  padding: var(--space-8);
+  text-align: left;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-regular);
+  border-bottom: var(--border-width) solid var(--rule-hairline);
+}
+
+.row + .row {
+  border-top: var(--border-width) solid var(--rule-soft);
+}
+
+.cell,
+.symbol {
+  padding: var(--space-8);
+  text-align: left;
+  vertical-align: baseline;
+}
+
+/*
+ * The symbol is a `<th scope="row">` rather than a `<td>`, which is what makes
+ * a screen reader announce it before each cell in the row — so "Semiconductors"
+ * is heard as NVDA's sector rather than as a bare word. It therefore needs its
+ * heading weight undone, because it is a label rather than a heading to look at.
+ */
+.symbol {
+  font-weight: var(--font-weight-regular);
+}
+
+/* Loading, empty and failed all render prose in the same place the table would
+   be, so they inherit the region's box rather than each inventing one. */
+.state {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+/*
+ * The correlation id: a reference a user is expected to quote back.
+ *
+ * A monospace face would genuinely help here — a UUID transcribed from a
+ * proportional font is a UUID transcribed wrongly — and it is deliberately not
+ * used, because the token layer has exactly one family (`--font-sans`) and
+ * adding a second is a change to the design language rather than to this page.
+ * `VISUAL-LANGUAGE.md` owns that, and `base.css` already sets tabular figures
+ * globally, which is the half of the problem that matters most.
+ */
+.reference {
+  margin: var(--space-8) 0 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+}
