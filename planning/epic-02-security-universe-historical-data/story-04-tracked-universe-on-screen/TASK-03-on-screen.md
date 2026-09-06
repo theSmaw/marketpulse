@@ -49,7 +49,17 @@ visible as a design improvement rather than lost inside a fix.
   that costs nothing to replace
 - **Render the plainest honest table**, inside the existing `Region` component so it
   inherits the landmark, the heading and the error boundary. Four columns, no grouping, no
-  sorting control, no search. Tabular numerals are already set globally
+  sorting control, no search. Tabular numerals are already set globally. **The rows arrive
+  already ordered by symbol** — Task 2.4.1 put the `order by` in the query, because Postgres
+  guarantees no order without one — so this table sorts nothing of its own, and the
+  grouping-versus-sorting decision stays Task 2.4.4's
+- **An untracked security is a row, not an absence**, and this is the plain version of story
+  acceptance criterion 6. Task 2.4.1's read deliberately does **not** filter on `status`, per
+  `UNIVERSE.md` §12.2, so untracked rows arrive here and the table must render them rather
+  than dropping them — the visible distinction and the count's wording are Task 2.4.4's, and
+  what this task owes is that the row is on screen at all. There is no such row today, which
+  is exactly why it is easy to lose: the deployed table is 101 rows all `active`, so a
+  version of this table that filtered would pass every check this task can run
 - **Say on screen that there are no prices yet**, using Story 1.5's convention that an empty
   region names the epic that fills it. A page of securities with no prices looks broken
   unless it says why it is not
@@ -59,7 +69,8 @@ visible as a design improvement rather than lost inside a fix.
 
 ## Done when
 
-- `/securities` renders every tracked security from the database, seen in a browser
+- `/securities` renders every security the API returns, untracked ones included, seen in a
+  browser
 - The four states exist as types and the component renders a state rather than inferring one
 - `api-client.ts` is still the only file that calls `fetch`, verified by grep
 - No store, no poll, no search

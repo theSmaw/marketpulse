@@ -58,6 +58,24 @@ to something they are looking at.
 - **Update `CLAUDE.md` and `README.md`**: the routes paragraph, which currently describes
   `/securities` as a placeholder, and the list of things a correct first run shows that read
   as faults
+- **Sweep the "Story 2.9 writes the first `selectFrom`" claim, which Task 2.4.1 made false.**
+  It is in **twelve files** — `CLAUDE.md`, `docs/adr/0015-*`, `DATA-LAYER.md`, three Story
+  2.2 files, Story 2.9's own `STORY.md`, and the source comments in `schema.ts`,
+  `migrate.ts` and `database.ts` — of which two are this story's own and correct. Apply the
+  distinction Task 1.10.8 established and Tasks 1.12.8, 1.13.6 and 2.3.8 each re-applied: a
+  **live** claim about where the seam is gets corrected, and a **historical record** of what
+  a task believed when it was written is left standing, because rewriting it destroys the
+  record. A naive grep-and-replace across twelve files is exactly the failure that
+  distinction exists to prevent — read each one
+- **Verify the untracked rendering deployed, not only locally**, which is acceptance
+  criterion 6's "produced rather than reasoned about" arriving at the one environment that
+  matters. It is a deploy rather than a database edit: remove a symbol from
+  `apps/backend/src/universe.ts`, let the pipeline's `Load the tracked universe` step mark
+  the row, read the page, and put it back — two merges. Note the row **stays** `untracked`
+  in the deployed table until the second one lands, which is the mechanism working rather
+  than a mess to clean up, and that the deployed count and the tracked count are genuinely
+  different numbers for that window — which is the only chance this story gets to see the
+  summary line's wording be right for a non-trivial reason
 - **Re-take the artefact figures**, because this story ships real frontend source for the
   first time since Story 1.13 and the four-file bundle will move
 
@@ -66,6 +84,10 @@ to something they are looking at.
 - The page is live and verified in a browser against the deployed pair
 - One correlation id followed from the browser to a deployed log record
 - The deployed page's count and sectors match the database
+- An untracked security has been seen rendered as untracked **on the deployed page**, and
+  the summary line read correctly while the two counts differed
+- The stale `first selectFrom` claim is corrected where it is live and left standing where
+  it is a historical record, with the count of each recorded
 - Stories 2.9, 2.10 and 2.11 each carry an amendment saying what moved
 - `CLAUDE.md` and `README.md` describe the route as it now is
 - All six acceptance criteria re-run, with the figures re-taken rather than cited

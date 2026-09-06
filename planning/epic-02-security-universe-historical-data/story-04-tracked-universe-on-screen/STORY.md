@@ -227,6 +227,15 @@ Two consequences for what this story builds, neither of which was in the file be
 **What did not change**: the endpoints, the seam, the four columns, the six tasks, and this
 story's position. Story 2.3 shipped what this file assumed it would.
 
+> ~~the six tasks~~ — **corrected 2026-09-06 by Task 2.4.1.** That sentence was wrong about
+> itself: this amendment added an acceptance criterion and changed no task file, so criterion
+> 6 had **no owner in any of the six** until Task 2.4.1 went looking. Tasks 2.4.3, 2.4.4 and
+> 2.4.6 now carry it — the row rendered at all, the row marked and the count's wording, and
+> the deployed verification respectively. No task was added, deleted or re-ordered; a
+> rendering is not a task's worth of work. The transferable half is that **an amendment which
+> adds a criterion and then says the tasks did not change is the shape to distrust**, because
+> the criterion is real and the work has to land somewhere.
+
 ## Design surface
 
 This is the first page in MarketPulse that renders real data, so it sets patterns that are
