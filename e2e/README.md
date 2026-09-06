@@ -29,18 +29,19 @@ chromium`, ~554 MB, once per machine.
 
 ## What is here
 
-| File                                   | What it is for                                                       |
-| -------------------------------------- | -------------------------------------------------------------------- |
-| `playwright.config.ts`                 | the decisions the first test settled for every test after it         |
-| `specs/landing-route.spec.ts`          | the chrome and PRODUCT_SPEC.md §9's four regions                     |
-| `specs/backend-health.spec.ts`         | the two halves talking — the journey this story exists for           |
-| `specs/backend-failure-states.spec.ts` | the three states from named causes, and §36's "the rest still works" |
-| `specs/backend-recovery.spec.ts`       | recovery across a real poll interval, with no page reload            |
-| `specs/securities-route.spec.ts`       | the first page whose content arrives over the network                |
-| `support/`                             | locators, timings and the axe pass — not collected as tests          |
-| `playwright.deployed.config.ts`        | the post-deploy check's config — a second file, not a second project |
-| `specs-deployed/two-halves.spec.ts`    | the two failures no other instrument here can see                    |
-| `specs-deployed/host-routing.spec.ts`  | Story 1.5's deep-link and missing-asset criteria, at last            |
+| File                                   | What it is for                                                         |
+| -------------------------------------- | ---------------------------------------------------------------------- |
+| `playwright.config.ts`                 | the decisions the first test settled for every test after it           |
+| `specs/landing-route.spec.ts`          | the chrome and PRODUCT_SPEC.md §9's four regions                       |
+| `specs/backend-health.spec.ts`         | the two halves talking — the journey this story exists for             |
+| `specs/backend-failure-states.spec.ts` | the three states from named causes, and §36's "the rest still works"   |
+| `specs/backend-recovery.spec.ts`       | recovery across a real poll interval, with no page reload              |
+| `specs/securities-route.spec.ts`       | the first page whose content arrives over the network                  |
+| `specs/market-clock.spec.ts`           | the chrome's clock, and the one assertion below this level cannot make |
+| `support/`                             | locators, timings and the axe pass — not collected as tests            |
+| `playwright.deployed.config.ts`        | the post-deploy check's config — a second file, not a second project   |
+| `specs-deployed/two-halves.spec.ts`    | the two failures no other instrument here can see                      |
+| `specs-deployed/host-routing.spec.ts`  | Story 1.5's deep-link and missing-asset criteria, at last              |
 
 ## Where it runs in CI
 
@@ -389,6 +390,32 @@ below, because the thing that made them impossible is gone.
   first poll settles — a fact about this client's own startup, not about the
   server. Wait past it. It is deliberately not a `BackendStatus` member and must
   never become one.
+
+## One assertion this level exists for: **it advances**
+
+`specs/market-clock.spec.ts` is worth reading before writing anything else that
+watches a value change on its own (Task 2.5.5). A component test can prove that
+a given instant renders a given time, and `MarketClock.test.tsx` does — for all
+six renderings, two of which (a holiday, and an instant past the trading
+calendar's 2024–2028 range) **cannot be reached in a browser at all** without
+changing the machine's date. What it cannot prove is that the timer was ever
+wired: a hook whose effect never runs renders a perfectly correct time, once,
+and holds it for ever, which from the outside is indistinguishable from a
+working clock until you look twice.
+
+So the spec reads the value, then asserts it **differs from what it was**. It
+was made to fail — a one-line early return in `useMarketClock`'s effect takes it
+red in 5.7 s while every other test in the suite, including the second one in
+that file, stays green.
+
+Two things it deliberately does **not** assert, both already on the list below
+and both sharper here than anywhere else in this suite. **Not a value**: the
+subject changes once a second, so any literal is a flake with a fuse on it.
+**Not the session state**: whether the market is open depends on the day the
+suite runs, so pinning `open` would be red every evening and all weekend — the
+words come from `MARKET_SESSION_STATUSES`, with `unknown` added the way
+`support/app.ts` adds `checking`, because both are renderings the shared
+vocabulary deliberately excludes.
 
 ## Waits come from the constants, never from a number that passes
 

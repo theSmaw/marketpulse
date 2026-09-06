@@ -46,18 +46,10 @@
  * needs a word somewhere, and this is the third channel rather than a
  * replacement for either of the first two.
  *
- * The clip-rect idiom rather than `display: none` or `visibility: hidden`,
- * both of which remove the element from the accessibility tree as well as from
- * the page.
+ * The clip-rect idiom, which lives in `styles/a11y.module.css` since it acquired
+ * a third consumer — that file carries why it is nine declarations rather than
+ * one, and which two instruments can see it break.
  */
 .visuallyHidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
+  composes: visuallyHidden from "../../styles/a11y.module.css";
 }

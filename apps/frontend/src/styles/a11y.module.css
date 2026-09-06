@@ -1,0 +1,55 @@
+/*
+ * Accessibility idioms with exactly one correct implementation.
+ *
+ * Separate from `type.module.css` because they are a different subject with a
+ * different failure mode, and because a reader looking for "how do I hide
+ * something from the screen but not from a screen reader" would not open a file
+ * called `type`. This is where a skip link or a focus-trap helper goes next.
+ */
+
+/*
+ * Present to a screen reader, absent to everyone else.
+ *
+ * **The clip-rect idiom, and the two obvious alternatives are both wrong in the
+ * same way**: `display: none` and `visibility: hidden` remove the element from
+ * the accessibility tree as well as from the page, which is the exact opposite
+ * of what this is for. That is why it is nine declarations rather than one, and
+ * why it had been copied byte-for-byte into three components — `PriceChange`,
+ * `UniverseTable` and `MarketClock` — each of which would have been a separate
+ * opportunity to "simplify" it into silence.
+ *
+ * **Both of those simplifications are caught, and only in a browser** — measured
+ * rather than assumed, and the first measurement of it was wrong in a way worth
+ * recording. Collapsing this class to `display: none` takes **two** journeys in
+ * `specs/securities-route.spec.ts` red, on `toBeVisible()` and `toHaveText()`,
+ * because `UniverseTable`'s live region and its summary both stop being laid
+ * out. None of the 161 component tests can see it at all: no stylesheet is
+ * applied in that environment, so `getComputedStyle` returns nothing there by
+ * construction.
+ *
+ * The wrong first measurement is the transferable half. The same break appeared
+ * to pass everything, and it had not landed: **a `composes` change does not
+ * reliably hot-reload into the module that composes it.** Vite went on serving
+ * the previous rule while the file on disk said otherwise, and the page reported
+ * `1x1` for an element the stylesheet said was `display: none`. Restart the dev
+ * server before believing any measurement of a CSS-module break — this
+ * repository already records the general form, that a break which does not go
+ * red is evidence the break did not land rather than evidence the check works.
+ *
+ * **It is deliberately a composed class and not a `<VisuallyHidden>` component**,
+ * and the call sites are the argument: three of the four are `<span>` and the
+ * fourth is `UniverseTable`'s `<p role="status">` live region. A component would
+ * have needed an `as` prop on the day it was written, which is a worse API than
+ * the class it replaced.
+ */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

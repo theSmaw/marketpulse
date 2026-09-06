@@ -1,0 +1,133 @@
+/*
+ * The market clock. Like every other stylesheet in this application there is
+ * not one literal colour, length, weight or font here — every declaration reads
+ * a token.
+ *
+ * It was the **third** component to hold the indicator language by imitation,
+ * and being the third is what ended the imitation: `BackendIndicator` had stated
+ * the cost when it was the second — a change to the marker idiom meant editing
+ * every copy — and three is where two similar things become a pattern. The
+ * geometry and the four silhouettes live in `components/Marker` now.
+ *
+ * **What did not move is the `variant`-prop status indicator that was rejected
+ * twice, and it is still rejected**: the three report facts that have nothing to
+ * do with each other, so each keeps its own vocabulary, its own colours and its
+ * own state-to-shape table, and the day one of them needs a different silhouette
+ * the other two are free not to follow. What is left in this file is the
+ * *layout* around the marker, which genuinely is this component's own — see
+ * `.state` below, the one place it diverges from the two indicators to its
+ * left.
+ *
+ * Nothing here is `--status-error` red and nothing is green. A closed market is
+ * what the market does for two-thirds of every week — see the market-session
+ * token block in `market.css`.
+ */
+
+.clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-4);
+  text-align: right;
+}
+
+/*
+ * The figure. No `font-variant-numeric` here: `body` sets `tabular-nums` and it
+ * is inherited, which is what stops the strip's right edge breathing as the
+ * seconds change. Re-declaring it would suggest this component is what keeps
+ * that true, and a component that *breaks* alignment has overridden it.
+ *
+ * This is the value the reserved placeholder was sized against. `--:--:--` was
+ * eight characters of which six were hyphens, and a hyphen is not a digit, so
+ * `AppHeader`'s comment predicted a small one-off shift the first time real
+ * digits rendered. Measured: it is small, and it is a shift rather than a jump.
+ */
+.time {
+  margin: 0;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+.zone {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  letter-spacing: var(--letter-spacing-micro);
+}
+
+/*
+ * Present to a screen reader, absent to everyone else. This was the **third**
+ * hand-copy of the idiom and is what tipped it into `styles/a11y.module.css`,
+ * which carries the reasoning.
+ */
+.visuallyHidden {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}
+
+/*
+ * The session state: the marker and the word on one line, the sentence under
+ * them, both hard right because this region is the end of the strip.
+ *
+ * **A flex row and a sibling, rather than the grid the two indicators to the
+ * left use, and the difference is forced rather than stylistic.** They put the
+ * sentence in a third cell spanning both columns; that works there because they
+ * are left-aligned and their `1fr` word column absorbs the slack. Here the
+ * region is right-aligned, so the slack would land in the *marker's* column —
+ * and a spanning item inflates the columns it spans, which `justify-content`
+ * then has no free space left to correct. The visible result is the marker
+ * drifting away from the word it belongs to, by exactly the amount the sentence
+ * is wider than the word.
+ *
+ * **Found in the workshop rather than in the browser**, on
+ * `National Day of Mourning (President Carter)` — the longest sentence this
+ * component renders and a permutation the running application cannot be put
+ * into on an ordinary day. That is the argument for the permutation grid,
+ * arriving as a defect it caught rather than as a convention.
+ */
+.state {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+.label {
+  composes: microLabel from "../../styles/type.module.css";
+}
+
+/* Right-aligned by `.clock`, like everything else in this region. */
+.detail {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+}
+
+/*
+ * --- The three renderings, as a colour each ---
+ *
+ * The geometry and the silhouettes live in `components/Marker`: this component
+ * was the **third** to copy them by hand, which is what tipped the extraction.
+ * What stays here is what is this component's own — which colour, and (in
+ * `MarketClock.tsx`) which shape.
+ *
+ * `--marker-color` is a custom property because it inherits: it is set on the
+ * element carrying the state class and read by the `Marker` inside it.
+ *
+ * All three are the **same value**, which is stronger than the two indicators to
+ * the left manage: nothing about the market's session is carried by colour at
+ * all, only by silhouette. A closed market is what the market does for
+ * two-thirds of every week and colouring it would say otherwise.
+ */
+.open {
+  --marker-color: var(--market-open);
+}
+
+.closed {
+  --marker-color: var(--market-closed);
+}
+
+.unknown {
+  --marker-color: var(--market-unknown);
+}
+
+.unknown .label {
+  color: var(--ink-secondary);
+}

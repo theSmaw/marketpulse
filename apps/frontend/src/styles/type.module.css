@@ -1,0 +1,60 @@
+/*
+ * Named text idioms, composed rather than copied.
+ *
+ * ## What belongs here and what does not
+ *
+ * `tokens.css` holds **values**; this holds a **combination of values that has a
+ * name in the design language**. That line is the whole editorial rule for this
+ * file, and it is narrow on purpose: `font-size: var(--font-size-micro)` beside
+ * `line-height: var(--line-height-micro)` is two token reads that a reader can
+ * check by eye, and wrapping it would put the type scale behind an indirection
+ * for no enforcement. What earns a class here is an idiom that **has a name, has
+ * a failure mode, and is currently held by every author remembering it**.
+ *
+ * ## Why this is a `.module.css` and is never imported by `main.tsx`
+ *
+ * The three stylesheets beside it — `tokens.css`, `market.css`, `base.css` — are
+ * global and are imported once at the mount. This one is a **CSS Module** and is
+ * reached only through `composes:`, which emits its rules exactly once however
+ * many files compose them. Adding it to `main.tsx` would ship a second copy of
+ * every rule below under an unhashed name.
+ *
+ * ## The one thing `composes` cannot do, measured rather than assumed
+ *
+ * It is legal **only in a rule whose selector is a single class**. A descendant
+ * selector fails the build outright — `composition is only allowed when selector
+ * is single :local class name not in ":local(.tableHead) th"` — which is the good
+ * kind of failure and is why `routes/MarketOverview.module.css`'s `.tableHead th`
+ * is the one micro-label in the tree that still carries its own copy. Closing
+ * that needs a class on the element, which is a markup change rather than a
+ * stylesheet one.
+ */
+
+/*
+ * The uppercase letterspaced micro-label — `MARKET FEED`, not `Market feed`.
+ *
+ * **This is the design language rather than a convenience**, and
+ * `VISUAL-LANGUAGE.md` says so in its own words: it is "the idiom that most says
+ * 'institutional application'", and a sentence-case grey label does not read the
+ * same way. With no brand hue and no distinctive typeface, the identity of this
+ * product is entirely structural, and this is one of the four or five things
+ * carrying it.
+ *
+ * It was hand-copied into **14 rules across 10 files** before this file existed,
+ * and nothing checked any of them. That is the failure mode: an author who
+ * writes `0.08em` rather than `var(--letter-spacing-micro)`, or who omits the
+ * `line-height`, produces something that looks right beside the real thing and
+ * is not — and no test in this repository can see it, because no stylesheet is
+ * applied in the component tests at all.
+ *
+ * All fourteen carried this exact set, checked before the extraction rather than
+ * after, so composing changed no rendering anywhere. Consumers keep their own
+ * `color`, `margin`, `padding` and everything else: this class is the **type**
+ * idiom and deliberately not a colour.
+ */
+.microLabel {
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+}

@@ -52,7 +52,21 @@ not meant to be.
   criterion 2 is checked, say what the check **cannot** see — a conversion written
   with a hard-coded `-5` and no timezone name, which is a reimplementation rather
   than a duplicate — and **not** list it beside the two genuine unenforced
-  obligations, which are the calendar's annual edit and the runtime's tzdata
+  obligations, which are the calendar's annual edit and the runtime's tzdata.
+  **The same thing happened a second time and the ADR owes the SHIPPED scope rather
+  than the sketch (added 2026-09-06 by Task 2.5.5).** `CALENDAR.md` §3.4 asked for a
+  `Date.now()` rule in the same change that created the clock module, and imagined a
+  **workspace-wide** rule with `use-market-clock.ts` excepted. What shipped is
+  **narrower and stronger**: `Date.now()` and a zero-argument `new Date()` are
+  forbidden anywhere in `packages/shared/src`, **with no exception at all**. The
+  argument is the one the ADR should carry, because it generalises — the
+  workspace-wide version needs **two** exceptions, since `use-backend-health.ts`
+  legitimately stamps `new Date()` for a local diagnostic, and **a rule with two
+  exceptions teaches every reader to consult the exception list rather than the
+  rule**. Both patterns were made to fail in `market-session.ts` before being
+  believed, and the tree was confirmed byte-identical after the revert.
+  §3.4 and `STORY.md`'s open decision 3 are **already amended** by 2.5.5 — do not
+  redo them; what is owed here is the ADR saying the shipped scope
 - **The ADR owes one decision Task 2.5.4 took that this file predates (added 2026-09-06):
   what happens when a session walk leaves the calendar's covered range.** It **propagates**
   `MarketCalendarRangeError` rather than truncating, in all four walking functions, and that
@@ -90,7 +104,37 @@ not meant to be.
   claim from a correct one and every hit has to be read in its year's context. Apply the
   distinction Task 1.10.8 established and every close since has
   re-applied: **a live claim gets corrected and a historical record of what a task believed
-  is left standing**, because rewriting the second destroys the record. Read each hit
+  is left standing**, because rewriting the second destroys the record. Read each hit.
+  **Task 2.5.5 ran that sweep and closed most of it; what it left open is listed here so this
+  task does not spend its time on work already done (added 2026-09-06).** That is this file's
+  own rule about silently-closed candidates, applied to itself.
+  **Closed, verify rather than redo:** `README.md`'s first-run list (struck through, with the
+  clock's real behaviour and the `LIVE`-belongs-to-Epic-3 note beside it) and its routing
+  section; `CLAUDE.md`'s tree block (now carries `use-market-clock.ts` and `MarketClock/`),
+  its Story 1.5 and Story 1.12 sentences, and its `Commands` block's test and e2e counts;
+  `AppHeader`'s source comment and its stylesheet; `STORY.md`'s Out-of-scope list and open
+  decision 3; `CALENDAR.md` §3.3 and §3.4.
+  **STILL OPEN, and the first is a live claim in a file this list did not name:**
+  - **`planning/epic-01-application-foundation/EPIC.md`'s Epic 1 exit summary** ends
+    _"So Story 1.12 fills a third region rather than repointing the feed one, **and the clock
+    region stays reserved**"_. That is a live claim and Task 2.5.5 falsified it. It is neither
+    `CLAUDE.md`, `README.md`, `AppHeader` nor Story 1.5, which is the four places this bullet
+    named — so the lesson is the one this repository keeps relearning: **the sweep's candidate
+    list is a list of the places somebody remembered.** Grep, do not read the list.
+  - **`docs/adr/0005-*` §3** describes _"a reserved market clock region"_ in the **present
+    tense**. That is exactly the shape Task 1.12.8 found and corrected in ADR 0011 §23, which
+    described a deleted module in the present tense two tasks after its deletion — so this is
+    a **decision to take rather than an obvious fix**: an ADR is a record of a decision at a
+    point in time and is not renumbered or rewritten, but a present-tense sentence that is now
+    false is a trap for whoever reads it next. Take the call and say which rule you applied.
+  - **`CLAUDE.md`'s `Commands` section** still mentions neither `market-time.ts` nor any of
+    the lint rules — and note there are **four** now rather than the two this file's closing
+    section names, because Task 2.5.5 added the two clock patterns beside the two conversion
+    ones.
+  - **`CLAUDE.md`'s third-kind-of-gap list owes a new entry**: the frontend half of the clock
+    rule stays prose, deliberately, because a workspace-wide version needs two exceptions.
+    That is a genuine unenforced invariant and it belongs on the list beside the calendar's
+    annual edit and the runtime's tzdata
 - **Re-take the artefact figures, against Task 2.5.1's table of predictions** rather than
   the assumption this bullet originally carried. ~~The bundle moved at Task 2.5.2 or 2.5.3~~
   — **`CALENDAR.md` §4.3 predicts it did not**: 0 bytes and an unchanged hash at 2.5.2, 2.5.3
@@ -106,11 +150,46 @@ not meant to be.
   all read 357,216 B on an unchanged 18,058 B stylesheet**, with `before_open`, `after_close`
   and `Good Friday` all zero in the bundle alongside the calendar strings — every function in
   `market-session.ts` is a function declaration and its three exported constants are plain
-  literals, so the whole module drops. **So only 2.5.5's is genuinely open**, and 2.5.5's
-  is the only one of the four with a number in it worth being wrong about
+  literals, so the whole module drops. ~~**So only 2.5.5's is genuinely open**, and 2.5.5's
+  is the only one of the four with a number in it worth being wrong about~~ — **all four are
+  measured now and the fourth was WRONG, which is the finding (added 2026-09-06 by Task
+  2.5.5).** The artefact reads **368,877 B of JavaScript (`cdfb315a…`) and 19,489 B of CSS
+  (`e853a70a…`)**, `index.html` 1,101 B (`f5410211…`), 300 B, for **389,767 B over four
+  files** — **+11,661 B and +1,431 B** against a predicted **+5 to +8 kB raw**. `CALENDAR.md`
+  §4.3 is amended with the breakdown; do not re-derive it, and **do not quietly correct the
+  prediction to match** — an estimate that was out by half is worth an ADR sentence.
+  The useful half of why: **the table came in almost exactly as forecast** (3,853 B minified
+  against ~3.25 kB) and **the code that reads it was under-costed by roughly 4 kB**, which is
+  more than twice the table. All three market modules are in the browser bundle for the first
+  time, confirmed by grep rather than inferred — `Thanksgiving Day`, `Good Friday`,
+  `America/New_York` and `before_open` are all present where Task 2.5.4 measured them at
+  zero. This task's own artefact must reproduce those figures **to the byte**, because it
+  ships no application source
+- **Three things Task 2.5.5 measured that the ADR's what-it-does-not-certify section should
+  carry, and that must not be re-derived blind (added 2026-09-06).**
+  - **The re-render cost is measured, including the counterfactual.** With `useMarketClock`
+    called from `AppHeader` the landing route re-renders **0 times in 20 s of ticking**; with
+    it lifted to `App`, **40**. Over 60 s: **0 `longtask` entries and 60 header DOM mutations,
+    all 60 inside the clock cell**. That fired Task 1.12.5's own recorded reversal trigger
+    ("a second consumer, or a render rate that is no longer a poll"), so the ADR records a
+    trigger that **fired and was acted on** rather than one still standing.
+  - **`MarketSessionState` has five members and the clock renders three words**, which is a
+    collapse rather than a transcription: four members share `closed` and differ in the
+    sentence below it. The ADR should say the union is what makes that possible, because the
+    boolean this story rejected could not have carried the difference at all.
+  - **A green browser suite does not certify the renderings a browser cannot reach.** Two of
+    the clock's six states — a named closure, and an instant past the calendar's range — are
+    reachable only by changing the machine's date, so the axe gate and every browser journey
+    are structurally blind to them. The workshop is not, and it **caught a real layout defect
+    in one of them** that no other instrument here could have seen. That belongs beside the
+    existing "what a green run does not certify" items rather than as a component note
 - **Re-take the test counts and the `pnpm verify` split**, with and without a database
   running, which is criterion 5 and is the one this story could plausibly have broken by
-  putting the calendar in Postgres
+  putting the calendar in Postgres. **Task 2.5.5's figures to check against**: `pnpm test`
+  **466** (159 + 146 + 161), `test:process` **14**, `test:database` **61**, `pnpm e2e` **23**
+  in ~1:02 with the wall time unmoved by two new journeys, `pnpm verify` **exit 0** both ways.
+  The axe baseline is **0 violations / 37 passes / 1 inconclusive** on the landing route,
+  unchanged by the clock
 
 ## Done when
 

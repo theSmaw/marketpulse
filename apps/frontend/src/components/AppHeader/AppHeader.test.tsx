@@ -92,13 +92,23 @@ describe("AppHeader", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  // A reserved region, not a clock: `--:--:--` rather than a plausible-looking
-  // `00:00:00`, which would be a fake time. Epic 3 supplies the real one.
-  it("reserves the market clock without inventing a time", () => {
+  // The region reserved `--:--:--` from Story 1.5 to Story 2.5 and holds a real
+  // clock since Task 2.5.5. The placeholder is asserted **absent** as well as
+  // the shape being asserted present, because the failure that matters is a
+  // clock that renders a placeholder for ever — which is what a hook that never
+  // ticks or a `reading` that never arrives looks like from here.
+  //
+  // The shape rather than a value, and deliberately: this reads the real system
+  // clock, so any literal would be wrong a second later. What is asserted about
+  // the *value* is asserted in `MarketClock.test.tsx`, against instants, and the
+  // fact that it **advances** is asserted in the browser suite, which is the one
+  // level that can see a timer run.
+  it("renders a real market clock rather than the reserved placeholder", () => {
     renderWithContext(<AppHeader {...props()} />);
 
-    expect(screen.getByText("--:--:--")).toBeDefined();
-    expect(screen.queryByText("00:00:00")).toBeNull();
+    expect(screen.getByText(/^\d{2}:\d{2}:\d{2}$/)).toBeDefined();
+    expect(screen.queryByText("--:--:--")).toBeNull();
+    expect(screen.getByText("ET")).toBeDefined();
   });
 
   // The whole of Task 1.12.5's visible half: the strip carries **two**

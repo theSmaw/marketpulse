@@ -119,6 +119,15 @@ clock.**
    instant it needs as an argument, which is Task 2.4.1's unexported-handle shape and Task
    1.12.2's one-file-calls-`fetch` shape a third time. Epic 13 replaces one function and one
    hook.
+   **Built at Task 2.5.5, and one sentence of that is now sharper: Epic 13 replaces one
+   _hook_ and nothing else.** The "one function" half never materialised, because nothing
+   in `apps/backend` has yet needed to know what time it is — so
+   `apps/frontend/src/use-market-clock.ts` is the whole seam, and the day the backend needs
+   one it gets its own. The **absence** is enforced rather than stated on the half where it
+   matters: two `no-restricted-syntax` rules forbid `Date.now()` and a zero-argument
+   `new Date()` anywhere in `packages/shared/src`, **with no exception at all**, which is
+   what `CALENDAR.md` §3.4 asked for and is stronger than the workspace-wide rule it
+   sketched — see that section for why one rule with no exception beats one with two.
 
 ## Acceptance criteria
 
@@ -153,7 +162,7 @@ story, and the space it fills has been reserved in the chrome since Story 1.5.
 | 2.5.2 | [The one conversion boundary: UTC in, market time out](TASK-02-the-timezone-boundary.md)                                                            | Complete    |
 | 2.5.3 | [The calendar as data: holidays, half days, provenance and staleness](TASK-03-the-calendar-data.md)                                                 | Complete    |
 | 2.5.4 | [The session functions, and the named dates that prove them](TASK-04-the-session-functions.md)                                                      | Complete    |
-| 2.5.5 | [The clock seam, and the header's reserved region starts working](TASK-05-the-market-clock-on-screen.md)                                            | Not started |
+| 2.5.5 | [The clock seam, and the header's reserved region starts working](TASK-05-the-market-clock-on-screen.md)                                            | Complete    |
 | 2.5.6 | [Verify, document, and ADR 0017](TASK-06-verify-document-and-adr.md)                                                                                | Not started |
 
 ## What this story hands forward

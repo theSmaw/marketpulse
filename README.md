@@ -349,9 +349,20 @@ them is a fault.
   and rendering nothing would collapse the region and shift the chrome when the
   first result lands. If it **stays** on `checking`, that is not this: it means
   the tab is hidden, and a hidden tab does not poll at all
-- **The market clock reads `--:--:-- ET`.** It is a reserved region rather than
-  a stopped clock. Epic 3 supplies the live market clock; `--:--:--` is used in
-  preference to a plausible `00:00:00`, which would be a fake time
+- ~~**The market clock reads `--:--:-- ET`.** It is a reserved region rather than
+  a stopped clock. Epic 3 supplies the live market clock~~ — **this stopped
+  being true at Task 2.5.5 and is no longer a fault to explain: the clock
+  works.** It shows New York time wherever you are, ticking on the second, with
+  the market's session state under it — `OPEN / Closes at 16:00`,
+  `CLOSED / Weekend`, `CLOSED / Thanksgiving Day`, or
+  `OPEN / Closes early at 13:00` on a half day. The one thing it still does not
+  say is `LIVE`: that word is a claim that market **data is arriving**, and it
+  belongs to Epic 3 along with the indicator two cells to its left, which is why
+  that one still and correctly reads `DISCONNECTED`.
+  The time is **your computer's clock rendered in market time**, which is a
+  time-zone claim rather than a synchronisation one — if your machine is three
+  minutes fast, so is this. `ET` and not `EDT`/`EST` is deliberate; see
+  `apps/frontend/src/components/MarketClock/MarketClock.tsx`
 - **The render check deliberately shows a `STALE` row and a `DISCONNECTED` row.**
   Demonstrating those states is what it is for. `PRODUCT_SPEC.md` §36 makes
   stale and disconnected data a product state rather than a failure — still
@@ -629,8 +640,8 @@ the same second half for the same reason.
 ### What `pnpm test` covers
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
-in this workspace. `packages/shared` runs 122 tests across 8 files,
-`apps/backend` 146 across 10, and `apps/frontend` 133 across 15 — **401 in
+in this workspace. `packages/shared` runs 159 tests across 9 files,
+`apps/backend` 146 across 10, and `apps/frontend` 163 across 18 — **468 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -763,7 +774,7 @@ pnpm coverage                                   # all three packages
 pnpm --filter @marketpulse/backend coverage     # one of them
 ```
 
-It is the same 401 tests with `--coverage` added, fanning out through
+It is the same 468 tests with `--coverage` added, fanning out through
 `pnpm -r` exactly as `pnpm test` does, so there are **three reports and no
 merged one** — each package answers for its own sources. It is deliberately
 not part of `pnpm test` and not a `pnpm verify` step of its own: nothing gates
@@ -2213,7 +2224,8 @@ wired rather than what they show. The not-found route keeps the chrome intact
 like any other route, because it is a route.
 
 The chrome — product name and a status strip of **three** regions (market feed,
-backend service, a reserved market clock), then the navigation — is
+backend service and, since Task 2.5.5, a working market clock), then the
+navigation — is
 `components/AppHeader`, rendered once outside the route table so it
 survives navigation rather than being remounted by it.
 

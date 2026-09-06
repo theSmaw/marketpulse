@@ -271,12 +271,18 @@ both have survived. This is the third instance and it is the one invariant 4 res
 
 ### 3.3 What Epic 13 replaces, precisely
 
-**One function, and one hook.**
+~~**One function, and one hook.**~~ **Corrected 2026-09-06 by Task 2.5.5: ONE HOOK, and
+nothing else.** This section is the one Epic 13 reads, so the correction matters more here
+than the original claim did.
 
-- The backend/shared side: the single function answering _what instant is it now_. Replay
-  substitutes the replay clock's instant.
-- The frontend side: the hook Task 2.5.5 writes, which ticks the header clock. Replay
-  substitutes the scrubber's position.
+- ~~The backend/shared side: the single function answering _what instant is it now_. Replay
+  substitutes the replay clock's instant.~~ **It was never built, because nothing in
+  `apps/backend` has yet needed to know what time it is.** Speculating one would have been
+  the `Clock` interface §3.2 rejects, arriving through a different door. The day the backend
+  needs "now" it gets its own module and this section gains its second bullet back.
+- The frontend side: **`apps/frontend/src/use-market-clock.ts`** (Task 2.5.5), which ticks
+  the header clock. Replay substitutes the scrubber's position. Its `useMarketClock` is the
+  whole of the substitution; `readMarketClock` below it is already pure and needs no change.
 
 Nothing else in Story 2.5 changes, because nothing else in Story 2.5 knows what time it is.
 
@@ -320,6 +326,32 @@ The `Date.now()` rule is still not written, because Task 2.5.5's clock module �
 it would permit — does not exist yet, which is the same objection unchanged. **Task 2.5.5
 should write it in the same change that creates that module**, at which point it is a third
 entry beside two that already work, rather than a new idea.
+
+**Written 2026-09-06 by Task 2.5.5, and it is scoped differently from what that paragraph
+imagined — deliberately, and the difference is the finding.** The sketch above was a
+workspace-wide rule with `use-market-clock.ts` excepted. What shipped is a rule over
+**`packages/shared/src` with no exception at all**, forbidding both `Date.now()` and a
+zero-argument `new Date()`; anything constructed _from_ an argument is untouched, which
+leaves the calendar's own `new Date(...T00:00:00Z)` alone.
+
+Two reasons, and the second is why the narrower rule is the stronger one.
+
+- **It permits nothing, so nobody has to check which file is excused.** A clock read inside a
+  session function is the failure invariant 4 names by name, and `packages/shared` is where
+  every one of those functions lives — so a rule with no exception there says exactly the
+  thing that matters.
+- **The workspace-wide version would have needed _two_ exceptions rather than one.**
+  `apps/frontend/src/use-backend-health.ts` stamps `new Date()` for "when this client last
+  got an answer" — a genuine second clock read and a legitimate one, because it is a
+  diagnostic about _this browser_ and has nothing to do with market time. **A rule with two
+  exceptions is weaker than the sentence it is trying to hold**, and it would have taught
+  every future reader that the list of excused files is the thing to consult rather than the
+  rule.
+
+So the frontend half of §3.1's sentence stays prose — in `use-market-clock.ts`'s own header —
+and remains on `CLAUDE.md`'s third-kind list. Both new patterns were **made to fail** in
+`market-session.ts` before being believed, and the tree was confirmed byte-identical after the
+revert.
 
 ---
 
@@ -371,15 +403,38 @@ Intl.DateTimeFormat(...)`), it is exactly `SECTOR_ETFS`'s shape and will be reta
 
 **The predictions Task 2.5.6 should test:**
 
-| Task  | Prediction                         | Why                                                                                                                                                            |
-| ----- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2.5.2 | **0 bytes**, bundle hash unchanged | Nothing in the frontend imports it yet, and lazy construction leaves no live call expression                                                                   |
-| 2.5.3 | **0 bytes**, bundle hash unchanged | A plain literal nothing reaches                                                                                                                                |
-| 2.5.4 | **0 bytes**, bundle hash unchanged | Pure functions nothing calls                                                                                                                                   |
-| 2.5.5 | **+5 to +8 kB raw**                | The first real consumer: the clock reaches the session functions, which reach the table — ~65 rows at ~50 bytes minified, plus the conversion and session code |
+| Task  | Prediction                                       | Why                                                                                                                                                            |
+| ----- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.5.2 | **0 bytes**, bundle hash unchanged               | Nothing in the frontend imports it yet, and lazy construction leaves no live call expression                                                                   |
+| 2.5.3 | **0 bytes**, bundle hash unchanged               | A plain literal nothing reaches                                                                                                                                |
+| 2.5.4 | **0 bytes**, bundle hash unchanged               | Pure functions nothing calls                                                                                                                                   |
+| 2.5.5 | ~~**+5 to +8 kB raw**~~ **+11.7 kB — see below** | The first real consumer: the clock reaches the session functions, which reach the table — ~65 rows at ~50 bytes minified, plus the conversion and session code |
 
 If 2.5.2 or 2.5.3 moves the bundle at all, the module-load construction is what did it, and
 the fix is one line.
+
+**Measured 2026-09-06. Three of the four predictions held exactly and the fourth was
+exceeded by about half, which is worth recording rather than rounding away.** 2.5.2, 2.5.3
+and 2.5.4 each read **357,216 B on an unchanged 18,058 B stylesheet** — 0 bytes, three times,
+which is the lazy construction and the plain literals both doing what they were chosen for.
+
+2.5.5 reads **368,877 B of JavaScript and 19,489 B of CSS**: **+11,661 B and +1,431 B**
+against a predicted +5 to +8 kB. Two things the prediction got wrong, and only one of them is
+interesting.
+
+- **The table itself came in almost exactly as forecast** — 3,853 B minified against the
+  ~3.25 kB the row arithmetic gives. So the estimate of the thing this section is _about_ was
+  sound.
+- **The conversion, session, hook and component code was under-costed by roughly 4 kB**, which
+  is where the whole overshoot lives. The prediction treated it as a rounding term beside the
+  table and it is more than twice the table's size — `market-time.ts` alone carries two
+  memoised formatters, a `formatToParts` reader, offset arithmetic and
+  `instantFromMarketTime`'s bracket-and-round-trip resolution.
+- **The stylesheet was not predicted at all**, because this section forecasts a _bundle_ and
+  a visible component is the first thing in the story to bring CSS with it.
+
+The transferable form: **a bundle prediction for a data table is easy and a bundle prediction
+for the code that reads it is not**, and this section only attempted the first.
 
 ---
 

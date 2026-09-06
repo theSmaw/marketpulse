@@ -23,11 +23,8 @@
 /* The label beside each cell. Uppercase and letterspaced, like every other
    micro-label in this language. */
 .label {
+  composes: microLabel from "../styles/type.module.css";
   color: var(--ink-secondary);
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
-  text-transform: uppercase;
 }
 
 /* For grids whose right-hand column is numeric — the alignment is the thing

@@ -1,6 +1,8 @@
 import type { BackendDegradedCause, BackendStatus } from "@marketpulse/shared";
 
 import { cx } from "../../cx.js";
+import { Marker } from "../Marker/Marker.js";
+import type { MarkerShape } from "../Marker/Marker.js";
 import styles from "./BackendIndicator.module.css";
 
 // The **backend service's** state, as a marker shape plus a word — and it is a
@@ -25,11 +27,18 @@ import styles from "./BackendIndicator.module.css";
 //
 // What is *shared* is the visual language, not the component: a marker whose
 // **shape** carries the state, a lowercase word beside it, achromatic except
-// for the one amber state a glance should land on. Copying that idiom is
-// cheaper than a `variant` prop, and it is what stops two indicators in one
-// strip reading as two unrelated widgets. The cost, stated rather than
-// discovered: the two stylesheets now share an idiom by imitation, so a change
-// to the marker language means editing both.
+// for the one amber state a glance should land on. That is still the decision —
+// there is no `variant` prop and no shared status indicator, for the reason
+// above.
+//
+// ~~The cost, stated rather than discovered: the two stylesheets now share an
+// idiom by imitation, so a change to the marker language means editing both.~~
+// **Paid 2026-09-06, at the third copy.** `MarketClock` made the marker idiom a
+// three-edit change, and `components/Marker` now owns the geometry and the four
+// silhouettes. **That is a different extraction from the one rejected above and
+// the difference is the whole point**: the primitive knows nothing about any
+// vocabulary, and this component keeps its own union, its own words, its own
+// colour tokens and its own state-to-shape table. What moved is the drawing.
 //
 // ## None of these is an error, including `unreachable`
 //
@@ -112,6 +121,24 @@ const STATUS_CLASS: Readonly<Record<BackendStatus, string | undefined>> = {
   healthy: styles.healthy,
   degraded: styles.degraded,
   unreachable: styles.unreachable,
+};
+
+/**
+ * Which silhouette each state draws.
+ *
+ * The mapping stays here rather than in `Marker`: the primitive owns the
+ * drawing, this owns what the drawing means. Two of these are load-bearing.
+ *
+ * `degraded` is the one **square** in the application, and it is square so that
+ * the amber it carries is never the only thing marking it — the silhouette has
+ * to work on its own, which the colour must never have to. And `healthy` and
+ * `unreachable` are the same grey, so this table is the entire difference
+ * between them.
+ */
+const STATUS_SHAPE: Readonly<Record<BackendStatus, MarkerShape>> = {
+  healthy: "disc",
+  degraded: "square",
+  unreachable: "ring",
 };
 
 /**
@@ -227,7 +254,9 @@ export function BackendIndicator({
   if (!hasChecked) {
     return (
       <span className={cx(styles.indicator, styles.checking)}>
-        <span aria-hidden="true" className={styles.marker} />
+        {/* Not a status, so it takes no entry in the table above: `dashed`
+            reads as "not yet" rather than as a state. */}
+        <Marker shape="dashed" />
         <span className={styles.label}>checking</span>
       </span>
     );
@@ -246,7 +275,7 @@ export function BackendIndicator({
 
   return (
     <span className={cx(styles.indicator, STATUS_CLASS[status])}>
-      <span aria-hidden="true" className={styles.marker} />
+      <Marker shape={STATUS_SHAPE[status]} />
       <span className={styles.label}>{STATUS_WORD[status]}</span>
       {detail !== undefined && <span className={styles.detail}>{detail}</span>}
       {since !== undefined && <span className={styles.since}>{since}</span>}

@@ -1,6 +1,8 @@
 import type { FeedStatus } from "@marketpulse/shared";
 
 import { cx } from "../../cx.js";
+import { Marker } from "../Marker/Marker.js";
+import type { MarkerShape } from "../Marker/Marker.js";
 import styles from "./FeedIndicator.module.css";
 
 // The market feed's state, as a marker and a word.
@@ -39,10 +41,24 @@ const STATUS_CLASS: Readonly<Record<FeedStatus, string | undefined>> = {
   disconnected: styles.disconnected,
 };
 
+/**
+ * Which silhouette each state draws.
+ *
+ * The mapping stays **here** rather than in `Marker`, which is the whole shape
+ * of that extraction: the primitive owns the drawing and this owns what the
+ * drawing means. `live` and `disconnected` are the same grey and are told apart
+ * by this table alone.
+ */
+const STATUS_SHAPE: Readonly<Record<FeedStatus, MarkerShape>> = {
+  live: "disc",
+  stale: "disc",
+  disconnected: "ring",
+};
+
 export function FeedIndicator({ status, detail }: FeedIndicatorProps) {
   return (
     <span className={cx(styles.indicator, STATUS_CLASS[status])}>
-      <span aria-hidden="true" className={styles.marker} />
+      <Marker shape={STATUS_SHAPE[status]} />
       <span className={styles.label}>{status}</span>
       {detail !== undefined && <span className={styles.detail}>{detail}</span>}
     </span>

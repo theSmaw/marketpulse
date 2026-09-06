@@ -201,6 +201,39 @@
   --service-unreachable: var(--ink-secondary);
 
   /*
+   * --- Market session status (Task 2.5.5) ---
+   *
+   * Whether the market is trading, and it is the **first** block in this file
+   * that is genuinely about the market itself rather than about our own
+   * plumbing: the feed status is a fact about our data connection, the service
+   * status is a fact about our backend, and this is a fact about the New York
+   * Stock Exchange.
+   *
+   * **All three are achromatic, and that is the strongest form of the rule this
+   * file already follows twice.** The feed block keeps one amber because "stale"
+   * is the state a glance should land on; the service block keeps one for
+   * "degraded" for the same reason. Here there is no such state: a closed market
+   * is not a problem, it is what the market does for roughly two-thirds of every
+   * week, and colouring it would say otherwise. Nothing here is
+   * `--status-error` red, and a green "open" was rejected for the reason a green
+   * "live" was — green means price-positive in this product, and it is the only
+   * other green on the screen.
+   *
+   * So the three are told apart by the **shape** of the marker: filled for open,
+   * hollow for closed, dashed for unknown. That is the same silhouette
+   * vocabulary `FeedIndicator` and `BackendIndicator` share, and this is now the
+   * third component holding it by imitation — the cost `BackendIndicator` stated
+   * when it was the second, arriving exactly as predicted.
+   *
+   * `--market-unknown` is not a market state at all. It is what a clock past the
+   * trading calendar's covered range renders, and it recedes because it is the
+   * one of the three that is saying nothing about the market.
+   */
+  --market-open: var(--ink-secondary);
+  --market-closed: var(--ink-secondary);
+  --market-unknown: var(--ink-secondary);
+
+  /*
    * --- Error ---
    *
    * The minimum needed to make "stale is not an error" a visible claim rather

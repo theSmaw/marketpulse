@@ -8,7 +8,9 @@ import { NavLink } from "react-router";
 import { cx } from "../../cx.js";
 import { BackendIndicator } from "../BackendIndicator/BackendIndicator.js";
 import { FeedIndicator } from "../FeedIndicator/FeedIndicator.js";
+import { MarketClock } from "../MarketClock/MarketClock.js";
 import { PATHS } from "../../routes/paths.js";
+import { useMarketClock } from "../../use-market-clock.js";
 import styles from "./AppHeader.module.css";
 
 // The application chrome PRODUCT_SPEC.md §9 sketches: the product name, a
@@ -17,10 +19,31 @@ import styles from "./AppHeader.module.css";
 // navigation rather than being remounted by it.
 //
 // **The status strip is three regions since Task 1.12.5**: the market feed, the
-// backend service and the reserved clock. Only the second of them is driven by
-// anything real — `App` polls `/health` and passes the result down — and that
-// is what makes this header the one place in the application where a failure of
-// the backend is visible.
+// backend service and the market clock. **Two of the three are driven by
+// something real since Task 2.5.5** — `App` polls `/health` and passes the
+// result down, and the clock reads the system clock through `useMarketClock`
+// here — which is what makes this header the one place in the application where
+// a failure of the backend is visible, and now also the first thing in the
+// product that is *alive* in PRODUCT_SPEC.md §5.6's sense. The market feed is
+// still hard-coded and still correctly reads `DISCONNECTED`: there is no market
+// data until Epic 3.
+//
+// **The clock's hook is called here rather than in `App`, and that is a
+// decision this component would not otherwise take** (Task 2.5.5). Task 1.12.5
+// accepted a whole-tree re-render on every 30-second health poll and recorded
+// the reversal trigger beside it — "a second consumer, or a render rate that is
+// no longer a poll". A 1 Hz clock is sixty times that rate and mutates the DOM
+// on every tick, so the trigger fired: lifting it to `App` would re-render
+// `<Routes>`, the current route, all four `Region`s and the landing route's
+// 36-row table once a second for a text node in the chrome. Called here, the
+// tick reaches this subtree and stops.
+//
+// That is not a hole in the four-props rule below, and the distinction is worth
+// keeping: that rule is about acquiring a dependency on a **network loop** —
+// state, failure states, an `AbortController`, a thing a story would have to
+// construct. `useMarketClock` makes no request and has no failure states, and
+// `MarketClock` itself stays presentational so all six of its renderings are
+// reviewable in the workshop.
 //
 // It being eager and outside `<Routes>` is what makes that indicator worth
 // having. A failure inside the router blanks `<main>` — four named landmarks
@@ -128,6 +151,11 @@ export function AppHeader({
   backendLastSuccessAt,
   backendHasChecked,
 }: AppHeaderProps) {
+  // The one clock read on any path that reaches the market — see
+  // `use-market-clock.ts`, and the paragraph above for why the call site is
+  // here and not in `App`.
+  const clock = useMarketClock();
+
   return (
     <header className={styles.header}>
       {/* The product name is a `<p>`, not an `<h1>`, and Task 1.5.2 demoted it
@@ -195,23 +223,26 @@ export function AppHeader({
         </div>
 
         {/*
-          The clock area is a region, not a clock. Epic 3 supplies the live
-          market clock; what this reserves is the space, and reserving it
-          correctly is the whole job — a continuously changing time in a fixed
-          strip is precisely what `font-variant-numeric: tabular-nums` on
-          `body` exists for, and it is inherited here rather than re-declared.
+          The clock, and it is a clock now (Task 2.5.5).
 
-          `--:--:--` rather than a plausible-looking `00:00:00`, which would be
-          a fake time. The reserved width is close but not exact: tabular
-          figures fix the width of digits, and a hyphen is not a digit, so the
-          strip will shift slightly the first time the real clock renders.
-          Better a visible small shift then than a placeholder that lies now.
+          This region reserved the space with a `--:--:--` placeholder from
+          Story 1.5 to Story 2.5, deliberately: a plausible-looking `00:00:00`
+          would have been a fake time. The placeholder's own comment predicted
+          the one-off width shift when hyphens became digits — hyphens are not
+          in the font's tabular set — and paying it was always the better trade
+          than a placeholder that lied.
+
+          **It shipped here rather than in Epic 3, and `STORY.md` is amended
+          rather than left contradicting itself.** A clock is a fact about the
+          *calendar*: it needs a timezone and a session definition, both of
+          which exist after Task 2.5.4, and none of Epic 3's live feed. What
+          stays Epic 3's is the `LIVE` word in §9's sketch and anything else
+          claiming data is arriving — which is the feed's region, two cells to
+          the left.
         */}
         <div className={cx(styles.region, styles.clock)}>
           <p className={styles.microLabel}>Market clock</p>
-          <p className={styles.clockValue}>
-            <span>--:--:--</span> <span className={styles.clockZone}>ET</span>
-          </p>
+          <MarketClock reading={clock} />
         </div>
       </div>
 
