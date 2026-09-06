@@ -99,16 +99,63 @@ beside it, the `LIVE` state in §9's sketch, and anything that claims data is ar
   degrade-locally rule applied, and is strictly better than either a blank header or a
   confident guess. Decide it, write it beside the `catch`, and **test it by moving the
   clock's instant past 2028-12-31** rather than by waiting.
+  **Two things Task 2.5.4 makes precise (added 2026-09-06).** The throw comes from exactly
+  **one** call — `marketSessionStateAt(instant)` — so the `catch` wraps one line rather than
+  the render, and it must catch **`MarketCalendarRangeError` by type and rethrow anything
+  else**: a bare `catch` there would also swallow a `MarketTimeError` and any genuine bug in
+  the session functions, turning "the header degraded honestly" into "the header hides
+  faults". And **the test needs no fake timers and no clock mocking at all**, because
+  everything below the seam is a pure function of the instant it is given: call
+  `marketSessionStateAt(new Date("2029-01-02T15:00:00Z"))` and assert it throws, then assert
+  the component's own degraded rendering. That is the seam paying for itself the first time
+  it is used.
   Note what this also does: it turns `MARKET_CALENDAR_PROVENANCE.nextEditDue` from a note in
   a file into a date with a visible consequence, which is worth saying in the write-up
 - **A closure has a NAME now, and it is not always a holiday (added 2026-09-06).** Task
-  2.5.3's rows carry one, so _closed for Thanksgiving_ is `marketCalendarExceptionOn(date)`
-  and needs no second table of names. But the copy around it has to survive the row that
+  2.5.3's rows carry one, so _closed for Thanksgiving_ is ~~`marketCalendarExceptionOn(date)`~~
+  **already on the state `marketSessionStateAt` returns — see the bullet below; do NOT call
+  the calendar a second time, because that is a second call site that can throw the range
+  error (corrected 2026-09-06 by Task 2.5.4)** and needs no second table of names. But the copy around it has to survive the row that
   reads **`National Day of Mourning (President Carter)`** — a real row, in range, at
   `2025-01-09`. A label template of "Closed for the holiday: X" is wrong for it, and so is
   anything that assumes the name is short or annual. **"Closed — X" is the shape that works
   for both**, and this is a case where the calendar being read off the published record
   rather than derived from rules changes what the interface can say
+- **What Task 2.5.4 actually shipped, so this task builds on it rather than beside it
+  (added 2026-09-06).** `packages/shared/src/market-session.ts` exports
+  `marketSessionStateAt(instant)`, `marketSessionOn(date)`, `previousMarketSession`,
+  `nextMarketSession`, `marketSessionsBetween`, `lastMarketSessions`,
+  `MARKET_SESSION_OPEN`/`MARKET_SESSION_CLOSE` and `MARKET_SESSION_STATUSES`. **This task
+  needs exactly one of them: `marketSessionStateAt(instant)`.** It returns a discriminated
+  union of **five** members, and the copy bullets in this file describe **four** renderings,
+  so the mapping is a decision this task owes rather than a transcription:
+  - `open` — the market is trading.
+  - `before_open` and `after_close` are **two different states that both mean "closed", and
+    the difference is worth rendering.** Before the bell, "opens at 09:30" is the useful
+    sentence; after it, the useful one names the close that already happened. Collapsing them
+    is defensible and must be a **decision** rather than an oversight, because a union member
+    silently rendered identically to another is the boolean this story rejected, rebuilt.
+  - `holiday` — carries `name` **on the state itself**, so nothing here reads the calendar.
+  - `weekend` — carries nothing, because there is nothing to say.
+
+  All three weekday members carry `session`, which is where "closing early at 13:00" comes
+  from: **that is not a state member, it is `session.isEarlyClose` plus `session.close`.** So
+  the half-day sentence is available in `before_open` and in `open` (future tense, "closes
+  early at 13:00 today") and in `after_close` (past tense), which is a third reason those two
+  are not interchangeable. `MARKET_SESSION_STATUSES` exists so the component can switch
+  exhaustively rather than defaulting.
+
+- **The seam's home is this task's decision and Task 2.5.4 pre-empted it in a comment
+  (added 2026-09-06).** `market-session.ts`'s module comment asserts that the one module
+  reading the wall clock is "Task 2.5.5's, in `apps/frontend`". `CALENDAR.md` §3.3 is looser
+  and names **two** things replay replaces — a shared/backend function answering _what
+  instant is it now_, and this task's frontend hook. Nothing in `apps/backend` needs "now"
+  yet, so shipping only the frontend half is defensible; what is **not** acceptable is
+  shipping it elsewhere and leaving that comment claiming otherwise. **Decide, and if it does
+  not land in `apps/frontend`, amend `market-session.ts`'s comment in the same change.** The
+  `Date.now()` lint rule `CALENDAR.md` §3.4 defers to this task is the same decision: it
+  needs to name the module that exists.
+
 - **Apply the formatting decisions that already exist rather than inventing new ones.**
   `tabular-nums` is inherited from `body` and must not be re-declared; the hand-rolled
   formatter idiom over `toLocaleTimeString` is Task 1.12.4's and its reason (a
