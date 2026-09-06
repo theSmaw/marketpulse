@@ -152,7 +152,7 @@ describe("AppHeader", () => {
     );
 
     expect(screen.getByText("unreachable")).toBeDefined();
-    expect(screen.getByText("Last confirmed 10:42:17")).toBeDefined();
+    expect(screen.getByText("Last confirmed 10:42:17 local")).toBeDefined();
     expect(screen.queryByRole("alert")).toBeNull();
     // The navigation is untouched by the backend being unreachable, which is
     // the "rest of the interface remains usable" criterion at this level.

@@ -93,7 +93,7 @@ describe("BackendIndicator", () => {
         />,
       );
 
-      expect(screen.getByText("Last confirmed 09:05:03")).toBeDefined();
+      expect(screen.getByText("Last confirmed 09:05:03 local")).toBeDefined();
     });
 
     it("is shown when degraded and when unreachable", () => {
@@ -105,7 +105,7 @@ describe("BackendIndicator", () => {
           hasChecked
         />,
       );
-      expect(screen.getByText("Last confirmed 10:42:17")).toBeDefined();
+      expect(screen.getByText("Last confirmed 10:42:17 local")).toBeDefined();
       unmount();
 
       render(
@@ -116,7 +116,7 @@ describe("BackendIndicator", () => {
           hasChecked
         />,
       );
-      expect(screen.getByText("Last confirmed 10:42:17")).toBeDefined();
+      expect(screen.getByText("Last confirmed 10:42:17 local")).toBeDefined();
     });
 
     // Healthy means the check that just ran succeeded, so a timestamp beside it

@@ -89,7 +89,9 @@ test("the indicator recovers on the next poll, without the page reloading", asyn
   // value is a wall clock the component formats by hand precisely so a test can
   // assert it without pinning a locale.
   const indicator = backendIndicator(page);
-  const confirmed = indicator.getByText(/^Last confirmed \d{2}:\d{2}:\d{2}$/);
+  const confirmed = indicator.getByText(
+    /^Last confirmed \d{2}:\d{2}:\d{2} local$/,
+  );
 
   await expect(confirmed).toBeVisible();
 
