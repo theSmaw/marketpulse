@@ -42,6 +42,21 @@ What can be demonstrated is worth a line in the write-up anyway: after this, the
   Task 2.5.1's decision applied: the wall clock is read in exactly one place, which is Task
   2.5.5's, and everything here is a pure function of its arguments. It is also what makes
   these tests fast and what makes Epic 13's substitution a change to one module
+- **What Task 2.5.2 actually shipped, so this task builds on it rather than beside
+  it (added 2026-09-06).** The boundary module exports `marketWallClockAt`,
+  `marketDateAt`, `marketOffsetAt` and `instantFromMarketTime`, plus a **branded**
+  `MarketDate` with `toMarketDate`/`isMarketDate` and a `MarketTimeOfDay` with
+  `toMarketTimeOfDay`. Three consequences for this task. **Session bounds are
+  built with `instantFromMarketTime(date, time)`** and nothing else — there is no
+  other way, because `eslint.config.mjs` now forbids constructing an
+  `Intl.DateTimeFormat` or naming the market's timezone outside that module, and
+  both rules were made to fail before being believed. **This module is where the
+  calendar table's plain-string dates get branded**, per Task 2.5.3's measured
+  finding that branding them at rest costs ~1.5 kB in the frontend bundle. And
+  **`instantFromMarketTime` throws `MarketTimeError` on the gap and the fold**,
+  which no session bound can ever hit (both transitions are Sundays), so a
+  `try`/`catch` around it here would be catching a condition that cannot occur —
+  if one ever fires, the calendar table has a Sunday in it
 - **Assert against the named-date list rather than against reasoning**, which is criterion 1
   and is worded that way deliberately. At minimum, and each as its own named test so a
   failure says which case broke:

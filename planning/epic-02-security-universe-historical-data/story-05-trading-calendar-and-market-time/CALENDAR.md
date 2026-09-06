@@ -288,9 +288,22 @@ two seams are independent and both are needed.
 
 ### 3.4 How it is held, and what nothing checks
 
-Task 2.5.2 verifies with a grep and writes the rule beside the export list. This joins
+~~Task 2.5.2 verifies with a grep and writes the rule beside the export list. This joins
 `CLAUDE.md`'s third kind of gap — a stated invariant nothing enforces — alongside "one file
-calls `fetch`", "one module owns UTC↔ET conversion" (§5) and the temporal seam itself.
+calls `fetch`", "one module owns UTC↔ET conversion" (§5) and the temporal seam itself.~~
+**Corrected 2026-09-06 by Task 2.5.2, which went further than this section predicted: it is
+NOT an unenforced invariant.** A grep test was written first and does not work where it has
+to live — greping the tree needs `@types/node`, and `packages/shared` deliberately has none
+because it is inlined into the browser bundle, so giving it Node types to hold a lint-shaped
+rule would breach one boundary to enforce another. So criterion 2 is held by **two
+`no-restricted-syntax` rules in `eslint.config.mjs`** with `market-time.ts` as their single
+exception: one forbids constructing an `Intl.DateTimeFormat` anywhere else in the workspace,
+one forbids spelling `America/New_York` anywhere else. Both were made to fail — in
+`apps/frontend` and in `packages/shared` — before being believed. What the rule cannot see is
+a conversion written with a hard-coded `-5` and no timezone name at all, which is a
+reimplementation rather than a duplicate. So of the three invariants this paragraph listed,
+"one module owns UTC↔ET conversion" has **left** the unenforced list and the other two remain
+on it.
 
 **It is worth stating that a lint rule could hold it and is not proposed.** ESLint's
 `no-restricted-syntax` could forbid `Date.now()` outside a named file, the way
@@ -299,6 +312,14 @@ for one task's worth of reason: the module does not exist yet, so the rule would
 nothing to permit. **The reversal trigger is the first time a `Date.now()` appears outside
 that module in review** — at which point the rule is four lines in a config that already has
 the pattern.
+
+**Amended 2026-09-06.** That reasoning was right and its conclusion is now cheaper to act on
+than it was: Task 2.5.2 added exactly this shape of rule for the _conversion_ boundary, so
+`eslint.config.mjs` already carries the pattern, the exception mechanism and the argument.
+The `Date.now()` rule is still not written, because Task 2.5.5's clock module — the one thing
+it would permit — does not exist yet, which is the same objection unchanged. **Task 2.5.5
+should write it in the same change that creates that module**, at which point it is a third
+entry beside two that already work, rather than a new idea.
 
 ---
 
@@ -505,6 +526,18 @@ except that the libraries in §6.4 have the same defaults, so buying one does no
 **What fixes it is refusing**, which is Task 2.5.2's instruction and which no library will
 do on your behalf.
 
+**One correction to the algorithm this section names, found by Task 2.5.2 on
+2026-09-06 while implementing it.** The "natural two-pass offset resolution" above —
+resolve with the offset at a first guess, then re-resolve if the offset at the
+resulting instant differs — **cannot detect the fold at all**, so it could never have
+produced the refusal this section asks for. Probing at the first candidate returns the
+offset it started from, so exactly one candidate is ever built and the ambiguity is
+invisible. What works is **bracketing**: read the offset ±24 hours around the requested
+wall-clock fields (transitions are months apart, so a day either side always straddles
+one), build a candidate from each, and keep the ones that **round-trip** back to the date
+and time asked for. Zero survivors is the gap, two is the fold, one is the answer. The
+two-pass description is left standing above as the record of what this task believed.
+
 **And there is a finding that makes refusing provably safe here.** US DST transitions are
 always Sundays — second Sunday in March, first Sunday in November — and the market is closed
 on Sundays. So across the covered range:
@@ -701,11 +734,19 @@ Task 2.5.3 sets that date to the day it actually does the check.
 - **The on-screen format of a market timestamp.** §5 fixes the wire; Task 2.5.5 owns the
   formatter, under Task 1.12.4's existing rule (hand-rolled over `toLocaleTimeString`,
   because a locale-dependent string changes width and `tabular-nums` cannot fix that).
-- **What `BackendIndicator`'s unlabelled local time should become.** Task 2.5.2 owns it. One
-  datum for that decision, taken here by accident: the browser measurement in §6.2 was taken
-  on a machine reporting `Asia/Singapore`, so the "last confirmed" time in the header today
-  is thirteen hours from ET and says nothing about which. Once there is an ET-labelled clock
-  in the same strip, unlabelled-and-adjacent is the one option that is not defensible.
+- ~~**What `BackendIndicator`'s unlabelled local time should become.** Task 2.5.2 owns
+  it.~~ **Decided by Task 2.5.2 on 2026-09-06: it stays LOCAL and gains the word
+  `local`**, so it now reads `Last confirmed 10:42:17 local`. "When this client last got
+  an answer" is a fact about the client rather than the market — a diagnostic about this
+  browser's connection, which a reader compares against their own sense of how long ago
+  that was — so ET would make it comparable with the market clock nobody wants and
+  incomparable with their own. The label is the **word** rather than the viewer's timezone
+  abbreviation for two reasons: the abbreviation needs an `Intl.DateTimeFormat` call that
+  criterion 2's new lint rule now forbids outside the boundary module, and it varies in
+  width (`EDT` against `GMT+8`), which is the exact objection that made this a hand-rolled
+  formatter in the first place. The datum that made it urgent: the browser measurement in
+  §6.2 was taken on a machine reporting `Asia/Singapore`, so that time was thirteen hours
+  from ET and said nothing about which.
 - **Whether the clock is trusted from the browser or the server.** Task 2.5.5's, and its
   brief already frames it correctly: for this story it is the viewer's clock rendered in
   market time, which is a timezone claim rather than a synchronisation claim.
@@ -715,6 +756,11 @@ Task 2.5.3 sets that date to the day it actually does the check.
 ---
 
 ## The tree is byte-identical
+
+**Scoped 2026-09-06: this section is Task 2.5.1's own closing statement and is not a claim
+about the story.** Task 2.5.2 shipped `packages/shared/src/market-time.ts`, its tests, a
+barrel export and two lint rules — with no dependency, no lockfile change and no
+`pnpm-workspace.yaml` change, so every figure below still holds for what it names.
 
 Nothing was installed that stayed. Three candidate installs were made and reverted, and the
 tree was re-measured afterwards:
