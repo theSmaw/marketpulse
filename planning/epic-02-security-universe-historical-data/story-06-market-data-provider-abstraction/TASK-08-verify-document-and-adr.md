@@ -1,0 +1,128 @@
+# Task 2.6.8 — Verify, document, and ADR 0018
+
+**Status:** Not started
+**Story:** [2.6 Market-Data Provider Abstraction](STORY.md)
+**Depends on:** Tasks 2.6.1–2.6.7
+
+## Objective
+
+Re-run all six acceptance criteria against what shipped, re-take every figure rather than
+citing one, and record the decisions as `docs/adr/0018-*`.
+
+## What the user can see when this lands
+
+**Nothing new.** Task 2.6.7 was the visible one. What lands here is the record Story 2.7 and
+Epic 3 read before they touch this seam.
+
+## Work
+
+### Re-run all six criteria, and note which two are not re-runnable by reading
+
+1. **No vendor reference, checked by grep.** Grep the whole seam — `packages/shared/src` and
+   the provider files in `apps/backend/src` — for every vendor name, and for the vendor's
+   own field and timeframe spellings, which is the form a leak actually takes. Report the
+   command and the count, not a claim.
+2. **A fixture provider implements it fully and is what tests use.** "Fully" means no method
+   throwing "not implemented"; "is what tests use" means grep for anything else.
+3. **Every response carries provenance and no code path produces a bar without it.**
+   Re-**make** the compile failure rather than citing Task 2.6.3, and re-take the stitched
+   case.
+4. **Each error cause producible and distinguishable.** Re-run them; report the count against
+   `PROVIDER.md`'s list, because a member that was struck during implementation and left in
+   the document is the drift this task exists to catch.
+5. **Adjustment explicit at the call site.** The check is that omitting it does not compile.
+6. **`pnpm verify` passes with no network access.** Take it with the network genuinely
+   disabled, and take it twice — once from the working tree and once from a **clean clone**,
+   which is the eleventh such run and the only place some guards fire at all. Task 1.13.5
+   found a whole class of failure that way.
+
+### Re-take every figure, and reproduce them rather than citing them
+
+- `pnpm verify` exit code and per-step split, warm and cold, **with and without a database**
+- `pnpm test`, `pnpm test:process`, `pnpm test:database`, `pnpm e2e` counts
+- **the frontend artefact**, all four files with sizes and hashes. Task 2.6.1 predicted this
+  story's `packages/shared` bundle cost; **measure it against the prediction and say whether
+  the prediction was right.** Task 2.3.8's finding is the thing to look for: a vocabulary
+  declared as a literal is tree-shaken completely, one built by calling a function is not
+- the install cost, if anything was added — store entries, KB, lockfile lines, and the
+  install-script sweep, which should still return `esbuild@0.28.2` and nothing else
+- Storybook's file count, which has been carried as "unchanged" across closes that never
+  re-took it and was wrong twice
+
+**Reproduce `HEAD`'s figures, not the last task's.** Task 2.5.6 found that the instruction
+"reproduce Task 2.5.5's figures" was the wrong instruction, because two follow-up commits had
+moved the artefact and a close that cited the task file would have reported a regression that
+did not happen.
+
+### The sweeps, each of which has caught something every time it has been run
+
+- **The duplicated-sentence sweep.** Twelve convention blocks, ten byte-identical, plus two
+  historical variants. `pnpm test`'s count is stated in ten of them and in `EPIC.md` and
+  `README.md` and `CLAUDE.md`. It was stale by **two whole story closes** at Task 2.3.8. Grep
+  it; do not read the list of places somebody remembered
+- **The live-versus-historical distinction.** A count inside a completed task's write-up is a
+  correct record of what was true then; the same count in `README.md` is a live claim. Amend
+  the second, leave the first — the distinction a naive grep-and-replace destroys
+- **Claims that have stopped being true.** Specifically likely this story: `AppHeader`'s own
+  comment says the market feed "is still hard-coded and still correctly reads
+  `DISCONNECTED`", `README.md` lists it among the things that read as faults, `feed-status.ts`
+  describes a vocabulary that now has a neighbour, and `CLAUDE.md` says the frontend "does not
+  call the backend" in a paragraph that has been amended four times. Grep for the claim, not
+  for the file
+- **ADR present-tense descriptions.** Task 2.5.6 established the rule: an ADR's decision is
+  never rewritten and never renumbered, but a present-tense description of the tree that has
+  become false gets a **dated amendment beside it**, because a reader cannot tell a stale
+  description from a current one
+- **The link sweep.** Task 2.5.6 found four genuinely broken cross-file links, the first time
+  in six readings, all four from the story renumber — and it fired the stated reversal trigger
+  for a link checker in `pnpm verify`, recorded as **owed rather than taken**. Re-read that
+  decision here rather than deferring it a second time. The double-hyphen trap will report
+  correct anchors as broken for the seventh time; do not "fix" those
+
+### ADR 0018
+
+`docs/adr/0018-*`. It is the eighteenth ADR and `0018` — note the file number is not
+necessarily the ordinal, since `0014` was reserved and written after `0015`; `ls docs/adr/`
+is the count, and this sentence has been wrong three times.
+
+Write it in the shape ADRs 0010 to 0017 use, and make it answer the questions a later reader
+actually arrives with:
+
+- why the interface exists **before** any vendor code, which is invariant 7 rather than a
+  preference
+- why the domain types are in `packages/shared` and the provider interface is not
+- what provenance is attached to and why that granularity survives a stitched series
+- why adjustment is explicit with no default, and the split-cliff argument
+- why a provider call cannot throw, and where the line between a result and a defect is
+- why there is no retry and no cache inside a provider
+- **and the section every ADR here carries: what a green fixture-backed test certifies and
+  what it cannot.** Be specific. It certifies that our code agrees with a corpus we wrote; it
+  certifies nothing about the vendor until Story 2.7 re-records that corpus, and saying so is
+  the honest form of criterion 2
+
+### Update the pointers rather than copying the content
+
+`CLAUDE.md` gets a paragraph and a pointer to `PROVIDER.md`; `README.md`'s ADR list gets
+0018 and its "most recent" claim checked, which has been stale twice. The rule that produced
+the twelve-block problem is the one to honour: **point at the document, do not duplicate it.**
+
+## Done when
+
+- All six criteria re-run against the shipped tree, each with the command and the result
+- `pnpm verify` exit 0 **with the network disabled**, from the working tree and from a clean
+  clone
+- Every figure re-taken; the bundle prediction from Task 2.6.1 confirmed or corrected
+- All five sweeps run, with what each found written down — including "nothing", which is
+  itself a result and has only happened once
+- `docs/adr/0018-*` exists and carries the what-it-does-not-certify section
+- `PROVIDER.md`'s decision list matches what shipped, with any decision that changed during
+  implementation amended rather than silently left
+- The link-checker decision is re-read and either taken or re-declined with a dated reason
+
+## Notes
+
+The single most valuable output of this task is the honest form of criterion 2. Every test in
+this story passes against fixtures we wrote, which means a green suite here certifies
+internal consistency and not correctness against a market-data vendor. Story 2.7 is where
+that becomes a real claim, and it will only do so if this task hands it the obligation
+explicitly rather than as an assumption.
