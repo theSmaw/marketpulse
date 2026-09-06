@@ -82,6 +82,33 @@ beside it, the `LIVE` state in §9's sketch, and anything that claims data is ar
   kind of change a reader notices and cannot explain. Whichever is chosen, record
   it, and note the third option that looks clever and is not: showing the offset
   (`-04:00`) is precise, unreadable at a glance, and not what any trader calls it
+- **The clock is the ONE caller that cannot avoid going out of the calendar's range, and
+  this task has to decide what it does then (added 2026-09-06, from Task 2.5.3).** Every
+  other consumer of the calendar is handed a date by a user or a query and can refuse it.
+  This one reads `Date.now()`, so its input is always today, and **on 2029-01-01 the calendar
+  will throw `MarketCalendarRangeError` at it** — which, in a React component, means the
+  nearest `ErrorBoundary` catches it and the entire chrome is replaced by a fallback. The
+  header disappears on New Year's Day, on every route, for a reason nobody debugging it at
+  the time will guess.
+  That is not an argument against the refusal — Task 2.5.3 chose it deliberately and there is
+  no flag to turn it off, for `instantFromMarketTime`'s reason. It is an argument that **the
+  clock must catch it and degrade rather than propagate**, and the shape that costs nothing
+  is already available: the **time** is a pure timezone conversion that works forever, and
+  only the **session state** needs the calendar. So a clock past the range shows the time and
+  says it does not know whether the market is open, which is honest, is §36's
+  degrade-locally rule applied, and is strictly better than either a blank header or a
+  confident guess. Decide it, write it beside the `catch`, and **test it by moving the
+  clock's instant past 2028-12-31** rather than by waiting.
+  Note what this also does: it turns `MARKET_CALENDAR_PROVENANCE.nextEditDue` from a note in
+  a file into a date with a visible consequence, which is worth saying in the write-up
+- **A closure has a NAME now, and it is not always a holiday (added 2026-09-06).** Task
+  2.5.3's rows carry one, so _closed for Thanksgiving_ is `marketCalendarExceptionOn(date)`
+  and needs no second table of names. But the copy around it has to survive the row that
+  reads **`National Day of Mourning (President Carter)`** — a real row, in range, at
+  `2025-01-09`. A label template of "Closed for the holiday: X" is wrong for it, and so is
+  anything that assumes the name is short or annual. **"Closed — X" is the shape that works
+  for both**, and this is a case where the calendar being read off the published record
+  rather than derived from rules changes what the interface can say
 - **Apply the formatting decisions that already exist rather than inventing new ones.**
   `tabular-nums` is inherited from `body` and must not be re-declared; the hand-rolled
   formatter idiom over `toLocaleTimeString` is Task 1.12.4's and its reason (a
@@ -124,8 +151,11 @@ beside it, the `LIVE` state in §9's sketch, and anything that claims data is ar
 - One module reads the wall clock; every other function in this story takes an instant
 - The header's clock shows ET on all five routes, advances on the second, and does not tick
   in a hidden tab
-- The session state renders in the product's vocabulary, is not red, and names a holiday when
-  there is one
+- The session state renders in the product's vocabulary, is not red, and names a closure when
+  there is one — including one whose name is not a holiday
+- A clock past the calendar's covered range shows the time and declines to claim a session
+  state, rather than throwing into the header's error boundary; asserted by moving the
+  instant rather than by waiting for 2029
 - Seconds are not announced to a screen reader; the axe gate is unchanged and green
 - A browser journey asserts the clock advances
 - The re-render cost is measured rather than inherited, and the local-state decision is

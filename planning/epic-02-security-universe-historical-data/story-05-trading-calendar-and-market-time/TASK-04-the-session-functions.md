@@ -57,6 +57,19 @@ What can be demonstrated is worth a line in the write-up anyway: after this, the
   which no session bound can ever hit (both transitions are Sundays), so a
   `try`/`catch` around it here would be catching a condition that cannot occur —
   if one ever fires, the calendar table has a Sunday in it
+- **Every one of these functions can walk off the end of the calendar, and the brief did not
+  say so (added 2026-09-06, from Task 2.5.3).** `previousSession("2024-01-02")` steps back
+  into 2023, `nextSession("2028-12-29")` steps into 2029, and "the last 60 sessions" from
+  early January crosses the lower bound routinely — Epic 5's baseline is specified at exactly
+  that length. All three hit `MarketCalendarRangeError`, which is correct and is the whole
+  point of the refusal, but **each function has to decide whether it propagates or reports**,
+  and doing that by accident is how the range becomes an invisible cliff. The cheap answer is
+  to propagate, because the caller asked a question the calendar genuinely cannot answer and
+  a truncated list of sessions is a wrong answer wearing a right shape — but say so, and
+  assert both edges, because the alternative (silently returning fewer sessions than asked
+  for) is exactly what criterion 3 exists to prevent in the holiday case and is no better in
+  the range case. **Task 2.5.5's clock is the one caller that must NOT propagate**, and its
+  file now says why
 - **Assert against the named-date list rather than against reasoning**, which is criterion 1
   and is worded that way deliberately. At minimum, and each as its own named test so a
   failure says which case broke:
@@ -106,6 +119,8 @@ What can be demonstrated is worth a line in the write-up anyway: after this, the
 ## Done when
 
 - Every named date from Task 2.5.1's list is asserted, each in a test named for its case
+- Both edges of the calendar's covered range are asserted — a session walk that steps off
+  either end refuses rather than truncating, and the decision is recorded
 - "The last N sessions" returns sessions and is proved across a holiday week — the test that
   distinguishes it from `N` calendar days
 - A half day's bounds and its expected bar count are both available to a caller
