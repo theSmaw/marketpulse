@@ -155,6 +155,34 @@ const UNREACHABLE_DETAIL = "No response from the service.";
  * decision: a relative label needs its own ticking state, which would put a
  * second interval in the tree beside the poll — a component that re-renders on
  * a timer to keep a sentence true, in the chrome, on every route.
+ *
+ * ## Why it stays local, and why it is now labelled (Task 2.5.2)
+ *
+ * Story 2.5 puts a market clock reading `ET` into this same status strip, and
+ * an unlabelled local time beside a labelled market time is ambiguous in a way
+ * it was not before — the browser this was last measured in reports
+ * `Asia/Singapore`, thirteen hours from ET, and said nothing about which.
+ * Adjacent-and-unlabelled is the one option that is not defensible.
+ *
+ * Of the two defensible ones, this stays **local** and gains a label. "When
+ * this client last got an answer" is genuinely a fact about the client rather
+ * than about the market: it is a diagnostic about *this browser's* connection,
+ * and what a reader does with it is compare it against their own sense of how
+ * long ago that was. Rendering it in ET would make it comparable with the
+ * market clock, which nobody wants, and incomparable with the reader's own
+ * wall clock, which is the whole use. It would also make a service-health
+ * indicator a consumer of the trading calendar, which is a coupling with
+ * nothing behind it.
+ *
+ * The label is the word `local` rather than the viewer's timezone abbreviation,
+ * for two reasons that both matter. The abbreviation would need an
+ * `Intl.DateTimeFormat` call, and Story 2.5's acceptance criterion 2 is that
+ * exactly one module in the workspace constructs one — this is not that module,
+ * and market time is not what would be being formatted. And it varies in width
+ * (`EDT` against `GMT+8`), which is precisely the objection that made this a
+ * hand-rolled formatter rather than `toLocaleTimeString` in the first place.
+ * One fixed word says the useful thing: this is your computer's clock, not the
+ * exchange's.
  */
 function formatClockTime(at: Date): string {
   const pad = (value: number): string => String(value).padStart(2, "0");
@@ -184,7 +212,7 @@ function lastSuccessLine(
   if (status === "healthy") return undefined;
   if (lastSuccessAt === null) return "No successful check yet.";
 
-  return `Last confirmed ${formatClockTime(lastSuccessAt)}`;
+  return `Last confirmed ${formatClockTime(lastSuccessAt)} local`;
 }
 
 export function BackendIndicator({

@@ -85,3 +85,35 @@ export type { HealthResponse, HealthStatus } from "./health.js";
 // see backend-status.ts for why widening HealthStatus would have been wrong.
 export { BACKEND_DEGRADED_CAUSES, BACKEND_STATUSES } from "./backend-status.js";
 export type { BackendDegradedCause, BackendStatus } from "./backend-status.js";
+
+// The one conversion boundary between a UTC instant and market-local time
+// (Task 2.5.2). Story 2.5's acceptance criterion 2 is that nothing outside
+// `market-time.ts` performs that conversion, and it is held by a grep in
+// `market-time.test.ts` plus the rule written beside the module's own exports —
+// the same way `api-client.ts` holds "one file calls fetch" and `securities.ts`
+// holds Epic 13's temporal seam. It is here rather than in `apps/backend`
+// because Story 2.8's ingestion (which minutes should have bars) and Story
+// 2.12's chart axis (where to draw a session boundary) are on opposite sides of
+// the wire and must not have two copies of it.
+//
+// It deliberately knows nothing about holidays or sessions — those are Tasks
+// 2.5.3 and 2.5.4 — because the two fail differently: a wrong row in the
+// calendar is wrong one day a year, a wrong conversion is wrong twice a year
+// for everything.
+export {
+  instantFromMarketTime,
+  isMarketDate,
+  marketDateAt,
+  marketOffsetAt,
+  MarketTimeError,
+  marketWallClockAt,
+  toMarketDate,
+  toMarketTimeOfDay,
+} from "./market-time.js";
+export type {
+  MarketDate,
+  MarketOffset,
+  MarketTimeErrorReason,
+  MarketTimeOfDay,
+  MarketWallClock,
+} from "./market-time.js";

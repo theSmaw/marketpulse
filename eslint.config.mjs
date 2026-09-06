@@ -232,6 +232,74 @@ export default tseslint.config(
     },
   },
 
+  // --- The market-time conversion boundary ---
+  //
+  // Story 2.5's acceptance criterion 2: **nothing outside
+  // `packages/shared/src/market-time.ts` converts between a UTC instant and
+  // market-local time.** This is that criterion as a check rather than as a
+  // sentence somebody remembers.
+  //
+  // It is a lint rule rather than a test for one reason and one reason only:
+  // the check has to see the whole workspace, and the only test suite that
+  // could grep the tree is one in a package holding `@types/node` — which
+  // `packages/shared`, the package the module lives in, deliberately does not
+  // have, because it is inlined into the browser bundle. Giving it Node types
+  // to hold a lint-shaped rule would breach the boundary that package exists
+  // inside to fix a different boundary, which is a bad trade. Everything else
+  // about this is the shape the block above already has: `no-restricted-*` is
+  // how the frontend's browser boundary is held, it runs inside `pnpm verify`
+  // with no new step and no new dependency, and it names the reason at the
+  // moment the mistake is made.
+  //
+  // `CALENDAR.md` §3.4 anticipated a rule of this kind for `Date.now()` and
+  // declined it, correctly, because the module did not exist yet and the rule
+  // would have had nothing to permit. That objection does not apply here: the
+  // module exists, so there is exactly one place to except.
+  //
+  // Two patterns, because the conversion has two tells and either alone leaks.
+  // `Intl.DateTimeFormat` is the *only* way to read wall-clock fields in a
+  // named timezone on this platform, so constructing one anywhere else is the
+  // duplication; and the timezone identifier itself is what a second
+  // implementation would have to spell, including in the `timeZone` option of
+  // a formatter built some other way.
+  //
+  // What it cannot see, stated rather than implied: a conversion written with a
+  // hard-coded `-5` and no timezone name at all. That is a worse bug than the
+  // one this catches and it is not a *duplicate* of this module — it is a
+  // reimplementation that would be wrong twice a year, which is the failure the
+  // module's own tests document.
+  {
+    files: [
+      "apps/**/*.ts",
+      "apps/**/*.tsx",
+      "packages/**/*.ts",
+      "e2e/**/*.ts",
+      "scripts/**/*.mjs",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "NewExpression[callee.object.name='Intl'][callee.property.name='DateTimeFormat']",
+          message:
+            "Timezone conversion outside the boundary. packages/shared/src/market-time.ts is the one module that converts between a UTC instant and market time (Story 2.5, criterion 2) — import from @marketpulse/shared instead. A second converter is wrong twice a year, silently, on the two days nobody tests.",
+        },
+        {
+          selector: "Literal[value='America/New_York']",
+          message:
+            "The market's timezone is named in packages/shared/src/market-time.ts and nowhere else (Story 2.5, criterion 2). Import from @marketpulse/shared rather than spelling it again.",
+        },
+      ],
+    },
+  },
+
+  // The one exception, and the whole point of the block above.
+  {
+    files: ["packages/shared/src/market-time.ts"],
+    rules: { "no-restricted-syntax": "off" },
+  },
+
   // --- Storybook ---
   //
   // The workshop's own rules, adopted in Task 1.4.5 alongside Storybook itself.
