@@ -149,3 +149,41 @@ export type {
   MarketEarlyClose,
   MarketFullClosure,
 } from "./market-calendar.js";
+
+// What a trading SESSION is, and the questions the rest of the product asks
+// about one (Task 2.5.4). This is the module Story 2.5 exists for: Story 2.8
+// asks which minutes should have bars, Story 2.12 where the x-axis starts and
+// stops, Story 2.13 for "the last N sessions", and Epic 13 for the session state
+// at a replayed instant.
+//
+// It composes the two modules above it and adds the one thing neither knows:
+// `market-time.ts` converts and knows nothing about holidays, `market-calendar.ts`
+// knows which days are exceptional and deliberately nothing about Saturdays —
+// turning its `undefined` into a session is this module's job.
+//
+// The state at an instant is a DISCRIMINATED UNION and not a boolean, because
+// `isMarketOpen()` collapses four things a user needs to tell apart: 04:00 on a
+// normal Tuesday, Christmas Day, Sunday, and 14:00 on a half day that has
+// already shut. Task 2.5.5 renders that difference in the header.
+//
+// Nothing here reads the clock, and that ABSENCE is Epic 13's seam: a pure
+// function of an instant is already replay-ready, so there is no `Clock`
+// interface to inject. Walking off the end of the 2024-2028 calendar PROPAGATES
+// the refusal rather than truncating — a short list of sessions is a wrong
+// answer wearing the shape of a right one.
+export {
+  lastMarketSessions,
+  MARKET_SESSION_CLOSE,
+  MARKET_SESSION_OPEN,
+  MARKET_SESSION_STATUSES,
+  marketSessionOn,
+  marketSessionsBetween,
+  marketSessionStateAt,
+  nextMarketSession,
+  previousMarketSession,
+} from "./market-session.js";
+export type {
+  MarketSession,
+  MarketSessionState,
+  MarketSessionStatus,
+} from "./market-session.js";
