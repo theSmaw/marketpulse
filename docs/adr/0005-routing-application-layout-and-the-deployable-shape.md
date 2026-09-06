@@ -84,6 +84,23 @@ true of the DOM node rather than of the pixels — and that distinction is the
 whole criterion, because a header remounted on every navigation looks
 identical to one that is not.
 
+**Amended 2026-09-06 (Story 2.5, Task 2.5.6) — the sentence above describes the
+tree as it stood when this ADR was written, and one clause of it is no longer
+true of the tree.** The market clock region is not reserved any more: Task 2.5.5
+filled it with `components/MarketClock`, which renders the market time in ET and
+the session state on every route. The **decision** this section records is
+untouched — the chrome is still one component rendered once outside `<Routes>`,
+and that is still what makes "survives navigation" a claim about the DOM node —
+so the paragraph is annotated rather than rewritten, which is the treatment Task
+1.12.8 applied to ADR 0011 §23 when it found a deleted module described in the
+present tense. **The rule, stated so the next person does not have to re-derive
+it: an ADR's decision is never rewritten and never renumbered, but a
+present-tense description of the tree that has become false gets a dated
+amendment beside it, because a reader cannot tell a stale description from a
+current one and the whole value of these files is that they can be trusted.**
+The clock is recorded in
+[ADR 0017](0017-the-trading-calendar-market-time-and-what-a-correct-calendar-certifies.md).
+
 The current route is read by `NavLink` and rendered as `aria-current="page"`,
 so the accessible state and the visible one are one fact rather than two. The
 visible indication is **three encodings, only one of which is colour**:
@@ -292,6 +309,17 @@ the chrome holds the two shapes most likely to attract the rules — a clock and
 a connection status — and holds neither, because the clock is a reserved region
 and the status is a prop. `Region` calls `useId()`, the **first hook in this
 application**, and `useId` is not state.
+
+**Amended 2026-09-06 (Task 2.5.6): both of those shapes now exist, and the
+prediction in the next paragraph held.** Story 1.12 gave the chrome a real
+connection status driven by a polling hook, and Story 2.5's Task 2.5.5 gave it a
+real clock — `useMarketClock`, `useState` plus a re-anchoring `setTimeout` chain
+plus a `visibilitychange` listener, which is the single most rule-attracting
+shape in the application. **All seventeen rules were still silent**, and the
+reason is worth carrying rather than the outcome: `set-state-in-effect` objects
+to a _synchronous_ update in an effect body, and neither hook does that. So the
+rules remain untested against anything they dislike; the silence is still not
+evidence of compatibility.
 
 So the silence is evidence that **this story had almost nothing to hold state
 about**, not that the tree is compatible with 17 rules taken wholesale. Epic 2

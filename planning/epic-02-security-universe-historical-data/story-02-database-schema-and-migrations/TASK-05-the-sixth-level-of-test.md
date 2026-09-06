@@ -8,7 +8,7 @@ work by name rather than by implication**. 2.2.3 named five conventions as reach
 migrated database and gave each the `information_schema` reading that would check it; 2.2.4
 created a new unchecked invariant deliberately and in the open, and produced two traps that
 change how these checks have to be written. Read
-[`apps/backend/migrations/README.md`](../../../../apps/backend/migrations/README.md)'s closing
+[`apps/backend/migrations/README.md`](../../../apps/backend/migrations/README.md)'s closing
 two lists before starting: this task is what moves entries from the second list to the first
 
 ## Objective

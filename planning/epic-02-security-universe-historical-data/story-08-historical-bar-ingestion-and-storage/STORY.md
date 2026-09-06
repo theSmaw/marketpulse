@@ -39,6 +39,39 @@ It needs the schema mechanism (2.2), the symbol list (2.3), session boundaries t
 which bars should exist (2.5), and the provider's measured limits (2.7). It must precede
 the read API, because what the API can serve is a property of what is stored.
 
+## What Story 2.5 hands this story (added 2026-09-06 by Task 2.5.6)
+
+Story 2.5 is complete, so "session boundaries to know which bars should exist" is a function
+call now rather than a thing to work out. Four things bind this story and the fourth is the
+one most likely to be rediscovered the hard way.
+
+- **`marketSessionOn(date)` from `@marketpulse/shared` returns the session's bounds and its
+  `minuteBars`, and the count is DERIVED from the bounds** — **390** for a regular session,
+  **210** for a half day. Do not re-derive it, and do not store it beside the bounds: the
+  whole reason it is derived is that two copies can disagree.
+- **The `~252 sessions` in the sizing bullet below is an approximation and is fine as one, but
+  it is not a constant.** The real per-year figures are **2024: 252, 2025: 250, 2026: 251,
+  2027: 251, 2028: 251** — the count follows how many weekdays a year contains and how many
+  closures land on one. 2025 is 250 because of an **unscheduled** full closure
+  (`2025-01-09`, the National Day of Mourning). If any assertion in this story pins a session
+  count, pin the per-year table, not 252.
+- **A half day has 210 bars and this is the gap-handling case most likely to be missed.**
+  Eleven days across the covered range close at 13:00 ET. An ingestion check that expects 390
+  bars a session reports 180 phantom gaps on each of them, and Epic 5's volume baseline then
+  treats a normal early close as a data outage. `marketSessionOn` already knows; ask it.
+- **Walking off the calendar's 2024–2028 range REFUSES rather than truncating.** A backfill
+  that walks sessions backwards from today will hit the lower bound the moment it asks for
+  more history than the table covers, and it will get a `MarketCalendarRangeError` naming the
+  range and the file — not a short list. That is deliberate (ADR 0017, decision 9): a short
+  list of sessions is a wrong answer shaped like a right one. **Decide what the backfill's
+  earliest date is before you write the walk**, and note the calendar's range is a real
+  constraint on how far back this story can ingest.
+
+One thing this story owns that Story 2.5 deliberately did not:
+`CREATE INDEX CONCURRENTLY` under the migration runner, which `DATA-LAYER.md` names as
+needing a second `Migrator` over a separate directory. That is unrelated to the calendar and
+is listed here only so it is not forgotten alongside it.
+
 ## Scope
 
 - The `market_bars` table: its key, its indexes, and its unique constraint. The key

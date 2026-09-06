@@ -1,6 +1,6 @@
 # Task 2.5.6 — Verify, document, and ADR 0017
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [2.5 Trading Calendar & Market Time Handling](STORY.md)
 **Depends on:** Tasks 2.5.1 to 2.5.5
 
@@ -255,3 +255,141 @@ historical records and stay exactly as they are.
 This correction is the reason the amendment convention exists: this file writes ADR 0017, and
 an ADR is a permanent identifier cited outside this repository. Both errors would have been
 recorded as findings in it.
+
+---
+
+## Status: Complete (2026-09-06)
+
+## What this actually was, in plain language
+
+This task shipped **no application code at all**, and that was the point. It was the closing
+audit on Story 2.5 — the story that taught MarketPulse what a trading day is.
+
+Five earlier tasks built the thing. This one checked that they built what they said they
+built, re-measured every number rather than copying it out of a previous write-up, and wrote
+the permanent record of the decisions so that nobody has to reconstruct them from the code in
+a year's time.
+
+## Why a stock-market product needed a task about calendars
+
+It sounds like plumbing. It is the difference between a chart a trader trusts and one they
+close.
+
+The US stock market is open 09:30 to 16:00 New York time, Monday to Friday — **except** when
+it isn't. It shuts on ten public holidays a year. It closes early at 1pm on eleven afternoons
+across the next five years, around Thanksgiving, Christmas and Independence Day. It observes a
+Saturday holiday on the Friday before, unless that Friday is in the previous year, in which
+case it doesn't. Twice a year the clocks change, so the same session starts at a different
+moment in universal time. And **on 9 January 2025 it shut for a day nobody could have
+predicted**, for the national day of mourning for President Carter, announced eleven days
+beforehand.
+
+Get any of that wrong and the product tells lies quietly: a price chart draws a flat line
+across Good Friday as though nothing happened, or shows a three-hour hole every Thanksgiving
+Friday and calls it missing data, or an "unusual activity" score compares today against 47
+days of history while claiming 60. **None of those look like bugs. They look like the market.**
+
+## What was decided, and why you should care about the reasoning
+
+Six decisions matter beyond this story, and they are now written in
+`docs/adr/0017-*` — the seventeenth architecture decision record in the project.
+
+**1. The holiday list is a file we maintain by hand, not something we compute.** The obvious
+engineering instinct is to write the rules — third Monday in January, last Monday in May, and
+so on. Nine of the ten holidays work that way. **Good Friday does not**, because Easter moves.
+A rule-based calendar would look completely correct for eleven months a year and be wrong on
+one spring Friday. And the Carter closure settles it permanently: **no rule can produce a day
+the exchange decided to close eleven days in advance.** So we read the exchange's published
+calendar and typed it in — 61 entries covering 2024 to 2028.
+
+**2. If you ask about a date outside those years, it refuses.** It does not guess. The
+tempting behaviour — "no holidays on file for 2029, so the market must have been open" — turns
+every future Christmas Day into a phantom trading day, silently. Instead it stops and names
+the file to edit. There is deliberately no "just carry on anyway" switch, because a switch
+whose dangerous setting is available is a switch somebody flips during an emergency.
+
+**3. Exactly one file in the entire codebase is allowed to convert between world time and New
+York time — and the build now enforces that rather than asking politely.** Timezone code
+scattered across a project is wrong twice a year, on the two days nobody tests. Four automated
+rules in the linter now reject any second copy, and each one was deliberately broken and
+watched to fail before we believed it.
+
+**4. The groundwork for the product's flagship feature is in place, and it is an absence
+rather than a mechanism.** MarketPulse's headline capability, several epics away, is **replay**
+— rewind to 11:07am on a past day and see only what was knowable at that moment. That only
+works if nothing in the system can secretly peek at the real clock. So every calendar function
+takes the moment it is asked about as an input, and **exactly one file in the product is
+allowed to ask what time it actually is**. When replay arrives, one file changes instead of
+hundreds. The honest caveat is written into the record too: this makes the _clock_ swappable,
+it does not yet stop a database query fetching tomorrow's data. That is a separate piece of
+work and pretending otherwise would be the most expensive kind of self-deception.
+
+**5. Asking for more history than we hold is an error, not a short answer.** If something asks
+for the last 60 trading days and only 47 exist in our calendar, it refuses. Handing back 47
+and staying quiet is worse than failing, because the caller cannot tell — and it would surface
+much later as an anomaly score computed over the wrong window, which is the sort of bug that
+takes a week to find.
+
+**6. The clock in the header is real.** Since the very first weeks of the project, the top of
+every screen has carried a greyed-out `--:--:-- ET` placeholder holding space for a market
+clock. It now ticks, in New York time, and says whether the market is open, closed for the
+weekend, closed for a named holiday, or shut early on a half day. Small on screen; it is the
+first thing in the product that is _alive_.
+
+## What this task actually found
+
+Every close in this project turns up something, and this one turned up four things.
+
+**The holiday table has 61 entries, not the 60 that had been written down.** The file has not
+been touched since it was created, so the number was **wrong when it was recorded rather than
+having gone stale** — and the missing entry is the Carter closure. The count had been worked
+out from the _rules_, in the very task written to prove the rules are not enough. That is the
+kind of error only a recount catches, and it is exactly why closing tasks exist.
+
+**Two planning documents still said the market clock was somebody else's job.** One of them
+was in a file nobody's checklist mentioned. The lesson, which this project keeps relearning:
+search the whole tree, don't work from the list of places you remember.
+
+**Four links between documents were broken** — the first time in six audits that this check has
+found any. All four dated from a big renumbering exercise a day earlier. Fixed.
+
+**A browser test failed once and passed on the retry, and it was not swept under the carpet.**
+It is not one of this story's tests, and it passes on its own. The cause is understandable —
+under heavy parallel load the app's first health check can time out and the next attempt is 30
+seconds away. This project deliberately runs its tests with **no automatic retries**, on the
+principle that a test allowed to retry can no longer tell a flaky test from a real bug, so the
+failure is written down with its numbers and handed to the story that owns it rather than
+being re-run past.
+
+## Where the product now stands
+
+Epic 1 built the application shell, the deployment pipeline and the live site. Epic 2 is
+building the market data underneath it. Of Epic 2's fourteen stories, five are done: the
+database exists and is deployed, the schema and migration machinery work, the list of ~100
+tracked companies is loaded, **that list is on screen at a public URL**, and as of this story
+the system knows what a trading day is.
+
+**For a stakeholder, the honest summary is: you can visit the site and see the real tracked
+universe, with a live market clock in the header that knows the market is shut for the weekend.
+You cannot yet see a price.** That is next — Story 2.6 puts a market-data provider behind an
+interface, 2.7 connects to Alpaca, 2.8 loads years of historical prices, and Story 2.12 draws
+the first chart. **This story is why that chart's time axis will be right the first time**,
+rather than being right after somebody spends a day working out why there is a gap every
+Thanksgiving.
+
+## Verification
+
+- **All five acceptance criteria re-run against the shipped code**, not against what the task
+  files claimed.
+- Criterion 1 was checked by **reading the names of the tests that passed** rather than
+  trusting the green tick — a suite that quietly stops running a file also reports success,
+  which this project has been caught by twice.
+- Criterion 2 was checked by **deliberately breaking all four linter rules** and watching each
+  one fail, then reverting.
+- `pnpm verify` passes **with the database running and with it stopped** (30.9 s), which is
+  criterion 5 and the one this story could plausibly have broken.
+- 468 fast tests, 14 process tests, 61 database tests, 23 browser journeys.
+- Accessibility unchanged: **0 violations** on the landing page with the new clock in the
+  header.
+- The published web bundle reproduces the current committed figures **to the byte**, which is
+  the check rather than a coincidence, because this task shipped no application code.

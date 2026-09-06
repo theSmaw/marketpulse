@@ -44,7 +44,24 @@ epic's exit criterion: recent historical **price and volume** data.
 - Volume formatting — millions and billions abbreviate, and the abbreviation must not break
   Story 1.4's tabular alignment
 - The time-window control: a small set of named windows resolved through Story 2.5's
-  calendar, so "5 days" means five **sessions**
+  calendar, so "5 days" means five **sessions**.
+  **Story 2.5 is complete and this bullet resolves to one function (added 2026-09-06 by Task
+  2.5.6): `lastMarketSessions(n, endDate)` from `@marketpulse/shared`.** Four things it
+  hands this story.
+  It returns sessions **oldest first**, which is what a time series is iterated in — do not
+  reverse it, and note the decision exists precisely because otherwise every consumer
+  reverses it and one forgets.
+  Acceptance criterion 3's week is already chosen and already asserted at the unit level:
+  five sessions back from **2026-11-30** is `11-30, 11-27, 11-25, 11-24, 11-23`, which skips
+  Thanksgiving `11-26` **and** the weekend — three ways a naive implementation is wrong, in
+  one assertion. This story's job is to prove it through the **control**, not to re-derive it.
+  **`11-27` is a half day (210 bars, closes 13:00 ET)**, so a window containing it has a
+  short session in it — the x-axis must not draw an empty 13:00–16:00 band and call it
+  missing data.
+  And **a window that runs off the calendar's 2024–2028 range REFUSES rather than returning
+  fewer sessions than asked for** (ADR 0017, decision 9). That is a real state this control
+  can reach, it is not an error the user caused, and it belongs in the §36 state list beside
+  "empty" and "partly covered" rather than in a crash
 - The mapping from window to timeframe — an intraday window wants minute bars, a multi-year
   window wants daily ones — and whether the user sees that mapping or only its effect
 - Window state in the URL (Story 2.10's decision), so a window is shareable and survives a

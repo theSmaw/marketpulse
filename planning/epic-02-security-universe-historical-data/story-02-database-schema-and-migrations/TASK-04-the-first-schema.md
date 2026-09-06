@@ -4,7 +4,7 @@
 **Story:** [2.2 Database Schema & Migration Mechanism](STORY.md)
 **Depends on:** Tasks 2.2.2 (the mechanism) and 2.2.3 (complete) — the conventions it has
 to follow are settled and measured, in
-[`apps/backend/migrations/README.md`](../../../../apps/backend/migrations/README.md). Read it
+[`apps/backend/migrations/README.md`](../../../apps/backend/migrations/README.md). Read it
 first: four of the bullets below are now answers it produced rather than questions still
 open, and one of them changes this table's shape rather than its style
 

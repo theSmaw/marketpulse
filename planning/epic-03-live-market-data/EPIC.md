@@ -30,6 +30,45 @@ Tracked securities update automatically as live market observations arrive.
 
 The application can maintain a live connection for the tracked universe and update visible market values without page refreshes.
 
+## What Story 2.5 hands this epic — and what is left of the header strip (2026-09-06)
+
+**The market clock is done and it is not yours.** `AppHeader`'s status strip is three regions
+— `Market feed`, `Backend service`, `Market clock` — and the third has been reserved since
+Story 1.5 with a `--:--:-- ET` placeholder. **Task 2.5.5 filled it**, so this epic inherits a
+working clock rather than a gap. Every planning document that said Epic 3 supplies it was
+wrong and has been corrected; if you find another one, it is stale.
+
+The reason it is not this epic's is worth carrying because it decides the boundary: **a clock
+is a fact about the trading calendar, not about the data feed.** It needs a timezone and a
+session definition and none of Epic 3's live socket. It renders the market time in ET and
+whether the market is open, on every route, from the viewer's own clock — which is a
+**timezone claim rather than a synchronisation claim**, stated as such in the component.
+
+**What is genuinely left for this epic, unchanged and not to be quietly absorbed:**
+
+- The **`FeedIndicator`** beside it, which is currently hard-coded to `disconnected` with the
+  sentence "No market data until Epic 3". That is the honest value today.
+- The **`LIVE`** state `PRODUCT_SPEC.md` §9's header mock shows, and anything at all claiming
+  data is **arriving**.
+- **Exchange-supplied timestamps.** The clock renders the viewer's clock in market time; the
+  honest server-supplied source of "what time does the market think it is" arrives with the
+  feed, and if this epic wants the header to show one, it is a **new fact beside** the clock
+  rather than a rewiring of it.
+- **Stale-data detection**, which is a statement about the feed and not about the session —
+  the market being open does not mean data is flowing, and `FeedStatus` and
+  `MarketSessionStatus` are deliberately separate vocabularies for that reason.
+
+**Two measurements this epic should start from rather than retake blind.** The clock ticks at
+1 Hz and produced **0 `longtask` entries and 60 header DOM mutations over 60 s, all 60 inside
+the clock cell** — because `useMarketClock` is called from `AppHeader` rather than from `App`.
+Lifting it to `App` re-renders the whole landing route **40 times in 20 s** against **0**. Any
+live-price hook this epic adds faces exactly that choice at a much higher rate, and the
+counterfactual has already been produced once so nobody has to argue it.
+
+And **`packages/shared` may not read the wall clock** — four `no-restricted-syntax` rules
+hold the conversion boundary and the clock seam (ADR 0017, decisions 5 and 7). A live-data
+module that wants "now" takes it as an argument or lives in an app package.
+
 ## What Epic 1 hands this epic (2026-09-04)
 
 **`minReplicas: 1` is a required setting on the backend and not a tuning knob.**
