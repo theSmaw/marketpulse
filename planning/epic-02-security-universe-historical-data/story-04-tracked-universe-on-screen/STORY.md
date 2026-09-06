@@ -56,9 +56,12 @@ the placeholder that has been there since Story 1.5. Concretely, on the deployed
 
 - **A count and a summary line** — "101 securities · 11 sectors" — which is the first
   sentence in this product that is a fact about our data rather than a description of an
-  intention
+  intention. **Say which 101 it is counting**: since Task 2.3.6 the table can hold rows the
+  curated file no longer contains, so the row count and the tracked count are two numbers —
+  see the `status` bullet in Scope
 - **A table of every tracked security**, showing **symbol**, **company or fund name**,
-  **sector**, and **what kind of thing it is** (a company, a sector ETF, an index ETF).
+  **sector**, and **what kind of thing it is** (a company, a sector ETF, an index ETF) —
+  and, where a row is no longer tracked, **that fact on the row rather than its absence**.
   Those four columns are the whole of what Story 2.3 curated, and they are enough to be
   genuinely useful: a user can see that we track NVDA and AMD and that both are
   Semiconductors, that XLK is the benchmark for Technology, and that SPY is a market proxy
@@ -92,6 +95,11 @@ reach for them.
 - **The states as types rather than booleans** — Story 1.12's `BackendStatus` is the
   precedent: name the states, make the impossible ones unrepresentable, let components
   render a state rather than infer one
+- **`status`, which is this schema's one invisible predicate** — see the amendment at the
+  foot of this file. This story is its first reader, and `UNIVERSE.md` §12.2 has already
+  decided the answer for it: **do not filter**. An `untracked` row is shown and marked, not
+  hidden — so the query, the wire contract, the domain object and the table each need to
+  carry it
 - **The `/securities` route**, turned from a placeholder into a real page
 - **The browser journey and the accessibility gate**, because this is the first page in
   this product that renders data and the first table a screen reader has to make sense of
@@ -169,7 +177,10 @@ is not available, because Epic 15 is a release epic and polish deferred is polis
    bar Story 1.13 set
 5. No price, volume or chart appears anywhere, and the absence is explained on screen rather
    than left looking broken
-6. `pnpm verify` passes with no database running
+6. An `untracked` security is **rendered rather than filtered out**, visibly distinguished
+   from an active one, and the page's own count says which of the two numbers it is
+   reporting — produced against a row put into that state rather than reasoned about
+7. `pnpm verify` passes with no database running
 
 ## Tasks
 
@@ -187,6 +198,34 @@ as a URL rather than as a page; from 2.4.3 onward every task changes what is on 
 | 2.4.4 | [The states, and making it look like the product](TASK-04-states-and-presentation.md)                   | Not started |
 | 2.4.5 | [Keyboard, screen reader, and the browser journey](TASK-05-accessibility-and-journey.md)                | Not started |
 | 2.4.6 | [Deploy it, verify it in a browser, and hand forward what was pre-empted](TASK-06-deploy-and-verify.md) | Not started |
+
+## Amended 2026-09-06, after Story 2.3 closed
+
+**One thing was added to this file and it is not tidying: `status`.** Task 2.3.6 decided
+that a symbol removed from the curated file is marked `untracked` and **kept**, never
+deleted — because Story 2.8's bars will hang off `security_id` and Epic 13 replays a date on
+which that security _was_ tracked. The stated cost, recorded in `UNIVERSE.md` §12.2, is that
+`status` becomes **this schema's one invisible predicate**, and that document names its seven
+readers and which of them filter. **This story is the first of them**, and its answer is
+already decided:
+
+> **The universe list and search — Stories 2.4, 2.10, 2.11 — do NOT filter.** Show the row,
+> with its status. §3's rule is that "we stopped tracking this" is information, and silently
+> vanishing rows is exactly the failure a `deleted_at` column would have caused.
+
+Two consequences for what this story builds, neither of which was in the file before:
+
+- **The count is two numbers.** From the first removal onward, `count(*)` over `securities`
+  and "how many securities we track" are different, so "101 securities · 11 sectors" needs to
+  say which it means. Today they are equal — the deployed table is 101 rows, all `active`,
+  read back by Task 2.3.8 — so the wrong one passes every check this story can run. That is
+  the trap: it is right now and silently wrong later.
+- **An `untracked` row needs a rendering**, and it is a fourth state on a page that already
+  has loading, failed and empty. Producing one costs nothing: remove a symbol from
+  `apps/backend/src/universe.ts` locally, run `pnpm universe`, and put it back.
+
+**What did not change**: the endpoints, the seam, the four columns, the six tasks, and this
+story's position. Story 2.3 shipped what this file assumed it would.
 
 ## Design surface
 

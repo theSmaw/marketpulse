@@ -92,6 +92,26 @@ Story 2.8's ingestion design — so it must precede it.
   otherwise about, so adopting it is a real scope choice rather than a free consequence —
   see open decision 4. `UNIVERSE.md` §3 is the record, and the migration is one of a shape
   proved twice: drop the check, add the member, add the check
+- **Also inherited from Story 2.3, added 2026-09-06: this story asks a rate-limited feed for
+  symbols, so it filters `status = 'active'`.** Task 2.3.6 made `status` this schema's one
+  invisible predicate, and `UNIVERSE.md` §12.2 names its seven readers and which of them
+  filter. This is the clearest **yes** in that table: paying a metered API for a security
+  nobody tracks is waste with no upside. Note the two halves of the rule, because getting
+  the second wrong is the expensive one — **filter when computing over the market we track
+  now, never when showing or replaying something we stored**
+- **And it owns the ticker change, which Story 2.3 produced and deliberately did not
+  solve** (`UNIVERSE.md` §12.6, added 2026-09-06 to this file). Renaming a symbol in the
+  curated file gives **two rows, two ids and nothing joining them**: the old row correctly
+  `untracked` with all its history, the new one empty — produced against a real database
+  rather than reasoned about. `FB` → `META` is the case the surrogate key exists for and
+  `0002_securities.sql` names it. It was left as an honest gap because there is no rename in
+  the current list and a mechanism built against no instance is one nobody can test, and it
+  was handed **here** because this is the first thing in the product with any opinion about
+  a symbol's lifecycle — Alpaca's assets endpoint carries a stable per-asset identifier
+  beside the status open decision 4 is about, so the migration that adds `delisted` is the
+  natural place to decide whether a rename gets an identity too. **Until something does,
+  a rename loses the link between the old bars and the new symbol** — which stops being
+  cheap the moment Story 2.8 has put bars behind those ids
 
 ## Out of scope, and who owns it
 
@@ -127,6 +147,12 @@ Story 2.8's ingestion design — so it must precede it.
    with a named owner beats a mechanism built against no instance** — and note the answer
    is worth taking on evidence, because a symbol whose bars stop arriving and a symbol
    Alpaca reports inactive are two different signals and only one of them needs a request
+5. **Whether a ticker rename gets an identity, and if not, who says so next.** Added
+   2026-09-06 from `UNIVERSE.md` §12.6. The candidates are a `previous_symbol` column, a
+   rename map, or a `company_id` above `securities`; the fourth answer — accept that a
+   rename orphans the old bars and write that down — is legitimate and is what ships today.
+   The decision is cheapest **before** Story 2.8 backfills, and it is the same migration as
+   `delisted` if the assets endpoint is adopted at all, which is why the two sit together
 
 ## Acceptance criteria
 

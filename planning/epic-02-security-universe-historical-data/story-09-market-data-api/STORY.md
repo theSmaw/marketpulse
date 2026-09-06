@@ -33,8 +33,11 @@ work to be proved end to end.
 
 ## Scope
 
-- Endpoint shapes: list the tracked universe, search it, fetch one security, fetch a bar
-  series for a symbol over a time window at a timeframe
+- ~~Endpoint shapes: list the tracked universe, search it, fetch one security~~ — **all
+  three moved to Story 2.4 when it was inserted; struck here 2026-09-06 because the scope
+  note above said they had moved while this list still claimed them.** What remains is the
+  endpoint this story is actually about: **fetch a bar series for a symbol over a time
+  window at a timeframe**. Search is Story 2.11's
 - The request contract for a series: symbol, timeframe, window, and how the window is
   expressed — an absolute range, or a named window like "5 sessions" resolved server-side
   through Story 2.5's calendar. The second keeps one definition of a session; the first
@@ -47,6 +50,12 @@ work to be proved end to end.
 - Partial answers as first-class results (§36): "we have data through 15:42" and "we have
   nothing for this symbol" are answers, not errors, and the contract must be able to say
   them without using an error code
+- **`status` is NOT filtered on this path** (added 2026-09-06). `UNIVERSE.md` §12.2 names
+  the seven readers of Task 2.3.6's invisible predicate and puts this one firmly on the
+  do-not-filter side: bars stored against a security we have since stopped tracking are
+  still what happened, so a series request for an `untracked` symbol returns its stored
+  history and says it is untracked — a 404 would be a lie about data we hold. Stories 2.7
+  and 2.8 filter and this does not, and that asymmetry is deliberate
 - Failure responses through Story 1.7's `ApiError` shape and its `500: apiErrorSchema`
   convention, with the correlation id already in place
 - Payload size and shape: a year of minute bars is large enough that the encoding matters.
@@ -71,8 +80,11 @@ work to be proved end to end.
    product exists to notice
 3. **Pagination or a hard cap** on a series request, and what the API does when a request
    exceeds it
-4. **How much of the universe the list endpoint returns at once** — 100 is small enough to
-   send whole today and the architecture is meant to reach 500
+4. ~~**How much of the universe the list endpoint returns at once** — 100 is small enough to
+   send whole today and the architecture is meant to reach 500~~ **Moved to Story 2.4 open
+   decision 1, which builds that endpoint; struck 2026-09-06.** Whatever it answers, this
+   story inherits it — the shape of a series response should not disagree with the shape of
+   a list response about how a large result is expressed
 
 ## Acceptance criteria
 
