@@ -24,12 +24,17 @@
 // **What maps between the two lives beside the query**, one function per domain
 // type and never a generic row-to-object mapper — because the mapping is
 // exactly where a nullable column becomes an explicit domain answer, and a
-// generic mapper is where that decision gets skipped. Story 2.4 writes the
-// first read and owns it. There is deliberately nothing of the kind here yet.
+// generic mapper is where that decision gets skipped. ~~Story 2.4 writes the
+// first read and owns it. There is deliberately nothing of the kind here yet.~~
+// **`securities.ts` is it (Task 2.4.1)**: `toSecurity` lives beside the query
+// that produces the row, and there is still no generic mapper anywhere.
 //
-// **Its only consumer is a test, and that is the point rather than a loose
-// end.** `migrate.ts` deliberately does not consume it (see below), and Story
-// 2.4 writes the first `selectFrom`. What Task 2.2.5 added is
+// ~~**Its only consumer is a test, and that is the point rather than a loose
+// end.**~~ **That stopped being true at Story 2.3 rather than at Story 2.4, and
+// nothing noticed.** `load-universe.ts` has imported `Database` since Task
+// 2.3.5 and `securities.ts` imports both it and `SecuritiesTable`, so this
+// interface has three consumers and two of them ship. `migrate.ts` still
+// deliberately does not consume it (see below). What Task 2.2.5 added is
 // `migrate.database.test.ts`, which declares its column expectation
 // `satisfies Record<keyof SecuritiesTable, ExpectedColumn>` and then compares
 // that expectation against `information_schema`. So the two directions are held

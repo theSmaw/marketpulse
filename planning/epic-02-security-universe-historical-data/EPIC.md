@@ -1,6 +1,6 @@
 # Epic 2 — Security Universe & Historical Market Data
 
-**Status:** In progress — Stories 2.1, 2.2 and 2.3 complete (2026-09-06); Story 2.4 next
+**Status:** In progress — Stories 2.1, 2.2, 2.3 and 2.4 complete (2026-09-06); Story 2.5 next. **Story 2.4 put the first real data on screen**: `/securities` renders the tracked universe on the deployed site, so the epic now has somewhere visible for every later story to land.
 **Sequence:** 2 of 15 — follows Epic 1 (Application Foundation)
 **Spec references:** PRODUCT_SPEC.md §6 (initial market universe), §7.1 (Alpaca), §8.3 (Security Explorer), §30 (storage)
 

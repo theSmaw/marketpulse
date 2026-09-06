@@ -156,7 +156,10 @@ that paragraph in `DATA-LAYER.md` before assuming the plugin is the only option.
 **The seam is declared here and not built**, and saying so plainly is the point.
 This story ships no route and no read, so the plugin was written in a spike and
 reverted; the tree is byte-identical. **Story 2.4 writes the first `selectFrom` and
-owns the module.** The instruction it inherits is the mechanism: the plugin is
+owns the module.** _(Amended 2026-09-06, Task 2.4.6: it did — `apps/backend/src/securities.ts`,
+Task 2.4.1. The declaration above is left as written because it records what was true when
+this decision was taken; this note records that the obligation was discharged.)_ The
+instruction it inherits is the mechanism: the plugin is
 attached with `withPlugin`, which returns a **different object**, so the seam holds
 only while the module that constructs Kysely exports the plugged handle and no
 other. Nothing enforces that — see §16.
@@ -605,8 +608,12 @@ comment and a third copy of a version number are not.
    it is only a comment, in a package that has one.
 4. **The temporal seam holds only while no unplugged handle is exported.** The plugin is
    attached with `withPlugin`, which returns a different object, so the guarantee is a
-   property of what a module chooses to export. Nothing enforces it. Story 2.9 inherits it,
-   and it is the same class as `e2e/package.json`'s missing `test` script.
+   property of what a module chooses to export. Nothing enforces it. ~~Story 2.9 inherits
+   it~~ **Story 2.4 inherited it and honoured it** (Task 2.4.1: `securities.ts` builds its
+   own handle and exports functions rather than the handle) — **and the gap is unchanged**,
+   because honouring a convention is not enforcing one. It is still the same class as
+   `e2e/package.json`'s missing `test` script, and it is now load-bearing on a module that
+   ships rather than on one nobody had written.
 5. **Expand-then-contract.** Whether a column is still read is a fact about code rather
    than about a schema, so no instrument here can hold it. `migrations/README.md` §8.
 

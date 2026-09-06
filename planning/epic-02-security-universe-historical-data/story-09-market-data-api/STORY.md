@@ -105,3 +105,64 @@ work to be proved end to end.
 
 The contract Stories 2.10 to 2.14 consume, and the shape Epic 3's live channel sits beside
 rather than replaces.
+
+---
+
+## Amended 2026-09-06, after Story 2.4 closed — what actually moved, and what you inherit built
+
+The scope note above was written on 2026-09-05, before Story 2.4 ran. This records what it
+actually left you, because a story whose scope moved and whose file only says so in the
+future tense is how work gets done twice.
+
+### The temporal seam is BUILT, and it is not yet EXERCISED — read both halves
+
+`apps/backend/src/securities.ts` (Task 2.4.1) is the module `CLAUDE.md` and ADR 0015 were
+promising: it builds its own `Kysely` instance over the existing pool, **does not export
+it**, and exports functions returning domain objects instead. Copy that arrangement; do not
+re-decide it.
+
+**The half that matters more to you than to Story 2.4.** `securities` has no `observed_at`
+and is not a temporal table, so nothing that module does would be filtered by Epic 13's
+plugin even once the plugin exists. The seam was established against a case where breaking
+it has **no symptom at all** — which is exactly why it was worth doing there, and it means
+**your bar query is the first one where the seam does real work**, because `market_bars`
+(Story 2.8) is the first table with an `observed_at`. A `selectFrom("market_bars")` that
+reaches for a handle it imported from somewhere is the failure this arrangement exists to
+prevent, and it will pass every test anybody can write today.
+
+**ADR 0015's gap 4 is unchanged and was re-stated rather than closed.** The arrangement is
+_honoured_, not _enforced_ — nothing stops a future module exporting an unplugged handle.
+
+### Three things you inherit rather than have to build
+
+- **The response-contract idiom, applied.** `packages/shared/src/securities-response.ts` is
+  the worked example: an object envelope rather than a bare array (because provenance is a
+  fact about the _list_), and the `satisfies` guard applied **three times** — envelope,
+  security, provenance record — because it checks top-level keys and **does not reach into a
+  nested object**. Nothing forces the second and third applications. A series response has
+  the same shape problem and the same trap.
+- **`server.test.ts`'s route-table walk now covers every route the application serves**,
+  the diagnostics one included (Task 2.4.2). That was a cost Task 2.1.7 stated and left
+  open; you inherit it closed, so a route you add that can fail and does not declare
+  `500: apiErrorSchema` is a red test rather than a discovery in production.
+- **A measured payload baseline.** 101 securities are **17,299 bytes**, ~2,591 gzipped. §6's
+  500-security ceiling is therefore ~13 kB on the wire uncompressed. That is why Task 2.4.2
+  took **no pagination and no page size** — and note what the decision actually was: the
+  thing that reaches 500 without an edit is **no number rather than a bigger one**.
+
+### What is still yours, and one thing that is newly yours
+
+Unchanged: the series contract, the time-window request shape, partial answers over a
+series, and everything that needs bars to exist.
+
+**Newly yours: pagination, if a bar series needs it.** Story 2.4 settled it for the universe
+by not having one. A series is the first response here whose size is a function of a user's
+request rather than of a curated file, so the argument does not transfer.
+
+**And `database.ts`'s recorded reversal trigger — moving the pool into `buildServer()` — is
+still UNFIRED, which is not what anyone expected.** Task 2.4.2 shipped the first route that
+serves data and could not fire it: the repository needs the pool, the pool needs `app.log`,
+and `pino` is not importable from `apps/backend`, so a `ServerOptions.securities` cannot be
+constructed before the call it would be an argument to. `securities.ts`'s route is registered
+from `index.ts` for that reason. Three ways out are recorded and rejected in that file. If
+you want the factory to own it, that is a real piece of work rather than a tidy-up.

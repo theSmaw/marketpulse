@@ -68,10 +68,14 @@ pnpm install
 pnpm dev        # http://localhost:5173 and http://127.0.0.1:3000
 ```
 
-No `.env` file is needed and no database is involved yet. What you get is a
-running application — see [Running MarketPulse](#running-marketpulse) for the
-four addresses it serves and for the several things a correct first run shows
-that look like faults.
+No `.env` file is needed. ~~and no database is involved yet~~ **A database is
+involved from Story 2.4 onward, but only for one route**: those three commands
+still give you a running application, and `/securities` is the one page in it
+that will report a failure until you have also run `pnpm db`, `pnpm migrate` and
+`pnpm universe` — see [Setup](#setup) for the full five-step sequence and
+for why the last two have no symptom anywhere else. See
+[Running MarketPulse](#running-marketpulse) for the four addresses it serves and
+for the several things a correct first run shows that look like faults.
 
 `apps/backend` is a running Fastify service. It starts on a configurable port,
 serves `GET /health`, restarts on source change, shuts down cleanly on
@@ -288,16 +292,21 @@ bundler idling. Start it when you want it:
 ### What you are looking at
 
 Four routes for `PRODUCT_SPEC.md` §8's four experiences, plus a not-found route.
-This is a **shell on purpose** (§40): the structure, the chrome and the design
-language are real, and almost none of the content is.
+~~This is a **shell on purpose** (§40): the structure, the chrome and the design
+language are real, and almost none of the content is.~~ **Three of the four are
+still a shell on purpose (§40) and one is not**: since Story 2.4, `/securities`
+renders the real tracked universe out of Postgres, so it is the first screen here
+whose content is true rather than illustrative. The structure, the chrome and the
+design language were always real; what changed is that one route now has
+something in it.
 
-| Route             | What it is for                         | What is there today                                                                                                                                       |
-| ----------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`               | Market Overview — "what is happening?" | the only route with regions: four named landmarks, three of them a heading and a sentence naming the epic that fills them, and one holding a render check |
-| `/investigations` | Investigation Workspace                | a placeholder — a label, the screen's name and one sentence (Epics 7, 8 and 10)                                                                           |
-| `/securities`     | Security Explorer                      | a placeholder (Epics 4 and 9)                                                                                                                             |
-| `/replay`         | Market Replay                          | a placeholder (Epic 13)                                                                                                                                   |
-| anything else     | the not-found route                    | says what happened and links back to `/`; it is a route, not an error screen                                                                              |
+| Route             | What it is for                         | What is there today                                                                                                                                                                                                      |
+| ----------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/`               | Market Overview — "what is happening?" | the only route with regions: four named landmarks, three of them a heading and a sentence naming the epic that fills them, and one holding a render check                                                                |
+| `/investigations` | Investigation Workspace                | a placeholder — a label, the screen's name and one sentence (Epics 7, 8 and 10)                                                                                                                                          |
+| `/securities`     | Security Explorer                      | **the tracked universe** — 101 real securities from the database, grouped into eleven sectors plus a market-proxies band, with a summary line. No search, no click-through and no prices (Stories 2.11 and 2.12, Epic 3) |
+| `/replay`         | Market Replay                          | a placeholder (Epic 13)                                                                                                                                                                                                  |
+| anything else     | the not-found route                    | says what happened and links back to `/`; it is a route, not an error screen                                                                                                                                             |
 
 The landing route's first region is the exception. Under **Market topology**,
 where Epic 6 will draw the securities graph, is Story 1.4's render check: a

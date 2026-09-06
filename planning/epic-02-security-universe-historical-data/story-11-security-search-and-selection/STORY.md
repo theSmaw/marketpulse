@@ -113,3 +113,50 @@ is not available, because Epic 15 is a release epic and polish deferred is polis
 
 The Security Explorer shell every later epic adds a region to, and the selection interaction
 Epics 4 and 6 reuse.
+
+---
+
+## Amended 2026-09-06, after Story 2.4 closed — the list exists, and this file contradicts itself above
+
+The scope note above was written on 2026-09-05, before Story 2.4 ran.
+
+### One correction to this file's own Description
+
+The Description says this is "the story that turns the `/securities` placeholder route into
+the Security Explorer shell", and its own scope note two paragraphs later says Story 2.4 took
+the list. **The first sentence is now wrong**: `/securities` has not been a placeholder since
+Task 2.4.3. It renders the tracked universe — 101 securities, grouped into eleven sectors
+plus a market-proxies band, with a summary line, four honest states and an axe reading of
+**0 violations / 35 passes / 1 inconclusive** at three viewports.
+
+What you turn it into is the **interactive** Security Explorer: search, selection and a
+per-security route. That is a sharper brief than the one this file was written with, and it
+is the one to work from.
+
+### What you inherit built, and must not silently undo
+
+- **The table, its grouping and its four states.** Sector bands ordered by `SECTORS` rather
+  than by row count or alphabetically, each naming its benchmark ETF from `SECTOR_ETFS`; a
+  market-proxies band for index ETFs, which belong to no sector; `industry` in the column a
+  repeated sector cell would otherwise have occupied.
+- **`status` is not filtered.** An `untracked` security is **shown and marked**, never
+  hidden — `UNIVERSE.md` §12.2 names you as one of the readers that must not filter, and
+  Task 2.4.6 produced the state against the deployed database to prove the rendering. **A
+  search that filters on `status` reintroduces exactly the failure a `deleted_at` column
+  would have caused.**
+- **The summary line says which of two numbers it is reporting.** With one row untracked it
+  reads `100 securities tracked · 11 sectors · 15 ETFs · 1 no longer tracked`, and the
+  fourth figure appears only when it is non-zero. Whatever search does to the visible rows,
+  it must not make that line a lie.
+
+### Two things newly yours that Story 2.4 deliberately did not settle
+
+- **Whether search is server-side or client-side, and the measurement that decides it.**
+  Task 2.4.2 shipped **no search parameter** on `GET /securities`, leaving the choice open.
+  The relevant figure: 101 securities are **17,299 bytes**, ~2,591 gzipped — so the whole
+  universe is already in the browser and client-side filtering is free at this size. At §6's
+  500 it is ~13 kB uncompressed, still small. Decide it on the ceiling rather than on today.
+- **Grouping past 500.** Task 2.4.4 recorded the reversal trigger for the sector grouping:
+  at §6's 500-security ceiling a single group is longer than a screen, and groups need to
+  become jumpable or collapsible — **which is a control**, and controls were out of scope for
+  Story 2.4. They are in scope for you.
