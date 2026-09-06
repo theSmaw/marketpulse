@@ -190,12 +190,24 @@ Story 2.3, and the two things that make the order matter are worth knowing
 before you reorder them. **All three database commands need a built tree**,
 because where the database is comes out of `apps/backend/dist/config.js` rather
 than out of a second copy of the port; each says ``run `pnpm build` first``
-rather than throwing a resolver error. And **the last two steps have no symptom
-if you skip them.** A database started but not migrated is an empty database
-that every tool here reports as perfectly healthy — `pnpm ready` ticks it,
-`pnpm verify` passes, `pnpm dev` serves — and a migrated database with no
+rather than throwing a resolver error. And **the last two steps have almost no
+symptom if you skip them.** A database started but not migrated is an empty
+database that every tool here reports as perfectly healthy — `pnpm ready` ticks
+it, `pnpm verify` passes, `pnpm dev` serves — and a migrated database with no
 universe in it is a `securities` table with **zero rows**, which is equally
 healthy-looking and equally useless to anything that reads it.
+
+**`pnpm e2e` is the one exception, as of Task 2.4.5, and it is a blunt one.**
+The browser suite drives `/securities`, so it goes red against a database that
+is running but unmigrated or unseeded. It does not go red _well_: `pnpm ready`'s
+third check speaks the Postgres protocol without a driver, so it can prove the
+server is answering and cannot prove the schema exists or that anything is in
+it. A missing database is one loud refusal naming the cause; an **empty** one is
+a handful of red journeys naming a missing table. Closing that would mean giving
+the readiness check a real connection, which is a genuine cost for a case
+`pnpm migrate` and `pnpm universe` fix in two seconds — so it is recorded here
+rather than built, and the trigger for revisiting it is somebody actually losing
+time to it.
 
 Run `pnpm db` once and leave it running. See
 [`pnpm db` — the local database](#pnpm-db--the-local-database) and
@@ -351,19 +363,19 @@ them is a fault.
   is the design. The interval has a floor it must stay above: `API_TIMEOUT_MS`,
   5 s, in `api-client.ts`
 
-- **`pnpm ready` says the database is not running, and exits 0 anyway.** The
-  line reads `○ database  127.0.0.1:5432  ECONNREFUSED — not running` — a `○`
-  rather than a `✗`, because it is a report and not a failure. Nothing in the
-  application opens a connection yet, `pnpm verify` has never needed a server,
-  and `pnpm e2e` gates on that same check, so failing on a missing database
-  would refuse to start a browser suite that has no interest in one. `pnpm db`
-  starts it. **This is the item on this list with an expiry date**: when a check
-  starts failing without a database — a migration, or a route that reads one —
-  the `○` becomes a `✗` and a missing database really is a broken first run. The two other things it can
-  say are worth recognising — `NOT_POSTGRES` means something else is on 5432
-  (a native PostgreSQL, most likely, which `pnpm db` would fail to bind
-  against), and `NO_RESPONSE` means something is holding the port and not
-  answering at all
+- ~~**`pnpm ready` says the database is not running, and exits 0 anyway.**~~
+  **That item's expiry date arrived at Task 2.4.5 and it has left this list**,
+  which is the second thing ever to do so. It read `○ database … — not running`
+  and exited 0, because nothing yet failed without a database; it now reads
+  **`✗`** and **exits 1**, because `/securities` renders the tracked universe,
+  so the browser suite became the first check that fails without one. The
+  condition was written down two stories ago and named migrations or a route as
+  the likely trigger — it was neither, and it fired **in CI rather than here**,
+  because every developer already has `pnpm db` running. A missing database is
+  now a broken first run and says so. The two other things that line can say are
+  still worth recognising — `NOT_POSTGRES` means something else is on 5432 (a
+  native PostgreSQL, most likely, which `pnpm db` would fail to bind against),
+  and `NO_RESPONSE` means something is holding the port and not answering at all
 
 If a **box with a heading and a "Try again" button** appears where content
 should be, that is different: something failed to render and was contained to
