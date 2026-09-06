@@ -556,7 +556,24 @@ stopped**.
 The whole CI sequence was rehearsed locally from a genuinely empty volume
 (`pnpm db down -v`): 3 migrations applied, 101 securities inserted, a second
 `pnpm universe` reporting `0 inserted, 0 updated, 101 unchanged`, and the suite
-**21 passed**.
+**21 passed**. Then it ran green on the runner, and the figures are worth
+having:
+
+| Step on `ubuntu-latest` | Cost                                         |
+| ----------------------- | -------------------------------------------- |
+| `pnpm migrate`          | **723 ms** — `Applied 3 migrations.`         |
+| `pnpm universe`         | **692 ms** — `101 inserted`                  |
+| `pnpm e2e`              | **70.6 s**, 21 tests                         |
+| the whole `e2e` job     | **2 m 16 s**, against Task 1.13.4's 99–103 s |
+
+**The suite itself did not get slower**: 70.6 s for 21 tests against Task
+1.13.4's 69.2–72.6 s for ten, because the recovery journey still dominates on
+two workers exactly as it does on four. The job's extra ~35 s is the service
+container starting and the two seed steps, of which the seed is 1.4 s — so
+nearly all of it is Postgres booting, which is the honest price of the gate.
+
+`pnpm ready` on the runner now prints `✓ database  127.0.0.1:5432  PostgreSQL,
+no TLS offered`, which is the new gate observed passing rather than assumed.
 
 ### What a green run here does not certify
 

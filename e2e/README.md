@@ -72,6 +72,14 @@ ones with none. `pnpm verify` is not a caller of that script and still runs with
 no database at all — Story 2.2's criterion 7, re-measured at **exit 0 in
 31.2 s**.
 
+Measured on the runner once it was green: `pnpm migrate` **723 ms**,
+`pnpm universe` **692 ms** (`101 inserted`), `pnpm e2e` **70.6 s** for 21 tests,
+and the whole job **2 m 16 s** against the 99–103 s above. **The suite did not
+get slower** — 70.6 s against 69.2–72.6 s for ten tests, because the recovery
+journey dominates on two workers exactly as it does on four. Nearly all of the
+job's extra ~35 s is the Postgres container booting, which is the honest price
+of the gate.
+
 The seed is the same two commands a developer's first run uses, deliberately: a
 CI-shaped universe would mean this suite asserting on rows CI inserted rather
 than on the ones the product ships.
