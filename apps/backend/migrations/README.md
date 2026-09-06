@@ -333,8 +333,10 @@ mapping is exactly the place a nullable column becomes an explicit domain answer
 acceptance criterion 3 requires). One function per domain type, in the module that
 owns the query — never a generic row-to-object mapper, because a generic mapper is
 where that decision gets skipped, and never in `packages/shared`, which would put
-a row shape back on the frontend's side of the boundary. Story 2.4 writes the
-first read and owns where the isolated query handle lives.
+a row shape back on the frontend's side of the boundary. ~~Story 2.4 writes the
+first read and owns where the isolated query handle lives.~~ **It did, and this
+is what to copy**: `apps/backend/src/securities.ts` (Task 2.4.1) holds the query,
+`toSecurity` beside it, and its own unexported `Kysely` instance.
 
 ~~**Nothing checks the interface against the schema**, and that is a real gap of
 this repository's third kind: a column renamed in a migration and not in the

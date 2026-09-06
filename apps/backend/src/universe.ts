@@ -376,6 +376,12 @@ const EQUITIES: readonly EquitySecurity[] = [
       industry: "Pharmaceuticals",
     },
     {
+      symbol: "PFE",
+      name: "Pfizer Inc.",
+      exchange: "NYSE",
+      industry: "Pharmaceuticals",
+    },
+    {
       symbol: "MRK",
       name: "Merck & Co., Inc.",
       exchange: "NYSE",

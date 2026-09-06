@@ -41,8 +41,12 @@
 // `withPlugin`, and because that returns a *different object*, the seam holds
 // only if there is no unplugged handle anywhere to import. There is not one:
 // this module builds one, uses it for the migration and destroys it, and
-// `database.ts` gained nothing at all. Story 2.4 writes the first `selectFrom`
-// and owns where the *isolated* handle lives.
+// `database.ts` gained nothing at all. ~~Story 2.4 writes the first
+// `selectFrom` and owns where the *isolated* handle lives.~~ **It is
+// `securities.ts` (Task 2.4.1)**, which takes the same shape deliberately where
+// this module takes it incidentally: this one builds a handle because it needs
+// one and nobody was going to import it, and that one is the first module whose
+// *job* is to be read from.
 //
 // **Forward-only.** There is no `down` and no `migrateDown`. A `down` that has
 // never been executed is a claim rather than a mechanism, and the one that

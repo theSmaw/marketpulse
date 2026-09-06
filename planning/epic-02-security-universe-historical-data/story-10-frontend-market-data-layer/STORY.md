@@ -98,3 +98,71 @@ Getting it after the charts would mean rewriting them.
 ## What this story hands forward
 
 One place market data enters the UI, and the state shape Epics 3, 11 and 12 build on.
+
+---
+
+## Amended 2026-09-06, after Story 2.4 closed — what actually moved, and the one pattern nobody else knows
+
+The scope note above was written on 2026-09-05, before Story 2.4 ran.
+
+### The store decision is genuinely still yours, and Story 2.4 protected it deliberately
+
+There are now **two hooks and no store**: `use-backend-health.ts` (Task 1.12.3) and
+`use-securities.ts` (Task 2.4.3), both plain `useState` + `useEffect`, neither sharing
+anything with the other. That is not an oversight — it is the recommendation in this file's
+own open decisions being followed. §25 says avoid a heavyweight state library until
+complexity demonstrates the need, and **one static list is the weakest possible evidence on
+which to decide how this application holds domain state.** A bar series is the first thing
+that might be real evidence.
+
+`CLAUDE.md`'s frontend summary was corrected to say "no state **library**" rather than "no
+state management", because the second sentence stopped being true at Task 1.12.3 and nobody
+had noticed.
+
+### The states-as-types pattern is established and worth copying exactly
+
+`SecuritiesView` is a **discriminated union of four states** — loading, loaded,
+`unreachable`, `answered-badly` — rather than four booleans, which is Story 1.12's
+`BackendStatus` lesson applied a second time: the impossible combinations cannot be
+constructed, so the component renders a state instead of inferring one.
+
+Two details that are decisions rather than accidents. **The two failure states are kept
+apart on the one distinction a reader can act on** — whether anything answered at all —
+rather than on the seven outcomes `api-client.ts` distinguishes. And **`answered-badly`
+carries the `requestId`** when the body was a well-formed `ApiError`, which is the only
+internal identifier this product puts on screen, per the rule recorded in `api-client.ts`.
+
+Note the shape it takes as a prop: `UniverseTable` takes `view: SecuritiesView` **whole**,
+which is the _opposite_ of `BackendIndicator` taking four separate props — and both are
+right. A union exists so the impossible combinations cannot be built, and spreading it back
+into four props hands the renderer the eight-way boolean space it removed.
+
+### The one line to carry forward: how a page announces that its content changed
+
+**This is a property of every asynchronously-filled surface, not of this page**, which makes
+it yours rather than Story 2.11's — you own the frontend data layer's shape and this is a
+property of every consumer of it.
+
+`UniverseTable`'s `Announcement` is a **persistent `role="status"`, rendered in every state
+and never unmounted, that announces nothing on arrival.** All three clauses are load-bearing
+and each was produced rather than reasoned about (Task 2.4.5):
+
+- **Never unmounted.** Task 2.4.3 put `aria-live` on the _loading_ paragraph — the element
+  that gets **removed** when the data lands — so the page said it had started and never said
+  it had finished. A live region added at the same moment as its content is not reliably
+  announced either.
+- **`status` and never `alert`.** §36 makes an unreachable service a product state rather
+  than a failure, and `alert` is what `ErrorFallback` carries — so an `alert` here would be
+  indistinguishable from a render failure to the assertion the browser suite makes on every
+  route.
+- **Silent while loading.** Arriving at a page is not a change, so a sentence there is never
+  heard as an announcement and is only a second copy of the visible line.
+
+The browser suite asserts the mechanism rather than the wording: that the region exists
+before the content changes, is **the same DOM node** afterwards, and carries a sentence.
+Whether the sentence is a _good_ one was judged by a person; no instrument can hear anything.
+
+### Still yours
+
+Caching, invalidation, the `market` feature module's real shape, and the store decision
+itself. Nothing about a fetch-once-on-mount hook over a curated list constrains any of them.

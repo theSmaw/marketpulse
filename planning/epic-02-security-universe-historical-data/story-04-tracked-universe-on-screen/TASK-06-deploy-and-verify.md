@@ -1,6 +1,6 @@
 # Task 2.4.6 — Deploy it, verify it in a browser, and hand forward what was pre-empted
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [2.4 The Tracked Universe On Screen](STORY.md)
 **Depends on:** Tasks 2.4.1 to 2.4.5
 
@@ -390,3 +390,318 @@ state and never unmounted, announcing nothing on arrival. That is not this page'
 it is the pattern for every asynchronously-filled surface after it, which is Stories 2.11
 to 2.14 and every epic from 3 onward. Story 2.10 is where it belongs, because that story
 owns the frontend data layer's shape and this is a property of every consumer of it.
+
+---
+
+## What was done (2026-09-06)
+
+Every figure below was taken against the deployed environment or from a clean build. None
+is cited.
+
+### The deployed page, read back against the deployed database
+
+`psql` to `psql-marketpulse-dev` over TLS as the Entra administrator. The page and the
+database agree **exactly**:
+
+|                    | database                                | deployed page            |
+| ------------------ | --------------------------------------- | ------------------------ |
+| rows               | 101                                     | 101                      |
+| tracked (`active`) | 101                                     | `101 securities tracked` |
+| distinct sectors   | 11                                      | 11 sector bands          |
+| by kind            | 86 equity / 11 sector ETF / 4 index ETF | `15 ETFs` (11 + 4)       |
+
+All **twelve** rendered band counts equal their `group by sector` counts (13/10/10/10/8/9/
+8/8/7/7/7 plus 4 with no sector), and the three spot-checked securities match field for
+field — `NVDA` equity/technology/Semiconductors, `XLK` sector ETF with a null industry,
+`SPY` index ETF with a null sector. Group ordering follows `SECTORS` rather than the counts
+or the alphabet, and the market-proxies band is last.
+
+### One correlation id, browser to log, on a request that returns data
+
+`97fd4a07-542f-490d-92e2-b7aa9b34a429`, read off the response in the browser and found in
+Log Analytics as **two** records — `incoming request` and `request completed`,
+`statusCode: 200`, `responseTime` **189.52 ms** — against a browser round trip of
+**654.5 ms**.
+
+That ratio is the finding rather than the id. Every previous time this was done it was on
+`/health`, whose server-side work is 0.3–0.6 ms against a ~250–400 ms round trip — three
+orders of magnitude apart. Here the server's own work is **29% of the wire time**, because
+it opens a pooled connection and runs a query. Story 2.9's bar series will move it again.
+
+### Criterion 6, produced deployed through the pipeline
+
+Two merges, as this file specifies, because doing it through `deploy.yml`'s
+`Load the tracked universe` step proves the step marks the row _in production_ rather than
+only in a scratch database.
+
+- **PFE removed from `universe.ts` → merged → deployed.** The row was **kept on id 32 with
+  its original `recorded_at` of 2026-09-05 15:15:24** (Task 2.3.7's first load), `status`
+  moved to `untracked`, `updated_at` moved to today.
+- **101 rows / 100 tracked / 1 untracked** — the only window in which those are different
+  numbers, which is the whole reason this criterion exists.
+- The summary line read **`100 securities tracked · 11 sectors · 15 ETFs · 1 no longer
+tracked`**, the fourth figure appearing only when non-zero. The announcement read _"The
+  tracked universe loaded. 100 securities in 11 sectors."_
+- The row rendered **in its original Health Care group, in its original alphabetical
+  position between MRK and TMO**, in receding ink with a `NO LONGER TRACKED` chip and **no
+  red**, per §36.
+- **PFE restored in the second merge**, and `universe.ts` is byte-identical to its
+  pre-probe state (`git diff` against the pre-probe commit is empty).
+
+**One thing nobody had noticed: a band count is a ROW count and the summary is a TRACKED
+count.** With PFE untracked, Health Care still read `10` and the twelve bands still summed
+to **101**, while the summary said 100 tracked. They reconcile only because the summary
+states both numbers. That is correct as shipped and is fragile to anybody "simplifying"
+either figure.
+
+### The symbol had to be changed mid-probe, and that is the most transferable finding here
+
+GILD was the obvious choice — Task 2.3.6 used it for exactly this demonstration locally, so
+it had continuity going for it. **It took the `database` job red in 46 s.**
+`securities.database.test.ts` names GILD **by literal** as the symbol it untracks and
+restores while proving the untracked round trip.
+
+So: **the universe encodes no COUNT — `UNIVERSE.length` is read rather than written, and
+`load-universe.test.ts`'s `101` is a fixture of its own (3 + 1 + 97) — but it does encode
+three SYMBOLS, in tests (`ABBV`, `AMGN`, `GILD`), and nothing anywhere says so.** PFE was
+checked against every `.ts`, `.tsx` and `.md` in the tree before being used rather than
+after. This is Story 1.10's argument arriving on **data** rather than on code: the gate saw
+something a reading of the file could not, and it saw it on the machine rather than in
+production.
+
+### `e2e/specs-deployed/` — the answer is yes, and not for the reason this file gave
+
+`tracked-universe.spec.ts`, four tests, the first addition to that suite since it was built.
+
+**The brief's stated reason does not survive contact.** It said a wrong `VITE_API_BASE_URL`
+"gives a page that loads and shows nothing" — already caught deployed, **at the cause**, by
+`two-halves.spec.ts` asserting which origin the page's own request went to, which needs no
+response at all. A second spec asserting that one value would add production traffic and no
+signal.
+
+Two things justify the file anyway, and both are specific:
+
+1. **Nothing deployed asserted that any page renders DATA.** `two-halves` reads `/health`,
+   whose body is three fields the server makes up about itself. `host-routing` deep-loads
+   `/securities` and asserts the `<h1>` — which a page with an empty table satisfies
+   perfectly. The whole read path this story built had been verified deployed by a person
+   looking at it, once, and by no instrument.
+2. **`two-halves`'s origin assertion does not cover this request.** It filters on
+   `pathname === "/health"`, correctly, so the `/securities` request was unasserted
+   anywhere. Today both come from one `API_BASE_URL`; the day they do not, this is where it
+   shows.
+
+It takes **no count**, deliberately: the universe is curated and meant to reach §6's 500,
+and this task was itself run across a window where the tracked count was 100. A literal
+would go red on an ordinary edit to a data file — a gate reporting a decision as a defect.
+
+**And a correction to this file's own amendment.** It says pointing `VITE_API_BASE_URL` at
+the frontend's own origin produces `answered-badly` here where the same misconfiguration
+produces **`unreachable`** on the health indicator, making the two indicators disagree
+diagnostically. **They agree.** Task 1.12.7 measured that origin answering `/health` with
+the same 200 `index.html`, which the health client reads as `degraded` / `unreadable-body`
+— "something answered and it was not this service", the same conclusion this page reaches.
+
+What _is_ true, and was re-measured rather than inherited: **the deployed frontend answers
+`/securities` with 200 `index.html` at 1,101 B, byte-identical under
+`Accept: application/json` and `Accept: text/html`**, while `/assets/securities` 404s at
+both. So on this one route — **both an application route and an API path**, which nothing
+else in this product is — a wrong origin is a 200 rather than a refusal, and is therefore
+silent at the network layer. The third test asserts that host behaviour directly, because
+it is a property of a platform setting no file in this repository holds.
+
+### Accessibility: the deployed reading matches the pre-merge gate exactly, three ways
+
+**0 violations / 35 passes / 1 inconclusive (`th-has-data-cells`)** — deployed, and from the
+local gate at **1280×720, ×560 and ×480**. Unchanged with an untracked row on the page, so
+the chip introduces no regression. The inconclusive is axe declining to judge a
+`scope="rowgroup"` band, not a defect; it differs from the landing route's `color-contrast`
+inconclusive, so the two pages are not comparable on that field.
+
+### The `first selectFrom` sweep: thirteen files, not twelve
+
+The recorded count was wrong — the fourth time a sweep in this repository has found that.
+
+- **Thirteen** files carry the claim. The one no amendment named is
+  **`apps/backend/migrations/README.md`**, a live conventions document.
+- **Two APPLIED migrations carry a third variant nobody recorded, saying Story 2.8**
+  (`0002_securities.sql`, `0003_security_vocabulary.sql`). Both are **immutable** — the
+  checksum hashes the whole file including comments, and the 2026-09-05 renumber already
+  proved that by editing comments and getting `2 applied migrations have been edited`.
+  Left untouched.
+- **Eight live claims corrected**, in `CLAUDE.md` (three sites), `docs/adr/0015-*` (two),
+  `DATA-LAYER.md` (four — see below), `migrations/README.md`, and the source comments in
+  `database.ts`, `migrate.ts` and `schema.ts`.
+- **Six historical records left standing**: the Work bullets in `story-02/TASK-02` and
+  `TASK-08`, `story-02/STORY.md`'s close, `story-03/TASK-03`'s two, and `DATA-LAYER.md`'s
+  block quote — which is already explicitly dated _"noted at Story 2.2's close,
+  2026-09-05"_, exactly the scoping clause this convention asks for.
+
+Three findings inside it:
+
+- **`DATA-LAYER.md` contradicted itself.** It said the first `selectFrom` was Story
+  **2.9's** in two places and Story **2.4's** in two others. The story moved on 2026-09-05
+  and only half the document followed.
+- **`schema.ts`'s "its only consumer is a test" stopped being true at Story 2.3, not 2.4.**
+  `load-universe.ts` has imported `Database` since Task 2.3.5. It now has three consumers
+  and two of them ship.
+- **ADR 0015's gap 4 named the wrong story and is otherwise unchanged.** Story 2.4
+  inherited the seam and **honoured** it — which is not enforcing it. The gap is now
+  load-bearing on a module that ships rather than on one nobody had written.
+
+### Documentation that described a tree which no longer existed
+
+- `README.md`'s quickstart still said **"no database is involved yet"**, false for one route
+  since this story.
+- `README.md`'s route table still called `/securities` **a placeholder**.
+- `README.md`'s "this is a **shell on purpose**" framing is now true of three routes out of
+  four rather than all four.
+- **This file's own amendment misplaced the Security Explorer item**, saying it was in the
+  _faults list_ when it is in the _route table_. The faults list never carried it; that list
+  is unchanged at seven live items plus one retired.
+- `CLAUDE.md`: the routes/state paragraph ("It has no state management" — false since Task
+  1.12.3, corrected to "no state **library**"), the missing `use-securities.ts` and
+  `SecurityExplorer.tsx` tree entries, and `database.ts`'s reversal trigger, which
+  Task 2.4.2 corrected in the source and not here.
+
+**README anchors re-checked: 52 headings, 30 links, 24 distinct, 0 broken** — and the
+double-hyphen trap reproduced a **fifth** time, a slugger that collapses whitespace
+reporting six correct anchors as broken. One anchor written during this task
+(`#first-run`) was genuinely broken and was fixed to `#setup` before it shipped.
+
+### Figures
+
+**The artefact reproduces Task 2.4.5's to the byte from a clean build**, which is the check
+rather than a coincidence — this task ships no frontend source:
+
+|              |                                         |             |
+| ------------ | --------------------------------------- | ----------- |
+| JavaScript   | 357,210 B                               | `b563a3d5…` |
+| CSS          | 18,058 B                                | `ead7d5c1…` |
+| `index.html` | 1,101 B                                 | `5bdab864…` |
+| config       | 300 B                                   |             |
+| **total**    | **376,669 B over 4 files, 284 modules** |             |
+
+The deployed bundle diverges by **exactly 72 bytes** (357,282 against 357,210) — the
+recorded `VITE_API_BASE_URL` figure reproducing precisely — on a **byte-identical**
+stylesheet and an `index.html` of 1,101 B at two different hashes, the recorded trap again.
+
+Workshop leakage is zero (`AllPermutations`, `stories.module`, `UniverseTable.stories` and
+the story fixtures). **Task 2.4.4's "one each" vocabulary grep has moved**, to 3 / 5 / 3 /
+1 / 1 for `sector_etf` / `untracked` / `technology` / `XLK` / `Consumer Discretionary` —
+all legitimate rendered strings; the figure was simply not re-taken when Task 2.4.5 shipped
+source. Storybook is **67 files / 9.3 MB**.
+
+`pnpm verify` exit 0 at **347 tests** (68 + 146 + 133) plus **14** process tests;
+`pnpm test:database` **61**; local browser suite **21 across five files**; deployed
+**14 across three**.
+
+The `developer-laptop` firewall rule had moved again (`122.11.246.11` → `58.182.90.91`),
+the recorded hazard's **fourth** sighting.
+
+### The design bar, re-applied to the deployed page
+
+`STORY.md` requires the four tests against the finished thing rather than against Task
+2.4.4's local screenshot. Applied to the deployed page: it reads as a real product rather
+than a scaffold with data in it; it is visibly designed rather than defaulted (the sector
+bands, the benchmark labels, the receding untracked row); the moment worth showing somebody
+is the untracked row keeping its place in its own sector instead of vanishing; and it feels
+considered rather than dead. **It is not yet alive** — nothing moves, because nothing
+changes — and that is honest rather than a gap, since there is no live data until Epic 3.
+Motion tokens exist (Task 2.4.4) and Epic 3 owns the vocabulary, because the hard question
+is what happens when a **number** changes and this page has none.
+
+---
+
+## For the stakeholder — what actually happened here, in plain terms
+
+**The headline: MarketPulse now has a real page you can visit.**
+
+Until today, every screen in the deployed application was a placeholder. The one thing on
+it that looked like market data was invented — a demonstration table with made-up
+companies, put there fifteen months of engineering ago to prove the colours and fonts
+reached the browser. Anyone shown the site got a shell and a promise.
+
+**Now there is a page listing the 101 companies and funds MarketPulse actually tracks**,
+loaded live from our database: Apple, NVIDIA, Pfizer, JPMorgan and the rest, sorted into
+the eleven sectors of the market, each sector labelled with the fund that represents it.
+It is real, it is ours, and it is at a web address you can send to somebody.
+
+### What this task specifically did
+
+The previous five tasks built that page and proved it worked **on a developer's laptop**.
+This one's job was to prove it works **in the real world**, which is not the same thing and
+is where products usually break. Concretely:
+
+- **Checked the page against the database itself.** The page says "101 securities, 11
+  sectors". I opened the database directly and counted: 101, and 11. Every one of the
+  twelve groups on screen has exactly as many rows as the database says it should. This
+  sounds pedantic; it is the difference between a page that displays data and a page that
+  displays _plausible_ data.
+- **Followed a single request from the browser all the way into the server's logs.** When
+  your browser asks for the list, that request is given a unique reference number. I found
+  that same number in our server logs, with the time it took. If a user ever reports a
+  problem, we can trace their exact request rather than guessing.
+- **Deliberately broke something, to prove the honest thing happens.** More on this below.
+- **Wrote an automated check that runs after every future release**, so nobody has to
+  repeat this by hand.
+- **Corrected the project's own documentation**, which had drifted in about a dozen places.
+
+### The decision worth explaining: what happens when we stop tracking a company
+
+Our list of tracked companies is curated, and it will change — companies merge, get
+delisted, or simply stop being interesting. The obvious thing to do when we remove one is
+to delete it.
+
+**We deliberately do not.** The row stays, and is marked _"no longer tracked"_. Two
+reasons:
+
+1. **We will have price history attached to it.** Deleting the company would orphan or
+   destroy months of market data we paid to collect.
+2. **MarketPulse's flagship feature is replay** — going back to a moment in the past and
+   seeing what was knowable _then_. If we delete a company today, we can never again replay
+   a day on which we _were_ tracking it. Deleting is not a tidy-up; it is destroying
+   history.
+
+So today I proved this works in production rather than assuming it: I removed a company
+(Pfizer) from our tracked list, released that change, and watched the live page. It did the
+right thing — Pfizer stayed exactly where it was, in Health Care, in alphabetical order,
+greyed out with a small "no longer tracked" label, and the summary line at the top changed
+from "101 securities tracked" to "**100 securities tracked · 1 no longer tracked**". Then I
+put Pfizer back, and it returned to normal, on the same database record it had before.
+
+**Why that greyed-out row rather than a red error:** it isn't a failure. "We stopped
+tracking this" is _information_. Colouring it red would train people to ignore red, which
+is the colour we need for things that are actually wrong.
+
+### Something that went wrong, and why that is good news
+
+My first attempt removed a different company (Gilead). Our automated checks **stopped it in
+46 seconds**, before it reached the live site, because a test elsewhere in the codebase
+happened to use Gilead by name. Nobody had written that dependency down anywhere.
+
+That is the safety net doing its job on real data rather than on code, and it is worth
+reporting as a positive: the cost of that mistake was under a minute, instead of a
+confusing failure on the live site days later.
+
+### What you still cannot do — stated so nobody over-promises
+
+- **No prices, no charts, no graphs.** The page shows _which_ securities we follow, not how
+  they are doing. Live market data is Epic 3; price history and charts are Stories 2.8 and
+  2.12. The page says so on screen rather than looking broken.
+- **No search.** You cannot type "NVDA" and jump to it. That is Story 2.11.
+- **You cannot click a company** to open its own page. Also Story 2.11.
+- **Nothing moves.** For a live-market product that matters, and it is the honest state:
+  there is nothing to animate until there is live data.
+
+### Why this matters to the plan
+
+Three later stories were each written assuming they would be the first to do this work.
+This task wrote down precisely what has already been done so none of them repeats it, and
+what each still owns. In practical terms this story has **de-risked the three stories after
+it** by proving the whole chain — database → server → internet → browser → screen — works
+end to end, against real data, while it was still cheap to change.
+
+It also gives every remaining story in this phase **somewhere visible to land**. Before
+today, the next seven stories would have produced no visible change at all. That is a bad
+position for a product nobody can see progress on, and it is now fixed.

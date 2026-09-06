@@ -23,7 +23,9 @@ disagreement is called out.
 **The migrator is Kysely's `Migrator`, driving plain SQL files through a ~15-line provider we
 own.** **The query layer is Kysely too**, and it is a _seam declared here_ rather than code
 written here — Story 2.2 ships no route and no read, so the first `selectFrom` is Story
-2.9's. **`pg` and `apps/backend/src/database.ts` survive unchanged**: Kysely's
+~~2.9's~~ **2.4's, and it is written: `apps/backend/src/securities.ts` (Task 2.4.1)**. This
+file said 2.9 here and at "it stays one until…" below, and 2.4 in the two places further
+down; the story moved on 2026-09-05 and only half this document followed. **`pg` and `apps/backend/src/database.ts` survive unchanged**: Kysely's
 `PostgresDialect` takes our existing `pg.Pool`, and Task 2.1.4's per-connection credential
 measurement reproduces exactly through it. **Migrations are forward-only.** Nothing is
 generated, so `pnpm verify` still runs with no database and no new build step.
@@ -369,7 +371,10 @@ So the seam is: **rewrite what it can, refuse what it cannot.** That is structur
 sense invariant 4 asks for — a call site cannot silently read past the clock, and the only way
 to try is a construct the seam rejects at run time. **In the shipping tree that is a
 demonstrated capability of the chosen library rather than a property of any code here**, and
-it stays one until Story 2.9's first read.
+~~it stays one until Story 2.9's first read~~ **it stayed one until Story 2.4's first read
+(Task 2.4.1), which is where the module arrangement became real**. The plugin itself is
+still Epic 13's and still unwritten, so what shipped is the _arrangement_ — a module that
+builds its own handle and does not export it — rather than the isolation.
 
 ### Candidate C — Drizzle: no equivalent hook
 
@@ -387,7 +392,8 @@ It means the _seam_ exists from the first query rather than being retrofitted, a
 marginal cost** because the migrator already brought the package.
 
 It does **not** mean this story writes queries. Story 2.2 ships no route and no read, so the
-first `selectFrom` is Story 2.4's and the temporal plugin is Epic 13's. What Task 2.2.2 owes is
+first `selectFrom` is Story 2.4's and the temporal plugin is Epic 13's. **Both halves held:
+Task 2.4.1 wrote it and did not export the handle.** What Task 2.2.2 owes is
 that the Kysely instance is constructed **over the existing `pg.Pool`** and that the unplugged
 handle is not exported from the module that owns it — the second half being the whole
 mechanism, and worth a comment beside the export rather than a line in a document.
@@ -683,7 +689,7 @@ inside `0001_baseline.sql` itself saying not to edit it.
 which is the check rather than an omission. Epic 13's temporal plugin is attached with
 `withPlugin`, which returns a _different object_, so the seam holds only if there is no
 unplugged handle to import; there is not one. `migrate.ts` constructs one, migrates with it
-and destroys it. Story 2.4 writes the first `selectFrom` and owns where the _isolated_ handle
+and destroys it. Story 2.4 wrote the first `selectFrom` (Task 2.4.1) and owns where the _isolated_ handle
 lives.
 
 Note `db.destroy()` ends the underlying pool, so `closeDatabasePool()` must not also be

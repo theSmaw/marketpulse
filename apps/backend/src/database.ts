@@ -7,8 +7,11 @@
 //
 // **What this file is not.** It is not a query layer, a repository, an ORM or a
 // typed access seam. Story 2.2 chose the query layer — Kysely — and deliberately
-// wrote no read, so the seam is declared rather than built and Story 2.4 writes
-// the first `selectFrom` and owns where the isolated handle lives. What this
+// wrote no read, so the seam is declared rather than built. ~~Story 2.4 writes
+// the first `selectFrom` and owns where the isolated handle lives.~~ **It does,
+// and it did: `securities.ts` (Task 2.4.1) is that module** — it builds its own
+// `Kysely` instance, does not export it, and exports functions returning domain
+// objects instead. This file is still not a query layer. What this
 // file contains is a pool, one `SELECT 1`, and a close. `pingDatabase()` is
 // still the whole query surface of the serving process, and it exists to answer
 // "can this process reach its database" rather than to be the first entry in a

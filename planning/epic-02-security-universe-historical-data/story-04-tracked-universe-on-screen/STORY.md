@@ -1,6 +1,6 @@
 # Story 2.4 — The Tracked Universe On Screen (the first vertical slice)
 
-**Status:** Not started
+**Status:** Complete
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.3
 **Delivered:** fourth, immediately after Story 2.3 and before Story 2.5
@@ -190,14 +190,14 @@ The ordering has one property worth stating: **the third task is where a stakeho
 see something.** The first two are the read path and the contract, and they are demonstrable
 as a URL rather than as a page; from 2.4.3 onward every task changes what is on screen.
 
-| #     | Task                                                                                                    | Status      |
-| ----- | ------------------------------------------------------------------------------------------------------- | ----------- |
-| 2.4.1 | [The first read: the query, the mapping, and the seam](TASK-01-the-first-read.md)                       | Complete    |
-| 2.4.2 | [`GET /securities` and the wire contract](TASK-02-the-endpoint.md)                                      | Complete    |
-| 2.4.3 | [Real data on screen: the frontend read path and the plainest honest list](TASK-03-on-screen.md)        | Complete    |
-| 2.4.4 | [The states, and making it look like the product](TASK-04-states-and-presentation.md)                   | Complete    |
-| 2.4.5 | [Keyboard, screen reader, and the browser journey](TASK-05-accessibility-and-journey.md)                | Complete    |
-| 2.4.6 | [Deploy it, verify it in a browser, and hand forward what was pre-empted](TASK-06-deploy-and-verify.md) | Not started |
+| #     | Task                                                                                                    | Status   |
+| ----- | ------------------------------------------------------------------------------------------------------- | -------- |
+| 2.4.1 | [The first read: the query, the mapping, and the seam](TASK-01-the-first-read.md)                       | Complete |
+| 2.4.2 | [`GET /securities` and the wire contract](TASK-02-the-endpoint.md)                                      | Complete |
+| 2.4.3 | [Real data on screen: the frontend read path and the plainest honest list](TASK-03-on-screen.md)        | Complete |
+| 2.4.4 | [The states, and making it look like the product](TASK-04-states-and-presentation.md)                   | Complete |
+| 2.4.5 | [Keyboard, screen reader, and the browser journey](TASK-05-accessibility-and-journey.md)                | Complete |
+| 2.4.6 | [Deploy it, verify it in a browser, and hand forward what was pre-empted](TASK-06-deploy-and-verify.md) | Complete |
 
 ## Amended 2026-09-06, after Story 2.3 closed
 
