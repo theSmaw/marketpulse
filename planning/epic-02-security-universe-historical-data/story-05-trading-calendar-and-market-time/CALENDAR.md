@@ -195,6 +195,24 @@ explanation and there is no honest explanation of that one.
 derivable from the calendar rather than configured, and an ingest that finds 390 has found
 all of them.
 
+> **Confirmed against a real vendor on 2026-09-07 (Task 2.7.1), and this paragraph was
+> expected to need amending.** `PROVIDER.md` §6.4 predicted that IEX, being one venue rather
+> than the tape, would not yield 390 bars — in which case `minuteBars` would be a count of
+> _minutes_ and not of _bars_, and the sentence above would be false. **Measured, it holds.**
+> A liquid name returns **exactly 390** across five ordinary sessions, and the day after
+> Thanksgiving 2025 returns **exactly 210** — the first time this document's early-close table
+> has been validated against a third party. The prediction failed because the free plan serves
+> **SIP** for historical bars rather than IEX (`ALPACA.md` §2); on IEX the same thin names run
+> 43–99%. So the claim is sound **for stored data** and would not be on a live IEX stream.
+>
+> **One trap for whoever writes the ingest**, since it is this section's scope that it breaks:
+> asking Alpaca for a **bare date** rather than explicit session bounds returns **217 bars for
+> that 210-minute half day**, the extras running from an hour before the open to eight minutes
+> after the early close. Extended-hours bars are out of V1 scope by §2's decision, so the
+> request must carry session bounds. Related, and measured in the same task: Alpaca's `end` is
+> **inclusive** where our `TimeRange` is half-open, which adds a further bar stamped at the
+> close itself.
+
 **Epic 5 — the baseline denominator is regular-session minutes only.** Stated here so it is
 inherited rather than re-decided at a point where changing it would invalidate every stored
 baseline.

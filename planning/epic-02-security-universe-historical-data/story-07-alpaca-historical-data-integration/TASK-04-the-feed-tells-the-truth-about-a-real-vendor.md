@@ -1,14 +1,36 @@
-# Task 2.7.4 — Point the deployed backend at Alpaca and let the chrome say `IEX`, changing no frontend code at all
+# Task 2.7.4 — Point the deployed backend at Alpaca and let the chrome name the real feed, changing no frontend code at all
 
 **Status:** Not started
 **Story:** [2.7 Alpaca Historical Data Integration](STORY.md)
 **Depends on:** Task 2.7.3
 
+> **AMENDED 2026-09-07 — this task said `IEX` throughout and that may be the wrong word.**
+> Task 2.7.1 measured that this plan is **asymmetric**: historical bars default to **SIP**, the
+> full consolidated tape, while the live stream is **IEX only** (`wss://…/v2/sip` →
+> `409 insufficient subscription`). See [`ALPACA.md`](ALPACA.md) §2.
+>
+> So the sentence this task was written to put on a public page —
+> _"Trades reported by the IEX exchange only — not the full US consolidated tape"_ — **is very
+> probably false for anything this deployment reads**, and it is false in the direction that
+> matters: it **understates** our coverage while claiming a specific limitation we do not have.
+> `PRODUCT_SPEC.md` §7.1 and invariant 6 are about not implying coverage we lack; a label that
+> is simply wrong fails them either way.
+>
+> **This does not block the task and does not move it.** What it does is make the task depend on
+> **open decision 6**, which `STORY.md` routes to Task 2.7.3 — the first thing that writes a
+> `feed` into a provenance record. By the time this task runs, the vocabulary, the provider's
+> `feed` and `MARKET_FEED_DESCRIPTIONS`' sentence are already decided. **This task renders the
+> answer and checks it on a real page; it does not pick it.**
+>
+> Read every `IEX` below as _"whatever decision 6 settled"_. The mechanism, the layout risk, the
+> deployed-spec argument and the axe baseline are all unaffected — they are about a region
+> rendering a truthful value, not about which value it is.
+
 ## Objective
 
 Set `MARKET_DATA_PROVIDER=alpaca` on the deployed Container App, deploy, and read the site.
-The `Market feed` region should go from `NOT CONFIGURED` to **`IEX`**, under the sentence
-_"Trades reported by the IEX exchange only — not the full US consolidated tape."_
+The `Market feed` region should go from `NOT CONFIGURED` to **the feed open decision 6
+settled**, under that feed's sentence from `MARKET_FEED_DESCRIPTIONS`.
 
 **No file in `apps/frontend` changes.** That is not a convenience, it is the point: it is the
 test of whether Task 2.6.7 built a reporting mechanism or a caption. Its own write-up said so —
@@ -51,10 +73,12 @@ on it. If something does reach it, this task waits for Task 2.7.5.
 
 ## The layout risk, which is real and specific
 
-**The `synthetic` and `iex` sentences are not the same length, and this region has a `34ch`
-measure.** _"Generated test data. Not a market feed."_ is 39 characters; _"Trades reported by
-the IEX exchange only — not the full US consolidated tape."_ is nearly twice that, and this is
-the **first time the longest sentence in `MARKET_FEED_DESCRIPTIONS` renders in the chrome**.
+**The `synthetic` sentence and a real feed's sentence are not the same length, and this region
+has a `34ch` measure.** _"Generated test data. Not a market feed."_ is 39 characters; any
+honest description of a real feed's coverage is roughly twice that — and whichever decision 6
+settles, this is the **first time the longest sentence in `MARKET_FEED_DESCRIPTIONS` renders in
+the chrome**. If decision 6 adds a `sip` member, its sentence is new copy and has never been
+rendered anywhere, so it carries this risk in full.
 
 Task 2.5.5 found a real layout defect by exactly this route — a component that looked correct in
 every state the running application could reach, and broke on the longest string it renders, on
@@ -95,7 +119,7 @@ than the mechanism.
   `hidden`, makes no request, and sits on placeholders indefinitely, which Tasks 1.12.3, 1.12.7
   and 1.12.8 each had to rediscover
 - Read `GET /market-data` on the deployed backend directly, before and after, and record both
-  bodies — `{"feed":null}` → `{"feed":"iex"}`
+  bodies — `{"feed":null}` → `{"feed":"<whatever decision 6 settled>"}`
 - Confirm the deployed backend did not notice: `/health` 200 throughout, `uptimeSeconds` rising
   and never resetting across the revision rollover, `restartCount` 0
 - Read the `secrets` array back on the running revision, and record that ADR 0011's claim is now
@@ -105,7 +129,9 @@ than the mechanism.
 
 ## Done when
 
-- The deployed chrome reads `IEX` with its sentence, on all five routes, in a real browser
+- The deployed chrome reads **the feed decision 6 settled**, with its sentence, on all five
+  routes, in a real browser — and that word is **true of what this deployment actually reads**,
+  which is the whole point of the region and the thing `ALPACA.md` §2 put in doubt
 - `git diff` touches no file under `apps/frontend/src`
 - `pnpm e2e:deployed` passes **unamended**
 - The deployed axe reading is 0 violations / 37 passes / 1 inconclusive, matching the pre-merge

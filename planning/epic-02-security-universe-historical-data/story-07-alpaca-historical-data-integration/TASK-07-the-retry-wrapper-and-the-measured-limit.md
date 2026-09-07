@@ -59,8 +59,13 @@ derivation in a comment so it can be re-derived rather than inherited:
 - **Backoff.** Exponential with **jitter**, and the jitter is not decoration: Story 2.8 fires a
   hundred requests, they hit a rate limit together, and a jitter-free backoff retries them
   together — a thundering herd against the service that just asked for less traffic.
-- **The floor from `retryAfterMs`.** Whichever is longer, the backoff or the hint, bounded by
-  the deadline.
+- **The floor from `retryAfterMs` — and MEASURED 2026-09-07, this vendor never sends one.** The
+  `429` carries **no `Retry-After` header and no `x-ratelimit-*` headers at all**; the body is
+  `{"message": "too many requests."}`. So the backoff must work with **no server-supplied delay**,
+  and the hint path is real code that Alpaca will not exercise. Keep it — a vendor adding the
+  header is silent, and `PROVIDER.md` §8.6 made the hint a branch and a floor for exactly this
+  reason — but **test it against the fixture provider**, which Task 2.6.6 made able to produce
+  `rate-limited` with a hint, because the live vendor cannot.
 - **What is _not_ here: cross-request pacing.** `PROVIDER.md` §8.8 draws this line and it is the
   one most likely to be crossed by accident. **Per-request retry is this wrapper's;
   cross-request pacing across a hundred symbols is Story 2.8's backfill.** Conflating them is
@@ -70,9 +75,22 @@ derivation in a comment so it can be re-derived rather than inherited:
 ## Exercising it at the limit — criterion 4
 
 The criterion's wording is precise: _"the client behaves correctly at the limit rather than
-being assumed to stay below it."_ So drive the real limit, with a real key, and read what
-happens. Task 2.7.1 measured where it is, whether the window is fixed or sliding and whether it
-is per key or per endpoint; this task's job is the behaviour at it.
+being assumed to stay below it."_ So drive the real limit, with a real key, and read what happens.
+
+**What Task 2.7.1 measured (2026-09-07), and what it did NOT:**
+
+- **The limit is 201 requests**, then `429` — the documented 200/min confirmed almost exactly.
+- **It is per REQUEST, not per symbol.** 203 requests of 50 symbols each succeeded in one
+  window, the same ceiling as 201 single-symbol requests. This matters to the wrapper because a
+  retry costs the same as any request regardless of how many symbols it names.
+- **It only binds under concurrency.** 260 _sequential_ requests never tripped it, because at
+  ~280 ms each they took 73 s and spanned more than one window. A burst of 320 tripped it in
+  1.5 s. So the window is short and rolls; **the wrapper's backoff only has to outlast a window,
+  not a punishment period** — but confirm that, see below.
+- **NOT measured: whether the limit is per key or per endpoint.** `ALPACA.md` §6 records this as
+  open, and settling it needs a second endpoint driven inside the same window. **This task owns
+  it**, because it is already driving the limit and the assets endpoint (Task 2.7.8's) is a
+  second endpoint on the same key.
 
 Two things worth recording that the criterion does not ask for and that Story 2.8 will need:
 **how long the vendor stays angry** — whether one 429 means one request or a punished window —

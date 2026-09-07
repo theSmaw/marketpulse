@@ -22,9 +22,11 @@ clone and a fresh deployment read, which is the check rather than a formality.
 
 ## The seven criteria, re-made rather than cited
 
-1. **Real bars, mapped, with IEX provenance** — run `pnpm bars` against the deployed
-   credential's key from a clean clone, print the series and its provenance record, and record
-   the actual numbers
+1. **Real bars, mapped, with provenance naming the feed open decision 6 settled** — run
+   `pnpm bars` against the deployed credential's key from a clean clone, print the series and its
+   provenance record, and record the actual numbers. **The criterion's original wording said
+   "IEX"**; Task 2.7.1 measured that historical bars come from SIP, so check the provenance
+   against what the request actually asked for rather than against that word
 2. **The measured plan limits, dated — including the WebSocket cap** — confirm `ALPACA.md` says
    what was measured and that `UNIVERSE.md` §10's parked decision has been resolved one way or
    the other. This is the criterion another story was blocked on; if §10 still reads _parked_,
@@ -61,9 +63,13 @@ something the candidate list did not name.
 - **ADR 0011's "nothing deployed holds a credential"**, which expired at Task 2.7.2. Confirm the
   dated amendment is beside the claim and that `EPIC.md`'s prediction — corrected once already,
   from Story 2.1 to this story — now reads as **confirmed** rather than as pending
-- **`CALENDAR.md`'s `minuteBars`**, if Task 2.7.1 found a regular session does not yield 390 IEX
-  bars. That amendment is owed by this story and is the one most likely to be forgotten, because
-  it is in another story's document
+- **`CALENDAR.md`'s `minuteBars` — the condition did NOT fire, and the sweep is now a
+  confirmation rather than an amendment.** Task 2.7.1 measured a regular session yielding
+  **exactly 390** and a half day exactly **210**, so no correction was owed; what it left instead
+  is a **dated confirmation note** in §2.2 plus two request traps (the inclusive `end`, and
+  date-only ranges leaking extended hours). Check that note still describes the shipped client —
+  in particular that the client does subtract a timeframe from `end` — because it is in another
+  story's document and is the one most likely to go stale unnoticed
 - **The `pnpm verify` gap lists in `CLAUDE.md`** — the sixth kind gained the platform secret,
   and any recorded invariant this story created (a coupled constant, a second writer on
   `status`, a pin) belongs in the third kind with its durable copy named
@@ -110,13 +116,25 @@ those documents.
 - **Why the vendor's limits are measured rather than cited**, and what the measurement found —
   including the one number two of the vendor's own pages disagreed about, and what it did to the
   universe sizing
+- **The feed asymmetry, and what we chose to tell users** — the finding no open decision
+  anticipated: this plan serves **SIP** for historical bars and **IEX** for the live stream, so
+  `PRODUCT_SPEC.md` §7.1's `Market feed: IEX` is not straightforwardly true. Record what open
+  decision 6 settled, what it cost (`MarketFeed`'s vocabulary, the chrome's sentence, and
+  `UNIVERSE.md` §10's quality ceiling narrowing to live data only), and the standing consequence
+  that **Epic 3's live bars and this story's stored bars come from different tapes** — which
+  `PROVIDER.md` §2.4 already anticipated by making a feed disagreement truthful and reportable
+  rather than refused
 - **Why the key is stored where it is**, and why the database credential's path did not transfer
 - **Why a missing key is a startup refusal and a wrong key is a result** — the two halves of
   open decision 3 that turned out to have different answers
 - **Why retry lives in a wrapper**, confirming rather than re-deriving `PROVIDER.md` §8.8, and
   what the measured numbers are
-- **Where the line between a result and a throw actually fell** against a real vendor — the
-  `422` split, and the member that could not be produced
+- **Where the line between a result and a throw actually fell** against a real vendor — noting
+  that the anticipated `422` split **does not exist** (malformed parameters are `400`, and both
+  range failures are `200` with an empty body), and that **two** members could not be produced
+  from the bars endpoint rather than one: `unknown-symbol` and `range-not-available`. Include
+  the measured collision where a bad key's **HTML** `401` body meets the
+  unparseable-body-is-a-throw rule
 - **What a green test run certifies and what it cannot**: every mapping test runs against
   recorded bodies, so a green suite says the mapping is consistent with **what the vendor sent
   on the day it was recorded** and nothing about what it sends today. That is the honest
@@ -133,7 +151,11 @@ Write this as a section rather than leaving it to be reconstructed:
 - The rate limit, the retry policy's numbers, and the line that **pacing is Story 2.8's** and
   is not built here
 - The bar-density numbers — what a real session contains — which is what its gap handling is
-  sized against
+  sized against, **and that they are feed-dependent**: 99.7% mean on SIP against 82.8% on IEX
+- **The two request-construction traps**, because both produce plausible wrong rows rather than
+  failures: Alpaca's `end` is **inclusive** where `TimeRange` is half-open (one duplicate bar per
+  window seam), and a **date-only range includes extended-hours bars** (217 against a 210-minute
+  half day)
 - Whether the universe is being re-sized, and that after 2.8 backfills, re-sizing costs a
   re-backfill rather than a file edit
 - The lifecycle answer, and whether `status` now has a second writer

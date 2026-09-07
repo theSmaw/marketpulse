@@ -122,7 +122,20 @@ token nothing kept. Run all five and report zero:
 1. **The repository** — no key in source, in a fixture, in a test, in `planning/`, or in a
    recorded HTTP body. Task 2.7.1's captured responses are the risk: an error body can echo a
    request header, and a fixture recorded straight off the wire is the most plausible way a key
-   gets committed in this entire story
+   gets committed in this entire story.
+
+   **Evidence from 2.7.1 (2026-09-07), which narrows this rather than removing it:** its 22
+   captures were written by a harness that swept each one for the credential's bytes and
+   **refused to write on a match**, and all 22 came back clean — so **no Alpaca error body
+   observed so far echoes the credential**, including the `401` a bad key produces, which is an
+   nginx HTML page carrying nothing of ours. Those captures lived **outside the repository** and
+   never entered the tree. The risk is unchanged for Task 2.7.3's fixtures, which are the ones
+   that _do_ get committed; reuse the same refuse-on-match sweep rather than a manual check.
+
+   **Also delete the scratchpad credential file** Task 2.7.1 used, once this task has given the
+   key its real home. It is outside the tree and `chmod 600`, but it is a second copy of a live
+   secret and this task is what makes it redundant
+
 2. **The built backend** — `apps/backend/dist`, and separately the **image**, remembering Task
    2.1.6's finding that `dist` contains compiled test files the `files` field keeps out of the
    image, so the two are different answers

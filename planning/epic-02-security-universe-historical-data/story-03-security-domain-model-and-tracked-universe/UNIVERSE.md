@@ -750,6 +750,58 @@ Nothing in the tree encodes the count, so un-parking costs one file edit for as 
 bars have been stored against these rows. **After Story 2.8 it costs a re-backfill**, which
 is the real deadline on this decision and is worth more than the trigger itself.
 
+### THE TRIGGER FIRED — measured 2026-09-07 by Task 2.7.1, and the answer is "bars are exempt"
+
+**Measured against a live free-plan account**, not read. The full record is
+[`ALPACA.md`](../story-07-alpaca-historical-data-integration/ALPACA.md) §1; the short form:
+
+- **Minute bars: no practical limit.** One subscription was accepted at **60**, then at
+  **101**, **500**, **1,500** and **5,000** symbols — the last being `PRODUCT_SPEC.md` §27's
+  _synthetic_ target, accepted on the free plan in 867 ms.
+- **Trades: capped at 30**, refused at 60 with `code=405 symbol limit exceeded`.
+
+**The trades refusal is the control and it is what makes this a measurement.** A server that
+silently dropped the thirty-first subscription would look identical to one that accepted it,
+so the acknowledgement's accepted list was **counted**. Bars accepted where trades were
+refused, on one connection, seconds apart.
+
+**So Alpaca's streaming guide is right and its pricing page is wrong.** The blocker branch
+does not apply: 101 is nowhere near a cap, Epic 3 has no subscription problem, and the
+$99/month Algo Trader Plus exit is not needed for capacity.
+
+**Per this section's own instruction the sizing is NOT re-taken here**, because §5's metadata
+source must be settled before a number is picked — that is Story 2.8's re-curation. What has
+changed is that the sizing is **unblocked** rather than parked, and the taxonomy coarsening
+above was never blocked at all.
+
+### And the constraint this section names as binding has WEAKENED — for stored data only
+
+§10 caps the useful universe on IEX's ~3.8% volume share, arguing that thin names gain gaps
+and — worst — **pollute breadth**, because a security with no trades is neither advancing nor
+declining. **That argument survives for LIVE data and largely does not for HISTORICAL data.**
+
+Task 2.7.1 found the free plan is **asymmetric** (`ALPACA.md` §2): the **live stream is IEX
+only** (`wss://…/v2/sip` is refused, `409 insufficient subscription`), while **historical bars
+default to SIP** — the full consolidated tape, restricted only by recency, not by tape. The
+same six thin equities over the same three sessions:
+
+| Feed          | Coverage range |      Mean | Longest gap |
+| ------------- | -------------- | --------: | ----------: |
+| `iex`         | 43.1% – 99.7%  | **82.8%** |  **15 min** |
+| default (SIP) | 98.5% – 100%   | **99.7%** |   **2 min** |
+
+`CCI` reads **43.1%** on IEX and **98.5%** on SIP for the same session.
+
+**So whoever un-parks the sizing should read `ALPACA.md` §2 first**, because this section's
+quality argument and its ~1,000–1,500 estimate were both derived from IEX's share, and that is
+now known to be the wrong tape for anything Story 2.8 stores. **It does not make the number
+larger by itself** — §5's curation problem is untouched and is still the harder limit, exactly
+as this section already concluded.
+
+**One thing this hands to Task 2.7.4 rather than resolving**: if stored bars are SIP, then
+`Market feed: IEX` is the wrong label for them, and invariant 6 requires the label to be
+right. That is a product-truth question for a person, and `ALPACA.md` §2 states it.
+
 ---
 
 ## 11. The loader, and what `*_retrieved_at` means on a re-run (Task 2.3.5, 2026-09-05)
