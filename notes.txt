@@ -1,21 +1,24 @@
-Do we need to amend, add, delete or re-order any tasks in
-@planning/epic-01-application-foundation/story-13-end-to-end-browser-testing
- based on our implementation of
-@planning/epic-01-application-foundation/story-13-end-to-end-browser-testing/TASK-03-the-journeys-worth-having.md?
 
 Do we need to amend, add, delete or re-order any stories in
 @planning/epic-02-security-universe-historical-data based on our implementation of
 @planning/epic-02-security-universe-historical-data/story-03-security-domain-model-and-tracked-universe
 
 
-Like we did with @planning/epic-01-application-foundation/story-01-repository-structure-and-toolchain,
-let's split @planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment
+Like we did with other stories in @planning,
+let's split @planning/epic-02-security-universe-historical-data/story-06-market-data-provider-abstraction
 into small, self-contained tasks that we can implement sequentially to be able to comprehensively satisfy the story.
+Be sure to reference @planning/PRODUCT_SPEC.md so you understand the product that we are building. Remember that the
+stakeholders want to see as much incremental progress as possible on the UI.
 
 
-let's implement @planning/epic-02-security-universe-historical-data/story-03-security-domain-model-and-tracked-universe/TASK-08-verify-document-and-adr.md
+let's implement @planning/epic-02-security-universe-historical-data/story-06-market-data-provider-abstraction/TASK-02-the-bar-and-the-timeframe.md
 Be sure to reference @planning/PRODUCT_SPEC.md so you understand the product that we are building.
 When you are done with the task, add to that task's documentation a layman's, non-technical description of the work you
 did and how it contributed to the product we are building. Let that layman know why you made the decisions that you did.
 e.g. give our stakeholders a status report on how their product is coming along and how your implementation of the task
 unlocks progress towards a user-facing product.
+
+Do we need to amend, add, delete or re-order any tasks in
+@planning/epic-02-security-universe-historical-data/story-06-market-data-provider-abstraction
+ based on our implementation of
+@planning/epic-02-security-universe-historical-data/story-06-market-data-provider-abstraction/TASK-01-settle-the-shape-and-the-provenance-vocabulary.md?

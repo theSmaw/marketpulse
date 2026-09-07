@@ -767,6 +767,24 @@ A reversed or zero-width range is **refused naming both ends**, following
 consequence for Story 2.7's mapping: Alpaca's `end` is not half-open, so the reconciliation is
 the client's and must be stated there.
 
+**Amended 2026-09-07 by Task 2.6.2, which implemented this: `TimeRange` is BRANDED, and
+that is a decision beyond what this section asked for rather than an overturn of it.** A bare
+`{ start, end }` interface fixes only the _positional_ half of the problem — it stops the two
+instants being swapped as arguments, and does nothing about the _invalid_ one, because a
+caller writes the object literal directly and `toTimeRange` is never reached. So the type
+carries a `unique symbol` brand exactly as `Ticker` does, `toTimeRange` is the only way to
+obtain one, and the brand is erased at runtime so it costs nothing on the wire or in the
+bundle. The stated cost: a range parsed out of JSON is not a `TimeRange` and must be
+re-validated, which is correct behaviour rather than friction.
+
+Three refusals rather than the one this section names, and the third was not anticipated
+here: an **invalid** `Date` at either end is refused _before_ the ordering check, because
+`new Date("nonsense")` compares as neither before nor after anything — so it slips past
+`start >= end` untouched and produces an empty answer at the point of use rather than an
+error at the point of construction. Zero-width is refused with reversed rather than allowed,
+since under half-open semantics `[t, t)` contains nothing and the only routes to one are a
+swapped equal pair or an off-by-one.
+
 ### 9.4 `Timeframe` — two members, and aggregation is NOT expressible
 
 `TIMEFRAMES = ["1m", "1d"] as const`. Our vocabulary, not `1Min`/`1Day`, so a typo is a
@@ -788,6 +806,33 @@ truth that replay could not use; and provider-side and our-side aggregation disa
 session boundary, which is exactly where a half day makes the disagreement largest.
 
 Anything beyond these two needs a named reader.
+
+**Amended 2026-09-07 by Task 2.6.2: criterion 1's grep must be over CODE, not over text, and
+a naive one reports six false positives.** Measured on the shipping tree: `packages/shared/src`
+contains **six** occurrences of a vendor name and **zero** of them are code — they are five
+comments and one line of prose in a test, every one of them explaining _why_ a decision was
+taken (`ticker.ts` on where the ticker format comes from, `security.ts` and
+`securities-response.ts` on which field group a later story will fill). That is the opposite
+of a leak, and deleting them to make a grep clean would destroy the record. The four files
+Task 2.6.2 added contain zero in either form, deliberately — they say _"the vendor"_ — so the
+number does not grow.
+
+The check Task 2.6.8 should run, and it returns nothing today:
+
+```
+for f in packages/shared/src/*.ts; do
+  sed -e 's://.*::' -e '/^[[:space:]]*\*/d' -e '/^[[:space:]]*\/\*/d' "$f" \
+    | grep -niE 'alpaca|polygon\.io|tiingo|finnhub|iexcloud|databento' | sed "s|^|$f:|"
+done
+```
+
+It is **prose plus a measured grep rather than a test**, and the reason is structural rather
+than lazy: the check has to read source _text_, `packages/shared` deliberately has no
+`@types/node` (giving it Node types to hold a lint-shaped rule would breach one boundary to
+enforce another — `market-time.test.ts` records the same argument for criterion 2), and a test
+about `packages/shared` living inside `apps/backend` would make both packages' suites lie
+about what they cover. Task 1.13.6's line applies: a check belongs in code when the thing it
+checks is reachable from an assembled instance, and source text is not.
 
 ### 9.5 The numeric type: `number` on the domain type and on the wire
 
@@ -873,6 +918,16 @@ provably side-effect-free.
    §4.4's three labels and three sentences plus the component that renders them. Order of a
    few hundred bytes of strings plus the component and its stylesheet. There is no useful
    tighter prediction than that, and a wrong prediction there is not a defect.
+
+**Half 1 is confirmed for Task 2.6.2 by measurement, not by argument.** Before and after, the
+artefact is byte-identical: `369,437 B` / `4f17aff3…` of JavaScript, `17,317 B` /
+`eb223e53…` of CSS, `index.html` `1,101 B` / `898733b0…`, `staticwebapp.config.json` 300 B,
+**388,155 B over four files** — Task 2.5.6's figures to the byte. `TIMEFRAMES` is a plain
+literal and is tree-shaken completely; `Bar`, `Timeframe` and `TimeRange` are type-only and
+erased; `toTimeRange` is an unused export and goes with them. Two things were written and
+then **removed for exactly this reason before they shipped**: a `MINUTE_BAR_MS` constant and a
+`Symbol_` alias, neither of which had a reader — the same over-building the task file warns
+about, arriving as convenience rather than as a field.
 
 **The one-line rule that makes half 1 come true, and it applies to every file this story
 adds to `packages/shared`:** no module-scope value is built by calling a function. Declare
