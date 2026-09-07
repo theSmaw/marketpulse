@@ -33,6 +33,9 @@ describe("loadConfig defaults", () => {
       logLevel: "info",
       logFormat: "json",
       corsOrigin: "http://localhost:5173",
+      // The loud default: `fixture` serves invented prices, so opting into it
+      // has to be a deliberate act (Task 2.6.6).
+      marketDataProvider: "none",
       database: {
         host: "127.0.0.1",
         port: 5432,
@@ -97,6 +100,7 @@ describe("loadConfig reading", () => {
       logLevel: "debug",
       logFormat: "pretty",
       corsOrigin: "https://marketpulse.example",
+      marketDataProvider: "none",
       database: {
         host: "db.example",
         port: 6432,
@@ -308,6 +312,7 @@ describe("CONFIG_VARIABLES", () => {
       LOG_LEVEL: config.logLevel,
       LOG_FORMAT: config.logFormat,
       CORS_ORIGIN: config.corsOrigin,
+      MARKET_DATA_PROVIDER: config.marketDataProvider,
       DATABASE_HOST: config.database.host,
       DATABASE_PORT: String(config.database.port),
       DATABASE_NAME: config.database.name,

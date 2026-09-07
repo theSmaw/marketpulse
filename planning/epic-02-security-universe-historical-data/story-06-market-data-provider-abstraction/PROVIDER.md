@@ -242,6 +242,16 @@ is **Story 2.8's gap handling**, which is where that acceptance criterion alread
 derived `complete: boolean` is deliberately absent for `securities-response.ts`'s reason: a
 second copy of a fact whose only interesting behaviour is to disagree with the first.
 
+**Amended 2026-09-07 by Task 2.6.6, which took the decision this section implies and Task
+2.6.3 left open: `covered` is the window the provider ANSWERED FOR, not the span of the bars
+returned.** The two readings differ on a real case — a thinly traded name whose last print
+was at 15:42 — and the second is what _"we have data through 15:42"_ sounds like and is
+wrong: nobody traded it after 15:42, which is a different statement from _"we have no data
+after 15:42"_, and the name was still **covered** to the close. This paragraph is the
+argument: coverage says how far the answer **reaches**, not whether it is dense. Concretely,
+`covered` is the requested range intersected with the provider's own extent, and `null`
+exactly when the series is empty — which `toBarSeries` enforces in both directions.
+
 ---
 
 ## 3. Adjustment: stored raw, never rewritten, and adjusted series are ASKED FOR
@@ -325,6 +335,18 @@ value whose wrongness is deferred.
 Task 2.6.6 therefore **must** include a fixture range spanning a corporate action, or nothing
 in this story ever exercises the difference and criterion 5 is asserted by a type signature
 that no test distinguishes.
+
+**Amended 2026-09-07 by Task 2.6.6: it does, and the DIRECTION had to be engineered
+deliberately.** The corpus holds a four-for-one split, and the level is set so the **raw**
+series carries the cliff — which is what happened, and what §3.6 says an honest chart shows
+provided the label beside it reads `raw` — while `split-adjusted` removes it by scaling the
+**earlier** half down onto the later one's scale, prices divided by four and volume
+multiplied by four so the notional traded is preserved. Measured at daily resolution across
+the split: raw closes 525.93 → 140.04, split-adjusted 131.48 → 140.04. Built the other way
+round, `split-adjusted` would have _introduced_ a step and every test in this story would
+assert the opposite of what the product means. Beside it is the test that matters more in
+practice, and it is this section as an assertion: **a symbol with no split returns
+byte-identical bars in both modes.**
 
 ### 3.6 The named gap: V1 reads raw, so a split draws a cliff
 
@@ -427,6 +449,28 @@ touch, rejected twice already (Tasks 1.4.5 and 1.12.4).
 - Members at the end of this story: **`none` and `fixture`**. Story 2.7 adds its own.
 - **The default is `none`.**
 
+**Amended 2026-09-07 by Task 2.6.6, which implemented §5 unchanged and added one thing §5.1
+did not settle: what `none` IS.** It is **absence** — `createMarketDataProvider` returns
+`MarketDataProvider | undefined` and there is no null-object implementation. The mechanism
+rather than the conclusion: **there is no `BarsResult` member meaning "no provider is
+configured"**, because that is a fact about our own deployment rather than about the world,
+so it fails §8.5's own test for membership. Answering `upstream-unavailable` instead is
+precisely the laundering §8.5 forbids — a configuration fault in a transient fault's costume,
+which a retry wrapper would then retry forever against a vendor nobody configured — and a
+null object that throws is _"a method left throwing"_, which Task 2.6.6's Done-when list
+forbids in as many words. The defined behaviour for a caller with no provider is a **503
+carrying `SERVICE_UNAVAILABLE`**, owned by **Story 2.9**, per `API_ERROR_CODES`' rule that a
+member arrives with the failure that can produce it.
+
+**And the selection vocabulary is DERIVED rather than restated.**
+`MARKET_DATA_PROVIDER_SELECTIONS` is `["none", ...PROVIDER_IDS]`, so Story 2.7 adding its own
+member to `packages/shared` makes it selectable with no edit to `config.ts` — and makes
+`createMarketDataProvider`'s exhaustive switch **fail the build** until somebody wires it up.
+A second literal list would be a copy whose disagreement ships a configuration value an
+operator can set and nothing can honour. It is §8.1's ninth-member mechanism one layer down,
+and it makes `config.ts` import from `packages/shared` for the first time — checked not to
+break `scripts/local-database.mjs`, which reads the built `dist/config.js`.
+
 ### 5.2 Why it ships at all
 
 The story's own words argue it: _"usable by tests **and by a developer with no Alpaca key**"_
@@ -478,6 +522,16 @@ mechanism that makes §5.2's "laptop on a train" safe.
 `env:check` fails all four ways it has been made to fail before, including on a drifted
 default, so `MARKET_DATA_PROVIDER`'s `none` has to be stated in `.env.example` and in
 `CONFIG_VARIABLES` and the two must agree.
+
+**Amended 2026-09-07 by Task 2.6.6: done, and `pnpm env:check` reports 13 backend variables
+documented.** One thing it added that §5.4 did not anticipate — **the choice of ticker is
+part of the safety mechanism, and the line is not the obvious one.** An invented **price** for
+a real company is labelled synthetic and is therefore honest, which is §5.4's whole argument;
+an invented **corporate action** is a claim about that company's history and no provenance
+label repairs _"AMD split four-for-one in June 2026"_. So the ordinary corpus entries use
+tracked-universe tickers — which is what preserves §5.2's laptop-on-a-train reason, since a
+chart of `ZZZZ` is a worse rehearsal than a chart of `NVDA` — and the split and the four
+faults use `ZZ`-prefixed tickers that are in no universe and assigned by no exchange.
 
 ---
 
@@ -538,6 +592,22 @@ Two hazards, both made structurally impossible rather than avoided by discipline
   That also makes it obviously not live, which §5.4 wants anyway.
 - **An unseeded generator.** If bars are generated rather than recorded, the seed is part of
   the corpus and is written down.
+
+**Amended 2026-09-07 by Task 2.6.6, which implemented all three and added the one that
+matters most in practice.** The seed is per **symbol and market date**, and **the whole
+session is generated and then filtered — never generated from the requested start.** That is
+not an implementation detail: it is what makes a request for 10:00–10:05 return the same five
+bars the whole-session request contains at those minutes. Seeding from the requested start
+would give a different price for the same minute depending on what else was asked for, which
+is a corpus that cannot be used to test a cache, a stitch, or anything Story 2.8 does. A test
+tiles two adjacent windows and asserts the concatenation is **the same bars**, not merely the
+same count.
+
+**And determinism is asserted ACROSS RUNS rather than within one.** Two calls in one process
+prove only that the function is not stateful. What is checked in is a **SHA-256 of the
+canonical serialisation of a whole session**, which survives a restart, a different machine
+and a different day — and which fails if the generator changes, which for a fixture corpus is
+correct: the numbers **are** the fixture.
 
 ### 6.4 What Story 2.7 owes, recorded in Story 2.7's own file rather than hoped for here
 
@@ -746,6 +816,24 @@ leak test has to be made to fail by adding the field to the schema too.
 **The mechanism is the corpus, never a `simulateError` parameter on the interface** — that is
 a test concern leaking into a shipped type, the shape Task 1.10.5 refused when it declined to
 widen `config.ts`'s port range for a test's convenience.
+
+**Amended 2026-09-07 by Task 2.6.6, which produced all eight against the shipped provider
+with no `simulateError` anywhere, and refined one row.** `range-not-available` is produced by
+a window with **no overlap at all** with the coverage window; a **partially** overlapping one
+is answered **partially**, with `coverage.covered` clipped to what is held. That was not in
+this table and it is the sharper half of the coverage decision: a request reaching past the
+end of what a provider holds is exactly the shape `SeriesCoverage` exists for (§2.5), and
+refusing it would make this member mean two different things, one of which has a perfectly
+good answer. The member is therefore reserved for a window the provider will never serve
+**however it is narrowed** — which is also what keeps it honest once Story 2.7 maps a real
+vendor's history depth onto it.
+
+Three things are asserted about the set rather than one: that each **arrives** distinct, that
+a caller can **branch** on it (an exhaustive `switch` producing a different string per
+member, which is what proves the union is switchable rather than merely differently spelled),
+and that each is **classified** by `isRetryableOutcome()` rather than by a second `switch`.
+They are enumerated in a `Record<BarsResult["outcome"], …>`, so a ninth member is a compile
+error naming the missing key — §8.1's mechanism, now failing in a **fourth** place.
 
 ### 8.8 The retry policy lives in a WRAPPER, and pacing does not live with it
 
@@ -1006,6 +1094,13 @@ provably side-effect-free.
    §4.4's three labels and three sentences plus the component that renders them. Order of a
    few hundred bytes of strings plus the component and its stylesheet. There is no useful
    tighter prediction than that, and a wrong prediction there is not a defect.
+
+**Half 1 is confirmed for Tasks 2.6.2, 2.6.3, 2.6.4, 2.6.5 AND 2.6.6 — the whole of it — by
+measurement rather than by argument.** Task 2.6.6 is the strongest case of the five and the
+least interesting for the stated reason: everything it shipped is in `apps/backend`, which
+the browser bundle cannot reach at all. Re-taken from a clean build afterwards, the artefact
+reproduces to the byte: `369,437 B` / `4f17aff3…`, `17,317 B` / `eb223e53…`, `1,101 B` /
+`898733b0…`, 300 B, **388,155 B over four files**. Half 2 is now Task 2.6.7's to produce.
 
 **Half 1 is confirmed for Tasks 2.6.2 AND 2.6.3 by measurement, not by argument.** Task
 2.6.3 added two modules, four constants, six types and two constructors to
