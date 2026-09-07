@@ -55,13 +55,17 @@ describe("the provenance vocabulary", () => {
     expect(defaults).toEqual([]);
   });
 
-  it("gives every feed a label and a sentence", () => {
-    // The `satisfies` already makes a missing member a compile error; what this
-    // holds is that nobody satisfied it with an empty string.
+  it("gives every feed a label, and a non-empty sentence where it has one", () => {
+    // The `Record<MarketFeed, …>` annotation already makes a missing member a
+    // compile error; what this holds is that nobody satisfied it with an empty
+    // string. `sentence` is optional as of 2026-09-07 — absent is a decision
+    // (`sip`'s label stands alone), empty is a mistake.
     for (const feed of MARKET_FEEDS) {
       const description = MARKET_FEED_DESCRIPTIONS[feed];
       expect(description.label.length).toBeGreaterThan(0);
-      expect(description.sentence.length).toBeGreaterThan(0);
+      if (description.sentence !== undefined) {
+        expect(description.sentence.length).toBeGreaterThan(0);
+      }
     }
   });
 
@@ -71,7 +75,25 @@ describe("the provenance vocabulary", () => {
     // IEX is learns nothing from three letters, so the sentence is the
     // requirement and the label is the affordance.
     expect(MARKET_FEED_DESCRIPTIONS.iex.sentence).toMatch(/not the full US/i);
-    expect(MARKET_FEED_DESCRIPTIONS.sip.sentence).toMatch(/all us exchanges/i);
+
+    // **Amended 2026-09-07 (Task 2.7.4), and this assertion went red for the
+    // right reason.** It read `sip.sentence` for `/all us exchanges/i` — which
+    // locked the label and the sentence the wrong way round, because that
+    // phrase was the SENTENCE and the label was the jargon `Consolidated tape`.
+    // That inverts the rule this very test's comment states.
+    //
+    // **`sip` has NO sentence, and asserting its absence is the durable half.**
+    // Three strings were tried in a day and all three were wrong: the jargon
+    // and the meaning inverted; then a restatement of the label with a contrast
+    // bolted on to a feed this deployment never shows; then a bare fact nobody
+    // reading a status strip needs. The label says the whole thing.
+    //
+    // So the rule is *a sentence where the label cannot stand alone* — `iex`
+    // and `synthetic` need one and this does not — and the assertion is written
+    // as `toBeUndefined` rather than omitted, so that re-adding padding here is
+    // a red test rather than a silent regression to any of the three.
+    expect(MARKET_FEED_DESCRIPTIONS.sip.label).toMatch(/all us exchanges/i);
+    expect(MARKET_FEED_DESCRIPTIONS.sip.sentence).toBeUndefined();
   });
 
   it("makes generated data announce itself", () => {

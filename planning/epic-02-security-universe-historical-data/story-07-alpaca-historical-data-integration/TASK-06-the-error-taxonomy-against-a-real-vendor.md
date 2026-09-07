@@ -145,8 +145,15 @@ in the fixture provider; a test asserts the key is absent.
 
 Each of these is a request somebody makes, once, with the response recorded:
 
-- **Bad key** — a deliberately wrong secret. This is the one member Story 2.7's first deploy
-  produces for real, and `PROVIDER.md` §8.1 says so
+- **Bad key** — a deliberately wrong secret. ~~This is the one member Story 2.7's first deploy
+  produces for real~~ — **amended 2026-09-07: the first deploy has now happened (Task 2.7.4) and
+  it did NOT produce this.** The key was correct, the client constructed cleanly and no request
+  was ever made, because no route calls `fetchBars`. So `unauthorised` has **not** been produced
+  against anything real at this point and **this task must produce it deliberately**; criterion 3
+  rests on it, and a reader who takes the struck sentence at face value will skip the one
+  production that matters most. `PROVIDER.md` §8.1's point stands — it is the member a
+  misconfigured deployment produces first — as a statement about what _can_ happen rather than
+  about what _has_
 - **Unknown symbol** — per the finding above
 - ~~**A range entirely in the future**~~ and ~~**a range before the plan's history depth**~~ —
   **struck 2026-09-07: both are `200` with an empty body**, so neither produces an error to map.

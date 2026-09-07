@@ -1,6 +1,6 @@
 # Task 2.7.4 — Point the deployed backend at Alpaca and let the chrome name the real feed, changing no frontend code at all
 
-**Status:** Not started
+**Status:** Complete (2026-09-07)
 **Story:** [2.7 Alpaca Historical Data Integration](STORY.md)
 **Depends on:** Task 2.7.3
 
@@ -250,3 +250,282 @@ demonstrates nothing if it stops early.
 The thing to resist is treating the label as finished work on provenance. It is the **standing**
 claim, and Story 2.14 still owns the per-series one — which is the harder half, because a
 stitched series names a list of sources and a chart has to render that honestly.
+
+---
+
+## What was done, and what it measured (2026-09-07)
+
+**The deployed site now names a real vendor's real feed.** `MARKET_DATA_PROVIDER=alpaca` is
+set on the Container App, revision `0000116`, and the chrome reads
+`MARKET FEED` / **`CONSOLIDATED TAPE`** / _"All US exchanges, via the consolidated tape."_ on
+all five routes. `GET /market-data` on the deployed backend went `{"feed":null}` →
+`{"feed":"sip"}`, recorded before and after.
+
+**Task 2.6.7 built a reporting mechanism rather than a caption, and this is the proof.** No
+file in `apps/frontend/src` that _renders_ anything changed. What changed is one platform
+variable, and the value on screen followed. Two workshop stories files changed, and both
+changes are documentation rather than mechanism — see the honest-gap note below.
+
+### The layout risk did not materialise, and it was measured rather than eyeballed
+
+The re-aimed risk was the **label**: `CONSOLIDATED TAPE` is 17 uppercase, letter-spaced
+characters where the chrome had never rendered more than nine. Measured with a `Range` over
+the text node, in a real Chromium, at the three viewports plus two narrower widths:
+
+| Viewport               | Label text | Label measure | Lines | Sentence lines | Horizontal overflow |
+| ---------------------- | ---------: | ------------: | ----: | -------------: | ------------------- |
+| 1280×720 / ×560 / ×480 |   141.7 px |      250.7 px |     1 |              1 | none                |
+| 1024×720               |   141.7 px |      250.7 px |     1 |              1 | none                |
+| 860×720                |   141.7 px |      250.7 px |     1 |              1 | none                |
+
+**109 px of slack — 43% headroom — inside the region's `34ch` measure**, and the measure does
+not narrow with the viewport, because the header grid gives this region a fixed track. The
+same figures reproduce on the **deployed** site at 1280×720. Nothing wraps, nothing crowds:
+the strip reads `CONSOLIDATED TAPE` · `HEALTHY` · `05:11:40 ET / CLOSED / Labor Day` with the
+neighbours where they were.
+
+**The prediction this task was drafted with was inverted, exactly as Task 2.7.3 said.** The
+longest _sentence_ in `MARKET_FEED_DESCRIPTIONS` is `iex`'s 77 characters, which wraps to two
+lines under the measure — and this deployment will now never show it. `sip`'s is 44, five more
+than `synthetic`'s, which has rendered in the chrome since Task 2.6.7.
+
+### The claim is true of what this deployment actually reads
+
+`alpaca-provider.ts` declares `ALPACA_FEED = "sip"` and `toAlpacaQuery` sends `feed=sip`
+**explicitly** rather than taking the vendor's measured-identical default — so the word on the
+page is true by construction rather than by an assumption about a default that could move.
+That was the doubt `ALPACA.md` §2 raised and it is closed.
+
+The reachability argument was **confirmed rather than assumed**, against the corrected grep
+(`fetchBars`, not the non-existent `getBars` the task first named):
+
+- `grep -rn "fetchBars" apps/backend/src/routes/` → **0**
+- four callers overall, none of them a route: the interface declaration, the two
+  implementations, and `fetch-bars.ts`, which is `pnpm bars` — an operator command reachable
+  only from a terminal.
+
+`GET /market-data` reads `provider.feed` and constructs its body once at registration. Nothing
+a browser can do reaches the unfinished half of the client.
+
+### The rollover, and one criterion that could not hold as written
+
+`/health` answered **200 on every poll** through the change, and the old replica served until
+the new one was ready — Task 1.11.7's "traffic weight is not what serves" again. Afterwards:
+revision `0000116` `RunningAtMaxScale` at weight 100, replica `ready: true`,
+**`restartCount: 0`**, the superseded `0000115` `Deprovisioning` at weight 0.
+
+**`uptimeSeconds` did reset — 164.9 s → 11.3 s — and the criterion asking that it not is
+wrong as written rather than failed.** A configuration change _is_ a new revision, and a new
+revision is a new replica, so `process.uptime()` necessarily restarts. The checkable and
+meaningful claim, which held, is that **no request returned a non-200 through the rollover**.
+Recorded rather than quietly satisfied, because the same sentence will be copied into the next
+task that sets a platform variable.
+
+### The secret, read back on the revision that uses it
+
+`secrets` holds `alpaca-api-secret-key` and `ALPACA_API_SECRET_KEY` is a `secretRef`. This is
+the distinction the task asked to record: **Task 2.7.2 put a credential on an app that read it
+nowhere, and `0000116` is the first revision that actually constructs the client.** ADR 0011's
+_"nothing deployed holds a credential"_ expired at 2.7.2 and is confirmed expired here for the
+right reason.
+
+**The leak check is clean on Log Analytics**, against a non-vacuous **2,183-record** two-hour
+window spanning the rollover: `APCA-`, `Authorization`, `eyJ`, `Bearer `, the 26-character key
+id and the 44-character secret all return **0**.
+
+### The accessibility baseline is unmoved, three states × three viewports
+
+**Nine readings, every one `0 violations / 37 passes / 1 inconclusive (color-contrast)`**, with
+`color-contrast` passing on 68 nodes each time — which is the blind-renderer control Task
+1.13.6 built. The three feed states were produced by fulfilling `/market-data` rather than by
+restarting the backend three times; `route.fulfill()` bypasses the browser's CORS check (Task
+1.13.3) and the reading is of the rendered page either way.
+
+Deployed, `pnpm e2e:deployed` reports the landing route at **0 / 37 / 1 (`color-contrast`)** —
+the pre-merge gate's numbers, the three-way agreement Story 1.13 established.
+
+### The deployed specs passed unamended, which is the mechanism check
+
+`pnpm e2e:deployed` is **15 passed in 15.5 s**, including _"the deployed chrome makes a real
+claim about the market feed"_ — which previously passed against `not configured` and now passes
+against `CONSOLIDATED TAPE`, with no edit. A spec that had needed editing would have meant it
+was asserting the deployment rather than the mechanism. Local `pnpm e2e` is **28 passed** in
+1.0 m against a pair running `MARKET_DATA_PROVIDER=alpaca`, for the same reason:
+`market-feed.spec.ts` deliberately asserts that the word is _one of_ the vocabulary and never
+which.
+
+### The other two states still work
+
+Read off the built server rather than the browser: `MARKET_DATA_PROVIDER=fixture` →
+`{"feed":"synthetic"}` (`SIMULATED`), unset → `{"feed":null}` (`NOT CONFIGURED`). The default
+is still the loud one.
+
+### Two shipped comments were false, and the second was not on the task's list
+
+`FeedProvenance.stories.tsx` said `sip` _"needs an entitlement this project does not have"_ and
+was _"not reachable on this project's plan"_, in two places. Corrected, with the asymmetry
+recorded rather than merely removed: **this plan is SIP for history and IEX for the live
+stream**, so `iex` is now the rendering nothing produces and Epic 3 is the sibling provider
+that will.
+
+**`AppHeader.stories.tsx` carried the same class of error and nobody had listed it.** Its
+`AllPermutations` row 2 was captioned _"a real feed, healthy backend — what Story 2.7 turns
+this into"_ and rendered `iex` — a caption that became false the moment this task landed. That
+row now renders `sip`, because it is the deployed value **and** because it carries the longest
+label the strip can render, which is the thing a chosen-rows grid exists to let somebody
+review. `iex` is not lost: it keeps its own single-state story, which renders the same
+assembled header under the same `34ch` measure, and it is the row that exercises the
+two-line sentence wrap. **One tests the word, the other tests the line under it.**
+
+### The honest gap: `git diff` does touch `apps/frontend/src`
+
+The "Done when" list contains a contradiction — it requires both that `git diff` touch no file
+under `apps/frontend/src` and that `FeedProvenance.stories.tsx` stop claiming `sip` is
+unreachable, and that file is under `apps/frontend/src`. Both stories files were amended, and
+the criterion's **intent** is met exactly: the diff is 62 insertions across two workshop files,
+of which the only non-comment changes are one `FEED` map entry, one new story, and one grid row
+swapped from `iex` to `sip`. **No component, no hook, no stylesheet and no application module
+changed at all** — the mechanism the criterion exists to test is untouched, and the value on
+screen changed because a platform variable did.
+
+### Figures
+
+`pnpm verify` **exit 0**; `pnpm test` **683** (206 + 294 + 183); `test:process` 14;
+`pnpm e2e` **28 passed in 1.0 m**; `pnpm e2e:deployed` **15 passed in 15.5 s**. No dependency,
+no lockfile change, no new script and no `verify` step.
+
+---
+
+## For the stakeholders — in plain language
+
+> **Read the amendment at the foot of this file first if you are quoting this section.** It was
+> written before the wording was changed, so where it says the readout reads `CONSOLIDATED TAPE`
+> under a sentence, it now reads **`ALL US EXCHANGES`** and **nothing underneath** — the label is
+> the whole claim. Every other word below still holds: the finding, the cost, the measurements
+> and the caution are unaffected by the wording. It is left as written rather than rewritten
+> because it is the record of what was reported on the day.
+
+**MarketPulse now tells you, on the live website, where its market data comes from — and for
+the first time it is naming a real supplier's real data rather than describing its own absence.**
+
+Every screen has a strip along the top with three small readouts. The first one is about the
+market data. For six development cycles it read `DISCONNECTED`, which was a word somebody typed
+into the page — honest about there being nothing behind it, and still a made-up value sitting on
+a market product, which is exactly the sort of thing this product is being built to never do.
+The previous cycle replaced it with `NOT CONFIGURED`, which was true and was still only a
+statement about ourselves. It now reads **`CONSOLIDATED TAPE`**, with a plain-English line
+underneath: _"All US exchanges, via the consolidated tape."_
+
+**That sentence is better news than we expected to be able to report.** The product
+specification has a rule about this: we must never imply we can see the whole US market when we
+can only see part of it. The plan was to display `IEX` — one exchange out of many — and to say
+so in words. When we actually held the account keys and measured what our plan gives us, the
+historical data turned out to come from the **full consolidated tape**: every US exchange, not
+one. So the first thing this product says about market data is a broader claim than we had
+budgeted for, and it is a measured claim rather than an optimistic one. We ask the supplier for
+the full tape by name on every request rather than accepting whatever they hand us by default —
+which means the label on the page cannot quietly become wrong if the supplier changes their
+mind about defaults.
+
+**How much work did this take? One setting.** That is the whole point of the task, and it is
+worth spelling out because it is the kind of result that is invisible when it goes well. Two
+cycles ago we replaced the fake readout with one that asks the server what the truth is. This
+cycle we told the server which supplier to use, and the website started saying so — with no
+change whatsoever to any part of the website's code. Had we built a caption instead of a
+reporting mechanism, this would have been a code change, a rebuild and a redeployment, and the
+label would drift out of date the next time anything moved. It is not, and it will not.
+
+**The specific thing we were worried about, and how it turned out.** `CONSOLIDATED TAPE` is
+nearly six times longer than the three letters we had designed the space for, and that strip is
+tight — the readout beside it and the market clock take their room from the same row. A
+previous cycle caught a real layout fault in exactly this way, so we measured it before touching
+production: at every screen size we test, the words sit comfortably on one line with about 40%
+room to spare, and nothing else moved. If it had not fitted, the rule was to fix the layout and
+never to shorten the sentence, because the sentence is the requirement.
+
+**And nothing broke.** We changed the setting on the live service and watched: the site stayed
+up on every check throughout, the new instance came up cleanly with no restarts, all four
+navigation links and the not-found page still work, and the accessibility checks are identical
+to before — nine separate readings across three data-source states and three window sizes, all
+matching the established baseline exactly, both locally and on the live site. We also confirmed
+that the supplier's password does not appear anywhere in our logs, checked against a two-hour
+window of 2,183 log entries covering the change itself.
+
+**What you still cannot do is see a price.** There is no chart, no table of quotes, no number
+from the market anywhere on screen. The claim on the page is about what this deployment is
+**configured to read**, which is precisely what the specification asks us to display. Please say
+that plainly if you demo it, because a real supplier's name beside no data invites the
+assumption that data is flowing. Fetching prices into a terminal works today; **storing** them
+is the next chunk of work, and putting them on a chart is the one after that.
+
+**Where this sits in the plan.** This was deliberately scheduled fourth of nine rather than
+last, because it was available the moment there was a real supplier to name, it cost one setting
+and no code, and everything else remaining in this stretch of work is invisible from the outside.
+A block of work whose only visible moment is at the very end is a block of work that demonstrates
+nothing if it stops early. This one now has something to show from the middle onwards.
+
+**One caution to carry forward.** This is the _standing_ claim — "this is the supplier we are
+set up to read". A later piece of work owns the harder version: when a chart stitches together
+data we stored last month with data we fetched a minute ago, possibly from two different
+sources, the chart has to say so honestly rather than picking one and hoping. That is a real
+problem and it is scheduled; today's readout is not it, and should not be mistaken for finished
+work on the subject.
+
+---
+
+## Amendment, same day — the label and the sentence were the wrong way round
+
+**Raised by the user on reading the running application**, which is the review this task's own
+workshop screenshots did not substitute for: _"why do we show 'consolidated tape' to the user?
+Why is it meaningful to them?"_
+
+The answer is that it was not, and the defect is structural rather than a matter of taste.
+`FeedProvenance`'s own design rule — and `PROVIDER.md` §4.4's, and ADR 0018's — is that **the
+sentence is the requirement and the word is only the affordance**. `sip` shipped with those
+inverted:
+
+| Attempt |                  Label | Sentence                                            | Why it was wrong                                          |
+| ------- | ---------------------: | --------------------------------------------------- | --------------------------------------------------------- |
+| Shipped |    `CONSOLIDATED TAPE` | _"All US exchanges, via the consolidated tape."_    | Jargon as the big word, meaning as the small print        |
+| Second  |     `ALL US EXCHANGES` | _"The full consolidated tape, not a single venue."_ | Restates the label; contrasts with a feed we never render |
+| Third   |     `ALL US EXCHANGES` | _"Known as the consolidated tape."_                 | A fact nobody reading a status strip needs                |
+| **Now** | **`ALL US EXCHANGES`** | **_(none)_**                                        | The label is the whole claim                              |
+
+So the **jargon** was the big word and the **plain meaning** was the small print.
+`PRODUCT_SPEC.md` §3 states the product _"does not assume quantitative-finance expertise"_, and
+the analyst who wants the industry term still gets it one line down, where precision belongs.
+The new sentence also gains the contrast `iex`'s already had — _"not a single venue"_ against
+_"not the full US consolidated tape"_ — so the two feeds now read as opposites rather than as
+one claim and one label.
+
+**The rule that came out of it, which is worth more than the string:** a feed gets a sentence
+**when its label cannot stand alone, and not otherwise.** `iex` needs one — three letters teach
+a non-specialist nothing. `synthetic` needs one — _"SIMULATED"_ alone could be read as paper
+trading rather than as invented prices. `ALL US EXCHANGES` needs none, and a second line
+restating it teaches a reader that the second line is not worth reading.
+
+`MarketFeedDescription.sentence` is optional as a result, and **making it optional surfaced all
+six readers at compile time** rather than one of them at run time — the `Record<MarketFeed, …>`
+annotation replaced `as const satisfies`, which preserves the guard that a feed cannot arrive
+with no words while widening `.sentence` to `string | undefined` everywhere. Each reader got a
+decision rather than a blanket fix; `market-feed.spec.ts` gained a `requiredSentence()` helper
+that throws for the two feeds where a missing sentence is a defect rather than a decision.
+
+**It cost no layout and no accessibility.** Re-measured in a real Chromium at 1280×720, ×560 and
+×480, across three feed states: the strip is **141 px** in every state, so it does not reflow
+when the feed changes, and there is no horizontal overflow. Axe is **0 violations / 37 passes /
+1 inconclusive (`color-contrast`)** in all nine cells — with `color-contrast` passing on **67**
+nodes for `sip` against **68** for the other two, which is the removed text node visible in
+axe's own count and the cheapest possible confirmation the change actually landed in the DOM.
+
+The intermediate second attempt measured 133.6 px of label on one line with the sentence
+present; that reading is superseded rather than wrong.
+
+**The measurements above this amendment stand as taken** and are not rewritten: `CONSOLIDATED
+TAPE` genuinely was 17 uppercase letter-spaced characters at 141.7 px in a 250.7 px measure, and
+the layout risk this task was written around genuinely did not materialise. What changed
+afterwards is the string, for a reason no layout measurement could have surfaced.
+
+**The transferable point**: every check in this task passed, and the thing that was wrong was
+visible in one sentence from somebody looking at the running product. A permutation grid proves
+six states render; it cannot tell you the word is jargon.

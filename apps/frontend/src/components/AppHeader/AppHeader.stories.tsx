@@ -26,11 +26,19 @@ import { PATHS } from "../../routes/paths.js";
 // a wider one — six market-feed renderings rather than three statuses — and the
 // chosen-rows convention is what absorbs it without the page growing.
 
-// The four market-feed renderings this file uses. `FeedProvenance`'s own
-// stories review all six side by side; these are the ones whose interaction
-// with the *other* indicator is worth seeing in an assembled header.
+// The market-feed renderings this file uses. `FeedProvenance`'s own stories
+// review all six side by side; these are the ones whose interaction with the
+// *other* indicator is worth seeing in an assembled header.
+//
+// **`sip` was added by Task 2.7.4, which made it the deployed value**, and the
+// two real feeds are kept for opposite reasons: `sip` has the longest **label**
+// this chrome can render (17 uppercase letter-spaced characters against
+// `SIMULATED`'s nine) and `iex` the longest **sentence** (77 characters), which
+// is the one that wraps inside the region's `34ch` measure. One tests the word,
+// the other tests the line under it.
 const FEED = {
   iex: { state: "configured", feed: "iex" },
+  sip: { state: "configured", feed: "sip" },
   synthetic: { state: "configured", feed: "synthetic" },
   notConfigured: { state: "not-configured" },
   checking: { state: "checking" },
@@ -64,9 +72,19 @@ type Story = StoryObj<typeof meta>;
 
 // --- The market-feed renderings. None of them is an error. ---
 
-// What Story 2.7 produces with one configuration value: a real feed, and the
-// sentence §7.1 requires beside it.
+// A real feed, and the sentence §7.1 requires beside it. This is the row that
+// tests the region's measure: IEX's sentence is the longest in
+// `MARKET_FEED_DESCRIPTIONS` and wraps to two lines here. Nothing produces it
+// yet — Epic 3's live stream is the sibling provider entitled to it.
 export const FeedIex: Story = { args: { marketFeed: FEED.iex } };
+
+// **What the deployed site reads, since Task 2.7.4** — one platform variable
+// and no frontend change. The longest *label* the chrome renders, measured at
+// 1280×720, ×560 and ×480 on the live site: 141.7px of text in a 250.7px
+// measure, one line, with its neighbours unmoved.
+export const FeedConsolidatedTape: Story = {
+  args: { marketFeed: FEED.sip },
+};
 
 // The default, and what a correct first run shows.
 export const FeedNotConfigured: Story = {
@@ -131,9 +149,12 @@ export const BackendUnreachable: Story = {
 //   deployment, and the two indicators disagreeing — which is the whole
 //   argument for there being two of them rather than one. If this row ever
 //   reads as contradictory, the wrong decision was taken in Task 1.12.4.
-// - a **real feed beside a healthy backend**: what Story 2.7 turns this into,
-//   and the widest the strip gets, because IEX's sentence is the longest thing
-//   this region renders.
+// - a **real feed beside a healthy backend**: what Story 2.7 turned this into,
+//   and since Task 2.7.4 it renders the value the deployed site actually
+//   serves. It is `sip` rather than `iex` because that is the deployed feed and
+//   because its label is the longest word this strip renders; `iex`'s longer
+//   *sentence* is reviewed in the single-state `FeedIex` story above, which
+//   renders the same assembled header under the same `34ch` measure.
 // - an **unreachable backend with an unknown feed**: the honest pairing, since
 //   the backend is what answers both questions. Two sentences under one word on
 //   the right and one on the left, which is what a misconfigured
@@ -189,10 +210,10 @@ export const AllPermutations: Story = {
 
       <div className={gridStyles.stackItem}>
         <span className={gridStyles.label}>
-          a real feed, healthy backend — what Story 2.7 turns this into
+          a real feed, healthy backend — what the deployed site reads
         </span>
         <AppHeader
-          marketFeed={FEED.iex}
+          marketFeed={FEED.sip}
           backendStatus="healthy"
           backendDegradedCause={null}
           backendLastSuccessAt={LAST_SUCCESS}

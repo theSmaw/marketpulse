@@ -12,7 +12,7 @@ real session smaller than the calendar says it should be.
 
 ## What the user can see when this lands
 
-**Nothing new on screen.** The deployed chrome still reads `CONSOLIDATED TAPE`; there is still
+**Nothing new on screen.** The deployed chrome still reads `ALL US EXCHANGES`; there is still
 no chart.
 
 What changes is that `pnpm bars` can be asked for a **month** and returns one rather than
@@ -110,12 +110,19 @@ querying recent SIP data`, which independently confirms _some_ recency restricti
    `covered: null`. `PROVIDER.md` §8.2 calls this the single most likely thing to be got wrong
    by whoever writes the first `if (bars.length === 0)`, and Story 2.12 showing a failure screen
    on Thanksgiving is the consequence.
-3. **Minutes with no prints — and the number depends entirely on open decision 6's feed.**
-   Measured 2026-09-07 over the thinnest equities in the universe: **99.7% mean coverage on the
-   default (SIP) feed with a longest gap of 2 minutes**, against **82.8% and 15 minutes on
-   `feed=iex`**. So on SIP an absent bar is _rare and mildly notable_; on IEX it is _ordinary_.
-   **An absent bar is still never "missing"** in the error sense — but do not encode a threshold
-   here until decision 6 is settled, because it is the difference between those two sentences.
+3. **Minutes with no prints.** ~~The number depends entirely on open decision 6's feed~~ —
+   **decision 6 is SETTLED (`sip`, Task 2.7.3) and DEPLOYED (Task 2.7.4), so this is no longer
+   conditional.** Measured 2026-09-07 over the thinnest equities in the universe: **99.7% mean
+   coverage on SIP with a longest gap of 2 minutes**, against **82.8% and 15 minutes on
+   `feed=iex`**. This provider sends `feed=sip` explicitly and unconditionally, so **the SIP
+   number is the one this task builds against**: an absent bar is _rare and mildly notable_
+   rather than ordinary.
+
+   **An absent bar is still never "missing"** in the error sense. The instruction that used to
+   read _"do not encode a threshold until decision 6 is settled"_ is now spent, and what
+   replaces it is narrower rather than an unlock: **if a threshold is encoded, it is SIP's, and
+   it must not be reused by Epic 3**, whose live stream is a _sibling_ provider entitled only to
+   IEX and whose density is a different number by a factor this task has measured.
 
 `covered` must lie **inside** `requested` — `toBarSeries` refuses otherwise — so a vendor that
 returns a bar outside the requested window is clipped rather than trusted, and the clip is
@@ -158,10 +165,20 @@ but the plan serves SIP for history. So:
   it. `minuteBars` **is** a usable bar count for a liquid name on the default feed, which is the
   opposite of what this section was written expecting
 - **Nothing in this story asserts a real bar count against `minuteBars` anyway, and that rule
-  survives the measurement.** Two reasons it is still right: thin names legitimately vary
-  (98.5–100%), and the count is **feed-dependent**, so a test asserting 390 would go red the day
-  open decision 6 sends `feed=iex`. A test that fails on an ordinary day for a correct reason is
-  still the worst kind
+  survives the measurement — but ONE of its two reasons expired at Task 2.7.4 and must be
+  re-stated rather than left standing.** The reason that stands: thin names legitimately vary
+  (98.5–100%), so a test asserting 390 fails on an ordinary day for a correct reason, which is
+  the worst kind. ~~The reason that expired: _"a test asserting 390 would go red the day open
+  decision 6 sends `feed=iex`"_~~ — **decision 6 is settled as `sip` and this provider sends it
+  unconditionally, so that day cannot arrive for this client.**
+
+  This is the mirror of the trap Task 2.7.3 found in `CALENDAR.md` §2.4, and it is worth naming
+  because it is the harder direction to spot: **a rule justified by a condition that can no
+  longer occur is a rule the next reader deletes** — correctly, on the argument as written, and
+  wrongly, on the merits. What replaces it and is still live: the count is **feed-dependent**,
+  and **Epic 3's live stream declares `iex`**, so a bar-count assertion written here is a
+  landmine for the sibling provider rather than for this one
+
 - Story 2.8's gap handling is sized against the **measured density in `ALPACA.md` §5**, which is
   now a number rather than a shrug — and a much smaller number than this task expected
 

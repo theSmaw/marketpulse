@@ -8,12 +8,23 @@ import { FeedProvenance } from "./FeedProvenance.js";
 // Six renderings: three feeds, plus the three states that are about **us**
 // rather than about a market venue.
 //
-// **Two of the six cannot be produced in a browser without changing a
+// **Amended 2026-09-07 by Task 2.7.4, which falsified this file in the one
+// direction that matters.** It said `sip` *"needs an entitlement this project
+// does not have"*; measured, Alpaca serves the consolidated tape for
+// **historical** bars on the free tier, and since that task `sip` is the
+// **deployed production value** — so the rendering this comment called
+// unreachable is now the only one a user ever sees. The asymmetry to carry:
+// this plan is SIP for history and IEX for the live stream, so Epic 3's feed is
+// the one that will be `iex`, and `iex` is currently rendered nowhere but here.
+//
+// **Two of the six still cannot be produced in a browser without changing a
 // deployment**, which is the argument for the workshop rather than a
-// convenience. `sip` needs an entitlement this project does not have and
-// `synthetic` needs `MARKET_DATA_PROVIDER=fixture`, so `AllPermutations` is the
-// only place a reviewer can see the amber next to the greys and check that the
-// one state carrying invented prices is the one a glance lands on.
+// convenience — but they are not the two this file first named. `synthetic`
+// needs `MARKET_DATA_PROVIDER=fixture` and `iex` needs a provider nothing
+// constructs yet; `sip` is now produced by looking at the deployed site. So
+// `AllPermutations` is still the only place a reviewer can see the amber next
+// to the greys and check that the one state carrying invented prices is the one
+// a glance lands on.
 //
 // The grid is also the argument for the component. Nothing is red and nothing
 // is green; the only colour is the amber on `synthetic`, and that state is the
@@ -36,15 +47,21 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-// The state Story 2.7 produces with one configuration value, and the reason
-// §7.1 exists: one exchange, not the consolidated tape.
+// One exchange, not the consolidated tape — the reason §7.1 exists, and the
+// longest sentence in `MARKET_FEED_DESCRIPTIONS` at 77 characters, which is
+// what makes this the row that tests the header's `34ch` measure. Nothing
+// renders it today: Epic 3's live stream is the sibling provider that will
+// declare `iex`, so until then this story is the only place it exists.
 export const Iex: Story = {
   args: { view: { state: "configured", feed: "iex" } },
 };
 
-// Not reachable on this project's plan. It is here because the sentence has to
-// be reviewable beside IEX's — the two claims are opposites and a reader must
-// be able to tell which one they are being told.
+// **What the deployed site reads, since Task 2.7.4.** It is here because the
+// sentence has to be reviewable beside IEX's — the two claims are opposites and
+// a reader must be able to tell which one they are being told — and because its
+// label is the longest the chrome can render, at 17 uppercase letter-spaced
+// characters against `SIMULATED`'s nine. Measured in the assembled header at
+// 1280×720, ×560 and ×480: 141.7px of text inside a 250.7px measure, one line.
 export const ConsolidatedTape: Story = {
   args: { view: { state: "configured", feed: "sip" } },
 };

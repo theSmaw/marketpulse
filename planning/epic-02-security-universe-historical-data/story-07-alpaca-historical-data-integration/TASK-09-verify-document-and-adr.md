@@ -17,7 +17,7 @@ a number in it.
 ## What the user can see when this lands
 
 **Nothing new**, and the story's visible change already landed at Task 2.7.4: the deployed
-chrome says `CONSOLIDATED TAPE` and explains what that means. This task confirms it is still true from a clean
+chrome says `ALL US EXCHANGES` and explains what that means. This task confirms it is still true from a clean
 clone and a fresh deployment read, which is the check rather than a formality.
 
 ## The seven criteria, re-made rather than cited
@@ -84,13 +84,28 @@ something the candidate list did not name.
   scope V1 to the regular session is untouched and stands on its own merits — §2 argues about
   what a baseline denominator should contain, not about what is purchasable — so what needs
   re-stating is the trigger, which is now Epic 5's measurement alone
-- **The `pnpm verify` gap lists in `CLAUDE.md`** — the sixth kind gained the platform secret,
-  and any recorded invariant this story created (a coupled constant, a second writer on
-  `status`, a pin) belongs in the third kind with its durable copy named
+- **The `pnpm verify` gap lists in `CLAUDE.md`** — the sixth kind gained the platform secret at
+  Task 2.7.2 **and `MARKET_DATA_PROVIDER=alpaca` at Task 2.7.4**, and the two fail in opposite
+  directions, which is the part worth writing down rather than the count. A **missing
+  credential** beside a selected provider is a **startup refusal** — loud, naming the variable,
+  by Task 2.7.2's cross-variable check. A **missing `MARKET_DATA_PROVIDER`** is a **silent
+  fallback to `none`**, which is the correct safe default and which also means a deployment can
+  quietly stop naming its feed with nothing failing anywhere: `/health` stays 200,
+  `/market-data` answers `{"feed":null}`, and the chrome reads `NOT CONFIGURED`, which is
+  indistinguishable from a deployment that never configured one. It exists in no file in this
+  repository, so this paragraph and `HOSTING.md` are its only durable copy.
+
+  Any recorded invariant this story created (a coupled constant, a second writer on `status`, a
+  pin) belongs in the third kind with its durable copy named
+
 - **`README.md`** — ~~the script table gains `pnpm bars`~~ **added by Task 2.7.3 along with a
   `pnpm bars` section; verify rather than add.** The variable count moves (**13 → 15 at Task
-  2.7.2, and further if anything after it adds one**), and the "things that look like faults"
-  list may lose or keep the market-feed row depending on what Task 2.7.4 left on screen
+  2.7.2, and further if anything after it adds one**), and ~~the "things that look like faults"
+  list may lose or keep the market-feed row depending on what Task 2.7.4 left on screen~~ —
+  **resolved 2026-09-07: there is nothing to do.** That row left the list at Task 2.6.7, which
+  replaced the invented `DISCONNECTED` with provenance and is only the _second_ item ever to
+  leave it; 2.7.4 changed the word that region renders and not whether it reads as a fault.
+  **Verify rather than edit**, and if the row is still there, 2.6.7's sweep missed it
 - **`pnpm env:check`'s own description, in `CLAUDE.md` and `README.md`.** Task 2.7.2 gave it a
   **fifth** failure mode — a variable with no default must be documented **blank**, which is a
   leak guard rather than a formatting rule, because the default comparison is structurally
@@ -102,6 +117,27 @@ something the candidate list did not name.
   precedent Task 2.6.8 set that a close owns the sweep. So this close inherits **at least two**
   increments already outstanding before its own remaining tasks are counted — which is exactly
   the shape that produced "stale by two story closes" twice. Re-count rather than adding to 683
+- **Story 2.14's own file, which is planned against a premise this story inverted — and it is
+  the sweep most likely to be skipped, because it is a FUTURE story's file rather than a stale
+  claim about the past.** Added 2026-09-07 by Task 2.7.4. Story 2.14 is written throughout as
+  _"label the feed as IEX so nobody reads it as full US market coverage"_ — a **disclaimer** —
+  in at least three live places: its summary (_"the feed labelled as **IEX rather than the
+  consolidated tape**"_), its scope bullet (_"`Market feed: IEX` … so a reader learns this is
+  one venue rather than all of them"_) and its open decision 2 (_"IEX is a real feed, not a
+  degraded one"_).
+
+  **Two things falsify that framing and only one of them is a wording change.** Stored
+  historical bars are **SIP**, so for them the honest label is the opposite of a disclaimer.
+  And the harder one: Epic 3's live stream is IEX while this story's stored bars are SIP, so a
+  single series can name **two feeds at once** — which `PROVIDER.md` §2.4 deliberately designed
+  for by making a feed disagreement truthful and reportable. Story 2.14's job is therefore not
+  _"label the feed"_ but _"render a **list** of sources that may disagree about feed"_, which is
+  a materially larger surface than its scope currently describes.
+
+  **Do not rewrite that story's scope from here** — say what was falsified, and let it re-take
+  its own decisions with the measurements in hand. Its open decision 2 (the exact wording) is
+  the right owner, and it is now a decision about **two** claims rather than one
+
 - **`pnpm links`**, which is a `verify` step since Task 2.6.8 and therefore runs itself. Report
   its counts as figures rather than trusting the last recorded ones — they moved between two
   consecutive readings the first time they were taken
@@ -127,11 +163,21 @@ something the candidate list did not name.
 ## The deployed read-back
 
 - `GET /market-data` answers `{"feed":"sip"}` — **not `iex`**, settled by Task 2.7.3 — and the
-  chrome renders `CONSOLIDATED TAPE`, read in a browser with the tab visible
+  chrome renders `ALL US EXCHANGES`, read in a browser with the tab visible
 - The `secrets` array is non-`null` and contains what it should, read off the running revision
 - Log Analytics returns zero for the key id, the secret, `APCA-` and `Authorization`
-- `/health` and `/diagnostics/database` unaffected, `uptimeSeconds` never reset by anything this
-  story did
+- `/health` and `/diagnostics/database` unaffected, and ~~`uptimeSeconds` never reset by
+  anything this story did~~ — **amended 2026-09-07 by Task 2.7.4, because that check would
+  report a failure that did not happen.** Setting a platform variable creates a **new revision**,
+  a new revision is a **new replica**, and `process.uptime()` therefore _must_ restart —
+  measured, 164.9 s → 11.3 s. Two of this story's tasks already did it (2.7.2's credential,
+  2.7.4's provider) and 2.7.8 may do it again.
+
+  The checkable claim, which is stronger and which **held** at 2.7.4: **no request returned a
+  non-200 through the rollover**, `restartCount: 0`, and the superseded revision served at
+  weight 0 until the new one was ready — Task 1.11.7's _"traffic weight is not what serves"_.
+  Assert that, not the uptime. The sentence is worth reading twice before it is copied into the
+  next task that sets a platform variable, which is how it got here.
 
 ## ADR 0019 — what it has to answer
 
@@ -149,7 +195,32 @@ those documents.
   `UNIVERSE.md` §10's quality ceiling narrowing to live data only), and the standing consequence
   that **Epic 3's live bars and this story's stored bars come from different tapes** — which
   `PROVIDER.md` §2.4 already anticipated by making a feed disagreement truthful and reportable
-  rather than refused
+  rather than refused.
+
+  **And record what the label swap taught, because it is a rule rather than an anecdote**
+  (Task 2.7.4, same day it shipped). `sip` went out as label `Consolidated tape` under sentence
+  _"All US exchanges, via the consolidated tape."_ — the **jargon** as the big word and the
+  **plain meaning** as the small print, which inverts the rule this repository had already
+  written down three times (`FeedProvenance.tsx`, `PROVIDER.md` §4.4, ADR 0018): _the sentence
+  is the requirement and the word is only the affordance._ It went through two more strings
+  before landing on **`All US exchanges` with no sentence at all** — the second restated the
+  label and contrasted it with a feed this deployment never renders, the third was a fact nobody
+  reading a status strip needs.
+
+  **Record the rule rather than the strings**: a feed gets a sentence _when its label cannot
+  stand alone, and not otherwise_. `iex` and `synthetic` need one; `ALL US EXCHANGES` is itself
+  the coverage claim §7.1 asks to be legible. `MarketFeedDescription.sentence` is optional as a
+  result, with `Record<MarketFeed, …>` replacing `as const satisfies` so the no-words guard
+  survives while `.sentence` widens to `string | undefined` at every reader
+
+  Two things worth the ADR's space. **Every automated check passed** — nine axe readings, a
+  permutation grid, a layout measurement at five viewports — and the defect was caught by a
+  person reading the running product in one sentence; a grid proves six states render and
+  cannot tell you the word is jargon. And **a test had locked the inversion in place**, with
+  its own comment stating the rule its assertion contradicted, which is the sharper half: a
+  test can make a defect permanent as easily as it can prevent one. Both halves are now
+  asserted, so the inversion cannot return silently
+
 - **Why the key is stored where it is**, and why the database credential's path did not transfer
 - **Why a missing key is a startup refusal and a wrong key is a result** — the two halves of
   open decision 3 that turned out to have different answers
@@ -192,6 +263,12 @@ Write this as a section rather than leaving it to be reconstructed:
 - Whether the universe is being re-sized, and that after 2.8 backfills, re-sizing costs a
   re-backfill rather than a file edit
 - The lifecycle answer, and whether `status` now has a second writer
+- **The label-and-sentence rule, which Epic 3 is the next thing to have to honour.** It adds no
+  member — `iex` already exists and already has its words — but it is the first thing to make
+  `iex` render anywhere, so it is where the rule gets its next real test. The two assertions in
+  `market-provenance.test.ts` are per-feed and name their feeds by hand, deliberately, because
+  _"the label is plain English"_ is not genericly assertable; a feed added later therefore gets
+  **no** check unless somebody writes one. That is a stated gap rather than an oversight
 
 ## Done when
 
