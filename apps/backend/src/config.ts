@@ -305,19 +305,27 @@ export const ALPACA_SECRET_KEY_VARIABLE = "ALPACA_API_SECRET_KEY";
 // The provider selection that needs the pair, as a string rather than as a
 // member of `MarketDataProviderSelection` — because it is not one yet.
 //
-// `PROVIDER_IDS` ships `fixture` alone and gains `alpaca` in Task 2.7.3, in the
-// same commit as the client that can produce it: this repository's rule that a
-// union member arrives with the code that produces it, held four times and not
-// broken here for a configuration check's convenience. So the check below reads
-// the **raw** environment value, exactly as the `DATABASE_PASSWORD` check does
-// and for the same reason — only the raw value says what an operator *asked
-// for*, and a selection this build cannot honour is still a request.
+// `PROVIDER_IDS` shipped `fixture` alone and gained `alpaca` in Task 2.7.3, in
+// the same commit as the client that can produce it: this repository's rule
+// that a union member arrives with the code that produces it, held five times
+// and not broken here for a configuration check's convenience. So the check
+// below reads the **raw** environment value, exactly as the `DATABASE_PASSWORD`
+// check does and for the same reason — only the raw value says what an operator
+// *asked for*, and a selection this build cannot honour is still a request.
 //
-// The consequence today is that `MARKET_DATA_PROVIDER=alpaca` with no key
-// reports **two** problems: that the selection is not one this build knows, and
-// that the credential is missing. Both are true, reporting every problem rather
-// than the first is what the accumulator is for, and the first line disappears
-// on its own when 2.7.3 adds the member — with no edit here.
+// **Amended 2026-09-07 by Task 2.7.3, and the raw read still earns its place.**
+// This paragraph used to record that `MARKET_DATA_PROVIDER=alpaca` with no key
+// reports **two** problems — that the selection is unknown to this build, and
+// that the credential is missing — and that the first line would disappear on
+// its own once the member existed. It has: `readEnum` accepts the value now, so
+// the run reports **one** problem, which is the credential.
+//
+// The check itself is unchanged and deliberately still reads the raw value.
+// That is not a leftover: the parsed value is only available *after* `readEnum`
+// has succeeded, so a check written against it would say nothing at all on the
+// day a future provider id is misspelled — where the raw read reports the
+// credential problem beside the vocabulary problem, which is what the
+// accumulator is for.
 const ALPACA_PROVIDER_SELECTION = "alpaca";
 
 // The settings the application gets. Written by hand rather than inferred, and
@@ -858,10 +866,11 @@ export function loadConfig(
   }
 
   // The raw read is the point, and it is the `DATABASE_PASSWORD` check's own
-  // idiom: only the raw value says what an operator ASKED FOR. `alpaca` is not
-  // yet a member of `MARKET_DATA_PROVIDER_SELECTIONS` — `PROVIDER_IDS` gains it
-  // in Task 2.7.3, in the same commit as the client that can produce it — so
-  // the parsed value cannot express this request and the raw one can.
+  // idiom: only the raw value says what an operator ASKED FOR. `alpaca` IS a
+  // member of `MARKET_DATA_PROVIDER_SELECTIONS` since Task 2.7.3, so the parsed
+  // value could express this request today — and the raw read is kept anyway,
+  // because it also fires for a provider id this build does not know, which the
+  // parsed value structurally cannot.
   if (
     present(env.MARKET_DATA_PROVIDER) === ALPACA_PROVIDER_SELECTION &&
     (alpacaKeyId === undefined || alpacaSecretKey === undefined)

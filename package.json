@@ -29,6 +29,7 @@
     "db": "node scripts/local-database.mjs",
     "migrate": "node scripts/run-migrations.mjs",
     "universe": "node scripts/load-universe.mjs",
+    "bars": "node scripts/fetch-bars.mjs",
     "image": "node scripts/build-image.mjs",
     "e2e": "node scripts/run-e2e.mjs",
     "e2e:deployed": "node scripts/run-deployed-check.mjs",

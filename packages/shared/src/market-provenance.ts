@@ -71,8 +71,24 @@
  * in the same commit as the thing that can produce it, which is
  * `SECURITY_STATUSES`' rule — `delisted` waits for the code that can set it —
  * held for the fourth time. The reflex is to write both now. Do not.
+ *
+ * **Amended 2026-09-07 by Task 2.7.3, which is that commit.** `alpaca` is the
+ * second member and it arrives beside `alpaca-provider.ts`, the client that
+ * produces it — the rule above honoured rather than broken, held for the fifth
+ * time. Two consequences worth stating because both are easy to misread:
+ *
+ *  - **`createMarketDataProvider`'s exhaustive `switch` fails the build until
+ *    it is wired**, which is `market-data.ts`'s own stated mechanism working.
+ *    That is the check, not an obstacle to route around.
+ *  - **It moves Task 2.6.8's recorded vendor grep from zero to one**, and that
+ *    is expected rather than a regression. Criterion 1 asks that the *domain
+ *    types* carry no vendor reference; a `ProviderId` is the one place the
+ *    vendor's name is the subject rather than an implementation detail, because
+ *    a provenance record has to name who sold us the data for §7.1's display to
+ *    be possible at all. **That is the opposite of a leak.** The figure and its
+ *    reading are amended where Task 2.6.8 recorded them.
  */
-export const PROVIDER_IDS = ["fixture"] as const;
+export const PROVIDER_IDS = ["fixture", "alpaca"] as const;
 
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 

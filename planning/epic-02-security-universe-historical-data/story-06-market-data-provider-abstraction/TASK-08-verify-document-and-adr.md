@@ -464,6 +464,29 @@ arriving. Changing it would make the fixture less realistic for nothing.
 
 So: **`packages/shared/src` is 0 code-only, `apps/backend/src` is 1 and it is the right 1.**
 
+> **Amended 2026-09-07 by Task 2.7.3, which is the commit that was always going to move this
+> figure.** `PROVIDER_IDS` gained `alpaca` beside the client that produces it, so the
+> code-only grep over `packages/shared/src` is no longer zero. Three things about the new
+> reading, and the middle one corrects Task 2.7.3's own prediction:
+>
+> - **It is 2, not the 1 that task's brief predicted.** `market-provenance.ts` holds the id
+>   itself, and `market-provenance.test.ts` holds the assertion that locks the vocabulary.
+>   The second is unavoidable rather than untidy: a test asserting which members exist has to
+>   name them, and the alternative — asserting a length — is the weaker claim that Task 2.6.5
+>   already found wanting elsewhere.
+> - **Neither is a leak, and one of them is the point.** Criterion 1 asks that the _domain
+>   types_ carry no vendor reference. A `ProviderId` is the one place the vendor's name is
+>   the **subject** rather than an implementation detail, because a provenance record has to
+>   name who sold us the data for §7.1's display to be possible at all.
+> - **The `apps/backend/src` naive figure has stopped being informative and should not be
+>   quoted as a leak measure.** It is **262 across 12 files** now, against the 7 recorded
+>   above, because `alpaca-provider.ts`, `alpaca-mapping.ts` and their tests _are_ the vendor
+>   client and say so on nearly every line. That is `PROVIDER.md` §1's split working exactly
+>   as designed — the shape of a vendor lives in `apps/backend` — so the figure worth
+>   re-running is the `packages/shared` one.
+>
+> Re-run these rather than citing them; Task 2.6.5 found the recorded naive count wrong by one.
+
 **2 — A fixture provider implements it fully and is what tests use. MET, still exactly two
 non-drift hits.** `createFixtureProvider()` in `fixture-provider.ts` is the implementation and
 nothing throws — a grep for `not implemented` across both packages returns nothing. The two

@@ -39,7 +39,12 @@
  * reconstruct it from a possibly-absent object.
  */
 
-import type { Config, MarketDataProviderSelection } from "./config.js";
+import { createAlpacaProvider } from "./alpaca-provider.js";
+import type {
+  AlpacaConfig,
+  Config,
+  MarketDataProviderSelection,
+} from "./config.js";
 import { createFixtureProvider } from "./fixture-provider.js";
 import type { MarketDataProvider } from "./market-data-provider.js";
 
@@ -52,20 +57,60 @@ import type { MarketDataProvider } from "./market-data-provider.js";
  * shipping a configuration value the operator can set and nothing can honour.
  * That is the same mechanism Task 2.6.5's ninth-member note describes, arriving
  * one layer down.
+ *
+ * **It fired, and it is recorded rather than quietly satisfied (Task 2.7.3).**
+ * Adding `alpaca` to `PROVIDER_IDS` failed the build in this function before a
+ * line of it had been edited, which is the check working exactly as written.
+ * The sentence above stays in the present tense because it describes what will
+ * happen to the *next* member too.
  */
 export function createMarketDataProvider(
   selection: MarketDataProviderSelection,
+  credentials: MarketDataCredentials = {},
 ): MarketDataProvider | undefined {
   switch (selection) {
     case "none":
       return undefined;
     case "fixture":
       return createFixtureProvider();
+    case "alpaca": {
+      // **The credential is required and its absence is a THROW, which is a
+      // narrower claim than it looks** (Task 2.7.3). It is not a runtime check
+      // standing in for a missing configuration check: `config.ts` already
+      // refuses at startup when `MARKET_DATA_PROVIDER=alpaca` and the pair is
+      // not set, so reaching this line means the configuration said one thing
+      // and the object handed here says another. That is a fact about our code
+      // rather than about the world, which is `PROVIDER.md` §8.5's own line for
+      // when a throw is correct — and the alternative, returning `undefined`,
+      // would report *"no provider is configured"* about a deployment that
+      // configured one, which is the laundering this module's comment forbids.
+      if (credentials.alpaca === undefined) {
+        throw new Error(
+          "MARKET_DATA_PROVIDER is alpaca but no Alpaca credential was passed " +
+            "to createMarketDataProvider. config.ts refuses that combination at " +
+            "startup, so this is a caller that read the selection without the " +
+            "credential beside it — use resolveMarketData(config).",
+        );
+      }
+      return createAlpacaProvider(credentials.alpaca);
+    }
     default: {
       const unhandled: never = selection satisfies never;
       return unhandled;
     }
   }
+}
+
+/**
+ * The credentials a selection might need, keyed by the provider that needs one.
+ *
+ * An object rather than a positional argument because the next provider needs a
+ * different credential and a second positional parameter is how a call site
+ * ends up passing the wrong one. Every key is optional: `none` and `fixture`
+ * need nothing, which is why this whole parameter defaults to `{}`.
+ */
+export interface MarketDataCredentials {
+  readonly alpaca?: AlpacaConfig;
 }
 
 /**
@@ -86,6 +131,11 @@ export interface MarketData {
 export function resolveMarketData(config: Config): MarketData {
   return {
     selection: config.marketDataProvider,
-    provider: createMarketDataProvider(config.marketDataProvider),
+    // The credential travels with the selection, from one place, which is what
+    // makes the throw above unreachable from this path — `config.ts` has
+    // already refused the incoherent pair.
+    provider: createMarketDataProvider(config.marketDataProvider, {
+      ...(config.alpaca === undefined ? {} : { alpaca: config.alpaca }),
+    }),
   };
 }

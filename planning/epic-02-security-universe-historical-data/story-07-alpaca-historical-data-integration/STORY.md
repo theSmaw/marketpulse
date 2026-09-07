@@ -201,9 +201,26 @@ Story 2.8's ingestion design — so it must precede it.
      gives **82.8%** mean coverage against **99.7%** on the default, and gaps of 15 minutes
      against 2. Choosing `iex` throws away most of the data quality this plan gives us.
 
-   **Settled in Task 2.7.3**, which is the first thing that must write a `feed` into a
-   provenance record, and **rendered in Task 2.7.4**. It cannot wait for 2.7.4: by then the
-   vocabulary and the provenance are already written.
+   **SETTLED in Task 2.7.3 (2026-09-07): the historical client sends `feed=sip` explicitly
+   and declares `sip`.** All three parts, answered:
+   - **`MarketFeed` needed no change** — Task 2.6.3 already shipped `sip` beside `iex` and
+     `synthetic`, and `MARKET_FEED_DESCRIPTIONS.sip` already reads _"All US exchanges, via
+     the consolidated tape."_ The vocabulary was ready before the question was asked.
+   - **`MarketDataProvider.feed` is the HISTORICAL provider's standing feed**, and Epic 3's
+     live stream is a **sibling** interface (`PROVIDER.md` §12) that will declare `iex`.
+     §4.2's reversal trigger — _"a provider serving more than one feed, chosen per
+     request"_ — is **not** met: this one serves exactly one. A series later stitched from
+     stored SIP bars and live IEX bars is the case §2.4 designed for, where a **feed**
+     disagreement across sources is truthful and only an **adjustment** disagreement is
+     refused.
+   - **`feed=sip` is sent explicitly rather than taking the default**, on two arguments.
+     `sort=asc`'s — a default nobody stated is a default that can move, and this one is a
+     vendor's. And the deciding one: **it makes the provenance record true by
+     construction**, because whether the default silently falls back to IEX for a window SIP
+     will not serve is _unmeasured_, where an explicit `feed=sip` cannot fall back and is a
+     measured `403` that Task 2.7.6 maps.
+
+   **Rendered in Task 2.7.4**, which now knows what word to put on the page.
 
 6. **Whether a ticker rename gets an identity, and if not, who says so next.** Added
    2026-09-06 from `UNIVERSE.md` §12.6. The candidates are a `previous_symbol` column, a
@@ -332,7 +349,7 @@ one day against a live third party, rather than figures reproducible from a clea
 | **Prereq** | **An Alpaca account with market-data API keys.** Not a task — the same shape as Epic 1's `ACCOUNT-SETUP.md`, because nothing between two tasks owns creating an account. Everything except 2.7.1's measurements can be built against recorded fixtures with no account at all | **Satisfied 2026-09-07**  |
 | 2.7.1      | [Hold a real key, measure what the free plan actually is, and answer the question another story is parked on](TASK-01-the-account-the-cap-and-the-real-plan.md)                                                                                                               | **Complete (2026-09-07)** |
 | 2.7.2      | [Put the key through the configuration boundary and onto the platform, fetching nothing](TASK-02-the-credential-through-the-boundary.md)                                                                                                                                      | **Complete (2026-09-07)** |
-| 2.7.3      | [The client: one request, one page, and the mapping onto the domain types](TASK-03-the-client-and-the-mapping.md)                                                                                                                                                             | Not started               |
+| 2.7.3      | [The client: one request, one page, and the mapping onto the domain types](TASK-03-the-client-and-the-mapping.md)                                                                                                                                                             | **Complete (2026-09-07)** |
 | 2.7.4      | [Point the deployed backend at Alpaca and let the chrome say `IEX`](TASK-04-the-feed-tells-the-truth-about-a-real-vendor.md)                                                                                                                                                  | Not started               |
 | 2.7.5      | [Pagination, coverage, and what a real IEX session actually contains](TASK-05-pagination-coverage-and-the-shape-of-a-real-session.md)                                                                                                                                         | Not started               |
 | 2.7.6      | [Every failure this vendor can produce, mapped and produced rather than imagined](TASK-06-the-error-taxonomy-against-a-real-vendor.md)                                                                                                                                        | Not started               |

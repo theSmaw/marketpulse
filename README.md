@@ -571,6 +571,7 @@ Run from the repository root:
 | `pnpm db`           | Starts the local PostgreSQL 18 container — see below                  |
 | `pnpm migrate`      | Applies every migration the database has not seen — see below         |
 | `pnpm universe`     | Loads the ~100 tracked securities into that database — see below      |
+| `pnpm bars`         | Fetches one symbol's bars from Alpaca and prints them — see below     |
 | `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
 | `pnpm image`        | Builds the backend's `linux/amd64` container image — see below        |
 | `pnpm e2e`          | The browser suite, against a pair you started — see below             |
@@ -1270,6 +1271,53 @@ a change that **ships nowhere**, so the repository's universe and production's
 would drift apart silently. Because a re-run that finds nothing to do writes
 nothing at all, the recurring cost of that is a comparison rather than a write.
 A refused universe stops the deploy there, before anything has rolled.
+
+### `pnpm bars` — the first real market data
+
+```sh
+pnpm bars NVDA
+pnpm bars NVDA 1d
+pnpm bars NVDA 1d split-adjusted
+```
+
+Fetches one symbol's bars for the most recent complete trading session from
+Alpaca and prints them. **It stores nothing** — Story 2.8 is what puts bars in
+the database — so this is a read-only look at what the vendor actually returns.
+
+```text
+NVDA  2026-09-03  1m  raw
+  window  2026-09-03T13:30:00.000Z → 2026-09-03T20:00:00.000Z
+  provider alpaca  feed sip
+
+  390 bars
+
+      time (UTC)              open      high       low     close        volume
+      2026-09-03T13:30:00.000Z   226.0200  226.0200  224.7500  225.2100       2642421
+      …
+  provenance  raw, 1 source
+              alpaca / sip, 390 bars, retrieved 2026-09-07T08:33:50.071Z
+```
+
+**It needs an Alpaca key**, in `apps/backend/.env` as `ALPACA_API_KEY_ID` and
+`ALPACA_API_SECRET_KEY`. Without one it says so and exits 1; with only one of
+the two the application refuses to start at all, because half a credential has
+two opposite readings and guessing between them produces an authentication
+error nobody can attribute. It is **not** part of `pnpm verify`, and more
+firmly than `pnpm ready` or `pnpm migrate` are: this one makes a metered request
+to a third party against a real credential, and `verify` runs with no network.
+
+**Three things in that output are the point rather than decoration.** The
+**window** comes from the trading calendar, so a half day is 210 bars and a
+holiday is zero without this command knowing anything about either. The
+**feed** says `sip` — the full US consolidated tape — because this plan turns
+out to serve the consolidated tape for _historical_ bars and IEX only for the
+live stream, which is a measured fact rather than the documented one. And the
+**provenance** line travels with the numbers rather than being a caption on a
+screen, which is what lets a chart later say where each price came from.
+
+**Zero bars is a success, not a failure.** A holiday, a symbol outside the
+plan's history and a symbol the vendor does not know all answer identically,
+and the command says so in those words rather than reporting an error.
 
 ### `pnpm test:database` — the sixth level of test
 

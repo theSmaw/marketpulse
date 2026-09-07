@@ -19,10 +19,22 @@ const FIXTURE_SOURCE: BarSource = {
 };
 
 describe("the provenance vocabulary", () => {
-  it("ships exactly one provider, and it is not the vendor", () => {
-    // SECURITY_STATUSES' rule, held for the fourth time: a member arrives in
-    // the same commit as the code that can produce it. Story 2.7 adds its own.
-    expect(PROVIDER_IDS).toEqual(["fixture"]);
+  // **Amended 2026-09-07 by Task 2.7.3, which is the commit this test was
+  // written to wait for.** It read `toEqual(["fixture"])` — *"ships exactly one
+  // provider, and it is not the vendor"* — and the second half of that title is
+  // what it was actually for. `alpaca` arrives here beside the client that
+  // produces it, so the assertion becomes the durable claim rather than the
+  // temporary one: **a provider id is a member only when something can produce
+  // it**, which is the rule (`SECURITY_STATUSES`' — `delisted` still waits for
+  // the code that can set it) rather than the count.
+  //
+  // The vendor's name appearing here is the one place it is the *subject*
+  // rather than an implementation detail, because a provenance record has to
+  // name who sold us the data for §7.1's display to be possible at all. That is
+  // the opposite of a leak, and Task 2.6.8's recorded code-only grep figure is
+  // amended from zero to one where it stands.
+  it("ships a member only for a provider something can produce", () => {
+    expect(PROVIDER_IDS).toEqual(["fixture", "alpaca"]);
   });
 
   it("ships exactly two adjustment modes", () => {

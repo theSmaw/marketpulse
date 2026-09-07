@@ -1,6 +1,6 @@
 # Task 2.7.3 — The Alpaca client: one request, one page, and the mapping onto the domain types
 
-**Status:** Not started
+**Status:** Complete (2026-09-07)
 **Story:** [2.7 Alpaca Historical Data Integration](STORY.md)
 **Depends on:** Task 2.7.2
 
@@ -281,3 +281,278 @@ anybody has ever read. This story is split into five because each of those four 
 failure mode and three of them fail **silently**: a retry inside the transport lies about the
 deadline, a swallowed page lies about the data, and a laundered parse failure lies about whose
 fault it is. Only the happy path fails loudly, which is why it is the one that ships first.
+
+---
+
+## What shipped (2026-09-07)
+
+Six new source files, one new script, one new root command, **no dependency and no lockfile
+change**. `pnpm verify` is exit 0, `pnpm test` is **683** (206 + 294 + 183), and the frontend
+artefact did not move.
+
+| File                                  | What it is                                        |
+| ------------------------------------- | ------------------------------------------------- |
+| `apps/backend/src/alpaca-mapping.ts`  | The vendor translation, **both directions**, pure |
+| `apps/backend/src/alpaca-provider.ts` | The transport, thin                               |
+| `apps/backend/src/fetch-bars.ts`      | `pnpm bars`' mechanism                            |
+| `apps/backend/src/fixtures/alpaca/`   | Eleven raw response bodies, 356 KB                |
+| `scripts/fetch-bars.mjs`              | The wrapper: a name, a build guard, an exit code  |
+| three `*.test.ts`                     | 51 tests, all offline                             |
+
+### `pnpm bars NVDA` — the first real market number this product has produced
+
+```text
+NVDA  2026-09-03  1m  raw
+  window  2026-09-03T13:30:00.000Z → 2026-09-03T20:00:00.000Z
+  provider alpaca  feed sip
+
+  390 bars
+
+      time (UTC)              open      high       low     close        volume
+      2026-09-03T13:30:00.000Z   226.0200  226.0200  224.7500  225.2100       2642421
+      …
+      2026-09-03T19:59:00.000Z   228.4250  228.6100  228.3200  228.4000       1396496
+
+  provenance  raw, 1 source
+              alpaca / sip, 390 bars, retrieved 2026-09-07T08:33:50.071Z
+  coverage    2026-09-03T13:30:00.000Z → 2026-09-03T20:00:00.000Z
+```
+
+### The one structural decision: the mapping owns BOTH directions
+
+The task file called the mapping/transport split the one structural decision, and the half
+that was not obvious is which side the **request** falls on. The reflex is _"mapping means
+response → domain"_. That is wrong here, because **the most dangerous line in this story is
+in the request** — see the `end` finding below — so `toAlpacaQuery` lives in the pure module
+and is testable with no socket. What is left in the provider is the request, the signals and
+the status code.
+
+That is what keeps `pnpm test` fast, offline and buildless, a property held since Story 1.9
+that one vendor-shaped module would have broken for good.
+
+### Open decision 6 — SETTLED: `feed=sip`, sent explicitly
+
+`MARKET_FEEDS` **needed no change**: Task 2.6.3 shipped `sip` beside `iex` and `synthetic`,
+and `MARKET_FEED_DESCRIPTIONS.sip` already reads _"All US exchanges, via the consolidated
+tape."_ The vocabulary was ready before the question was asked.
+
+The client **sends `feed=sip` explicitly** rather than taking the measured-identical default,
+on two arguments — and the second is the deciding one:
+
+- `sort=asc`'s, verbatim: **a default nobody stated is a default that can move**, and this
+  one is a vendor's rather than ours.
+- **It makes the provenance record true by construction.** Whether the default silently falls
+  back to IEX for a window SIP will not serve is _unmeasured_. An explicit `feed=sip` cannot
+  fall back — it is a measured `403` — so a `BarSource` saying `sip` is a claim about what was
+  asked for and answered, not an assumption about a default.
+
+`feed=iex` loses on measured quality, one way: 82.8% mean minute coverage against 99.7%, with
+`CCI` at 53.6% against 98.5%. Epic 3's live stream is a **sibling** interface and will declare
+`iex`; §4.2's reversal trigger is **not** met, because this provider serves exactly one feed.
+
+### The load-bearing line turned out not to be the timestamp
+
+`t` marks the **start** of its interval, so `startsAt` maps directly with no shift and
+`PROVIDER.md` §9.2's naming decision cost nothing.
+
+What needs care is `end`. **Alpaca's is inclusive and ours is half-open**, so passing it
+through fetches one extra bar — 391 for a 390-minute session — and since `t` marks the start,
+that bar covers 16:00–16:01 ET, outside the regular session.
+
+**The conversion is minus one MILLISECOND, not the "minus one timeframe" the brief offered**,
+and that is better than an approximation that happens to work: it is the _exact_ half-open-to
+-inclusive conversion, so it is correct for any timeframe with no table to keep in step with
+`TIMEFRAMES` and no DST arithmetic — where subtracting "one day" would move by an hour across
+a transition, and filtering after the fact would fetch a bar in order to discard it.
+
+**Verified against the live API on both timeframes** rather than assumed, because a vendor
+accepting sub-second precision is not something to take on faith:
+
+| Timeframe | `end`           |    Bars | Last bar    |
+| --------- | --------------- | ------: | ----------- |
+| `1Min`    | `19:59:59.999Z` | **390** | `19:59:00Z` |
+| `1Min`    | `20:00:00Z`     |     391 | `20:00:00Z` |
+| `1Day`    | `03:59:59.999Z` |  **20** | `06-29T04Z` |
+| `1Day`    | `04:00:00Z`     |      21 | `06-30T04Z` |
+
+**Every fixture was recorded through the shipped mapping's own output**, so the corpus _is_
+what the client sends.
+
+### The fixture corpus, and its two controls
+
+Eleven raw bodies, 356 KB. Every one of Task 2.7.1's figures reproduced **exactly** — 390 for
+a regular session, 210 for the half day, 384 for the thin name, 0 for the holiday, and the
+391-bar `end` trap.
+
+They are read with `readFileSync` from `src/` and **never `import`ed**, which is a decision
+rather than a habit: `resolveJsonModule` would compile 356 KB of test data into `dist/`, and
+`apps/backend`'s `files` field ships `dist` into the container image.
+
+Two of them are **measurements rather than observations**, because they carry controls:
+
+- **`JNJ` has no split in the recorded range and returns byte-identical bodies under both
+  adjustments** — confirmed offline by md5 and live by diffing two `pnpm bars` runs. That is
+  what makes `adjustment` safe to send unconditionally.
+- **The `end`-at-close body is recorded because the domain type refuses it.** A test asserts
+  that mapping it throws `starts outside the covered range`, which is a stronger statement of
+  the trap than any assertion about a query string.
+
+### What it refuses, and why the refusals are the point
+
+- **A `next_page_token` is a throw naming Task 2.7.5**, and it stays until that task removes
+  it. A client quietly returning the first page lies with a perfectly well-formed answer:
+  ascending, correct provenance, plausible coverage, and missing data nobody notices until a
+  chart has a hole in it. `PROVIDER.md` §8.5 — an incomplete answer we produced is **us**.
+- **A non-2xx throws** rather than being mapped, because Task 2.7.6 owns the taxonomy against
+  its own measurements. The message deliberately **never reads the body**: a bad key answers
+  with an nginx **HTML** page, so a client assuming JSON turns a clear `unauthorised` into a
+  laundered parse failure.
+- **A malformed body throws**, because a shape we did not expect is a fact about our code
+  rather than about the world — and laundering it would put it in front of a retry wrapper
+  that would retry a shape that will never change.
+
+### Three deliberate breaks, each seen to fail and reverted
+
+| Break                           | Result                                       |
+| ------------------------------- | -------------------------------------------- |
+| Timestamp shifted by one minute | **The test file failed to LOAD** — see below |
+| `sort=asc` removed              | 2 failed across **both** test files          |
+| `retrievedAt` read from a clock | 1 failed                                     |
+
+**The first is the one worth carrying, because it never reached an assertion.** Shifting the
+timestamp makes the first bar fall outside the requested window, so `toBarSeries`'s own
+coherence check refuses the series at describe-scope and the whole file fails to collect:
+
+```
+RangeError: Bar at 2026-09-03T13:29:00.000Z starts outside the covered range
+[2026-09-03T13:30:00.000Z, 2026-09-03T20:00:00.000Z).
+```
+
+The **domain type** caught it before any test ran, which is stronger than a red assertion.
+`alpaca-mapping.ts` was byte-identical after each revert (md5 `0a7f0f23…`).
+
+### Three recorded claims stopped being true, and one was not named by the brief
+
+The task file predicted two — the `config.ts` comment about reporting _two_ problems, and the
+`config.test.ts` comment saying the selection is still refused. Both amended, and that test
+**strengthened** from _"the message is not empty"_ into an assertion that `loadConfig`
+**succeeds** and returns `marketDataProvider: "alpaca"` with the credential attached, which is
+a stronger claim only available once the member exists.
+
+**The third was found by a red test rather than by reading**:
+`packages/shared/src/market-provenance.test.ts` asserted `toEqual(["fixture"])` under the
+title _"ships exactly one provider, and it is not the vendor"_. It is now
+_"ships a member only for a provider something can produce"_ — the durable claim rather than
+the temporary one, since the rule is about **production** and not about the count.
+
+`createMarketDataProvider`'s exhaustive switch also **fired exactly as `market-data.ts`
+promised**, failing the build before a line of that file had been edited.
+
+### The vendor grep moved, and it is 2 rather than the predicted 1
+
+The brief predicted _"one hit, it is the provider id"_. It is **two**: the id in
+`market-provenance.ts`, and the assertion in `market-provenance.test.ts` that locks the
+vocabulary. The second is unavoidable rather than untidy — a test asserting which members
+exist has to name them, and asserting a length instead is the weaker claim Task 2.6.5 already
+found wanting.
+
+Neither is a leak, and one of them is the point: a `ProviderId` is the one place the vendor's
+name is the **subject** rather than an implementation detail, because a provenance record has
+to name who sold us the data for §7.1's display to be possible at all.
+
+**And the `apps/backend/src` naive figure has stopped being informative**: it is **262 across
+12 files** against the 7 Task 2.6.8 recorded, because `alpaca-provider.ts`, `alpaca-mapping.ts`
+and their tests _are_ the vendor client. That is `PROVIDER.md` §1's split working as designed,
+and the figure worth re-running is the `packages/shared` one. Amended where 2.6.8 recorded it.
+
+### Two things produced rather than reasoned about
+
+**A daily bar is stamped at midnight ET, hours before the session opens** — so `pnpm bars NVDA
+1d` printed _"no bars"_ against a session window, correctly and uselessly. That is the exact
+trap `alpaca-mapping.ts`'s own comment warns about, met in the one place it can bite, and it
+is why `windowFor` gives the two timeframes different window shapes. `nextMarketSession`
+supplies the upper bound from the calendar rather than by adding 24 hours, which would be an
+hour wrong across a DST transition.
+
+**A green `pnpm test` proved none of the types.** The mapping tests passed at exit 0 while
+`tsc -b` reported fourteen errors, because `marketSessionOn` returns `undefined` for a holiday
+and the runner strips types. Task 2.6.2's finding met from the useful side: **`pnpm verify`
+catches it because it builds before it tests.**
+
+### Criterion 7, checked with a control
+
+The whole backend suite was run with every off-machine host refused at `dns.lookup` and
+`net.connect` — **294 passed** — and a throwaway probe against `data.alpaca.markets` was
+refused in the same run, so the blocker was **proved to block** rather than assumed to.
+Loopback stays allowed, because `alpaca-provider.test.ts` drives a real local HTTP server
+deliberately: _"no network"_ honestly means **reaches no host but itself**.
+
+### Figures
+
+- `pnpm verify` **exit 0**; `pnpm test` **683** (206 + 294 + 183); `pnpm test:process` 14
+- **No dependency, no lockfile change.** Node 24 ships `fetch`; Task 2.1.6 already declined a
+  library for one documented request at a measured 32 packages and 46 MB
+- **The frontend artefact did not move** — 371,463 B `c8f1c3ad…`, 18,063 B `ed3d1744…`,
+  `index.html` 1,101 B `7b0075a8…`, 300 B, **390,927 B over four files** — reproducing Task
+  2.6.8's figures to the byte, with **`alpaca` zero in the bundle**. That is the check rather
+  than a coincidence: `PROVIDER_IDS` is a plain array literal and is tree-shaken completely,
+  Task 2.3.8's literal-versus-constructor rule holding
+- `pnpm links` 219 documents / 508 cross-file links / 34 anchor links / **0 broken**
+- **Leak sweep clean on all five producers**; `apps/backend/.env` untracked; `pnpm bars` was
+  checked against `pnpm help -a` and is free, with the detection validated in the same run
+  against five known built-ins
+
+### The honest gap
+
+**Nothing is deployed.** `MARKET_DATA_PROVIDER` is absent from the Container App entirely, so
+the deployed backend still reads no provider and the chrome still says `NOT CONFIGURED`. Task
+2.7.4 owns both that setting and putting the feed's word on the deployed page — and it now
+knows which word.
+
+---
+
+## For the stakeholders — what this actually means
+
+**MarketPulse just read its first real prices.**
+
+Until today this product could show you which companies it tracks and whether its own services
+were healthy, and that was all. There was no market data in it anywhere. Today it fetched the
+real minute-by-minute trading history of NVIDIA for a real session — 390 prices, opening,
+high, low, closing and volume for every minute the market was open — from a real market-data
+provider, using a real account.
+
+You can see it for yourself by typing `pnpm bars NVDA`. It prints to a terminal rather than
+drawing a chart, and that is deliberate: this task was about getting the numbers **right**,
+and the next tasks store them, serve them and eventually draw them.
+
+**Why it took a whole task to read some numbers.** Because getting market data slightly wrong
+is worse than not having it. Three things we found are worth explaining:
+
+- **The one-minute problem.** Every price bar has a timestamp, and providers disagree about
+  whether it means _"the minute this covers started"_ or _"…ended"_. Get it backwards and
+  every price on every chart is shifted by one minute — which looks completely normal and is
+  wrong in every calculation the product will later make. We measured it rather than assumed
+  it, and named our own field `startsAt` so a wrong mapping would read as an obvious
+  contradiction rather than a plausible guess.
+- **The extra bar.** We ask for "the trading session" and the provider returns **391** bars
+  for a 390-minute session. It includes the very last instant where we exclude it. That one
+  bar, repeated at the edge of every window we ever request, would have become thousands of
+  duplicated prices in the database once we start storing history. It was caught only because
+  391 is _more_ minutes than the session has, which is arithmetically impossible.
+- **We are getting better data than we thought.** The industry assumption — and our own
+  product specification — was that a free plan gives you one exchange's trades, roughly 4% of
+  the market. We measured it, and for **historical** data this plan serves the **full US
+  consolidated tape**. On thinly traded companies that is the difference between having 53% of
+  the minutes and having 98%. The product will now say so honestly on screen: not
+  `Market feed: IEX`, but the consolidated tape, because telling a user their data is
+  narrower than it is would be as wrong as telling them it is broader.
+
+**What you still cannot do.** There is no chart, no price on any screen, and nothing is
+stored — refresh the page and the product looks exactly as it did yesterday. The next task
+points the live site at the provider so the header stops saying `NOT CONFIGURED`; the task
+after that handles fetching long histories in pages; then storing them; then drawing them.
+
+**What is now unblocked is essentially everything.** Every number this product will ever show
+— the anomaly scores, the sector comparisons, the charts, the AI investigations that reason
+about what happened at 11:07 on a Tuesday — is made of these bars. This is the pipe they come
+through, and it now runs end to end.
