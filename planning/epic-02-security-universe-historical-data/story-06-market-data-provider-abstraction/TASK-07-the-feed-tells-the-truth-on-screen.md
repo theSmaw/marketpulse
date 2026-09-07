@@ -27,6 +27,16 @@ Concretely, on the deployed site:
   with nothing here edited — which is the check that this task built a renderer for data
   rather than a caption
 
+> **Amended 2026-09-07 by Task 2.6.6: that last bullet is not automatic and this task has to
+> make it true.** `MARKET_DATA_PROVIDER` selects a **provider**, and `PROVIDER.md` §4.2 is
+> emphatic that provider and feed vary _independently_ — one vendor serves a single venue on
+> a free plan and the consolidated tape on a paid one. So _"set `MARKET_DATA_PROVIDER` and
+> the region reads `IEX`"_ requires something to answer **which feed does this configured
+> provider serve**, and after Task 2.6.6 **nothing can**: `MarketDataProvider` carries
+> `id: ProviderId` and no feed, and a feed reaches the frontend today only on a
+> `SeriesProvenance` — i.e. attached to a series somebody actually fetched. See the amended
+> section below; this is the decision that was hiding inside the sentence.
+
 **What the user still cannot see: a price, a chart, or any number at all.** That is Stories
 2.9 to 2.13, and the payoff is 2.12.
 
@@ -103,6 +113,44 @@ with real differences:
   Story 2.9's file the way Story 2.4's pre-emptions were recorded.
 
 Decide with the argument, and write the pre-emption down wherever it lands.
+
+> **Amended 2026-09-07 by Task 2.6.6, which shipped the backend half of this and turned one
+> assumption in this section into an open question.**
+>
+> **What now exists to read from.** `apps/backend/src/market-data.ts` exports
+> `resolveMarketData(config)` returning `{ selection, provider }`, and it holds **both**
+> deliberately, because only one of them survives the default: `selection` is
+> `MarketDataProviderSelection` — `"none" | "fixture"`, derived from `PROVIDER_IDS` — and is
+> answerable whatever is configured, while `provider` is `MarketDataProvider | undefined`
+> because **`none` is ABSENCE and not a null object**. So this section's instinct is
+> confirmed as shipped code rather than as advice: the question _"which provider is
+> configured"_ is answered by `config.marketDataProvider`, and `MarketDataProvider.id` is
+> structurally unable to answer it in the one state this task exists to render.
+>
+> **The question it opened, and it is this task's to close.** The configuration names a
+> **provider**; `MARKET_FEED_DESCRIPTIONS` is keyed by a **feed**. There is no mapping
+> between them anywhere, and there deliberately is not — §4.2 keeps them independent because
+> conflating them is the mistake `MarketFeed` exists to prevent. Today a feed only ever
+> arrives on a `SeriesProvenance`, i.e. attached to a series somebody fetched, and this
+> region reports a **standing configuration** with no request behind it. Three shapes, and
+> the choice is real:
+>
+> - **A `feed` on `MarketDataProvider`**, declared by each implementation. Cheap, and it is a
+>   claim the provider is well placed to make — but under `none` there is no provider, so
+>   this alone cannot render the default state and needs the `none` sentence beside it
+>   regardless.
+> - **A second configuration variable.** Honest about the fact that a vendor's feed is a
+>   property of the _plan we are on_ rather than of the vendor — which is exactly §4.2's
+>   argument — at the cost of a fourteenth variable and a pair nothing checks.
+> - **Render the PROVIDER and not the feed** until a series has actually been fetched, and
+>   let Story 2.12 render the feed beside the chart from `SeriesProvenance`, which is where it
+>   is already carried and already true. The narrowest answer, and it makes the
+>   "one value changes and it reads `IEX`" bullet above false as written rather than
+>   aspirational — so if this is chosen, **amend that bullet rather than leaving it.**
+>
+> Whichever is taken, note that `fixture`'s feed is `synthetic` and its sentence is
+> _"Generated test data. Not a market feed."_, which is the state a developer running
+> fixtures must see and is `PROVIDER.md` §5.4's whole safety mechanism arriving on screen.
 
 ### The component, and the design bar applies
 
