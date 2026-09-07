@@ -1,6 +1,6 @@
 # Task 2.7.1 — Hold a real key, measure what the free plan actually is, and answer the question another story is parked on — shipping nothing
 
-**Status:** Not started
+**Status:** Complete (2026-09-07)
 **Story:** [2.7 Alpaca Historical Data Integration](STORY.md)
 **Depends on:** Story 2.6, and the account prerequisite
 
@@ -212,3 +212,171 @@ The other temptation is to treat the cap measurement as Epic 3's and do it later
 later: Story 2.8 backfills bars against `security_id`, and after that, re-sizing the universe
 costs a re-backfill rather than a file edit. `UNIVERSE.md` §10 names that as the real deadline
 and it is worth more than the trigger itself.
+
+---
+
+## What was found (2026-09-07)
+
+The record is [`ALPACA.md`](ALPACA.md); this is the index. **22 JSON captures** were taken,
+each carrying the request URL, the instant, the status, every response header and the body.
+
+| Measurement            | Documented                | **Measured**                        | Lands in           |
+| ---------------------- | ------------------------- | ----------------------------------- | ------------------ |
+| Minute-bar channel cap | "30 symbols" / "no limit" | **None reachable — 5,000 accepted** | `UNIVERSE.md` §10  |
+| Trade channel cap      | 30                        | **30** — `code=405` at 60           | Epic 3             |
+| Historical feed        | IEX                       | **SIP**                             | Open — see below   |
+| Live stream feed       | IEX                       | **IEX** — SIP is `409`              | Epic 3             |
+| Request rate           | 200/min                   | **201, then `429`**                 | Task 2.7.7         |
+| Multi-symbol cost      | —                         | **1 per REQUEST**                   | Story 2.8          |
+| History depth          | since 2016                | **2016 (SIP) / ~2022 (IEX)**        | Story 2.8          |
+| `end` parameter        | —                         | **INCLUSIVE**                       | Task 2.7.3         |
+| Bar `t`                | —                         | **START of interval**               | Task 2.7.3         |
+| 390 bars/session?      | "probably not"            | **Yes, exactly**                    | `CALENDAR.md` §2.2 |
+
+### Documents amended
+
+- **`UNIVERSE.md` §10** — the parked trigger fired: bars exempt, sizing unblocked, and the
+  IEX quality ceiling narrowed to live data only
+- **`PROVIDER.md` §6.5** — the three owed numbers answered, first prediction recorded as wrong
+- **`CALENDAR.md` §2.2** — `minuteBars` confirmed as a bar count, plus two request traps
+- **`STORY.md`** — open decisions 1 and 2 settled
+- **Story 2.8's `STORY.md`** — the four things that change its design
+
+### Three findings nobody asked for, and one open question
+
+**The feed is SIP, not IEX, for historical bars** (`ALPACA.md` §2). The plan is asymmetric:
+historical is the consolidated tape, the live stream is IEX only. **This is not settled here
+and needs a person** — `PRODUCT_SPEC.md` §7.1 and invariant 6 require the UI to label the feed,
+and **Task 2.7.4 is about to put the word `IEX` on the deployed page.** No open decision in
+this story covers it.
+
+**`end` is inclusive where our `TimeRange` is half-open** — worth one bar at every seam of
+Story 2.8's tiled backfill, and caught only because a 390-minute session returned 391.
+
+**`unknown-symbol` is not producible from the bars endpoint.** An unknown symbol returns `200`
+with an empty `bars` object, byte-identical to a valid symbol with no data — and
+`PROVIDER.md` §8.2 makes an empty answer a success. Task 2.7.5 has a member it cannot produce
+here, which strengthens the case for Task 2.7.8's assets endpoint.
+
+### What was not measured
+
+The **15-minute withheld window** — the probe ran at 06:59 UTC on Labor Day with the market
+shut, so its `0 bars` means nothing. **Re-take during a session.** Also unsettled: whether the
+rate limit is per key or per endpoint.
+
+---
+
+## For the stakeholders — what this actually was, in plain terms
+
+### The short version
+
+**We spent this task asking a supplier what we are actually allowed to do, instead of trusting
+their sales page — and found four things that were wrong.** One of them would have capped the
+product at a fraction of its intended size. Another would have put a false statement on a
+public web page. No product code was written, deliberately.
+
+### The question that was blocking us
+
+MarketPulse watches a set of companies and flags unusual trading. A natural question is: **how
+many companies can we watch?** We had been planning for about 100, with an ambition of 500 to
+1,500 — but nobody knew if our data supplier would allow it.
+
+Their own website said two contradictory things. One page said the free plan is **"limited to
+30 symbols"**. Another said the 30 limit applies only to certain kinds of data, and the kind
+**we actually use has no limit at all**. These are not small differences — 30 versus unlimited
+is the gap between "this product cannot exist as designed" and "build whatever you like".
+
+Everything we need — is this price move unusual, is the whole sector moving, how busy is
+trading — is calculated from one-minute summaries of trading activity. If those were capped at
+30 companies, our existing list of 101 was **already illegal** and we would have been facing a
+$99/month bill just to continue.
+
+### So we asked
+
+We connected and requested 60 companies' worth of minute data. Accepted. Then 101. Then 500.
+Then 1,500. Then **5,000** — and it was accepted in under a second.
+
+Then we did the thing that turns a hopeful result into a reliable one: **we asked for something
+we expected to be refused.** We requested 60 companies of a different data type, and it was
+rejected immediately — _"symbol limit exceeded"_. That refusal is what makes the first result
+trustworthy. Without it we could not tell "the supplier allows this" from "the supplier
+silently ignored part of our request", and those look identical from the outside.
+
+**The universe size is unblocked.** The limit on how many companies we track is now our own
+ability to curate a good list, not the supplier's.
+
+### The finding nobody was looking for
+
+Our whole product design assumed we would receive data from **IEX**, a single US exchange
+handling roughly 4% of trading. We had planned to label this prominently, because implying we
+see the whole market when we see 4% would be dishonest.
+
+**We are not on IEX for historical data. We are on the full consolidated market feed** — all
+US exchanges — for anything more than 15 minutes old. Only the _live_ stream is IEX.
+
+This matters twice over. **The quality is far better than we budgeted for.** For the
+less-actively-traded companies, IEX gave us data for as little as **43%** of trading minutes,
+with gaps up to 15 minutes. The feed we are actually on gives **99.7%**, with the worst gap
+being 2 minutes. Several of our planned concerns about unreliable numbers largely evaporate.
+
+**But we may be about to tell users something untrue.** The very next task puts a "Market feed:
+IEX" label on the live website. For stored historical data that label is **wrong**. This needs
+a decision from a person, and I have deliberately not made it — it is a question about what we
+tell users, not a technical detail. It is flagged prominently in the record, with the next task
+named as the deadline.
+
+### Two bugs caught before they were written
+
+**Off-by-one.** We asked for one trading day and got 391 minutes back, when a trading day has 390. Rather than shrug at one extra row, we chased it: the supplier treats the end of a
+requested time window as _included_, where our system treats it as _excluded_. Left alone, every
+single day we ever download would have carried one duplicate row — and that duplicate would be
+a minute from _after_ the closing bell, silently polluting the data. Millions of rows,
+plausible-looking, subtly wrong.
+
+**Silent scope creep.** Asking for "a date" rather than "this trading session" quietly includes
+before-hours and after-hours trading. On the day we tested, that was 217 rows where the trading
+day has 210. Our calculations assume 390 minutes in a day; feeding them 400-odd rows would have
+made every "unusual activity" score quietly incorrect.
+
+Neither would have crashed anything. Both would have produced numbers that looked entirely
+reasonable and were wrong — the most expensive kind of defect, and the hardest to find later.
+
+### A decision, and why it is smaller than it looks
+
+We settled how much history to download. **Daily summaries: everything available, back to
+2016** — about 30 megabytes for all 101 companies, effectively free. **Minute-by-minute data:
+one year** — 1.2 GB, about 5% of our storage.
+
+One year rather than two, and the reason is worth stating: **depth and company count multiply.**
+One year of minute data still fits if we later expand to 1,500 companies; two years does not.
+Since we have _just_ unblocked that expansion, committing to two years now would quietly
+cancel the decision we just enabled. Adding more history later is easy; removing companies to
+make room is not.
+
+### An honest note about the process
+
+At one point our own measurement script printed a confident conclusion that was **wrong** — it
+reported that trading days do not contain the expected number of data points, which would have
+sent us amending several documents. It was caught because the number it complained about was
+_larger_ than the maximum possible, which no amount of missing data can explain. The real cause
+was the off-by-one above.
+
+It is recorded in the write-up, because the lesson generalises: **a conclusion generated
+automatically is not a measurement either.** The whole point of this task was refusing to trust
+claims without checking them, and that has to include our own.
+
+### Where this leaves the product
+
+**No user-visible change, and that was the plan** — this task was explicitly to measure and
+ship nothing. Not one line of application code changed.
+
+What it produced is **permission to build the next eight tasks correctly**: real limits instead
+of assumptions, real error messages to handle, two bugs prevented, and a supplier relationship
+that is now measured rather than hoped for. The next task puts the credential in place; the one
+after fetches real prices; and **the visible payoff is Story 2.12, where actual price charts
+appear on screen.**
+
+One thing to be clear about, because a "Market feed" label with no chart behind it invites the
+opposite reading: **users still cannot see a price.** This task fetched real market data into a
+terminal and deliberately stored none of it. Story 2.8 stores, Story 2.9 serves, Story 2.12
+draws.

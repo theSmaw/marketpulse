@@ -648,6 +648,33 @@ check:
 This obligation is now written into `story-07-.../STORY.md` as a scope bullet, not left here
 as a hope.
 
+### 6.5 ANSWERED by Task 2.7.1 (2026-09-07) — and the first prediction was wrong
+
+All three measured against a live account; the record is
+[`ALPACA.md`](../story-07-alpaca-historical-data-integration/ALPACA.md) §5.
+
+1. **Does a regular session yield 390 bars? YES, exactly** — five ordinary sessions, all 390,
+   and a half day exactly 210. **§6.4's "probably not" was wrong**, and the reason is the
+   interesting part: the free plan serves **SIP** for historical bars, not IEX. §6.4's
+   reasoning ("IEX is one venue, not the tape") was sound and simply applied to the wrong
+   feed — on `feed=iex` the same thin names run **43–99%**. So `minuteBars` **is** a bar count
+   for stored data, and `CALENDAR.md` §2.2 needed no correction.
+2. **How often does a thin name miss a minute?** Mean coverage **99.7%** on the default feed
+   (longest gap 2 min) against **82.8%** on IEX (longest gap 15 min). Whether an absent bar is
+   ordinary or notable therefore depends on the feed, which is an open product question — see
+   `ALPACA.md` §2.
+3. **Which end does `t` mark? The START.** The first bar of a session is stamped at the open
+   exactly, so **`startsAt` maps directly from `t` with no shift.** §9.2's naming decision
+   turns out to protect against a trap the vendor does not set — which is the good outcome, and
+   it cost nothing.
+
+**A fourth thing was found that §6.4 did not ask for and that matters more than two of the
+three above**: Alpaca's `end` parameter is **inclusive** where §9.3 makes `TimeRange`
+half-open. A mapping that passes `TimeRange.end` through unchanged fetches one extra bar at
+every window boundary — the duplicate-at-the-seam that §9.3 chose half-open intervals to
+prevent. It was caught only because the count came back **391** for a 390-minute session, which
+is arithmetically impossible for missing data.
+
 ---
 
 ## 7. The vendor's shape — THEIRS, not ours

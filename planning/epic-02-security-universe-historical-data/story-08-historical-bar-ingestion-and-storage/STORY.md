@@ -265,3 +265,73 @@ Three downstream items moved from open to decided as a consequence: bars are sto
 "we do not have that" is an **answer**. One new gap is recorded with a trigger rather than
 built: V1 overwrites a corrected bar, so replay reproduces a bar as currently known rather
 than as known at the time.
+
+---
+
+## Amended 2026-09-07 — what Task 2.7.1 measured, and the four things it changes here
+
+Story 2.7's open decisions 1 and 2 are settled, and three of Alpaca's real limits are now
+numbers rather than assumptions. The record is
+[`ALPACA.md`](../story-07-alpaca-historical-data-integration/ALPACA.md).
+
+### Open decision 3 is now answered upstream: **store both `1Min` and `1Day`**
+
+Daily is **0.26% of minute** — 3.1 MB/yr against 1.19 GB/yr for the whole universe — so the
+"derive daily from minute on read" half of that decision is settled by cost being absent.
+`PROVIDER.md` §9.4 independently forbids deriving one from the other anyway, because replay
+must reconstruct from what was stored.
+
+**Depths, and they differ deliberately:** daily to the earliest available (**~2016**), minute
+for **1 year**. The reasoning is in Story 2.7's file, and the part that matters here is that
+**1 year of minute bars survives a re-size to 1,500 securities and 2 years does not** — so the
+depth was chosen by the sizing option it must not foreclose, and open decision 5's re-curation
+is not quietly pre-empted.
+
+### The backfill is bounded by pagination, NOT by the rate limit
+
+**The 200/min limit is per REQUEST, not per symbol** — measured, 203 requests of 50 symbols
+each in one window against the same ceiling as 201 single-symbol requests, i.e. ~10,150
+symbol-fetches per minute.
+
+**So the whole 101-security universe is ONE request per bar-window.** Batch aggressively. The
+real bounds are the **10,000-row `limit` ceiling** and pagination, and the 429 carries **no
+`Retry-After`**, so pacing uses our own schedule.
+
+### Two request-construction traps that would corrupt the stored data
+
+Both would produce plausible-looking rows, which is what makes them worth stating here rather
+than leaving to be discovered:
+
+1. **Alpaca's `end` is INCLUSIVE; `TimeRange` is half-open.** Passing `TimeRange.end` straight
+   through fetches **one extra bar**, stamped at the close instant — and since `t` marks the
+   **start** of its interval, that bar covers 16:00–16:01 ET and is outside the regular
+   session. Tiled across a backfill this **duplicates a bar at every seam**, which is exactly
+   what `PROVIDER.md` §9.3 made the type half-open to prevent.
+2. **A date-only range includes extended-hours bars.** Measured on a half day: `start=…&end=…`
+   as bare dates returned **217 bars against the session's 210**, the extras running from an
+   hour before the open to eight minutes after the early close. `CALENDAR.md` §2 scopes V1 to
+   the regular session, so **request explicit session bounds and never a bare date** — a
+   date-only backfill silently stores pre- and post-market bars and every §11 calculation then
+   runs over a denominator the calendar says is 390.
+
+### Acceptance criterion 4's gap threshold depends on a feed question that is still open
+
+**The completeness picture is much better than expected, and for a reason nobody had spotted:
+the free plan serves SIP for historical bars, not IEX** (`ALPACA.md` §2). Over the same thin
+equities and sessions, mean coverage is **82.8% on IEX against 99.7% on the default feed**, and
+the longest single gap falls from **15 minutes to 2**.
+
+A liquid name yields **exactly 390** bars for a regular session and a half day **exactly 210**,
+both matching the shipped calendar — so `minuteBars` **is** a usable completeness target, which
+is the opposite of what `PROVIDER.md` §6.4 expected.
+
+**But do not encode a threshold until Task 2.7.4 settles the feed question**, because an absent
+bar is _ordinary_ on IEX and _notable_ on SIP, and criterion 4 is the difference between those
+two sentences.
+
+### And open decision 5's first half is unblocked
+
+`UNIVERSE.md` §10's cap trigger fired in the **bars-are-exempt** direction: minute-bar
+subscriptions accepted **5,000 symbols** on the free plan. **101 is nowhere near a cap and
+neither is 1,500**, so the size question is now a curation question rather than a feed one —
+which is what §10 always said the harder limit was. The taxonomy half was never blocked.

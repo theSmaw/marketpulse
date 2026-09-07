@@ -1,6 +1,6 @@
 # Story 2.7 — Alpaca Historical Data Integration
 
-**Status:** Not started
+**Status:** In progress
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.6 (and Story 2.1 for the credential mechanism)
 **Epic scope covered:** Alpaca historical-data integration; Alpaca credential on the platform (the _key_ half)
@@ -191,6 +191,72 @@ Story 2.8's ingestion design — so it must precede it.
    The decision is cheapest **before** Story 2.8 backfills, and it is the same migration as
    `delisted` if the assets endpoint is adopted at all, which is why the two sit together
 
+## Open decisions 1 and 2 — SETTLED by Task 2.7.1 (2026-09-07)
+
+Settled against measured numbers rather than intuition; the full record is
+[`ALPACA.md`](ALPACA.md). **Both size Story 2.8 and are recorded there as well.**
+
+### Decision 1 — which timeframes: **BOTH, and the arithmetic is not close**
+
+**`1Min` and `1Day`, both fetched and both held.** `PROVIDER.md` §9.4 had already reduced the
+vocabulary to two with aggregation deliberately inexpressible, so this was only ever "both or
+one, and at what depth".
+
+At 101 securities, 252 sessions/yr, ~120 bytes/row:
+
+| Timeframe |   Rows/yr |     Disk/yr |
+| --------- | --------: | ----------: |
+| Minute    | 9,926,280 | **1.19 GB** |
+| Daily     |    25,452 |  **3.1 MB** |
+
+**Daily is 0.26% of minute — 390× cheaper.** Ten years of daily for the whole universe is
+**30 MB** and rounds to nothing against Story 2.1's ~22.5 GiB usable.
+
+**The losing option is "minute only", and it loses on Story 2.12 rather than on cost.** A
+multi-month chart built from minute bars reads ~98,000 rows to draw a few hundred pixels, and
+`PROVIDER.md` §9.4 forbids aggregating them into daily because replay must reconstruct from
+what was stored. Daily bars at 0.26% of the cost remove that entirely.
+
+"Daily only" loses outright: Epic 5's five-minute returns and Epic 13's replay both need
+minute bars, and deferring them means re-running a backfill over the same history later.
+
+### Decision 2 — how far back: **daily to the earliest available; minute for 1 year**
+
+**Measured, not documented** (`ALPACA.md` §3): the documented "since 2016" is a property of
+the **tape**, not the plan. SIP history — the default feed for historical bars — reaches at
+least **2016**, confirmed with real closes. IEX reaches only ~2022.
+
+- **Daily: fetch everything available, ~2016 onward.** ~10 years is **30 MB**. There is no
+  argument for taking less; it is free and it is what Story 2.12's multi-year chart draws.
+- **Minute: 1 year initially.** **1.19 GB, 5.3% of usable disk.**
+
+**Why 1 year and not 2, which is the interesting part.** The floor is Epic 5's ~60 trading
+days for return percentiles, so a year clears it six times over. The ceiling is that **depth
+and universe size MULTIPLY, and the universe size has just been unparked** (`UNIVERSE.md`
+§10's trigger fired in this same task):
+
+|                 Universe | 1 yr minute | 2 yr minute | 5 yr minute |
+| -----------------------: | ----------: | ----------: | ----------: |
+|                      101 |      1.2 GB |      2.4 GB |      6.0 GB |
+| **500** (§10's proposal) |  **5.9 GB** |     11.8 GB |   29.5 GB ✗ |
+| **1,500** (§10's target) | **17.7 GB** |   35.4 GB ✗ |   88.5 GB ✗ |
+
+Against ~24 GB usable, **1 year of minute bars survives a re-size to 1,500 securities and 2
+years does not.** Choosing 2 years now would quietly foreclose the sizing decision §10 has
+just reopened — and re-sizing after Story 2.8 costs a re-backfill, which §10 names as the real
+deadline.
+
+**So the depth is set by the sizing option it must not destroy, not by the storage it uses
+today.** Revisit once §5's metadata source and the universe count are settled; extending depth
+is an additive backfill, whereas shrinking one is not.
+
+**One thing that makes both decisions cheaper than expected**: the rate limit is **per request,
+not per symbol** (`ALPACA.md` §6) — 203 requests of 50 symbols each in one window, the same
+ceiling as 201 single-symbol requests. The whole universe is one request per bar-window, so a
+backfill is bounded by pagination and history depth rather than by the rate limit.
+
+---
+
 ## Acceptance criteria
 
 1. Real bars for a real symbol are retrieved from Alpaca, and the response is mapped to
@@ -240,18 +306,18 @@ one obligation is not to defer them a third time. **2.7.9 closes the story and r
 0019**, which carries something no previous close has had: figures that are observations from
 one day against a live third party, rather than figures reproducible from a clean clone forever.
 
-| #          | Task                                                                                                                                                                                                                                                                          | Status      |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| **Prereq** | **An Alpaca account with market-data API keys.** Not a task — the same shape as Epic 1's `ACCOUNT-SETUP.md`, because nothing between two tasks owns creating an account. Everything except 2.7.1's measurements can be built against recorded fixtures with no account at all | Not started |
-| 2.7.1      | [Hold a real key, measure what the free plan actually is, and answer the question another story is parked on](TASK-01-the-account-the-cap-and-the-real-plan.md)                                                                                                               | Not started |
-| 2.7.2      | [Put the key through the configuration boundary and onto the platform, fetching nothing](TASK-02-the-credential-through-the-boundary.md)                                                                                                                                      | Not started |
-| 2.7.3      | [The client: one request, one page, and the mapping onto the domain types](TASK-03-the-client-and-the-mapping.md)                                                                                                                                                             | Not started |
-| 2.7.4      | [Point the deployed backend at Alpaca and let the chrome say `IEX`](TASK-04-the-feed-tells-the-truth-about-a-real-vendor.md)                                                                                                                                                  | Not started |
-| 2.7.5      | [Pagination, coverage, and what a real IEX session actually contains](TASK-05-pagination-coverage-and-the-shape-of-a-real-session.md)                                                                                                                                         | Not started |
-| 2.7.6      | [Every failure this vendor can produce, mapped and produced rather than imagined](TASK-06-the-error-taxonomy-against-a-real-vendor.md)                                                                                                                                        | Not started |
-| 2.7.7      | [The retry wrapper, bounded by the caller, with numbers from the measured limit](TASK-07-the-retry-wrapper-and-the-measured-limit.md)                                                                                                                                         | Not started |
-| 2.7.8      | [`delisted`, and whether a ticker rename gets an identity](TASK-08-the-symbols-lifecycle-delisted-and-the-rename.md)                                                                                                                                                          | Not started |
-| 2.7.9      | [Verify, sweep, and record ADR 0019](TASK-09-verify-document-and-adr.md)                                                                                                                                                                                                      | Not started |
+| #          | Task                                                                                                                                                                                                                                                                          | Status                    |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| **Prereq** | **An Alpaca account with market-data API keys.** Not a task — the same shape as Epic 1's `ACCOUNT-SETUP.md`, because nothing between two tasks owns creating an account. Everything except 2.7.1's measurements can be built against recorded fixtures with no account at all | **Satisfied 2026-09-07**  |
+| 2.7.1      | [Hold a real key, measure what the free plan actually is, and answer the question another story is parked on](TASK-01-the-account-the-cap-and-the-real-plan.md)                                                                                                               | **Complete (2026-09-07)** |
+| 2.7.2      | [Put the key through the configuration boundary and onto the platform, fetching nothing](TASK-02-the-credential-through-the-boundary.md)                                                                                                                                      | Not started               |
+| 2.7.3      | [The client: one request, one page, and the mapping onto the domain types](TASK-03-the-client-and-the-mapping.md)                                                                                                                                                             | Not started               |
+| 2.7.4      | [Point the deployed backend at Alpaca and let the chrome say `IEX`](TASK-04-the-feed-tells-the-truth-about-a-real-vendor.md)                                                                                                                                                  | Not started               |
+| 2.7.5      | [Pagination, coverage, and what a real IEX session actually contains](TASK-05-pagination-coverage-and-the-shape-of-a-real-session.md)                                                                                                                                         | Not started               |
+| 2.7.6      | [Every failure this vendor can produce, mapped and produced rather than imagined](TASK-06-the-error-taxonomy-against-a-real-vendor.md)                                                                                                                                        | Not started               |
+| 2.7.7      | [The retry wrapper, bounded by the caller, with numbers from the measured limit](TASK-07-the-retry-wrapper-and-the-measured-limit.md)                                                                                                                                         | Not started               |
+| 2.7.8      | [`delisted`, and whether a ticker rename gets an identity](TASK-08-the-symbols-lifecycle-delisted-and-the-rename.md)                                                                                                                                                          | Not started               |
+| 2.7.9      | [Verify, sweep, and record ADR 0019](TASK-09-verify-document-and-adr.md)                                                                                                                                                                                                      | Not started               |
 
 ### Where the five open decisions are settled
 
