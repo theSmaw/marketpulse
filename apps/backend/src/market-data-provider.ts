@@ -1,6 +1,7 @@
 import type {
   Adjustment,
   BarSeries,
+  MarketFeed,
   ProviderId,
   Ticker,
   Timeframe,
@@ -551,6 +552,51 @@ export interface MarketDataProvider {
    * question asked of a provider that has not been called.
    */
   readonly id: ProviderId;
+
+  /**
+   * Which venues are in the numbers this implementation serves — the
+   * invariant-6 field, declared **standing** rather than per request.
+   *
+   * ## Why a provider is the thing that knows this (Task 2.6.7)
+   *
+   * `MARKET_FEEDS`' own comment is emphatic that provider and feed vary
+   * *independently*: one vendor serves a single venue on a free plan and the
+   * consolidated tape on a paid one. That is an argument against **inferring**
+   * a feed from a provider id, and it is not an argument against a provider
+   * **declaring** one — because the thing that holds the credential is exactly
+   * the thing that knows which plan it is on. Story 2.7's client is
+   * constructed from a key and will declare the feed that key is entitled to.
+   *
+   * The two rejected homes, both weighed against this:
+   *
+   *  - **A second environment variable.** Honest about the feed being a
+   *    property of the plan rather than of the vendor, and it buys that at the
+   *    price of a fourteenth variable and a pair nothing checks — an operator
+   *    could set `MARKET_DATA_PROVIDER` and the feed variable to two things
+   *    that cannot both be true, and the product would then print the wrong
+   *    one. It also duplicates a fact the client already has from its own
+   *    configuration.
+   *  - **Nothing, and render only the provider until a series exists.** The
+   *    narrowest answer and the one that leaves §7.1 unmet in the state that
+   *    matters: a deployment reading a single venue would say so nowhere until
+   *    somebody opened a chart.
+   *
+   * ## What this is NOT, and the line is worth keeping
+   *
+   * This is the **standing claim about what this deployment is configured to
+   * read**. `SeriesProvenance` remains the authority for what a *particular*
+   * series actually came from, per source, and it is what Story 2.14 renders
+   * beside a number. The two agree by construction in an implementation that
+   * has one definition of its feed — see `fixture-provider.ts`, where the
+   * `BarSource` reads this field rather than repeating a literal.
+   *
+   * The reversal trigger is a provider that serves **more than one feed**,
+   * chosen per request. At that point this field stops being a fact about the
+   * implementation and becomes a fact about a call, and it moves onto the
+   * request — at which point the chrome renders the *configured* feed from
+   * somewhere else, and every series still carries its own.
+   */
+  readonly feed: MarketFeed;
 
   /**
    * Fetch bars for one symbol.

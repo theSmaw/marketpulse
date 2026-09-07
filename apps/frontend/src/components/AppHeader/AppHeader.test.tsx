@@ -21,7 +21,7 @@ const LAST_SUCCESS = new Date(2026, 8, 4, 10, 42, 17);
 
 function props(overrides: Partial<AppHeaderProps> = {}): AppHeaderProps {
   return {
-    feedStatus: "live",
+    marketFeed: { state: "configured", feed: "iex" },
     backendStatus: "healthy",
     backendDegradedCause: null,
     backendLastSuccessAt: LAST_SUCCESS,
@@ -32,7 +32,7 @@ function props(overrides: Partial<AppHeaderProps> = {}): AppHeaderProps {
 
 describe("AppHeader", () => {
   it("is a banner containing a named navigation", () => {
-    renderWithContext(<AppHeader {...props({ feedStatus: "disconnected" })} />);
+    renderWithContext(<AppHeader {...props()} />);
 
     const banner = screen.getByRole("banner");
     expect(
@@ -77,19 +77,47 @@ describe("AppHeader", () => {
     expect(current[0]?.getAttribute("href")).toBe(path);
   });
 
-  it("shows the feed state, which is never an error", () => {
+  // Task 2.6.7 replaced a hard-coded `DISCONNECTED` here with the feed this
+  // deployment is actually configured to read. What is asserted is the property
+  // §7.1 requires — a reader is told what the feed covers in a **sentence**,
+  // because an acronym tells a non-specialist nothing — and that none of it is
+  // an error, because a single-venue feed is a product state (§36).
+  it("says which feed it reads, in a sentence, and never as an error", () => {
     renderWithContext(
       <AppHeader
-        {...props({
-          feedStatus: "disconnected",
-          feedDetail: "No market data until Epic 3",
-        })}
+        {...props({ marketFeed: { state: "configured", feed: "iex" } })}
       />,
     );
 
-    expect(screen.getByText("disconnected")).toBeDefined();
-    expect(screen.getByText("No market data until Epic 3")).toBeDefined();
+    expect(screen.getByText("IEX")).toBeDefined();
+    expect(
+      screen.getByText(/not the full US consolidated tape/i),
+    ).toBeDefined();
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  // The value this replaced. A hard-coded status word in the chrome is the one
+  // thing this task exists to remove, and this is what would go red if a future
+  // change put a connection state back into this region without a connection
+  // behind it.
+  it("renders no invented connection state", () => {
+    renderWithContext(<AppHeader {...props()} />);
+
+    for (const invented of ["disconnected", "live", "stale"]) {
+      expect(screen.queryByText(invented)).toBeNull();
+    }
+  });
+
+  // The default deployment, and the state a correct first run shows.
+  it("says so when no market-data provider is configured", () => {
+    renderWithContext(
+      <AppHeader {...props({ marketFeed: { state: "not-configured" } })} />,
+    );
+
+    expect(screen.getByText("not configured")).toBeDefined();
+    expect(
+      screen.getByText(/No market-data provider is configured/),
+    ).toBeDefined();
   });
 
   // The region reserved `--:--:--` from Story 1.5 to Story 2.5 and holds a real
@@ -117,13 +145,19 @@ describe("AppHeader", () => {
   it("shows the backend service beside the market feed, as two labelled regions", () => {
     renderWithContext(
       <AppHeader
-        {...props({ feedStatus: "disconnected", backendStatus: "healthy" })}
+        {...props({
+          marketFeed: { state: "not-configured" },
+          backendStatus: "healthy",
+        })}
       />,
     );
 
     expect(screen.getByText("Market feed")).toBeDefined();
     expect(screen.getByText("Backend service")).toBeDefined();
-    expect(screen.getByText("disconnected")).toBeDefined();
+    // The two disagreeing, which is the whole argument for there being two of
+    // them: a healthy backend that is reading no market feed at all is the
+    // correct rendering of a correct first run.
+    expect(screen.getByText("not configured")).toBeDefined();
     expect(screen.getByText("healthy")).toBeDefined();
   });
 

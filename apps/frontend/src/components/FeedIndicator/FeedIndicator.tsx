@@ -22,6 +22,16 @@ import styles from "./FeedIndicator.module.css";
 // Provenance belongs beside this component rather than inside it. Invariant 6
 // requires the feed to be labelled — the free tier is IEX, not consolidated
 // SIP — and that is a caller's string, not a status.
+//
+// **Task 2.6.7 built it, as `components/FeedProvenance`**, and this component
+// is no longer in the chrome: the header rendered a hard-coded `disconnected`
+// here from Story 1.5 to Story 2.6, and an invented status beside a truthful
+// provenance line would have been keeping the invented value. This still ships
+// and still has a consumer — the landing route's render check — and **Epic 3
+// brings it back to the strip BESIDE provenance rather than instead of it**,
+// because "which venues are in the numbers" and "is data arriving right now"
+// are two facts that fail independently. That is Task 1.12.4's
+// two-indicators argument, and it applies here for the third time.
 
 export interface FeedIndicatorProps {
   readonly status: FeedStatus;

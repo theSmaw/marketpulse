@@ -126,7 +126,13 @@ describe("the backend status in the chrome", () => {
 
       const banner = screen.getByRole("banner");
       expect(within(banner).getByText("Backend service")).toBeDefined();
-      expect(within(banner).getByText("checking")).toBeDefined();
+
+      // **Two** placeholders since Task 2.6.7, not one: the market feed is read
+      // from the backend too, so both cells say `checking` until their
+      // respective requests settle. Asserted as a count rather than by
+      // `getByText`, which throws on more than one match — the trap Story 1.9
+      // records, arriving because a second indicator started reporting.
+      expect(within(banner).getAllByText("checking")).toHaveLength(2);
 
       unmount();
     }

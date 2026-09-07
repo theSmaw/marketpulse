@@ -1,6 +1,6 @@
 # Task 2.6.7 — The feed tells the truth: provenance on screen, and the end of an invented status
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [2.6 Market-Data Provider Abstraction](STORY.md)
 **Depends on:** Tasks 2.6.3, 2.6.6
 
@@ -256,3 +256,277 @@ between a story that ships an interface and a story a stakeholder can be shown t
 Five of this story's eight tasks are invisible and the story says so plainly — what makes
 that acceptable is that this one is the seventh of eight rather than deferred polish, and
 that the region it fixes has been showing an invented value for six stories.
+
+---
+
+## What shipped (2026-09-07)
+
+Nine files new, thirteen amended, **no dependency and no lockfile change at all**.
+
+| File                                           | What it is                                                |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| `packages/shared/src/market-data-response.ts`  | the wire contract, one field, plus `isMarketDataResponse` |
+| `apps/backend/src/routes/market-data.ts`       | `GET /market-data`                                        |
+| `apps/frontend/src/use-market-feed.ts`         | the hook and `MarketFeedView`                             |
+| `apps/frontend/src/components/FeedProvenance/` | the component, its stylesheet, its stories and its tests  |
+| `e2e/specs/market-feed.spec.ts`                | five browser journeys                                     |
+
+### The decisions this task owed, and what each rests on
+
+**1. The feed is a field on `MarketDataProvider`, and it removes a copy rather than adding
+one.** The brief's three shapes were weighed and this one won on a mechanical argument rather
+than a preference: `fixture-provider.ts` already wrote `feed: "synthetic"` as a **literal
+inside its own `BarSource`**, so before this task the chrome's claim about the configured feed
+and a series' claim about its own could have been made to disagree by editing one of them.
+The field is now `FIXTURE_FEED`, read in both places. §4.2 says provider and feed vary
+independently, and that is an argument against **inferring** a feed from a provider id — not
+against a provider **declaring** one, because the thing that holds the credential is exactly
+the thing that knows which plan it is on.
+
+The two rejections are recorded in the interface: a **second environment variable** (a
+fourteenth, and a pair nothing checks, which lets an operator set two things that cannot both
+be true, and which duplicates a fact the client already has); and **rendering only the
+provider** until a series exists, which leaves §7.1 unmet in the state that matters — a
+deployment reading a single venue would say so nowhere until somebody opened a chart. The
+line that keeps §4.2 true is stated beside the field: this is the **standing claim about what
+the deployment is configured to read**, `SeriesProvenance` is the authority for a
+**particular** series, and the reversal trigger is a provider that serves more than one feed
+per request.
+
+**2. The value comes from a small endpoint of its own — and `/securities` was rejected for a
+harder reason than the brief anticipated.** The brief worried about conflating two provenance
+records; true, and secondary. The decisive fact is that the thing rendering this is the
+**chrome**, which is on all five routes, while `useSecurities` fetches only on `/securities`.
+A field there would leave the market-feed region empty on four routes out of five, including
+the landing route. `/health` stayed closed on Task 2.1.7's terms. The pre-emption is written
+into **Story 2.9's own file**, the way Story 2.4's were.
+
+**3. The body is ONE field, and `provider` is deliberately absent.** `API_ERROR_CODES`' rule
+governs a response's fields as much as a union's members — a field exists when something
+reads it — and nothing reads the provider: every provider declares a feed, so `feed === null`
+happens **exactly** when none is configured, and what §7.1 requires on screen is the feed
+rather than the vendor. The name arrives with its first reader, Story 2.14, off
+`SeriesProvenance` where it already travels.
+
+**4. Provenance renders INSIDE the market-feed region, and it replaces the status word rather
+than sitting beside it.** Not a fourth region — `.clock` is `align-items: flex-end` as the end
+of the strip, and `AllPermutations` stopped being a cartesian product for a reason a fourth
+axis makes worse. And **the hard-coded `FeedIndicator` left the chrome entirely**: keeping a
+`DISCONNECTED` word beside a truthful provenance line would be keeping the invented value,
+which is the one thing this task exists to remove. `FeedIndicator` still ships and still has
+a real consumer (the landing route's render check); Epic 3 brings it back to the chrome
+**beside** provenance rather than instead of it, because "which venues are in the numbers" and
+"is data arriving right now" are two facts.
+
+**5. The predicate is STRICTER than `isHealthResponse`, which is a deliberate divergence.**
+That one accepts a `status` it has not been taught, because a newer server is a version skew.
+This one refuses a feed it has no words for, on two arguments: there is nothing honest to do
+with an unrecognised slug — rendering it raw is the caption problem this story exists to
+prevent — and the skew window does not exist here, because a new feed slug is a change to
+`packages/shared`, which is inlined into the bundle, and `deploy.yml` ships both halves from
+one commit. An unrecognised feed therefore arrives as `unreadable-body` and renders as the
+honest `unknown`.
+
+**6. `AppHeader` takes ONE prop for this and four for the backend, and that is not an
+inconsistency.** The four-props rule exists because those four fields are _independent_ and a
+component would have to be trusted not to construct their impossible combinations.
+`MarketFeedView` is a discriminated union, which is the shape that makes those combinations
+unconstructible — so spreading it would hand the renderer back exactly the space it removes.
+`UniverseTable` takes `SecuritiesView` whole for the same reason.
+
+**7. The hook is called in `App`, and the rule is now stated once rather than re-derived: a
+hook that makes a network request is called in `App`; a hook that does not is called where it
+renders.** `useMarketClock` is in `AppHeader` because the argument there is render _rate_.
+This one asks the backend, so `useBackendHealth`'s argument applies — the header sits inside
+its own `ErrorBoundary`. It costs the tree **two** renders, the mount and the settle, and
+then nothing, so Task 1.12.5's accepted per-poll re-render is not made worse and its reversal
+trigger is not fired.
+
+### The axe gate found a real accessibility defect, in the one state where being wrong matters most
+
+**The first draft put the amber on the `SIMULATED` word as well as its marker**, on the
+argument that it is the one word in the chrome that must be read rather than glanced past.
+The gate rejected it with a **real violation** rather than this repository's standing
+`color-contrast` inconclusive: `--palette-amber` (`#e2b544`) on the page ground measures
+**1.73:1** at 12px, where 4.5 is the threshold — **worse than the 2.09:1 `--ink-disabled`
+that Task 1.12.4 was caught by**, found the same way, and reproduced at all three viewports.
+
+The intention was right and the mechanism was wrong, and the design language already carries
+the correct one: **standing out, like receding, is a job for weight and hierarchy and never
+for ink outside the contrast floor** — which is the argument `AppHeader`'s current-route link
+already makes, carrying its state in weight and an underline rather than in ink alone. The
+`synthetic` state now has **four** channels and every one of them clears the floor: the one
+square marker in the region, the only strong-weight word in the status strip, the sentence
+_"Generated test data. Not a market feed."_, and the amber on the marker — where it decorates
+an `aria-hidden` silhouette whose meaning is carried by the word beside it, which is the same
+placement `BackendIndicator` gives its own amber and the reason that component was never
+caught by this rule.
+
+**After the fix the baseline is unmoved**: `0 violations / 37 passes / 1 inconclusive
+(color-contrast)` on the landing route at **1280×720, ×560 and ×480**, in **all three** feed
+states, which is nine readings reproducing Task 1.5.4's figure exactly.
+
+### Eight deliberate breaks, each seen to fail and reverted
+
+| Break                                                   | Result                                                    |
+| ------------------------------------------------------- | --------------------------------------------------------- |
+| a literal caption in place of the shared sentence       | **3** component tests red, **2** browser journeys red     |
+| the schema's `["string","null"]` narrowed to `"string"` | **3** route tests red — the empty-string trap, reproduced |
+| the predicate loosened to accept any string feed        | **2** shared tests red, **1** hook test red               |
+| a hard-coded `FeedIndicator` put back in the chrome     | **1** header test red, **1** browser journey red          |
+| the hook mapping a null feed to `configured`            | **1** hook test red                                       |
+| `feed` removed from the fixture provider                | **`TS2741`** — a compile error, not a test                |
+| `feed` added to the interface (before implementing it)  | **`TS2741`** in a file this task had not yet edited       |
+| the amber left on the label                             | **3** axe readings red, at three viewports                |
+
+The sixth and seventh are the ones worth carrying: `MarketDataProvider.feed` is enforced by
+the **compiler**, so a Story 2.7 client that forgets to declare its feed cannot ship, and a
+green `pnpm test` proves none of it while `pnpm verify` does — because it builds before it
+tests.
+
+### Figures
+
+- **`pnpm verify` exit 0 in 31.7 s.** `pnpm test` is **619** (206 + 230 + **183**),
+  `pnpm test:process` 14, `pnpm test:database` 61.
+- **`pnpm e2e` is 28 across six spec files** (up from 23) **and the wall time did not move**:
+  1.0 m, still dominated by the recovery journey. The marginal cost of a journey here is
+  still zero until the suite grows past that one minute.
+- **The artefact moved, and both halves are explained.** JavaScript 369,437 → **371,463 B**
+  (`c8f1c3ad…`), CSS 17,317 → **18,063 B** (`ed3d1744…`), `index.html` 1,101 B (`7b0075a8…`),
+  `staticwebapp.config.json` 300 B, for **390,927 B over four files at 300 modules**. The
+  +2,026 B of JavaScript is the component, the hook, `getMarketData`, the predicate — and
+  **`MARKET_FEED_DESCRIPTIONS` reaching the browser for the first time**, which Task 2.6.3
+  measured at zero because nothing read it; the words are now in the bundle, confirmed by
+  grep. The +746 B of CSS is `FeedProvenance.module.css` entering the artefact. `FeedIndicator`
+  did **not** leave the bundle, correctly: the landing route's render check still uses it.
+- **The endpoint on the running pair**: `{"feed":null}` at 200 in 13 bytes, with
+  `x-request-id` and the CORS headers every other route carries.
+
+### The honest gap, which is Tasks 2.2.7 and 2.3.7's word for word
+
+**The deployed page has not been read, because the route is not deployed.** `deploy.yml` only
+runs on `main`, so the first execution is the first merge after this one. Measured rather than
+assumed: the deployed backend answers `/market-data` with **404** carrying the `ApiError`
+contract (`{"code":"NOT_FOUND","message":"Route not found.","requestId":"…"}`), which is the
+"before" state recorded precisely.
+
+That measurement bought something the task did not set out to get: **it is the exact state
+production is in for the ninety seconds of the rollout that ships this**, because the two
+halves deploy as two steps and a new frontend can ask an old backend. A test now asserts that
+the chrome degrades to `unknown` / _"The market feed could not be read."_ on that response
+rather than breaking or claiming a feed.
+
+**A deployed assertion was added anyway**, inside `two-halves.spec.ts`'s existing page load,
+so it costs the deployed backend **nothing**. It clears that suite's _"something no other
+instrument can see"_ bar for the same reason the two failures above it do:
+`MARKET_DATA_PROVIDER` is set on the Container App and **exists in no file in this
+repository**, so a local instrument is structurally unable to read it, and a false provenance
+claim on a public URL is §35's subject and a rollback decision. It asserts the claim is a
+**real** one — one of the vocabulary's words, settled, never a connection word — and
+deliberately not **which**, because that is a deployment setting.
+
+---
+
+## For the stakeholders — what changed, in plain terms
+
+### The short version
+
+**Until today, MarketPulse's header lied.** In the top-right corner, under the words `MARKET
+FEED`, it said `DISCONNECTED`. It had said that on every page, on every visit, since the very
+first version of the interface — and it was not reading anything. It was a word somebody had
+typed into the page. It was _honest_ in the sense that we genuinely have no market data yet,
+but it was still a made-up status on a market product, in the one part of the screen a person
+is entitled to assume is reporting something real.
+
+It now says what is actually true. On the site today it reads:
+
+> **MARKET FEED**
+> ○ NOT CONFIGURED
+> No market-data provider is configured.
+
+That is a real answer, fetched from our own service, about how that service is actually set
+up right now. Change the setting and the page changes with it — with nobody touching the
+front end.
+
+### Why this is worth a whole task rather than a one-line fix
+
+Because of a promise this product makes and a rule it has to keep.
+
+The market data we can afford covers **one US exchange, IEX — not all of them.** That is
+completely normal for a product at this stage, and it is completely unacceptable to be vague
+about. A screen showing a price without saying where it came from invites a reader to assume
+it is the whole market. Our own specification says, in as many words, that MarketPulse must
+never imply that. So _where the number came from_ is not a footnote here; it is part of the
+product.
+
+There is a lazy version of this that we deliberately did not build: printing `Market feed:
+IEX` under the chart. It technically satisfies the rule and it fails the point, because most
+people do not know what IEX is, and three letters tell them nothing. What is on screen instead
+is a short label **and a sentence**:
+
+> **IEX** — Trades reported by the IEX exchange only — not the full US consolidated tape.
+
+A reader who has never heard of IEX cannot come away from that thinking they are looking at
+the whole US market. That is the actual requirement, and it is why the words live in one
+place in the codebase rather than being retyped wherever somebody happens to need them — one
+sentence, one definition, no copies to drift apart.
+
+### The safety mechanism nobody sees until it matters
+
+Developers can run MarketPulse against **invented prices** — a built-in generator, so that
+work can carry on without a data subscription, offline, on a train. That is very useful and
+it is also the single most dangerous thing in this codebase, because a screenshot of invented
+prices looks exactly like a screenshot of real ones. Somebody puts one in a slide deck and it
+becomes a claim about the market.
+
+We could have handled that with a rule: _remember to add a "SAMPLE DATA" banner_. Rules like
+that get forgotten. Instead the header now says it **structurally** — a deployment running on
+generated data reads:
+
+> **SIMULATED** — Generated test data. Not a market feed.
+
+Nobody has to remember. It is impossible to screenshot the product on fake data without also
+screenshotting the sentence saying it is fake.
+
+Getting that state to stand out taught us something worth reporting. The first attempt marked
+it in amber — the one accent colour in the design — including the word itself. Our automated
+accessibility check rejected it: amber text on our warm off-white background is far too faint
+to be legible for anyone with low vision, by a wide margin. So the word is now the only
+**bold** word in the header instead, with the amber kept on the small square marker beside it,
+plus the sentence. Three ways of noticing it, all of them readable. It is a small illustration
+of something we have decided to hold as a standard: the accessible version and the
+better-looking version are usually the same version, once you stop reaching for colour first.
+
+### What a stakeholder can do with this today
+
+Open the site. Look at the top-right. It tells you the truth about how the deployment is
+configured, and it will keep telling you the truth as that configuration changes — including
+during the roughly ninety seconds of a deployment when the two halves of the system are
+briefly out of step, where it says _"The market feed could not be read"_ rather than guessing.
+
+**What you still cannot do is see a price.** No numbers, no charts, no securities data of any
+kind. That is genuinely the next stretch of work: the very next story connects the real market
+data provider, after which this same region will read `IEX` **with no change to the interface
+at all** — which is the proof that what we built is a display of real information rather than
+another typed-in word. Charts follow a few stories after that.
+
+### Where this sits in the plan
+
+This was the seventh of eight tasks in a story that was, by design, almost entirely invisible
+— it built the plumbing that every price in this product will arrive through: the shape of a
+price observation, the record of where it came from, the interface any data provider has to
+satisfy, the full list of ways a data request can fail, and an offline stand-in that
+implements all of it.
+
+Five of those eight tasks changed nothing on screen, and we said so plainly at the start
+rather than dressing it up. This task is why that was acceptable: it was scheduled **inside**
+the story rather than deferred to some later polish phase, precisely because a run of
+invisible work with nothing to show at the end is how a project loses the thread of what it is
+building. It is also the smallest honest thing we could have shipped. A chart drawn from
+invented prices was technically available and was rejected twice over — it would have forced a
+major charting decision, three stories early, by accident and under time pressure, and it
+would have put made-up numbers on a market product's screen, which is exactly what the
+paragraphs above are about.
+
+One task remains in this story: writing down the architecture decision record, so that the
+reasoning behind all of it survives the people who made it.

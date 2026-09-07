@@ -35,12 +35,12 @@ import { expectNothingFailedToRender } from "../support/app.js";
 //
 // Two things about the region labels that a selector gets wrong by default,
 // both handed over by Task 1.12.7. The strip holds **three** regions —
-// `Market feed`, `Backend service` and `Market clock` — and a correct first run
-// shows a `DISCONNECTED` market feed beside a `HEALTHY` backend service,
-// because there is no market data until Epic 3. So a selector matching a status
-// word without scoping to its region is matching the wrong indicator half the
-// time. And the words are rendered lowercase and uppercased by CSS, so the
-// accessible text is `healthy`, not `HEALTHY`.
+// `Market feed`, `Backend service` and `Market clock` — all three of which now
+// render a word, and on a correct first run **two of them read `checking` at
+// once** while their requests settle (Task 2.6.7 made the market feed read from
+// the backend too). So a selector matching a status word without scoping to its
+// region is matching the wrong cell. And the words are rendered lowercase and
+// uppercased by CSS, so the accessible text is `healthy`, not `HEALTHY`.
 
 // §9's four areas, in the vocabulary §8.1 gave them. Each is a `region`
 // landmark named by the `<h2>` it already has, so the accessible name and the

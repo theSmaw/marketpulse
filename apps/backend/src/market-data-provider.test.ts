@@ -108,6 +108,11 @@ const EVERY_RESULT: readonly BarsResult[] = Object.values(EVERY_OUTCOME);
 function stub(result: BarsResult): MarketDataProvider {
   return {
     id: "fixture",
+    // Task 2.6.7 made this a standing field on the interface rather than a
+    // literal inside each implementation's `BarSource`, so that "which feed is
+    // this deployment reading" is answerable of a provider that has not been
+    // called. A stub declaring one is the compiler saying so.
+    feed: "synthetic",
     fetchBars: () => Promise.resolve(result),
   };
 }

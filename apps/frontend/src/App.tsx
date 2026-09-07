@@ -9,6 +9,7 @@ import { NotFound } from "./routes/NotFound.js";
 import { PATHS } from "./routes/paths.js";
 import { SecurityExplorer } from "./routes/SecurityExplorer.js";
 import { useBackendHealth } from "./use-backend-health.js";
+import { useMarketFeed } from "./use-market-feed.js";
 import styles from "./App.module.css";
 
 // `App` stopped being a page in Task 1.5.2 and became the router's host. Task
@@ -80,15 +81,6 @@ import styles from "./App.module.css";
 // turns a path into a string read from the environment, and the next person
 // reading "configuration" and "routes" in one file should not either.
 
-// The feed's state, hard-coded, and `disconnected` is the honest value: there
-// is no market data in this application until Epic 3, and rendering `live`
-// because §9's sketch shows it would be a green tick that means nothing. The
-// detail line says which epic changes it. It is **not** the backend
-// connection's state: Task 1.12.4 took that decision and the backend service
-// gets its own indicator beside this one — `components/BackendIndicator` —
-// which Task 1.12.5 passes `useBackendHealth()` into.
-const FEED_DETAIL = "No market data until Epic 3";
-
 export function App() {
   // The backend health poll, and since Task 1.12.5 its result has a consumer:
   // the chrome's backend indicator, four fields below.
@@ -124,6 +116,24 @@ export function App() {
   // is Epic 3, not this story.
   const backend = useBackendHealth();
 
+  // Which market feed this deployment reads (Task 2.6.7), replacing a value
+  // that was hard-coded in this file from Story 1.5 to Story 2.6.
+  //
+  // **Called here rather than in `AppHeader`, and the rule is worth stating
+  // once rather than re-deriving per hook: a hook that makes a network request
+  // is called in `App`; a hook that does not is called where it renders.**
+  // `useMarketClock` is in the header because the argument there is render
+  // *rate* — 1 Hz through the whole tree — and it asks nothing of anybody. This
+  // one asks the backend, and the argument that put `useBackendHealth` here
+  // applies unchanged: `AppHeader` sits inside its own `ErrorBoundary`, so a
+  // header that throws would take the request down with it.
+  //
+  // It costs the tree exactly **two** renders — the mount and the settle — and
+  // then nothing, because it never polls. So Task 1.12.5's accepted per-poll
+  // re-render is not made worse by it, and the reversal trigger recorded there
+  // is not fired.
+  const marketFeed = useMarketFeed();
+
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <div className={styles.page}>
@@ -156,8 +166,7 @@ export function App() {
            * purpose.
            */}
           <AppHeader
-            feedStatus="disconnected"
-            feedDetail={FEED_DETAIL}
+            marketFeed={marketFeed}
             backendStatus={backend.status}
             backendDegradedCause={backend.degradedCause}
             backendLastSuccessAt={backend.lastSuccessAt}

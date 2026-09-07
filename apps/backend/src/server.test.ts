@@ -22,6 +22,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { apiErrorSchema } from "./errors.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
+import { createMarketDataRoutes } from "./routes/market-data.js";
 import { createSecuritiesRoutes } from "./routes/securities.js";
 
 import { buildServer } from "./server.js";
@@ -452,6 +453,12 @@ describe("the response-schema declaration", () => {
           listSecuritiesProvenance: () => Promise.resolve([]),
         }),
       );
+      // The one route registered in `index.ts` that could have gone in the
+      // factory — see routes/market-data.ts. `undefined` is the default
+      // deployment: no provider configured.
+      app.register(
+        createMarketDataRoutes({ selection: "none", provider: undefined }),
+      );
     });
 
     // A guard on the guard: if the hook ever stops seeing routes, this test
@@ -465,6 +472,7 @@ describe("the response-schema declaration", () => {
         "/health",
         "/diagnostics/database",
         "/securities",
+        "/market-data",
       ]),
     );
 

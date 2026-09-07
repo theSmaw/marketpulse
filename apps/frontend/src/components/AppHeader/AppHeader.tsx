@@ -1,15 +1,12 @@
-import type {
-  BackendDegradedCause,
-  BackendStatus,
-  FeedStatus,
-} from "@marketpulse/shared";
+import type { BackendDegradedCause, BackendStatus } from "@marketpulse/shared";
 import { NavLink } from "react-router";
 
 import { cx } from "../../cx.js";
 import { BackendIndicator } from "../BackendIndicator/BackendIndicator.js";
-import { FeedIndicator } from "../FeedIndicator/FeedIndicator.js";
+import { FeedProvenance } from "../FeedProvenance/FeedProvenance.js";
 import { MarketClock } from "../MarketClock/MarketClock.js";
 import { PATHS } from "../../routes/paths.js";
+import type { MarketFeedView } from "../../use-market-feed.js";
 import { useMarketClock } from "../../use-market-clock.js";
 import styles from "./AppHeader.module.css";
 
@@ -75,26 +72,22 @@ import styles from "./AppHeader.module.css";
 
 export interface AppHeaderProps {
   /**
-   * The **market feed's** state, not the backend service's. Hard-coded by the
-   * caller until Epic 3 supplies a feed.
+   * What this page knows about the **market feed's provenance** — which venues
+   * are in the numbers this deployment serves (Task 2.6.7).
    *
-   * Task 1.12.4 answered the question this comment used to point at: the
-   * backend connection is **not** the same fact, and it gets a second
-   * indicator — `components/BackendIndicator` — beside this one rather than
-   * widening `FeedStatus`. The reasoning is written out there; the short form
-   * is that `FeedStatus` is something the backend *reports* about the market
-   * data and `BackendStatus` is something this client *concludes* about
-   * whether the backend answered at all, they fail independently, and a user
-   * needs both answers. Task 1.12.5 is what puts the second one in this file.
+   * **One prop rather than spread fields, which is the opposite of the backend
+   * four below and is not an inconsistency.** That rule exists because those
+   * four are *independent* values whose impossible combinations a component
+   * would have to be trusted not to construct. `MarketFeedView` is a
+   * discriminated union, which is the shape that makes those combinations
+   * unconstructible — so spreading it would hand the renderer back exactly the
+   * space it removes. `UniverseTable` takes `SecuritiesView` whole for the same
+   * reason.
+   *
+   * It is still a network loop's result, and the header still does not know
+   * that: this is a value, and `App` owns the call.
    */
-  readonly feedStatus: FeedStatus;
-
-  /**
-   * The half of PRODUCT_SPEC.md §36's message that carries the information —
-   * "displaying data through 10:42:17". The chrome is the one place with room
-   * for it, which is why `FeedIndicator` made it optional.
-   */
-  readonly feedDetail?: string;
+  readonly marketFeed: MarketFeedView;
 
   /**
    * The **backend service's** state, and the three fields that go with it.
@@ -144,8 +137,7 @@ const NAVIGATION = [
 ] as const;
 
 export function AppHeader({
-  feedStatus,
-  feedDetail,
+  marketFeed,
   backendStatus,
   backendDegradedCause,
   backendLastSuccessAt,
@@ -167,31 +159,27 @@ export function AppHeader({
 
       <div className={styles.status}>
         {/*
-          The connection status area. `FeedIndicator` already knows that none
-          of its three states is an error — §36 makes stale and disconnected
-          product states — so this is a placement, not a coloured dot invented
-          here.
+          The market feed, and since Task 2.6.7 it says something true.
 
-          It is the **market feed's** indicator and it stays that way. The
-          backend service's state is the second region below
-          (`components/BackendIndicator`, Task 1.12.4, wired in here by Task
-          1.12.5) — two indicators sharing one marker language rather than one
-          indicator carrying two vocabularies.
+          The comment that used to sit here said invariant 6's provenance label
+          belonged in this region and was "deliberately not written yet, because
+          there is no market data in this application". That was right about the
+          placement and wrong about the precondition, which is the correction
+          this task makes: **provenance is a fact about our configuration, not
+          about a number**, so it is answerable before a single price exists —
+          and it was the hard-coded `DISCONNECTED` beside it that was the claim
+          with nothing behind it.
 
-          This region is also where invariant 6's provenance label belongs
-          ("Market feed: IEX", because the free tier is not consolidated SIP).
-          It is deliberately **not** written yet: there is no market data in
-          this application, and a provenance claim with nothing behind it is
-          the kind of statement the invariant exists to prevent. Epic 3 adds
-          it here, beside the status.
+          Not a fourth region, deliberately. `.clock` is `align-items:
+          flex-end` because it is the end of the strip, so a region appended
+          after it takes that edge away (Task 1.12.5 hit this once already), and
+          `AppHeader`'s own `AllPermutations` stopped being a cartesian product
+          for a reason a fourth axis makes worse. Provenance is what this region
+          is *for*; it does not need one of its own.
         */}
-        <div className={styles.region}>
+        <div className={cx(styles.region, styles.feedRegion)}>
           <p className={styles.microLabel}>Market feed</p>
-          {feedDetail === undefined ? (
-            <FeedIndicator status={feedStatus} />
-          ) : (
-            <FeedIndicator status={feedStatus} detail={feedDetail} />
-          )}
+          <FeedProvenance view={marketFeed} />
         </div>
 
         {/*

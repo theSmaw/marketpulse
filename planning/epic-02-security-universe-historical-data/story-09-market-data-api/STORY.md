@@ -182,3 +182,49 @@ and `pino` is not importable from `apps/backend`, so a `ServerOptions.securities
 constructed before the call it would be an argument to. `securities.ts`'s route is registered
 from `index.ts` for that reason. Three ways out are recorded and rejected in that file. If
 you want the factory to own it, that is a real piece of work rather than a tidy-up.
+
+## Amended 2026-09-07 by Task 2.6.7 — you already have a route in your namespace
+
+**`GET /market-data` exists and it is a first cut of this story's contract**, recorded here
+rather than only in that task's own file, the way Story 2.4's pre-emptions of 2.9, 2.10 and
+2.11 were. Read this before designing the series endpoint's paths.
+
+**What it is.** One field — `{ feed: MarketFeed | null }` — answering _which market feed is
+this deployment reading_. It is a **standing configuration** rather than anything about a
+request: true before any fetch is made, still true while one fails, and the chrome's
+`Market feed` region renders it on every route. Its contract is
+`packages/shared/src/market-data-response.ts` and its route is
+`apps/backend/src/routes/market-data.ts`.
+
+**Why it could not wait for you.** The header had rendered a **hard-coded `DISCONNECTED`**
+since Story 1.5 and this was the story that knew what the true claim was. The three
+candidate homes were weighed and two are closed for reasons that also apply to you:
+`/health` is settled by Task 2.1.7 and not reopened, and `/securities` is **structurally
+unable** to serve a chrome-wide fact, because `useSecurities` fetches only on `/securities`
+while the chrome renders on all five routes.
+
+**Three things it hands you.**
+
+- **The path is taken and the namespace is yours to shape.** `/market-data` is a resource
+  today. A series endpoint nested under it (`/market-data/bars`, or whatever you choose) is
+  the tidy read; so is leaving this where it is and putting bars elsewhere. What must not
+  happen is a second endpoint answering _which feed_ — that fact has one home now.
+- **Provenance on a series does not come from here.** This route reports what the
+  **deployment is configured to read**; `SeriesProvenance` remains the authority for what a
+  **particular** series came from, per source, and it is what Story 2.14 renders beside a
+  number. The two agree by construction in a provider that has one definition of its feed —
+  `MarketDataProvider.feed` is that definition, and `fixture-provider.ts` reads it rather
+  than repeating a literal. **Do not add a feed to a series response envelope**: it is
+  already on the series.
+- **The route is registered from `index.ts`** even though it could have gone in
+  `buildServer()` — `resolveMarketData` needs no pool and no logger, so the ordering that
+  blocked `/securities` does not apply. What decided it is one rule rather than two:
+  `/health` needs nothing and lives in the factory, a route with a dependency is registered
+  where its dependency is constructed. `server.test.ts`'s route-table walk covers it.
+
+**And the shape decision that will be put to you again.** The body is **one field**, and
+`provider` is deliberately absent because nothing reads it: every provider declares a feed,
+so `feed === null` is exactly _"no provider is configured"_. `API_ERROR_CODES`' rule governs
+a response's fields as much as a union's members — a field exists when something reads it.
+The provider's name arrives with its first reader, which is Story 2.14, off `SeriesProvenance`
+where it already travels.

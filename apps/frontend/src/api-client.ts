@@ -3,7 +3,9 @@ import {
   type HealthResponse,
   isApiError,
   isHealthResponse,
+  isMarketDataResponse,
   isSecuritiesResponse,
+  type MarketDataResponse,
   REQUEST_ID_HEADER,
   type SecuritiesResponse,
 } from "@marketpulse/shared";
@@ -330,4 +332,29 @@ export function getSecurities(
   options?: ApiRequestOptions,
 ): Promise<ApiResult<SecuritiesResponse>> {
   return apiRequest("/securities", isSecuritiesResponse, options);
+}
+
+/**
+ * `GET /market-data` — which market feed this deployment reads (Task 2.6.7).
+ *
+ * The third request shape, and a third call to `apiRequest` for the reason
+ * `getSecurities` gives: the base URL, the deadline, the composed abort signal,
+ * the correlation-id read and the seven outcomes are all invisible at a call
+ * site and would have to be remembered again.
+ *
+ * The predicate is `isMarketDataResponse`, imported beside the shape it checks.
+ * **It is deliberately stricter than `isHealthResponse`** and its own module
+ * says why: a feed slug this bundle has no words for cannot be rendered
+ * honestly, so it comes back `unreadable-body` rather than reaching a component
+ * that would print a slug. That is the caption problem this whole story exists
+ * to prevent, arriving through the one door left open.
+ *
+ * Fetched once per page load rather than polled — see `use-market-feed.ts`. A
+ * deployment's configured feed changes when somebody deploys, which is a page
+ * reload away.
+ */
+export function getMarketData(
+  options?: ApiRequestOptions,
+): Promise<ApiResult<MarketDataResponse>> {
+  return apiRequest("/market-data", isMarketDataResponse, options);
 }
