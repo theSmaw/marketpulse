@@ -1029,6 +1029,14 @@ silently applied to the code later:
    count should be checked against §8.1 rather than against the story's prose.
 3. **Story 2.7 gains a scope bullet**, not a hope: reconcile the fixture generator's three
    assumptions against one real series (§6.4). Written into that file in this change.
+4. **Added 2026-09-07 by Task 2.6.3: Story 2.8's stitcher does not get to write a provenance
+   record by hand, and it does not need telling.** `SeriesProvenance` is branded and
+   `mergeSeriesProvenance` is the only route to a multi-source one, so the adjustment check
+   fires whether or not anybody read §2.4 — which is the difference between a correction to a
+   downstream file and a correction the type system delivers. What that story does still owe
+   is the **bar** join: `toBarSeries` refuses a non-ascending or duplicated pair, so a naive
+   concatenation of two overlapping fetches is a loud failure at construction rather than the
+   unique-constraint violation §9.3 predicts one layer down.
 
 ---
 

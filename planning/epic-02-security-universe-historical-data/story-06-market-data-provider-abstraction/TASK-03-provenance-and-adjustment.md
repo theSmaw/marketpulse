@@ -250,6 +250,11 @@ And **two compile-time breaks**, which are the ones criterion 3 actually rests o
   — and would additionally have gone red in Story 2.7, which legitimately adds a vendor
   member to `PROVIDER_IDS`. §9.5 had already settled that check as prose plus a measured
   grep, with a structural reason; the test was removed rather than the grep amended.
+- **The NAIVE text grep moved from seven occurrences to eight**, and the new one is correct:
+  `market-provenance.ts`'s module comment quotes §7.1's own wording — that the free tier is
+  IEX and not consolidated SIP — which is the invariant the module exists to serve. Task
+  2.6.8's criterion 1 is amended to say eight and to say the figure will keep moving, since
+  every module that explains why it did not copy the vendor adds one.
 
 ---
 

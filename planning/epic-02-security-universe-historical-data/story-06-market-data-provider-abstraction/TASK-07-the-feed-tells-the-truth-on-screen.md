@@ -110,10 +110,32 @@ alone means nothing to most readers and "Market feed: IEX" satisfies §7.1's let
 telling a non-specialist nothing. The requirement is that a reader is **not misled into
 thinking this is full US market coverage**, which is a sentence rather than an acronym.
 
-Write the words, and put them where the vocabulary lives rather than in JSX — Story 2.14
-renders the full treatment beside a chart and must not have to re-invent them. A `title`
-attribute is not the answer, for the reason Task 1.4.5 and Task 1.12.4 both rejected one: it
-is unreachable by keyboard and by touch.
+~~Write the words, and put them where the vocabulary lives rather than in JSX~~ — **amended
+2026-09-07: the words are already written, and this task's job is to RENDER them rather than
+to choose them.** `MARKET_FEED_DESCRIPTIONS` in `packages/shared/src/market-provenance.ts`
+is a `Record<MarketFeed, { label, sentence }>`, shipped by Task 2.6.3 for exactly the reason
+this section gives:
+
+| Feed        | `label`           | `sentence`                                                                    |
+| ----------- | ----------------- | ----------------------------------------------------------------------------- |
+| `iex`       | IEX               | Trades reported by the IEX exchange only — not the full US consolidated tape. |
+| `sip`       | Consolidated tape | All US exchanges, via the consolidated tape.                                  |
+| `synthetic` | Simulated         | Generated test data. Not a market feed.                                       |
+
+**So a string literal in JSX here is a second copy of a fact, and it is the copy that
+drifts** — the same failure the twelve-block problem is made of. Import them. The `satisfies`
+on that record means a feed added later without words is a compile error, so the pair cannot
+fall out of step; a component that re-words them puts that guarantee back outside the
+compiler.
+
+Note the one thing the table does **not** cover, which is this task's to write: there is no
+entry for _"no provider is configured"_, because that is not a feed. `MARKET_DATA_PROVIDER`'s
+default is `none` (§5.3) and the honest rendering of it is this task's decision — it is a
+sentence about our own configuration rather than about a market venue, which is why it does
+not belong in a feed table.
+
+A `title` attribute is not the answer for the sentence, for the reason Task 1.4.5 and Task
+1.12.4 both rejected one: it is unreachable by keyboard and by touch.
 
 ### Accessibility, and the three checks that already exist
 
@@ -149,6 +171,9 @@ for.
 - The provenance component exists with every state in the workshop, including the two a
   browser cannot easily reach
 - A reader who does not know what IEX is cannot come away believing this is full US coverage
+- The rendered words come from `MARKET_FEED_DESCRIPTIONS` rather than from JSX, and the
+  browser journey asserts them by **importing** them — which is what `packages/shared` being
+  a workspace dependency of `e2e` is for
 - axe is unmoved at three viewports; a browser journey asserts the rendered words and was
   seen to fail
 - `README.md`'s list of "things that read as faults on a correct first run" is **one shorter**
