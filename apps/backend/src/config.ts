@@ -19,6 +19,7 @@
 // So "validated against a declared schema" here means a declared set of
 // readers plus the CONFIG_VARIABLES table below, not a library.
 
+import { PROVIDER_IDS } from "@marketpulse/shared";
 import path from "node:path";
 import process from "node:process";
 
@@ -219,6 +220,38 @@ export type LogFormat = (typeof LOG_FORMATS)[number];
 // has a human in front of it.
 const DEFAULT_LOG_FORMAT: LogFormat = "json";
 
+// Which market-data provider serves prices, or `none` for no provider at all.
+//
+// DERIVED from `packages/shared`'s `PROVIDER_IDS` rather than restated, so a
+// provider added there — which Story 2.7 will do, in the same commit as the
+// client that produces it — becomes selectable without an edit here, and
+// `createMarketDataProvider`'s exhaustive switch is what then fails the build
+// until somebody wires it up. A second literal list would be a copy that
+// silently disagrees, and the disagreement's symptom is a configuration value
+// the operator can set and nothing can honour.
+export const MARKET_DATA_PROVIDER_SELECTIONS = [
+  "none",
+  ...PROVIDER_IDS,
+] as const;
+
+export type MarketDataProviderSelection =
+  (typeof MARKET_DATA_PROVIDER_SELECTIONS)[number];
+
+// **The default is `none`, and this is the safety decision in Story 2.6.**
+//
+// A backend serving fixture bars is serving invented prices, which is
+// PRODUCT_SPEC §35's "manufacture missing observations" verbatim — so a default
+// that quietly works is a default that quietly ships fabricated market data to
+// whatever is pointed at it. Task 1.8.3's `CORS_ORIGIN` note is the precedent
+// and its lesson is exactly this: a default that is convenient in development
+// is a decision about production, and it must be written down as one.
+//
+// It is also the honest value today: at the end of Story 2.6 no vendor client
+// exists, so `none` is what the deployed backend genuinely is. A developer opts
+// into fixtures by writing one line in `apps/backend/.env`, and the
+// deliberateness of that act is the property being bought.
+const DEFAULT_MARKET_DATA_PROVIDER: MarketDataProviderSelection = "none";
+
 // The settings the application gets. Written by hand rather than inferred, and
 // that is the shape Task 1.6.1 measured into: `exactOptionalPropertyTypes`
 // makes an optional key `?: T`, while both schema libraries infer
@@ -236,6 +269,7 @@ export interface Config {
   readonly logFormat: LogFormat;
   readonly corsOrigin: string;
   readonly database: DatabaseConfig;
+  readonly marketDataProvider: MarketDataProviderSelection;
 }
 
 // Nested rather than seven more `database`-prefixed keys on Config, because
@@ -315,6 +349,12 @@ export const CONFIG_VARIABLES: readonly ConfigVariable[] = [
     default: DEFAULT_CORS_ORIGIN,
     description:
       "The one browser origin allowed to call this API, matched exactly (scheme, host and port). The default is the Vite dev server, so a fresh clone works with no .env at all; a deployment should set this to the site's own origin.",
+  },
+  {
+    key: "MARKET_DATA_PROVIDER",
+    required: false,
+    default: DEFAULT_MARKET_DATA_PROVIDER,
+    description: `Which market-data provider serves prices: ${MARKET_DATA_PROVIDER_SELECTIONS.join(" or ")}. \`none\` means no provider is configured and the backend serves no market data — the default, because \`fixture\` serves INVENTED prices and a default that quietly works is one that quietly ships fabricated data.`,
   },
   {
     key: "DATABASE_HOST",
@@ -553,6 +593,15 @@ export function loadConfig(
     readString(env, "CORS_ORIGIN", DEFAULT_CORS_ORIGIN),
   );
 
+  const marketDataProvider = read(() =>
+    readEnum(
+      env,
+      "MARKET_DATA_PROVIDER",
+      MARKET_DATA_PROVIDER_SELECTIONS,
+      DEFAULT_MARKET_DATA_PROVIDER,
+    ),
+  );
+
   const databaseHost = read(() =>
     readString(env, "DATABASE_HOST", DEFAULT_DATABASE_HOST),
   );
@@ -631,6 +680,7 @@ export function loadConfig(
     logLevel === undefined ||
     logFormat === undefined ||
     corsOrigin === undefined ||
+    marketDataProvider === undefined ||
     databaseHost === undefined ||
     databasePort === undefined ||
     databaseName === undefined ||
@@ -691,5 +741,6 @@ export function loadConfig(
     logFormat,
     corsOrigin,
     database,
+    marketDataProvider,
   });
 }

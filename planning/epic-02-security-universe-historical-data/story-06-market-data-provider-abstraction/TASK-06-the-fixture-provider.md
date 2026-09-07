@@ -1,6 +1,6 @@
 # Task 2.6.6 — The fixture provider: the whole interface, offline, deterministic
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [2.6 Market-Data Provider Abstraction](STORY.md)
 **Depends on:** Tasks 2.6.4, 2.6.5
 
@@ -325,3 +325,350 @@ The re-recording obligation is the thing most likely to be quietly dropped. If S
 not re-record this corpus against a real Alpaca response, every test in this story is
 asserting that our code agrees with our assumptions — which is a green suite that certifies
 nothing, and this repository has already named that failure twice.
+
+> **Amended 2026-09-07 on completion.** The Notes above predate Task 2.6.1's finding that
+> there are **two** corpora doing two different jobs (`PROVIDER.md` §6.1), and the paragraph
+> is wrong as written: this corpus holds **domain types**, parses no vendor JSON and
+> therefore has nothing vendor-shaped it could be wrong about. What Story 2.7 owes is a
+> **reconciliation of three specific numbers** — see §6.4 — recorded as a scope bullet in
+> that story's own file rather than as a re-recording obligation here.
+
+---
+
+## What shipped
+
+Five new files in `apps/backend/src` and three edited ones. No dependency, no lockfile
+change, no new `verify` step, and nothing in `packages/shared` or `apps/frontend` touched.
+
+| File                  | What it is                                                         |
+| --------------------- | ------------------------------------------------------------------ |
+| `fixture-corpus.ts`   | What the fixture world contains, and how a bar is produced         |
+| `fixture-provider.ts` | `MarketDataProvider`, implemented completely                       |
+| `market-data.ts`      | `MARKET_DATA_PROVIDER` → a provider, or nothing                    |
+| three `*.test.ts`     | 56 fast tests over the corpus and the provider, 7 over the factory |
+| `config.ts`           | `MARKET_DATA_PROVIDER`, defaulting to `none`                       |
+| `.env.example`        | The variable, and why its default is the loud one                  |
+| `config.test.ts`      | The new key on `Config` and in `CONFIG_VARIABLES`                  |
+
+### The corpus is split from the provider, because they answer different questions
+
+`fixture-corpus.ts` answers _what does the fixture world contain_ — which symbols exist,
+which of them misbehave, which minutes have no print, when a split happened.
+`fixture-provider.ts` answers _what does one call return_, which is a filter, a coverage
+claim and a taxonomy. Keeping them apart is what lets the corpus tests assert generation
+(bar counts, gaps, the split, OHLC coherence) without going through a `BarsResult`, and the
+provider tests assert the seam without re-deriving a price.
+
+### The five decisions this task owed, taken
+
+**1. `covered` is the window the provider ANSWERED FOR, not the span of the bars.** The task
+file recommended this reading and the recommendation holds; the argument that decides it is
+§2.5's, that coverage says _how far the answer reaches, not whether it is dense_. A thinly
+traded name whose last print was at 15:42 was still **covered** to the close — nobody traded
+it, which is a different statement from _"we have no data after 15:42"_, and Story 2.14
+renders the second sentence if it reads the bars instead. Concretely: `covered` is the
+requested range intersected with the corpus's own extent, and `null` exactly when the series
+is empty, which `toBarSeries` enforces in both directions.
+
+**2. A PARTIAL overlap is answered partially; only a window with NO overlap is
+`range-not-available`.** This was not in the brief and it is the sharper half of decision 1.
+A request reaching past the end of what the provider holds is exactly the shape
+`SeriesCoverage` exists for, and refusing it would make `range-not-available` mean two
+different things, one of which has a perfectly good answer. So the member is reserved for a
+window this provider will never serve **however it is narrowed** — which is also what keeps
+it honest as a description of the vendor's history depth once Story 2.7 maps a real one.
+
+**3. `none` is ABSENCE.** `createMarketDataProvider` returns `MarketDataProvider | undefined`
+and there is no null-object implementation, for the reason the amendment above sets out and
+which is worth restating as the mechanism rather than the conclusion: **there is no
+`BarsResult` member meaning "no provider is configured"**, because that is a fact about our
+own deployment rather than about the world, and §8.5's test for membership excludes it. The
+two ways out are both worse — answering `upstream-unavailable` is the laundering §8.5
+forbids, and a retry wrapper would then retry it forever against a vendor nobody configured;
+a null object that throws is _"a method left throwing"_, which the Done-when list forbids in
+as many words. The defined behaviour for a caller with no provider is a **503 carrying
+`SERVICE_UNAVAILABLE`**, owned by Story 2.9, which is the story that can produce it.
+
+**4. The selection vocabulary is DERIVED from `PROVIDER_IDS`, not restated.**
+`MARKET_DATA_PROVIDER_SELECTIONS` is `["none", ...PROVIDER_IDS]`, so Story 2.7 adding its own
+member to `packages/shared` makes it selectable with no edit to `config.ts` — **and makes
+`createMarketDataProvider`'s exhaustive switch fail the build** until somebody wires it up.
+A second literal list would be a copy whose disagreement's symptom is a configuration value
+an operator can set and nothing can honour. It is the ninth-member mechanism Task 2.6.5
+built, arriving one layer down, and it is the first thing in `config.ts` that imports from
+`packages/shared` — verified not to break `scripts/local-database.mjs`, which reads the built
+`dist/config.js`.
+
+**5. Real tickers for the ordinary entries; `ZZ`-prefixed ones for the faults and the
+split.** The line is not the obvious one and it is worth carrying: an invented **price** for
+a real company is labelled synthetic and is therefore honest — that is §5.4's whole
+mechanism — but an invented **corporate action** is a claim about that company's history,
+and no provenance label repairs _"AMD split four-for-one in June 2026"_. The same applies to
+_"this symbol is permanently unauthorised"_. So `NVDA`, `SPY` and `AMD` carry generated
+prices, and `ZZSPL`, `ZZRL`, `ZZRLN`, `ZZUA`, `ZZUP` and `ZZSLO` carry the awkward
+behaviours. Keeping the ordinary entries real is what preserves §5.2's stated reason for
+shipping this at all: Story 2.12's charting decision should be takeable on a laptop with no
+vendor key, and a chart of `ZZZZ` is a worse rehearsal than a chart of `NVDA`.
+
+### The corpus, and what is derived rather than written
+
+**390 and 210 appear in no source file and in no test.** Every count comes from
+`market-session.ts`'s `minuteBars`, per date — so a regular session asserts
+`REGULAR.minuteBars`, the day after Thanksgiving asserts `HALF_DAY.minuteBars`, and the
+assertion that one is smaller than the other is what actually proves the half day is
+handled. That is `PROVIDER.md` §6.2's requirement applied to the tests as well as to the
+generator.
+
+| Symbol  | What it is for                                             |
+| ------- | ---------------------------------------------------------- |
+| `NVDA`  | A liquid name: a print every minute of every session       |
+| `SPY`   | A second liquid name, different seed                       |
+| `AMD`   | Thin: four declared minutes of every session have no print |
+| `ZZSPL` | A four-for-one split at the open of 2026-06-01             |
+| `ZZRL`  | `rate-limited` **with** a hint                             |
+| `ZZRLN` | `rate-limited` **without** one — the branch, not an assign |
+| `ZZUA`  | `unauthorised`                                             |
+| `ZZUP`  | `upstream-unavailable`                                     |
+| `ZZSLO` | Waits 30 s, so a short deadline produces `timeout`         |
+
+The coverage window is 2026-01-02 to 2026-12-31, built from those sessions' own `open` and
+`close` instants rather than written out — so `toTimeRange` refuses it at module load if a
+calendar edit ever made the two dates cross.
+
+**The gap offsets are all below a half day's bar count, and there is a test asserting it.**
+An offset past a half day's close would silently be a no-op on exactly the day this corpus
+exists to cover, which is the same class of bug as a hard-coded 390 and is invisible in every
+other assertion.
+
+**The whole session is generated and then filtered, never generated from the requested
+start.** That is not an implementation detail — it is what makes a request for 10:00–10:05
+return the same five bars the whole-session request contains at those minutes. Seeding the
+walk from the requested start would give a different price for the same minute depending on
+what else was asked for, which is a corpus that cannot be used to test a cache, a stitch, or
+anything Story 2.8 does. There is a test that tiles two adjacent windows and asserts the
+concatenation is **the same bars**, not merely the same count.
+
+### The split is engineered so RAW has the cliff, and the direction matters
+
+A four-for-one split quarters the price, so the corpus puts `ZZSPL` at 512 before
+2026-06-01 and at 128 after it. The **raw** series therefore has a genuine step in it —
+which is what happened, and what §3.6 says an honest chart shows provided the label beside it
+reads `raw` — and `split-adjusted` removes it by scaling the **earlier** half down to meet the
+later one, dividing prices by four and multiplying volume by four so the notional traded is
+preserved. Measured across the split at daily resolution: raw closes 525.93 → 140.04,
+split-adjusted 131.48 → 140.04.
+
+Had it been built the other way round, `split-adjusted` would have _introduced_ a step, and
+every test in this story would assert the opposite of what the product means.
+
+Beside it is the test that matters more in practice: **a symbol with no split returns
+byte-identical bars in both modes.** That is `market-provenance.ts`'s warning made concrete
+and it is the whole reason acceptance criterion 5 forbids a default — a wrong adjustment
+argument is invisible on almost every series, almost all the time, and wrong exactly once on
+the one name and the one week somebody is looking at.
+
+### Every outcome, produced — and enumerated in a form a ninth member breaks
+
+`HOW_EACH_OUTCOME_IS_PRODUCED` is a `Record<BarsResult["outcome"], () => Promise<BarsResult>>`,
+which is `health.ts`'s response-schema idiom and the same shape
+`market-data-provider.test.ts` uses one file over. A ninth member added to the union without
+an entry is a **compile error naming the missing key**; an entry for an outcome that does not
+exist is an excess-property error. Checked in both directions, so a future cause cannot be
+produced by nothing.
+
+| Outcome                | Produced by                                        |
+| ---------------------- | -------------------------------------------------- |
+| `ok`                   | An ordinary session                                |
+| `timeout`              | `ZZSLO` against `deadlineMs: 20`                   |
+| `aborted`              | The test's own `AbortController` — no corpus entry |
+| `unknown-symbol`       | `AAPL`, a well-formed ticker not in the corpus     |
+| `range-not-available`  | A 2027 window, outside the declared coverage       |
+| `rate-limited`         | `ZZRL` / `ZZRLN`                                   |
+| `unauthorised`         | `ZZUA`                                             |
+| `upstream-unavailable` | `ZZUP`                                             |
+
+Three things are asserted about that set rather than one. That each **arrives** distinct.
+That a caller can **branch** on it — an exhaustive `switch` producing a different string per
+member, which is what proves the union is switchable and not merely different strings, and is
+the failure mode a single `ProviderError` with a `message` has. And that each is
+**classified** by `isRetryableOutcome()` rather than by a `switch` of the test's own, because
+re-deriving retryability is a second copy of the taxonomy.
+
+**No `simulateError` parameter reached the shipped interface.** Every mechanism is the corpus
+or the caller's own signal, per §8.7 and Task 1.10.5's refusal to widen `config.ts`'s port
+range for a test's convenience.
+
+### `rate-limited`'s hint is a branch, and this is where that idiom got set
+
+This provider is the **first constructor of these members anywhere**. Under
+`exactOptionalPropertyTypes` an omitted `retryAfterMs` means the key is genuinely absent,
+which is the difference between _"the vendor did not say"_ and _"come back immediately"_, so
+it is written as `apiError()` writes its `details`:
+
+```ts
+result:
+  fault.retryAfterMs === undefined
+    ? { outcome: "rate-limited" }
+    : { outcome: "rate-limited", retryAfterMs: fault.retryAfterMs },
+```
+
+A test asserts `"retryAfterMs" in result` is **false** on `ZZRLN`, which is the assertion
+that goes red if somebody assigns instead of branching — and it was made to.
+
+### Four deliberate breaks, each seen to fail and reverted
+
+| Break                                                | What went red                                      |
+| ---------------------------------------------------- | -------------------------------------------------- |
+| The range filter's `<` becomes `<=`                  | **2 tests** — the seam bar claimed by both windows |
+| `rate-limited` assigns the hint instead of branching | 1 test — `"retryAfterMs" in result` was true       |
+| `covered` set even on an empty series                | 2 tests, via `toBarSeries`'s own refusal           |
+| The split adjusted the wrong side of the date        | 3 tests across both files                          |
+
+The first is the one the Done-when list names specifically, and it is worth recording that
+**it takes two tests down rather than one**: the seam bar appears in the first window _and_
+the count of the first window is wrong. `[09:30, 10:00)` and `[10:00, 10:30)` must not both
+claim the 10:00 bar — Story 2.8's backfill tiles adjacent windows thousands of times, and
+`market_bars`' unique constraint would reject the duplicate, reporting a failure that was
+actually the database being right.
+
+### Determinism is asserted ACROSS RUNS, not only within one
+
+Two calls in one process would prove only that the function is not stateful. What is checked
+in is a **SHA-256 of the canonical serialisation of a whole session** —
+`46d155d651e339088f17792a49d2de11bceac2694ffde4203b8d6e7f6ee93f9e` for `NVDA` on 2026-09-04
+at `1m`, raw — which is a claim that survives a restart, a different machine and a different
+day. It fails if the generator changes, which for a fixture corpus is correct: **the numbers
+are the fixture.**
+
+Nothing here reads the wall clock. `packages/shared` structurally cannot — the `Date.now()`
+and zero-argument `new Date()` lint rules over it have no exception — and this module lives
+in `apps/backend`, where that rule does not apply, so it is a decision stated in the module
+comment rather than an enforcement. `FIXTURE_RETRIEVED_AT` is a fixed instant for the same
+reason **and** for Task 2.3.5's: a provenance date that is always today is permanently silent
+about staleness, which is the only thing it exists to report.
+
+### Criterion 6 was CHECKED rather than assumed, and the check needed a control
+
+The whole fast suite was run with `fetch`, `net.connect`, `net.createConnection`,
+`tls.connect`, `http.request`, `https.request` and `dns.lookup` all replaced by functions
+that throw. **585 tests pass** — 198 in `packages/shared`, 224 in `apps/backend`, 163 in
+`apps/frontend`.
+
+That is only evidence if the blocker blocks, which is Task 2.5.3's rule (_a break that does
+not go red is evidence the break did not land_) arriving from the other side. So a throwaway
+test calling `fetch` was run **both ways**: it fails with `NETWORK ACCESS ATTEMPTED via
+fetch` under the blocker and passes without it. The blocker, the temporary configs and the
+control test were all removed; the tree is clean.
+
+Vitest 4 has **no `--setupFiles` CLI flag** (`CACError: Unknown option`), so the blocker was
+injected through a temporary per-package config that `mergeConfig`s the real one — noted
+because the obvious command does not exist.
+
+### Figures
+
+- `pnpm verify` **exit 0**. `pnpm test` is **585** (198 + 224 + 163), `pnpm test:process`
+  14 — all fast, no build, no socket, no database, no network.
+- `pnpm env:check` reports **13 backend variables documented**, up from 12.
+- The backend starts under `MARKET_DATA_PROVIDER=fixture` and answers `/health` 200; `pnpm db`
+  still reads the built `dist/config.js` correctly, which is the thing decision 4 could have
+  broken.
+- **The frontend artefact did not move**, which is `PROVIDER.md` §11's check rather than a
+  coincidence: 369,437 B `4f17aff3…`, 17,317 B `eb223e53…`, `index.html` 1,101 B
+  `898733b0…`, 300 B, **388,155 B over four files** — Task 2.5.6's figures to the byte, and
+  §11's zero-bytes prediction holding for the **fifth** task running. Everything this task
+  shipped is in `apps/backend`.
+- The vendor grep over the new files is **zero**, in the code-only and the naive text form
+  alike: they say _"the vendor"_ throughout.
+
+### What this task deliberately did NOT build
+
+- **The retry wrapper.** §8.8 is confirmed and `market-data-provider.ts` already carries the
+  argument. This task supplies the first thing it can be composed around; **Story 2.7 builds
+  it**, against its own measured limit. A retry inside this provider would make a caller's
+  deadline a lie and would stop a fixture-backed test meaning anything.
+- **`timeRangeIncludes` in `packages/shared`.** Task 2.6.2 named a second caller as the
+  trigger for extracting it and there is still one, so the half-open comparison is inline
+  with the rule beside it.
+- **Any wiring into `index.ts`.** Nothing serves market data yet.
+  `createMarketDataProvider`'s first caller is Task 2.6.7.
+- **A chart.** Argued at length in `STORY.md` and unchanged: it would take Story 2.12's
+  charting decision by accident, and it would put invented prices on a market product's
+  screen.
+
+---
+
+## What this means in plain terms — a status report
+
+**Where the product is.** MarketPulse can already show you the ~100 US companies it tracks,
+live from a real database, on a real website. What it cannot yet show you is a **price** —
+because until this week there was no agreed way for a price to get into the system at all.
+The last few pieces of work have been building that agreement: what a price observation _is_,
+what it has to say about where it came from, and what happens when the place it comes from
+says no.
+
+**What this piece of work added.** A complete, working, fake market-data source that lives
+inside the product. Ask it for Nvidia's minute-by-minute prices for the 4th of September 2026
+and it hands back 390 of them, correctly stopping at the closing bell — and 210 on the day
+after Thanksgiving, because the market shuts early and it knows that from the trading
+calendar built two weeks ago rather than from a number somebody typed in. Ask it for a public
+holiday and it politely returns nothing at all, which is the right answer and not an error.
+
+That sounds modest. It is the piece everything else is now built against.
+
+**Why a fake one, before the real one.** Three concrete reasons, in the order they will
+matter.
+
+1. **The tests stay fast and stay honest.** Every automated check in this project runs in
+   about half a minute, on a laptop, on a plane, with no internet. The moment one of them
+   phones a real market-data vendor, that stops being true — the checks get slow, they start
+   failing for reasons that have nothing to do with our code, and eventually people start
+   ignoring them. We verified this properly rather than assuming it: we switched off every
+   way a program can reach the internet and ran all 585 checks again. All 585 passed.
+2. **We can build the price charts without a vendor account.** The charting work is a big
+   decision that a lot of later features inherit, and it should be taken carefully rather
+   than while fighting a rate limit or waiting for an account to be approved.
+3. **We can rehearse every way it can go wrong.** This is the one that pays off for users. A
+   real data feed fails in half a dozen distinguishable ways — the company doesn't exist, we
+   asked too fast, our key expired, their servers are down, we ran out of patience, the user
+   navigated away. Each of those deserves a **different message on screen**, because
+   "we have no data for this company" and "the feed refused us" are different situations and
+   only one of them means "try again in a minute". Rehearsing them against a real vendor
+   would mean deliberately breaking our own account. Rehearsing them against this is a line
+   of configuration, and all eight are now proven to work.
+
+**The decision most worth knowing about.** This thing invents prices. That is exactly what
+it is for, and it is also precisely what the product specification forbids us to ever put in
+front of a user under a straight face — §35 lists "manufacture missing observations" among
+the things MarketPulse must not do. So two protections were built in rather than promised.
+
+_It is switched off by default._ Turning it on takes a deliberate line of configuration on
+whoever's machine wants it. The tempting shortcut — have it on by default so everything
+"just works" — is how invented prices end up quietly shipped to production, and we have made
+that mistake's cousin before, so the argument is written into the code where the next person
+will read it.
+
+_And when it is on, it says so, structurally._ Every series it produces carries a label that
+reads **"Generated test data. Not a market feed."** — not as a caption somebody remembered to
+add to one screen, but as part of the data itself, so it travels with the numbers wherever
+they go. A screenshot of a fake chart advertises that it is fake, without anybody having to
+remember.
+
+**One nice detail.** The fake data includes a company that does a four-for-one stock split
+partway through the year. That sounds like an odd thing to invent on purpose, and it is the
+single most valuable thing in the corpus: a split makes a share price drop to a quarter
+overnight without anything actually happening, and a chart that does not know about it shows
+a terrifying cliff that is pure accounting. Worse, our future "unusual activity" scoring would
+see a −75% move and confidently flag it as the most extreme anomaly it had ever seen —
+permanently, and wrongly. Now there is a test that proves we handle it, and — the important
+half — a test proving that for every company that _hasn't_ split, asking the question the
+wrong way looks completely fine. That is why the product forces every request to state its
+answer explicitly rather than assuming one: the mistake is invisible almost all the time, and
+catastrophic on exactly the day somebody is looking.
+
+**What a user still cannot do.** See a price. See a chart. Search for a security. Nothing on
+screen has changed with this task. The next piece of work (2.6.7) is the first visible one in
+this run: the "Market feed" indicator in the header has read a hard-coded `DISCONNECTED`
+since the very first week of the project, and it will start telling the truth — that no
+market-data provider is configured yet. After that, one configuration value in the next story
+turns the same indicator into `IEX` with nothing in the interface edited, because the honest
+answer was designed in rather than bolted on.

@@ -135,7 +135,7 @@ invented value for six stories.
 | 2.6.3 | [Provenance and adjustment: a series that cannot exist without saying where it came from](TASK-03-provenance-and-adjustment.md)                        | Complete    |
 | 2.6.4 | [The provider interface, the request, and a call that cannot throw](TASK-04-the-interface-and-the-result-shape.md)                                     | Complete    |
 | 2.6.5 | [The error taxonomy, and where a retry policy is allowed to live](TASK-05-the-error-taxonomy-and-the-retry-policy.md)                                  | Complete    |
-| 2.6.6 | [The fixture provider: the whole interface, offline, deterministic](TASK-06-the-fixture-provider.md)                                                   | Not started |
+| 2.6.6 | [The fixture provider: the whole interface, offline, deterministic](TASK-06-the-fixture-provider.md)                                                   | Complete    |
 | 2.6.7 | [The feed tells the truth: provenance on screen](TASK-07-the-feed-tells-the-truth-on-screen.md)                                                        | Not started |
 | 2.6.8 | [Verify, document, and ADR 0018](TASK-08-verify-document-and-adr.md)                                                                                   | Not started |
 
