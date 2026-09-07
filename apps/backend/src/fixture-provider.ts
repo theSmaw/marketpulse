@@ -97,10 +97,29 @@ export const FIXTURE_COVERAGE: TimeRange = toTimeRange(
  */
 export function createFixtureProvider(): MarketDataProvider {
   return {
-    id: "fixture",
+    id: FIXTURE_PROVIDER_ID,
+    feed: FIXTURE_FEED,
     fetchBars,
   };
 }
+
+/**
+ * Who this claims to be, and which venues it claims are in the numbers —
+ * **once**, because both are read twice.
+ *
+ * They are read by the provider's own declared fields above and by the
+ * `BarSource` every series carries, and Task 2.6.7 is what made that a
+ * one-definition problem rather than a coincidence: before it, `feed:
+ * "synthetic"` was a literal inside `buildSeries` and the interface had no
+ * standing feed at all, so the chrome's claim about the configured feed and a
+ * series' claim about its own could have been made to disagree by editing one
+ * of them.
+ *
+ * That is the whole argument for the feed being a field on
+ * `MarketDataProvider`: it *removes* a copy rather than adding one.
+ */
+const FIXTURE_PROVIDER_ID = "fixture";
+const FIXTURE_FEED = "synthetic";
 
 async function fetchBars(
   request: BarsRequest,
@@ -297,8 +316,10 @@ function buildSeries(
     timeframe: request.timeframe,
     bars,
     provenance: toSeriesProvenance(request.adjustment, {
-      provider: "fixture",
-      feed: "synthetic",
+      // The provider's own declared identity rather than a second literal —
+      // see FIXTURE_PROVIDER_ID.
+      provider: FIXTURE_PROVIDER_ID,
+      feed: FIXTURE_FEED,
       retrievedAt: FIXTURE_RETRIEVED_AT,
       barCount: bars.length,
     }),

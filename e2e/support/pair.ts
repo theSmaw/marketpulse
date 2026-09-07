@@ -96,3 +96,14 @@ const backendPort = new URL(backendOrigin).port;
 
 export const SECURITIES_ROUTE_PATTERN = (url: URL): boolean =>
   url.pathname === "/securities" && url.port === backendPort;
+
+/**
+ * A URL pattern matching the market-feed endpoint **whatever host it is on**.
+ *
+ * A glob rather than the predicate `SECURITIES_ROUTE_PATTERN` needs, and the
+ * distinction is the one recorded above: this application has no `/market-data`
+ * *route*, so a `**` glob over it matches exactly one thing and cannot fulfil a
+ * document navigation by accident. `/securities` is a route, which is why that
+ * one is a predicate keyed on the port.
+ */
+export const MARKET_DATA_ROUTE_PATTERN = "**/market-data";

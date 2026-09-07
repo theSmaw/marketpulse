@@ -54,10 +54,10 @@
 }
 
 /*
- * The backend region is the only one of the three that can render two
- * sentences under its word, and the strip is the grid's `auto` column — so
- * unconstrained it competes with the product name for the row rather than
- * wrapping. The cap is a measure in `ch`, which is a proportion of the text
+ * The two regions that render a sentence under their word — the backend
+ * service's, and since Task 2.6.7 the market feed's — against a strip that is
+ * the grid's `auto` column, so unconstrained they compete with the product name
+ * for the row rather than wrapping. The cap is a measure in `ch`, which is a proportion of the text
  * itself rather than a length from the design language: the same category as
  * the region grid's `fr` fractions and its one `vh`, and the reason there is no
  * width token to read here.
@@ -65,7 +65,8 @@
  * At the narrow end the cap does nothing, because `.status` already wraps and
  * the region is then the full width of the strip.
  */
-.serviceRegion {
+.serviceRegion,
+.feedRegion {
   max-width: 34ch;
 }
 

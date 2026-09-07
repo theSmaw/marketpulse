@@ -260,6 +260,20 @@ export type {
   SeriesProvenance,
 } from "./market-provenance.js";
 
+// The wire contract for GET /market-data (Task 2.6.7) — one question, asked
+// once per page load: which market feed is this deployment reading? A separate
+// file from market-provenance.ts for securities-response.ts's reason: that one
+// says what provenance IS and every epic reads it, this one says what one
+// RESPONSE looks like and only the two ends of this API do.
+//
+// The body is ONE field. `provider` is deliberately absent because nothing
+// reads it: every provider declares its feed, so `feed === null` happens
+// exactly when none is configured, and what §7.1 requires on screen is the feed
+// rather than the vendor. It arrives with its first reader, Story 2.14, off
+// SeriesProvenance where it already travels per series.
+export { isMarketDataResponse } from "./market-data-response.js";
+export type { MarketDataResponse } from "./market-data-response.js";
+
 // A run of bars that cannot exist without saying where it came from (Task
 // 2.6.3), which is Story 2.6's acceptance criterion 3 made structural rather
 // than conventional. `BarSeries` is branded and `toBarSeries` is the only way to

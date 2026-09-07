@@ -201,6 +201,36 @@
   --service-unreachable: var(--ink-secondary);
 
   /*
+   * --- Market-feed provenance (Task 2.6.7) ---
+   *
+   * *Which venues are in the numbers*, which is invariant 6 and §7.1 — **not**
+   * whether a connection is up. Provenance is true whether or not anything is
+   * connected and is attached to the data rather than to a socket, which is why
+   * this is a third trio rather than three more `--feed-*` names.
+   *
+   * A fourth block resolving to the same two values, and the argument is the
+   * one `--service-*` already makes one block above: these report a fact that
+   * fails independently of the other three, so the day one of them changes
+   * colour the others must not follow.
+   *
+   * **The amber is on `synthetic` and that is the one placement in this file
+   * with a safety argument behind it rather than a legibility one.** A
+   * fixture-backed deployment serves *invented prices*, and `PROVIDER.md` §5.4's
+   * whole mechanism is that such a deployment advertises itself structurally
+   * rather than by somebody remembering a `SAMPLE DATA` banner. This is that
+   * mechanism reaching the screen — and it is a **second** channel rather than
+   * the only one, because that state is also the one square in this region and
+   * carries the sentence "Generated test data. Not a market feed."
+   *
+   * Nothing here is `--status-error` red. A single-venue feed is not a fault —
+   * §36 makes it a product state — and neither is a deployment with no provider
+   * configured, which is what a correct first run shows.
+   */
+  --provenance-feed: var(--ink-secondary);
+  --provenance-synthetic: var(--palette-amber);
+  --provenance-unknown: var(--ink-secondary);
+
+  /*
    * --- Market session status (Task 2.5.5) ---
    *
    * Whether the market is trading, and it is the **first** block in this file

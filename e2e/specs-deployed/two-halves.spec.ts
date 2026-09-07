@@ -1,4 +1,9 @@
-import { BACKEND_STATUSES, isHealthResponse } from "@marketpulse/shared";
+import {
+  BACKEND_STATUSES,
+  isHealthResponse,
+  MARKET_FEED_DESCRIPTIONS,
+  MARKET_FEEDS,
+} from "@marketpulse/shared";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
@@ -159,6 +164,76 @@ test("the two deployed halves talk across the origin boundary", async ({
       exact: true,
     }),
   ).toHaveCount(0);
+});
+
+// **What market feed the deployed site claims to be reading** (Task 2.6.7).
+//
+// This earns a place in a suite whose bar is *"something no other instrument
+// can see"*, and it clears that bar for the reason the two failures above do:
+// `MARKET_DATA_PROVIDER` is set on the Container App and **exists in no file in
+// this repository** — `deploy.yml` uses `update` and never `create` — so it is
+// in the same category as `CORS_ORIGIN` and the three HTTP probes. A local
+// instrument is structurally unable to read it, and the pre-merge gate runs
+// against a pair whose provider is whatever the developer's `.env` says.
+//
+// The failure it exists for is a **provenance claim on a public URL**, which is
+// §35's subject: a deployed site saying `IEX` while serving nothing, or — the
+// one that matters — a deployment quietly configured with `fixture`, whose
+// numbers are *invented* and whose chrome must say so. That is a rollback
+// decision rather than a diagnostic, which is what separates this from the axe
+// report at the bottom of this file.
+//
+// It costs the deployed backend **nothing**: the page makes this request on
+// load whatever any spec does, so this reads a response that already exists.
+//
+// It deliberately does **not** assert which feed. That is a deployment setting
+// and a spec pinning it would go red the day somebody legitimately changes it —
+// `market-clock.spec.ts`'s call about the session state, and the local
+// `market-feed.spec.ts`'s about this same region. What it asserts is that the
+// claim is a **real one**: one of the words the vocabulary admits, settled
+// rather than stuck on the placeholder, and never one of the three connection
+// words that stood here inventing a status for six stories.
+test("the deployed chrome makes a real claim about the market feed", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const region = page
+    .getByRole("banner")
+    .getByText("Market feed", { exact: true })
+    .locator("..");
+
+  const words = [
+    ...MARKET_FEEDS.map((feed) => MARKET_FEED_DESCRIPTIONS[feed].label),
+    "not configured",
+    "unknown",
+  ];
+
+  // Settled, and one of the words. `checking` is excluded from the list on
+  // purpose: a region still on the placeholder means the deployed backend never
+  // answered, which is the failure this assertion is for rather than a state it
+  // should accept.
+  await expect(
+    region.getByText(new RegExp(`^(${words.join("|")})$`)),
+  ).toBeVisible();
+
+  // The invented value, asserted absent on the public site.
+  for (const invented of ["disconnected", "live", "stale"]) {
+    await expect(region.getByText(invented, { exact: true })).toHaveCount(0);
+  }
+
+  // And if a feed is claimed, the sentence §7.1 requires is beside it — the
+  // whole reason this is not a caption. Read off the rendered word rather than
+  // assumed, so this is an assertion about the deployed page rather than about
+  // the shared record.
+  for (const feed of MARKET_FEEDS) {
+    const { label, sentence } = MARKET_FEED_DESCRIPTIONS[feed];
+    if ((await region.getByText(label, { exact: true }).count()) > 0) {
+      await expect(region.getByText(sentence)).toBeVisible();
+    }
+  }
+
+  await expectNothingFailedToRender(page);
 });
 
 test("the deployed backend admits the origin its page is served from, and says so to anybody who asks", async () => {

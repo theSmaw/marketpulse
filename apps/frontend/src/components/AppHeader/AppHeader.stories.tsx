@@ -1,8 +1,8 @@
-import type { FeedStatus } from "@marketpulse/shared";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import gridStyles from "../stories.module.css";
 import { AppHeader } from "./AppHeader.js";
+import type { MarketFeedView } from "../../use-market-feed.js";
 import { PATHS } from "../../routes/paths.js";
 
 // The first component in this workshop that does not render on its own: it
@@ -22,13 +22,20 @@ import { PATHS } from "../../routes/paths.js";
 // reviews. Story 1.4's own rule is the way out and it is already written down —
 // *where the product is unbounded, the story fixes representative extremes
 // rather than plausible examples* — so this is a chosen set of rows, each with
-// the reason it earns its place beside it.
+// the reason it earns its place beside it. Task 2.6.7 swapped the feed axis for
+// a wider one — six market-feed renderings rather than three statuses — and the
+// chosen-rows convention is what absorbs it without the page growing.
 
-const DETAIL: Readonly<Record<FeedStatus, string>> = {
-  live: "Updating",
-  stale: "Last update 10:41:58 — slower than expected",
-  disconnected: "Displaying data through 10:42:17",
-};
+// The four market-feed renderings this file uses. `FeedProvenance`'s own
+// stories review all six side by side; these are the ones whose interaction
+// with the *other* indicator is worth seeing in an assembled header.
+const FEED = {
+  iex: { state: "configured", feed: "iex" },
+  synthetic: { state: "configured", feed: "synthetic" },
+  notConfigured: { state: "not-configured" },
+  checking: { state: "checking" },
+  unknown: { state: "unknown" },
+} as const satisfies Record<string, MarketFeedView>;
 
 // A fixed time rather than `new Date()`, so a reload renders the same thing and
 // a visual diff of the workshop is not a clock. Same figure as
@@ -40,7 +47,7 @@ const meta = {
   component: AppHeader,
   parameters: { layout: "padded", route: PATHS.overview },
   args: {
-    feedStatus: "live",
+    marketFeed: FEED.iex,
     // The healthy backend is the default so that the feed stories below are
     // about the feed. The states of the second indicator are reviewed in its
     // own stories and in the chosen rows at the bottom of this file.
@@ -55,17 +62,21 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-// --- The feed states. None of the three is an error. ---
+// --- The market-feed renderings. None of them is an error. ---
 
-export const Live: Story = { args: { feedStatus: "live" } };
+// What Story 2.7 produces with one configuration value: a real feed, and the
+// sentence §7.1 requires beside it.
+export const FeedIex: Story = { args: { marketFeed: FEED.iex } };
 
-export const Stale: Story = {
-  args: { feedStatus: "stale", feedDetail: DETAIL.stale },
+// The default, and what a correct first run shows.
+export const FeedNotConfigured: Story = {
+  args: { marketFeed: FEED.notConfigured },
 };
 
-export const Disconnected: Story = {
-  args: { feedStatus: "disconnected", feedDetail: DETAIL.disconnected },
-};
+// A developer running fixtures. The one amber in this region, and the reason it
+// is worth a story in the assembled header rather than only in the component's
+// own: this is what a screenshot of an invented-price deployment looks like.
+export const FeedSimulated: Story = { args: { marketFeed: FEED.synthetic } };
 
 // --- The current-route states, one per route plus the unmatched case. ---
 
@@ -96,17 +107,18 @@ export const OnUnknownRoute: Story = {
 // header and the only one nobody would think to look at.
 export const BackendNotYetChecked: Story = {
   args: {
-    feedStatus: "disconnected",
-    feedDetail: DETAIL.disconnected,
+    marketFeed: FEED.checking,
     backendHasChecked: false,
     backendLastSuccessAt: null,
   },
 };
 
+// Both indicators failing at once, which is the honest rendering when the
+// backend is the thing that answers both questions: the feed is `unknown`
+// because the request that would have told us did not come back.
 export const BackendUnreachable: Story = {
   args: {
-    feedStatus: "disconnected",
-    feedDetail: DETAIL.disconnected,
+    marketFeed: FEED.unknown,
     backendStatus: "unreachable",
   },
 };
@@ -115,21 +127,23 @@ export const BackendUnreachable: Story = {
 // of this file. Each row is here for a stated reason and none of them is a
 // plausible-looking filler:
 //
-// - `disconnected` feed with no detail: the state PRODUCT_SPEC.md §36 asks to
-//   be avoided, seen beside the version carrying a timestamp. It is the row the
-//   grid was built for and it survives the cut.
-// - a **healthy backend beside a disconnected feed**: the two indicators
-//   disagreeing, which is the whole argument for there being two of them rather
-//   than one. If this row ever reads as contradictory, the wrong decision was
-//   taken in Task 1.12.4.
-// - an **unreachable backend that has never succeeded**: two sentences under
-//   one word, which is the widest this strip ever gets, and what a misconfigured
+// - **no provider configured beside a healthy backend**: the default
+//   deployment, and the two indicators disagreeing — which is the whole
+//   argument for there being two of them rather than one. If this row ever
+//   reads as contradictory, the wrong decision was taken in Task 1.12.4.
+// - a **real feed beside a healthy backend**: what Story 2.7 turns this into,
+//   and the widest the strip gets, because IEX's sentence is the longest thing
+//   this region renders.
+// - an **unreachable backend with an unknown feed**: the honest pairing, since
+//   the backend is what answers both questions. Two sentences under one word on
+//   the right and one on the left, which is what a misconfigured
 //   `VITE_API_BASE_URL` looks like from here.
-// - the **not-yet-checked placeholder**, which is what every page load renders
-//   for one round trip.
-// - a **degraded backend beside a live feed**, which is the amber-on-amber case:
-//   both indicators can take the one colour in this language at once, and the
-//   check is that the shapes still tell them apart.
+// - the **not-yet-checked placeholder on both**, which is what every page load
+//   renders for one round trip.
+// - a **simulated feed beside a degraded backend**, which is the amber-on-amber
+//   case: both indicators can take the one colour in this language at once, and
+//   the check is that the shapes still tell them apart — a square on the right
+//   against a square on the left, told apart by their words.
 export const AllPermutations: Story = {
   parameters: {
     // The first genuine *landmark* finding this workshop produced, and it is
@@ -162,10 +176,10 @@ export const AllPermutations: Story = {
     <div className={gridStyles.stack}>
       <div className={gridStyles.stackItem}>
         <span className={gridStyles.label}>
-          disconnected feed, no detail — §36&apos;s counter-example
+          no provider configured — the default deployment
         </span>
         <AppHeader
-          feedStatus="disconnected"
+          marketFeed={FEED.notConfigured}
           backendStatus="healthy"
           backendDegradedCause={null}
           backendLastSuccessAt={LAST_SUCCESS}
@@ -175,11 +189,10 @@ export const AllPermutations: Story = {
 
       <div className={gridStyles.stackItem}>
         <span className={gridStyles.label}>
-          healthy backend, disconnected feed — the two disagreeing
+          a real feed, healthy backend — what Story 2.7 turns this into
         </span>
         <AppHeader
-          feedStatus="disconnected"
-          feedDetail={DETAIL.disconnected}
+          marketFeed={FEED.iex}
           backendStatus="healthy"
           backendDegradedCause={null}
           backendLastSuccessAt={LAST_SUCCESS}
@@ -189,11 +202,10 @@ export const AllPermutations: Story = {
 
       <div className={gridStyles.stackItem}>
         <span className={gridStyles.label}>
-          unreachable backend, never succeeded — the widest the strip gets
+          unreachable backend, unknown feed — both answered by one request
         </span>
         <AppHeader
-          feedStatus="disconnected"
-          feedDetail={DETAIL.disconnected}
+          marketFeed={FEED.unknown}
           backendStatus="unreachable"
           backendDegradedCause={null}
           backendLastSuccessAt={null}
@@ -206,8 +218,7 @@ export const AllPermutations: Story = {
           not yet checked — every page load, for one round trip
         </span>
         <AppHeader
-          feedStatus="disconnected"
-          feedDetail={DETAIL.disconnected}
+          marketFeed={FEED.checking}
           backendStatus="unreachable"
           backendDegradedCause={null}
           backendLastSuccessAt={null}
@@ -217,11 +228,10 @@ export const AllPermutations: Story = {
 
       <div className={gridStyles.stackItem}>
         <span className={gridStyles.label}>
-          degraded backend, stale feed — both markers amber at once
+          degraded backend, simulated feed — both markers amber at once
         </span>
         <AppHeader
-          feedStatus="stale"
-          feedDetail={DETAIL.stale}
+          marketFeed={FEED.synthetic}
           backendStatus="degraded"
           backendDegradedCause="unreadable-body"
           backendLastSuccessAt={LAST_SUCCESS}

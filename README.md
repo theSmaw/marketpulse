@@ -324,24 +324,43 @@ deployment.
 
 ~~Five things.~~ ~~**Six**, since Task 1.12.3 gave the page a reason to talk to
 the backend.~~ ~~**Seven**, since Task 1.12.5 put the backend's own state in the chrome
-and every page load now renders a placeholder for a moment.~~ **Eight**, since Task
-2.1.2 gave the repository a database that the application does not use. None of
-them is a fault.
+and every page load now renders a placeholder for a moment.~~ ~~**Eight**, since Task
+2.1.2 gave the repository a database that the application does not use.~~ **Seven
+again, since Task 2.6.7** — this list has now got shorter twice, and this time
+because something that _was_ a fault stopped being one. None of what is left is
+a fault.
 
-- **The `MARKET FEED` indicator says `DISCONNECTED` — and the `BACKEND SERVICE`
-  one beside it says `HEALTHY`.** Read the label before the word: these are
-  **two** indicators reporting two facts that fail independently, and on a
-  correct first run they disagree. The feed is honest: there is no market feed
-  until Epic 3, which is what the smaller line beside it says. ~~The frontend
-  does not call the backend at all yet (Story 1.12)~~ ~~and since Task 1.12.3 the
-  frontend does call the backend, every 30 seconds, but nothing renders the
-  result yet.~~ **Since Task 1.12.5 it does render it** — `BACKEND SERVICE` is a
-  second indicator rather than a widening of the first, because `FeedStatus` is
-  what the backend _reports_ about the market data and `BackendStatus` is what
-  the client _concludes_ about whether the backend answered at all. See
+- ~~**The `MARKET FEED` indicator says `DISCONNECTED`.**~~ — **this stopped
+  being true at Task 2.6.7 and is the second item to leave this list.** It was
+  a **hard-coded value** from Story 1.5 to Story 2.6: honest about there being
+  no market data, and still an invented word in a status strip on a market
+  product, which is the one place a reader is entitled to assume nothing is
+  invented. The region now says what is actually the case — which market feed
+  this deployment is configured to read — from the backend. On a correct first
+  run that reads `NOT CONFIGURED`, with the sentence
+  `No market-data provider is configured.` beneath it, because
+  `MARKET_DATA_PROVIDER` defaults to `none`: `fixture` serves **invented
+  prices**, so a default that quietly works is one that quietly ships fabricated
+  data. Set `MARKET_DATA_PROVIDER=fixture` in `apps/backend/.env` and the same
+  region reads `SIMULATED` / `Generated test data. Not a market feed.` — with
+  no frontend edit, which is the check that this renders data rather than a
+  caption. From Story 2.7 it reads `IEX` and says what IEX does and does not
+  cover, which is `PRODUCT_SPEC.md` §7.1's actual requirement rather than the
+  acronym
+- **`BACKEND SERVICE` says `HEALTHY` beside a market feed that is not
+  configured.** Read the label before the word: these are **two** indicators
+  reporting two facts that fail independently, and on a correct first run they
+  disagree — a perfectly healthy backend that is reading no market data at all
+  is exactly right. `BACKEND SERVICE` is a second indicator rather than a
+  widening of the first, because `FeedStatus` is what the backend _reports_
+  about the market data and `BackendStatus` is what the client _concludes_ about
+  whether the backend answered at all. See
   [ADR 0012](docs/adr/0012-client-side-status-what-a-green-indicator-certifies.md)
-- **`BACKEND SERVICE` reads `CHECKING` for a moment on every load.** A dashed
-  marker and the word `checking`, before the first poll settles — about **50 ms**
+- **Both `MARKET FEED` and `BACKEND SERVICE` read `CHECKING` for a moment on
+  every load.** A dashed marker and the word `checking`, before the first
+  request settles — two of them since Task 2.6.7, because the feed is read from
+  the backend too. The market feed's settles once and never again; the backend
+  service's is a poll — about **50 ms**
   against a local pair, and about **280 ms** against the deployed one, of which
   almost all is the public-internet round trip. It is a neutral placeholder
   rather than the honest `unreachable`, because rendering `unreachable` would
@@ -357,8 +376,10 @@ them is a fault.
   `CLOSED / Weekend`, `CLOSED / Thanksgiving Day`, or
   `OPEN / Closes early at 13:00` on a half day. The one thing it still does not
   say is `LIVE`: that word is a claim that market **data is arriving**, and it
-  belongs to Epic 3 along with the indicator two cells to its left, which is why
-  that one still and correctly reads `DISCONNECTED`.
+  belongs to Epic 3 along with the connection state, which is a different fact
+  from the provenance the `MARKET FEED` cell now carries — "which venues are in
+  the numbers" and "is data arriving right now" are two things, and Epic 3's
+  arrives beside this one rather than instead of it.
   The time is **your computer's clock rendered in market time**, which is a
   time-zone claim rather than a synchronisation one — if your machine is three
   minutes fast, so is this. `ET` and not `EDT`/`EST` is deliberate; see

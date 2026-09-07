@@ -1,0 +1,111 @@
+/*
+ * The market-feed provenance indicator (Task 2.6.7).
+ *
+ * It deliberately imitates `BackendIndicator`'s layout, because the two sit in
+ * the same strip and must read as one language even though they report facts
+ * that fail independently. What each component keeps for itself is the colour
+ * and — in its `.tsx` — the shape; the geometry is `components/Marker`'s.
+ *
+ * Nothing here is `--status-error` red. A single-venue feed is not a fault
+ * (PRODUCT_SPEC.md §36), and neither is a deployment with no provider
+ * configured — which is what a correct first run shows.
+ */
+
+/*
+ * A grid rather than a row, `BackendIndicator`'s arrangement and for its
+ * reason: this carries a sentence under its word and a chrome strip has no room
+ * for one beside it. The marker column is `auto` and everything else sits in
+ * the second, so the sentence hangs under the word rather than under the
+ * marker.
+ */
+.provenance {
+  display: inline-grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-8);
+}
+
+.label {
+  composes: microLabel from "../../styles/type.module.css";
+}
+
+/* The sentence sits in the word's column, under the word. */
+.detail {
+  grid-column: 2;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+}
+
+/*
+ * --- The colours, which are two values under three names ---
+ *
+ * `--marker-color` is a custom property because it inherits: it is set on the
+ * element carrying the state class and read by the `Marker` inside it.
+ *
+ * `.feed` and `.unknown` are the same grey and are told apart by the marker's
+ * **shape** — disc, ring, dashed — which is what survives greyscale. This
+ * palette's two market colours are 1.05:1 apart under desaturation, so hue is
+ * never the encoding anywhere in this product.
+ */
+.feed {
+  --marker-color: var(--provenance-feed);
+}
+
+/*
+ * Generated data, and the one amber in this region — **on the marker and never
+ * on the word.**
+ *
+ * The first version of this rule put the amber on the label too, on the
+ * argument that `SIMULATED` is the one word in the chrome that must be read
+ * rather than glanced past. The axe gate rejected it with a real violation
+ * rather than this repository's standing `color-contrast` inconclusive:
+ * `--palette-amber` (`#e2b544`) on the page ground measures **1.73:1** at 12px
+ * where 4.5 is the threshold — worse than the 2.09:1 `--ink-disabled` that Task
+ * 1.12.4 was caught by, and found the same way. Reproduced at 1280×720, ×560
+ * and ×480.
+ *
+ * That intention was right and its mechanism was wrong, and the design language
+ * already carries the correct one: **receding — and standing out — are jobs for
+ * weight and hierarchy, never for ink outside the contrast floor.**
+ * `AppHeader`'s current-route link makes the same move for the same stated
+ * reason, carrying its state in weight and an underline rather than in ink
+ * alone.
+ *
+ * So this state has **three** channels and every one of them is above the
+ * floor: the one square marker in this region, the only strong-weight word in
+ * the status strip, and the sentence "Generated test data. Not a market feed."
+ * The amber is a fourth, on the marker, where it decorates a silhouette that
+ * `Marker` renders `aria-hidden` and whose meaning is carried by the word
+ * beside it — which is the same placement `BackendIndicator` gives its own
+ * amber and the reason that component was never caught by this rule.
+ *
+ * This matters more here than anywhere else in the chrome: being wrong means a
+ * screenshot of invented prices circulating as if it were the market.
+ */
+.synthetic {
+  --marker-color: var(--provenance-synthetic);
+}
+
+.synthetic .label {
+  color: var(--ink-primary);
+  font-weight: var(--font-weight-strong);
+}
+
+/*
+ * Not yet answered, could not be read, or nothing configured.
+ *
+ * `--ink-secondary` and **not** `--ink-disabled`, for both the marker and the
+ * word — Task 1.12.4 measured the latter at 2.09:1 at 12px against the page
+ * ground, a real axe violation where 4.5 is the threshold. Disabled ink is for
+ * a control nobody can operate; this is ordinary text a user is expected to
+ * read, and receding is a job for weight and hierarchy rather than for ink
+ * below the floor.
+ */
+.unknown {
+  --marker-color: var(--provenance-unknown);
+}
+
+.unknown .label {
+  color: var(--ink-secondary);
+}

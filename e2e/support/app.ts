@@ -15,9 +15,13 @@ import { expect } from "@playwright/test";
 //     is no role to scope by and the micro-label's own parent is what stands in
 //     for one. That is a real coupling to the strip's shape and it is the
 //     cheapest honest option — the alternative is matching a status word
-//     unscoped, which matches the wrong indicator half the time, because a
-//     correct first run shows a `DISCONNECTED` market feed beside a `HEALTHY`
-//     backend service.
+//     unscoped, which matches the wrong cell. **Since Task 2.6.7 that is
+//     sharper rather than softer**: every page load renders `checking` in *two*
+//     cells at once, the market feed's and the backend service's, so an
+//     unscoped wait for that word resolves against whichever settles first.
+//     (It used to read: a correct first run shows a `DISCONNECTED` market feed
+//     beside a `HEALTHY` backend service. That feed word was hard-coded and is
+//     gone.)
 //  2. **There is no separator between the label and the word.** The region's
 //     text is `Backend servicehealthy`, so `toContainText(/\bhealthy\b/)` finds
 //     no word boundary and fails. Task 1.13.2 met that from the other

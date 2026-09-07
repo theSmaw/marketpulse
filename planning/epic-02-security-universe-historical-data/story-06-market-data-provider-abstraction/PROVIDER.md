@@ -402,6 +402,27 @@ here so that grep does not produce a false positive somebody then "fixes".
 
 `synthetic` is the fixture provider's, and §5.4 is why it matters.
 
+**Amended 2026-09-07 by Task 2.6.7, which had to answer _"which feed does this configured
+provider serve"_ and found nothing could.** The paragraph above is an argument against
+**inferring** a feed from a provider id, and it turned out not to be an argument against a
+provider **declaring** one — because the thing that holds the credential is exactly the thing
+that knows which plan it is on. So `MarketDataProvider` gained a `readonly feed: MarketFeed`,
+and the fixture provider now reads it where it used to write `feed: "synthetic"` as a second
+literal inside its own `BarSource`. **The field removes a copy rather than adding one**, and
+that is the whole argument for it over the two rejected shapes: a second environment variable
+(a fourteenth, and a pair nothing checks, which lets an operator set two things that cannot
+both be true), and rendering only the provider until a series exists (which leaves §7.1 unmet
+in the state that matters — a deployment reading a single venue would say so nowhere until
+somebody opened a chart).
+
+**The line that keeps §4.2 true is stated in the interface and is worth carrying**: the
+provider's `feed` is the **standing claim about what this deployment is configured to read**,
+and {@link SeriesProvenance} remains the authority for what a **particular** series came
+from, per source. They agree by construction in an implementation with one definition of its
+feed. The reversal trigger is a provider that serves more than one feed **chosen per
+request** — at which point the field stops being a fact about the implementation and becomes
+a fact about a call.
+
 ### 4.3 `retrievedAt` — and the trap this repository has already fallen into once
 
 An ISO 8601 UTC instant, stamped **at fetch** and **never re-stamped on read**.

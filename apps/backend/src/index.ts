@@ -19,7 +19,9 @@ import {
   createDatabasePool,
   pingDatabase,
 } from "./database.js";
+import { resolveMarketData } from "./market-data.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
+import { createMarketDataRoutes } from "./routes/market-data.js";
 import { createSecuritiesRoutes } from "./routes/securities.js";
 import { createSecuritiesRepository } from "./securities.js";
 import { buildServer } from "./server.js";
@@ -104,6 +106,24 @@ app.register(createDiagnosticsRoutes(createCachedDatabaseCheck(database)));
 // caches would be a second cache nobody asked for. Story 2.10's is the layer
 // that gets to want one.
 app.register(createSecuritiesRoutes(createSecuritiesRepository(database)));
+
+// Which market feed this deployment reads (Task 2.6.7), and the route that
+// ends the chrome's hard-coded `DISCONNECTED`.
+//
+// Registered here rather than in `buildServer()` and it is the one of the three
+// that had a choice: `resolveMarketData` reads the frozen configuration and
+// constructs a provider, so neither the pool nor `app.log` is in its way. What
+// decided it is that the alternative is a required `ServerOptions` field and a
+// change to every test that builds a server, to move one registration by one
+// file — against one rule that already holds: `/health` needs nothing and lives
+// in the factory, a route with a dependency is registered where its dependency
+// is constructed.
+//
+// `resolveMarketData` is called once, here, rather than per request. Under the
+// default `MARKET_DATA_PROVIDER=none` it returns no provider at all — absence
+// rather than a null object, argued in `market-data.ts` — and the route reports
+// that as a `null` feed.
+app.register(createMarketDataRoutes(resolveMarketData(config)));
 
 // Signal handling lives here rather than in buildServer(), because it is a
 // property of this process, not of the application. A factory that installs
