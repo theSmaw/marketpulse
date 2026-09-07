@@ -34,6 +34,14 @@ false, which is what makes this the right task.
    `switch` written here — that is a second copy of the taxonomy, and a copy is how a ninth
    member ends up silently non-retryable. A retry on `unauthorised` is a loop against a wall; a
    retry on `unknown-symbol` asks a settled question again.
+
+   **One thing to know rather than to act on (added 2026-09-07 by Task 2.7.6):** the recency
+   `403` maps to `unauthorised` and is therefore **non-retryable**, which is correct while
+   `alpacaServableEnd`'s clamp stands, because the status cannot arrive at all. If anyone ever
+   removes or widens that clamp, this wrapper is where the consequence lands — a window problem
+   reported as a permanent credential fault, never retried. The reversal trigger is written in a
+   comment beside the branch in `alpaca-mapping.ts`; do not duplicate it here.
+
 2. **A retry must not outlive the caller's deadline or its abort signal.** The wrapper receives
    both, is bounded by both, and **gets no budget of its own**. This is the same sentence as _"a
    retry buried in the transport makes the deadline a lie"_, applied to the one thing that is
@@ -63,6 +71,23 @@ derivation in a comment so it can be re-derived rather than inherited:
   is not a page count. A caller that wants retries on a multi-page range must pass its own
   `deadlineMs`, which Task 2.7.5 already hands forward to Story 2.8 — record it here as the
   wrapper's precondition rather than leaving it to be discovered as an unexplained `timeout`.
+- **What an attempt COSTS, which is not one number, and both extremes are now measured (added
+  2026-09-07 by Task 2.7.6).** This is the constraint most likely to be designed around wrongly,
+  because the obvious mental model — _"an attempt costs a round trip"_ — is true of neither end:
+  - **A refused connection fails in ~1 ms.** `upstream-unavailable` now covers transport
+    failures, and a host that is not there answers instantly. So **the cheapest failure retries
+    fastest**, which is exactly backwards: a backoff driven by an attempt _counter_ rather than
+    by elapsed wall clock burns its whole budget against a dead host in milliseconds and then
+    reports `upstream-unavailable` anyway, having achieved nothing but load.
+  - **A hung host costs the WHOLE deadline.** Our own `AbortSignal.timeout` is what ends it, so
+    the answer is `timeout` and **the attempt count is 1** — there is no retry, and there cannot
+    be, because the first attempt consumed the budget.
+
+  Those two bracket everything in between. The consequence: **drive the backoff from elapsed
+  time against the caller's deadline, never from an attempt counter**, and state what happens
+  when the remaining budget is smaller than the next delay — give up now, rather than sleeping
+  past the deadline and reporting a `timeout` we manufactured ourselves.
+
 - **Backoff.** Exponential with **jitter**, and the jitter is not decoration: Story 2.8 fires a
   hundred requests, they hit a rate limit together, and a jitter-free backoff retries them
   together — a thundering herd against the service that just asked for less traffic.
@@ -73,6 +98,17 @@ derivation in a comment so it can be re-derived rather than inherited:
   header is silent, and `PROVIDER.md` §8.6 made the hint a branch and a floor for exactly this
   reason — but **test it against the fixture provider**, which Task 2.6.6 made able to produce
   `rate-limited` with a hint, because the live vendor cannot.
+
+  **A second offline producer exists since 2026-09-07 and is worth knowing about before writing
+  a third.** Task 2.7.6 built `parseRetryAfterMs` and drives a real `Retry-After` header through
+  the shipped client using `alpaca-provider.test.ts`'s local HTTP harness, which can set
+  arbitrary response headers. That is the only place the header's **parsing** is exercised end
+  to end — the fixture provider produces the member with a hint already attached and so cannot
+  test the parse. Use the fixture provider for this wrapper's _behaviour_, and note the parse as
+  already covered rather than re-testing it. One trap it found and closed: **`Date.parse` reads
+  `-5` and `2020` as dates**, so an unguarded header returns `0` — _"come back immediately"_ —
+  against the service that just refused us.
+
 - **What is _not_ here: cross-request pacing.** `PROVIDER.md` §8.8 draws this line and it is the
   one most likely to be crossed by accident. **Per-request retry is this wrapper's;
   cross-request pacing across a hundred symbols is Story 2.8's backfill.** Conflating them is
@@ -114,7 +150,11 @@ being assumed to stay below it."_ So drive the real limit, with a real key, and 
 
 **What Task 2.7.1 measured (2026-09-07), and what it did NOT:**
 
-- **The limit is 201 requests**, then `429` — the documented 200/min confirmed almost exactly.
+- **The limit is ~200 requests**, then `429` — the documented 200/min confirmed almost exactly.
+  **Three bursts of 320 concurrent have now been taken: 201 and 203 (Task 2.7.1), and 207 (Task
+  2.7.6).** Quote the range rather than any single reading, and re-take it rather than citing
+  this line: it is a live third party's number on a given day, not a figure reproducible from a
+  clean clone.
 - **It is per REQUEST, not per symbol.** 203 requests of 50 symbols each succeeded in one
   window, the same ceiling as 201 single-symbol requests. This matters to the wrapper because a
   retry costs the same as any request regardless of how many symbols it names.
