@@ -168,3 +168,17 @@ earlier.
 ## What this story hands forward
 
 The seam Epic 3 streams through, and the provenance record invariant 6 is enforced by.
+
+**And one thing on screen, added 2026-09-07 by Task 2.6.7, because it changes what Epic 3
+inherits rather than only what it can read.** The chrome's `Market feed` region no longer
+holds a hard-coded `FeedIndicator`: it holds **provenance** — which feed this deployment is
+configured to read, from `GET /market-data`. So `FeedStatus` is now rendered nowhere in the
+chrome, and Epic 3's connection state comes back **beside** provenance rather than instead of
+it. The two are different facts that fail independently — _"which venues are in the numbers"_
+against _"is data arriving right now"_ — which is Task 1.12.4's two-indicators argument
+applied a third time, and a single indicator would have to pick between them.
+
+The mechanism Epic 3 must not work around: **every provider declares a
+`readonly feed: MarketFeed`**, required with no default, so a streaming provider that does not
+say which venues are in its numbers will not compile. That field is the _standing_ claim about
+the deployment; `SeriesProvenance` remains the authority for a particular series.

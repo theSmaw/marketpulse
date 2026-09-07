@@ -388,9 +388,12 @@ tests.
 
 - **`pnpm verify` exit 0 in 31.7 s.** `pnpm test` is **619** (206 + 230 + **183**),
   `pnpm test:process` 14, `pnpm test:database` 61.
-- **`pnpm e2e` is 28 across six spec files** (up from 23) **and the wall time did not move**:
-  1.0 m, still dominated by the recovery journey. The marginal cost of a journey here is
-  still zero until the suite grows past that one minute.
+- **`pnpm e2e` is 28 across ~~six~~ SEVEN spec files** (up from 23 across six) **and the wall
+  time did not move**: 1.0 m, still dominated by the recovery journey. The marginal cost of a
+  journey here is still zero until the suite grows past that one minute. **The "six" was
+  wrong when written and is corrected here rather than quietly** — it was a count of the
+  files that existed _before_ this task's own, which is Task 1.13.6's "five spec files" error
+  in a new place: a file count taken from memory of the directory rather than from `ls`.
 - **The artefact moved, and both halves are explained.** JavaScript 369,437 → **371,463 B**
   (`c8f1c3ad…`), CSS 17,317 → **18,063 B** (`ed3d1744…`), `index.html` 1,101 B (`7b0075a8…`),
   `staticwebapp.config.json` 300 B, for **390,927 B over four files at 300 modules**. The

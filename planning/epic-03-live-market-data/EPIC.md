@@ -46,8 +46,19 @@ whether the market is open, on every route, from the viewer's own clock — whic
 
 **What is genuinely left for this epic, unchanged and not to be quietly absorbed:**
 
-- The **`FeedIndicator`** beside it, which is currently hard-coded to `disconnected` with the
-  sentence "No market data until Epic 3". That is the honest value today.
+- ~~The **`FeedIndicator`** beside it, which is currently hard-coded to `disconnected` with
+  the sentence "No market data until Epic 3". That is the honest value today.~~ **Amended
+  2026-09-07 by Task 2.6.7: that hard-coded value is gone and the region holds something
+  else.** It renders **provenance** now — which market feed this deployment is configured to
+  read, from `GET /market-data`, which is invariant 6 and §7.1 — so `FeedStatus` is rendered
+  **nowhere in the chrome** and its only consumers are the landing route's render check and
+  the workshop. What is left for this epic is unchanged in substance and changed in shape:
+  a **connection state comes back BESIDE provenance rather than instead of it**, because
+  _"which venues are in the numbers"_ and _"is data arriving right now"_ are two facts that
+  fail independently — Task 1.12.4's two-indicators argument, and a single indicator would
+  have to pick between them. Note the strip's constraint before adding a region: `.clock` is
+  `align-items: flex-end` as the end of the strip, so a region appended after it takes that
+  edge away, and the market-feed cell is where this belongs.
 - The **`LIVE`** state `PRODUCT_SPEC.md` §9's header mock shows, and anything at all claiming
   data is **arriving**.
 - **Exchange-supplied timestamps.** The clock renders the viewer's clock in market time; the
