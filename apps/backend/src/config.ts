@@ -6,6 +6,22 @@
 // grep that this file holds the only occurrence in the workspace; a future
 // task that adds a second should either move it here or say why not.
 //
+// **Amended 2026-09-07 by Task 2.6.8: a second reader exists and it said why.**
+// `entra-token.ts` (Task 2.1.6) reads `IDENTITY_ENDPOINT` and `IDENTITY_HEADER`
+// deliberately, and it exists to protect this invariant rather than to break
+// it: `IDENTITY_HEADER` is itself a bearer credential, so routing it through
+// here would put a live credential on the frozen `Config` object in the module
+// whose no-credential guarantee is structural. Those two are the platform's,
+// not ours, which is why neither is in `CONFIG_VARIABLES` or `.env.example`.
+// Two shipping readers, both accounted for; a third still owes an argument.
+//
+// **And one thing this header did not say until Task 2.6.6 made it matter:**
+// this file imports `PROVIDER_IDS` from `packages/shared`, which makes it the
+// first file in `apps/backend` to depend on that package at build time. That is
+// load-bearing for `scripts/local-database.mjs`, which reads the built
+// `dist/config.js` — so a `packages/shared` that has not been built takes
+// `pnpm db` down with it, and `pnpm build` orders that.
+//
 // There is no schema library, and that is a measured decision rather than an
 // omission — Task 1.6.1 spiked Zod 4.5.4 and Valibot 1.4.2 to full parity with
 // what index.ts already did, then threw both away. The deciding finding is

@@ -13,8 +13,14 @@ import type {
  *
  * This is invariant 7 — *"no vendor SDK types leak into the domain model"* —
  * and §7.1's requirement that the vendor sit behind an interface, as a file
- * rather than as an intention. Nothing implements it yet: Task 2.6.6 supplies
- * the fixture provider and Story 2.7 the first real client.
+ * rather than as an intention. ~~Nothing implements it yet: Task 2.6.6 supplies
+ * the fixture provider and Story 2.7 the first real client.~~ **Amended
+ * 2026-09-07 by Task 2.6.8: the first clause stopped being true one task later.
+ * `fixture-provider.ts` implements the whole of it, offline and deterministic,
+ * and it is what every test in this story runs against. Story 2.7 is still the
+ * first real client, which is the half that matters — see the sentence below,
+ * because it is Story 2.7 and not the fixture that tests whether this file
+ * succeeded.**
  *
  * ## Why it is written before the client and not extracted from one
  *

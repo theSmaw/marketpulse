@@ -110,6 +110,24 @@ therefore the boundary between the two states, and it is the client's to own.
 `BackendIndicator` is a **second** component beside `FeedIndicator`, and this is
 the question ADR 0004 posed and ADR 0005 put on screen.
 
+**Amended 2026-09-07 (Story 2.6, Task 2.6.8) — the sentence above describes the
+tree as it stood when this ADR was written, and the component it names is no
+longer in the chrome.** Task 2.6.7 replaced `FeedIndicator` in the `Market feed`
+region with `FeedProvenance`, which renders **which feed this deployment is
+configured to read** rather than an invented connection state; the hard-coded
+`DISCONNECTED` this ADR's §Context calls out is gone. `FeedIndicator` still
+ships and is still correct — it is Epic 3's, and Epic 3 brings a connection
+state back **beside** provenance rather than instead of it.
+
+**The decision this section records is untouched and was in fact vindicated
+twice more.** The argument below — two facts that fail independently get two
+indicators — is exactly the argument Task 2.6.7 used to refuse widening
+`FeedStatus` to carry provenance, and the strip is now **three** regions
+reporting three independent facts: which venues are in the numbers, whether the
+backend answered, and what time it is in the market. A single indicator would
+have had to pick between them three ways. The paragraph is annotated rather
+than rewritten, per ADR 0005 §3's rule.
+
 The argument is §1's, one layer up: `FeedStatus` is a fact the backend
 **reports** about the market data; `BackendStatus` is one this client
 **concludes** about whether the backend answered at all. **They fail
