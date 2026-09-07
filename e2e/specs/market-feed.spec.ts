@@ -28,6 +28,29 @@ import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
 // of the sentence §7.1 requires; a literal in this file would be a second copy,
 // and it is the copy that would keep passing after somebody weakened the words.
 
+/**
+ * The sentence for a feed that **must** have one, narrowed.
+ *
+ * `MarketFeedDescription.sentence` became optional on 2026-09-07: a feed
+ * carries one only where its label cannot stand alone, so `sip` has none —
+ * `ALL US EXCHANGES` is itself the coverage claim §7.1 asks to be legible.
+ *
+ * `iex` and `synthetic` are the two where the label is **not** self-explanatory
+ * — three letters teach a non-specialist nothing, and *"SIMULATED"* alone could
+ * be read as paper trading rather than as invented prices — so a missing
+ * sentence there is a defect rather than a decision, and this throws naming it
+ * rather than silently asserting on `undefined`.
+ */
+function requiredSentence(feed: "iex" | "synthetic"): string {
+  const { sentence } = MARKET_FEED_DESCRIPTIONS[feed];
+  if (sentence === undefined) {
+    throw new Error(
+      `${feed} must carry a sentence: its label cannot stand alone (PRODUCT_SPEC.md §7.1).`,
+    );
+  }
+  return sentence;
+}
+
 /** The region the strip's `Market feed` micro-label names. */
 function feedRegion(page: Page) {
   return page
@@ -115,7 +138,8 @@ test("it renders the feed the backend names, with the sentence §7.1 requires", 
   await page.goto("/");
 
   const region = feedRegion(page);
-  const { label, sentence } = MARKET_FEED_DESCRIPTIONS.iex;
+  const { label } = MARKET_FEED_DESCRIPTIONS.iex;
+  const sentence = requiredSentence("iex");
 
   await expect(region.getByText(label, { exact: true })).toBeVisible();
 
@@ -146,7 +170,8 @@ test("a simulated feed says it is not a market feed", async ({ page }) => {
   await page.goto("/");
 
   const region = feedRegion(page);
-  const { label, sentence } = MARKET_FEED_DESCRIPTIONS.synthetic;
+  const { label } = MARKET_FEED_DESCRIPTIONS.synthetic;
+  const sentence = requiredSentence("synthetic");
 
   await expect(region.getByText(label, { exact: true })).toBeVisible();
   await expect(region.getByText(sentence)).toBeVisible();

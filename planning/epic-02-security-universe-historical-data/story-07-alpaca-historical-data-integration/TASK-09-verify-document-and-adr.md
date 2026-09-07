@@ -202,8 +202,16 @@ those documents.
   _"All US exchanges, via the consolidated tape."_ — the **jargon** as the big word and the
   **plain meaning** as the small print, which inverts the rule this repository had already
   written down three times (`FeedProvenance.tsx`, `PROVIDER.md` §4.4, ADR 0018): _the sentence
-  is the requirement and the word is only the affordance._ It is now `All US exchanges` over
-  _"The full consolidated tape, not a single venue."_
+  is the requirement and the word is only the affordance._ It went through two more strings
+  before landing on **`All US exchanges` with no sentence at all** — the second restated the
+  label and contrasted it with a feed this deployment never renders, the third was a fact nobody
+  reading a status strip needs.
+
+  **Record the rule rather than the strings**: a feed gets a sentence _when its label cannot
+  stand alone, and not otherwise_. `iex` and `synthetic` need one; `ALL US EXCHANGES` is itself
+  the coverage claim §7.1 asks to be legible. `MarketFeedDescription.sentence` is optional as a
+  result, with `Record<MarketFeed, …>` replacing `as const satisfies` so the no-words guard
+  survives while `.sentence` widens to `string | undefined` at every reader
 
   Two things worth the ADR's space. **Every automated check passed** — nine axe readings, a
   permutation grid, a layout measurement at five viewports — and the defect was caught by a

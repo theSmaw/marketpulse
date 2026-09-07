@@ -40,7 +40,12 @@ describe("FeedProvenance", () => {
 
       const { label, sentence } = MARKET_FEED_DESCRIPTIONS[feed];
       expect(screen.getByText(label)).toBeTruthy();
-      expect(screen.getByText(sentence)).toBeTruthy();
+      // `sentence` is optional as of 2026-09-07: a feed gets one only where its
+      // label cannot stand alone, so `sip` has none. Guarded rather than
+      // dropped, because the two feeds that DO have one must still render it.
+      if (sentence !== undefined) {
+        expect(screen.getByText(sentence)).toBeTruthy();
+      }
 
       unmount();
     }

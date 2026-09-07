@@ -445,14 +445,26 @@ vocabulary and lives beside `MARKET_FEEDS`:
 | Feed  | Label            | Sentence                                                                      |
 | ----- | ---------------- | ----------------------------------------------------------------------------- |
 | `iex` | IEX              | Trades reported by the IEX exchange only — not the full US consolidated tape. |
-| `sip` | All US exchanges | The full consolidated tape, not a single venue.                               |
+| `sip` | All US exchanges | _(none — see below)_                                                          |
 
-**Amended 2026-09-07 (Task 2.7.4).** `sip` shipped as `Consolidated tape` / _"All US exchanges,
-via the consolidated tape."_ and the two were the wrong way round: the **jargon** was the label
-and the **plain meaning** was the sentence, which inverts §4.4's own rule that the word is the
-affordance and the sentence carries the meaning. `PRODUCT_SPEC.md` §3 does not assume
-quantitative-finance expertise; the analyst who wants the industry term still gets it one line
-down. 16 characters against 17, so it cost no layout.
+**Amended 2026-09-07 (Task 2.7.4), twice, and the second time is the rule.** `sip` shipped as
+`Consolidated tape` / _"All US exchanges, via the consolidated tape."_ — the **jargon** as the
+label and the **plain meaning** as the sentence, inverting §4.4's own rule that the word is the
+affordance and the sentence carries the meaning. Swapping them gave _"The full consolidated
+tape, not a single venue."_, which restated the label and bolted on a contrast with a feed this
+deployment never renders; then _"Known as the consolidated tape."_, a fact nobody reading a
+status strip needs.
+
+**`sip` now has no sentence at all, and `MarketFeedDescription.sentence` is optional.** §4.4's
+rule was written for `iex`, whose label teaches a non-specialist nothing, and it holds for
+`synthetic`, where _"SIMULATED"_ alone could be read as paper trading rather than as invented
+prices. It does **not** follow that every feed needs one. `ALL US EXCHANGES` is itself the
+coverage claim §7.1 asks to be legible, and a second line restating it teaches a reader that the
+second line is not worth reading.
+
+**The rule: a feed gets a sentence when its label cannot stand alone, and not otherwise.** The
+`Record<MarketFeed, …>` annotation still makes a feed with no words a compile error, which is
+the half that matters.
 | `synthetic` | Simulated | Generated test data. Not a market feed. |
 
 **`Market feed: IEX` alone satisfies §7.1's letter and fails its intent**, and that is the

@@ -222,14 +222,21 @@ test("the deployed chrome makes a real claim about the market feed", async ({
     await expect(region.getByText(invented, { exact: true })).toHaveCount(0);
   }
 
-  // And if a feed is claimed, the sentence §7.1 requires is beside it — the
-  // whole reason this is not a caption. Read off the rendered word rather than
+  // And if a feed is claimed, the words §7.1 requires are beside it — the whole
+  // reason this is not a caption. Read off the rendered word rather than
   // assumed, so this is an assertion about the deployed page rather than about
   // the shared record.
+  //
+  // **A feed carries a sentence only where its label cannot stand alone**
+  // (2026-09-07), so `sip` has none and this loop must not demand one. The
+  // requirement §7.1 states is that the coverage claim is legible, and for
+  // `ALL US EXCHANGES` the label IS the claim.
   for (const feed of MARKET_FEEDS) {
     const { label, sentence } = MARKET_FEED_DESCRIPTIONS[feed];
     if ((await region.getByText(label, { exact: true }).count()) > 0) {
-      await expect(region.getByText(sentence)).toBeVisible();
+      if (sentence !== undefined) {
+        await expect(region.getByText(sentence)).toBeVisible();
+      }
     }
   }
 

@@ -333,19 +333,31 @@ convenience, and the honest place to catch it is review.
 represents every US exchange — and three letters teach a non-specialist nothing at all. So
 the vocabulary carries the words:
 
-| Feed  | Label             | Sentence                                                                      |
-| ----- | ----------------- | ----------------------------------------------------------------------------- |
-| `iex` | IEX               | Trades reported by the IEX exchange only — not the full US consolidated tape. |
-| `sip` | Consolidated tape | All US exchanges, via the consolidated tape.                                  |
+| Feed        | Label             | Sentence                                                                      |
+| ----------- | ----------------- | ----------------------------------------------------------------------------- |
+| `iex`       | IEX               | Trades reported by the IEX exchange only — not the full US consolidated tape. |
+| `sip`       | Consolidated tape | All US exchanges, via the consolidated tape.                                  |
+| `synthetic` | Simulated         | Generated test data. Not a market feed.                                       |
 
-> **Amended 2026-09-07 (Task 2.7.4) — the decision is unchanged and one string is not.** `sip`'s
-> **label** is now `All US exchanges` and its **sentence** `"The full consolidated tape, not a
-single venue."` The two had been written the wrong way round: the jargon was the big word and
-> the plain meaning was the small print, which inverts this ADR's own rule that _the sentence is
-> the requirement and the word is only the affordance_. Nothing about the mechanism, the record's
-> `satisfies` guard or the argument above moves; `MARKET_FEED_DESCRIPTIONS` remains the single
-> source of both strings.
-> | `synthetic` | Simulated | Generated test data. Not a market feed. |
+> **Amended 2026-09-07 (Task 2.7.4) — the decision stands and the copy rule is narrowed.** The
+> table above is left as written, because it is what this ADR recorded. `sip` is now labelled
+> **`All US exchanges`** and has **no sentence at all**.
+>
+> It was tried three ways in a day. As shipped, the jargon was the big word and the plain
+> meaning the small print — the inverse of this ADR's own rule. Swapped, the sentence merely
+> restated the label and bolted on a contrast with a feed this deployment never renders. Reduced
+> to _"Known as the consolidated tape."_, it was a fact nobody reading a status strip needs.
+>
+> So the rule — _the sentence is the requirement and the word is only the affordance_ — is true
+> of **a label that cannot stand alone**, not of every feed. `iex` needs its sentence because
+> three letters teach a non-specialist nothing; `synthetic` needs its because _"SIMULATED"_
+> could be read as paper trading rather than as invented prices; `ALL US EXCHANGES` is itself
+> the coverage claim §7.1 asks to be legible.
+>
+> `MarketFeedDescription.sentence` is therefore optional, and the `Record<MarketFeed, …>`
+> annotation replaced `as const satisfies` — **the guard that a feed cannot arrive with no words
+> is fully preserved**, and making the field optional surfaced all six readers at compile time.
+> Nothing about the mechanism or the seam moves.
 
 **The sentence is the requirement; the label is the affordance.** They live in
 `MARKET_FEED_DESCRIPTIONS` in `packages/shared`, behind a `satisfies` guard that makes a feed

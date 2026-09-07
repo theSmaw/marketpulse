@@ -119,19 +119,37 @@ export type MarketFeed = (typeof MARKET_FEEDS)[number];
 /**
  * What a person reads when a feed is shown to them.
  *
- * A short label for the chrome, and a sentence that says what it means.
+ * A short label for the chrome, and — **only where the label cannot be
+ * understood on its own** — a sentence saying what it means.
  */
 export interface MarketFeedDescription {
   /** The affordance: short enough for a status region. */
   readonly label: string;
 
   /**
-   * The requirement: one plain sentence saying what the feed does and does not
-   * cover. Rendered, never hidden in a `title` attribute — which is
-   * unreachable by keyboard and by touch, and has been rejected twice already
-   * (Tasks 1.4.5 and 1.12.4).
+   * One plain sentence, **when the label needs one**. Rendered, never hidden in
+   * a `title` attribute — which is unreachable by keyboard and by touch, and
+   * has been rejected twice already (Tasks 1.4.5 and 1.12.4).
+   *
+   * **Optional since 2026-09-07, and the rule is the point rather than the
+   * type.** This was required, on the reasoning that §7.1 asks for an
+   * explanation rather than an acronym — which is true of `iex`, whose label
+   * teaches a non-specialist nothing, and of `synthetic`, where *"SIMULATED"*
+   * alone could be read as paper trading rather than as invented prices. It is
+   * **not** true of a label that already says the whole thing.
+   *
+   * Forcing one anyway is what produced two bad strings in a day for `sip`:
+   * first the jargon and the meaning inverted, then a restatement of the label
+   * with a contrast bolted on to a feed this deployment never renders. Both
+   * were padding, and padding in a status strip is worse than silence because
+   * it teaches a reader that the second line is not worth reading.
+   *
+   * **The rule: add a sentence when the label cannot stand alone, and not
+   * otherwise.** The `satisfies` guard still forces every feed to have a
+   * `label`, which is the half that matters — a feed cannot arrive with no
+   * words at all.
    */
-  readonly sentence: string;
+  readonly sentence?: string;
 }
 
 /**
@@ -160,32 +178,43 @@ export interface MarketFeedDescription {
  * chrome **structurally**, without anybody remembering to add a `SAMPLE DATA`
  * banner. That is this record earning its place before anything renders it.
  */
-export const MARKET_FEED_DESCRIPTIONS = {
+export const MARKET_FEED_DESCRIPTIONS: Record<
+  MarketFeed,
+  MarketFeedDescription
+> = {
   iex: {
     label: "IEX",
     sentence:
       "Trades reported by the IEX exchange only — not the full US consolidated tape.",
   },
   sip: {
-    // **Amended 2026-09-07: the label and the sentence were the wrong way
-    // round.** `label` was `"Consolidated tape"` under a sentence reading
-    // *"All US exchanges, via the consolidated tape."* — so the **jargon** was
-    // the big word and the **plain meaning** was the small print, which is the
-    // inverse of this record's own rule that the word is the affordance and the
-    // sentence carries the meaning. `PRODUCT_SPEC.md` §3 says the product
-    // *"does not assume quantitative-finance expertise"*; the analyst who wants
-    // the industry term still gets it, one line down, where precision belongs.
+    // **The one feed with no sentence, and it took three attempts to get here.**
+    // It shipped as `"Consolidated tape"` over *"All US exchanges, via the
+    // consolidated tape."* — the jargon as the big word and the meaning as the
+    // small print. Swapping those gave *"The full consolidated tape, not a
+    // single venue."*, which restated the label and bolted on a contrast with a
+    // feed this deployment never shows. Then *"Known as the consolidated
+    // tape."*, which is a fact nobody reading a status strip needs.
     //
-    // It cost nothing: 16 characters against 17, inside a region measured at
-    // 43% slack.
+    // The label says the whole thing. §7.1 asks that we not imply coverage we
+    // lack; we have this coverage, and four plain words state it exactly. See
+    // {@link MarketFeedDescription.sentence} for the rule that follows.
     label: "All US exchanges",
-    sentence: "The full consolidated tape, not a single venue.",
   },
   synthetic: {
     label: "Simulated",
     sentence: "Generated test data. Not a market feed.",
   },
-} as const satisfies Record<MarketFeed, MarketFeedDescription>;
+};
+
+// The annotation replaced `as const satisfies` when `sentence` became optional,
+// and **the guard it existed for is fully preserved**: a `Record<MarketFeed,
+// …>` still makes a feed added to `MARKET_FEEDS` without words a compile error
+// naming the missing member. What is given up is literal types on the strings,
+// which nothing read. What is bought is that `.sentence` now types as
+// `string | undefined` at **every** call site rather than existing on two of
+// three union members — so making it optional surfaced all six readers at
+// compile time instead of one of them at run time.
 
 /**
  * What has been done to the prices, and it is **asked for** rather than

@@ -399,11 +399,11 @@ no lockfile change, no new script and no `verify` step.
 ## For the stakeholders — in plain language
 
 > **Read the amendment at the foot of this file first if you are quoting this section.** It was
-> written before the label was changed, so where it says the readout reads `CONSOLIDATED TAPE`,
-> it now reads **`ALL US EXCHANGES`** under _"The full consolidated tape, not a single venue."_
-> Every other word below still holds — the finding, the cost, the measurements and the caution
-> are unaffected by which of the two phrases is the big one. It is left as written rather than
-> rewritten because it is the record of what was reported on the day.
+> written before the wording was changed, so where it says the readout reads `CONSOLIDATED TAPE`
+> under a sentence, it now reads **`ALL US EXCHANGES`** and **nothing underneath** — the label is
+> the whole claim. Every other word below still holds: the finding, the cost, the measurements
+> and the caution are unaffected by the wording. It is left as written rather than rewritten
+> because it is the record of what was reported on the day.
 
 **MarketPulse now tells you, on the live website, where its market data comes from — and for
 the first time it is naming a real supplier's real data rather than describing its own absence.**
@@ -484,10 +484,12 @@ The answer is that it was not, and the defect is structural rather than a matter
 sentence is the requirement and the word is only the affordance**. `sip` shipped with those
 inverted:
 
-|              | Was                                              | Is                                                  |
-| ------------ | ------------------------------------------------ | --------------------------------------------------- |
-| **Label**    | `CONSOLIDATED TAPE` — the industry term          | **`ALL US EXCHANGES`** — the plain meaning          |
-| **Sentence** | _"All US exchanges, via the consolidated tape."_ | _"The full consolidated tape, not a single venue."_ |
+| Attempt |                  Label | Sentence                                            | Why it was wrong                                          |
+| ------- | ---------------------: | --------------------------------------------------- | --------------------------------------------------------- |
+| Shipped |    `CONSOLIDATED TAPE` | _"All US exchanges, via the consolidated tape."_    | Jargon as the big word, meaning as the small print        |
+| Second  |     `ALL US EXCHANGES` | _"The full consolidated tape, not a single venue."_ | Restates the label; contrasts with a feed we never render |
+| Third   |     `ALL US EXCHANGES` | _"Known as the consolidated tape."_                 | A fact nobody reading a status strip needs                |
+| **Now** | **`ALL US EXCHANGES`** | **_(none)_**                                        | The label is the whole claim                              |
 
 So the **jargon** was the big word and the **plain meaning** was the small print.
 `PRODUCT_SPEC.md` §3 states the product _"does not assume quantitative-finance expertise"_, and
@@ -496,11 +498,28 @@ The new sentence also gains the contrast `iex`'s already had — _"not a single 
 _"not the full US consolidated tape"_ — so the two feeds now read as opposites rather than as
 one claim and one label.
 
-**It cost no layout and no accessibility.** 16 characters against 17, re-measured in a real
-Chromium: label text **133.6 px** (was 141.7), one line, sentence one line, no horizontal
-overflow, at 1280×720, ×560 and ×480. Axe re-taken across **three feed states × three
-viewports**: **0 violations / 37 passes / 1 inconclusive (`color-contrast`, 68 nodes)** in all
-nine cells — the baseline unmoved for the second time in one task.
+**The rule that came out of it, which is worth more than the string:** a feed gets a sentence
+**when its label cannot stand alone, and not otherwise.** `iex` needs one — three letters teach
+a non-specialist nothing. `synthetic` needs one — _"SIMULATED"_ alone could be read as paper
+trading rather than as invented prices. `ALL US EXCHANGES` needs none, and a second line
+restating it teaches a reader that the second line is not worth reading.
+
+`MarketFeedDescription.sentence` is optional as a result, and **making it optional surfaced all
+six readers at compile time** rather than one of them at run time — the `Record<MarketFeed, …>`
+annotation replaced `as const satisfies`, which preserves the guard that a feed cannot arrive
+with no words while widening `.sentence` to `string | undefined` everywhere. Each reader got a
+decision rather than a blanket fix; `market-feed.spec.ts` gained a `requiredSentence()` helper
+that throws for the two feeds where a missing sentence is a defect rather than a decision.
+
+**It cost no layout and no accessibility.** Re-measured in a real Chromium at 1280×720, ×560 and
+×480, across three feed states: the strip is **141 px** in every state, so it does not reflow
+when the feed changes, and there is no horizontal overflow. Axe is **0 violations / 37 passes /
+1 inconclusive (`color-contrast`)** in all nine cells — with `color-contrast` passing on **67**
+nodes for `sip` against **68** for the other two, which is the removed text node visible in
+axe's own count and the cheapest possible confirmation the change actually landed in the DOM.
+
+The intermediate second attempt measured 133.6 px of label on one line with the sentence
+present; that reading is superseded rather than wrong.
 
 **The measurements above this amendment stand as taken** and are not rewritten: `CONSOLIDATED
 TAPE` genuinely was 17 uppercase letter-spaced characters at 141.7 px in a 250.7 px measure, and
