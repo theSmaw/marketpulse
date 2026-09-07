@@ -109,9 +109,22 @@ than the mechanism.
 
 ## Work
 
-- The platform variable, and the secret reference from Task 2.7.2, set together in one
-  `az containerapp update` — Story 2.1's finding applies, that a pair of variables where one is
-  meaningless without the other is one command or none
+- ~~The platform variable, and the secret reference from Task 2.7.2, set together in one
+  `az containerapp update`~~ — **amended 2026-09-07: this is now ONE variable, and the reason
+  the original sentence gave no longer applies.** Task 2.7.2 already set both credential
+  variables on the app (`ALPACA_API_KEY_ID` as a plain `value`, `ALPACA_API_SECRET_KEY` as a
+  `secretRef` into the `secrets` array) on revision `0000113`, so all this task sets is
+  **`MARKET_DATA_PROVIDER=alpaca`**. Story 2.1's one-command-or-none finding was about a pair
+  where one value is meaningless without the other; here the pair is already in place and the
+  third variable is independent of it.
+
+  **That ordering is not incidental and is worth knowing before anyone "simplifies" it into one
+  update.** Task 2.7.2's cross-variable check refuses startup when the provider is selected and
+  the credential is absent — so had the credential not already been on the app, setting
+  `MARKET_DATA_PROVIDER=alpaca` alone would produce a revision that fails to start, on a
+  platform whose liveness probe restarts it, sitting at `Activating` for ten minutes first. The
+  credential landing a task early is what makes this task's update a single safe setting
+
 - Deploy through the pipeline. **Do not `az containerapp update --image` a hand build**: the
   merge is the mechanism, and Task 1.11.7 measured that a hand-set image is silently undone by
   the next merge
@@ -122,8 +135,10 @@ than the mechanism.
   bodies — `{"feed":null}` → `{"feed":"<whatever decision 6 settled>"}`
 - Confirm the deployed backend did not notice: `/health` 200 throughout, `uptimeSeconds` rising
   and never resetting across the revision rollover, `restartCount` 0
-- Read the `secrets` array back on the running revision, and record that ADR 0011's claim is now
-  formally expired **on a deployment that serves traffic** rather than only in a manifest
+- Read the `secrets` array back on the running revision and **confirm** it — the claim expired
+  at Task 2.7.2 and ADR 0011 already carries the dated amendment, so this is a re-read on the
+  revision that actually **uses** the secret rather than merely holds it. That distinction is
+  the one thing left to record here: 2.7.2 put a credential on an app that read it nowhere
 - The Log Analytics leak check, on the revision that now holds a vendor key
 - A screenshot, because this is the first stakeholder-visible change in the story
 

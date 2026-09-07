@@ -138,6 +138,28 @@ for (const [key, variable] of declared) {
       `${key} defaults to ${JSON.stringify(expected)} in config.ts but apps/backend/.env.example says ${JSON.stringify(actual)}.`,
     );
   }
+
+  // A variable with NO default must be documented BLANK, and this is a leak
+  // guard rather than a tidiness rule (Task 2.7.2).
+  //
+  // The default comparison above is structurally inapplicable to a no-default
+  // variable — there is nothing to compare against — so before this check the
+  // example could carry any value at all for one and pass. The variables that
+  // have no default are exactly the credentials: absent is a legitimate
+  // configuration and an invented credential is a value that is present and
+  // wrong. So the only correct example value is an empty one, and the failure
+  // this closes is somebody pasting a real key into a TRACKED file while
+  // `pnpm verify` stays green.
+  //
+  // It does not make the example safe — a secret written against a variable
+  // that HAS a default would still slip through, and the header above says so.
+  // It closes the one case where the shape of the variable already tells us a
+  // value must not be there.
+  if (!variable.required && expected === undefined && actual !== "") {
+    problems.push(
+      `${key} has no default in config.ts, so apps/backend/.env.example must document it blank (\`${key}=\`) — it is credential-shaped, and a value there would be a secret in a tracked file. Found ${JSON.stringify(actual)}.`,
+    );
+  }
 }
 
 for (const key of documented.keys()) {

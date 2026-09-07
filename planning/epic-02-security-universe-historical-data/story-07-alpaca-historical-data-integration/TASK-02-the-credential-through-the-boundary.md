@@ -1,6 +1,6 @@
 # Task 2.7.2 — Put the Alpaca key through the configuration boundary and onto the platform, fetching nothing
 
-**Status:** Not started
+**Status:** Complete (2026-09-07)
 **Story:** [2.7 Alpaca Historical Data Integration](STORY.md)
 **Depends on:** Task 2.7.1
 
@@ -81,7 +81,9 @@ different answers**, which is the finding rather than a compromise.
 - **Present but wrong** — **not a startup concern at all**, because the only way to find out is
   to make a request, and a startup probe against a metered API is a request nobody asked for. A
   wrong key surfaces as `unauthorised`, already a member of `BarsResult` and already marked
-  non-retryable by `PROVIDER.md` §8.1. Task 2.7.5 produces it.
+  non-retryable by `PROVIDER.md` §8.1. ~~Task 2.7.5 produces it.~~ **Task 2.7.6 produces it** —
+  corrected 2026-09-07 on closing this task: 2.7.5 is pagination and coverage, and the error
+  taxonomy against a real vendor is 2.7.6, which names a bad key as its first deliberate cause.
 - **Absent, with `MARKET_DATA_PROVIDER` at its default `none`** — nothing happens, and that is
   the case a clean clone is in. The variables are **optional**, and a fresh checkout with no
   `.env` still runs, still passes `pnpm verify`, and still serves `pnpm dev`. Acceptance
@@ -189,3 +191,167 @@ liveness depend on a third party, and on a platform whose startup probe kills a 
 roughly ninety seconds it turns a vendor outage into a crash loop — which is precisely the
 failure Task 2.1.4 designed the database probe to avoid, on the same platform, for the same
 reason.
+
+---
+
+## What was actually done (2026-09-07)
+
+Kept short and factual; the durable records are `HOSTING.md`'s "The Alpaca credential on the
+platform", `CLAUDE.md`'s Story 2.7 paragraph, and the dated amendment on ADR 0011 §10.
+
+- **Two variables**, `ALPACA_API_KEY_ID` and `ALPACA_API_SECRET_KEY`, in `CONFIG_VARIABLES`
+  and `apps/backend/.env.example`. **The first entries in that table that are optional with
+  no default**, which needed one comment corrected: the interface said "no default" implied
+  "required", and those two came apart here.
+- **`Config` gained `alpaca?: AlpacaConfig`**, spread in conditionally and frozen separately,
+  so the object holds a whole credential or has no key at all. The half-set case is
+  unrepresentable because `loadConfig` refuses it.
+- **Three cross-variable rules**, all through the existing accumulator: a key id with no
+  secret, a secret with no key id, and `MARKET_DATA_PROVIDER=alpaca` with neither. Ten new
+  tests, and **five deliberate breaks in `config.ts`, each seen to fail and reverted** with
+  the file byte-identical afterwards.
+- **`pnpm env:check` gained a fifth failure mode**: a variable with no default must be
+  documented **blank**. This is a leak guard rather than tidiness — the default comparison
+  is structurally inapplicable to a no-default variable, so before it a real key pasted into
+  the tracked example would have passed. Made to fail, along with its four existing ways.
+- **The platform**: `az containerapp secret set alpaca-api-secret-key`, plus
+  `ALPACA_API_KEY_ID` as a plain `value` and `ALPACA_API_SECRET_KEY` as a `secretRef`.
+  Revision `0000113`, `RunningAtMaxScale`, `/health` 200, `/market-data` still
+  `{"feed":null}`. The `secrets` array is **non-`null` for the first time**.
+- **Key Vault costed and declined**, with the reversal trigger named. See `HOSTING.md`.
+- **The five-producer leak check is clean**, with a non-vacuity control on the Log Analytics
+  half. The scratchpad credential file is deleted; its harness survives and holds zero
+  credential bytes.
+- **The four startup cases were produced against the built server**, not reasoned about: no
+  key (starts, serves), provider selected with no key (exit 1, both variables named, no
+  value), half a credential (exit 1), real credential present (starts, does nothing, and the
+  eight log lines it wrote contain neither needle).
+
+### Two things worth carrying that the brief did not anticipate
+
+**1. `alpaca` is deliberately still not a valid `MARKET_DATA_PROVIDER` value, so the check
+that matters had to read the raw environment.** `PROVIDER_IDS` ships `fixture` alone and
+gains its second member in Task 2.7.3, with the client that can produce it — the rule that a
+union member arrives with its producer, held four times. Adding it here to make a
+configuration check convenient would have broken that rule, broken
+`createMarketDataProvider`'s deliberate exhaustive-switch compile error, and put a vendor
+name in `packages/shared` a task before anything vendor-shaped existed. So the check reads
+`env.MARKET_DATA_PROVIDER` raw, which is the `DATABASE_PASSWORD` check's own idiom for its
+own reason: **only the raw value says what an operator asked for.** The cost is stated
+rather than hidden — today that configuration reports two problems, and the first
+disappears on its own in 2.7.3 with no edit here.
+
+**2. The most valuable leak result was one nobody planned.** Putting the real credential in
+`apps/backend/.env` exercised the root `.dockerignore`'s `.env` entry against a live secret
+for the first time. `.env` is _gitignored_, which is not the same as being outside a build
+context — a context is assembled from the working tree — so that one line is the only thing
+between a developer's credential and the builder stage. The image contains **no `.env` at
+all** and zero credential bytes.
+
+### What is deliberately still open, with its owner
+
+- **The convention-block test-count sweep.** `pnpm test` moved 619 → **629**; the ten
+  duplicated blocks in Epic 1's story files are swept at a **story close**, which is Task
+  2.7.9's, per the precedent Task 2.6.8 set. Recorded here so it is inherited rather than
+  rediscovered.
+- **A key that is present but wrong** is not checked anywhere yet, by decision. Task 2.7.6
+  produces `unauthorised` against the live API.
+- **Rotation** is an `az` command that leaves no record here. That is the accepted cost of
+  the Container App secret over Key Vault and it is written down in `HOSTING.md` rather than
+  discovered later.
+
+---
+
+## In plain language — what this task did for the product, and why
+
+**Short version: MarketPulse now has a key to the front door of its market-data supplier,
+and we have proved that key is not lying around anywhere it should not be. Nothing on any
+screen changed, and that is the intended outcome.**
+
+### The situation before this task
+
+Everything MarketPulse eventually does — the anomaly scores, the charts, the AI
+investigations — starts with real prices, and real prices come from a supplier called
+Alpaca. Alpaca gives you two strings of characters that together prove you are you: an
+identifier and a password, effectively. Last task we obtained them and used them once, from
+a throwaway script, to answer some questions about what the free plan can actually do.
+
+They were sitting in a temporary file on a laptop. That is fine for an afternoon and is not
+a place to keep a credential.
+
+### What this task did
+
+It gave the key a permanent, correct home, and it did **not** build anything that uses the
+key yet. That separation is on purpose, and it is the one decision worth explaining to a
+non-engineer, because it looks like unnecessary ceremony and is not.
+
+A credential's failure mode is not a bug — it is a **leak**. A bug announces itself when
+something stops working. A leaked key announces nothing at all; you find out months later,
+from somebody else. So the work of handling a credential is the work of _looking_ — checking
+every place a copy could have been left — and that is a different activity from writing a
+feature. Mixed into the same task as "make the thing fetch prices", the looking is what gets
+skipped when the fetching starts working.
+
+Concretely, three things now exist:
+
+**A documented slot.** The application has a formal list of every setting it reads, and a
+check that runs on every build making sure that list and the documentation for it agree. The
+Alpaca credential is now on that list. Somebody joining the project can read one file and
+see that this credential exists, what it is for, and that it is optional.
+
+**A safe on the hosting platform.** The live deployment now stores the secret in Microsoft
+Azure's own secret store, which the application is granted permission to read. It is the
+first time in this project's history that anything secret has been stored anywhere — until
+today, the deployed system genuinely held no credentials at all, and we had recorded that
+fact four separate times. That claim has now formally expired, and we amended the original
+document to say so with the date, rather than quietly editing history.
+
+**Proof that it has not escaped.** We searched six places for the key's exact characters:
+the source code, the compiled backend, the shipped container, the website the public
+downloads, the server's logs, and the automated build logs. Zero hits everywhere. One of
+those searches carried a control — we confirmed the log search was looking at 2,158 real log
+entries, because a search that finds nothing because it is looking at nothing is worthless
+and looks identical to a clean result.
+
+### Three decisions a stakeholder might reasonably question
+
+**"Why two settings instead of one?"** Because exactly one of the two halves is actually
+secret. The identifier is sent openly on every request and is printed on Alpaca's own
+website; the other half is the real password. Keeping them separate is what lets us say
+"never show this one, and freely show that one" — which matters practically: when something
+goes wrong at 3am, being able to see _which_ key is configured, without exposing the
+password, is the difference between a five-minute fix and an hour.
+
+**"What happens if somebody deploys this and forgets the key?"** The application refuses to
+start, loudly, naming exactly which settings are missing and never printing their values.
+That was a genuine open question and we chose the strict answer for one reason: asking for
+Alpaca is a deliberate act, so a deployment that asked for it and cannot do it has told us
+something is wrong, and starting anyway would mean a system that looks healthy and silently
+serves nothing.
+
+**"So do you check that the key actually works when it starts?"** No, deliberately, and this
+is the decision most likely to look like a gap. Checking would mean calling Alpaca every
+single time the server starts. Alpaca counts our requests, and the hosting platform
+automatically restarts anything that takes too long to start — so if Alpaca were slow or
+down, our own service would enter an endless restart loop over a supplier problem that has
+nothing to do with whether our system is healthy. A wrong key will announce itself the first
+time we actually ask for a price, which is soon and is the right moment.
+
+### What a user can do now that they could not before
+
+Nothing. Genuinely nothing — and the task was designed so that this is verifiable rather
+than merely claimed: we confirmed the live site behaves identically before and after,
+including the status strip still honestly reporting that no market feed is configured.
+
+### Where this sits on the road to something visible
+
+The nine tasks in this story go: measure the supplier's real limits (done), give the key a
+home (**this task**), fetch and translate one page of real prices, **put the true feed name
+on screen** — that is the first visible one, and it is fourth of nine rather than last,
+deliberately, so the story demonstrates something before it ends — then handle pagination,
+errors, retries, and the details of a symbol's lifecycle.
+
+After that, Story 2.8 stores prices, Story 2.9 serves them, and **Story 2.12 draws the first
+chart**. This task is a small, unglamorous, load-bearing step: it is the one that means the
+next task can simply ask for prices without also having to invent, and get right, how a
+secret is handled.

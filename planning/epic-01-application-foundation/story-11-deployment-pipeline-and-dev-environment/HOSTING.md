@@ -1336,6 +1336,133 @@ impersonate the backend, and vice versa.
   where a hand-rolled `fetch` of a documented URL fails loudly at the first
   connection.
 
+## The Alpaca credential on the platform (Task 2.7.2)
+
+**The `secrets` array is non-`null` for the first time in this project's history.** It was
+read back as `null` in Tasks 1.11.3, 2.1.6, 2.1.8 and 2.2.7 — four times, by four tasks, each
+recording it as a true statement rather than an omission — and 2026-09-07 is the day that
+stops being true. ADR 0011 §10 carries a dated amendment saying so.
+
+**What changed and what did not.** The identity transfers: the app still has the same
+system-assigned managed identity that authenticates to Postgres, and it is what reads this
+secret. The _mechanism_ does not. Task 2.1.1 chose Entra-only database authentication, so the
+database credential is **minted per connection and stored nowhere** — there is nothing to
+leak because there is nothing to keep. An Alpaca key is a **bearer secret from a party with
+no Azure identity**. There is nothing to mint. It has to be stored somewhere, and this is the
+somewhere.
+
+### What was set, read back from the platform
+
+| Variable                | Kind            | Value                            |
+| ----------------------- | --------------- | -------------------------------- |
+| `ALPACA_API_KEY_ID`     | plain `value`   | `PK…`, 26 characters             |
+| `ALPACA_API_SECRET_KEY` | **`secretRef`** | → secret `alpaca-api-secret-key` |
+
+The app now carries **thirteen** environment variables and **one** secret, on revision
+`0000113`. It went to `RunningAtMaxScale` with one replica and `/health` answered `200`
+throughout.
+
+**The split across two mechanisms is the decision made visible on the platform**, and it is
+the reason the credential is two variables rather than one packed string. Only one of the two
+is a secret: the key id travels in the clear in an `APCA-API-KEY-ID` header on every request
+and is on Alpaca's own dashboard, so putting it in the `secrets` array would be redacting the
+one value whose visibility tells an operator _which key is configured_. A packed
+`id:secret` could not express that distinction at all.
+
+**Read-back does not disclose the value.** `az containerapp secret list` returns
+`[{"name": "alpaca-api-secret-key"}]` and no value; `az containerapp show` renders the
+environment entry as a `secretRef` rather than a value. That is a small, real property: the
+ordinary command an operator runs to see what is configured cannot leak it.
+
+### A Container App secret, and the Key Vault reference is the recorded loser
+
+Both were costed, per Task 2.7.2's brief, and `HOSTING.md` had previously recorded the Key
+Vault shape as **recommended-but-not-decided**. It is decided now, against that
+recommendation, with the reason written down.
+
+**What was chosen — a Container App secret.** One `az containerapp secret set`, no new
+resource, no new role assignment, no second thing that can be misconfigured. It is the
+mechanism the `secrets` array exists for and the one ADR 0011 §10 identified in advance
+precisely so that its first use would not also be the occasion for learning where secrets go.
+
+**What it costs, stated rather than discovered.** The value is held by the app and is only as
+good as the platform's own access control — anyone with `Contributor` on the app can read it
+back — and **rotation is another `az` command that leaves no record in this repository**.
+There is no audit trail of who read it and no boundary that survives somebody holding
+app-level access.
+
+**What Key Vault would have bought**, and why it did not win _here_: rotation without
+touching the app, an audit trail, and a boundary that survives app-level access. Against
+that, a vault is a new resource, a role assignment and a second thing this repository cannot
+see — and it would add a **second** row to the sixth-kind gap list rather than one. The
+deciding argument is what this particular secret is: a **read-only market-data key on a free
+paper-trading plan**. Its compromise costs no money and exposes no data of ours; the worst
+outcome is somebody else consuming our rate limit until it is regenerated, and regenerating
+it is free and takes a minute.
+
+**The reversal trigger is a credential whose compromise costs something** — Epic 10's model
+provider key is the named one, because that has a bill attached and a compromised one spends
+real money. A second consumer of the same secret is the other trigger, because that is the
+point at which "rotate it in one place" stops being one place.
+
+### It joins the sixth kind of `pnpm verify` gap, and it makes that list qualitatively worse
+
+The gap class is _configuration that exists only in the platform, which no file here holds
+and no check can read_ — already the largest instance in the project, because `deploy.yml`
+uses `update` and never `create`. This adds two environment variables and one secret to it,
+and the new thing is that **one of the entries is a credential**: every previous member of
+that list is a setting whose wrongness produces a visible failure, and this one is a value
+whose wrongness produces a `401` and whose _presence in the wrong place_ produces a
+disclosure. `CLAUDE.md`'s gap list carries the row.
+
+The standing hazard is inherited unchanged and is sharper for a secret: **a value set by hand
+persists across every deploy and is invisible in every diff.** Nothing in this repository
+records that this secret exists except this section.
+
+### The five-producer leak check, clean (2026-09-07)
+
+Task 2.1.6 established the procedure; this is its second use, and the difference is that
+**this time there is genuinely a stored secret to leak** — that task's strongest result was
+that there was no secret at all. Every sweep is by the credential's own bytes, and the
+counts are the output rather than the values.
+
+| #   | Producer                                                                             | key id | secret | Notes                                                                   |
+| --- | ------------------------------------------------------------------------------------ | -----: | -----: | ----------------------------------------------------------------------- |
+| 1   | The repository — `apps`, `packages`, `scripts`, `planning`, `docs`, `e2e`, `.github` |  **0** |  **0** | The 7 `APCA-` hits are the header _name_ in comments and documentation  |
+| 2a  | `apps/backend/dist`                                                                  |  **0** |  **0** | `Authorization` appears twice — the CORS allowlist, unrelated           |
+| 2b  | **The container image**                                                              |  **0** |  **0** | And **no `.env` file exists in it at all**, `find / -name .env` empty   |
+| 3   | `apps/frontend/dist` and `storybook-static`                                          |  **0** |  **0** | Trivially — the browser never talks to Alpaca                           |
+| 4   | Log Analytics, 2 h window, 5 needles                                                 |  **0** |  **0** | Also 0 for `APCA-`, `ALPACA_API_SECRET_KEY` and `alpaca-api-secret-key` |
+| 5   | The `verify` and `deploy` CI run logs                                                |  **0** |  **0** | Neither workflow mentions Alpaca at all — the secret was set by hand    |
+
+**Producer 4 carried its own control**, which is what makes it a measurement: the same window
+holds **2,158** console records, including the revision rollover that injected the credential.
+A zero against an empty window is not evidence.
+
+**Producer 2b is the one worth reading twice, because it exercised an entry nobody had
+tested.** `apps/backend/.env` now holds the real credential, and `.env` is _gitignored_, which
+is not the same as being outside a build context — a context is assembled from the working
+tree. The root `.dockerignore`'s `.env` entry is the only thing standing between a developer's
+credential and the builder stage, and until today it had never been exercised with a live
+secret sitting there. It holds.
+
+**And terminal echo is counted as a producer in its own right**, which is Task 2.1.5's own
+leak turned into a rule — that task printed a live token by passing it as a command argument.
+Every command here expanded the value from a file into a shell variable, so no credential
+appears in any command text or in any output; the residual exposure is process `argv` for
+under a second on the operator's own machine, which is a different and much smaller thing
+than a recorded transcript. Stated rather than claimed away.
+
+### The scratchpad credential file is deleted, and the harness is clean
+
+Task 2.7.1 kept the key in an env file outside the tree, `chmod 600`. This task gave the key
+its real home — the platform and `apps/backend/.env` — which is what made that file redundant
+rather than merely tidy-able, and it is deleted. Its harness survives at
+`…/scratchpad/alpaca-harness` for Task 2.7.3 to reuse and was swept for both needles:
+**zero**, which is 2.7.1's refuse-on-match capture sweep holding a day later.
+
+---
+
 ## Reversal cost — and it is not one file
 
 Story 1.10 recorded CI's reversal cost as "one YAML file", and that is only true because the pipeline runs `pnpm verify` by name and defines nothing of its own. **Deployment cannot be that cheap, and saying so precisely is this section's job.** Moving hosts means changing all of:

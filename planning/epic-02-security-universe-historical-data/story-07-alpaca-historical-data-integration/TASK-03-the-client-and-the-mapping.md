@@ -57,6 +57,42 @@ text grep — already 8 and 7 across the two packages, every one of them a comme
 decision — should be re-run rather than cited, because Task 2.6.5 found the recorded count wrong
 by one.
 
+## What Task 2.7.2 left you, and the one thing adding that member changes (added 2026-09-07)
+
+**The credential is already configured, already on the platform, and already typed.** Do not
+read `process.env` here and do not add a variable: `config.alpaca` is
+`{ keyId, secretKey } | undefined` — **absent** rather than present-and-empty, which is the
+distinction `exactOptionalPropertyTypes` exists to draw — and a client that reads it with no
+credential configured is a compile error rather than a request signed with `""`. The pair is
+refused at startup if only one half is set, so this task never has to consider half a
+credential. `apps/backend/.env` on the development machine already holds a real key.
+
+**Adding `alpaca` to `PROVIDER_IDS` has one effect on `config.ts` beyond the exhaustive switch,
+and it is a comment rather than a behaviour.** Task 2.7.2's cross-variable check for
+_"a provider selected without its credential"_ reads the **raw** `MARKET_DATA_PROVIDER` value
+rather than the parsed selection, precisely because `alpaca` was not yet a member and the check
+had to be producible on the day it was written. That still works unchanged once the member
+exists. What changes is that the configuration stops reporting **two** problems and starts
+reporting one, because `readEnum` accepts the value — so:
+
+- the comment in `config.ts` beside `ALPACA_PROVIDER_SELECTION` that explains the two-problem
+  consequence, and
+- the comment on `config.test.ts`'s _"does not fire on `MARKET_DATA_PROVIDER=alpaca` when the
+  credential is present"_ test, which says the selection is still refused so the message is not
+  empty,
+
+both become false in this commit. That test should become an assertion that `loadConfig`
+**succeeds** and returns `marketDataProvider: "alpaca"` with the credential attached, which is a
+stronger claim than the one it makes today and is only available once this member exists. No
+test breaks either way; this is a claim that quietly stops being true, which is the class this
+repository sweeps for at every close.
+
+**And the harness survives, cleaned.** Task 2.7.1's throwaway scripts are still outside the tree
+at `…/scratchpad/alpaca-harness`, swept on 2026-09-07 and holding **zero** credential bytes.
+Reuse its refuse-on-match capture writer rather than a manual check — it is the thing that made
+2.7.1's 22 captures provably clean, and this task's fixtures are the ones that actually get
+committed.
+
 ## The mapping, field by field, and the two that are dropped
 
 | Alpaca | Ours       | Note                                                                         |
@@ -217,7 +253,10 @@ Two rules for the recording, both of which are how a corpus goes bad:
   already (`@azure/identity`, 32 packages and 46 MB, Task 2.1.6). If one is proposed, cost it
   from a fresh install the way Task 2.2.1 costed Kysely, then revert
 - `alpaca` in `PROVIDER_IDS`, and `createMarketDataProvider`'s exhaustive switch wired — which
-  will fail the build until it is, by design
+  will fail the build until it is, by design. It takes the credential from **`config.alpaca`**,
+  which Task 2.7.2 shipped; nothing here reads `process.env`
+- The two comments Task 2.7.2 left that this commit makes false — in `config.ts` and in
+  `config.test.ts` — amended, and that test strengthened into a success assertion
 - `pnpm bars`, and the recorded fixtures
 - The vendor-grep amendment where Task 2.6.8's figure stands
 - Three deliberate breaks, each seen to fail and reverted: the timestamp shifted by one

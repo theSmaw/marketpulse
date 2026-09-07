@@ -306,7 +306,11 @@ describe("CONFIG_VARIABLES", () => {
   // that the table agrees with the readers beside it, which is this.
   it("documents a default that loadConfig actually produces", () => {
     const config = loadConfig({});
-    const actualDefaults: Record<string, string> = {
+    // `string | undefined` since Task 2.7.2: the Alpaca pair is optional with
+    // **no** default, which is a shape this table had not carried before. The
+    // credential's absence is a legitimate configuration and an invented one
+    // would be a value that is present and wrong.
+    const actualDefaults: Record<string, string | undefined> = {
       PORT: String(config.port),
       HOST: config.host,
       LOG_LEVEL: config.logLevel,
@@ -320,6 +324,8 @@ describe("CONFIG_VARIABLES", () => {
       DATABASE_AUTH: config.database.auth,
       DATABASE_PASSWORD: config.database.password ?? "",
       DATABASE_SSL: config.database.ssl,
+      ALPACA_API_KEY_ID: config.alpaca?.keyId,
+      ALPACA_API_SECRET_KEY: config.alpaca?.secretKey,
     };
 
     // The key sets have to match first, or the loop below passes vacuously on
@@ -332,5 +338,182 @@ describe("CONFIG_VARIABLES", () => {
       expect(variable.required).toBe(false);
       expect(variable.default).toBe(actualDefaults[variable.key]);
     }
+  });
+});
+
+// --- The Alpaca credential (Task 2.7.2) ---
+//
+// The first bearer secret this application holds. These tests are the second
+// use of Task 2.1.3's redaction procedure, and the difference is that this
+// time there is genuinely a stored secret to leak: the database credential this
+// module receives is a public fixture, and the deployed one never arrives here
+// at all.
+describe("loadConfig and the Alpaca credential", () => {
+  const KEY_ID = "PKEXAMPLENOTREALKEYID";
+  const SECRET = "not-the-real-secret-and-not-any-fixture-either";
+
+  // Story 2.7's acceptance criterion 6, as a test rather than as a sentence: a
+  // clean clone has no `.env`, therefore no credential, therefore no `alpaca`
+  // key — and it is **absent** rather than present and empty, which is the
+  // distinction `exactOptionalPropertyTypes` exists to draw.
+  it("has no alpaca key at all when neither variable is set", () => {
+    const config = loadConfig({});
+
+    expect(config.alpaca).toBeUndefined();
+    expect("alpaca" in config).toBe(false);
+  });
+
+  it("carries both halves when both are set", () => {
+    const config = loadConfig({
+      ALPACA_API_KEY_ID: KEY_ID,
+      ALPACA_API_SECRET_KEY: SECRET,
+    });
+
+    expect(config.alpaca).toStrictEqual({ keyId: KEY_ID, secretKey: SECRET });
+  });
+
+  // Shallow freeze is the trap `database` already records, and a nested object
+  // is only frozen if it is frozen. Asserted rather than assumed, because the
+  // outer assertion passes either way.
+  it("freezes the nested credential as well as the config", () => {
+    const config = loadConfig({
+      ALPACA_API_KEY_ID: KEY_ID,
+      ALPACA_API_SECRET_KEY: SECRET,
+    });
+
+    expect(Object.isFrozen(config)).toBe(true);
+    expect(Object.isFrozen(config.alpaca)).toBe(true);
+  });
+
+  // A blank line in `.env` is absent, everywhere and for every reader. It
+  // matters more here than for `PORT`: an empty-string secret would be a
+  // credential that exists and cannot possibly work.
+  it("treats a blank credential as absent rather than as an empty secret", () => {
+    expect(
+      loadConfig({ ALPACA_API_KEY_ID: "", ALPACA_API_SECRET_KEY: "   " })
+        .alpaca,
+    ).toBeUndefined();
+  });
+
+  // Half a credential has two opposite readings — the pair was meant and a line
+  // was lost, or neither was meant and one is left over — so it is refused
+  // rather than guessed at. The `DATABASE_PASSWORD`-with-`entra` shape exactly.
+  it("refuses a key id with no secret, naming both variables", () => {
+    let message = "";
+    try {
+      loadConfig({ ALPACA_API_KEY_ID: KEY_ID });
+    } catch (error) {
+      if (error instanceof ConfigError) {
+        message = error.message;
+      }
+    }
+
+    expect(message).toContain("ALPACA_API_KEY_ID");
+    expect(message).toContain("ALPACA_API_SECRET_KEY");
+  });
+
+  it("refuses a secret with no key id, naming both variables", () => {
+    expect(() => loadConfig({ ALPACA_API_SECRET_KEY: SECRET })).toThrow(
+      ConfigError,
+    );
+  });
+
+  // **Story 2.7's open decision 3, first half.** Selecting a provider is a
+  // deliberate act, so a deployment that selected Alpaca and forgot the key has
+  // stated an intention this process cannot honour — a startup refusal rather
+  // than a degraded start.
+  //
+  // Note what this asserts and what it does not. `alpaca` is not yet a member
+  // of `MARKET_DATA_PROVIDER_SELECTIONS` — `PROVIDER_IDS` gains it in Task
+  // 2.7.3, with the client that can produce it — so this configuration reports
+  // **two** problems today and one of them will disappear on its own. The
+  // credential message is the one this test is about, and it is producible now
+  // precisely because the check reads the raw environment value rather than the
+  // parsed selection.
+  it("refuses MARKET_DATA_PROVIDER=alpaca with no credential, naming both variables and neither value", () => {
+    let message = "";
+    try {
+      loadConfig({ MARKET_DATA_PROVIDER: "alpaca" });
+    } catch (error) {
+      if (error instanceof ConfigError) {
+        message = error.message;
+      }
+    }
+
+    expect(message).toContain("MARKET_DATA_PROVIDER is alpaca");
+    expect(message).toContain("ALPACA_API_KEY_ID");
+    expect(message).toContain("ALPACA_API_SECRET_KEY");
+  });
+
+  it("does not fire on MARKET_DATA_PROVIDER=alpaca when the credential is present", () => {
+    let message = "";
+    try {
+      loadConfig({
+        MARKET_DATA_PROVIDER: "alpaca",
+        ALPACA_API_KEY_ID: KEY_ID,
+        ALPACA_API_SECRET_KEY: SECRET,
+      });
+    } catch (error) {
+      if (error instanceof ConfigError) {
+        message = error.message;
+      }
+    }
+
+    // The selection itself is still refused until 2.7.3 adds the member, so the
+    // message is not empty — but the credential complaint must be gone.
+    expect(message).not.toContain("asked for a provider it cannot use");
+  });
+
+  // **The redaction rule, asserted rather than trusted.** This is the whole
+  // reason this task is separate from the client: a credential's failure mode
+  // is a disclosure rather than a bug, and disclosures are found by looking.
+  //
+  // The value is deliberately not any fixture and not any real key, for Task
+  // 2.1.3's stated reason — a test written against a public fixture passes
+  // while leaking a real one.
+  it("never puts the secret key's value into any message", () => {
+    let message = "";
+    try {
+      loadConfig({
+        PORT: "nonsense",
+        ALPACA_API_SECRET_KEY: SECRET,
+      });
+    } catch (error) {
+      if (error instanceof ConfigError) {
+        message = error.message;
+      }
+    }
+
+    expect(message).toContain("ALPACA_API_SECRET_KEY");
+    expect(message).not.toContain(SECRET);
+
+    // The rest of the accumulator still quotes what it should, so this is a
+    // rule about one value rather than a message that gave up on detail.
+    expect(message).toContain('received "nonsense"');
+  });
+
+  // Every problem in one run, which is what the accumulator is for: a
+  // configuration wrong in a reader's way, a database pair's way and the
+  // Alpaca pair's way reports three lines rather than the first.
+  it("reports a reader problem, a database pair problem and an Alpaca pair problem together", () => {
+    let message = "";
+    try {
+      loadConfig({
+        PORT: "nonsense",
+        DATABASE_AUTH: "entra",
+        DATABASE_SSL: "verify-full",
+        DATABASE_PASSWORD: "left-over",
+        ALPACA_API_KEY_ID: KEY_ID,
+      });
+    } catch (error) {
+      if (error instanceof ConfigError) {
+        message = error.message;
+      }
+    }
+
+    expect(message.split("\n")).toHaveLength(3);
+    expect(message).toContain("PORT");
+    expect(message).toContain("DATABASE_PASSWORD");
+    expect(message).toContain("ALPACA_API_SECRET_KEY");
   });
 });
