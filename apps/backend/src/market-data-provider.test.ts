@@ -12,6 +12,7 @@ import {
   type BarsRequest,
   type BarsResult,
   DEFAULT_BARS_DEADLINE_MS,
+  isRetryableOutcome,
   type MarketDataProvider,
 } from "./market-data-provider.js";
 
@@ -69,6 +70,36 @@ function series(): BarSeries {
 }
 
 /**
+ * Every member of the union, exactly once, keyed by its own discriminator.
+ *
+ * **A `Record<BarsResult["outcome"], BarsResult>` rather than an array, and
+ * that is the whole reason it exists** — it is the same idiom `health.ts`'s
+ * response schema uses, where a `satisfies Record<keyof …>` turns a forgotten
+ * field into `TS1360`. A ninth outcome added without an entry here is a
+ * **compile error naming the missing key**, and an entry for an outcome that
+ * does not exist is an excess-property error, so it is checked in both
+ * directions.
+ *
+ * That closes the gap an exhaustive `switch` leaves on its own: a `switch`
+ * proves every member is *handled* by the code under test and says nothing
+ * about whether a test ever *constructs* one. Both mechanisms are wanted, and
+ * an array would have given only the first.
+ */
+const EVERY_OUTCOME = {
+  ok: { outcome: "ok", series: series() },
+  timeout: { outcome: "timeout", deadlineMs: DEFAULT_BARS_DEADLINE_MS },
+  aborted: { outcome: "aborted" },
+  "unknown-symbol": { outcome: "unknown-symbol" },
+  "range-not-available": { outcome: "range-not-available" },
+  "rate-limited": { outcome: "rate-limited" },
+  unauthorised: { outcome: "unauthorised" },
+  "upstream-unavailable": { outcome: "upstream-unavailable" },
+} as const satisfies Record<BarsResult["outcome"], BarsResult>;
+
+/** Insertion order, which is `BarsResult`'s own declaration order. */
+const EVERY_RESULT: readonly BarsResult[] = Object.values(EVERY_OUTCOME);
+
+/**
  * A provider that answers with whatever it was handed. Not the fixture provider
  * — that is Task 2.6.6, it reads a corpus and it ships. This exists to prove
  * the interface is implementable and that a call resolves rather than rejects,
@@ -105,22 +136,45 @@ describe("MarketDataProvider", () => {
     expect(result.outcome).toBe("aborted");
   });
 
-  it("carries no upstream message on any failure member", () => {
+  it("carries no upstream message or body on any failure member", () => {
     // PROVIDER.md §8.6, made structural rather than conventional: there is
-    // nowhere on either failure member to put one. Task 1.7.4 measured the cost
-    // of the other arrangement — a 500 answering a request with `connection to
-    // postgres at 10.0.0.4:5432 refused`.
-    const timedOut: BarsResult = {
-      outcome: "timeout",
-      deadlineMs: DEFAULT_BARS_DEADLINE_MS,
-    };
-    const aborted: BarsResult = { outcome: "aborted" };
+    // nowhere on ANY failure member to put one. Task 1.7.4 measured the cost of
+    // the other arrangement — a 500 answering a request with `connection to
+    // postgres at 10.0.0.4:5432 refused` — and its lesson is the half that
+    // looks harmless: a message written for a developer is internal detail too.
+    //
+    // Asserted by enumerating the keys of every member rather than by checking
+    // for a `message` field, because the failure this guards against is a
+    // provider stuffing the vendor's prose into whatever field happens to exist.
+    const keys = EVERY_RESULT.map((result) => Object.keys(result).sort());
 
-    expect(Object.keys(timedOut).sort()).toStrictEqual([
-      "deadlineMs",
-      "outcome",
+    expect(keys).toStrictEqual([
+      ["outcome", "series"],
+      ["deadlineMs", "outcome"],
+      ["outcome"],
+      ["outcome"],
+      ["outcome"],
+      ["outcome"],
+      ["outcome"],
+      ["outcome"],
     ]);
-    expect(Object.keys(aborted)).toStrictEqual(["outcome"]);
+  });
+
+  it("refuses a member carrying the upstream's own words", () => {
+    // The structural half of the claim above. `message`, `body` and `cause` are
+    // the three fields a provider reaches for under pressure, and none of them
+    // exists on any member — so this is a compile error rather than a review
+    // comment. Note the trap next door that makes the runtime test above
+    // insufficient on its own: Task 2.1.7 found `fast-json-stringify` strips a
+    // property the schema does not declare, so a green leak test can be green
+    // for the wrong reason. Here the type is what holds it shut.
+    const leaky = {
+      outcome: "upstream-unavailable",
+      // @ts-expect-error - no member may carry the vendor's message
+      message: "connection to api.vendor.example refused",
+    } satisfies BarsResult;
+
+    expect(leaky.outcome).toBe("upstream-unavailable");
   });
 });
 
@@ -176,12 +230,15 @@ describe("BarsRequest", () => {
 });
 
 describe("BarsResult", () => {
-  it("is exhaustively switchable, which is what makes Task 2.6.5 an addition", () => {
-    // The `satisfies never` below is the whole point of this test. Task 2.6.5
-    // adds five members — unknown-symbol, range-not-available, rate-limited,
-    // unauthorised, upstream-unavailable — and every switch over this union
-    // stops compiling until it handles them. That is what turns "the taxonomy
-    // arrives later" from a hope into a mechanism.
+  it("is exhaustively switchable, and every one of the eight is written down", () => {
+    // The `satisfies never` below is what made Task 2.6.5 an addition rather
+    // than a rewrite: adding its five members took this file red with TS2322
+    // and TS1360 before a line of it was edited. It stays because a ninth
+    // member has to be as loud.
+    //
+    // The map afterwards is the other half. A switch proves every member is
+    // HANDLED; it says nothing about whether a test ever CONSTRUCTS one, so
+    // EVERY_OUTCOME is checked for completeness by covering the union.
     function describeResult(result: BarsResult): string {
       switch (result.outcome) {
         case "ok":
@@ -190,6 +247,16 @@ describe("BarsResult", () => {
           return `gave up after ${String(result.deadlineMs)} ms`;
         case "aborted":
           return "the caller went away";
+        case "unknown-symbol":
+          return "no such security";
+        case "range-not-available":
+          return "the vendor will not serve that window";
+        case "rate-limited":
+          return "we asked too often";
+        case "unauthorised":
+          return "the credential is wrong";
+        case "upstream-unavailable":
+          return "the vendor is down";
         default: {
           const unhandled: never = result satisfies never;
           return unhandled;
@@ -197,11 +264,49 @@ describe("BarsResult", () => {
       }
     }
 
-    expect(describeResult({ outcome: "ok", series: series() })).toBe("1 bars");
-    expect(describeResult({ outcome: "timeout", deadlineMs: 3_000 })).toBe(
+    expect(EVERY_RESULT.map(describeResult)).toStrictEqual([
+      "1 bars",
       "gave up after 3000 ms",
-    );
-    expect(describeResult({ outcome: "aborted" })).toBe("the caller went away");
+      "the caller went away",
+      "no such security",
+      "the vendor will not serve that window",
+      "we asked too often",
+      "the credential is wrong",
+      "the vendor is down",
+    ]);
+    expect(EVERY_RESULT).toHaveLength(8);
+  });
+
+  it("keeps the two causes apart that a caller repairs differently", () => {
+    // API_ERROR_CODES' rule, applied to the pair most likely to be merged by
+    // somebody tidying. `timeout` is a joint fact about the vendor AND our own
+    // patience, so it admits a repair — raise the deadline — that "they are
+    // down" does not, and it is the only failure member carrying a number
+    // because of it.
+    const timedOut: BarsResult = { outcome: "timeout", deadlineMs: 3_000 };
+    const down: BarsResult = { outcome: "upstream-unavailable" };
+
+    expect(timedOut.outcome).not.toBe(down.outcome);
+    expect(isRetryableOutcome(timedOut)).toBe(isRetryableOutcome(down));
+    expect("deadlineMs" in down).toBe(false);
+  });
+
+  it("lets rate-limited omit its hint rather than carrying an undefined one", () => {
+    // exactOptionalPropertyTypes, which is why a provider building this has to
+    // branch the way apiError() does rather than assigning a possibly-undefined
+    // value. Absent means the vendor did not say; it never means "immediately".
+    const withHint: BarsResult = { outcome: "rate-limited", retryAfterMs: 750 };
+    const without: BarsResult = { outcome: "rate-limited" };
+
+    // @ts-expect-error - absent, never present-and-undefined
+    const wrong: BarsResult = {
+      outcome: "rate-limited",
+      retryAfterMs: undefined,
+    };
+
+    expect("retryAfterMs" in withHint).toBe(true);
+    expect("retryAfterMs" in without).toBe(false);
+    expect(wrong.outcome).toBe("rate-limited");
   });
 
   it("treats an empty answer as a success rather than a failure", () => {
@@ -226,6 +331,36 @@ describe("BarsResult", () => {
     expect(result.outcome).toBe("ok");
     expect(empty.bars).toHaveLength(0);
     expect(empty.coverage.covered).toBeNull();
+  });
+});
+
+describe("isRetryableOutcome", () => {
+  it("classifies every outcome, and asking again is the exception", () => {
+    // PROVIDER.md §8.1's third column, asserted rather than described. This is
+    // the input to constraint 1 of the retry policy — only retryable causes are
+    // retried — so getting it wrong is a wrapper hammering a vendor that has
+    // already refused us, or one giving up on an outage that would have cleared.
+    expect(
+      EVERY_RESULT.filter(isRetryableOutcome).map((r) => r.outcome),
+    ).toStrictEqual(["timeout", "rate-limited", "upstream-unavailable"]);
+  });
+
+  it("never retries a settled question or a configuration fault", () => {
+    // The two that cost the most if this is got wrong, named individually so a
+    // future edit to the switch cannot flip them silently. A retry on
+    // `unauthorised` is a loop against a wall; a retry on `unknown-symbol` asks
+    // a question the vendor has already answered definitively.
+    expect(isRetryableOutcome({ outcome: "unauthorised" })).toBe(false);
+    expect(isRetryableOutcome({ outcome: "unknown-symbol" })).toBe(false);
+    expect(isRetryableOutcome({ outcome: "range-not-available" })).toBe(false);
+  });
+
+  it("does not retry on behalf of a caller that went away", () => {
+    // `aborted` is not really a member of this question: there is nobody left
+    // to retry for. It is false rather than absent so the classifier stays
+    // total, which is what lets a wrapper call it on any result.
+    expect(isRetryableOutcome({ outcome: "aborted" })).toBe(false);
+    expect(isRetryableOutcome({ outcome: "ok", series: series() })).toBe(false);
   });
 });
 

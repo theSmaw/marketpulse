@@ -52,7 +52,23 @@ Story 2.8's ingestion design — so it must precede it.
   wrong are paid in Story 2.8, which is sized against these numbers, and in Epic 3, which
   is sized against the streaming equivalents
 - Rate limiting and backoff, implemented against the measured limit, including what
-  happens on a 429 and whether the limit is per-key or per-endpoint
+  happens on a 429 and whether the limit is per-key or per-endpoint. **Amended 2026-09-07 by
+  Task 2.6.5: this bullet as written reads as though it lives in the client, which is the one
+  home that decision explicitly rejected.** Retry lives in a **wrapper implementing
+  `MarketDataProvider`, composed around a provider** (`PROVIDER.md` §8.8, confirmed and
+  recorded in `market-data-provider.ts`'s own module comment) — because a retry inside a
+  provider makes the caller's deadline a lie and makes _"how many times did we ask the
+  vendor"_ a question with a different answer per vendor. **So this story builds the wrapper
+  and measures the numbers; it does not add a retry to the Alpaca client.** Three constraints
+  are already settled and are not this story's to re-take: only retryable causes are retried,
+  and `isRetryableOutcome()` is the source rather than a `switch` written here; a retry must
+  not outlive the caller's deadline or its abort signal, so the wrapper gets no budget of its
+  own and a `rate-limited` hint is a floor inside that bound rather than an extension of it;
+  and a retry policy plus a rate limit is a **queue**, which has a depth, and an unbounded one
+  is a memory leak wearing a politeness costume — so state the depth and what happens when it
+  is full. **Cross-request pacing across a hundred symbols is Story 2.8's backfill and not
+  this**; conflating them is how a backfill re-fetches ninety-nine symbols that answered
+  perfectly because one was rate-limited
 - **Confirm the WebSocket subscription cap, even though the stream itself is Epic 3's, and
   do it FIRST.** This is an explicit and narrow exception to the out-of-scope line below,
   added 2026-09-05 because **Story 2.3's universe sizing is parked on the answer** and this

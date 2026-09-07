@@ -609,6 +609,20 @@ timeframes. Two observations worth carrying forward now:
 Plus the success member carrying a `BarSeries`. Eight outcomes, which is one more than
 `api-client.ts`'s seven and for the same reasons.
 
+**Amended 2026-09-07 by Task 2.6.5, which implemented this table unchanged — no member
+struck, none renamed, none added.** Two things about it are now code rather than this table:
+
+- **The Retryable column is `isRetryableOutcome()`** in `market-data-provider.ts`, beside the
+  union it classifies, for the reason `isApiError()` sits beside `ApiError`. It is an
+  **exhaustive `switch` rather than a list of retryable outcomes**, and that is the point: a
+  list leaves a ninth member silently non-retryable — the _safe_ answer, arrived at by
+  silence — where a switch makes classifying it a condition of the build compiling.
+- **Every member is constructed exactly once in a `Record<BarsResult["outcome"], BarsResult>`
+  in the tests**, which is `health.ts`'s response-schema idiom. The exhaustive switch proves
+  every member is _handled_; it says nothing about whether a test ever _constructs_ one, and
+  a ninth member now fails in **three** places at once — the record (`Property 'ninth' is
+missing`), the test's switch, and the classifier's switch. Measured, not hoped for.
+
 ### 8.2 "No data for this range" is NOT an error — the decision the list does not contain
 
 A symbol that exists, a range that is valid, and a market that was shut is a **successful
@@ -675,6 +689,33 @@ Two consequences:
 
 **Must not:** the vendor's response body, the vendor's message, or an opaque `cause: unknown`.
 
+**Amended 2026-09-07 by Task 2.6.5, which narrowed the "may" half rather than using it.** The
+rule it shipped is easier to apply and produced a different answer:
+
+> **A member carries only what the caller does not already hold.**
+
+Under that rule **no member echoes the request back** — one rule rather than an exception,
+which is also what the two members Task 2.6.4 shipped already did. `unknown-symbol` does not
+name the symbol and `range-not-available` does not repeat the range, because a request is for
+exactly one symbol over exactly one window, so echoing either is a second copy that can only
+agree or be wrong. The batch case anticipated above does not need it either: a batch returns
+a `BarsResult` **per symbol**, so the symbol is beside the cause structurally.
+
+What survives the narrower rule is exactly the two things the caller genuinely lacks:
+`timeout`'s `deadlineMs`, because a caller that omitted one does not know which number it was
+measured against, and `rate-limited`'s optional `retryAfterMs` — a **duration and not an
+instant**, because an absolute time from the vendor has to be reconciled against our clock and
+skew in the unlucky direction means retrying _early_, against the service that just asked us
+to stop. It is optional under `exactOptionalPropertyTypes`, so a provider **branches** the way
+`apiError()` does rather than assigning a possibly-`undefined` value; absent means the vendor
+did not say, never "immediately".
+
+**`range-not-available` ships with no sub-reason** — no `too-old` / `too-wide` /
+`in-the-future` — and the argument is §8.7's rather than economy: a fixture produces it one
+way, so a sub-reason would ship members nothing can produce, which §8.7 itself calls a guess.
+The reversal trigger is a caller that _repairs_ a range automatically rather than reporting
+it; today the caller is a person narrowing a request.
+
 The reason is measured rather than principled. Task 1.7.4 found Fastify's default 500 passing
 the thrown message straight through, answering a request with
 `connection to postgres at 10.0.0.4:5432 refused`. **A message written for a developer is
@@ -712,6 +753,14 @@ widen `config.ts`'s port range for a test's convenience.
 recommendation with the arguments already made rather than a decision taken over its head.
 It is recorded here because it belongs beside §8.1's retryable column, which is its input.
 Confirm it or overturn it with a reason; do not re-derive it.
+
+**Amended 2026-09-07: Task 2.6.5 CONFIRMED it, unchanged, and wrote it into the module
+comment above `MarketDataProvider` where the next person to add a retry will be reading.**
+One thing it added rather than confirmed — **nothing was built**. There is no provider to
+wrap, no measured distribution to pick a backoff from, and a wrapper written now would be
+tested only against itself; Task 2.6.6 supplies the first thing it can be composed around.
+What the taxonomy owes the wrapper and now provides is constraint 1's input as code
+(`isRetryableOutcome`), so the wrapper does not write a second copy of this table.
 
 Three candidates, and the middle one wins:
 
@@ -838,14 +887,23 @@ session boundary, which is exactly where a half day makes the disagreement large
 Anything beyond these two needs a named reader.
 
 **Amended 2026-09-07 by Task 2.6.2: criterion 1's grep must be over CODE, not over text, and
-a naive one reports six false positives.** Measured on the shipping tree: `packages/shared/src`
-contains **six** occurrences of a vendor name and **zero** of them are code — they are five
-comments and one line of prose in a test, every one of them explaining _why_ a decision was
-taken (`ticker.ts` on where the ticker format comes from, `security.ts` and
-`securities-response.ts` on which field group a later story will fill). That is the opposite
-of a leak, and deleting them to make a grep clean would destroy the record. The four files
-Task 2.6.2 added contain zero in either form, deliberately — they say _"the vendor"_ — so the
-number does not grow.
+a naive one reports ~~six~~ **seven** false positives.** Measured on the shipping tree:
+`packages/shared/src` contains ~~**six**~~ **seven** occurrences of a vendor name and
+**zero** of them are code — they are comments and one line of prose in a test, every one of
+them explaining _why_ a decision was taken (`ticker.ts` on where the ticker format comes
+from, `security.ts` and `securities-response.ts` on which field group a later story will
+fill, and `market-provenance.ts` on why invariant 6 needs a feed at all). That is the
+opposite of a leak, and deleting them to make a grep clean would destroy the record.
+
+**Amended 2026-09-07 by Task 2.6.5: the count moved from six to seven and the prediction
+beside it was falsified one task after it was written.** Task 2.6.2 recorded that its own
+four files added zero _"so the number does not grow"_ — true of 2.6.2 and not of 2.6.3, which
+added `market-provenance.ts:5` naming the vendor while explaining invariant 6. **The
+prediction was the wrong shape rather than merely unlucky**: the naive count grows whenever a
+file explains why a vendor-shaped decision was taken, which is a thing this repository wants
+more of, so it is not a number to hold flat. **The figure worth watching is the code-only
+one, which is zero and has always been zero.** Quote that; re-run the naive one rather than
+citing it.
 
 The check Task 2.6.8 should run, and it returns nothing today:
 
@@ -1070,6 +1128,22 @@ silently applied to the code later:
    key. `BarsRequestOptions` is `deadlineMs` and `signal`. The split matters concretely
    rather than aesthetically: a signal folded into the request makes every cache key unique
    and puts a live object graph into anything that logs one.
+
+8. **Added 2026-09-07 by Task 2.6.5: Story 2.7's rate-limiting scope bullet reads as the home
+   §8.8 rejected, and it is corrected in that file rather than only here.** It says _"rate
+   limiting and backoff, implemented against the measured limit"_ in a scope list otherwise
+   describing the client — so a reader building from it puts the retry inside the Alpaca
+   client, which is rejection 1 exactly. **Story 2.7 builds the wrapper and measures the
+   numbers; it does not add a retry to the client.** This is the same class as correction 1
+   above: a scope bullet rather than a decision, and correcting it makes that story clearer
+   rather than larger.
+
+   Two things fall out of it that are worth having in one place. **The wrapper's construction
+   is Story 2.7's and is owned nowhere in Story 2.6** — Task 2.6.5 decided its home and built
+   nothing, which is correct (no provider to wrap, no measured distribution to pick a backoff
+   from), and Task 2.6.6 supplies the first thing it can be composed around without owning it.
+   And **constraint 1's input now exists as code**: `isRetryableOutcome()` is §8.1's third
+   column, so the wrapper reads it rather than writing a second copy of this table.
 
 ---
 

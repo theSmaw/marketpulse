@@ -71,6 +71,17 @@ missing`**, which is the brand — and the brand is the half that matters, becau
    story's prose five** — Task 2.6.1 struck `bad-range` for `range-not-available` and added
    `timeout` and `aborted` (`PROVIDER.md` §8.1, §8.3, §8.4). A count of five here means
    somebody built from `STORY.md`'s scope list rather than from the settled table.
+   **Amended 2026-09-07 by Task 2.6.5: seven causes plus `ok` is EIGHT outcomes, and the two
+   counts are both right — say which one you are reporting.** That task shipped §8.1
+   unchanged, so a drift here would be a member added or struck during Task 2.6.6, not
+   during 2.6.5. Two things are worth re-running rather than re-counting, because both are
+   mechanisms rather than claims: a **ninth member** added to `BarsResult` fails in **three**
+   places — the tests' `Record<BarsResult["outcome"], BarsResult>` (`Property 'ninth' is
+missing`), the exhaustive `switch` in `market-data-provider.test.ts`, and
+   `isRetryableOutcome`'s own `switch` — so a cause cannot be added without being
+   **constructed**, **handled** and **classified**; and each member's retryability is
+   asserted against `isRetryableOutcome()` rather than described, which is §8.1's third
+   column as code.
 5. **Adjustment explicit at the call site.** The check is that omitting it does not compile,
    which Task 2.6.4 locks in with a `@ts-expect-error` in
    `apps/backend/src/market-data-provider.test.ts`. **Amended 2026-09-07: that directive was
@@ -155,7 +166,18 @@ actually arrives with:
 - what provenance is attached to and why that granularity survives a stitched series
 - why adjustment is explicit with no default, and the split-cliff argument
 - why a provider call cannot throw, and where the line between a result and a defect is
-- why there is no retry and no cache inside a provider
+- why there is no retry and no cache inside a provider — **and, amended 2026-09-07 by Task
+  2.6.5, where retry DOES live**, which is the half a later reader actually arrives with.
+  A wrapper implementing the same interface, with both rejections recorded (inside a provider
+  makes the caller's deadline a lie; at the call site conflates per-request retry with
+  cross-request pacing, which is how a backfill re-fetches ninety-nine symbols that answered
+  perfectly because one was rate-limited) and the three constraints that bound it, with no
+  numbers — those are Story 2.7's. Note it was **decided and not built**, deliberately
+- **the two rules the taxonomy rests on**, both from Task 2.6.5 and both cheaper to state
+  than to re-derive: _a cause is a union member when it is a fact about the world and a thrown
+  defect when it is a fact about our code_, and _a member carries only what the caller does
+  not already hold_ — the second of which is why no member echoes the request back, and why
+  `timeout` carries a number while `unknown-symbol` carries nothing
 - **and the section every ADR here carries: what a green fixture-backed test certifies and
   what it cannot.** Be specific. It certifies that our code agrees with a corpus we wrote; it
   certifies nothing about the vendor until Story 2.7 re-records that corpus, and saying so is

@@ -151,6 +151,58 @@ the first reading unless there is an argument against it, and write the argument
 way — because whichever is chosen, Story 2.14 renders it and Story 2.8's gap handling is
 built beside it.
 
+### What Task 2.6.5 handed forward — this task is the first thing that CONSTRUCTS a failure
+
+**Amended 2026-09-07 by Task 2.6.5.** The taxonomy is complete: `BarsResult` has all eight
+members, `PROVIDER.md` §8.1's table exactly. Five consequences, each of which would otherwise
+be met at the keyboard.
+
+- **`rate-limited`'s hint is optional, so building one is a BRANCH rather than an
+  assignment.** Under `exactOptionalPropertyTypes`, `retryAfterMs?: number` means genuinely
+  absent, not present-and-`undefined` — so a corpus entry that may or may not carry a hint is
+  written the way `apiError()` writes its `details`:
+
+  ```ts
+  return hint === undefined
+    ? { outcome: "rate-limited" }
+    : { outcome: "rate-limited", retryAfterMs: hint };
+  ```
+
+  This provider is the **first constructor of these members anywhere**, so it is where that
+  idiom gets set. Absent means _the vendor did not say_ and never _"immediately"_.
+
+- **No member echoes the request back**, which is a rule rather than an omission: _a member
+  carries only what the caller does not already hold_. So `unknown-symbol` does **not** name
+  the symbol and `range-not-available` does **not** repeat the range. Two consequences here:
+  the corpus must not be tempted to add them back, and a test asserting _which_ symbol was
+  unknown holds the **request** it sent rather than reading the result.
+
+- **`unauthorised` is ONE member covering missing, wrong and unentitled credentials.** One
+  corpus flag, not three. They are merged because a caller does the same thing about all
+  three, and because they are not reliably distinguishable from a vendor's response.
+
+- **`isRetryableOutcome()` ships beside the union**, so criterion 4's distinguishability test
+  has a second thing worth asserting: not only that each cause arrives distinct, but that
+  each is **classified** correctly. **Do not re-derive retryability in a `switch` of your
+  own** — that is a second copy of the taxonomy, which is the whole reason the classifier is
+  exported.
+
+- **There is a canonical way to enumerate all eight**, and it is worth copying rather than
+  re-inventing: `market-data-provider.test.ts` holds them in a
+  `Record<BarsResult["outcome"], BarsResult>`, which is `health.ts`'s response-schema idiom
+  and makes a ninth member a compile error naming the missing key. Whether this task's suite
+  imports that or declares its own is a judgement — a cross-test-file import is unusual here
+  — but **something in this task should enumerate the eight in a form a ninth member breaks**,
+  because that is what stops a future cause being produced by nothing.
+
+**And one thing this task does NOT own: the retry wrapper.** Task 2.6.5 confirmed
+`PROVIDER.md` §8.8 — retry lives in a wrapper implementing this same interface — and
+deliberately **built nothing**, because there was no provider to wrap and no measured
+distribution to pick a backoff from. This task supplies the first thing it can be composed
+around; **Story 2.7 builds it**, against its own measured limit. Do not build it here, and do
+not put a retry inside the fixture provider: a provider makes exactly one attempt, which is
+precisely what makes a fixture-backed test mean anything.
+
 ### Determinism is the requirement, and it has a sharper edge than it looks
 
 The same request must produce the same series, byte for byte, on every machine and every run.
@@ -245,7 +297,10 @@ move the suite.
   "not implemented"
 - The same request produces a byte-identical series across runs, asserted
 - Every error cause from Task 2.6.5 is produced against it and each is distinguished by a
-  caller in a test
+  caller in a test — **all eight members**, enumerated in a form a ninth member breaks, with
+  each one's `isRetryableOutcome()` classification asserted rather than re-derived
+- The `rate-limited` entry that omits its hint is built by **branching**, not by assigning
+  `undefined`, and a test asserts the field is genuinely absent
 - The half day, the holiday, the gap, the DST range and the corporate action are all covered,
   with counts derived from `market-session.ts` rather than written out
 - A fixture series' provenance cannot be mistaken for real market data — which is

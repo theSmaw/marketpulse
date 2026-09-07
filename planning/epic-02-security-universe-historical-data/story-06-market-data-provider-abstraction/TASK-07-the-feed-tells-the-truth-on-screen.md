@@ -57,6 +57,16 @@ indicators sharing one marker language, not one indicator whose meaning widens".
 arguments apply unchanged. **Provenance is a third thing beside the status word, not a fourth
 member of it.**
 
+**Amended 2026-09-07 by Task 2.6.5: the eight-member error taxonomy is NOT a third candidate
+here, and it is worth saying because both are about "the market feed".** `BarsResult`'s
+members — `rate-limited`, `upstream-unavailable`, `unauthorised` and the rest — are facts
+about **one request**, produced and consumed inside `apps/backend`. This region reports a
+**standing configuration**: which provider this deployment reads and which feed it serves,
+which is true before any request is made and stays true while one fails. Rendering a
+per-request outcome in the chrome would be the `FeedStatus` widening above wearing a different
+costume, and it would need a live request the chrome does not make. Story 2.12 renders a
+failed fetch, beside the thing that failed to load.
+
 What that leaves open, and what this task decides: whether provenance renders **inside** the
 market-feed region beside the status word, or as its own region. Note the constraint the
 strip already carries — the market clock is `align-items: flex-end` as the end of the strip,
