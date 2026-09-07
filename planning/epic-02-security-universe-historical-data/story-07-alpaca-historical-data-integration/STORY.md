@@ -207,6 +207,77 @@ Story 2.8's ingestion design — so it must precede it.
 6. The application still builds, tests and runs with **no** Alpaca key present
 7. `pnpm verify` passes with no network access
 
+## Tasks
+
+Tackled in order. The story is complete when all nine are done, and one prerequisite is not a
+task at all.
+
+**2.7.1 measures and ships nothing**, which is the shape Tasks 2.1.1, 2.2.1, 2.3.1, 2.5.1 and
+2.6.1 set — but for a different reason from any of them. Those five settled decisions; this one
+settles **facts**, because two of this vendor's own pages disagree by two orders of magnitude
+about a number the size of the tracked universe is parked on, and because five of the seven
+acceptance criteria are about measurements rather than about code. It takes the cap measurement
+first, before anything else in the story.
+
+**2.7.2 gives the key a home** and is kept apart from the client for Task 2.1.3's reason: the
+configuration boundary has its own failure modes and its own cross-variable checks, and a
+credential read in three places is how one leaks. It is also where ADR 0011's _"nothing deployed
+holds a credential"_ formally expires.
+
+**2.7.3, 2.7.5, 2.7.6 and 2.7.7 are the client, split four ways because its four halves fail
+differently and three of them fail silently.** A retry inside the transport lies about the
+deadline; a swallowed page lies about the data; a laundered parse failure lies about whose fault
+it is. Only the happy path fails loudly, which is why it ships first — and why 2.7.3 **throws**
+on anything it does not yet handle rather than returning a plausible answer.
+
+**2.7.4 is the visible one and it is fourth rather than last**, which is a delivery decision
+stated as one: it is available the moment a provider can declare a feed, it costs one platform
+setting and no frontend code, and every task after it is invisible. A story whose only visible
+moment is at the end demonstrates nothing if it stops early.
+
+**2.7.8 answers the two lifecycle questions Story 2.3 handed here with named owners** — and its
+one obligation is not to defer them a third time. **2.7.9 closes the story and records ADR
+0019**, which carries something no previous close has had: figures that are observations from
+one day against a live third party, rather than figures reproducible from a clean clone forever.
+
+| #          | Task                                                                                                                                                                                                                                                                          | Status      |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| **Prereq** | **An Alpaca account with market-data API keys.** Not a task — the same shape as Epic 1's `ACCOUNT-SETUP.md`, because nothing between two tasks owns creating an account. Everything except 2.7.1's measurements can be built against recorded fixtures with no account at all | Not started |
+| 2.7.1      | [Hold a real key, measure what the free plan actually is, and answer the question another story is parked on](TASK-01-the-account-the-cap-and-the-real-plan.md)                                                                                                               | Not started |
+| 2.7.2      | [Put the key through the configuration boundary and onto the platform, fetching nothing](TASK-02-the-credential-through-the-boundary.md)                                                                                                                                      | Not started |
+| 2.7.3      | [The client: one request, one page, and the mapping onto the domain types](TASK-03-the-client-and-the-mapping.md)                                                                                                                                                             | Not started |
+| 2.7.4      | [Point the deployed backend at Alpaca and let the chrome say `IEX`](TASK-04-the-feed-tells-the-truth-about-a-real-vendor.md)                                                                                                                                                  | Not started |
+| 2.7.5      | [Pagination, coverage, and what a real IEX session actually contains](TASK-05-pagination-coverage-and-the-shape-of-a-real-session.md)                                                                                                                                         | Not started |
+| 2.7.6      | [Every failure this vendor can produce, mapped and produced rather than imagined](TASK-06-the-error-taxonomy-against-a-real-vendor.md)                                                                                                                                        | Not started |
+| 2.7.7      | [The retry wrapper, bounded by the caller, with numbers from the measured limit](TASK-07-the-retry-wrapper-and-the-measured-limit.md)                                                                                                                                         | Not started |
+| 2.7.8      | [`delisted`, and whether a ticker rename gets an identity](TASK-08-the-symbols-lifecycle-delisted-and-the-rename.md)                                                                                                                                                          | Not started |
+| 2.7.9      | [Verify, sweep, and record ADR 0019](TASK-09-verify-document-and-adr.md)                                                                                                                                                                                                      | Not started |
+
+### Where the five open decisions are settled
+
+None is left to a task that happens to trip over it, and none is settled anywhere but in a task
+that has the evidence for it.
+
+| Open decision                                    | Settled in | Why there                                                                                 |
+| ------------------------------------------------ | ---------- | ----------------------------------------------------------------------------------------- |
+| 1. Which timeframes                              | 2.7.1      | It is an arithmetic decision against measured cost and depth                              |
+| 2. How far back                                  | 2.7.1      | Same, and both sizes Story 2.8                                                            |
+| 3. Missing or invalid key at startup             | 2.7.2      | It is a configuration behaviour, and it turns out to have **two** answers rather than one |
+| 4. Whether `delisted` ships, and if not who does | 2.7.8      | It needs the assets endpoint, which needs a key                                           |
+| 5. Whether a rename gets an identity             | 2.7.8      | Same endpoint, same migration, and the deadline is Story 2.8                              |
+
+### Eight of the nine change nothing a user can see, and the story says so plainly
+
+The same shape Stories 2.5 and 2.6 recorded. What makes it acceptable here is that 2.7.4 is
+fourth of nine rather than deferred polish, and that what it puts on screen is the **first true
+statement this product has ever made about market data** — the region it fixes read a hard-coded
+`DISCONNECTED` for six stories and `NOT CONFIGURED` for one.
+
+**What a user still cannot do at the end of this story is see a price.** There is no chart, no
+series and no number on any screen; this story fetches into a terminal, Story 2.8 stores, Story
+2.9 serves and Story 2.12 draws. Any demonstration should say that, because a `Market feed: IEX`
+label beside no data invites exactly the opposite reading.
+
 ## What this story hands forward
 
 Real market data, the numbers Story 2.8 is designed against, and a second credential
