@@ -117,6 +117,27 @@ something the candidate list did not name.
   precedent Task 2.6.8 set that a close owns the sweep. So this close inherits **at least two**
   increments already outstanding before its own remaining tasks are counted — which is exactly
   the shape that produced "stale by two story closes" twice. Re-count rather than adding to 683
+- **Story 2.14's own file, which is planned against a premise this story inverted — and it is
+  the sweep most likely to be skipped, because it is a FUTURE story's file rather than a stale
+  claim about the past.** Added 2026-09-07 by Task 2.7.4. Story 2.14 is written throughout as
+  _"label the feed as IEX so nobody reads it as full US market coverage"_ — a **disclaimer** —
+  in at least three live places: its summary (_"the feed labelled as **IEX rather than the
+  consolidated tape**"_), its scope bullet (_"`Market feed: IEX` … so a reader learns this is
+  one venue rather than all of them"_) and its open decision 2 (_"IEX is a real feed, not a
+  degraded one"_).
+
+  **Two things falsify that framing and only one of them is a wording change.** Stored
+  historical bars are **SIP**, so for them the honest label is the opposite of a disclaimer.
+  And the harder one: Epic 3's live stream is IEX while this story's stored bars are SIP, so a
+  single series can name **two feeds at once** — which `PROVIDER.md` §2.4 deliberately designed
+  for by making a feed disagreement truthful and reportable. Story 2.14's job is therefore not
+  _"label the feed"_ but _"render a **list** of sources that may disagree about feed"_, which is
+  a materially larger surface than its scope currently describes.
+
+  **Do not rewrite that story's scope from here** — say what was falsified, and let it re-take
+  its own decisions with the measurements in hand. Its open decision 2 (the exact wording) is
+  the right owner, and it is now a decision about **two** claims rather than one
+
 - **`pnpm links`**, which is a `verify` step since Task 2.6.8 and therefore runs itself. Report
   its counts as figures rather than trusting the last recorded ones — they moved between two
   consecutive readings the first time they were taken
@@ -174,7 +195,24 @@ those documents.
   `UNIVERSE.md` §10's quality ceiling narrowing to live data only), and the standing consequence
   that **Epic 3's live bars and this story's stored bars come from different tapes** — which
   `PROVIDER.md` §2.4 already anticipated by making a feed disagreement truthful and reportable
-  rather than refused
+  rather than refused.
+
+  **And record what the label swap taught, because it is a rule rather than an anecdote**
+  (Task 2.7.4, same day it shipped). `sip` went out as label `Consolidated tape` under sentence
+  _"All US exchanges, via the consolidated tape."_ — the **jargon** as the big word and the
+  **plain meaning** as the small print, which inverts the rule this repository had already
+  written down three times (`FeedProvenance.tsx`, `PROVIDER.md` §4.4, ADR 0018): _the sentence
+  is the requirement and the word is only the affordance._ It is now `All US exchanges` over
+  _"The full consolidated tape, not a single venue."_
+
+  Two things worth the ADR's space. **Every automated check passed** — nine axe readings, a
+  permutation grid, a layout measurement at five viewports — and the defect was caught by a
+  person reading the running product in one sentence; a grid proves six states render and
+  cannot tell you the word is jargon. And **a test had locked the inversion in place**, with
+  its own comment stating the rule its assertion contradicted, which is the sharper half: a
+  test can make a defect permanent as easily as it can prevent one. Both halves are now
+  asserted, so the inversion cannot return silently
+
 - **Why the key is stored where it is**, and why the database credential's path did not transfer
 - **Why a missing key is a startup refusal and a wrong key is a result** — the two halves of
   open decision 3 that turned out to have different answers
@@ -217,6 +255,12 @@ Write this as a section rather than leaving it to be reconstructed:
 - Whether the universe is being re-sized, and that after 2.8 backfills, re-sizing costs a
   re-backfill rather than a file edit
 - The lifecycle answer, and whether `status` now has a second writer
+- **The label-and-sentence rule, which Epic 3 is the next thing to have to honour.** It adds no
+  member — `iex` already exists and already has its words — but it is the first thing to make
+  `iex` render anywhere, so it is where the rule gets its next real test. The two assertions in
+  `market-provenance.test.ts` are per-feed and name their feeds by hand, deliberately, because
+  _"the label is plain English"_ is not genericly assertable; a feed added later therefore gets
+  **no** check unless somebody writes one. That is a stated gap rather than an oversight
 
 ## Done when
 

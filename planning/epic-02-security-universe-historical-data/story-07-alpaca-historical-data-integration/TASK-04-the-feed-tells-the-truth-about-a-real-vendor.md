@@ -398,6 +398,13 @@ no lockfile change, no new script and no `verify` step.
 
 ## For the stakeholders — in plain language
 
+> **Read the amendment at the foot of this file first if you are quoting this section.** It was
+> written before the label was changed, so where it says the readout reads `CONSOLIDATED TAPE`,
+> it now reads **`ALL US EXCHANGES`** under _"The full consolidated tape, not a single venue."_
+> Every other word below still holds — the finding, the cost, the measurements and the caution
+> are unaffected by which of the two phrases is the big one. It is left as written rather than
+> rewritten because it is the record of what was reported on the day.
+
 **MarketPulse now tells you, on the live website, where its market data comes from — and for
 the first time it is naming a real supplier's real data rather than describing its own absence.**
 
