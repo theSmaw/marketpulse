@@ -20,10 +20,30 @@ symbol" and "the feed refused us" are different sentences rather than one error 
 
 ### The causes, from Task 2.6.1's list, and each one earns its place
 
-`PROVIDER.md` fixed the list; this task implements it. The story names five and each is
-separated from its neighbours by **a different thing a caller does about it**, which is the
-test to apply — `API_ERROR_CODES`' own rule, where a member is added when a failure can be
-produced and merged when nothing branches on the difference:
+**Amended 2026-09-07 by Task 2.6.1. The list is settled in `PROVIDER.md` §8.1 and it is
+SEVEN causes rather than the five below — one struck, one renamed, two added. This task
+implements that table; it does not re-derive it. Read §8 before writing a line, and overturn
+a member only with a recorded reason.** The three changes, so the difference is visible
+rather than buried in a cross-reference:
+
+- ~~**bad range**~~ is **struck**, and `range-not-available` replaces it. The description
+  below calls it "a defect at the call site", and Task 2.6.2's `TimeRange` constructor
+  already makes that reading **unreachable** — a reversed or zero-width range is refused
+  naming both ends, following `marketSessionsBetween`. What remains is a range the provider
+  will not serve (before its history depth, in the future, too large), which is a fact about
+  the world. A member whose name lies about whose fault it is gets handled wrongly.
+- **`timeout` and `aborted` are added**, for `api-client.ts`'s reasons, which transfer whole
+  (`PROVIDER.md` §8.4). `timeout` is the only outcome that is a joint fact about the vendor
+  **and our own deadline**, so it admits a repair — raise the deadline — that "they are down"
+  does not. `aborted` is not a fact about the world at all, and the obligation it carries is
+  Task 1.12.3's: **never render an `aborted` as a market-data state.**
+- **"No data for this range" is NOT an error** — settled, `PROVIDER.md` §8.2. It is a
+  successful empty answer: `bars: []`, `coverage.covered: null`. This is the single most
+  likely thing to be got wrong by whoever writes the first `if (bars.length === 0)`.
+
+The original five, kept for the record, each separated from its neighbours by **a different
+thing a caller does about it** — `API_ERROR_CODES`' own rule, where a member is added when a
+failure can be produced and merged when nothing branches on the difference:
 
 - **unknown symbol** — the request was well-formed and there is no such security. Story 2.14
   renders this as an answer, not a failure
@@ -31,15 +51,7 @@ produced and merged when nothing branches on the difference:
 - **unauthorised** — a configuration fault, never retryable, and the one Story 2.7's deploy
   will produce for real when a key is wrong
 - **upstream unavailable** — the vendor is down or unreachable; retryable, unlike the above
-- **bad range** — ours, a defect at the call site rather than a fact about the market
-
-Then take the decision the list does not obviously contain, because it is the one that
-matters most to a chart: **is "no data for this range" an error at all?** A symbol that
-exists, a range that is valid, and a market that was shut — or a thinly traded name on IEX
-with no prints in that minute — is a **successful empty answer**, and treating it as an error
-is how Story 2.12 ends up with a failure screen on a public holiday. Task 2.6.3's coverage
-field is the alternative home for it. Decide, and note that Story 2.5 exists precisely so
-this question has a principled answer.
+- ~~**bad range**~~ — struck; see above
 
 ### The line between a result and a throw
 
@@ -94,6 +106,12 @@ real differences:
   wrong for retrying one request, and conflating the two is how a backfill ends up retrying a
   whole batch.
 
+**Amended 2026-09-07: `PROVIDER.md` §8.8 recommends the WRAPPER with the arguments and the
+two rejections already written out, plus the distinction that decides it — per-request retry
+is the wrapper's, cross-request pacing across a hundred symbols is Story 2.8's backfill, and
+conflating them is how a backfill retries a whole batch. The final call remains this task's;
+confirm it or overturn it with a reason, and do not re-derive it from scratch.**
+
 Whatever is chosen, write down the three constraints that make retry dangerous here rather
 than leaving them to be rediscovered: **only retryable causes are retried** — a retry on
 `unauthorised` is a loop against a wall; **a retry must not outlive the caller's deadline or
@@ -102,10 +120,10 @@ and an unbounded one is a memory leak wearing a politeness costume.
 
 ## Done when
 
-- The taxonomy is a closed union in `apps/backend`, every member from `PROVIDER.md`'s list,
-  with no vendor name — grepped
-- The empty-range question is answered, and the answer is written where Story 2.12 will read
-  it
+- The taxonomy is a closed union in `apps/backend`, **all seven members from `PROVIDER.md`
+  §8.1** and no others, with no vendor name — grepped
+- The empty-range question's settled answer (`PROVIDER.md` §8.2 — a successful empty answer,
+  never an error) is **implemented**, and is written where Story 2.12 will read it
 - No member can carry an upstream message or body, and that is structural rather than a
   convention
 - The retry policy's **home** is decided and written down, with the two rejected candidates

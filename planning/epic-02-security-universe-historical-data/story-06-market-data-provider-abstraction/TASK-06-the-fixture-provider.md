@@ -33,6 +33,27 @@ otherwise lose:
 
 ## Work
 
+> **Amended 2026-09-07 by Task 2.6.1.** Three conditionals below are now settled and one of
+> them changes what this task builds rather than only how it is described:
+>
+> - **It ships. Unconditionally.** `PROVIDER.md` §5 — so it is `apps/backend/src`, it is
+>   inside the container image, and the "if it ships" clauses below are simply the plan.
+> - **`MARKET_DATA_PROVIDER`'s default is `none`, not `fixture`** (§5.3), and `none` is a
+>   real member of the enum rather than an absent value. That is what makes this story's
+>   loud-default requirement concrete, and it is also what gives Task 2.6.7 a true thing to
+>   say before Story 2.7 exists. At the end of this story the enum is `["none", "fixture"]`;
+>   Story 2.7 adds its own member.
+> - **The corpus is GENERATED from `market-session.ts` and seeded** (§6.2), and — the part
+>   that removes work rather than adding it — **there is no re-recording obligation on this
+>   corpus at all** (§6.1). It produces domain types and parses no vendor JSON, so it has
+>   nothing vendor-shaped it could be wrong about. Story 2.7 records a _different_ corpus
+>   (raw HTTP bodies, for its mapping) and owes a reconciliation of three specific numbers,
+>   which is written into that story's file. **"Re-record Story 2.6's fixtures" is the wrong
+>   instruction**; the Notes at the foot of this file predate that finding.
+> - **`retrievedAt` is a fixed instant declared by the corpus** (§6.3), because a `now()`
+>   stamp is not byte-identical across runs — and it makes the series obviously not live,
+>   which §5.4 wants anyway.
+
 ### Determinism is the requirement, and it has a sharper edge than it looks
 
 The same request must produce the same series, byte for byte, on every machine and every run.

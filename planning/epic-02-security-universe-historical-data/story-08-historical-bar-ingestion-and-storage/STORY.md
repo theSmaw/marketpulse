@@ -99,8 +99,16 @@ is listed here only so it is not forgotten alongside it.
 - **Corporate actions, and this is where "record not cache" stops being philosophy.** A
   stored _adjusted_ series is retroactively wrong after a split unless something re-fetches
   it — which is a cache's answer, and a cache is what this store is not. **So bars are
-  stored as observed and UNADJUSTED, and adjustment is applied on read** against Story 2.6's
-  adjustment decision. That is the one concrete thing decision 1 buys, it is the thing most
+  stored as observed and UNADJUSTED**, against Story 2.6's adjustment decision — ~~and
+  adjustment is applied on read~~. **Amended 2026-09-07 by Task 2.6.1: the storage half is
+  confirmed with a stronger argument than it had, and the "applied on read" half is not
+  achievable as written.** Adjusting on read needs corporate-action data that nothing in the
+  plan acquires — not the bars endpoint, not the universe loader, not Story 2.7's scope. What
+  replaces it is cheaper: **the vendor performs the adjustment**, so an adjusted series is
+  _requested from a provider_ rather than computed here, and V1's read path serves raw and
+  **says so** in the series' provenance record. `PROVIDER.md` §3 carries the argument and §3.6
+  names the one gap this leaves — a split inside the stored window charts with a real step in
+  it, beside a label reading `raw` — with its trigger and two repairs, neither built now. That is the one concrete thing decision 1 buys, it is the thing most
   likely to be decided by accident in whichever task writes the first `insert`, and it is
   cheap now and a full re-backfill later
 - **Retention: nothing is deleted, and the trigger is disk pressure rather than age.** A

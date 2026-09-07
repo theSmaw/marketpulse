@@ -85,6 +85,19 @@ it is reachable from code, assert the ordering in a test**, which is this reposi
 rule that a test beats an eighth `verify` step when the thing being checked is reachable from
 an assembled instance.
 
+**Amended 2026-09-07 by Task 2.6.1: the pair is named, and it is the first one here that is
+NOT assertable in a test — so do not spend the task trying to build one.** Any deadline used
+behind a Story 2.9 route must sit strictly below the frontend's `API_TIMEOUT_MS` (5 s) minus
+a round trip, or the browser gives up first and the backend's patience is unobservable. The
+two numbers are in `apps/frontend` and `apps/backend` with **no shared module between them**,
+which is what makes this one prose where the other three are checks; moving `API_TIMEOUT_MS`
+into `packages/shared` to make it checkable is a change to shipped code for a test's
+convenience and is declined for Task 1.10.5's reason. The owner is **Story 2.9**.
+
+The consequence for the shape this task builds: the backfill is **not** behind a route and
+may legitimately want longer, so **the deadline is a per-request parameter with a default
+rather than a single module constant.**
+
 ### There is deliberately no retry here
 
 For `api-client.ts`'s stated reason: **retry is a property of the caller's policy, and a

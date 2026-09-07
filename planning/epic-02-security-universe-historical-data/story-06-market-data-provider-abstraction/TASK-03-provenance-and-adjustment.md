@@ -33,6 +33,24 @@ provenance rides on the data, at the granularity Task 2.6.1 decided.
 
 ## Work
 
+> **Amended 2026-09-07 by Task 2.6.1.** The granularity, the record's shape, the adjustment
+> vocabulary and the coverage question are all settled in `PROVIDER.md` §2, §3.4 and §4.
+> Three things this task no longer chooses:
+>
+> - **Coverage has an owner and it is this task.** It goes on the **series**, beside
+>   provenance, not on Task 2.6.4's response envelope — because a series outlives one HTTP
+>   exchange, and an envelope-level coverage field is gone the moment anything passes a
+>   `BarSeries` alone into a chart or a store (§2.5). Note what it does **not** answer:
+>   how far the answer reaches, not whether it is dense. Density is Story 2.8's gap handling.
+> - **The stitched case has a two-part answer, and each half has its own reason** (§2.4):
+>   sources may disagree about **feed** and that is reported truthfully, and they are
+>   **refused** if they disagree about **adjustment**, because two price scales in one array
+>   is not a series. That is the concrete form of this file's "either truthful or refused".
+> - **`Adjustment` has exactly two members** — `raw` and `split-adjusted` — with `dividend`
+>   declined against a named trigger (§3.4). Epic 5 is the stronger reader for the second,
+>   not the chart: an unadjusted 10-for-1 split is a **−90% return** sitting at the 100th
+>   percentile of every distribution it touches.
+
 ### The record's fields, each with a reader
 
 Task 2.6.1 settled the granularity; this task settles the content. Four fields are named by
