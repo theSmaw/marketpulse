@@ -84,13 +84,28 @@ something the candidate list did not name.
   scope V1 to the regular session is untouched and stands on its own merits — §2 argues about
   what a baseline denominator should contain, not about what is purchasable — so what needs
   re-stating is the trigger, which is now Epic 5's measurement alone
-- **The `pnpm verify` gap lists in `CLAUDE.md`** — the sixth kind gained the platform secret,
-  and any recorded invariant this story created (a coupled constant, a second writer on
-  `status`, a pin) belongs in the third kind with its durable copy named
+- **The `pnpm verify` gap lists in `CLAUDE.md`** — the sixth kind gained the platform secret at
+  Task 2.7.2 **and `MARKET_DATA_PROVIDER=alpaca` at Task 2.7.4**, and the two fail in opposite
+  directions, which is the part worth writing down rather than the count. A **missing
+  credential** beside a selected provider is a **startup refusal** — loud, naming the variable,
+  by Task 2.7.2's cross-variable check. A **missing `MARKET_DATA_PROVIDER`** is a **silent
+  fallback to `none`**, which is the correct safe default and which also means a deployment can
+  quietly stop naming its feed with nothing failing anywhere: `/health` stays 200,
+  `/market-data` answers `{"feed":null}`, and the chrome reads `NOT CONFIGURED`, which is
+  indistinguishable from a deployment that never configured one. It exists in no file in this
+  repository, so this paragraph and `HOSTING.md` are its only durable copy.
+
+  Any recorded invariant this story created (a coupled constant, a second writer on `status`, a
+  pin) belongs in the third kind with its durable copy named
+
 - **`README.md`** — ~~the script table gains `pnpm bars`~~ **added by Task 2.7.3 along with a
   `pnpm bars` section; verify rather than add.** The variable count moves (**13 → 15 at Task
-  2.7.2, and further if anything after it adds one**), and the "things that look like faults"
-  list may lose or keep the market-feed row depending on what Task 2.7.4 left on screen
+  2.7.2, and further if anything after it adds one**), and ~~the "things that look like faults"
+  list may lose or keep the market-feed row depending on what Task 2.7.4 left on screen~~ —
+  **resolved 2026-09-07: there is nothing to do.** That row left the list at Task 2.6.7, which
+  replaced the invented `DISCONNECTED` with provenance and is only the _second_ item ever to
+  leave it; 2.7.4 changed the word that region renders and not whether it reads as a fault.
+  **Verify rather than edit**, and if the row is still there, 2.6.7's sweep missed it
 - **`pnpm env:check`'s own description, in `CLAUDE.md` and `README.md`.** Task 2.7.2 gave it a
   **fifth** failure mode — a variable with no default must be documented **blank**, which is a
   leak guard rather than a formatting rule, because the default comparison is structurally
@@ -130,8 +145,18 @@ something the candidate list did not name.
   chrome renders `CONSOLIDATED TAPE`, read in a browser with the tab visible
 - The `secrets` array is non-`null` and contains what it should, read off the running revision
 - Log Analytics returns zero for the key id, the secret, `APCA-` and `Authorization`
-- `/health` and `/diagnostics/database` unaffected, `uptimeSeconds` never reset by anything this
-  story did
+- `/health` and `/diagnostics/database` unaffected, and ~~`uptimeSeconds` never reset by
+  anything this story did~~ — **amended 2026-09-07 by Task 2.7.4, because that check would
+  report a failure that did not happen.** Setting a platform variable creates a **new revision**,
+  a new revision is a **new replica**, and `process.uptime()` therefore _must_ restart —
+  measured, 164.9 s → 11.3 s. Two of this story's tasks already did it (2.7.2's credential,
+  2.7.4's provider) and 2.7.8 may do it again.
+
+  The checkable claim, which is stronger and which **held** at 2.7.4: **no request returned a
+  non-200 through the rollover**, `restartCount: 0`, and the superseded revision served at
+  weight 0 until the new one was ready — Task 1.11.7's _"traffic weight is not what serves"_.
+  Assert that, not the uptime. The sentence is worth reading twice before it is copied into the
+  next task that sets a platform variable, which is how it got here.
 
 ## ADR 0019 — what it has to answer
 

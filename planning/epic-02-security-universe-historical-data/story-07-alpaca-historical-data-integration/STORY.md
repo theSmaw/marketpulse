@@ -220,7 +220,13 @@ Story 2.8's ingestion design — so it must precede it.
      will not serve is _unmeasured_, where an explicit `feed=sip` cannot fall back and is a
      measured `403` that Task 2.7.6 maps.
 
-   **Rendered in Task 2.7.4**, which now knows what word to put on the page.
+   **RENDERED in Task 2.7.4 (2026-09-07), and decision 6 is now closed at both ends.** The
+   deployed chrome reads `MARKET FEED` / **`CONSOLIDATED TAPE`** / _"All US exchanges, via the
+   consolidated tape."_ on all five routes, `GET /market-data` answers `{"feed":"sip"}`, and it
+   cost **one platform variable and no frontend rendering code** — which is what proves Task
+   2.6.7 built a reporting mechanism rather than a caption. The layout risk that task carried
+   did not materialise: 141.7 px of label inside a 250.7 px measure, one line, 43% headroom, at
+   every viewport tested locally and deployed.
 
 6. **Whether a ticker rename gets an identity, and if not, who says so next.** Added
    2026-09-06 from `UNIVERSE.md` §12.6. The candidates are a `previous_symbol` column, a
@@ -298,7 +304,18 @@ backfill is bounded by pagination and history depth rather than by the rate limi
 ## Acceptance criteria
 
 1. Real bars for a real symbol are retrieved from Alpaca, and the response is mapped to
-   the domain types with provenance recording the IEX feed
+   the domain types with provenance recording ~~the IEX feed~~ **the feed the request
+   actually asked for**
+
+   > **Amended 2026-09-07, after Tasks 2.7.1, 2.7.3 and 2.7.4.** This criterion was written
+   > before anyone held a key. Measured, this plan serves **SIP** for historical bars, the
+   > client sends `feed=sip` explicitly, and the deployed chrome renders `CONSOLIDATED TAPE`
+   > — so a criterion checked against the word _IEX_ would go red against **correct** code.
+   > The wording is deliberately _what the request asked for_ rather than `sip`, because that
+   > is the property worth checking: provenance must name the feed we requested rather than
+   > a default we assumed. Task 2.7.9's bullet 1 already carries this and it belongs here too,
+   > because the criterion is the thing that gets re-run.
+
 2. The measured plan limits are written down as measurements with the date they were taken
    — **including the WebSocket subscription cap and specifically whether minute bars are
    exempt from it**, which is the one measurement another story is blocked on
@@ -350,8 +367,8 @@ one day against a live third party, rather than figures reproducible from a clea
 | 2.7.1      | [Hold a real key, measure what the free plan actually is, and answer the question another story is parked on](TASK-01-the-account-the-cap-and-the-real-plan.md)                                                                                                               | **Complete (2026-09-07)** |
 | 2.7.2      | [Put the key through the configuration boundary and onto the platform, fetching nothing](TASK-02-the-credential-through-the-boundary.md)                                                                                                                                      | **Complete (2026-09-07)** |
 | 2.7.3      | [The client: one request, one page, and the mapping onto the domain types](TASK-03-the-client-and-the-mapping.md)                                                                                                                                                             | **Complete (2026-09-07)** |
-| 2.7.4      | [Point the deployed backend at Alpaca and let the chrome name the real feed](TASK-04-the-feed-tells-the-truth-about-a-real-vendor.md)                                                                                                                                         | Not started               |
-| 2.7.5      | [Pagination, coverage, and what a real IEX session actually contains](TASK-05-pagination-coverage-and-the-shape-of-a-real-session.md)                                                                                                                                         | Not started               |
+| 2.7.4      | [Point the deployed backend at Alpaca and let the chrome name the real feed](TASK-04-the-feed-tells-the-truth-about-a-real-vendor.md)                                                                                                                                         | **Complete (2026-09-07)** |
+| 2.7.5      | [Pagination, coverage, and what a real session actually contains](TASK-05-pagination-coverage-and-the-shape-of-a-real-session.md)                                                                                                                                             | Not started               |
 | 2.7.6      | [Every failure this vendor can produce, mapped and produced rather than imagined](TASK-06-the-error-taxonomy-against-a-real-vendor.md)                                                                                                                                        | Not started               |
 | 2.7.7      | [The retry wrapper, bounded by the caller, with numbers from the measured limit](TASK-07-the-retry-wrapper-and-the-measured-limit.md)                                                                                                                                         | Not started               |
 | 2.7.8      | [`delisted`, and whether a ticker rename gets an identity](TASK-08-the-symbols-lifecycle-delisted-and-the-rename.md)                                                                                                                                                          | Not started               |
@@ -380,8 +397,10 @@ statement this product has ever made about market data** — the region it fixes
 
 **What a user still cannot do at the end of this story is see a price.** There is no chart, no
 series and no number on any screen; this story fetches into a terminal, Story 2.8 stores, Story
-2.9 serves and Story 2.12 draws. Any demonstration should say that, because a `Market feed: IEX`
-label beside no data invites exactly the opposite reading.
+2.9 serves and Story 2.12 draws. Any demonstration should say that, because a
+~~`Market feed: IEX`~~ **`MARKET FEED / CONSOLIDATED TAPE`** label beside no data invites exactly
+the opposite reading — and **more strongly than this sentence was written expecting**, because
+the deployed claim turned out to be _every US exchange_ rather than one venue.
 
 ## What this story hands forward
 
