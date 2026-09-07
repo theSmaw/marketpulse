@@ -42,7 +42,9 @@ import {
   ALPACA_PROVIDER_ID,
   ALPACA_SIP_WITHHOLDING_MS,
   alpacaServableEnd,
+  mapAlpacaFailure,
   parseAlpacaBarsBody,
+  parseRetryAfterMs,
   toAlpacaInclusiveEnd,
   toAlpacaQuery,
   toBarSeriesFromAlpacaBars,
@@ -591,5 +593,125 @@ describe("alpacaServableEnd — the withheld recent window", () => {
     expect(series.coverage.covered?.end.getTime()).toBeLessThan(
       series.coverage.requested.end.getTime(),
     );
+  });
+});
+
+/**
+ * The failure mapping (Task 2.7.6).
+ *
+ * Pure, so every one of these runs with no socket — which is what lets Story
+ * 2.7's criterion 3 and criterion 7 hold at the same time. The bodies these are
+ * written against were produced against the **live** vendor and recorded
+ * verbatim under `fixtures/alpaca/`; what the tests assert is the mapping, and
+ * `alpaca-provider.test.ts` asserts that the shipped client replays those exact
+ * bytes into the same members.
+ */
+describe("mapAlpacaFailure", () => {
+  const NOW = new Date("2026-09-07T13:00:00Z");
+
+  it.each([401, 403])(
+    "maps %i onto unauthorised, one member for all three causes",
+    (status) => {
+      // Measured: a wrong secret and no credential at all are byte-identical
+      // 401s, and the only 403 this vendor produces is the recency cliff, which
+      // `alpacaServableEnd` clamps out before a request is built.
+      expect(mapAlpacaFailure(status, null, NOW)).toEqual({
+        outcome: "unauthorised",
+      });
+    },
+  );
+
+  it("maps 429 onto rate-limited with the hint genuinely ABSENT when the vendor said nothing", () => {
+    const result = mapAlpacaFailure(429, null, NOW);
+    expect(result).toEqual({ outcome: "rate-limited" });
+
+    // **The assertion that matters, and it is about the KEY rather than the
+    // value.** Under `exactOptionalPropertyTypes` a present-and-`undefined`
+    // `retryAfterMs` would satisfy `toEqual` above while collapsing
+    // *"the vendor did not say"* into *"come back immediately"* at any caller
+    // reading it with `??`. This is the branch-not-assignment decision, checked.
+    expect("retryAfterMs" in result).toBe(false);
+  });
+
+  it("reads Retry-After's delta-seconds form when a vendor does send one", () => {
+    expect(mapAlpacaFailure(429, "120", NOW)).toEqual({
+      outcome: "rate-limited",
+      retryAfterMs: 120_000,
+    });
+  });
+
+  it("resolves Retry-After's HTTP-date form against now, so a caller gets a DURATION", () => {
+    // An instant reconciled here rather than at the caller: clock skew in the
+    // unlucky direction would otherwise retry EARLY, against the service that
+    // just asked us to stop.
+    expect(mapAlpacaFailure(429, "Mon, 07 Sep 2026 13:00:30 GMT", NOW)).toEqual(
+      {
+        outcome: "rate-limited",
+        retryAfterMs: 30_000,
+      },
+    );
+  });
+
+  it.each([500, 502, 503, 504])(
+    "maps %i onto upstream-unavailable",
+    (status) => {
+      expect(mapAlpacaFailure(status, null, NOW)).toEqual({
+        outcome: "upstream-unavailable",
+      });
+    },
+  );
+
+  // `PROVIDER.md` §8.5: a fact about our code is a THROW. All three recorded
+  // 400 bodies describe a request only this codebase could have built.
+  it.each([400, 404, 405, 418])(
+    "throws on %i rather than laundering our own defect into a member",
+    (status) => {
+      expect(() => mapAlpacaFailure(status, null, NOW)).toThrow(
+        /built\s+wrongly/,
+      );
+    },
+  );
+
+  it("never repeats the vendor's body in the message it throws", () => {
+    // Task 2.7.2's leak list names an interpolated vendor response as a way a
+    // credential escapes, and a 400's message is our own request echoed back.
+    let thrown = "";
+    try {
+      mapAlpacaFailure(400, null, NOW);
+    } catch (error) {
+      thrown = error instanceof Error ? error.message : String(error);
+    }
+    expect(thrown).not.toMatch(/end should not be before start/);
+    expect(thrown).toMatch(/body is deliberately not repeated/i);
+  });
+});
+
+describe("parseRetryAfterMs", () => {
+  const NOW = new Date("2026-09-07T13:00:00Z");
+
+  it("returns undefined rather than 0 when there is no header", () => {
+    // Not 0: a caller reading `retryAfterMs ?? backoff()` must get its own
+    // schedule, and 0 means "come back immediately" against a service that just
+    // refused us.
+    expect(parseRetryAfterMs(null, NOW)).toBeUndefined();
+    expect(parseRetryAfterMs("   ", NOW)).toBeUndefined();
+  });
+
+  it("reads a bare integer as SECONDS and never as a year", () => {
+    // `Date.parse("2020")` is a valid date in the past, so trying the date form
+    // first would read `Retry-After: 2020` as "retry now" instead of as 2,020
+    // seconds. Delta-seconds is tried first for exactly this.
+    expect(parseRetryAfterMs("2020", NOW)).toBe(2_020_000);
+  });
+
+  it("floors a date already in the past at zero rather than going negative", () => {
+    expect(parseRetryAfterMs("Mon, 07 Sep 2026 12:00:00 GMT", NOW)).toBe(0);
+  });
+
+  it("returns undefined on anything it cannot read", () => {
+    // Nothing is clamped or invented: the hint is a floor rather than an
+    // instruction, so silence is safe and a guess is not.
+    expect(parseRetryAfterMs("soon", NOW)).toBeUndefined();
+    expect(parseRetryAfterMs("-5", NOW)).toBeUndefined();
   });
 });

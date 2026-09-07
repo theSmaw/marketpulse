@@ -44,7 +44,7 @@ import {
   toSeriesProvenance,
 } from "@marketpulse/shared";
 
-import type { BarsRequest } from "./market-data-provider.js";
+import type { BarsRequest, BarsResult } from "./market-data-provider.js";
 
 /**
  * Who this is, and which venues are in the numbers — **once**, because both are
@@ -597,4 +597,168 @@ export function toBarSeriesFromAlpacaBars(
       covered: bars.length === 0 ? null : covered(),
     },
   });
+}
+
+/**
+ * A failure status from this vendor, as a {@link BarsResult} member — or a
+ * throw, when the status says the request was **ours** to get right (Task
+ * 2.7.6).
+ *
+ * ## Map on the STATUS first, and read a body only when there is one
+ *
+ * This is the trap the task was written around and it is measured rather than
+ * imagined. **A bad key answers `401` with an HTML body** — nginx's
+ * `<html>…401 Authorization Required…</html>`, produced before the application
+ * is reached, recorded verbatim as `fixtures/alpaca/error-401-bad-key.html`.
+ * A client that reaches for the body first turns the single clearest
+ * authorisation failure there is into a JSON parse error, which is exactly the
+ * laundering `PROVIDER.md` §8.5 forbids, and it does it to the one failure a
+ * misconfigured deployment produces before any other.
+ *
+ * So nothing here reads a body at all. Every status this vendor produces is
+ * distinguishable by the status alone, which was checked rather than assumed
+ * across the eight recorded failure fixtures — and it means this function
+ * cannot be broken by a vendor rewording its prose.
+ *
+ * ## Why a `400` throws rather than becoming a member
+ *
+ * `PROVIDER.md` §8.5's line: a cause is a **union member when it is a fact
+ * about the world** and a **thrown defect when it is a fact about our code**. A
+ * `400` from this endpoint is always the second — the recorded bodies are
+ * `end should not be before start`, `Invalid format for parameter start` and
+ * `invalid timeframe`, and all three describe a request only this codebase
+ * could have built. Two of them are additionally unreachable by construction,
+ * because `toTimeRange` refuses a reversed range and `Timeframe` is a closed
+ * union.
+ *
+ * The asymmetry is deliberate and it is the reason to prefer the throw where a
+ * status does not distinguish: **a defect reported as `range-not-available` is
+ * a permanent break wearing the costume of a vendor limit**, which nobody
+ * investigates because it looks like the world being unhelpful — and which a
+ * retry wrapper will then retry forever against a shape that will never change.
+ *
+ * @param status  the response status. Non-2xx by construction: the caller
+ *                checks `response.ok` first.
+ * @param retryAfter  the `Retry-After` header verbatim, or `null`. Measured
+ *                absent on **every one of 113 real `429`s**; handled anyway,
+ *                because a vendor adding it is silent.
+ * @param now  for `Retry-After`'s HTTP-date form. A parameter rather than a
+ *             clock read, so this file stays pure and testable with no socket.
+ */
+export function mapAlpacaFailure(
+  status: number,
+  retryAfter: string | null,
+  now: Date,
+): BarsResult {
+  // **`401` and `403` are one member, and the reversal trigger is written here
+  // rather than in a task file, because this is where somebody will read it.**
+  //
+  // `PROVIDER.md` §8.1 merges missing, wrong and unentitled credentials on
+  // `API_ERROR_CODES`' own rule — a caller does the same thing about all three.
+  // Measured, `401` is the credential (a wrong secret and no credential at all
+  // are byte-identical) and `403` is this plan's entitlement.
+  //
+  // **The one `403` this vendor actually produces is NOT an authorisation
+  // failure**, and it is unreachable only because of a clamp: a request whose
+  // `end` falls inside the withheld recent window — or in the future — answers
+  // `403 subscription does not permit querying recent SIP data`, and
+  // `alpacaServableEnd` moves `end` before the request is ever built. So the
+  // status never arrives while the clamp stands.
+  //
+  // **Reversal trigger: anyone removing or widening that clamp.** On that day
+  // this branch tells an operator their key is wrong when it is not, and the
+  // right answer becomes `range-not-available` — the symbol exists and this
+  // provider will not serve *this window*, which is §8.1's definition of that
+  // member word for word. Do not make that change here without moving the
+  // clamp's test with it.
+  if (status === 401 || status === 403) return { outcome: "unauthorised" };
+
+  if (status === 429) {
+    // **A branch and not an assignment**, which is `PROVIDER.md` §8.6's shape
+    // and `apiError()`'s idiom: under `exactOptionalPropertyTypes` an absent
+    // hint has to be genuinely absent rather than present-and-`undefined`, or
+    // *"the vendor did not say"* collapses into *"come back immediately"* — the
+    // difference between a wrapper backing off and a wrapper hammering the
+    // service that just asked it to stop.
+    //
+    // Against this vendor the hint is **always** absent, measured across 113
+    // real `429`s in one burst. That is the vindication of §8.6 rather than a
+    // disappointment, and it is the number Task 2.7.7 is sized against: its
+    // backoff must work with no server-supplied delay at all.
+    const hint = parseRetryAfterMs(retryAfter, now);
+    return hint === undefined
+      ? { outcome: "rate-limited" }
+      : { outcome: "rate-limited", retryAfterMs: hint };
+  }
+
+  // The vendor is broken or something between us and it is. Retryable, and the
+  // one member `PROVIDER.md` §8.1 calls *"where a defect goes to hide"* — which
+  // is why the `default` below throws rather than falling through to here.
+  if (status >= 500) return { outcome: "upstream-unavailable" };
+
+  // **Everything else is ours.** A `400` is a request only this codebase could
+  // have built; a `404` would mean `ALPACA_BARS_PATH` is wrong; a `405` would
+  // mean the method is. None of them is a fact about the market, and none of
+  // them is repaired by asking again.
+  //
+  // A status this vendor has never been seen to produce lands here too, and
+  // that is the safe direction: an unrecognised failure that stops the process
+  // loudly is recoverable, where one laundered into `upstream-unavailable` is
+  // an invisible degradation in front of a retry loop.
+  throw new Error(
+    `Alpaca answered ${String(status)}, which is a request this codebase built ` +
+      `wrongly rather than a fact about the market. Refusing to launder it into ` +
+      `a BarsResult member. The body is deliberately not repeated here.`,
+  );
+}
+
+/**
+ * HTTP `Retry-After` as milliseconds, or `undefined` when the vendor said
+ * nothing usable.
+ *
+ * Both documented forms, because a vendor adding the header is silent and this
+ * is a two-line function either way: **delta-seconds** (`120`) and an
+ * **HTTP-date** (`Wed, 21 Oct 2015 07:28:00 GMT`).
+ *
+ * The date form is resolved against `now` **here**, so `retryAfterMs` reaches a
+ * caller as a duration — `PROVIDER.md` §8.6's decision, and its reason is not
+ * tidiness: an absolute instant from the vendor has to be reconciled against
+ * our clock, and skew in the unlucky direction retries *early*, against the
+ * service that just asked us to stop.
+ *
+ * Anything unparseable, negative or non-finite is `undefined` rather than
+ * clamped. There is nothing to validate against, and the member's own contract
+ * makes silence safe: the hint is a **floor rather than an instruction**, so a
+ * wrapper with no hint waits on its own schedule instead of not waiting at all.
+ */
+export function parseRetryAfterMs(
+  retryAfter: string | null,
+  now: Date,
+): number | undefined {
+  if (retryAfter === null) return undefined;
+  const header = retryAfter.trim();
+  if (header === "") return undefined;
+
+  // Delta-seconds first: it is the common form, and `Date.parse` would accept
+  // some bare integers as years, so trying the date form first would read
+  // `Retry-After: 2020` as a date in the past rather than as 2,020 seconds.
+  if (/^\d+$/.test(header)) {
+    const seconds = Number(header);
+    return Number.isFinite(seconds) ? seconds * 1000 : undefined;
+  }
+
+  // **`Date.parse` is far more permissive than HTTP-date and that is a trap
+  // rather than a convenience**: it reads `-5` and `2020` as dates, so without
+  // this guard a nonsensical or negative delta-seconds falls through to the
+  // date branch and comes back as `0` — *"come back immediately"* — against the
+  // service that just refused us. Every HTTP-date form contains alphabetic
+  // characters (a day name, a month name, `GMT`), and no delta-seconds does,
+  // which is the cheapest correct discriminator. Found by a test.
+  if (!/[a-z]/i.test(header)) return undefined;
+
+  const at = Date.parse(header);
+  if (Number.isNaN(at)) return undefined;
+
+  // A date already past means "now", not a negative wait.
+  return Math.max(0, at - now.getTime());
 }

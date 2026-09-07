@@ -495,9 +495,89 @@ replay-reconstruction grounds, not availability.
 | Missing `symbols`              |     `400` | `{"message":"Invalid format for parameter symbols: query parameter 'symbols' is required"}`                     |
 | Unsupported timeframe          |     `400` | (400, body captured)                                                                                            |
 | Rate limited                   |     `429` | `{"message": "too many requests."}`                                                                             |
-| **Range in the future**        | **`200`** | `{"bars":{},"next_page_token":null}`                                                                            |
+| ~~**Range in the future**~~    | **`403`** | **CORRECTED 2026-09-07 by Task 2.7.6** — `{"message":"subscription does not permit querying recent SIP data"}`  |
 | **Range before history depth** | **`200`** | `{"bars":{},"next_page_token":null}`                                                                            |
 | **Unknown symbol**             | **`200`** | `{"bars":{},"next_page_token":null}`                                                                            |
+
+### CORRECTION, 2026-09-07 (Task 2.7.6): a future range is a `403`, not a `200`
+
+Re-produced against the live API while recording these bodies as fixtures. **A range entirely
+in the future answers `403 subscription does not permit querying recent SIP data`** — the same
+body as §7b's recency cliff, and for the same reason, because the cliff is keyed on `end`
+alone and any future `end` is trivially inside the withheld window. The row above is struck
+rather than deleted.
+
+The row was taken before Task 2.7.5 discovered the cliff, so nothing was measured carelessly —
+it is a measurement whose meaning changed once a second measurement existed. **The general
+form is this document's own opening instruction: re-take rather than cite.**
+
+Two consequences, and neither changes the shipped mapping:
+
+- **The `403` is more reachable than the mapping's own reversal trigger assumed.** It was
+  believed to need a deliberately wrong plan; it needs only a caller asking about tomorrow.
+  That strengthens rather than weakens the trigger written beside the `401`/`403` branch in
+  `alpaca-mapping.ts`.
+- **The shipped client still cannot produce it**, and now for a second reason: a future window
+  is clamped by `alpacaServableEnd` to a `servableEnd` at or before `start`, so `fetchBars`
+  returns a costless empty success and makes **no request at all**. Asserted.
+
+There is an argument that the recency `403` should map to `range-not-available` rather than to
+`unauthorised` — _"the symbol exists and this provider will not serve this window"_ is §8.1's
+definition of that member word for word, and the caller's repair is to narrow the range rather
+than to fix a key. **It was not taken here**, because §8.1 also names _"unentitled"_ as
+belonging to `unauthorised`, because a `403` on this vendor is ambiguous between a window we
+may not ask for and a **feed** we are not entitled to (which narrowing does not repair), and
+because the union is not this task's to re-open. Recorded as the open question it is, with the
+trigger named in the code.
+
+---
+
+## 9b. The mapping as shipped (2026-09-07, Task 2.7.6)
+
+Every row was **produced against the live vendor** and its body recorded verbatim under
+`apps/backend/src/fixtures/alpaca/`, where the offline tests replay it. The fixtures are in
+`.prettierignore`: a reformatted `401` page is a fixture that no longer proves the one thing it
+was recorded to prove.
+
+| Produced                             | Status | Maps to                | Why                                                             |
+| ------------------------------------ | ------ | ---------------------- | --------------------------------------------------------------- |
+| Wrong secret / no credential         | `401`  | `unauthorised`         | Byte-identical HTML from nginx, in both cases                   |
+| Recency cliff / future range         | `403`  | `unauthorised`         | Unreachable through the client — the clamp precedes the request |
+| 320-concurrent burst                 | `429`  | `rate-limited`         | **No hint**: no `Retry-After` on any of 113                     |
+| —                                    | `5xx`  | `upstream-unavailable` | Retryable                                                       |
+| Refused / DNS / unroutable           | —      | `upstream-unavailable` | `TypeError("fetch failed")`, every class                        |
+| A host that hangs                    | —      | `timeout`              | Our deadline fires first, so it never reaches the branch above  |
+| Reversed / malformed / bad timeframe | `400`  | **throw**              | A request only this codebase could have built                   |
+| A `200` we cannot parse              | `200`  | **throw**              | Our understanding of the vendor is wrong                        |
+| Unknown symbol                       | `200`  | **`ok`, empty**        | Indistinguishable from a real symbol with no prints             |
+| Before history depth                 | `200`  | **`ok`, empty**        | Not a refusal at all                                            |
+
+**Two of the seven failure members are NOT PRODUCIBLE from this endpoint**, and both are named
+rather than left looking implemented: `unknown-symbol` and `range-not-available`. Task 2.7.8's
+assets endpoint is the only thing that can produce the first.
+
+### The rate limit, re-measured
+
+**320 concurrent: 207 answered, 113 refused** — against §6's 201 and 203, so the ceiling is
+~200/min plus a few, confirmed a third time on a third burst. **Not one of the 113 carried a
+`Retry-After` or any `x-ratelimit-*` header**, and all 113 bodies were identical. Task 2.7.7's
+backoff must schedule itself.
+
+### What `fetch` rejects with, read whole rather than by message
+
+| Class                 | Constructor | `message`      | `cause.code`              |
+| --------------------- | ----------- | -------------- | ------------------------- |
+| Connection refused    | `TypeError` | `fetch failed` | `ECONNREFUSED`            |
+| DNS does not resolve  | `TypeError` | `fetch failed` | `ENOTFOUND`               |
+| Unroutable (RFC 5737) | `TypeError` | `fetch failed` | `UND_ERR_CONNECT_TIMEOUT` |
+
+One shape for all three, so the mapping keys on the **constructor** and deliberately never
+reads `cause` — undici's shape is not a contract, and every value it takes means the same thing
+to a caller. Under our own composed deadline the unroutable case never arrives here at all: the
+deadline fires first and the answer is `timeout`, which is the distinction the two members
+exist for.
+
+---
 
 ### Three findings a documentation-based mapping would have got wrong
 
@@ -510,14 +590,17 @@ auth failure — turning a clear `unauthorised` into a laundered parse failure, 
 returns `200` with an empty `bars` object — **byte-identical** to a valid symbol with no data
 in range. Since §8.2 makes an empty answer a **success**, the two are indistinguishable.
 
-> **Task 2.7.5 therefore has a union member it cannot produce from this endpoint.** That is a
+> **Task 2.7.~~5~~6 therefore has a union member it cannot produce from this endpoint** (the task number was wrong when written; 2.7.5 is pagination). That is a
 > real finding rather than a gap in the measurement, and it feeds directly into **Task 2.7.8's
 > assets-endpoint decision** — the assets endpoint is the only thing that can tell an unknown
 > symbol from an empty answer, which strengthens the case for adopting it.
 
-**3. Neither a future range nor a too-deep range is an error.** Both are `200` and empty. So
-`range-not-available` is **also** not producible from this endpoint by either route. §8.7's
-argument for shipping it without sub-reasons looks better for it, not worse.
+**3. ~~Neither a future range nor a too-deep range is an error.~~ Half of this is wrong — see
+the correction above.** A **too-deep** range is `200` and empty; a **future** range is a `403`.
+The conclusion survives both halves: `range-not-available` is still not producible **through
+the shipped client**, because the too-deep case is a success and the future case is clamped
+away before a request is made. §8.7's argument for shipping it without sub-reasons looks better
+for it, not worse.
 
 ---
 

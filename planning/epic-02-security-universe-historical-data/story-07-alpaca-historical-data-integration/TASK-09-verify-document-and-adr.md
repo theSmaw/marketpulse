@@ -95,6 +95,16 @@ something the candidate list did not name.
   indistinguishable from a deployment that never configured one. It exists in no file in this
   repository, so this paragraph and `HOSTING.md` are its only durable copy.
 
+  **The FIRST kind gained a directory at Task 2.7.6, and it is the first entry there that is
+  excluded ON PURPOSE rather than by a tool declining it.** `apps/backend/src/fixtures/alpaca/`
+  is in `.prettierignore` and carries `** -text` in `.gitattributes`, because two of this
+  repository's own tools would otherwise have rewritten recorded vendor bodies: Prettier infers
+  an `html` parser for the `401` page, and `* text=auto eol=lf` would normalise it — **nginx
+  really does send CRLF**, confirmed with `xxd`. Neither would have failed a test, which is the
+  part worth recording: the tooling would have degraded the evidence without degrading the green
+  tick. Note the asymmetry against every other member of that kind — those are files no tool
+  reads, this is a directory tools _would_ read and are told not to.
+
   Any recorded invariant this story created (a coupled constant, a second writer on `status`, a
   pin) belongs in the third kind with its durable copy named
 
@@ -112,11 +122,12 @@ something the candidate list did not name.
   inapplicable to a no-default variable and every no-default variable is a credential. Anything
   describing that script as "four checks" is now stale. Re-make all five fail rather than citing
   2.7.2's run
-- **The test-count blocks' starting figure.** Task 2.7.2 moved `pnpm test` 619 → **629** and
-  Task 2.7.3 moved it 629 → **683** (206 + 294 + 183), neither sweeping the ten blocks, per the
-  precedent Task 2.6.8 set that a close owns the sweep. So this close inherits **at least two**
-  increments already outstanding before its own remaining tasks are counted — which is exactly
-  the shape that produced "stale by two story closes" twice. Re-count rather than adding to 683
+- **The test-count blocks' starting figure.** Task 2.7.2 moved `pnpm test` 619 → **629**, Task
+  2.7.3 moved it 629 → **683**, and **Task 2.7.6 moved it 683 → 722** (206 + 333 + 183) — none
+  of the three sweeping the ten blocks, per the precedent Task 2.6.8 set that a close owns the
+  sweep. So this close inherits **at least three** increments already outstanding before its own
+  remaining tasks are counted, which is exactly the shape that produced "stale by two story
+  closes" twice. **Re-count rather than adding to 722**
 - **Story 2.14's own file, which is planned against a premise this story inverted — and it is
   the sweep most likely to be skipped, because it is a FUTURE story's file rather than a stale
   claim about the past.** Added 2026-09-07 by Task 2.7.4. Story 2.14 is written throughout as
@@ -259,11 +270,29 @@ those documents.
 - **Why retry lives in a wrapper**, confirming rather than re-deriving `PROVIDER.md` §8.8, and
   what the measured numbers are
 - **Where the line between a result and a throw actually fell** against a real vendor — noting
-  that the anticipated `422` split **does not exist** (malformed parameters are `400`, and both
-  range failures are `200` with an empty body), and that **two** members could not be produced
-  from the bars endpoint rather than one: `unknown-symbol` and `range-not-available`. Include
-  the measured collision where a bad key's **HTML** `401` body meets the
-  unparseable-body-is-a-throw rule
+  that the anticipated `422` split **does not exist** (malformed parameters are `400`), and that
+  **two** members could not be produced from the bars endpoint rather than one:
+  `unknown-symbol` and `range-not-available`. Include the measured collision where a bad key's
+  **HTML** `401` body meets the unparseable-body-is-a-throw rule.
+
+  > **CORRECTED 2026-09-07 by Task 2.7.6: "both range failures are `200` with an empty body" is
+  > half wrong, and this bullet said it.** A range before the plan's history depth is `200` and
+  > empty; a range entirely **in the future** is a **`403`**, carrying the recency cliff's body
+  > word for word, because that cliff is keyed on `end` alone. `ALPACA.md` §9's row was taken by
+  > Task 2.7.1 _before_ 2.7.5 discovered the cliff, so it is a figure whose meaning changed
+  > rather than a careless measurement — struck and dated there. **The conclusion survives
+  > intact**: `range-not-available` is still not producible through the shipped client, because
+  > the too-deep case is a success and the future case is clamped away before a request is made.
+  > Do not restate the struck claim in the ADR.
+
+- **The `403`-to-`range-not-available` argument, recorded rather than taken** (Task 2.7.6).
+  _"The symbol exists and this provider will not serve this window"_ is `PROVIDER.md` §8.1's
+  definition of `range-not-available` word for word, and it describes the recency `403` exactly;
+  the caller's repair is to narrow the range rather than to fix a key. It maps to `unauthorised`
+  instead, for three reasons recorded in `ALPACA.md` §9 and in a comment beside the branch. The
+  ADR should carry it as a **live open question with a named trigger**, not as a settled mapping
+  — it is the one place in this story where a measured response and the taxonomy's own wording
+  point in different directions
 - **What a green test run certifies and what it cannot**: every mapping test runs against
   recorded bodies, so a green suite says the mapping is consistent with **what the vendor sent
   on the day it was recorded** and nothing about what it sends today. That is the honest

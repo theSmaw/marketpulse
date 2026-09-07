@@ -22,3 +22,9 @@
 # by default in diffs and excludes it from language statistics; `-diff` keeps a
 # lockfile churn out of `git diff` unless explicitly asked for.
 pnpm-lock.yaml linguist-generated=true -diff
+
+# Recorded vendor response bodies (Task 2.7.6). `* text=auto eol=lf` above would
+# normalise these, and nginx sends CRLF — so the checked-in bytes would stop
+# being the bytes the vendor sent, which is the ONE property these files exist
+# to have. Marked `-text` so git stores them verbatim in both directions.
+apps/backend/src/fixtures/alpaca/** -text

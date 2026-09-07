@@ -320,7 +320,23 @@ backfill is bounded by pagination and history depth rather than by the rate limi
    — **including the WebSocket subscription cap and specifically whether minute bars are
    exempt from it**, which is the one measurement another story is blocked on
 3. Each mapped error cause is produced against the live API at least once, including a bad
-   key and an unknown symbol
+   key and ~~an unknown symbol~~ **an unknown symbol, which turns out not to be an error**
+
+   > **Amended 2026-09-07 by Task 2.7.6, and for the same reason criterion 1 was amended: as
+   > written it goes red against CORRECT code.** An unknown symbol _was_ produced against the
+   > live API — it answers `200` with `{"bars":{},"next_page_token":null}`, **byte-identical to
+   > a real symbol with no prints in the requested window**. `PROVIDER.md` §8.2 makes the second
+   > a success, so the two are indistinguishable and there is no error to map. Inventing
+   > `unknown-symbol` from an empty answer would mean the product occasionally telling a user
+   > that a real security does not exist, which is worse than saying nothing.
+   >
+   > So the criterion is met by **producing the response and recording that it is not an
+   > error**, not by producing a member. The same holds for `range-not-available`: a range
+   > before this plan's history depth is also `200` and empty. **Two of the seven failure
+   > members are therefore not producible from the bars endpoint**, both named as such in
+   > `ALPACA.md` §9b rather than left looking implemented — and the assets endpoint (Task
+   > 2.7.8's) is the only thing in this vendor's API that could produce the first.
+
 4. Rate limiting is exercised — the client behaves correctly at the limit rather than
    being assumed to stay below it
 5. The key is on the platform, is absent from the repository, the bundle and every log
@@ -369,7 +385,7 @@ one day against a live third party, rather than figures reproducible from a clea
 | 2.7.3      | [The client: one request, one page, and the mapping onto the domain types](TASK-03-the-client-and-the-mapping.md)                                                                                                                                                             | **Complete (2026-09-07)** |
 | 2.7.4      | [Point the deployed backend at Alpaca and let the chrome name the real feed](TASK-04-the-feed-tells-the-truth-about-a-real-vendor.md)                                                                                                                                         | **Complete (2026-09-07)** |
 | 2.7.5      | [Pagination, coverage, and what a real session actually contains](TASK-05-pagination-coverage-and-the-shape-of-a-real-session.md)                                                                                                                                             | **Complete (2026-09-07)** |
-| 2.7.6      | [Every failure this vendor can produce, mapped and produced rather than imagined](TASK-06-the-error-taxonomy-against-a-real-vendor.md)                                                                                                                                        | Not started               |
+| 2.7.6      | [Every failure this vendor can produce, mapped and produced rather than imagined](TASK-06-the-error-taxonomy-against-a-real-vendor.md)                                                                                                                                        | **Complete (2026-09-07)** |
 | 2.7.7      | [The retry wrapper, bounded by the caller, with numbers from the measured limit](TASK-07-the-retry-wrapper-and-the-measured-limit.md)                                                                                                                                         | Not started               |
 | 2.7.8      | [`delisted`, and whether a ticker rename gets an identity](TASK-08-the-symbols-lifecycle-delisted-and-the-rename.md)                                                                                                                                                          | Not started               |
 | 2.7.9      | [Verify, sweep, and record ADR 0019](TASK-09-verify-document-and-adr.md)                                                                                                                                                                                                      | Not started               |

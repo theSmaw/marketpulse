@@ -1,6 +1,6 @@
 # Task 2.7.6 — Every failure this vendor can produce, mapped onto the outcomes Story 2.6 settled — and produced rather than imagined
 
-**Status:** Not started
+**Status:** Complete (2026-09-07)
 **Story:** [2.7 Alpaca Historical Data Integration](STORY.md)
 **Depends on:** Task 2.7.5
 
@@ -260,3 +260,205 @@ And one thing to hold on to when a response does not fit: **the union is not thi
 widen.** `PROVIDER.md` §8's seven were argued against Story 2.6's producible-member rule, and a
 vendor response that fits none of them is either a defect (throw) or evidence for a new member
 that belongs in a decision, not in an `else`.
+
+---
+
+## What shipped (2026-09-07)
+
+`alpaca-mapping.ts` gained **`mapAlpacaFailure`** and **`parseRetryAfterMs`**, both pure
+functions of their arguments, which is what keeps every test of the taxonomy offline and
+buildless. `alpaca-provider.ts` lost the `!response.ok` throw and gained a transport-failure
+branch. **No dependency, no lockfile change, no new `verify` step, and nothing outside
+`apps/backend` touched.**
+
+Eight failure bodies were **produced against the live vendor** and written to
+`apps/backend/src/fixtures/alpaca/` verbatim, with a `failures` block added to `MANIFEST.json`
+recording each one's status, content type, `Retry-After` and what it proves. The directory is
+now in `.prettierignore`: Prettier infers an `html` parser for the `401` page and would
+reformat it, and **the entire value of these files is that they are byte-identical to what the
+vendor sent** — a reformatted `401` page is a fixture that no longer proves the thing it was
+recorded to prove.
+
+### Every member produced, and the two that cannot be
+
+| Member                 | Produced from                                     |
+| ---------------------- | ------------------------------------------------- |
+| `unauthorised`         | A deliberately wrong secret — `401`, HTML         |
+| `rate-limited`         | 320 concurrent requests — 207 answered, 113 `429` |
+| `upstream-unavailable` | A refused connection to a genuinely closed port   |
+| `timeout`              | A server that accepts and never answers           |
+| `aborted`              | The caller's own signal                           |
+| `unknown-symbol`       | **NOT PRODUCIBLE** — see below                    |
+| `range-not-available`  | **NOT PRODUCIBLE** — see below                    |
+
+Both non-producible members are named as such in `ALPACA.md` §9b rather than left looking
+implemented, which is Task 2.7.9's _"any member it cannot produce is named as such"_ check
+answered in advance.
+
+### One recorded claim corrected, and it was a measurement whose meaning changed
+
+`ALPACA.md` §9 recorded **a range entirely in the future as a `200` with an empty body**. It is
+a **`403`**, carrying the recency cliff's body word for word — because that cliff is keyed on
+`end` alone, and any future `end` is trivially inside the withheld window. The row was taken by
+Task 2.7.1, _before_ Task 2.7.5 discovered the cliff, so nothing was measured carelessly: it is
+a figure that stopped being true when a second figure arrived. It is struck rather than
+deleted, and the correction is dated beside it.
+
+It changes nothing about what ships, and it **strengthens** the reversal trigger written into
+the code: the `403` was believed to need a deliberately wrong plan, and it turns out to need
+only a caller asking about tomorrow. The shipped client still cannot produce it, and now for a
+second reason — a future window is clamped to a `servableEnd` at or before `start`, so
+`fetchBars` returns a costless empty success and makes **no request at all**. Asserted.
+
+### The `403`-to-`range-not-available` argument, recorded rather than taken
+
+_"The symbol exists and this provider will not serve this window"_ is `PROVIDER.md` §8.1's
+definition of `range-not-available` word for word, and it describes the recency `403` exactly;
+the caller's repair is to narrow the range rather than to fix a key. It was **not** taken, for
+three reasons, and the reasons are in `ALPACA.md` §9 beside the correction: §8.1 also assigns
+_"unentitled"_ to `unauthorised`; a `403` on this vendor is ambiguous between a **window** we
+may not ask for and a **feed** we are not entitled to, which narrowing does not repair; and the
+union is not this task's to re-open. The reversal trigger sits in a comment beside the branch,
+which is where somebody will actually read it.
+
+### Two things measured that shaped the code
+
+**Every network failure class rejects identically.** A refused connection, a host that does not
+resolve and an unroutable address all reject `fetch` with a **`TypeError` whose message is the
+constant string `fetch failed`**, carrying the real cause (`ECONNREFUSED`, `ENOTFOUND`,
+`UND_ERR_CONNECT_TIMEOUT`) underneath. So the mapping keys on the **constructor** and
+deliberately never reads `cause`: undici's shape is not a contract, and every value it takes
+means the same thing to a caller. An unroutable address never reaches that branch at all — our
+own deadline fires first and the answer is `timeout`, which is the distinction the two members
+exist for and is why Task 2.1.7 used `203.0.113.7` to produce a timeout rather than a refusal.
+
+**`Date.parse` is far more permissive than HTTP-date, and that is a trap rather than a
+convenience.** It reads `-5` and `2020` as dates. Without a guard, a nonsensical or negative
+`Retry-After` falls through to the date branch and comes back as `0` — _"come back
+immediately"_ — against the service that just refused us. Every HTTP-date form contains
+alphabetic characters and no delta-seconds does, which is the cheapest correct discriminator.
+**Found by a test, which had been written to assert the intended behaviour rather than the
+observed one.**
+
+### Two of this repository's own tools would have rewritten the evidence
+
+Both found by trying to commit it, and both are the same failure in two places: a fixture whose
+whole value is being **byte-identical to what the vendor sent** is worthless the moment a tool
+tidies it.
+
+- **Prettier infers an `html` parser for the `401` page** and would reformat it. The directory
+  is in `.prettierignore`, with the reason beside it.
+- **`.gitattributes`' `* text=auto eol=lf` would normalise it too** — and this one is not
+  hypothetical, because **nginx sends CRLF**: `git add` warned that _"CRLF will be replaced by
+  LF the next time Git touches it"_, and `xxd` confirms `0d 0a` after `<html>`. Without a rule
+  the checked-in bytes would differ from the recorded ones on the very first commit, silently.
+  `apps/backend/src/fixtures/alpaca/** -text` is what stores them verbatim in both directions.
+
+Neither would have failed a test. The `401` test asserts that the body is not parseable as JSON
+and that it names the status, and both survive reformatting — so this is a case where the
+tooling would have degraded the evidence without degrading the green tick.
+
+### The three deliberate breaks, each seen to fail and reverted
+
+- **An unparseable body laundered into `upstream-unavailable`** — 1 test red. The one throw
+  this task did **not** remove.
+- **The rate-limit hint assigned rather than branched** — **2** tests red, one in the pure
+  mapping and one through the client. The assertion that catches it is on the **key** rather
+  than the value: under `exactOptionalPropertyTypes` a present-and-`undefined` `retryAfterMs`
+  satisfies `toEqual` while collapsing _"the vendor did not say"_ into _"come back
+  immediately"_.
+- **The `401`'s HTML body parsed as JSON** — the collision this task was written around, and
+  it took **2** tests red rather than one, because the `5xx` case is served HTML too. That is
+  the layering working: the break is in the transport and both bodies that are not JSON find
+  it.
+
+`ALPACA.md`'s own rule held again on the second of those: the first pass at break 3 was written
+against a JSON body and stayed green, because a JSON stand-in passes while the shipped path
+throws. **A break that does not go red is evidence the break did not land**, not evidence the
+code is right.
+
+### Figures
+
+`pnpm verify` is **exit 0 in 32.37 s**. `pnpm test` is **722** (206 + **333** + 183). Criterion
+7 was checked with a control rather than assumed: the whole backend suite runs with `fetch`,
+`net.connect`, `net.createConnection`, `tls.connect`, `http.request`, `https.request` and
+`dns.lookup` refusing every off-machine host — **336 passed**, with three throwaway controls
+proving the blocker blocks _and_ that it still permits loopback, so a green run is not the
+blocker being blind. The probe was deleted; the tree holds no trace of it.
+
+The **leak check is clean on all producers**: neither half of the credential appears in any
+tracked file, in any of the eight new fixtures, or in the run's output, and the fixtures return
+zero for `eyJ`, `Bearer ` and `apca-api`. A test additionally drives five recorded failure
+bodies through the client with a credential that is **deliberately not the local fixture one**
+— a test written against a public fixture passes while leaking a real key — and reads each
+result and each thrown error **whole**, own properties and stack included, rather than by its
+message.
+
+---
+
+## For the stakeholder — what this actually did, in plain terms
+
+**Nothing new appears on screen, and that is expected.** This task was about what MarketPulse
+does when the market-data vendor says _no_.
+
+Up to today the answer was crude: if Alpaca refused a request for any reason at all, our code
+stopped with a single message that amounted to _"something went wrong"_. That is fine while
+nobody is depending on it, and it becomes expensive the moment they are — because the reasons a
+vendor refuses are **not interchangeable**, and the right response to each is different:
+
+- **The key is wrong or expired.** Nobody can fix this by waiting. An operator has to go and
+  change a setting. Asking again is a loop against a wall.
+- **We asked too often.** This fixes itself in under a minute. The right thing is to wait and
+  try again — and the _wrong_ thing is to give up, because the data is there.
+- **The vendor is down.** Also temporary, also worth retrying, but for a different length of
+  time.
+- **We asked a nonsensical question.** That is our bug, not theirs, and it must be loud enough
+  that somebody fixes it rather than quietly filed as _"the market data was unavailable"_.
+
+Those four are now four different answers the rest of the system can act on. The next task
+builds the piece that acts on them — the part that automatically waits and retries when it is
+worth retrying, and doesn't when it isn't — and it can only be written because this task made
+the distinction exist.
+
+**Why we produced real failures instead of reading the documentation.** Every one of these was
+made to happen against the live service, on purpose: we used a deliberately wrong password, we
+fired 320 requests at once to get ourselves throttled, and we pointed the client at an address
+where nothing is listening. That cost a little time and it paid for itself twice.
+
+The first payoff is the one that would have bitten us hardest. **When the key is wrong, Alpaca
+does not reply in the format its documentation implies** — the refusal comes from a web server
+sitting in front of their application and arrives as a web page rather than as data. A client
+built from the documentation reads that, fails to understand it, and reports _"we could not
+understand the vendor's reply"_ — which sends whoever is investigating off looking for a bug in
+our code, when the actual problem is a wrong password and a thirty-second fix. Our code now
+reads the refusal _code_ first and never touches the message, so it cannot be fooled this way.
+We recorded the real web page and a test replays it, so nobody can undo that by accident.
+
+The second payoff is a correction to something we had written down as fact. We had recorded
+that asking for data about a **future** date returns an empty answer. It does not — it is
+refused. Nobody had measured carelessly; the note was taken before we understood a related
+limit, and it quietly stopped being true. It changes nothing about how the product behaves,
+because we already avoid asking that question, but it is exactly the sort of stale note that
+costs an afternoon a year from now. **Re-measure rather than cite** is a rule this project
+keeps having to pay for, and this is the cheapest possible place to pay it again.
+
+**One honest limitation, written down rather than hidden.** There are two situations our
+vocabulary can describe that this particular vendor endpoint cannot actually tell us about. If
+you ask for a ticker that does not exist, Alpaca answers with an empty result — **exactly the
+same answer it gives for a real company that simply had no trades in the minutes you asked
+about**. The two are indistinguishable. We deliberately did **not** guess: inventing _"no such
+security"_ from an empty answer would mean the product occasionally tells a user that a real
+company does not exist, which is far worse than saying nothing. A later task looks at a
+different Alpaca endpoint that genuinely can tell the difference, and this measurement is the
+concrete argument for adopting it.
+
+**Where this sits on the road to something you can look at.** Story 2.7 is the story where
+MarketPulse stops using invented practice data and starts reading the real market. Task 2.7.3
+got real prices out of the vendor; 2.7.4 put the truthful _"which feed is this?"_ label on the
+deployed page; 2.7.5 taught it to fetch more than one page at a time. This task is the one that
+makes the whole thing safe to run **unattended** — which is the precondition for the next
+story, where we start downloading and storing months of history for a hundred companies without
+a person watching it. A hundred-company download that treats a one-minute throttle as a
+permanent failure gives up on ninety-nine companies that were perfectly fine; one that treats a
+wrong password as temporary retries forever and achieves nothing. Both of those are now
+structurally impossible rather than something we intend to remember.

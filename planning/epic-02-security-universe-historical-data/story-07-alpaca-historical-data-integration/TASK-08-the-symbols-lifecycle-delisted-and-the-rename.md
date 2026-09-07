@@ -47,6 +47,20 @@ The three shapes, and the story's own file says the middle one is probably right
 > magnitude**. One request covers the entire universe, and Task 2.7.1 separately measured that
 > the rate limit is **per request rather than per symbol**, so it costs 1 of 201 per window.
 >
+> **And a THIRD argument arrived 2026-09-07 from Task 2.7.6, from outside this task's own
+> subject.** That task confirmed by measurement that **`unknown-symbol` is not producible from
+> the bars endpoint**: a ticker that does not exist answers `200` with
+> `{"bars":{},"next_page_token":null}`, byte-identical to a real symbol with no prints in the
+> window, and `PROVIDER.md` §8.2 makes the second a success. So a member of `BarsResult` that
+> Story 2.14 renders as an _answer_ rather than as a failure can never arrive. **The assets
+> endpoint is the only thing in this vendor's API with an opinion about whether a symbol
+> exists**, so adopting it here is also what would make that member producible.
+>
+> Weigh it honestly rather than as a free win: populating a union member is explicitly **not** a
+> reason to spend a request (`PROVIDER.md` §8.7's own line, and this task's second shape says so
+> too). It is a third argument on the same side of an endpoint that is nearly free and is being
+> considered anyway — not an argument for adopting it on its own.
+>
 > That materially strengthens the case for adopting the endpoint at all. It does **not** settle
 > decision 4, because the second-writer problem below is untouched by cost and is the stronger
 > argument — but the decision should now be taken on that argument rather than on a price that

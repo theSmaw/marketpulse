@@ -72,19 +72,31 @@ interface Harness {
   readonly requests: Captured[];
 }
 
-let server: Server | undefined;
+/**
+ * Every server a test started.
+ *
+ * An array rather than a single handle since Task 2.7.6: the leak assertion
+ * drives five recorded failure bodies in one test, and a single handle would
+ * leave four listening sockets behind per run.
+ */
+const servers: Server[] = [];
 
-afterEach(async () => {
-  if (server !== undefined) {
-    const closing = server;
-    server = undefined;
-    await new Promise<void>((resolve) =>
-      closing.close(() => {
-        resolve();
-      }),
-    );
-  }
-});
+/** Close everything this test started. Idempotent. */
+async function closeServer(): Promise<void> {
+  const closing = servers.splice(0, servers.length);
+  await Promise.all(
+    closing.map(
+      (one) =>
+        new Promise<void>((resolve) => {
+          one.close(() => {
+            resolve();
+          });
+        }),
+    ),
+  );
+}
+
+afterEach(closeServer);
 
 /**
  * A server that answers however the test says.
@@ -100,27 +112,85 @@ async function serve(
     | Promise<{ status: number; body: string }>
     | { status: number; body: string },
 ): Promise<Harness> {
+  return serveRaw(async (captured) => ({
+    contentType: "application/json",
+    ...(await respond(captured)),
+  }));
+}
+
+/**
+ * The same, but the test chooses the content type and any extra headers.
+ *
+ * Task 2.7.6 needs both: the bad-key body arrives as `text/html` from nginx
+ * rather than as JSON, and a `Retry-After` is a header rather than a body. A
+ * harness that can only send `application/json` cannot express either, and the
+ * HTML one is precisely the case a hand-written JSON fixture passes while the
+ * shipped path throws.
+ */
+async function serveRaw(
+  respond: (captured: Captured) =>
+    | Promise<{
+        status: number;
+        body: string;
+        contentType?: string;
+        headers?: Record<string, string>;
+      }>
+    | {
+        status: number;
+        body: string;
+        contentType?: string;
+        headers?: Record<string, string>;
+      },
+): Promise<Harness> {
   const requests: Captured[] = [];
 
-  server = createServer((incoming, outgoing) => {
+  const started = createServer((incoming, outgoing) => {
     const captured: Captured = {
       url: incoming.url ?? "",
       headers: incoming.headers,
     };
     requests.push(captured);
 
-    void Promise.resolve(respond(captured)).then(({ status, body }) => {
-      outgoing.writeHead(status, { "content-type": "application/json" });
-      outgoing.end(body);
-    });
+    void Promise.resolve(respond(captured)).then(
+      ({ status, body, contentType, headers }) => {
+        outgoing.writeHead(status, {
+          "content-type": contentType ?? "application/json",
+          ...headers,
+        });
+        outgoing.end(body);
+      },
+    );
   });
+  servers.push(started);
 
   await new Promise<void>((resolve) => {
-    server?.listen(0, "127.0.0.1", resolve);
+    started.listen(0, "127.0.0.1", resolve);
   });
 
-  const address = server.address() as AddressInfo;
+  const address = started.address() as AddressInfo;
   return { origin: `http://127.0.0.1:${String(address.port)}`, requests };
+}
+
+/**
+ * A port nothing is listening on.
+ *
+ * Bound and released rather than picked, so the number is genuinely free and
+ * this cannot collide with something else on the machine. A real refused
+ * connection rather than a stubbed rejection, which is what the rest of this
+ * file already insists on.
+ */
+async function closedPort(): Promise<number> {
+  const probe = createServer();
+  await new Promise<void>((resolve) => {
+    probe.listen(0, "127.0.0.1", resolve);
+  });
+  const { port } = probe.address() as AddressInfo;
+  await new Promise<void>((resolve) => {
+    probe.close(() => {
+      resolve();
+    });
+  });
+  return port;
 }
 
 /**
@@ -309,40 +379,314 @@ describe("the two outcomes this task's own signals produce", () => {
   });
 });
 
-describe("what this task refuses to handle, loudly", () => {
-  // Task 2.7.6 owns the taxonomy. Until then a non-2xx THROWS rather than being
-  // guessed at, because a wrong guess would put a permanent fault in front of a
-  // retry wrapper — the laundering PROVIDER.md §8.5 forbids.
-  it.each([401, 403, 429, 500])(
-    "throws on %i rather than guessing which member it means",
-    async (status) => {
-      const harness = await serve(() => ({
-        status,
-        body: '{"message":"nope"}',
+/**
+ * The error taxonomy, driven through the shipped client with the vendor's own
+ * recorded bytes (Task 2.7.6).
+ *
+ * **Every body here was produced against the live API and written to
+ * `fixtures/alpaca/` verbatim.** `alpaca-mapping.test.ts` asserts the mapping
+ * as a pure function; what these add is that the transport reaches it — with
+ * the real status, the real content type and the real body — because the one
+ * failure a documentation-based client gets wrong is a body-shape assumption,
+ * and a fixture written by hand as JSON would pass while the shipped path
+ * throws.
+ */
+describe("the failures this vendor actually produces", () => {
+  /** The vendor's own bytes, and the content type it sent them with. */
+  function recorded(file: string): string {
+    return readFileSync(
+      join(import.meta.dirname, "fixtures", "alpaca", file),
+      "utf8",
+    );
+  }
+
+  it("maps a real 401 — whose body is HTML from nginx — onto unauthorised", async () => {
+    // **The sharpest trap in the task.** A bad key never reaches Alpaca's
+    // application: nginx refuses it and answers `text/html`. A client that
+    // parses an error body turns the clearest authorisation failure there is
+    // into a laundered parse error, which is what `PROVIDER.md` §8.5 forbids
+    // and is what a documentation-based mapping does. This asserts the real
+    // bytes rather than a JSON stand-in, because a JSON stand-in passes while
+    // the shipped path throws.
+    const html = recorded("error-401-bad-key.html");
+    expect(html).toContain("401 Authorization Required");
+    expect(() => {
+      // The `void` is the lint rule making the point: there is nothing usable
+      // to return from parsing this body, which is exactly the finding.
+      void (JSON.parse(html) as unknown);
+    }).toThrow();
+
+    const harness = await serveRaw(() => ({
+      status: 401,
+      contentType: "text/html",
+      body: html,
+    }));
+
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars(REQUEST);
+
+    expect(result).toEqual({ outcome: "unauthorised" });
+  });
+
+  it("maps the real recency 403 onto unauthorised too", async () => {
+    // The one 403 this vendor produces. The shipped clamp means it cannot
+    // arrive through `fetchBars` at all — see the test below — so this drives
+    // the status directly, which is what makes the branch defence in depth
+    // rather than dead code.
+    const harness = await serveRaw(() => ({
+      status: 403,
+      contentType: "application/json",
+      body: recorded("error-403-recent-window.json"),
+    }));
+
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars(REQUEST);
+
+    expect(result).toEqual({ outcome: "unauthorised" });
+  });
+
+  it("does not ask at all for a window the clamp has already refused", async () => {
+    // Why the 403 above is unreachable in practice. A request whose `end` is in
+    // the future — which the vendor answers 403, measured — never leaves this
+    // process, because `alpacaServableEnd` moves `end` back and the whole
+    // window then sits before `start`. A costless empty success rather than a
+    // metered refusal.
+    const harness = await serveRaw(() => ({
+      status: 403,
+      contentType: "application/json",
+      body: recorded("error-403-recent-window.json"),
+    }));
+    const now = Date.now();
+
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars({
+      ...REQUEST,
+      range: toTimeRange(
+        new Date(now + 24 * 60 * 60_000),
+        new Date(now + 25 * 60 * 60_000),
+      ),
+    });
+
+    assert(result.outcome === "ok");
+    expect(result.series.bars).toHaveLength(0);
+    expect(harness.requests).toHaveLength(0);
+  });
+
+  it("maps the real 429 onto rate-limited with NO hint, because this vendor sends none", async () => {
+    // Produced by 320 concurrent requests: 207 answered, 113 refused, and not
+    // one of the 113 carried a `Retry-After` or any `x-ratelimit-*` header.
+    // Task 2.7.7's backoff has to work from that.
+    const harness = await serveRaw(() => ({
+      status: 429,
+      contentType: "application/json",
+      body: recorded("error-429-rate-limited.json"),
+    }));
+
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars(REQUEST);
+
+    expect(result).toEqual({ outcome: "rate-limited" });
+    expect("retryAfterMs" in result).toBe(false);
+  });
+
+  it("carries a Retry-After through to the caller as a duration when one is sent", async () => {
+    const harness = await serveRaw(() => ({
+      status: 429,
+      contentType: "application/json",
+      body: recorded("error-429-rate-limited.json"),
+      headers: { "retry-after": "45" },
+    }));
+
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars(REQUEST);
+
+    expect(result).toEqual({ outcome: "rate-limited", retryAfterMs: 45_000 });
+  });
+
+  it("maps a 5xx onto upstream-unavailable", async () => {
+    const harness = await serveRaw(() => ({
+      status: 503,
+      contentType: "text/html",
+      body: "<html>502 Bad Gateway</html>",
+    }));
+
+    expect(
+      await createAlpacaProvider(CREDENTIAL, {
+        baseUrl: harness.origin,
+      }).fetchBars(REQUEST),
+    ).toEqual({ outcome: "upstream-unavailable" });
+  });
+
+  // Each of these is a request only this codebase could have built, so each is
+  // a THROW rather than a member — `PROVIDER.md` §8.5's line. Two of the three
+  // are additionally unreachable by construction, because `toTimeRange` refuses
+  // a reversed range and `Timeframe` is a closed union; that is why the bodies
+  // had to be produced with a hand-built URL rather than through this client.
+  it.each([
+    ["error-400-end-before-start.json", "end should not be before start"],
+    ["error-400-malformed-date.json", "Invalid format for parameter start"],
+    ["error-400-bad-timeframe.json", "invalid timeframe"],
+  ])(
+    "throws on the real 400 body %s rather than mapping it",
+    async (file, phrase) => {
+      expect(recorded(file)).toContain(phrase);
+
+      const harness = await serveRaw(() => ({
+        status: 400,
+        contentType: "application/json",
+        body: recorded(file),
       }));
 
-      await expect(
-        createAlpacaProvider(CREDENTIAL, {
-          baseUrl: harness.origin,
-        }).fetchBars(REQUEST),
-      ).rejects.toThrow(/2\.7\.6/);
+      const failing = createAlpacaProvider(CREDENTIAL, {
+        baseUrl: harness.origin,
+      }).fetchBars(REQUEST);
+
+      await expect(failing).rejects.toThrow(/built\s+wrongly/);
+      // And never with the vendor's own words in it: Task 2.7.2's leak list names
+      // an interpolated vendor response as a way this credential escapes.
+      await expect(failing).rejects.not.toThrow(new RegExp(phrase));
     },
   );
 
-  // The bad-key body is HTML from nginx rather than JSON (`ALPACA.md` §9), so a
-  // client that parses an error body turns a clear `unauthorised` into a
-  // laundered parse failure. This one never reads it.
-  it("does not read the body into the message, HTML included", async () => {
-    const harness = await serve(() => ({
-      status: 401,
-      body: "<html><head><title>401 Authorization Required</title></head></html>",
+  it("maps a refused connection onto upstream-unavailable", async () => {
+    // A real closed socket rather than a stub. Node rejects `fetch` with a
+    // `TypeError` whose message is the constant `fetch failed` for every
+    // network class — refused, DNS, unroutable — carrying the real cause
+    // underneath, and all of them mean the same thing to a caller.
+    const closed = await closedPort();
+
+    expect(
+      await createAlpacaProvider(CREDENTIAL, {
+        baseUrl: `http://127.0.0.1:${String(closed)}`,
+      }).fetchBars(REQUEST),
+    ).toEqual({ outcome: "upstream-unavailable" });
+  });
+
+  it("still returns TIMEOUT rather than upstream-unavailable for a host that hangs", async () => {
+    // The distinction the two members exist for, and the reason Task 2.1.7 used
+    // an unroutable address to produce a timeout: *"we gave up after N ms"*
+    // admits raising N, where *"they are down"* does not. An unroutable host
+    // never reaches the `TypeError` branch at all, because our own deadline
+    // fires first.
+    const harness = await serve(neverAnswers);
+
+    expect(
+      await createAlpacaProvider(CREDENTIAL, {
+        baseUrl: harness.origin,
+      }).fetchBars(REQUEST, { deadlineMs: 40 }),
+    ).toEqual({ outcome: "timeout", deadlineMs: 40 });
+  });
+
+  it("still THROWS on a 200 whose body is not the shape we believe", async () => {
+    // The one throw this task did not remove, and the line it sits on:
+    // a status that already tells us everything is a member, and a body we
+    // needed to read and could not is a defect. Laundering this into
+    // `upstream-unavailable` would put a permanent break — a vendor shape
+    // change — in front of a retry wrapper that would retry it forever.
+    const harness = await serveRaw(() => ({
+      status: 200,
+      contentType: "text/html",
+      body: "<html>not a bars body at all</html>",
     }));
 
     await expect(
       createAlpacaProvider(CREDENTIAL, {
         baseUrl: harness.origin,
       }).fetchBars(REQUEST),
-    ).rejects.toThrow(/^(?!.*Authorization Required)/s);
+    ).rejects.toThrow();
+  });
+
+  it("answers ok-and-empty for an unknown symbol, because this endpoint cannot tell", async () => {
+    // **`unknown-symbol` is not producible from this endpoint**, measured: a
+    // ticker that does not exist answers `200 {"bars":{},"next_page_token":null}`,
+    // byte-identical to a real symbol with no prints in the window. `PROVIDER.md`
+    // §8.2 makes the second a success, so the two are indistinguishable and
+    // inventing the member from an empty answer would tell a user a real
+    // security does not exist. Task 2.7.8's assets endpoint is the only thing
+    // that can separate them.
+    const harness = await serveRaw(() => ({
+      status: 200,
+      contentType: "application/json",
+      body: recorded("empty-200-unknown-symbol.json"),
+    }));
+
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars(REQUEST);
+
+    assert(result.outcome === "ok");
+    expect(result.series.bars).toHaveLength(0);
+    expect(result.series.coverage.covered).toBeNull();
+  });
+
+  it("answers ok-and-empty for a range before this plan's history depth", async () => {
+    // And the same for `range-not-available`: 1990 is a `200` and empty rather
+    // than a refusal, so that member is not producible by this route either.
+    const harness = await serveRaw(() => ({
+      status: 200,
+      contentType: "application/json",
+      body: recorded("empty-200-before-history.json"),
+    }));
+
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars(REQUEST);
+
+    assert(result.outcome === "ok");
+    expect(result.series.bars).toHaveLength(0);
+  });
+
+  it("puts nothing of the credential in any failure it returns or throws", async () => {
+    // Task 2.1.6's discipline applied to a second vendor: read the whole result
+    // and the whole error rather than its message, because a body may echo a
+    // header and a serialised error may carry properties nobody enumerated. The
+    // needle is deliberately not the local fixture credential either — a test
+    // written against a public fixture passes while leaking a real one.
+    const secret = "SECRET-THAT-MUST-NEVER-APPEAR-6f2a";
+    const credential: AlpacaConfig = { keyId: "key-id-9c1", secretKey: secret };
+
+    const cases: { status: number; body: string }[] = [
+      { status: 401, body: recorded("error-401-bad-key.html") },
+      { status: 403, body: recorded("error-403-recent-window.json") },
+      { status: 429, body: recorded("error-429-rate-limited.json") },
+      { status: 500, body: "<html>500</html>" },
+      { status: 400, body: recorded("error-400-end-before-start.json") },
+    ];
+
+    for (const { status, body } of cases) {
+      const harness = await serveRaw(() => ({
+        status,
+        contentType: "application/json",
+        body,
+      }));
+      const provider = createAlpacaProvider(credential, {
+        baseUrl: harness.origin,
+      });
+
+      let seen: unknown;
+      try {
+        seen = await provider.fetchBars(REQUEST);
+      } catch (error) {
+        // The WHOLE object, own properties and all — not `error.message`.
+        seen = {
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          own: Object.getOwnPropertyNames(error as object).map((key) =>
+            String((error as Record<string, unknown>)[key]),
+          ),
+        };
+      }
+
+      const rendered = JSON.stringify(seen);
+      expect(rendered).not.toContain(secret);
+      expect(rendered).not.toContain(credential.keyId);
+      await closeServer();
+    }
   });
 });
 
