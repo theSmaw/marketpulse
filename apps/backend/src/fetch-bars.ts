@@ -1,0 +1,336 @@
+/**
+ * `pnpm bars`' mechanism (Task 2.7.3) — one symbol, one session, printed.
+ *
+ * **This is the operator command, and it is the only thing in this task a
+ * stakeholder can be shown.** Story 2.7 fetches into a terminal rather than
+ * into a database, which the story says plainly; what there is to demonstrate
+ * is real closing prices for a real session out of a real market-data vendor,
+ * which is the first real market number this product has ever produced.
+ *
+ * It lives in `src/` and not in `scripts/` for `migrate.ts` and
+ * `load-universe.ts`'s reason: everything here is then typechecked, linted
+ * under the full type-aware pass, formatted and testable, and
+ * `scripts/fetch-bars.mjs` is a thin wrapper carrying the name, the
+ * built-output guard and the exit code.
+ *
+ * ## It prints, and deliberately stores nothing
+ *
+ * Story 2.8 owns storage. This is the shape `pnpm migrate` and `pnpm universe`
+ * established — a named command over a module inside `pnpm verify`'s net — with
+ * the one difference that this one is read-only and touches no database at all.
+ */
+
+import {
+  type Adjustment,
+  ADJUSTMENTS,
+  type BarSeries,
+  instantFromMarketTime,
+  isTicker,
+  lastMarketSessions,
+  type MarketSession,
+  marketDateAt,
+  nextMarketSession,
+  type Timeframe,
+  TIMEFRAMES,
+  toMarketTimeOfDay,
+  toTicker,
+  toTimeRange,
+} from "@marketpulse/shared";
+
+import { createAlpacaProvider } from "./alpaca-provider.js";
+import { ConfigError, loadConfig, loadEnvFile } from "./config.js";
+import type { BarsRequest } from "./market-data-provider.js";
+
+/** What a run produced, so the wrapper can turn it into a process result. */
+export interface FetchBarsOutcome {
+  readonly exitCode: 0 | 1;
+  readonly lines: readonly string[];
+  readonly errors: readonly string[];
+}
+
+/**
+ * Fetch one symbol's bars for the most recent complete trading session and
+ * render them.
+ *
+ * `argv` is a parameter rather than read from `process.argv`, which is what
+ * makes this testable at all — `loadConfig(env)`'s shape, for its reason.
+ */
+export async function fetchBarsCommand(
+  argv: readonly string[],
+  env?: NodeJS.ProcessEnv,
+): Promise<FetchBarsOutcome> {
+  const lines: string[] = [];
+  const errors: string[] = [];
+
+  const parsed = parseArguments(argv);
+  if ("problem" in parsed) {
+    return { exitCode: 1, lines, errors: [parsed.problem, "", USAGE] };
+  }
+
+  // `apps/backend/.env` is where a developer's key lives, and `loadConfig`
+  // reads the process rather than a file — so this is the same two-step
+  // `migrate.ts` and `load-universe.ts` both take. `loadEnvFile` is the only
+  // thing in this application that writes the process environment, which is why
+  // it is called from an entrypoint rather than from `loadConfig`.
+  //
+  // **It is skipped when a caller supplies its own environment**, and that is a
+  // stated behaviour rather than a convenience: supplying one means *this is
+  // the environment*, so reading a file over the top of it would make the
+  // argument a lie. It is also what keeps this module's fast tests from
+  // mutating the process they run in — `loadEnvFile` writes `process.env`, and
+  // a test that reached a developer's real key would make a metered request.
+  const environment = env ?? (loadEnvFile(), process.env);
+
+  let config;
+  try {
+    config = loadConfig(environment);
+  } catch (error) {
+    return {
+      exitCode: 1,
+      lines,
+      errors: [error instanceof ConfigError ? error.message : String(error)],
+    };
+  }
+
+  if (config.alpaca === undefined) {
+    return {
+      exitCode: 1,
+      lines,
+      errors: [
+        "No Alpaca credential is configured, so there is nothing to ask.",
+        "Set ALPACA_API_KEY_ID and ALPACA_API_SECRET_KEY in apps/backend/.env.",
+      ],
+    };
+  }
+
+  const provider = createAlpacaProvider(config.alpaca);
+
+  // Sessions come from the trading calendar rather than from arithmetic on
+  // today's date, so weekends, holidays and half days are all correct without
+  // this file knowing anything about any of them. `lastMarketSessions` is
+  // oldest-first.
+  //
+  // **The most recent COMPLETE session is the last one it does NOT return**,
+  // which is why one extra is asked for and the newest dropped: today's session
+  // may not have happened yet, may be in progress, and in any case falls inside
+  // the plan's withheld recent window — see ALPACA.md §10.
+  const wanted = parsed.timeframe === "1m" ? 1 : DAILY_SESSIONS;
+  const sessions = lastMarketSessions(
+    wanted + 1,
+    marketDateAt(new Date()),
+  ).slice(0, wanted);
+  const first = sessions[0];
+  const last = sessions.at(-1);
+  if (first === undefined || last === undefined) {
+    return {
+      exitCode: 1,
+      lines,
+      errors: ["The trading calendar returned no recent session."],
+    };
+  }
+
+  const request: BarsRequest = {
+    symbol: parsed.symbol,
+    range: windowFor(parsed.timeframe, first, last),
+    timeframe: parsed.timeframe,
+    adjustment: parsed.adjustment,
+  };
+
+  lines.push(
+    `${parsed.symbol}  ${first.date}${first.date === last.date ? "" : ` → ${last.date}`}  ${parsed.timeframe}  ${parsed.adjustment}`,
+    `  window  ${request.range.start.toISOString()} → ${request.range.end.toISOString()}`,
+    `  provider ${provider.id}  feed ${provider.feed}`,
+    "",
+  );
+
+  const result = await provider.fetchBars(request);
+
+  if (result.outcome !== "ok") {
+    // Every non-`ok` member is printed rather than mapped to a message per
+    // member: Task 2.7.6 owns what this vendor can produce, and a table of
+    // sentences written here would be the second copy of that taxonomy.
+    return {
+      exitCode: 1,
+      lines,
+      errors: [`Alpaca answered: ${result.outcome}`],
+    };
+  }
+
+  lines.push(...render(result.series));
+  return { exitCode: 0, lines, errors };
+}
+
+/**
+ * How many sessions a daily run covers. Enough to be a demonstration and small
+ * enough to stay inside one page — a month of daily bars is 21 rows against a
+ * measured page ceiling of 10,000.
+ */
+const DAILY_SESSIONS = 30;
+
+/** Midnight ET, which is where this vendor stamps a daily bar. */
+const MIDNIGHT = toMarketTimeOfDay("00:00");
+
+/**
+ * The window to ask over, and **the two timeframes need different shapes**.
+ *
+ * This is the trap `alpaca-mapping.ts` warns about, met in the one place it can
+ * actually bite: a minute bar is stamped inside the session, and a **daily bar
+ * is stamped at midnight ET** — `04:00:00Z` under EDT, hours *before* the
+ * session opens. So a daily request framed on `[open, close)` contains no daily
+ * bar at all and returns a perfectly well-formed **empty** answer.
+ *
+ * That is the shape of failure this whole story is written against, and it was
+ * produced here rather than reasoned about: `pnpm bars NVDA 1d` printed *"no
+ * bars"* against a session window before this function existed.
+ *
+ * So a daily window runs from midnight ET on the first date to midnight ET on
+ * the day *after* the last — half-open, so the final day's bar is included and
+ * the next one is not. `nextMarketSession` supplies that upper bound from the
+ * calendar rather than by adding 24 hours, which would be an hour wrong across
+ * a DST transition.
+ */
+function windowFor(
+  timeframe: Timeframe,
+  first: MarketSession,
+  last: MarketSession,
+) {
+  if (timeframe === "1m") {
+    // Half-open, `[open, close)`. The mapping converts that to this vendor's
+    // inclusive `end`; nothing here needs to know that, which is the point.
+    return toTimeRange(first.open, first.close);
+  }
+
+  return toTimeRange(
+    instantFromMarketTime(first.date, MIDNIGHT),
+    instantFromMarketTime(nextMarketSession(last.date).date, MIDNIGHT),
+  );
+}
+
+/** The series as a person reads it: the head, the tail and what it claims. */
+function render(series: BarSeries): readonly string[] {
+  const lines: string[] = [];
+  const { bars } = series;
+
+  if (bars.length === 0) {
+    lines.push(
+      "  no bars — which is a SUCCESSFUL empty answer rather than a failure.",
+      "  A holiday, a symbol outside the plan's history, or a symbol this",
+      "  vendor does not know all answer identically. PROVIDER.md §8.2.",
+    );
+    return lines;
+  }
+
+  lines.push(
+    `  ${String(bars.length)} bars`,
+    "",
+    "      time (UTC)              open      high       low     close        volume",
+  );
+
+  // Head and tail rather than everything: 390 lines is not a demonstration.
+  const HEAD = 5;
+  const TAIL = 5;
+  const shown =
+    bars.length <= HEAD + TAIL
+      ? bars.map((bar, index) => ({ bar, index }))
+      : [
+          ...bars.slice(0, HEAD).map((bar, index) => ({ bar, index })),
+          ...bars.slice(bars.length - TAIL).map((bar, offset) => ({
+            bar,
+            index: bars.length - TAIL + offset,
+          })),
+        ];
+
+  let previous = -1;
+  for (const { bar, index } of shown) {
+    if (index !== previous + 1) {
+      lines.push(`      … ${String(index - previous - 1)} more …`);
+    }
+    previous = index;
+    lines.push(
+      `      ${bar.startsAt.toISOString()}  ${money(bar.open)} ${money(bar.high)} ${money(bar.low)} ${money(bar.close)} ${String(bar.volume).padStart(13)}`,
+    );
+  }
+
+  const source = series.provenance.sources[0];
+  lines.push(
+    "",
+    `  provenance  ${series.provenance.adjustment}, ${String(series.provenance.sources.length)} source`,
+    `              ${source.provider} / ${source.feed}, ${String(source.barCount)} bars, retrieved ${source.retrievedAt}`,
+    `  coverage    ${describeCoverage(series)}`,
+  );
+  return lines;
+}
+
+function describeCoverage(series: BarSeries): string {
+  const { covered } = series.coverage;
+  if (covered === null) return "nothing — the answer is empty";
+  return `${covered.start.toISOString()} → ${covered.end.toISOString()}`;
+}
+
+/** Right-aligned to a fixed width, because a price column that jiggles is noise. */
+function money(value: number): string {
+  return value.toFixed(4).padStart(9);
+}
+
+const USAGE = [
+  "Usage: pnpm bars <SYMBOL> [1m|1d] [raw|split-adjusted]",
+  "",
+  "  Fetches one symbol's bars for the most recent complete trading session",
+  "  from Alpaca and prints them. It stores nothing — Story 2.8 owns that.",
+  "",
+  "  pnpm bars NVDA",
+  "  pnpm bars NVDA 1d",
+  "  pnpm bars NVDA 1d split-adjusted",
+].join("\n");
+
+type ParsedArguments =
+  | {
+      readonly symbol: ReturnType<typeof toTicker>;
+      readonly timeframe: Timeframe;
+      readonly adjustment: Adjustment;
+    }
+  | { readonly problem: string };
+
+/**
+ * Arguments are parsed rather than refused, which is the opposite of
+ * `pnpm migrate` and `pnpm universe` — and the difference is what the command
+ * *is*. Those two have exactly one operation over one description of the world,
+ * so an option would be a second way to reach a database. This one asks a
+ * question, and a question with no subject is not a question.
+ */
+function parseArguments(argv: readonly string[]): ParsedArguments {
+  const [rawSymbol, rawTimeframe = "1m", rawAdjustment = "raw"] = argv;
+
+  if (rawSymbol === undefined) {
+    return { problem: "No symbol given." };
+  }
+  if (!isTicker(rawSymbol)) {
+    return {
+      problem: `${JSON.stringify(rawSymbol)} is not a well-formed ticker.`,
+    };
+  }
+  if (!isMember(TIMEFRAMES, rawTimeframe)) {
+    return {
+      problem: `${JSON.stringify(rawTimeframe)} is not a timeframe. Expected ${TIMEFRAMES.join(" or ")}.`,
+    };
+  }
+  if (!isMember(ADJUSTMENTS, rawAdjustment)) {
+    return {
+      problem: `${JSON.stringify(rawAdjustment)} is not an adjustment. Expected ${ADJUSTMENTS.join(" or ")}.`,
+    };
+  }
+
+  return {
+    symbol: toTicker(rawSymbol),
+    timeframe: rawTimeframe,
+    adjustment: rawAdjustment,
+  };
+}
+
+/** `includes` on a `readonly T[]` narrows nothing, so this does. */
+function isMember<T extends string>(
+  allowed: readonly T[],
+  value: string,
+): value is T {
+  return (allowed as readonly string[]).includes(value);
+}

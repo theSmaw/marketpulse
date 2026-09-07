@@ -57,6 +57,30 @@ describe("createMarketDataProvider", () => {
       createMarketDataProvider("fixture"),
     );
   });
+
+  it("returns a provider reading the consolidated tape for `alpaca`", () => {
+    const provider = createMarketDataProvider("alpaca", {
+      alpaca: { keyId: "id", secretKey: "secret" },
+    });
+
+    expect(provider?.id).toBe("alpaca");
+    // Story 2.7's open decision 6, settled in alpaca-mapping.ts: this plan
+    // serves SIP for historical bars and IEX only for the live stream, so the
+    // historical provider claims `sip`. Epic 3's stream is a sibling interface
+    // and will claim `iex`.
+    expect(provider?.feed).toBe("sip");
+  });
+
+  // A THROW rather than `undefined`, and the distinction is narrow: config.ts
+  // already refuses `MARKET_DATA_PROVIDER=alpaca` with no credential at
+  // startup, so reaching this line means the selection and the credential
+  // handed here disagree — a fact about our code. Returning `undefined` would
+  // report "no provider is configured" about a deployment that configured one.
+  it("throws rather than reporting absence when alpaca has no credential", () => {
+    expect(() => createMarketDataProvider("alpaca")).toThrow(
+      /resolveMarketData/,
+    );
+  });
 });
 
 describe("resolveMarketData", () => {
@@ -71,6 +95,21 @@ describe("resolveMarketData", () => {
     const fixture = resolveMarketData(config("fixture"));
     expect(fixture.selection).toBe("fixture");
     expect(fixture.provider?.id).toBe("fixture");
+  });
+
+  // The credential travels with the selection from ONE place, which is what
+  // makes createMarketDataProvider's throw unreachable from this path.
+  it("carries the credential from the config to the alpaca provider", () => {
+    const resolved = resolveMarketData(
+      loadConfig({
+        MARKET_DATA_PROVIDER: "alpaca",
+        ALPACA_API_KEY_ID: "id",
+        ALPACA_API_SECRET_KEY: "secret",
+      }),
+    );
+
+    expect(resolved.selection).toBe("alpaca");
+    expect(resolved.provider?.id).toBe("alpaca");
   });
 });
 

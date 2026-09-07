@@ -1,0 +1,84 @@
+{
+  "recordedBy": "Task 2.7.3",
+  "recordedAt": "2026-09-07T08:28:49.480Z",
+  "host": "https://data.alpaca.markets",
+  "responses": [
+    {
+      "name": "nvda-1min-regular-session",
+      "status": 200,
+      "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Min&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2026-09-03T13%3A30%3A00Z&end=2026-09-03T19%3A59%3A59.999Z",
+      "bars": 390,
+      "token": null
+    },
+    {
+      "name": "nvda-1min-half-day",
+      "status": 200,
+      "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Min&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2025-11-28T14%3A30%3A00Z&end=2025-11-28T17%3A59%3A59.999Z",
+      "bars": 210,
+      "token": null
+    },
+    {
+      "name": "cci-1min-thin-name",
+      "status": 200,
+      "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=CCI&timeframe=1Min&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2026-09-03T13%3A30%3A00Z&end=2026-09-03T19%3A59%3A59.999Z",
+      "bars": 384,
+      "token": null
+    },
+    {
+      "name": "nvda-1min-holiday",
+      "status": 200,
+      "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Min&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2025-12-25T13%3A30%3A00Z&end=2025-12-25T19%3A59%3A59.999Z",
+      "bars": 0,
+      "token": null
+    },
+    {
+      "name": "nvda-1day-months",
+      "status": 200,
+      "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Day&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2026-01-02T05%3A00%3A00Z&end=2026-06-30T04%3A59%3A59.999Z",
+      "bars": 123,
+      "token": null
+    },
+    {
+      "name": "nvda-1day-split-raw",
+      "status": 200,
+      "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Day&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2024-05-28T04%3A00%3A00Z&end=2024-06-20T03%3A59%3A59.999Z",
+      "bars": 16,
+      "token": null
+    },
+    {
+      "name": "nvda-1day-split-split",
+      "status": 200,
+      "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Day&feed=sip&adjustment=split&sort=asc&limit=10000&start=2024-05-28T04%3A00%3A00Z&end=2024-06-20T03%3A59%3A59.999Z",
+      "bars": 16,
+      "token": null
+    },
+    {
+      "name": "jnj-1day-nosplit-raw",
+      "status": 200,
+      "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=JNJ&timeframe=1Day&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2024-05-28T04%3A00%3A00Z&end=2024-06-20T03%3A59%3A59.999Z",
+      "bars": 16,
+      "token": null
+    },
+    {
+      "name": "jnj-1day-nosplit-split",
+      "status": 200,
+      "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=JNJ&timeframe=1Day&feed=sip&adjustment=split&sort=asc&limit=10000&start=2024-05-28T04%3A00%3A00Z&end=2024-06-20T03%3A59%3A59.999Z",
+      "bars": 16,
+      "token": null
+    },
+    {
+      "name": "nvda-1min-paginated",
+      "status": 200,
+      "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Min&feed=sip&adjustment=raw&sort=asc&limit=100&start=2026-08-03T13%3A30%3A00Z&end=2026-08-14T19%3A59%3A59.999Z",
+      "bars": 100,
+      "token": "TlZEQXxNfDE3ODU3Njk4MDAwMDAwMDAwMDA="
+    },
+    {
+      "name": "nvda-1min-end-at-close",
+      "status": 200,
+      "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Min&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2026-09-03T13%3A30%3A00Z&end=2026-09-03T20%3A00%3A00Z",
+      "bars": 391,
+      "token": null
+    }
+  ]
+}

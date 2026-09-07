@@ -445,23 +445,23 @@ describe("loadConfig and the Alpaca credential", () => {
     expect(message).toContain("ALPACA_API_SECRET_KEY");
   });
 
-  it("does not fire on MARKET_DATA_PROVIDER=alpaca when the credential is present", () => {
-    let message = "";
-    try {
-      loadConfig({
-        MARKET_DATA_PROVIDER: "alpaca",
-        ALPACA_API_KEY_ID: KEY_ID,
-        ALPACA_API_SECRET_KEY: SECRET,
-      });
-    } catch (error) {
-      if (error instanceof ConfigError) {
-        message = error.message;
-      }
-    }
+  // **Strengthened 2026-09-07 by Task 2.7.3, and it is a stronger claim than the
+  // one it replaces.** This test used to assert only that the credential
+  // complaint was absent from a message that was still non-empty, because
+  // `alpaca` was not yet a member of `PROVIDER_IDS` and the selection itself was
+  // refused. Now that the member exists the whole configuration is coherent, so
+  // the assertion is that `loadConfig` SUCCEEDS and returns the selection with
+  // its credential attached — which is the thing the deployment actually needs
+  // to be true and which was not previously available to assert.
+  it("accepts MARKET_DATA_PROVIDER=alpaca when the credential is present", () => {
+    const config = loadConfig({
+      MARKET_DATA_PROVIDER: "alpaca",
+      ALPACA_API_KEY_ID: KEY_ID,
+      ALPACA_API_SECRET_KEY: SECRET,
+    });
 
-    // The selection itself is still refused until 2.7.3 adds the member, so the
-    // message is not empty — but the credential complaint must be gone.
-    expect(message).not.toContain("asked for a provider it cannot use");
+    expect(config.marketDataProvider).toBe("alpaca");
+    expect(config.alpaca).toEqual({ keyId: KEY_ID, secretKey: SECRET });
   });
 
   // **The redaction rule, asserted rather than trusted.** This is the whole

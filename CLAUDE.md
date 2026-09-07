@@ -22,6 +22,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Task 2.7.2 gave the key a home, fetching nothing, and it is where ADR 0011's _"nothing deployed holds a credential"_ formally expired** — read back as `null` by four previous tasks and now holding `alpaca-api-secret-key`, on revision `0000113`, with `/health` 200 throughout and `/market-data` still `{"feed":null}`, so nothing a user can see moved. **Two variables and not one packed string**, which is the decision every other one rests on: Alpaca sends a key id and a secret as two headers, and only being two names makes _"exactly one of these is a secret"_ expressible — **the key id is an identifier**, in the clear in every request header and on the vendor's dashboard, so redacting it would hide the one value that tells an operator which key is configured. That split is visible on the platform, where the id is a plain `value` and the secret a `secretRef`. **They are the first variables in `CONFIG_VARIABLES` that are optional with NO default**, because a credential's absence cannot be defaulted and an invented one is a value that is present and wrong. **Open decision 3 turned out to have two halves with different answers, which is the finding rather than a compromise**: a provider selected without its credential is a **startup refusal** (selecting a provider is a deliberate act, and §36's degrade-locally principle is about failures at run time rather than a configuration that was never coherent), while **a key that is present but wrong is deliberately not a startup concern at all** — the only way to find out is to make a request, and a startup probe against a metered API puts this process's liveness in a vendor's hands on a platform whose startup probe kills a replica at ~90 s, which is the crash loop Task 2.1.4 designed the database probe to avoid. A wrong key surfaces as `unauthorised`, already a non-retryable member of `BarsResult`; Task 2.7.6 produces it. **Half a credential is refused too**, regardless of provider, on the `DATABASE_PASSWORD`-with-`entra` argument that two opposite readings cannot be guessed between. The provider check reads the **raw** environment value rather than the parsed selection, and that is what makes it producible today: `alpaca` is deliberately still not a member of `PROVIDER_IDS`, which Task 2.7.3 adds with the client that produces it — so the rule that a union member arrives with its producer, held four times, was not broken for a configuration check's convenience. **The platform mechanism is a Container App secret and Key Vault is the recorded loser** — one command, no new resource, no role assignment, against rotation-without-touching-the-app and an audit trail; the deciding argument is what this secret **is**, a read-only market-data key on a free paper plan whose compromise costs nothing and whose regeneration is free, and **the reversal trigger is a credential whose compromise costs something**, with Epic 10's model key named. **The five-producer leak check is clean and its most valuable result was accidental**: `apps/backend/.env` now holds the real credential, and the root `.dockerignore` entry that keeps a developer's `.env` out of the build context had **never been exercised against a live secret** — the image contains no `.env` at all and zero credential bytes. Log Analytics is zero across five needles against a **non-vacuous 2,158-record** window that includes the revision rollover, and neither workflow mentions Alpaca at all, because the secret was set by hand. **`pnpm env:check` gained a check rather than only entries**: a variable with **no default must be documented blank**, which is a leak guard — the default comparison is structurally inapplicable to a no-default variable, so before it the example could have carried a real key while `pnpm verify` stayed green. Made to fail, along with the check's four existing ways. **Five deliberate breaks in `config.ts`, each seen to fail and reverted**, and the tree finished byte-identical. `pnpm test` is **629** (206 + **240** + 183), `pnpm verify` exit 0 **with the credential present and with it absent**, and the four startup cases were each produced against the built server.
 
+**Task 2.7.3 is the first real market-data client in this product, and `pnpm bars NVDA` prints real closing prices for a real session out of a real vendor** — the first real market number this product has ever produced. Six new files: `alpaca-mapping.ts`, `alpaca-provider.ts`, `fetch-bars.ts`, their tests, and `src/fixtures/alpaca/` — plus `scripts/fetch-bars.mjs` and the root script `pnpm bars`. **No dependency and no lockfile change**: Node 24 ships `fetch`, and Task 2.1.6 already declined a library for one documented request at a measured 32 packages and 46 MB. **The one structural decision is that the MAPPING is split from the TRANSPORT and owns BOTH directions of the vendor translation.** The obvious split is "mapping means response → domain" and it is the wrong one, because the most dangerous line in this story is in the **request** — so `toAlpacaQuery` is pure and testable with no socket, and the provider is left with the request, the signals and the status code. That is what keeps `pnpm test` fast, offline and buildless, a property held since Story 1.9 that one vendor-shaped module would have broken for good. **Open decision 6 is SETTLED — the feed is `sip`, sent explicitly, and `MARKET_FEEDS` needed no change because Task 2.6.3 already shipped the member.** This plan is asymmetric: historical bars come from the **full consolidated tape** and the live stream is IEX only, so `PRODUCT_SPEC.md` §7.1's own example, `Market feed: IEX`, is **wrong for stored historical bars**. `feed=sip` is sent rather than taking the measured-identical default on two arguments, and the second is the deciding one: `sort=asc`'s _"a default nobody stated is a default that can move"_, and — sharper — **it makes the provenance record true by construction**, because whether the default silently falls back to IEX for a window SIP will not serve is _unmeasured_, where an explicit `feed=sip` cannot fall back and is a measured `403`. `feed=iex` loses on measured quality one way: 82.8% mean minute coverage against 99.7%, `CCI` at 53.6% against 98.5%. Epic 3's live stream is a **sibling** interface and will declare `iex`; §4.2's reversal trigger is not met, because this provider serves exactly one feed. **The load-bearing line turned out not to be the timestamp.** `t` marks the **START** of its interval, so `startsAt` maps directly with no shift and `PROVIDER.md` §9.2's naming decision cost nothing. What does need care is `end`: **Alpaca's is INCLUSIVE and ours is half-open**, so passing it through fetches one extra bar — 391 for a 390-minute session, and since `t` marks the start that bar covers 16:00–16:01 ET, outside the regular session. **The conversion is minus one MILLISECOND rather than the "minus one timeframe" the brief offered**, and that is better than an approximation that happens to work: it is the _exact_ half-open-to-inclusive conversion, correct for any timeframe with no table to keep in step with `TIMEFRAMES` and no DST arithmetic — where subtracting "one day" would move by an hour across a transition, and filtering after the fact would fetch a bar in order to discard it. **Verified against the live API on both timeframes** rather than assumed, because a vendor accepting sub-second precision is not something to take on faith: minute bars `19:59:59.999Z` → 390 against `20:00:00Z` → 391, daily `03:59:59.999Z` → 20 against `04:00:00Z` → 21. **Every fixture was recorded through the shipped mapping's own output, so the corpus IS what the client sends.** **The fixture corpus is the OTHER one and the wrong instruction is the plausible one**: Story 2.6's produces domain types, parses no vendor JSON and needs no re-recording; this one is **raw response bodies**, eleven of them at 356 KB, and every one of Task 2.7.1's figures reproduced exactly — 390, 210, 384, 0, and the 391-bar trap. They are read with `readFileSync` from `src/` and never `import`ed, which is a decision rather than a habit: `resolveJsonModule` would compile them into `dist/`, which `files` ships into the container image. **Two controls make two of those fixtures measurements rather than observations**: `JNJ` has no split in the recorded range and returns **byte-identical** bodies under both adjustments — confirmed live as well as offline — which is what makes `adjustment` safe to send unconditionally; and the `end`-at-close body is recorded _because the domain type refuses it_, which is a stronger statement of the trap than any assertion about a query string. **The pagination refusal is a THROW naming Task 2.7.5 and it stays until that task removes it**, because a client quietly returning the first thousand bars lies with a perfectly well-formed answer — ascending, correct provenance, plausible coverage, and missing data nobody notices until a chart has a hole in it. `PROVIDER.md` §8.5 applies exactly: an incomplete answer we produced is **us**, not the world. **A non-2xx throws too**, rather than being guessed at, and the message deliberately never reads the body — a bad key answers with an **nginx HTML page**, so a client assuming JSON turns a clear `unauthorised` into a laundered parse failure. **Three deliberate breaks, each seen to fail and reverted, and the first is the one worth carrying: it never reached an assertion at all.** Shifting the timestamp by one minute makes the first bar fall outside the requested window, so **`toBarSeries`'s own coherence check refuses the series and the whole test file fails to LOAD** — the domain type catching it before any test ran, which is stronger than a red assertion. Removing `sort` takes **two** tests red across both files, which is the layering working; reading `retrievedAt` from a clock inside the mapping takes one. **`createMarketDataProvider`'s exhaustive switch fired exactly as `market-data.ts` promised**, failing the build before a line of that file had been edited. **The `alpaca` branch THROWS rather than returning `undefined` when the credential is missing**, and the distinction is narrow: `config.ts` already refuses that combination at startup, so reaching it means the selection and the credential disagree — a fact about our code — and returning `undefined` would report _"no provider is configured"_ about a deployment that configured one. **THREE recorded claims stopped being true and the third was not named by the task's brief**: the two comments Task 2.7.2 left in `config.ts` and `config.test.ts` (with that test strengthened from _"the message is not empty"_ into an assertion that `loadConfig` **succeeds** and returns the credential — a stronger claim only available once the member exists), and **`market-provenance.test.ts`'s `toEqual(["fixture"])`**, which went red and is now the durable claim rather than the temporary one: a member exists when something can produce it. **The vendor grep moved and it is 2 rather than the 1 the brief predicted** — the id itself and the test that locks the vocabulary, the second unavoidable because a test asserting which members exist has to name them — and **the `apps/backend/src` naive figure has stopped being informative at 262 across 12 files**, because those files _are_ the vendor client, which is `PROVIDER.md` §1's split working as designed. **The frontend artefact did NOT move and `alpaca` is zero in the bundle**, which is the check rather than a coincidence: `PROVIDER_IDS` is a plain array literal and is tree-shaken completely, Task 2.3.8's literal-versus-constructor rule holding — 371,463 B `c8f1c3ad…`, 18,063 B `ed3d1744…`, 1,101 B `7b0075a8…`, 300 B, **390,927 B over four files**, reproducing Task 2.6.8's figures to the byte. **Criterion 7 was checked with a control rather than assumed**: the whole backend suite runs with every off-machine host refused at `dns.lookup` and `net.connect` — **294 passed** — and a throwaway probe against `data.alpaca.markets` was refused in the same run, so the blocker was proved to block. **The leak sweep is clean on all five producers** and `apps/backend/.env` is untracked. `pnpm test` is **683** (206 + **294** + 183), `pnpm verify` is exit 0, and `pnpm links` reads 219 documents / 508 cross-file links / 34 anchor links / 0 broken. **The honest gap: nothing is deployed and the deployed backend still reads no provider** — `MARKET_DATA_PROVIDER` is absent from the Container App entirely, which Task 2.7.4 owns along with putting the feed's word on the deployed page.
+
 The pnpm workspace root, the shared TypeScript baseline and all three workspace packages exist, verified from a clean clone with an empty pnpm store (Tasks 1.1.8 and 1.3.5).
 
 **Both apps now run.** `apps/backend` is a Fastify server — it starts on a configurable port, serves `GET /health`, restarts on source change, and shuts down gracefully on `SIGTERM`/`SIGINT`. `apps/frontend` is a React 19 application built with Vite — it renders a placeholder shell, hot-reloads components without losing their state, and builds to static assets that render from a plain static host. Root `pnpm dev` starts the pair, and there are no placeholder `dev` scripts left anywhere. **Story 1.8 closed that loop and wrote `docs/adr/0008-*`.** The pair is now legible in one terminal (a request is 2 rendered lines rather than 12), the browser boundary is real server-side CORS with one origin from configuration rather than a Vite proxy, the frontend's ports stay literals as a decision, `pnpm ready` answers whether the pair is actually up — which matters because a busy 3000 leaves `pnpm dev` running and looking healthy — and `README.md` was followed from a clean clone to a running application. Story 1.8 came to **one** new dependency, `@fastify/cors`, and **no change to the frontend artefact at all**: 271 modules / 343,658 B / 10,926 B / three files, unchanged since Task 1.7.7.
@@ -645,6 +647,81 @@ apps/
                                    adding a member fails the build HERE rather
                                    than shipping a config value nothing honours
 
+    src/alpaca-mapping.ts          the VENDOR TRANSLATION, both directions, as
+                                   PURE functions (Task 2.7.3) — and this split
+                                   is the task's one structural decision. A
+                                   client written as one file makes every test of
+                                   the mapping a test that needs a socket; this
+                                   keeps `pnpm test` fast, offline and buildless,
+                                   a property held since Story 1.9.
+                                   It owns the REQUEST half too, deliberately:
+                                   the most dangerous line in this story is
+                                   there. **Alpaca's `end` is INCLUSIVE and ours
+                                   is half-open**, so passing `end` through
+                                   fetches one extra bar — measured at 391 for a
+                                   390-minute session, and since `t` marks the
+                                   START of its interval that bar covers
+                                   16:00–16:01 ET, outside the regular session.
+                                   The conversion is **minus one MILLISECOND**
+                                   rather than minus one timeframe: that is the
+                                   exact half-open-to-inclusive conversion, so it
+                                   is correct for any timeframe with no table and
+                                   no DST arithmetic, and it was verified on both
+                                   timeframes against the live API.
+                                   `t` → `startsAt` with NO SHIFT, measured. `n`
+                                   and `vw` are dropped, declined with triggers in
+                                   PROVIDER.md §9.1 — do not widen `Bar` here.
+                                   `retrievedAt` is a PARAMETER and never a clock,
+                                   which keeps the module pure AND puts the stamp
+                                   at the fetch, the trap Task 2.3.5 fell into.
+                                   A `next_page_token` is a THROW naming Task
+                                   2.7.5, never a truncation: a client quietly
+                                   returning the first page lies with a perfectly
+                                   well-formed answer
+    src/alpaca-provider.ts         the transport, THIN (Task 2.7.3) — the first
+                                   real market-data client in this product. One
+                                   symbol, one page, the happy path, and it FAILS
+                                   LOUDLY on everything else, which is what makes
+                                   splitting a client across four tasks honest:
+                                   the other three halves fail SILENTLY. A retry
+                                   here would lie about the deadline, a swallowed
+                                   page about the data, a laundered parse failure
+                                   about whose fault it is.
+                                   No retry, no cache, no pacing — all three are
+                                   argued in `market-data-provider.ts` and this is
+                                   the first implementation that could break them.
+                                   No HTTP dependency: Node 24 ships `fetch`, and
+                                   Task 2.1.6 already declined a library for one
+                                   documented request at a measured 32 packages.
+                                   A non-2xx THROWS rather than being mapped —
+                                   Task 2.7.6 owns the taxonomy, and it never
+                                   reads the body into a message, because a bad
+                                   key answers with an nginx HTML page
+    src/fetch-bars.ts              `pnpm bars`' mechanism (Task 2.7.3) — and the
+                                   ONE thing in this task a stakeholder can be
+                                   shown. Story 2.7 fetches into a terminal
+                                   rather than a database, so what there is to
+                                   demonstrate is real closing prices for a real
+                                   session out of a real vendor.
+                                   The two timeframes need DIFFERENT windows and
+                                   that was produced rather than reasoned about:
+                                   a daily bar is stamped at MIDNIGHT ET, hours
+                                   before the session opens, so `pnpm bars NVDA
+                                   1d` printed "no bars" against a session window
+                                   until `windowFor` existed
+    src/fixtures/alpaca/           the OTHER corpus — RAW HTTP response bodies,
+                                   recorded 2026-09-07 (Task 2.7.3). Do not
+                                   confuse it with Story 2.6's, which produces
+                                   DOMAIN TYPES and parses no vendor JSON, so it
+                                   has nothing vendor-shaped it could be wrong
+                                   about and needs no re-recording. This is the
+                                   only artefact that can test a MAPPING, which
+                                   is the only place a vendor's shape can be got
+                                   wrong.
+                                   Read with `readFileSync` from `src/` and never
+                                   `import`ed: `resolveJsonModule` would compile
+                                   356 KB of test data into `dist/`, which
+                                   `files` ships into the container image
     src/routes/health.ts           GET /health, its response schema and the
                                    `satisfies` guard. It no longer declares the
                                    response TYPE: Task 1.12.1 moved
@@ -1951,6 +2028,19 @@ pnpm universe      # load the tracked universe into that database (Task 2.3.5).
                    # right after the migration step and before either half of the code rolls,
                    # running on EVERY deploy — because run-once would make editing
                    # universe.ts a change that ships nowhere
+pnpm bars          # fetch one symbol's bars from Alpaca and PRINT them (Task 2.7.3).
+                   # scripts/fetch-bars.mjs over apps/backend/src/fetch-bars.ts — the shape
+                   # `pnpm migrate` and `pnpm universe` established, with one difference:
+                   # this one is READ-ONLY and touches no database. It STORES NOTHING; Story
+                   # 2.8 owns that. `pnpm bars NVDA`, `pnpm bars NVDA 1d`,
+                   # `pnpm bars NVDA 1d split-adjusted`.
+                   # ARGUMENTS ARE FORWARDED, which is the opposite of `pnpm migrate` and
+                   # `pnpm universe` — those have one operation over one description of the
+                   # world, and this asks a question, which needs a subject.
+                   # Needs a built tree and an Alpaca key in apps/backend/.env; with neither
+                   # half of the key the application refuses to start at all.
+                   # NOT a verify step, and more firmly than `ready` or `migrate` are: it
+                   # makes a METERED request to a third party against a real credential
 pnpm ready         # is the running pair actually up? NOT part of verify — see below.
                    # THREE checks, and since Task 2.4.5 the database GATES (`✗`) rather
                    # than reporting. The condition Task 2.1.2 wrote down fired — "the first
