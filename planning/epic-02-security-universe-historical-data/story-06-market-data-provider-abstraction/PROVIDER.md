@@ -147,6 +147,36 @@ SeriesCoverage
   covered      TimeRange | null    // null when the series is empty
 ```
 
+**Amended 2026-09-07 by Task 2.6.3, which implemented this. Three things it added that
+this section did not ask for, and one it tightened.**
+
+**`SeriesProvenance` and `BarSeries` are both BRANDED**, `TimeRange`'s precedent one task
+old. A required `provenance` field alone already makes a series without provenance
+uncompilable — so criterion 3 was never the hard half. The hard half is that a hand-written
+object literal skips every _coherence_ check, and the coherence checks are where the
+interesting failures live. The brand is what makes `toBarSeries` unavoidable; it is erased at
+runtime, so the wire and the bundle are unaffected.
+
+**A multi-source record is obtainable ONLY by merging, and that is what makes §2.4's refusal
+a mechanism rather than an instruction.** `toSeriesProvenance(adjustment, source)` takes
+exactly one source; `mergeSeriesProvenance(first, ...rest)` takes two or more and refuses an
+adjustment disagreement. Without that pair, a Story 2.8 stitcher holding two series would
+write a literal, pick one of the two adjustment values, and nothing would notice — §2.4's
+"unrepresentable" is true of the _result_ and says nothing about how the result was chosen.
+
+**`toBarSeries` checks five things the types cannot**, each of which was made to fail: bars
+strictly ascending; the sources' `barCount` summing to `bars.length`; `covered` null exactly
+when the series is empty; every bar starting inside `covered` (half-open at the top); and
+`covered` lying inside `requested`. The second is the one this whole record exists for — two
+arrays concatenated with one source record kept is a series claiming its bars came from
+somewhere they did not.
+
+**`retrievedAt` is checked rather than merely typed.** It must end in `Z` and parse. It is
+the one field here whose wrongness is _silent and reaches a user_: an offset spelling is how
+a local-time stamp gets into a provenance record and makes a stale series look current, which
+is §4.3's trap arriving through a different door. `Date.prototype.toISOString` always ends in
+`Z`, so a correct call site pays nothing.
+
 ### 2.2 Why not one record, which is the cheapest thing
 
 Because the case that breaks it is **not hypothetical and is scheduled**. Story 2.8's read
@@ -918,6 +948,14 @@ provably side-effect-free.
    §4.4's three labels and three sentences plus the component that renders them. Order of a
    few hundred bytes of strings plus the component and its stylesheet. There is no useful
    tighter prediction than that, and a wrong prediction there is not a defect.
+
+**Half 1 is confirmed for Tasks 2.6.2 AND 2.6.3 by measurement, not by argument.** Task
+2.6.3 added two modules, four constants, six types and two constructors to
+`packages/shared` and the artefact is byte-identical again — `369,437 B` / `4f17aff3…`,
+`17,317 B` / `eb223e53…`, `1,101 B` / `898733b0…`, 300 B, **388,155 B over four files**.
+`MARKET_FEED_DESCRIPTIONS` is the one to watch, being an object rather than an array, and
+it is tree-shaken completely for the same reason: a plain literal, not built by calling
+anything.
 
 **Half 1 is confirmed for Task 2.6.2 by measurement, not by argument.** Before and after, the
 artefact is byte-identical: `369,437 B` / `4f17aff3…` of JavaScript, `17,317 B` /

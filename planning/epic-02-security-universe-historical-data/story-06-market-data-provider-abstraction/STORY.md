@@ -132,7 +132,7 @@ invented value for six stories.
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
 | 2.6.1 | [Settle the shape, the provenance granularity and the adjustment default, shipping nothing](TASK-01-settle-the-shape-and-the-provenance-vocabulary.md) | Complete    |
 | 2.6.2 | [`Bar` and `Timeframe`: the smallest honest description of a price observation](TASK-02-the-bar-and-the-timeframe.md)                                  | Not started |
-| 2.6.3 | [Provenance and adjustment: a series that cannot exist without saying where it came from](TASK-03-provenance-and-adjustment.md)                        | Not started |
+| 2.6.3 | [Provenance and adjustment: a series that cannot exist without saying where it came from](TASK-03-provenance-and-adjustment.md)                        | Complete    |
 | 2.6.4 | [The provider interface, the request, and a call that cannot throw](TASK-04-the-interface-and-the-result-shape.md)                                     | Not started |
 | 2.6.5 | [The error taxonomy, and where a retry policy is allowed to live](TASK-05-the-error-taxonomy-and-the-retry-policy.md)                                  | Not started |
 | 2.6.6 | [The fixture provider: the whole interface, offline, deterministic](TASK-06-the-fixture-provider.md)                                                   | Not started |

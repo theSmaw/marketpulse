@@ -220,3 +220,63 @@ export type { Bar, Timeframe } from "./bar.js";
 // there is a real corruption rather than a cosmetic one.
 export { toTimeRange } from "./time-range.js";
 export type { TimeRange } from "./time-range.js";
+
+// Where a price series came from, and what has been done to its numbers (Task
+// 2.6.3). This is the story's product-weight decision rather than its
+// engineering one: invariant 6 and §7.1 require the feed to be DISPLAYED and
+// require us not to imply full US-market coverage, and §35 lists "hide data
+// provenance" among the things this product must not do. So provenance is a
+// field on the DATA and not a caption on a component — a caption is true of the
+// component, and it is unchanged and wrong the moment Story 2.8 stitches stored
+// bars onto fresh ones.
+//
+// A record names a LIST of sources for exactly that reason. Sources may
+// disagree about FEED and that is reported truthfully; they are REFUSED if they
+// disagree about ADJUSTMENT, because raw and split-adjusted prices are on two
+// different scales and an array holding both has a step in it that is an
+// artefact of our own stitching. `SeriesProvenance` is branded so that refusal
+// is a mechanism rather than an instruction: `mergeSeriesProvenance` is the only
+// way to obtain a multi-source record, and it always checks.
+//
+// The feed's user-facing words live here too, beside the vocabulary, because a
+// renderer deriving a sentence from a slug and a lookup table of its own is two
+// vocabularies for one fact. `Market feed: IEX` alone satisfies §7.1's letter
+// and fails its intent — the sentence is the requirement, the label is the
+// affordance.
+export {
+  ADJUSTMENTS,
+  MARKET_FEED_DESCRIPTIONS,
+  MARKET_FEEDS,
+  mergeSeriesProvenance,
+  PROVIDER_IDS,
+  toSeriesProvenance,
+} from "./market-provenance.js";
+export type {
+  Adjustment,
+  BarSource,
+  MarketFeed,
+  MarketFeedDescription,
+  ProviderId,
+  SeriesProvenance,
+} from "./market-provenance.js";
+
+// A run of bars that cannot exist without saying where it came from (Task
+// 2.6.3), which is Story 2.6's acceptance criterion 3 made structural rather
+// than conventional. `BarSeries` is branded and `toBarSeries` is the only way to
+// obtain one: a required field alone already makes a series without provenance
+// uncompilable, and the brand buys the half a required field cannot, which is
+// that a hand-written literal skips every coherence check — the source bar
+// counts summing to the bars, the bars ascending, the covered range agreeing
+// with both the bars and the request.
+//
+// Coverage lives on the SERIES rather than on a response envelope, on the
+// argument that made provenance not a caption: an envelope is a fact about one
+// HTTP exchange and a series outlives it. It says how far an answer REACHES,
+// not whether it is dense — telling a thin name's missing minute from a failed
+// fetch is Story 2.8's gap handling.
+export { toBarSeries } from "./bar-series.js";
+export type {
+  BarSeries,
+  BarSeriesInput,
+  SeriesCoverage,
+} from "./bar-series.js";
