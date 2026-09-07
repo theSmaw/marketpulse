@@ -40,6 +40,7 @@ import {
   type Timeframe,
   type TimeRange,
   toBarSeries,
+  toTimeRange,
   toSeriesProvenance,
 } from "@marketpulse/shared";
 
@@ -127,6 +128,72 @@ export const ALPACA_BARS_PATH = "/v2/stocks/bars";
 export const ALPACA_MAX_LIMIT = 10_000;
 
 /**
+ * How far back this plan's `end` must reach before SIP will answer at all.
+ *
+ * **Measured 2026-09-07 by Task 2.7.5, and it is a cliff rather than a
+ * gradient.** Holding `start` a day back and walking `end` towards now, on
+ * `feed=sip`: an `end` **15 minutes or older is `200`**, and **14 minutes or
+ * newer is `403`**.
+ *
+ * Three things that measurement settled, and each changes a design:
+ *
+ *  - **The refusal keys on `end` ALONE.** `start` inside the window is
+ *    irrelevant — `start` 31 and 60 minutes ago against an `end` 30 minutes ago
+ *    are both `200`.
+ *  - **It refuses the WHOLE request rather than answering partially.** A window
+ *    from Friday's open to now — 6½ hours of perfectly available data plus ~15
+ *    minutes that is not — is a flat `403 subscription does not permit querying
+ *    recent SIP data`. **Nothing comes back.** This is the finding Task 2.7.5's
+ *    brief did not anticipate: it expected a short answer to clip, and there is
+ *    no answer to clip.
+ *  - **It applies to daily too**, not only to minute bars.
+ *
+ * So the vendor's recency restriction cannot be handled by reading a short
+ * answer. It has to be handled **before the request**, by
+ * {@link alpacaServableEnd}.
+ *
+ * The margin over the measured 15 minutes is deliberate and is one minute. The
+ * boundary was measured at *exactly* 15, so our clock and the vendor's
+ * disagreeing by a few seconds is the difference between a served request and a
+ * refused one. The asymmetry decides it: the margin costs at most one bar,
+ * where landing the wrong side of the cliff costs the entire request.
+ */
+export const ALPACA_SIP_WITHHOLDING_MS = 16 * 60 * 1000;
+
+/**
+ * The latest `end` this plan will actually serve, given the instant we ask at.
+ *
+ * **Clamping is the answer, and the two alternatives are rejected on
+ * `PROVIDER.md`'s own rules rather than on convenience.**
+ *
+ * *Let it 403 and map the failure* is forbidden outright: §7 says the withheld
+ * recent window **is not an error and must never map onto one**. It is also the
+ * worst outcome for the caller that will actually hit this — Story 2.8's
+ * backfill asks *"from the last bar I stored, to now"*, exactly the shape that
+ * gets refused, so it would store **nothing** on every run rather than
+ * everything up to the cliff.
+ *
+ * *Refuse at construction*, making the caller do the arithmetic, moves a
+ * vendor-plan property into every call site — and `PROVIDER.md` §1 puts vendor
+ * facts behind the provider interface precisely so callers do not learn them.
+ *
+ * Clamping is what `SeriesCoverage` was designed for: the answer honestly
+ * covers **less** than was requested and says so, which is the distinction
+ * `requested` and `covered` exist to carry. §8.5's *"an incomplete answer we
+ * produced is us, not the world"* is not breached, because the incompleteness
+ * is **reported** — an unreported clip would be the breach.
+ *
+ * `now` is a **parameter** and never a clock read here, which keeps this module
+ * pure and every test of it fast. The provider stamps one instant per fetch and
+ * uses it for this and for `retrievedAt`, so a paginated fetch cannot clamp
+ * against a moving target.
+ */
+export function alpacaServableEnd(range: TimeRange, now: Date): Date {
+  const cliff = new Date(now.getTime() - ALPACA_SIP_WITHHOLDING_MS);
+  return range.end < cliff ? range.end : cliff;
+}
+
+/**
  * Our two timeframes onto the vendor's strings.
  *
  * `satisfies Record<Timeframe, string>` rather than a `switch`, because that is
@@ -164,7 +231,12 @@ const ALPACA_ADJUSTMENTS = {
  * Returned as an object rather than a URL so a test can assert one parameter
  * without parsing a string, and so the provider owns the host.
  */
-export function toAlpacaQuery(request: BarsRequest): Record<string, string> {
+export function toAlpacaQuery(
+  request: BarsRequest,
+  options: { readonly end: Date; readonly pageToken?: string } = {
+    end: request.range.end,
+  },
+): Record<string, string> {
   return {
     symbols: request.symbol,
     timeframe: ALPACA_TIMEFRAMES[request.timeframe],
@@ -181,7 +253,21 @@ export function toAlpacaQuery(request: BarsRequest): Record<string, string> {
     limit: String(ALPACA_MAX_LIMIT),
 
     start: request.range.start.toISOString(),
-    end: toAlpacaInclusiveEnd(request.range).toISOString(),
+
+    // The **servable** end rather than the requested one, converted to this
+    // vendor's inclusive bound. On a historical range the two are the same; on
+    // a range reaching into the withheld recent window the clamp is what stops
+    // the whole request being refused. See {@link alpacaServableEnd}.
+    end: toAlpacaInclusiveEnd(options.end).toISOString(),
+
+    // **Present only on pages after the first**, and spread rather than
+    // assigned: an `undefined` here would reach the URL as the literal string
+    // `"undefined"`, which this vendor answers `400` for. The same
+    // absent-versus-present-and-undefined distinction `apiError()` makes, in a
+    // place where getting it wrong costs a metered request.
+    ...(options.pageToken === undefined
+      ? {}
+      : { page_token: options.pageToken }),
   };
 }
 
@@ -228,29 +314,8 @@ export function toAlpacaQuery(request: BarsRequest): Record<string, string> {
  * Every fixture in this task's corpus was recorded through this function's own
  * output, so the corpus *is* what the client sends.
  */
-export function toAlpacaInclusiveEnd(range: TimeRange): Date {
-  return new Date(range.end.getTime() - 1);
-}
-
-/**
- * What this task refuses to handle, thrown rather than answered.
- *
- * A distinct class so the provider can let it through deliberately rather than
- * catching every `Error` and hoping.
- */
-export class AlpacaPaginationUnsupportedError extends Error {
-  public override readonly name = "AlpacaPaginationUnsupportedError";
-
-  public constructor(token: string) {
-    super(
-      `Alpaca returned a next_page_token (${token.slice(0, 12)}…), so this ` +
-        `answer is only the first page of a longer range. Task 2.7.5 adds ` +
-        `pagination; until it does, this client refuses to return a partial ` +
-        `series rather than returning one that looks complete. Ask for a ` +
-        `narrower range — a single regular session is 390 minute bars against ` +
-        `a measured page ceiling of ${String(ALPACA_MAX_LIMIT)}.`,
-    );
-  }
+export function toAlpacaInclusiveEnd(end: Date): Date {
+  return new Date(end.getTime() - 1);
 }
 
 /**
@@ -270,7 +335,7 @@ interface AlpacaBar {
 }
 
 /** The response envelope. `ALPACA.md` §8: two keys, and `currency` was absent. */
-interface AlpacaBarsBody {
+export interface AlpacaBarsBody {
   readonly bars: Readonly<Record<string, readonly AlpacaBar[]>>;
   readonly next_page_token: string | null;
 }
@@ -447,39 +512,69 @@ function toBar(bar: AlpacaBar): Bar {
  * read path that re-stamps is the same failure — so it is stamped here, once,
  * and Story 2.9's read path has nothing left to stamp.
  */
-export function toBarSeriesFromAlpaca(
-  request: BarsRequest,
-  body: unknown,
-  retrievedAt: string,
-): BarSeries {
-  const parsed = parseAlpacaBarsBody(body);
-
-  // **Loud, and it stays loud until Task 2.7.5 removes it.** A client that
-  // quietly returned the first page of a longer range would lie with a
-  // perfectly well-formed answer: ascending, correct provenance, plausible
-  // coverage, and missing data nobody notices until a chart has a hole in it.
-  // `PROVIDER.md` §8.5 applies exactly — an incomplete answer we produced is
-  // US, not the world — so laundering it into `upstream-unavailable` or into a
-  // successful short series is the shape that section forbids.
-  if (parsed.next_page_token !== null) {
-    throw new AlpacaPaginationUnsupportedError(parsed.next_page_token);
-  }
-
+export function toBarsFromAlpacaPage(
+  parsed: AlpacaBarsBody,
+  symbol: string,
+): readonly Bar[] {
   // Absent rather than empty for a symbol with nothing to say. Measured: a
   // holiday, an unknown symbol and a range outside the plan's history are all
   // `{"bars":{}}` — BYTE-IDENTICAL, so this mapping structurally cannot tell
   // them apart and does not try. An empty answer is a SUCCESS (`PROVIDER.md`
   // §8.2), and `unknown-symbol` is not producible from this endpoint at all —
   // which is Task 2.7.8's assets-endpoint decision, not a gap here.
-  const vendorBars = parsed.bars[request.symbol] ?? [];
-  const bars = vendorBars.map(toBar);
+  return (parsed.bars[symbol] ?? []).map(toBar);
+}
 
+/**
+ * The accumulated bars of a whole fetch, plus the question that produced them,
+ * as a {@link BarSeries}.
+ *
+ * **It takes bars rather than a body, which is what pagination cost this
+ * module** (Task 2.7.5). Before it, one body was one answer; now one answer is
+ * one *or more* bodies, and only the caller that walked them knows when it is
+ * finished. Splitting it this way keeps the module pure and keeps the loop —
+ * the part with a deadline, a signal and a page bound — in the provider, where
+ * the other transport concerns already are.
+ *
+ * `retrievedAt` is a **parameter** and never read from a clock here. That keeps
+ * this module pure, and it puts the stamp at the **start of the fetch** rather
+ * than at its end — which matters more once a fetch can span pages, because a
+ * slow walk stamped at completion claims a freshness its earliest bars do not
+ * have, and reporting staleness is the field's whole job.
+ *
+ * `covered` is the **servable** window rather than the requested one, which is
+ * how a range reaching into this plan's withheld recent window reports
+ * honestly. See {@link alpacaServableEnd}.
+ */
+export function toBarSeriesFromAlpacaBars(
+  request: BarsRequest,
+  bars: readonly Bar[],
+  retrievedAt: string,
+  servableEnd: Date,
+): BarSeries {
   const source: BarSource = {
     provider: ALPACA_PROVIDER_ID,
     feed: ALPACA_FEED,
     retrievedAt,
     barCount: bars.length,
   };
+
+  // The window this answer actually reaches, clamped to what the plan will
+  // serve. Identical to `request.range` for any historical window, which is
+  // every window except one ending inside the last ~16 minutes.
+  //
+  // **Computed only when there ARE bars, and that is a fix rather than a
+  // micro-optimisation.** When the *whole* window is withheld the clamped end
+  // is earlier than the start, and `toTimeRange` refuses a reversed pair —
+  // correctly, since an empty result there would hide a swapped or off-by-one
+  // argument. That case has no bars, so it has no coverage to describe:
+  // `toBarSeries` requires `covered` to be null exactly when the series is
+  // empty, and computing the range eagerly threw before reaching that. Found
+  // by a test, and by the domain type rather than by an assertion.
+  const covered = (): TimeRange =>
+    servableEnd >= request.range.end
+      ? request.range
+      : toTimeRange(request.range.start, servableEnd);
 
   return toBarSeries({
     symbol: request.symbol,
@@ -499,7 +594,7 @@ export function toBarSeriesFromAlpaca(
       //
       // `null` exactly when there are no bars, which `toBarSeries` enforces
       // both ways round.
-      covered: bars.length === 0 ? null : request.range,
+      covered: bars.length === 0 ? null : covered(),
     },
   });
 }

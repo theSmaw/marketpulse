@@ -40,11 +40,13 @@ import {
   ALPACA_FEED,
   ALPACA_MAX_LIMIT,
   ALPACA_PROVIDER_ID,
-  AlpacaPaginationUnsupportedError,
+  ALPACA_SIP_WITHHOLDING_MS,
+  alpacaServableEnd,
   parseAlpacaBarsBody,
   toAlpacaInclusiveEnd,
   toAlpacaQuery,
-  toBarSeriesFromAlpaca,
+  toBarSeriesFromAlpacaBars,
+  toBarsFromAlpacaPage,
 } from "./alpaca-mapping.js";
 import type { BarsRequest } from "./market-data-provider.js";
 
@@ -58,6 +60,34 @@ import type { BarsRequest } from "./market-data-provider.js";
  * same boundary `files: ["dist", "!dist/**\/*.test.*"]` already draws.
  */
 const FIXTURES = join(import.meta.dirname, "fixtures", "alpaca");
+
+/**
+ * One body, mapped as a whole series — the shape this module exported before
+ * Task 2.7.5 split it.
+ *
+ * Pagination made *one answer* into *one or more bodies*, so the assembly step
+ * now takes accumulated bars and only the caller that walked the pages knows
+ * when it is done. Every assertion below is about a **single-page** body, where
+ * the two are equivalent, so this keeps them saying what they said rather than
+ * rewriting forty call sites to prove a refactor.
+ *
+ * `servableEnd` is `request.range.end` here, i.e. *nothing was clamped*, which
+ * is true of every historical fixture in the corpus. The clamp has its own
+ * tests.
+ */
+function seriesFromOneBody(
+  request: BarsRequest,
+  raw: unknown,
+  retrievedAt: string,
+) {
+  const parsed = parseAlpacaBarsBody(raw);
+  return toBarSeriesFromAlpacaBars(
+    request,
+    toBarsFromAlpacaPage(parsed, request.symbol),
+    retrievedAt,
+    request.range.end,
+  );
+}
 
 function body(name: string): unknown {
   return JSON.parse(readFileSync(join(FIXTURES, `${name}.json`), "utf8"));
@@ -148,7 +178,7 @@ describe("toAlpacaQuery", () => {
     // correct for any timeframe by construction — where subtracting "one day"
     // would move by an hour across a DST transition.
     const daily = { ...request, timeframe: "1d" as const };
-    expect(toAlpacaInclusiveEnd(daily.range).getTime()).toBe(
+    expect(toAlpacaInclusiveEnd(daily.range.end).getTime()).toBe(
       daily.range.end.getTime() - 1,
     );
   });
@@ -156,7 +186,7 @@ describe("toAlpacaQuery", () => {
 
 describe("toBarSeriesFromAlpaca — a full regular session", () => {
   const request = sessionRequest("NVDA", "2026-09-03");
-  const series = toBarSeriesFromAlpaca(
+  const series = seriesFromOneBody(
     request,
     body("nvda-1min-regular-session"),
     RETRIEVED_AT,
@@ -251,7 +281,7 @@ describe("toBarSeriesFromAlpaca — a full regular session", () => {
 describe("toBarSeriesFromAlpaca — the sessions that are not ordinary", () => {
   it("returns a half day's own bar count, which is fewer than a full session", () => {
     const request = sessionRequest("NVDA", "2025-11-28");
-    const series = toBarSeriesFromAlpaca(
+    const series = seriesFromOneBody(
       request,
       body("nvda-1min-half-day"),
       RETRIEVED_AT,
@@ -270,7 +300,7 @@ describe("toBarSeriesFromAlpaca — the sessions that are not ordinary", () => {
     const request = sessionRequest("NVDA", "2025-12-24");
     // The recorded body is Christmas Day 2025 — a full closure, so the calendar
     // has no session for it and the request is framed on the day before.
-    const series = toBarSeriesFromAlpaca(
+    const series = seriesFromOneBody(
       request,
       body("nvda-1min-holiday"),
       RETRIEVED_AT,
@@ -285,7 +315,7 @@ describe("toBarSeriesFromAlpaca — the sessions that are not ordinary", () => {
 
   it("returns a thin name's real gaps rather than inventing minutes", () => {
     const request = sessionRequest("CCI", "2026-09-03");
-    const series = toBarSeriesFromAlpaca(
+    const series = seriesFromOneBody(
       request,
       body("cci-1min-thin-name"),
       RETRIEVED_AT,
@@ -311,7 +341,7 @@ describe("toBarSeriesFromAlpaca — the sessions that are not ordinary", () => {
       timeframe: "1d",
       adjustment: "raw",
     };
-    const series = toBarSeriesFromAlpaca(
+    const series = seriesFromOneBody(
       request,
       body("nvda-1day-months"),
       RETRIEVED_AT,
@@ -345,12 +375,12 @@ describe("toBarSeriesFromAlpaca — adjustment", () => {
   it("carries the split cliff on raw and not on split-adjusted", () => {
     // NVDA's 10-for-1 split, 2024-06-10. PROVIDER.md §3.5's recorded direction:
     // RAW carries the cliff, adjusted is continuous.
-    const raw = toBarSeriesFromAlpaca(
+    const raw = seriesFromOneBody(
       daily("NVDA", "raw"),
       body("nvda-1day-split-raw"),
       RETRIEVED_AT,
     );
-    const split = toBarSeriesFromAlpaca(
+    const split = seriesFromOneBody(
       daily("NVDA", "split-adjusted"),
       body("nvda-1day-split-split"),
       RETRIEVED_AT,
@@ -371,12 +401,12 @@ describe("toBarSeriesFromAlpaca — adjustment", () => {
   // symbol with no split in the range must return identical bars in both modes
   // — which is what makes `adjustment` safe to send unconditionally.
   it("returns identical bars in both modes for a symbol with no split", () => {
-    const raw = toBarSeriesFromAlpaca(
+    const raw = seriesFromOneBody(
       daily("JNJ", "raw"),
       body("jnj-1day-nosplit-raw"),
       RETRIEVED_AT,
     );
-    const split = toBarSeriesFromAlpaca(
+    const split = seriesFromOneBody(
       daily("JNJ", "split-adjusted"),
       body("jnj-1day-nosplit-split"),
       RETRIEVED_AT,
@@ -392,29 +422,21 @@ describe("toBarSeriesFromAlpaca — adjustment", () => {
 
 describe("what this task refuses to handle", () => {
   // **The decision that makes splitting the client across four tasks honest.**
-  // A client quietly returning the first page of a longer range lies with a
-  // perfectly well-formed answer: ascending, correct provenance, plausible
-  // coverage, and missing data nobody notices until a chart has a hole in it.
-  it("throws on a next_page_token rather than returning a partial series", () => {
-    const request: BarsRequest = {
-      symbol: toTicker("NVDA"),
-      range: toTimeRange(
-        new Date("2026-08-03T13:30:00Z"),
-        new Date("2026-08-14T20:00:00Z"),
-      ),
-      timeframe: "1m",
-      adjustment: "raw",
-    };
+  // ~~A client quietly returning the first page of a longer range lies with a
+  // perfectly well-formed answer.~~ Task 2.7.5 removed the throw by making the
+  // walk real. What replaces it here is the property that made the throw safe
+  // to remove: **the mapping no longer decides whether an answer is complete**,
+  // because it can no longer see. A page is a page.
+  it("maps one page as a page, leaving completeness to the caller that walks", () => {
+    const parsed = parseAlpacaBarsBody(body("nvda-1min-paginated"));
 
-    expect(() =>
-      toBarSeriesFromAlpaca(request, body("nvda-1min-paginated"), RETRIEVED_AT),
-    ).toThrow(AlpacaPaginationUnsupportedError);
-
-    // It names the task that fixes it, so the throw is actionable rather than
-    // merely loud.
-    expect(() =>
-      toBarSeriesFromAlpaca(request, body("nvda-1min-paginated"), RETRIEVED_AT),
-    ).toThrow(/2\.7\.5/);
+    // A token means there is more. The mapping reports it and forms no opinion:
+    // the loop in `alpaca-provider.ts` is the only thing that knows whether the
+    // walk finished, and `alpaca-provider.test.ts` is where that is asserted.
+    expect(parsed.next_page_token).toBeTypeOf("string");
+    expect(
+      toBarsFromAlpacaPage(parsed, toTicker("NVDA")).length,
+    ).toBeGreaterThan(0);
   });
 
   it("treats a present-and-null token as the last page, not as an absent key", () => {
@@ -439,7 +461,7 @@ describe("a body that is not the shape we believe", () => {
     ["an object with no bars", { next_page_token: null }],
     ["bars as an array", { bars: [], next_page_token: null }],
   ])("throws on %s", (_label, value) => {
-    expect(() => toBarSeriesFromAlpaca(request, value, RETRIEVED_AT)).toThrow(
+    expect(() => seriesFromOneBody(request, value, RETRIEVED_AT)).toThrow(
       TypeError,
     );
   });
@@ -447,7 +469,7 @@ describe("a body that is not the shape we believe", () => {
   it("throws on a bar whose close is not a finite number", () => {
     for (const close of [null, "225.21", Number.NaN]) {
       expect(() =>
-        toBarSeriesFromAlpaca(
+        seriesFromOneBody(
           request,
           {
             bars: {
@@ -488,8 +510,86 @@ describe("the body an un-subtracted end produces", () => {
       sessionOn("2026-09-03").minuteBars + 1,
     );
 
-    expect(() =>
-      toBarSeriesFromAlpaca(request, recorded, RETRIEVED_AT),
-    ).toThrow(/starts outside the covered range/);
+    expect(() => seriesFromOneBody(request, recorded, RETRIEVED_AT)).toThrow(
+      /starts outside the covered range/,
+    );
+  });
+});
+
+/**
+ * The withheld recent window (Task 2.7.5).
+ *
+ * **Measured 2026-09-07 against the live API, and the finding inverted this
+ * task's own brief.** It expected the vendor to answer a recent range *short*,
+ * so that `covered` could be clipped to what arrived. It does not: on
+ * `feed=sip` an `end` less than 15 minutes old is a flat **`403`** and
+ * **nothing comes back at all**, including the hours of the window that were
+ * perfectly available. So the handling has to happen *before* the request.
+ */
+describe("alpacaServableEnd — the withheld recent window", () => {
+  const NOW = new Date("2026-09-07T15:00:00Z");
+
+  it("leaves a historical window completely alone", () => {
+    // Which is every window except one reaching into the last ~16 minutes, so
+    // this is the case that must not move.
+    const range = toTimeRange(
+      new Date("2026-09-03T13:30:00Z"),
+      new Date("2026-09-03T20:00:00Z"),
+    );
+    expect(alpacaServableEnd(range, NOW)).toEqual(range.end);
+  });
+
+  it("clamps an end inside the withheld window back to the cliff", () => {
+    const range = toTimeRange(new Date("2026-09-07T13:30:00Z"), NOW);
+    const servable = alpacaServableEnd(range, NOW);
+
+    expect(servable.getTime()).toBe(NOW.getTime() - ALPACA_SIP_WITHHOLDING_MS);
+    expect(servable.getTime()).toBeLessThan(range.end.getTime());
+  });
+
+  it("keeps a margin over the measured cliff, because the cliff is exact", () => {
+    // The boundary was measured at EXACTLY 15 minutes: an `end` 15 minutes old
+    // is served and one 14 minutes old is refused. Our clock and the vendor's
+    // disagreeing by seconds is therefore the difference between an answer and
+    // a total refusal, and the asymmetry decides it — the margin costs at most
+    // one bar, the wrong side of the cliff costs the whole request.
+    expect(ALPACA_SIP_WITHHOLDING_MS).toBeGreaterThan(15 * 60 * 1000);
+  });
+
+  it("reports the clamp as coverage rather than hiding it", () => {
+    // **This is the whole point of `SeriesCoverage`.** The answer honestly
+    // reaches less far than was asked for, and says so — an unreported clip
+    // would be the §8.5 breach; a reported one is what `requested` and
+    // `covered` exist to carry.
+    const range = toTimeRange(new Date("2026-09-07T13:30:00Z"), NOW);
+    const request: BarsRequest = {
+      symbol: toTicker("NVDA"),
+      range,
+      timeframe: "1m",
+      adjustment: "raw",
+    };
+    const servable = alpacaServableEnd(range, NOW);
+
+    const series = toBarSeriesFromAlpacaBars(
+      request,
+      [
+        {
+          startsAt: new Date("2026-09-07T14:00:00Z"),
+          open: 1,
+          high: 2,
+          low: 0.5,
+          close: 1.5,
+          volume: 10,
+        },
+      ],
+      RETRIEVED_AT,
+      servable,
+    );
+
+    expect(series.coverage.requested.end).toEqual(range.end);
+    expect(series.coverage.covered?.end).toEqual(servable);
+    expect(series.coverage.covered?.end.getTime()).toBeLessThan(
+      series.coverage.requested.end.getTime(),
+    );
   });
 });

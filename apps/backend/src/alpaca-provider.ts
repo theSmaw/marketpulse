@@ -49,10 +49,16 @@ import {
   ALPACA_BARS_PATH,
   ALPACA_DATA_HOST,
   ALPACA_FEED,
+  ALPACA_MAX_LIMIT,
   ALPACA_PROVIDER_ID,
+  alpacaServableEnd,
+  parseAlpacaBarsBody,
   toAlpacaQuery,
-  toBarSeriesFromAlpaca,
+  toBarSeriesFromAlpacaBars,
+  toBarsFromAlpacaPage,
 } from "./alpaca-mapping.js";
+import type { Bar } from "@marketpulse/shared";
+
 import type { AlpacaConfig } from "./config.js";
 import {
   type BarsRequest,
@@ -121,79 +127,179 @@ async function fetchBars(
   /** See the note in the `catch` below: a call expression is never narrowed. */
   const hasAborted = (): boolean => signal.aborted;
 
-  const url = new URL(ALPACA_BARS_PATH, baseUrl);
-  for (const [key, value] of Object.entries(toAlpacaQuery(request))) {
-    url.searchParams.set(key, value);
+  // **One instant for the whole fetch**, stamped before the first request and
+  // used for two things that must not disagree: the provenance stamp, and the
+  // clamp below. Reading the clock per page would let a slow walk clamp against
+  // a moving target, so page three could be asked for a window page one was
+  // refused — a bug that only appears under load.
+  const startedAt = new Date();
+  const retrievedAt = startedAt.toISOString();
+
+  // What this plan will actually serve. On any historical window this is the
+  // requested end unchanged; on one reaching into the withheld recent window it
+  // is earlier, and `covered` says so.
+  const servableEnd = alpacaServableEnd(request.range, startedAt);
+
+  // **A window entirely inside the withheld window costs no request at all.**
+  // There is nothing the vendor could answer, so asking is a metered request
+  // guaranteed to be refused — and Story 2.8's backfill produces exactly this
+  // shape on a symbol it is already caught up on. An empty series is the honest
+  // answer and is a SUCCESS per `PROVIDER.md` §8.2; `toBarSeries` makes
+  // `covered` null exactly when there are no bars, so this reports "we reached
+  // nothing" rather than claiming a window.
+  if (servableEnd <= request.range.start) {
+    return {
+      outcome: "ok",
+      series: toBarSeriesFromAlpacaBars(request, [], retrievedAt, servableEnd),
+    };
   }
 
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      signal,
-      headers: {
-        // The two headers this vendor authenticates with. **Only one of them is
-        // a secret** — `config.ts` records why the pair is two variables rather
-        // than one packed string, and the key id travels in the clear here by
-        // the vendor's own design.
-        "APCA-API-KEY-ID": credential.keyId,
-        "APCA-API-SECRET-KEY": credential.secretKey,
-        accept: "application/json",
-      },
-    });
-  } catch (error) {
-    // A rejected `fetch` is either one of our two signals or a transport
-    // failure. The signals are read off the signals, per above; anything else
-    // is Task 2.7.6's to map and is **rethrown** here rather than guessed at,
-    // because guessing is exactly the laundering `PROVIDER.md` §8.5 forbids and
-    // a wrong guess would put a permanent fault in front of a retry wrapper.
-    //
-    // **`hasAborted()` and not `signal.aborted`, and the indirection is
-    // load-bearing.** TypeScript narrows `signal.aborted` to `false` at the
-    // early return above and does not widen it again across the `await`, so the
-    // direct read is `no-unnecessary-condition` at error — *"value is always
-    // falsy"*. It is not always falsy: it is exactly the case an abort during
-    // the request produces. `CLAUDE.md` records this from Task 1.12.3, along
-    // with the fix — **a call expression is never narrowed** — which closes it
-    // with no assertion and no disabled rule.
-    if (hasAborted()) {
-      return classifyAbort(deadline, options.signal, deadlineMs);
+  const bars: Bar[] = [];
+  let pageToken: string | undefined;
+
+  // **A bound on pages, derived from the range rather than picked.** A
+  // `next_page_token` that never becomes null is an infinite loop wearing the
+  // costume of a slow request, and it is the one failure here that burns a rate
+  // limit while producing nothing.
+  const maxPages = maxPagesFor(request, servableEnd);
+
+  for (let page = 1; ; page += 1) {
+    if (page > maxPages) {
+      // **A throw and not a member.** `PROVIDER.md` §8.5's line: this is either
+      // the vendor behaving impossibly or our page arithmetic being wrong, and
+      // both are defects rather than facts about the world. Returning the bars
+      // collected so far would be the exact lie this whole task exists to
+      // prevent — a well-formed, ascending, correctly provenanced series that
+      // is missing data nobody can detect.
+      throw new Error(
+        `Alpaca kept returning a next_page_token after ${String(maxPages)} ` +
+          `pages for ${request.symbol}, which is more than the requested range ` +
+          `can contain at ${String(ALPACA_MAX_LIMIT)} bars a page. Refusing to ` +
+          `loop, and refusing to return the ${String(bars.length)} bars ` +
+          `collected so far as if they were the whole answer.`,
+      );
     }
-    throw error;
+
+    const url = new URL(ALPACA_BARS_PATH, baseUrl);
+    const query = toAlpacaQuery(request, {
+      end: servableEnd,
+      ...(pageToken === undefined ? {} : { pageToken }),
+    });
+    for (const [key, value] of Object.entries(query)) {
+      url.searchParams.set(key, value);
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        signal,
+        headers: {
+          // The two headers this vendor authenticates with. **Only one of them
+          // is a secret** — `config.ts` records why the pair is two variables
+          // rather than one packed string, and the key id travels in the clear
+          // here by the vendor's own design.
+          "APCA-API-KEY-ID": credential.keyId,
+          "APCA-API-SECRET-KEY": credential.secretKey,
+          accept: "application/json",
+        },
+      });
+    } catch (error) {
+      // A rejected `fetch` is either one of our two signals or a transport
+      // failure. The signals are read off the signals, per above; anything else
+      // is Task 2.7.6's to map and is **rethrown** rather than guessed at,
+      // because guessing is the laundering `PROVIDER.md` §8.5 forbids and a
+      // wrong guess would put a permanent fault in front of a retry wrapper.
+      //
+      // **An abort mid-walk discards every page already collected**, which is
+      // the decision rather than an accident. A partial `ok` with `covered`
+      // clipped to what arrived is truthful in one sense and is
+      // *indistinguishable from "the vendor had nothing after this point"* —
+      // precisely the distinction Story 2.8's backfill has to make, since one
+      // means resume and the other means done. A member that is usually right
+      // and occasionally silently wrong is worse than one that is blunt. The
+      // reversal trigger is 2.8 wanting resumable partial fetches, at which
+      // point the shape is a NEW outcome member carrying a resume point rather
+      // than a widened `ok`.
+      //
+      // **`hasAborted()` and not `signal.aborted`, and the indirection is
+      // load-bearing.** TypeScript narrows `signal.aborted` to `false` at the
+      // early return above and does not widen it again across the `await`, so
+      // the direct read is `no-unnecessary-condition` at error — *"value is
+      // always falsy"*. It is not always falsy: it is exactly the case an abort
+      // during the request produces. `CLAUDE.md` records this from Task 1.12.3,
+      // along with the fix — **a call expression is never narrowed** — which
+      // closes it with no assertion and no disabled rule.
+      if (hasAborted()) {
+        return classifyAbort(deadline, options.signal, deadlineMs);
+      }
+      throw error;
+    }
+
+    if (!response.ok) {
+      // **Task 2.7.6's, and it throws rather than mapping.** Every status this
+      // vendor produces was recorded verbatim in `ALPACA.md` §9 and mapping them
+      // is a task with its own measurements — including the one a documentation
+      // -based mapping gets wrong, that a bad key answers with an **HTML** body
+      // from nginx rather than JSON, so a client assuming JSON turns a clear
+      // `unauthorised` into a laundered parse failure.
+      //
+      // The body is deliberately NOT read into this message. It may be an HTML
+      // error page, and more to the point Task 2.7.2's leak list names a logged
+      // request path as the most plausible way this credential escapes: the URL
+      // carries no credential, but a habit of interpolating vendor bytes into
+      // messages is the habit that eventually does.
+      throw new Error(
+        `Alpaca answered ${String(response.status)} ${response.statusText} for ` +
+          `${request.symbol}. Task 2.7.6 maps this vendor's failures onto ` +
+          `BarsResult; until it does, this client refuses to guess which member ` +
+          `a status means rather than laundering it into one.`,
+      );
+    }
+
+    const body: unknown = await response.json();
+    const parsed = parseAlpacaBarsBody(body);
+    bars.push(...toBarsFromAlpacaPage(parsed, request.symbol));
+
+    // **On the last page this field is PRESENT and `null`** rather than absent,
+    // which `parseAlpacaBarsBody` normalises — so this reads a plain `null`, and
+    // a loop testing for the key's absence, which would never terminate, is not
+    // expressible here.
+    if (parsed.next_page_token === null) break;
+    pageToken = parsed.next_page_token;
   }
-
-  if (!response.ok) {
-    // **Task 2.7.6's, and it throws rather than mapping.** Every status this
-    // vendor produces was recorded verbatim in `ALPACA.md` §9 and mapping them
-    // is a task with its own measurements — including the one a documentation
-    // -based mapping gets wrong, that a bad key answers with an **HTML** body
-    // from nginx rather than JSON, so a client assuming JSON turns a clear
-    // `unauthorised` into a laundered parse failure.
-    //
-    // The body is deliberately NOT read into this message. It may be an HTML
-    // error page, and more to the point Task 2.7.2's leak list names a logged
-    // request path as the most plausible way this credential escapes: the URL
-    // carries no credential, but a habit of interpolating vendor bytes into
-    // messages is the habit that eventually does.
-    throw new Error(
-      `Alpaca answered ${String(response.status)} ${response.statusText} for ` +
-        `${request.symbol}. Task 2.7.6 maps this vendor's failures onto ` +
-        `BarsResult; until it does, this client refuses to guess which member ` +
-        `a status means rather than laundering it into one.`,
-    );
-  }
-
-  const body: unknown = await response.json();
-
-  // `retrievedAt` is stamped HERE, at the fetch, and passed in — never read
-  // inside the mapping, which is what keeps that module pure, and never
-  // re-stamped on a read path, which is `PROVIDER.md` §4.3's rule and the trap
-  // Task 2.3.5 already fell into once.
-  const retrievedAt = new Date().toISOString();
 
   return {
     outcome: "ok",
-    series: toBarSeriesFromAlpaca(request, body, retrievedAt),
+    series: toBarSeriesFromAlpacaBars(request, bars, retrievedAt, servableEnd),
   };
+}
+
+/**
+ * The most pages the requested range could possibly need.
+ *
+ * **A provable upper bound rather than a modelled one, and that is the
+ * decision.** The obvious approach is the trading calendar — sum `minuteBars`
+ * over the sessions the range covers — and it is tighter and it can be
+ * *wrong*: a window spanning a night picks up extended-hours prints the
+ * session bounds do not contain, measured by this task at **2.35× the
+ * regular-hours count** over a month. A bound a correct answer can exceed is a
+ * bound that throws on good data.
+ *
+ * Wall-clock intervals inside the range cannot be exceeded by any answer: this
+ * vendor emits at most one bar per interval per symbol, so the count is a hard
+ * ceiling whatever the session structure, the feed or the extended hours. It
+ * needs no calendar and cannot false-positive.
+ *
+ * The `+ 1` and the floor of 2 are slack for a boundary case rather than
+ * superstition — a walk ending exactly on a page boundary may be handed a token
+ * for an empty final page, and a bound that throws on a *correct* answer is the
+ * failure this function exists to avoid being.
+ */
+function maxPagesFor(request: BarsRequest, servableEnd: Date): number {
+  const spanMs = servableEnd.getTime() - request.range.start.getTime();
+  const intervalMs = request.timeframe === "1m" ? 60_000 : 24 * 60 * 60_000;
+  const upperBoundBars = Math.ceil(spanMs / intervalMs);
+  return Math.max(2, Math.ceil(upperBoundBars / ALPACA_MAX_LIMIT) + 1);
 }
 
 /**

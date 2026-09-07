@@ -29,9 +29,11 @@ import {
   lastMarketSessions,
   type MarketSession,
   marketDateAt,
+  marketSessionsBetween,
   nextMarketSession,
   type Timeframe,
   TIMEFRAMES,
+  toMarketDate,
   toMarketTimeOfDay,
   toTicker,
   toTimeRange,
@@ -114,19 +116,39 @@ export async function fetchBarsCommand(
   // which is why one extra is asked for and the newest dropped: today's session
   // may not have happened yet, may be in progress, and in any case falls inside
   // the plan's withheld recent window — see ALPACA.md §10.
-  const wanted = parsed.timeframe === "1m" ? 1 : DAILY_SESSIONS;
-  const sessions = lastMarketSessions(
-    wanted + 1,
-    marketDateAt(new Date()),
-  ).slice(0, wanted);
-  const first = sessions[0];
-  const last = sessions.at(-1);
-  if (first === undefined || last === undefined) {
-    return {
-      exitCode: 1,
-      lines,
-      errors: ["The trading calendar returned no recent session."],
-    };
+  let first: MarketSession;
+  let last: MarketSession;
+
+  if (parsed.from === undefined || parsed.to === undefined) {
+    const wanted = parsed.timeframe === "1m" ? 1 : DAILY_SESSIONS;
+    const sessions = lastMarketSessions(
+      wanted + 1,
+      marketDateAt(new Date()),
+    ).slice(0, wanted);
+    const head = sessions[0];
+    const tail = sessions.at(-1);
+    if (head === undefined || tail === undefined) {
+      return {
+        exitCode: 1,
+        lines,
+        errors: ["The trading calendar returned no recent session."],
+      };
+    }
+    first = head;
+    last = tail;
+  } else {
+    // **A given range is resolved through the trading calendar rather than
+    // through arithmetic on the dates**, which is what makes a weekend, a
+    // holiday and a half day all correct without this file knowing about any of
+    // them — and what makes a date the market was shut a REFUSAL rather than a
+    // silently empty answer, which is the failure mode a user cannot
+    // distinguish from "there was no trading".
+    const resolved = sessionsFor(parsed.from, parsed.to);
+    if ("problem" in resolved) {
+      return { exitCode: 1, lines, errors: [resolved.problem] };
+    }
+    first = resolved.first;
+    last = resolved.last;
   }
 
   const request: BarsRequest = {
@@ -197,13 +219,63 @@ function windowFor(
   if (timeframe === "1m") {
     // Half-open, `[open, close)`. The mapping converts that to this vendor's
     // inclusive `end`; nothing here needs to know that, which is the point.
-    return toTimeRange(first.open, first.close);
+    //
+    // **`last.close` and not `first.close` since Task 2.7.5**, which is what
+    // makes a `--from`/`--to` range mean the range rather than its first day.
+    // The window spans the nights in between, which is correct and is also why
+    // it needs the walk: thirty sessions is ~11,700 minute bars against a
+    // 10,000-bar page ceiling, so an ordinary month paginates.
+    return toTimeRange(first.open, last.close);
   }
 
   return toTimeRange(
     instantFromMarketTime(first.date, MIDNIGHT),
     instantFromMarketTime(nextMarketSession(last.date).date, MIDNIGHT),
   );
+}
+
+/**
+ * Two market dates as the two sessions that bound a range, or a refusal.
+ *
+ * Every failure here is named rather than answered with an empty series,
+ * because *"the market was shut that day"* and *"no trades happened"* are
+ * different sentences and only one of them is a user's mistake.
+ */
+function sessionsFor(
+  from: string,
+  to: string,
+): { first: MarketSession; last: MarketSession } | { problem: string } {
+  let firstDate;
+  let lastDate;
+  try {
+    firstDate = toMarketDate(from);
+    lastDate = toMarketDate(to);
+  } catch (error) {
+    return { problem: error instanceof Error ? error.message : String(error) };
+  }
+
+  if (firstDate > lastDate) {
+    return { problem: `--from ${from} is after --to ${to}.` };
+  }
+
+  let sessions;
+  try {
+    sessions = marketSessionsBetween(firstDate, lastDate);
+  } catch (error) {
+    // The calendar covers 2024–2028 and refuses outside it, naming the range
+    // and the file to edit. Propagated rather than swallowed — a short list of
+    // sessions is a wrong answer wearing the shape of a right one.
+    return { problem: error instanceof Error ? error.message : String(error) };
+  }
+
+  const first = sessions[0];
+  const last = sessions.at(-1);
+  if (first === undefined || last === undefined) {
+    return {
+      problem: `The market was not open on any day between ${from} and ${to}.`,
+    };
+  }
+  return { first, last };
 }
 
 /** The series as a person reads it: the head, the tail and what it claims. */
@@ -273,14 +345,24 @@ function money(value: number): string {
 }
 
 const USAGE = [
-  "Usage: pnpm bars <SYMBOL> [1m|1d] [raw|split-adjusted]",
+  "Usage: pnpm bars <SYMBOL> [1m|1d] [raw|split-adjusted] [--from YYYY-MM-DD] [--to YYYY-MM-DD]",
   "",
-  "  Fetches one symbol's bars for the most recent complete trading session",
-  "  from Alpaca and prints them. It stores nothing — Story 2.8 owns that.",
+  "  Fetches one symbol's bars from Alpaca and prints them. It stores nothing",
+  "  — Story 2.8 owns that.",
+  "",
+  "  With no range it is the most recent complete trading session (1m) or the",
+  "  last 30 sessions (1d). With a range it is that range, walked across as",
+  "  many pages as it takes.",
   "",
   "  pnpm bars NVDA",
   "  pnpm bars NVDA 1d",
   "  pnpm bars NVDA 1d split-adjusted",
+  "  pnpm bars NVDA 1m --from 2026-08-03 --to 2026-09-04",
+  "",
+  "  Dates are market dates and the range is half-open on the SESSION: --from",
+  "  opens at that date's market open and --to closes at that date's close, so",
+  "  --from X --to X is exactly one session. A date the market was shut is a",
+  "  refusal rather than a silent empty answer.",
 ].join("\n");
 
 type ParsedArguments =
@@ -288,6 +370,8 @@ type ParsedArguments =
       readonly symbol: ReturnType<typeof toTicker>;
       readonly timeframe: Timeframe;
       readonly adjustment: Adjustment;
+      readonly from?: string;
+      readonly to?: string;
     }
   | { readonly problem: string };
 
@@ -299,7 +383,31 @@ type ParsedArguments =
  * question, and a question with no subject is not a question.
  */
 function parseArguments(argv: readonly string[]): ParsedArguments {
-  const [rawSymbol, rawTimeframe = "1m", rawAdjustment = "raw"] = argv;
+  // The two flags are pulled out first, so the positional arguments keep the
+  // shape Task 2.7.3 shipped and an existing invocation is unaffected.
+  const positional: string[] = [];
+  let from: string | undefined;
+  let to: string | undefined;
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === "--from" || argument === "--to") {
+      const value = argv[index + 1];
+      if (value === undefined || value.startsWith("--")) {
+        return { problem: `${argument} needs a date, as YYYY-MM-DD.` };
+      }
+      if (argument === "--from") from = value;
+      else to = value;
+      index += 1;
+      continue;
+    }
+    if (argument?.startsWith("--") === true) {
+      return { problem: `${JSON.stringify(argument)} is not an option.` };
+    }
+    if (argument !== undefined) positional.push(argument);
+  }
+
+  const [rawSymbol, rawTimeframe = "1m", rawAdjustment = "raw"] = positional;
 
   if (rawSymbol === undefined) {
     return { problem: "No symbol given." };
@@ -320,10 +428,22 @@ function parseArguments(argv: readonly string[]): ParsedArguments {
     };
   }
 
+  // **A range needs both ends or neither.** One end alone is ambiguous — does
+  // `--from` mean "to now", which this plan refuses inside its withheld window,
+  // or "to the last complete session"? Guessing produces a window nobody asked
+  // for, so it is refused rather than defaulted.
+  if ((from === undefined) !== (to === undefined)) {
+    return {
+      problem: "--from and --to go together; give both or neither.",
+    };
+  }
+
   return {
     symbol: toTicker(rawSymbol),
     timeframe: rawTimeframe,
     adjustment: rawAdjustment,
+    ...(from === undefined ? {} : { from }),
+    ...(to === undefined ? {} : { to }),
   };
 }
 

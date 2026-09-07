@@ -1,6 +1,6 @@
 # Task 2.7.5 — Pagination, coverage, and what a real session actually contains
 
-**Status:** Not started
+**Status:** Complete (2026-09-07)
 **Story:** [2.7 Alpaca Historical Data Integration](STORY.md)
 **Depends on:** Task 2.7.4
 
@@ -223,3 +223,178 @@ provenanced series that is missing data**. Nothing downstream can detect it — 
 a percentile over the bars it was given. It is the same class as Task 2.7.3's silent truncation,
 which is why that task threw rather than guessed, and it is why the page bound fails loudly
 instead of returning what it has.
+
+---
+
+## What was done, and what it measured (2026-09-07)
+
+Task 2.7.3's throw is gone: the client walks `next_page_token` to the end of a range, and
+`pnpm bars NVDA 1m --from 2026-08-03 --to 2026-09-04` returns **22,952 bars across three
+pages** from a real key. Five new tests on the walk, four on the withheld window, three
+recorded fixtures, and **no dependency, no lockfile change and no new `verify` step**.
+
+### The finding that inverted this task's brief
+
+**The withheld recent window does not produce a short answer. It refuses the whole request.**
+
+This task's coverage section was written expecting the vendor to answer a recent range short,
+so that `covered` could be clipped to what arrived. Measured against the live API — and the
+market being shut on Labor Day did **not** block it, because what is measurable is the API's
+refusal rather than the presence of prints:
+
+| `end`                               | Status    |
+| ----------------------------------- | --------- |
+| 30 / 20 / 18 / 17 / 16 / 15 min ago | **`200`** |
+| 14 / 13 / 12 / 10 min ago           | **`403`** |
+
+A **cliff at exactly 15 minutes**, keyed on **`end` alone** — `start` inside the window is
+irrelevant — applying to **daily as well as minute** bars, and `feed=iex` is not subject to it
+at all. A window from Friday's open to now, containing 6½ hours of perfectly available data,
+is a flat `403` with **nothing in it**.
+
+**So there is no short answer to clip, and the handling moved before the request.**
+`alpacaServableEnd` clamps `end` to `now − 16 min` and the clamp is reported as
+`coverage.covered`, which is exactly what `SeriesCoverage` was designed to carry. The two
+alternatives are rejected on `PROVIDER.md`'s own rules rather than on taste: mapping it to an
+error is forbidden by §7 outright, and refusing at construction moves a vendor-plan property
+into every call site that §1 exists to keep them from learning. **The naïve backfill — _"from
+the last bar I stored, to now"_ — is precisely the refused shape**, so without the clamp Story
+2.8 would store nothing on every run.
+
+The extra minute over the measured 15 is margin, and the asymmetry is the argument: the
+boundary is _exact_, so seconds of clock skew decide between an answer and a total refusal —
+the margin costs at most one bar where the wrong side costs the whole request.
+
+### The number that resizes Story 2.8
+
+Driven through the shipped client at its `limit=10000`:
+
+| Range       | Sessions | Pages |   Bars | Regular-hours |     Ratio |     Wall |
+| ----------- | -------: | ----: | -----: | ------------: | --------: | -------: |
+| one session |        1 |     1 |    390 |           390 | **1.00×** | 1,030 ms |
+| 10 sessions |       10 |     1 |  8,948 |         3,900 | **2.29×** | 1,042 ms |
+| 25 sessions |       25 |     3 | 22,952 |         9,750 | **2.35×** | 1,448 ms |
+| 47 sessions |       47 |     5 | 43,515 |        18,330 | **2.37×** | 2,170 ms |
+
+**A window spanning a night collects extended-hours bars, at ~2.35×** — 57.5% of a month's
+bars. The regular-hours column is `market-session.ts`'s `minuteBars` summed over the sessions
+and the walk matched it **exactly** (9,750 of 22,952 fall inside a session), so the calendar is
+right and the _window shape_ is what differs. That turns `ALPACA.md` §4's _"217 bars on a
+210-minute half day"_ from a curiosity into a sizing fact: `UNIVERSE.md` §8's ~1.18 GB/year
+assumes 390 a session, and span-shaped windows would store **~2.8 GB/year**. **A backfill
+should ask per SESSION**, which returns exactly `minuteBars` — the 1.00× row.
+
+**And a 5-page walk is 72% of `DEFAULT_BARS_DEADLINE_MS`.** That default was derived for a
+_single_ request against the browser's 5-second budget and does not survive pagination, so a
+paginated caller must pass its own `deadlineMs`. One that forgets gets a `timeout`, which is
+loud rather than silent, so this is a handover rather than a hazard.
+
+### The page bound, and what it is actually for
+
+Derived from the range rather than picked: wall-clock intervals in the window, over the page
+ceiling. **A provable upper bound rather than a modelled one** — the tighter calendar-based
+bound (`minuteBars` summed) is _wrong_, because extended-hours prints exceed it by 2.35×, and
+a bound a correct answer can exceed throws on good data.
+
+Its value turned out not to be termination. Removing it, a token loop is stopped by the
+**deadline** at 3,024 ms anyway — so what the bound actually buys is the **rate limit**: it
+stops at 2–3 requests rather than burning as many as fit in three seconds.
+
+### Two things it caught in my own work, both by a domain type rather than an assertion
+
+**`toTimeRange` refused a reversed range** when the whole window is inside the withheld window
+— the clamped end is then earlier than the start. The coverage range is computed lazily now,
+only when there are bars, which is also the correct shape: an empty series has no coverage to
+describe. Found by a test rather than by reading.
+
+**`toBarSeries` refused a bar outside the covered range** when a walk test still used the
+narrow request while its fixture pages were stamped against a wide one. Task 2.7.3 recorded
+this exact class — the domain type catching a mistake before any assertion ran.
+
+### A testing constraint anyone recording more fixtures needs
+
+**The page bound couples page size to range, so a fixture recorded at a reduced page size is
+only replayable against a range wide enough to justify its page count.** The three recorded
+pages are a real walk of 2026-09-03's session at `limit=150` — 150 + 150 + 90 = **390**, the
+calendar's number — in 78 KB rather than the ~2.7 MB three pages at the shipped ceiling would
+cost. Replayed against that session's own range the shipped client throws, correctly, because
+390 bars cannot span three pages at 10,000 a page. The alternative was making the bound
+injectable, which is test-shaped API on shipped code and is what Task 1.10.5 refused with
+`MIN_PORT`.
+
+### Four deliberate breaks, each seen to fail and reverted
+
+| Break                                  | Result                                                                 |
+| -------------------------------------- | ---------------------------------------------------------------------- |
+| The loop stops after one page          | **7 red** across the walk, provenance, stamping and bound tests        |
+| `retrievedAt` re-stamped at completion | 1 red, naming the start-of-walk property                               |
+| No clamp on the withheld window        | 3 red — the clamp, the coverage report and the no-request case         |
+| No page bound                          | 1 red, and it took 3,024 ms — the deadline, not the bound, stopping it |
+
+**And a fifth thing broke that was not a deliberate break: I destroyed my own work.** Reverting
+break 2 with `git checkout <file>` wiped every uncommitted change on both source files, because
+the whole task lived uncommitted. It was fully recoverable — the test files survived and
+specified the API exactly — and the rule is worth more than the hour: **the revert of a
+deliberate break is the inverse edit, never a checkout of a file whose task is uncommitted.**
+The remaining breaks were run against a committed tree, where `git stash` _is_ the inverse.
+
+### Figures
+
+`pnpm verify` **exit 0**; `pnpm test` **694** (206 + 305 + 183); `test:process` 14. **Criterion
+7 checked with a control**: all 305 backend tests pass with every off-machine socket refused,
+and a probe against `data.alpaca.markets` was blocked in the same run, so the blocker was
+proved to block. `pnpm bars` exits 1 on a refusal and 0 on a success, a single session is still
+exactly 390 bars, and a range naming no trading day is a **refusal** rather than a silently
+empty answer.
+
+---
+
+## For the stakeholders — in plain language
+
+**The market-data reader can now fetch a month at a time instead of a single day, and it
+learned something about our data supplier that changes how we will store prices.**
+
+Last cycle the reader could ask for one trading session and no more. Suppliers hand back long
+answers in chunks — like pages of a book — and ours refuses to send more than ten thousand
+prices at once. A month is more than that. Until now the reader deliberately **stopped and
+complained** when it saw there was a second page, rather than quietly returning the first one
+and pretending that was everything. That was the right call: a partial answer that looks
+complete is the most dangerous thing this system could produce, because nothing downstream can
+tell it is missing anything. This cycle it turns the pages properly. Asking for a month now
+returns **22,952 prices across three pages in about a second and a half.**
+
+**We also found a rule of our supplier's that would have quietly broken the next piece of
+work.** Our plan does not let us see the last quarter of an hour of market activity. We
+expected that to mean "you get everything up to fifteen minutes ago" — instead, **asking for
+anything that runs up to _now_ is refused outright, and we get nothing at all**, including the
+six-and-a-half hours of the day that were perfectly available. That matters because the
+obvious way to keep our database up to date is to ask "give me everything since the last price
+I stored, up to now" — which is exactly the request that gets refused. Every single time. We
+would have stored nothing and the failure would have looked like a supplier outage.
+
+The reader now trims the request back to what the supplier will actually serve, and — this is
+the important half — **it says on the answer that it did so.** The data carries both what we
+asked for and what we actually got, so nothing downstream can mistake "we stopped fifteen
+minutes short" for "the market went quiet". Being honest about the edges of what we know is one
+of this product's founding rules, and this is the first time that rule has been load-bearing on
+real data.
+
+**And one measurement will change a budget.** We had estimated storage assuming 390 prices per
+company per day — the length of a normal trading session. Asking for a month in one go actually
+returns **2.35 times that**, because the request spans the overnight hours and our supplier
+includes early-morning and evening trading. Over a year that is the difference between roughly
+1.2 GB and 2.8 GB of prices. The fix is free and we now know it in advance: ask day by day
+rather than in one long span, which returns exactly the expected 390. Finding this now costs a
+sentence in a design document; finding it after we had stored a year of prices would have cost
+a rebuild.
+
+**What you can see on screen: still nothing new.** The website reads `ALL US EXCHANGES` as it
+did this morning, and there is still no chart, no price and no table of market data. This work
+is plumbing, and the honest statement is that the payoff is two chunks of work away — the next
+one stores prices in the database, and the one after that draws them.
+
+**One thing worth saying about how this went.** Partway through I broke my own work with a
+careless command and lost about an hour re-doing it. Nothing shipped in a bad state and the
+tests I had already written meant the rebuild was mechanical rather than guesswork, but it is
+recorded in the engineering notes rather than glossed over, along with the rule that prevents
+it happening again.
