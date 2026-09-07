@@ -130,7 +130,15 @@ make that pass while the shipped code waits out the delay. Use a short real back
 - The live run at the limit, recorded in `ALPACA.md` with its date
 - Where it is composed: **the wrapper is applied in `createMarketDataProvider`**, so every
   consumer gets it and nothing chooses; note that this makes the fixture provider retryable too,
-  which is harmless and is what keeps the two paths identical
+  which is harmless and is what keeps the two paths identical.
+
+  **Its signature moved at Task 2.7.3** and is now
+  `createMarketDataProvider(selection, credentials = {})`, where `credentials` is an object
+  keyed by the provider that needs one (`MarketDataCredentials`) rather than a positional
+  argument — deliberately, because the next provider needs a _different_ credential and a
+  second positional parameter is how a call site passes the wrong one. Wrapping happens around
+  the value each `case` returns, so the `alpaca` branch's credential check stays where it is
+
 - Two deliberate breaks, each seen to fail and reverted: a retry that outlives the caller's
   deadline, and `unauthorised` made retryable
 

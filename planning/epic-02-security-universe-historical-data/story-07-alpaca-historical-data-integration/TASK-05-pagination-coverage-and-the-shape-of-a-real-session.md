@@ -12,10 +12,24 @@ real session smaller than the calendar says it should be.
 
 ## What the user can see when this lands
 
-**Nothing new on screen.** The deployed chrome still reads `IEX`; there is still no chart.
+**Nothing new on screen.** The deployed chrome still reads `CONSOLIDATED TAPE`; there is still
+no chart.
 
-What changes is that `pnpm bars NVDA --from 2026-08-01` returns a **month** rather than
+What changes is that `pnpm bars` can be asked for a **month** and returns one rather than
 throwing, which is what Story 2.8 needs before it can back-fill anything.
+
+> **AMENDED 2026-09-07 by Task 2.7.3: that flag does not exist, and adding it is this task's.**
+> The shipped interface is positional — `pnpm bars <SYMBOL> [1m|1d] [raw|split-adjusted]` — and
+> it fetches **the most recent complete trading session** for `1m` and the last 30 sessions for
+> `1d`, both derived from the trading calendar rather than from arithmetic on today's date.
+> There is no `--from`.
+>
+> That was deliberate rather than an omission: a range argument is only useful once a range can
+> span pages, and until this task one that did **throws**. So this task adds the range argument
+> along with the loop that makes it meaningful — and it inherits one shape decision from
+> `fetch-bars.ts` worth keeping, which is that **`windowFor` gives the two timeframes different
+> windows**, because a daily bar is stamped at **midnight ET** and a session-shaped window
+> therefore contains none of them.
 
 ## Pagination
 
@@ -30,6 +44,13 @@ a nullish check that handles both. Request the ceiling rather than the default: 
 year of minute bars is ~99 requests against a 200/minute limit, and Story 2.8 multiplies that by
 a hundred securities. The arithmetic is the reason, and it belongs in a comment beside the
 constant so nobody "tidies" it back to the default.
+
+> **Already shipped by Task 2.7.3** — `ALPACA_MAX_LIMIT = 10_000` in `alpaca-mapping.ts`, sent
+> on every request, with that arithmetic in the comment beside it. Nothing to build here; what
+> this task adds is the loop that makes a second page possible at all. Note the ceiling is also
+> what makes 2.7.3's _"every request stays inside one page"_ an arithmetic fact rather than a
+> hope: a regular session is 390 bars against a 10,000 ceiling, so a single-session window
+> **cannot** paginate.
 
 **A bound on the number of pages, and a loud failure when it is hit.** A `next_page_token` that
 never becomes null is an infinite loop that looks like a slow request, and it is the one failure
@@ -100,6 +121,27 @@ querying recent SIP data`, which independently confirms _some_ recency restricti
 returns a bar outside the requested window is clipped rather than trusted, and the clip is
 logged at `debug` rather than silently performed.
 
+> **What Task 2.7.3 shipped, and it is exactly one line for this task to change.**
+> `alpaca-mapping.ts` sets `covered: bars.length === 0 ? null : request.range` — the whole
+> requested window whenever anything came back. That is `fixture-provider.ts`'s convention
+> (_"the window this provider ANSWERED FOR, not the span of the bars"_) and it is right for
+> **producer 3**: a thin name whose last print was 15:42 was still covered to the close, and
+> reading `covered` as the span of the bars is what produces the false sentence _"we have data
+> through 15:42"_.
+>
+> **It is wrong for producer 1**, which is why that measurement is this task's. Under the
+> withheld recent window the vendor **structurally cannot** answer for the last ~15 minutes, so
+> a `covered` reaching `requested.end` is a claim we have no basis for — the one case where the
+> optimistic reading is a lie rather than a convenience. Narrowing it is the change; keeping
+> producer 3's behaviour while making producer 1 honest is the thing to get right, and the two
+> look identical from inside a `BarSeries` unless the recency is known.
+>
+> **And one thing not to disturb while doing it:** `toAlpacaQuery` converts our half-open `end`
+> to the vendor's inclusive one by subtracting **one millisecond** — the exact conversion, not
+> an approximation — so a pagination loop that re-derives `end` per page must go through that
+> function rather than reconstructing a bound of its own. A second copy of that subtraction is
+> a duplicated bar at a seam, which is the corruption this whole section exists to prevent.
+
 ## Reconciling the generator, and the amendment this may force
 
 `PROVIDER.md` §6.4's first number lands here: **does a full regular session actually yield 390
@@ -132,8 +174,13 @@ of a count.
 ## Work
 
 - The pagination loop, its ceiling, its page bound and its single composed signal
+- The range argument on `pnpm bars`, which does not exist yet — see the amendment above
 - The four recorded multi-page fixtures — a month of minute bars is several pages and is the
-  one to record first
+  one to record first. **One paginated body is already recorded**:
+  `fixtures/alpaca/nvda-1min-paginated.json`, deliberately taken at `limit=100` so a
+  `next_page_token` appears in 20 KB rather than 200 KB. It proves the **token** is handled and
+  proves nothing about a **walk**, so it does not substitute for the multi-page fixtures — and
+  it should not be re-recorded at the shipped ceiling, because its whole job is being small
 - Coverage clipping, and tests for all three narrowing producers against recorded bodies
 - The empty-answer path, asserted as `ok` and not as a failure, on a real holiday's response
 - The deadline-mid-pagination decision, with its rejected alternative in a comment

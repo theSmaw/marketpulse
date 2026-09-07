@@ -17,7 +17,7 @@ a number in it.
 ## What the user can see when this lands
 
 **Nothing new**, and the story's visible change already landed at Task 2.7.4: the deployed
-chrome says `IEX` and explains what that means. This task confirms it is still true from a clean
+chrome says `CONSOLIDATED TAPE` and explains what that means. This task confirms it is still true from a clean
 clone and a fresh deployment read, which is the check rather than a formality.
 
 ## The seven criteria, re-made rather than cited
@@ -68,14 +68,29 @@ something the candidate list did not name.
   **exactly 390** and a half day exactly **210**, so no correction was owed; what it left instead
   is a **dated confirmation note** in §2.2 plus two request traps (the inclusive `end`, and
   date-only ranges leaking extended hours). Check that note still describes the shipped client —
-  in particular that the client does subtract a timeframe from `end` — because it is in another
-  story's document and is the one most likely to go stale unnoticed
+  ~~in particular that the client does subtract a timeframe from `end`~~ **amended 2026-09-07:
+  it subtracts one MILLISECOND, and that check as written would have failed against correct
+  code.** Task 2.7.3 chose the millisecond because it is the _exact_ half-open-to-inclusive
+  conversion — correct for any timeframe with no table and no DST arithmetic, verified live on
+  both. §2.2's own wording is unaffected: it records that the vendor's `end` is inclusive and
+  prescribes no fix, so what was stale is **this bullet**, not `CALENDAR.md`
+- **`CALENDAR.md` §2.4's reversal trigger, whose condition has SILENTLY ALREADY FIRED.** Found
+  by Task 2.7.3 while checking the bullet above, and it is the sharper of the two. §2.4 gives
+  the trigger for extended-hours support as _"a feed with real extended-hours coverage — **SIP,
+  i.e. a paid Alpaca tier**"_. **Both halves are now wrong**: this plan serves SIP on the
+  **free** tier, and Task 2.7.1 measured extended-hours bars arriving from it — that is exactly
+  what the 217-bars-on-a-210-minute-half-day finding _is_. **A reversal trigger written against
+  a condition that has already occurred is a trigger that will never fire.** The decision to
+  scope V1 to the regular session is untouched and stands on its own merits — §2 argues about
+  what a baseline denominator should contain, not about what is purchasable — so what needs
+  re-stating is the trigger, which is now Epic 5's measurement alone
 - **The `pnpm verify` gap lists in `CLAUDE.md`** — the sixth kind gained the platform secret,
   and any recorded invariant this story created (a coupled constant, a second writer on
   `status`, a pin) belongs in the third kind with its durable copy named
-- **`README.md`** — the script table gains `pnpm bars`, the variable count moves (**13 → 15 at
-  Task 2.7.2, and further if anything after it adds one**), and the "things that look like
-  faults" list may lose or keep the market-feed row depending on what Task 2.7.4 left on screen
+- **`README.md`** — ~~the script table gains `pnpm bars`~~ **added by Task 2.7.3 along with a
+  `pnpm bars` section; verify rather than add.** The variable count moves (**13 → 15 at Task
+  2.7.2, and further if anything after it adds one**), and the "things that look like faults"
+  list may lose or keep the market-feed row depending on what Task 2.7.4 left on screen
 - **`pnpm env:check`'s own description, in `CLAUDE.md` and `README.md`.** Task 2.7.2 gave it a
   **fifth** failure mode — a variable with no default must be documented **blank**, which is a
   leak guard rather than a formatting rule, because the default comparison is structurally
@@ -83,9 +98,10 @@ something the candidate list did not name.
   describing that script as "four checks" is now stale. Re-make all five fail rather than citing
   2.7.2's run
 - **The test-count blocks' starting figure.** Task 2.7.2 moved `pnpm test` 619 → **629** and
-  deliberately did not sweep the ten blocks, per the precedent Task 2.6.8 set that a close owns
-  the sweep. So this close inherits **at least one** increment already outstanding before its own
-  tasks are counted — which is exactly the shape that produced "stale by two story closes" twice
+  Task 2.7.3 moved it 629 → **683** (206 + 294 + 183), neither sweeping the ten blocks, per the
+  precedent Task 2.6.8 set that a close owns the sweep. So this close inherits **at least two**
+  increments already outstanding before its own remaining tasks are counted — which is exactly
+  the shape that produced "stale by two story closes" twice. Re-count rather than adding to 683
 - **`pnpm links`**, which is a `verify` step since Task 2.6.8 and therefore runs itself. Report
   its counts as figures rather than trusting the last recorded ones — they moved between two
   consecutive readings the first time they were taken
@@ -110,8 +126,8 @@ something the candidate list did not name.
 
 ## The deployed read-back
 
-- `GET /market-data` answers `{"feed":"iex"}`, and the chrome renders it, read in a browser with
-  the tab visible
+- `GET /market-data` answers `{"feed":"sip"}` — **not `iex`**, settled by Task 2.7.3 — and the
+  chrome renders `CONSOLIDATED TAPE`, read in a browser with the tab visible
 - The `secrets` array is non-`null` and contains what it should, read off the running revision
 - Log Analytics returns zero for the key id, the secret, `APCA-` and `Authorization`
 - `/health` and `/diagnostics/database` unaffected, `uptimeSeconds` never reset by anything this
@@ -162,10 +178,17 @@ Write this as a section rather than leaving it to be reconstructed:
   is not built here
 - The bar-density numbers — what a real session contains — which is what its gap handling is
   sized against, **and that they are feed-dependent**: 99.7% mean on SIP against 82.8% on IEX
-- **The two request-construction traps**, because both produce plausible wrong rows rather than
-  failures: Alpaca's `end` is **inclusive** where `TimeRange` is half-open (one duplicate bar per
-  window seam), and a **date-only range includes extended-hours bars** (217 against a 210-minute
-  half day)
+- **The THREE request-construction traps** — amended 2026-09-07, Task 2.7.3 produced a third —
+  because every one produces plausible wrong rows rather than a failure:
+  1. Alpaca's `end` is **inclusive** where `TimeRange` is half-open (one duplicate bar per window
+     seam). Closed in `toAlpacaQuery` by subtracting **one millisecond**, the exact conversion;
+     a backfill that reconstructs a bound of its own reopens it
+  2. A **date-only range includes extended-hours bars** (217 against a 210-minute half day)
+  3. **A daily bar is stamped at midnight ET**, hours before the session opens — so a daily
+     request framed on `[open, close)` contains **no daily bar at all** and returns a perfectly
+     well-formed empty answer. Produced rather than reasoned about: `pnpm bars NVDA 1d` printed
+     _"no bars"_ until `fetch-bars.ts`'s `windowFor` gave the two timeframes different windows.
+     Story 2.8 builds windows for both timeframes and will meet it
 - Whether the universe is being re-sized, and that after 2.8 backfills, re-sizing costs a
   re-backfill rather than a file edit
 - The lifecycle answer, and whether `status` now has a second writer

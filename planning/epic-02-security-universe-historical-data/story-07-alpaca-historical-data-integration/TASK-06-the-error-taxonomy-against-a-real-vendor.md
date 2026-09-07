@@ -23,6 +23,24 @@ Today they all land in whichever branch was written first; after this they are t
 answers a caller can act on differently — and Task 2.7.7's retry wrapper is a caller that acts
 on exactly this distinction.
 
+## Where the throw you are removing actually lives (added 2026-09-07 by Task 2.7.3)
+
+Two throws shipped, and **only one of them is this task's to remove**:
+
+- **`alpaca-provider.ts`, on `!response.ok`** — a single `throw` naming this task. It is what
+  this task replaces with the mapping below. **It never reads the response body**, deliberately,
+  so removing it is where the HTML-`401` collision below actually bites: the shipped code has
+  no body-parsing path on the failure branch at all, and this task adds one.
+- **`alpaca-mapping.ts`'s `parseAlpacaBarsBody`** — the unparseable-body throw, on a **`200`**
+  whose shape is not what we believe. That one is the last row of the table below and it
+  **stays**. It is already asserted against four malformed shapes and against a non-finite
+  `close`.
+
+So the last row of that table is already built and the trap is that the two look like the same
+rule. They are not: one is _"a body we needed to read and could not"_, the other is _"a status
+that already tells us everything"_ — which is precisely why the box below says map on the
+**status** first.
+
 ## The mapping, and the two places it is easy to get wrong
 
 `PROVIDER.md` §8.1 is the destination and **it is not this task's to re-open** — no member is
@@ -156,15 +174,20 @@ bodies are the fixtures most likely to contain a key**.
 
 ## Work
 
-- The mapping, exhaustive over what this vendor produces, with the `422` split argued in a
-  comment rather than assumed
+- The mapping, exhaustive over what this vendor produces, ~~with the `422` split argued in a
+  comment rather than assumed~~ — **struck 2026-09-07 with the section above: this vendor sends
+  no `422`.** What replaces it is the argument that a `400` is **our defect** and belongs on the
+  throw side, written in a comment beside the branch that throws
 - The six live productions, each recorded, each dated, in `ALPACA.md`
 - Offline tests over every recorded body — this is the only way criterion 7 and criterion 3 hold
   at the same time
 - The `unknown-symbol` finding written into `ALPACA.md` and handed to Task 2.7.8
 - Three deliberate breaks, each seen to fail and reverted: an unparseable body laundered into
-  `upstream-unavailable`, the rate-limit hint assigned rather than branched, and a `422` mapped
-  to `range-not-available` unconditionally
+  `upstream-unavailable`, the rate-limit hint assigned rather than branched, and ~~a `422`
+  mapped to `range-not-available` unconditionally~~ — **the third is not producible against a
+  vendor that sends no `422`.** Replace it with one that is: **a `401`'s HTML body parsed as
+  JSON**, which is the collision the box above names and the one break here that maps to a real
+  measured response
 
 ## Done when
 
