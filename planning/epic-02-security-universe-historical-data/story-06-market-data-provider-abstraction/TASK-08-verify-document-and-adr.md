@@ -41,6 +41,14 @@ Epic 3 read before they touch this seam.
 
 2. **A fixture provider implements it fully and is what tests use.** "Fully" means no method
    throwing "not implemented"; "is what tests use" means grep for anything else.
+   **Amended 2026-09-07 by Task 2.6.4: that grep has one known hit and it is not drift.**
+   `apps/backend/src/market-data-provider.test.ts` holds a three-line `stub()` returning a
+   `BarsResult` it was handed, and it exists to prove the interface is _implementable_ and
+   that a call resolves rather than rejects — the one runtime property a task that ships no
+   implementation has. It reads no corpus, produces no bar and answers no question about
+   market data. A second _provider_ is what this criterion is about; a local test double for
+   the interface's own tests is not one, and striking it to make the grep clean would delete
+   the only executable evidence that `MarketDataProvider` can be satisfied at all.
 3. **Every response carries provenance and no code path produces a bar without it.**
    Re-**make** the compile failure rather than citing Task 2.6.3 — and note it is **two**
    compile failures rather than one, with two different error codes, because the mechanism has
@@ -64,7 +72,17 @@ missing`**, which is the brand — and the brand is the half that matters, becau
    `timeout` and `aborted` (`PROVIDER.md` §8.1, §8.3, §8.4). A count of five here means
    somebody built from `STORY.md`'s scope list rather than from the settled table.
 5. **Adjustment explicit at the call site.** The check is that omitting it does not compile,
-   which Task 2.6.4 locks in with a `@ts-expect-error`. Beside it, the vocabulary layer's own
+   which Task 2.6.4 locks in with a `@ts-expect-error` in
+   `apps/backend/src/market-data-provider.test.ts`. **Amended 2026-09-07: that directive was
+   made to fail in BOTH directions, and re-running only one of them re-runs half the check.**
+   Removing the directive reports `TS2741: Property 'adjustment' is missing in type ... but
+required in type 'BarsRequest'`, which is the field being required; making the field
+   optional reports `TS2578: Unused '@ts-expect-error' directive`, which is the _lock_ — and
+   the second is the half that matters, because the first would still pass on the day
+   somebody adds a default. Two more directives sit beside it and are worth re-running in the
+   same pass, since both are properties this story's types rest on: a `{ start, end }`
+   literal in place of a `TimeRange` is `TS2741: Property '[brand]' is missing`, and
+   `timeframe: "5m"` is `TS2322`. Beside it, the vocabulary layer's own
    half is already asserted at run time: `market-provenance.test.ts` sweeps that module's
    export names for `/default/i` and expects none, so a `DEFAULT_ADJUSTMENT` added later is a
    red test rather than a silent regression.

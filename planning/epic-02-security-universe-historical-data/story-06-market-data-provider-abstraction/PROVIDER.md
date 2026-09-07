@@ -1038,6 +1038,39 @@ silently applied to the code later:
    concatenation of two overlapping fetches is a loud failure at construction rather than the
    unique-constraint violation §9.3 predicts one layer down.
 
+5. **Added 2026-09-07 by Task 2.6.4: the result union ships THREE members, not one, and §8.1's
+   table is unchanged by it.** `BarsResult` in `apps/backend/src/market-data-provider.ts`
+   carries `ok`, `timeout` and `aborted`; Task 2.6.5 adds the remaining five. The line drawn
+   is that those two are the only outcomes that follow from **2.6.4's own request shape** —
+   they are the two ways the `deadlineMs` and the `signal` on `BarsRequestOptions` end a call,
+   and they are producible with no upstream and no implementation in existence, where the
+   other five are facts about a world 2.6.4 does not describe. A deadline with no outcome to
+   express its expiry would have made this task's own types incoherent. Eight outcomes total,
+   §8.1's table exactly, no member owned twice — and the addition was **made to fail**, since
+   a sixth member takes the exhaustive `switch` in that module's tests to `TS2322`/`TS1360`
+   against `satisfies never`.
+
+6. **Added 2026-09-07 by Task 2.6.4: the deadline's value is 3,000 ms**, exported as
+   `DEFAULT_BARS_DEADLINE_MS` and overridable per request through `BarsRequestOptions`, which
+   is _What this task deliberately did not decide_'s fourth bullet now decided. The arithmetic
+   rather than the number: the browser's budget is `API_TIMEOUT_MS` at 5,000 ms end to end, a
+   deployed round trip measured 250–768 ms (Task 1.12.7), so the backend's own budget is at
+   most ~4,200 ms in the worst case and 3,000 leaves ~1.2 s of headroom. It matches
+   `TOKEN_TIMEOUT_MS` one dependency over, for the same shape of reason. The coupled pair is
+   named in the constant's own comment and stays **prose owned by Story 2.9**, as this
+   document already required — and the reason is now visible in the test rather than only
+   asserted here: restating 5,000 in `apps/backend` to assert against would be asserting
+   against a copy, which `e2e/support/poll-timings.ts` only gets away with because it
+   **measures** the running application. The reversal trigger is a measured distribution:
+   Story 2.7 is the first task that can time a real upstream.
+
+7. **Added 2026-09-07 by Task 2.6.4: the request and the per-call options are two parameters,
+   which nothing here had settled.** `BarsRequest` is the _question_ — symbol, range,
+   timeframe, adjustment — and is a value worth logging and worth using as Story 2.8's cache
+   key. `BarsRequestOptions` is `deadlineMs` and `signal`. The split matters concretely
+   rather than aesthetically: a signal folded into the request makes every cache key unique
+   and puts a live object graph into anything that logs one.
+
 ---
 
 ## What this task deliberately did not decide

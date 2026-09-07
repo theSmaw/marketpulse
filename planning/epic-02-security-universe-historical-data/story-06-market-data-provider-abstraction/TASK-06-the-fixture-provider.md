@@ -33,6 +33,43 @@ otherwise lose:
 
 ## Work
 
+### What Task 2.6.4 shipped, so this task implements rather than infers
+
+**Amended 2026-09-07 by Task 2.6.4.** The seam is
+`apps/backend/src/market-data-provider.ts` and the shape to implement is:
+
+```ts
+interface MarketDataProvider {
+  readonly id: ProviderId; // `"fixture"` here
+  fetchBars(
+    request: BarsRequest,
+    options?: BarsRequestOptions,
+  ): Promise<BarsResult>;
+}
+```
+
+Five consequences worth knowing before writing a line, each of which would otherwise be
+discovered:
+
+- **The request and the options are two parameters and that is deliberate.** `BarsRequest`
+  is the _question_ — `symbol`, `range`, `timeframe`, `adjustment` — and is a legitimate
+  corpus lookup key. `BarsRequestOptions` is `deadlineMs` and `signal`, which are how one
+  invocation behaves. Do not key the corpus on the options; a signal in a key makes every
+  key unique.
+- **Every range in every test comes from `toTimeRange`.** `TimeRange` is branded, so a
+  `{ start, end }` literal is a compile error, and the corpus's declared coverage window is
+  built the same way.
+- **`timeout` is produced against `options.deadlineMs`, not against a wall clock.** §6.3
+  requires determinism and `PROVIDER.md` §8.7 already says the mechanism is _a corpus entry
+  with a delay against a short test deadline_ — so the test passes a small `deadlineMs`
+  rather than waiting out the 3,000 ms default.
+- **`aborted` needs no corpus entry at all**: the test aborts its own `AbortController`, and
+  the provider composes it with the deadline exactly as `api-client.ts` does — reading
+  **which** signal fired off the signals rather than off the rejection.
+- **`no method left throwing` is one method.** There is one, and the interface deliberately
+  has no batch fetch and no latest-price call; both are argued in that module's comment, and
+  Epic 3's streaming attaches as a **sibling interface** rather than as a method here.
+
 > **Amended 2026-09-07 by Task 2.6.1.** Three conditionals below are now settled and one of
 > them changes what this task builds rather than only how it is described:
 >
@@ -168,6 +205,28 @@ container image, and **which provider is active is configuration** — a `CONFIG
 entry, an `.env.example` line, and `pnpm env:check` will fail if the two disagree, including
 on the default. That check has been made to fail all four ways before and will do so again.
 
+**Amended 2026-09-07 by Task 2.6.4: the interface now exists, and it turns `none` into a
+question this file does not answer. Decide it here rather than at the keyboard.** Is `none`
+an _implementation_ of `MarketDataProvider` that answers every call, or the _absence_ of a
+provider? The two are not equivalent and the first is almost certainly wrong:
+
+- A **null-object provider** has to return a `BarsResult`, and there is no member meaning
+  _"no provider is configured"_ — that is a fact about our own deployment rather than a fact
+  about the world, so it fails `PROVIDER.md` §8.5's test for membership and would be a ninth
+  outcome nobody has planned. Making it answer `upstream-unavailable` instead is precisely
+  the laundering §8.5 forbids: a configuration fault wearing a transient fault's costume.
+  And a null object that throws is _"a method left throwing"_, which the Done-when list below
+  forbids in as many words.
+- **Absence** — callers hold `MarketDataProvider | undefined`, or the composition root simply
+  has none — keeps the union honest and pushes the answer to the layer that can give a
+  correct one. A Story 2.9 route with no provider is a **503** carrying the
+  `SERVICE_UNAVAILABLE` code `database.ts` already reserves for exactly this shape, added by
+  the story that can produce it per `API_ERROR_CODES`' own rule.
+
+Whichever is chosen, note the consequence for Task 2.6.7, which renders this state: under
+`none` there is **no provider object to ask**, so `MarketDataProvider.id` cannot be the
+source of _"which provider is configured"_ — the configuration value is.
+
 State the safety property explicitly wherever the selection is read: a deployment that
 selects the fixture provider is serving **invented prices**, so the default must be the one
 that fails loudly rather than the one that quietly works. Task 1.8.3's `CORS_ORIGIN` note is
@@ -199,6 +258,9 @@ move the suite.
   in the corpus would notice
 - If it ships: the provider selection is in `CONFIG_VARIABLES` and `.env.example`,
   `pnpm env:check` passes, and the default is the loud one
+- **`none` is decided — implementation or absence — and the argument is written down**, per
+  the amendment above; a caller with no provider configured has a defined behaviour rather
+  than a `undefined` reaching a route by accident
 - `pnpm test` passes **with the network disabled**, checked rather than assumed — criterion 6
 - `pnpm verify` is exit 0
 
