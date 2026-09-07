@@ -1129,6 +1129,22 @@ silently applied to the code later:
    rather than aesthetically: a signal folded into the request makes every cache key unique
    and puts a live object graph into anything that logs one.
 
+8. **Added 2026-09-07 by Task 2.6.5: Story 2.7's rate-limiting scope bullet reads as the home
+   §8.8 rejected, and it is corrected in that file rather than only here.** It says _"rate
+   limiting and backoff, implemented against the measured limit"_ in a scope list otherwise
+   describing the client — so a reader building from it puts the retry inside the Alpaca
+   client, which is rejection 1 exactly. **Story 2.7 builds the wrapper and measures the
+   numbers; it does not add a retry to the client.** This is the same class as correction 1
+   above: a scope bullet rather than a decision, and correcting it makes that story clearer
+   rather than larger.
+
+   Two things fall out of it that are worth having in one place. **The wrapper's construction
+   is Story 2.7's and is owned nowhere in Story 2.6** — Task 2.6.5 decided its home and built
+   nothing, which is correct (no provider to wrap, no measured distribution to pick a backoff
+   from), and Task 2.6.6 supplies the first thing it can be composed around without owning it.
+   And **constraint 1's input now exists as code**: `isRetryableOutcome()` is §8.1's third
+   column, so the wrapper reads it rather than writing a second copy of this table.
+
 ---
 
 ## What this task deliberately did not decide
