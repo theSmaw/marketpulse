@@ -1116,6 +1116,20 @@ provably side-effect-free.
    few hundred bytes of strings plus the component and its stylesheet. There is no useful
    tighter prediction than that, and a wrong prediction there is not a defect.
 
+**Amended 2026-09-07 by Task 2.6.8 — both halves are now settled and the artefact was
+re-taken from a clean build AND from a clean clone, which reproduce each other to the byte.**
+Half 2 is `371,463 B` / `c8f1c3ad…` of JavaScript, `18,063 B` / `ed3d1744…` of CSS,
+`index.html` `1,101 B` / `7b0075a8…`, 300 B — **390,927 B over four files at 300 modules**.
+The **+2,026 B** of JavaScript is the component, the hook, `getMarketData`, the predicate, and
+**`MARKET_FEED_DESCRIPTIONS` reaching the browser for the first time**, which §11's third
+paragraph named as the one to watch and measured at zero because nothing read it. The
+**+746 B** of CSS is `FeedProvenance.module.css` entering the artefact. The check worth
+re-running rather than the number: `FeedIndicator` did **not** leave the bundle, correctly,
+because the landing route's render check still uses it — a bundle that had lost
+`disconnected` would mean this story had broken the render check. The deployed copy diverges
+by exactly **72 B**, the recorded `VITE_API_BASE_URL` figure for the fourth time, and
+`index.html` is 1,101 B at two different hashes, which is the recorded trap again.
+
 **Half 1 is confirmed for Tasks 2.6.2, 2.6.3, 2.6.4, 2.6.5 AND 2.6.6 — the whole of it — by
 measurement rather than by argument.** Task 2.6.6 is the strongest case of the five and the
 least interesting for the stated reason: everything it shipped is in `apps/backend`, which
@@ -1290,6 +1304,40 @@ silently applied to the code later:
 - **Anything about corporate actions as data.** §3.6 names the gap, the trigger and two
   repairs, and builds neither — a mechanism built against no instance is one nobody can test,
   which is the rule Story 2.7 already applies to the ticker rename.
+
+---
+
+## What shipped against what was decided (Task 2.6.8, 2026-09-07)
+
+**Every decision in this document shipped, and none was overturned during implementation.**
+The list below is what a later reader needs in order to trust the rest of the document, and it
+is the whole of what changed:
+
+- **§2.5 `covered` was DECIDED rather than amended.** Task 2.6.3 left "the window answered
+  for" versus "the span of the bars returned" open; Task 2.6.6 took the first, and the
+  amendment is inline in §2.5 with the thinly-traded-name argument.
+- **§4.2 gained a field it argued against gaining.** `MarketDataProvider.feed` — and the
+  amendment is inline, because the distinction it turns on (inferring versus declaring) is
+  exactly the thing a careless reader would get backwards.
+- **§8.1's table shipped unchanged**: no member struck, none renamed, none added. Seven
+  causes plus `ok` is eight outcomes.
+- **§8.6's "may" half was NARROWED rather than used**, to _a member carries only what the
+  caller does not already hold_, which is one rule instead of a rule with an exception.
+- **§8.8's wrapper was CONFIRMED and deliberately NOT BUILT.** Nothing to wrap, no measured
+  distribution to pick a backoff from.
+- **§11's prediction was right in both halves**, above.
+
+**One thing this document was wrong about and it is worth carrying**: §9.5's code-only vendor
+grep was described as returning nothing "today", and at Task 2.6.8 it returned one hit — a
+test fixture using the vendor's name as the _value_ of an unknown extra field, in a test about
+unknown _keys_. Not a leak; changed anyway, because a check that reads "zero except one
+known-benign hit" is a check that decays. The naive counts are **8** in `packages/shared/src`
+and **7 across 4 files** in `apps/backend/src` — the latter correcting Task 2.6.6's amendment
+of "five across three", which was **wrong when written** rather than gone stale, since
+`routes/securities.test.ts` has carried two occurrences unchanged since Task 2.4.2.
+
+`docs/adr/0018-*` is the decision record. This document remains the arguments, the rejected
+alternatives, the vendor's shape and what Story 2.7 and Epic 3 each inherit.
 
 ---
 

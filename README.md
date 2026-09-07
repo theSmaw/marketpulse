@@ -5,7 +5,7 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all **585** fast tests passed, and
+files still agree with the configuration table, all **619** fast tests passed, and
 the 14-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
@@ -58,7 +58,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of **585** fast tests plus a 14-test process suite, with
+and a test suite of **619** fast tests plus a 14-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -165,12 +165,13 @@ pnpm verify
 ```
 
 `pnpm verify` is the whole acceptance check: `build && lint && format:check &&
-stories && env:check && test && test:process`, in that order, stopping at the
-first failure.
+stories && env:check && links && test && test:process`, in that order, stopping
+at the first failure.
 (`stories` fails if a component has no stories file — see
 [The component workshop](#the-component-workshop); `env:check` fails if the
 `.env.example` files and the code have drifted apart — see
-[Configuration](#configuration).) It is what CI will run (Story 1.10). On a
+[Configuration](#configuration); `links` fails if a relative Markdown link
+points at nothing — see [`pnpm links`](#pnpm-links).) It is what CI will run (Story 1.10). On a
 clean checkout it takes a few seconds and exits 0.
 
 If `pnpm install` fails complaining about a dependency's install scripts, see
@@ -562,7 +563,8 @@ Run from the repository root:
 | `pnpm format:check` | `prettier --check .`                                                  |
 | `pnpm stories`      | Fails if a component has no stories file                              |
 | `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm test`         | Every package's tests — 585 across the workspace — see below          |
+| `pnpm links`        | Fails if a relative Markdown link points at nothing — see below       |
+| `pnpm test`         | Every package's tests — 619 across the workspace — see below          |
 | `pnpm test:process` | The backend's process half — 14 tests that spawn a real server        |
 | `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
 | `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
@@ -661,8 +663,8 @@ the same second half for the same reason.
 ### What `pnpm test` covers
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
-in this workspace. `packages/shared` runs 198 tests across 13 files,
-`apps/backend` 224 across 14, and `apps/frontend` 163 across 18 — **585 in
+in this workspace. `packages/shared` runs 206 tests across 14 files,
+`apps/backend` 230 across 15, and `apps/frontend` 183 across 20 — **619 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -725,7 +727,7 @@ answer.
 
 Three things about it worth knowing before changing it.
 
-**It is a separate command because it is a separate cost.** `pnpm test` is 585
+**It is a separate command because it is a separate cost.** `pnpm test` is 619
 tests in a few seconds, needs no build and no socket, and is the one you run all
 day; this suite takes about 9.2 s, of which 5 s is the shutdown ceiling being
 what it says it is. Both are steps in `pnpm verify`, so both gate.
@@ -795,7 +797,7 @@ pnpm coverage                                   # all three packages
 pnpm --filter @marketpulse/backend coverage     # one of them
 ```
 
-It is the same 585 tests with `--coverage` added, fanning out through
+It is the same 619 tests with `--coverage` added, fanning out through
 `pnpm -r` exactly as `pnpm test` does, so there are **three reports and no
 merged one** — each package answers for its own sources. It is deliberately
 not part of `pnpm test` and not a `pnpm verify` step of its own: nothing gates
@@ -2060,6 +2062,41 @@ Check it with `git status --porcelain --ignored=matching` rather than with
 negated path, printing the `!.env.example` rule, so it reads as "ignored" for a
 file that is not.
 
+### `pnpm links`
+
+A step in `pnpm verify`, and the newest one — added by Task 2.6.8 on 2026-09-07
+after being **proposed and declined three times**. It walks every tracked `.md`
+file and fails if a relative link points at a file that does not exist, or if a
+`#fragment` names a heading that does not exist in the file it points at.
+
+**Why it took five stories to build**, because that is the more useful half. The
+gap it closes has two sides: the **links**, which are cheap to check, and the
+**prose figures** this README publishes — test counts, artefact bytes, timings —
+which nothing can check, because a figure in a sentence has no referent to
+compare itself against. Six readings found zero broken links while the figures
+were wrong nearly every time anybody looked, so a gating step guarding the half
+that had never been wrong would have made the section look covered while the
+expensive half stayed open. Task 1.10.7 wrote the reversal trigger down: **a
+broken link actually shipping.** It shipped — Task 2.5.6 found four, all four
+introduced by the Epic 2 story renumber, a mechanical operation this repository
+has now performed once and expects to perform again.
+
+**What it does not prove**, and it must not be described as proving: that the
+prose around the link is true, that an external `http(s)://` link resolves —
+those are skipped deliberately, because checking them would make `pnpm verify`
+need the network — or that a link points at the _right_ thing.
+
+**One trap, and it is why the slugger is written the long way.** A heading
+containing an em-dash — which is most headings in this file — slugs to **two
+consecutive hyphens**, because the dash is dropped and the spaces either side
+are not collapsed. A slugger that collapses whitespace runs reports those
+anchors as broken: measured seven times across this repository's history, most
+recently at **14 false positives**. Do not "simplify" it.
+
+Current reading: **209 documents, 482 cross-file links, 32 anchor links, 0
+broken.** It was made to fail three ways before being believed, including
+against both of the exact breaks the renumber produced.
+
 ## The API error contract
 
 Every failed request answers with the same JSON body, declared once in
@@ -2690,15 +2727,29 @@ stood stale for two stories, three more figures were wrong in a single reading,
 and the heading count recorded for this file one task ago was 42 against an
 actual 36 — six `#` comment lines inside fenced code blocks.
 
-**A link checker was built, run and declined.** It would be a gating step
+~~**A link checker was built, run and declined.** It would be a gating step
 guarding the one thing that has never rotted, while the half that rots every
 story stayed open — and its presence in the chain is what would make this
 section look covered. The reversal trigger is a broken link actually shipping,
-or documentation gaining generated content whose links are not hand-written. If
-it is ever built it is an eighth `pnpm verify` step and a script under
-`scripts/`, never a CI-only step: a check CI runs and your machine does not
-forks the definition of "verified", which is the whole reason the pipeline runs
-`pnpm verify` by name.
+or documentation gaining generated content whose links are not hand-written.~~
+**The trigger fired and the checker was taken (Task 2.6.8, 2026-09-07.)** Task
+2.5.6's seventh reading found **four** genuinely broken cross-file links — the
+first time in six readings that any had been found — all four introduced by the
+Epic 2 story renumber. `scripts/check-links.mjs` is the **eighth `pnpm verify`
+step**, and it landed exactly where the sentence below said it would if it were
+ever built: a script under `scripts/`, never a CI-only step, because a check CI
+runs and your machine does not forks the definition of "verified", which is the
+whole reason the pipeline runs `pnpm verify` by name. It was made to fail three
+ways first, including against both of the renumber's own breaks. See
+[`pnpm links`](#pnpm-links).
+
+**Half this gap is therefore closed and half is not, and that split is now the
+thing to hold on to rather than the gap itself.** The figures in this document
+still have no referent any tool can compare them against, and they are still the
+half that goes wrong — the counts three paragraphs up (110 documents, 214 links,
+22 anchors) were correct when taken and read **209 / 483 / 33** when the checker
+was built, which is the sixth demonstration of exactly the point. Do not read a
+green `links` step as this section being covered.
 
 **5. The workflow files' schema — and this one is only half a gap.**
 `.github/workflows/verify.yml` and `deploy.yml` are YAML, and Prettier **does**
@@ -2816,12 +2867,22 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 ## Documentation
 
 - [`docs/adr/`](docs/adr/) — architecture decision records, newest last.
-  **There are seventeen files, 0001 to 0017.** This list said "0010 is the most
+  **There are eighteen files, 0001 to 0018.** This list said "0010 is the most
   recent" for four ADRs and then "fourteen" for two more, which is the prose-rot
   this README's own gap list warns about, so **read the directory rather than
   this sentence** — `ls docs/adr/` is the check and it takes a second.
+  [0018](docs/adr/0018-the-market-data-seam-provenance-on-screen-and-what-a-fixture-backed-test-certifies.md)
+  is the most recent: how market data enters the product and what it has to say
+  about itself — why the provider interface is written before any vendor code,
+  why the domain types are shared with the browser and the interface is not, why
+  provenance travels with a series rather than with a response, why bars are
+  stored raw and adjusted series are asked for, why a provider call cannot throw
+  and where the line between a result and a defect falls, why there is no retry
+  inside a provider and where retry does live, why the chrome shows a **sentence**
+  rather than an acronym, and what a fixture-backed test certifies and what it
+  cannot — which is anything at all about a vendor.
   [0017](docs/adr/0017-the-trading-calendar-market-time-and-what-a-correct-calendar-certifies.md)
-  is the most recent: what a trading day is, why the calendar is a checked-in
+  covers the trading calendar: what a trading day is, why the calendar is a checked-in
   table of exceptions rather than a provider call or a computed rule set, why a
   date outside its range refuses instead of assuming, why exactly one module
   converts between UTC and market time and why that is enforced by lint rather

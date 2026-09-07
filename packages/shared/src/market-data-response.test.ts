@@ -15,8 +15,16 @@ describe("isMarketDataResponse", () => {
     expect(isMarketDataResponse({ feed: null })).toBe(true);
   });
 
+  // The extra field's VALUE is arbitrary and is deliberately not a vendor's
+  // name. Task 2.6.8's criterion-1 grep strips comments and then looks for one
+  // in code; this fixture was the only hit in the workspace, and while a test
+  // fixture is no leak — no type, no identifier, nothing shipped — a check that
+  // reads "zero except one known-benign hit" is a check that decays, because
+  // the next reader has to remember to discount it. Changing a comment to clean
+  // a grep would destroy a record; changing a literal that carries no
+  // information does not.
   it("accepts unknown extra fields, because a newer server may grow a key", () => {
-    expect(isMarketDataResponse({ feed: "iex", provider: "alpaca" })).toBe(
+    expect(isMarketDataResponse({ feed: "iex", provider: "the-vendor" })).toBe(
       true,
     );
   });

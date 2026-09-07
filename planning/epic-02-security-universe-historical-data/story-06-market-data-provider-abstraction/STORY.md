@@ -1,6 +1,6 @@
 # Story 2.6 — Market-Data Provider Abstraction
 
-**Status:** In progress
+**Status:** Complete (2026-09-07)
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.5
 **Epic scope covered:** Market-data provider abstraction; market-data provenance (the model half)
@@ -128,16 +128,16 @@ it** — the same shape Story 2.5 recorded. What makes it acceptable is that 2.6
 seventh of eight rather than deferred polish, and that the region it fixes has been showing an
 invented value for six stories.
 
-| #     | Task                                                                                                                                                   | Status      |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
-| 2.6.1 | [Settle the shape, the provenance granularity and the adjustment default, shipping nothing](TASK-01-settle-the-shape-and-the-provenance-vocabulary.md) | Complete    |
-| 2.6.2 | [`Bar` and `Timeframe`: the smallest honest description of a price observation](TASK-02-the-bar-and-the-timeframe.md)                                  | Complete    |
-| 2.6.3 | [Provenance and adjustment: a series that cannot exist without saying where it came from](TASK-03-provenance-and-adjustment.md)                        | Complete    |
-| 2.6.4 | [The provider interface, the request, and a call that cannot throw](TASK-04-the-interface-and-the-result-shape.md)                                     | Complete    |
-| 2.6.5 | [The error taxonomy, and where a retry policy is allowed to live](TASK-05-the-error-taxonomy-and-the-retry-policy.md)                                  | Complete    |
-| 2.6.6 | [The fixture provider: the whole interface, offline, deterministic](TASK-06-the-fixture-provider.md)                                                   | Complete    |
-| 2.6.7 | [The feed tells the truth: provenance on screen](TASK-07-the-feed-tells-the-truth-on-screen.md)                                                        | Complete    |
-| 2.6.8 | [Verify, document, and ADR 0018](TASK-08-verify-document-and-adr.md)                                                                                   | Not started |
+| #     | Task                                                                                                                                                   | Status   |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
+| 2.6.1 | [Settle the shape, the provenance granularity and the adjustment default, shipping nothing](TASK-01-settle-the-shape-and-the-provenance-vocabulary.md) | Complete |
+| 2.6.2 | [`Bar` and `Timeframe`: the smallest honest description of a price observation](TASK-02-the-bar-and-the-timeframe.md)                                  | Complete |
+| 2.6.3 | [Provenance and adjustment: a series that cannot exist without saying where it came from](TASK-03-provenance-and-adjustment.md)                        | Complete |
+| 2.6.4 | [The provider interface, the request, and a call that cannot throw](TASK-04-the-interface-and-the-result-shape.md)                                     | Complete |
+| 2.6.5 | [The error taxonomy, and where a retry policy is allowed to live](TASK-05-the-error-taxonomy-and-the-retry-policy.md)                                  | Complete |
+| 2.6.6 | [The fixture provider: the whole interface, offline, deterministic](TASK-06-the-fixture-provider.md)                                                   | Complete |
+| 2.6.7 | [The feed tells the truth: provenance on screen](TASK-07-the-feed-tells-the-truth-on-screen.md)                                                        | Complete |
+| 2.6.8 | [Verify, document, and ADR 0018](TASK-08-verify-document-and-adr.md)                                                                                   | Complete |
 
 ## The chart that could be pulled forward, and why it is not
 

@@ -1,6 +1,6 @@
 # Task 2.6.8 — Verify, document, and ADR 0018
 
-**Status:** Not started
+**Status:** Complete (2026-09-07)
 **Story:** [2.6 Market-Data Provider Abstraction](STORY.md)
 **Depends on:** Tasks 2.6.1–2.6.7
 
@@ -429,3 +429,356 @@ this story passes against fixtures we wrote, which means a green suite here cert
 internal consistency and not correctness against a market-data vendor. Story 2.7 is where
 that becomes a real claim, and it will only do so if this task hands it the obligation
 explicitly rather than as an assumption.
+
+---
+
+## What was done (2026-09-07)
+
+`docs/adr/0018-the-market-data-seam-provenance-on-screen-and-what-a-fixture-backed-test-certifies.md`
+is the record. Story 2.6 is complete. Every figure below was **taken**, not cited.
+
+### The six criteria, each with the command and the result
+
+**1 — No vendor reference in a type, an identifier or a shipped value. MET, and the
+code-only grep was NOT zero, which is the first time.** The naive text grep over
+`packages/shared/src` returns **eight** hits, every one a comment explaining _why_ a
+vendor-shaped decision was taken. The code-only form — comments stripped, `PROVIDER.md`
+§9.5's command — returned **one**: `market-data-response.test.ts:19` used `"alpaca"` as the
+**value** of an unknown extra field, in a test about a predicate tolerating unknown **keys**.
+
+That is not a leak: a test fixture, in no type, no identifier and nothing shipped. **It was
+changed anyway**, and the reasoning is the transferable part. This document already warns
+that deleting a comment to clean a grep would destroy a record — that argument turns on the
+text carrying information. An arbitrary fixture value carries none, and **a check that reads
+"zero except one known-benign hit" is a check that decays**, because every future reader has
+to remember to discount it. It is now `provider: "the-vendor"` with the reasoning beside it.
+
+`apps/backend/src` is **7 naive across 4 files** — correcting Task 2.6.6's amendment of
+"five across three", which was **wrong when written** rather than gone stale:
+`routes/securities.test.ts` has held two occurrences unchanged since Task 2.4.2, confirmed
+against 2.6.6's own commit. One of them survives the code-only grep — `source: "alpaca"` in a
+`SecurityProvenance` fixture — and is **deliberately left**, which is the opposite trade from
+the one above: there the value was arbitrary, here the vendor's name is the _meaningful
+content_ of a provenance field in a fixture whose own comment says it is modelling Story 2.7
+arriving. Changing it would make the fixture less realistic for nothing.
+
+So: **`packages/shared/src` is 0 code-only, `apps/backend/src` is 1 and it is the right 1.**
+
+**2 — A fixture provider implements it fully and is what tests use. MET, still exactly two
+non-drift hits.** `createFixtureProvider()` in `fixture-provider.ts` is the implementation and
+nothing throws — a grep for `not implemented` across both packages returns nothing. The two
+known hits are 2.6.4's three-line `stub()` (a test double for the interface's own tests) and
+`createMarketDataProvider` (a **factory**, whose whole point is returning `undefined` for
+`none`). Task 2.6.7's `createMarketDataRoutes` takes a resolved `MarketData` and did not add a
+third thing answering `fetchBars`.
+
+**3 — Every response carries provenance and no code path produces a bar without it. MET, and
+both compile failures were RE-MADE rather than cited.**
+
+- Making `provenance` optional on `BarSeriesInput`:
+  `bar-series.test.ts(71,5): error TS2578: Unused '@ts-expect-error' directive.`
+- A hand-written `BarSeries` object literal:
+  `error TS2741: Property '[brand]' is missing in type '{ symbol: Ticker; timeframe: "1m"; … }'
+but required in type 'BarSeries'.`
+
+Both reverted; the tree is byte-identical after each. The stitched case was re-taken and both
+halves are named tests that pass: _"is truthful when the sources disagree about the feed"_ and
+_"refuses sources that disagree about the adjustment"_, plus _"refuses a disagreement anywhere
+in the list, not just against the first"_ and _"is the only way to obtain a multi-source
+record"_ — which is the half that makes it a mechanism rather than an instruction.
+
+**4 — Each error cause producible and distinguishable. MET. Eight outcomes (seven causes plus
+`ok`), and a ninth member fails in FOUR places across THREE files.** Made to happen by adding
+`| { readonly outcome: "ninth" }` to `BarsResult`:
+
+| File                               | What it refuses                                         | Obligation      |
+| ---------------------------------- | ------------------------------------------------------- | --------------- |
+| `market-data-provider.test.ts:97`  | `TS1360` on `Record<BarsResult["outcome"], BarsResult>` | **constructed** |
+| `market-data-provider.test.ts:266` | `TS2322`/`TS1360` on the exhaustive switch              | **handled**     |
+| `market-data-provider.ts:529`      | `TS2322`/`TS1360` in `isRetryableOutcome`               | **classified**  |
+| `fixture-provider.test.ts:406`     | `TS1360` on `HOW_EACH_OUTCOME_IS_PRODUCED`              | **produced**    |
+
+Eight errors, four obligations. §8.7's row on `range-not-available` was checked rather than
+assumed: a window with **no** overlap produces it, and a partially overlapping one is answered
+partially with `covered` clipped.
+
+**5 — Adjustment explicit at the call site. MET, and there are now FOUR locks of this family,
+all re-made:**
+
+| Break                                      | Result                                                                                                                     |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| Remove the `adjustment` `@ts-expect-error` | `TS2741: Property 'adjustment' is missing … but required in type 'BarsRequest'` — the field is required _today_            |
+| Make `adjustment` optional                 | **`TS2578: Unused '@ts-expect-error' directive`** — _the lock_, and the half that fails on the day somebody adds a default |
+| Remove the `TimeRange` directive           | `TS2741: Property '[brand]' is missing in type '{ start: Date; end: Date; }'`                                              |
+| Remove the `Timeframe` directive           | `TS2322: Type '"5m"' is not assignable to type '"1m" \| "1d"'`                                                             |
+| Remove `feed` from the fixture provider    | `TS2741: Property 'feed' is missing … but required in type 'MarketDataProvider'`                                           |
+
+The vocabulary layer's own half passes as a named test: _"exports no default for anything"_.
+
+**6 — `pnpm verify` passes with no network access. MET — and taking it literally revealed the
+criterion's wording is ambiguous, which is the finding.**
+
+Taken at the **machine** rather than in-process, with `sandbox-exec`. Under a blanket
+`(deny network*)` profile, `pnpm verify` is **exit 1**: `test:process` binds `127.0.0.1` by
+design and gets `Error: listen EPERM: operation not permitted 127.0.0.1`, taking **13 of 14**
+process tests red. That suite has bound loopback since Task 1.10.5, so "no network access"
+read literally fails a chain that has always been correct.
+
+**The honest reading is "reaches no host but itself."** Under a profile that allows loopback
+and unix sockets and denies every off-machine socket:
+
+| Run                                           | Result                |
+| --------------------------------------------- | --------------------- |
+| Working tree, eight-step chain                | **exit 0 in 30.75 s** |
+| Cold from a **clean clone**, seven-step chain | **exit 0 in 36.73 s** |
+
+**The blocker was proved to block, with three controls**, per Task 2.5.3's rule: an
+off-machine `fetch` is refused, an off-machine TCP connect is refused, and a loopback bind
+succeeds. One honest limitation stated rather than hidden: **DNS still resolves**, because
+macOS resolves through `mDNSResponder` over a unix socket. The TCP connection is what is
+blocked, and that is the claim being made.
+
+### The deployed read — the unfinished work this task inherited
+
+`MARKET_DATA_PROVIDER` was **read back off the Container App rather than predicted**, and it
+is **absent entirely**: eleven environment variables, unchanged since Story 2.1. So the
+deployment falls through to `config.ts`'s default of `none`.
+
+**The deployed page, in a browser:**
+
+```
+MARKET FEED          BACKEND SERVICE    MARKET CLOCK
+○ NOT CONFIGURED     ● HEALTHY          00:57:17 ET
+No market-data                          ○ CLOSED
+provider is configured.                 Labor Day
+```
+
+Three regions, three independent facts, and **none of them invented** — which is §5.3's
+argument (_a deployment that forgets to configure a provider must serve nothing rather than
+serve invented prices_) observed in production rather than reasoned about. Incidentally, the
+clock is Story 2.5's calendar live on a public URL: 2026-09-07 is Labor Day.
+
+- **`/market-data` before and after.** 404 carrying the `ApiError` contract before the merge
+  (measured by Task 2.6.7), **200 `{"feed":null}`** after it. That is the proof the route is
+  wired, and it is a **weaker** demonstration than the local one — a 404 becoming a 200 says
+  the deploy shipped a file, not that the seam is right — which is worth saying rather than
+  dressing up.
+- **The `check-deployed` job's first real execution** (deploy run `34084005514`): **15 passed
+  in 7.8 s** inside a 26 s job, up from the recorded 14, with test 13 being _"the deployed
+  chrome makes a real claim about the market feed"_ — passing against a deployment whose feed
+  is `null`, which is the assertion working as designed: it asserts the claim is **real**, not
+  **which**. Deployed axe: **0 violations / 37 passes / 1 inconclusive (`color-contrast`)**,
+  the pre-merge gate's numbers.
+- **The rollout window was NOT watched, and this says so.** The deploy completed at 04:43 UTC
+  and this read was taken at 04:57. Task 2.6.7's prediction that a new frontend asking an old
+  backend degrades to `unknown` is still asserted only against the measured 404, in a unit
+  test. Catching it live was opportunistic and it was not caught.
+
+### The figures, all re-taken
+
+| Thing                                                  | Figure                                                                                                                                    |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm verify`, warm, no database, **eight steps**      | exit 0 in **31.01 s**                                                                                                                     |
+| `pnpm verify`, warm, with a database (seven steps)     | exit 0 in **31.45 s**                                                                                                                     |
+| Per-step split (warm, eight steps)                     | build 2.50 / lint 6.12 / `format:check` 7.56 / `stories` 0.25 / `env:check` 0.25 / **`links` 0.30** / `test` 4.60 / `test:process` 9.26 s |
+| `pnpm verify`, off-machine network denied              | exit 0 in **30.75 s**                                                                                                                     |
+| `pnpm verify`, cold from a clean clone, network denied | exit 0 in **36.73 s**                                                                                                                     |
+| `pnpm test`                                            | **619** — 206 / 230 / 183 across **49** files                                                                                             |
+| `pnpm test:process`                                    | 14                                                                                                                                        |
+| `pnpm test:database`                                   | **61** across 3 files, 2.0 s                                                                                                              |
+| `pnpm e2e`                                             | **28** across **7** spec files, 1.0 m                                                                                                     |
+| `pnpm e2e:deployed` (CI)                               | **15** across 3 spec files, 7.8 s                                                                                                         |
+| Frontend artefact                                      | 371,463 B `c8f1c3ad…` / 18,063 B `ed3d1744…` / 1,101 B `7b0075a8…` / 300 B = **390,927 B over four files at 300 modules**                 |
+| Same, rebuilt from a clean clone                       | **byte-identical**                                                                                                                        |
+| Deployed divergence                                    | **72 B** exactly; `index.html` 1,101 B at two hashes                                                                                      |
+| Store entries / `node_modules` / lockfile              | **419 / 285,008 KB / 4,766** — unchanged since Story 2.2                                                                                  |
+| Cold install from an empty store                       | 417 packages in **8.2 s**                                                                                                                 |
+| Install-script sweep (clone's own store)               | `esbuild@0.28.2` and nothing else                                                                                                         |
+| Storybook                                              | **76 files / 9.4 MB** — up from the recorded 74                                                                                           |
+| Components / stories files                             | 14 / 14                                                                                                                                   |
+| axe, landing route, 3 feeds × 3 viewports              | **0 / 37 / 1 (`color-contrast`)**, all nine cells                                                                                         |
+
+**The bundle prediction was right in both halves.** Half 1 (Tasks 2.6.2–2.6.6 move it by zero)
+was already confirmed five times; half 2 is 2.6.7's **+2,026 B** of JavaScript and **+746 B**
+of CSS, both explained — the JavaScript is the component, the hook, `getMarketData`, the
+predicate and **`MARKET_FEED_DESCRIPTIONS` reaching the browser for the first time**, which
+2.6.3 measured at zero because nothing read it; the CSS is `FeedProvenance.module.css`
+entering the artefact. **The check worth more than the number: `FeedIndicator` did NOT leave
+the bundle** — `disconnected` is still in it — because the landing route's render check still
+uses it. A bundle that had lost it would mean this story broke the render check.
+
+### The sweeps — four found something, and none came back clean
+
+**1. Duplicated sentences.** The ten convention blocks were **byte-identical (one md5)** and
+**stale by two whole story closes** — `287 across 25 … as of Task 2.3.8` against a tree
+running 619 across 49. That is the second consecutive time this sweep has found two closes
+outstanding. All ten amended together and re-checked to a single md5. Plus **six sites in
+`README.md`** (2.6.6 amended them at 507, they read 585, and a per-package breakdown was wrong
+in a **seventh** place: `packages/shared` at "198 across 13") and **three in Epic 1's
+`EPIC.md`**. Stories 1.2 and 1.3's two historical variants left at 103 as previous sweeps left
+them.
+
+**2. Live versus historical.** `CLAUDE.md`'s record of Task 2.6.6's _"585 tests pass"_ under a
+network blocker was left standing — it is a correct record of a measurement, and it already
+carries its own live correction. The strike-through chains (`~~103~~ ~~189~~ …`) were extended
+rather than overwritten.
+
+**3. Claims that stopped being true — three in source, one in an ADR, and two already closed.**
+
+- `market-data-provider.ts` — _"Nothing implements it yet: Task 2.6.6 supplies the fixture
+  provider"_ — **false in its first clause** one task after it was written. Dated amendment;
+  the second clause (Story 2.7 is the first real client) is the half that matters and stands.
+- `config.ts` — _"Task 1.6.2 verified by grep that this file holds the only occurrence in the
+  workspace; a future task that adds a second should either move it here or say why not"_.
+  There **is** a second shipping reader — `entra-token.ts`, since Task 2.1.6 — and it said
+  why. Dated amendment recording both readers and the argument. It also gained the note that
+  this file now imports from `packages/shared`, which is load-bearing for
+  `scripts/local-database.mjs`.
+- `feed-status.ts` — the one Task 2.6.7 flagged as newly open. **Every sentence in it is still
+  true and its context is not**: that vocabulary left the chrome at 2.6.7. Dated note saying
+  where it went, and saying explicitly that **the type must not be struck** — it is Epic 3's,
+  which brings a connection state back _beside_ provenance rather than instead of it.
+- **ADR 0012 §3** — _"`BackendIndicator` is a **second** component beside `FeedIndicator`"_ —
+  present tense, and the component it names is no longer in the chrome. Dated amendment per
+  Task 2.5.6's rule; the **decision** is untouched and was in fact vindicated twice more.
+- Already closed by 2.6.7 and verified: `AppHeader`'s comment, and `README.md`'s fault list,
+  now **one item shorter**. `CLAUDE.md`'s fault-list paragraph was the copy nobody had
+  amended and now reads **six**.
+
+**4. ADR present-tense descriptions.** ADR 0005's two reserved-clock sites already carry
+2.5.6's amendments and are current. ADR 0004's `FeedIndicator` mention is past-tense history
+and was left. ADR 0012 §3 is above.
+
+**5. Links.** **209 documents, 483 cross-file links, 34 anchor links, 0 broken** — the first
+clean reading since 2.5.6 found four. The double-hyphen trap reproduced for a **seventh**
+time: a slugger that collapses whitespace runs reports **14** correct anchors as broken. Not
+"fixed".
+
+### The link-checker decision, deferred three times: TAKEN
+
+`scripts/check-links.mjs` is the **eighth `pnpm verify` step**, at **0.30 s**.
+
+The trigger Task 1.10.7 wrote down was _"a broken link actually shipping"_, and Task 2.5.6
+found four, all four from the Epic 2 story renumber — a mechanical operation this repository
+has now performed once and expects to perform again. 2.5.6 recorded the decision as **owed
+rather than taken** because they were found by a task rather than by a reader; that is a
+description of who was unlucky rather than of whether the links were broken.
+
+It landed exactly where every previous decline said it would if ever built: a plain-JavaScript
+file under `scripts/`, beside `check-stories.mjs` and `check-env-example.mjs`, **never a
+CI-only step**. `links` was checked against `pnpm help -a` and is free — note `ln, link`
+singular **is** a built-in, which is the `clean` trap one letter away — and the detection was
+validated in the same run.
+
+**Made to fail three ways before being believed**, including against both of the renumber's
+own breaks: a directory that never existed, a path one level too deep, and a missing anchor.
+All three exit 1 naming the file, the line and the reason.
+
+**The argument that survives unchanged, and the reason both halves are now stated together:**
+the _prose figures_ still cannot be checked by anything, and they are the half that actually
+rots. The counts `README.md` published for this very sweep (110 documents / 214 links / 22
+anchors) were correct when taken and now read 209 / 483 / 34. **A green `links` step is not
+that gap being covered**, and `README.md` and `CLAUDE.md` both say so.
+
+### What Story 2.7 inherits, stated as an obligation rather than an assumption
+
+**Every test in this story passes against a corpus we wrote.** A green suite here certifies
+that our code agrees with our own fixtures — internal consistency — and certifies **nothing
+about a vendor**. There are two corpora and they are different things: this story's produces
+domain types and has nothing vendor-shaped to be wrong about; **Story 2.7's records raw HTTP
+bodies and tests its own mapping against them, and it is the only place a vendor's shape can
+be got wrong.**
+
+The sharpest instance is `Bar.startsAt`. Both bar-timestamp conventions exist in the wild, and
+a one-minute systematic error is invisible on a chart and wrong in every anomaly calculation.
+No test in this story can catch it; the field **name** is the mechanism, because a mapping
+that gets it backwards has to read as an obvious contradiction rather than as a plausible
+assignment.
+
+---
+
+## For the stakeholders — what this actually means, in plain terms
+
+**Where the product is.** MarketPulse is a tool for spotting unusual behaviour in the US stock
+market and investigating it against real evidence. It is being built in a deliberate order:
+the plumbing that makes the answers trustworthy first, the clever bits on top. This story was
+plumbing — with one visible exception that mattered more than it looks.
+
+**The visible thing: the app stopped lying about where its numbers come from.**
+
+For six stories the top-right corner of every screen said `MARKET FEED: DISCONNECTED`. Nobody
+had wired it to anything; it was a placeholder that happened to look like a real status. It was
+honest in the sense that there genuinely was no market data — and it was still an invented
+readout on the face of a market product, and the sort of thing that erodes trust in everything
+around it. We had it written down in the README as "a thing that looks broken and isn't",
+which is not a good place for a product to be.
+
+It now reports the truth. On the live site today it reads:
+
+> **NOT CONFIGURED** — No market-data provider is configured.
+
+which is exactly right, because no data provider has been connected yet. When we connect one,
+it will say which venues the prices actually come from, **in a sentence rather than an
+acronym**. That distinction is a deliberate decision and it is the product requirement rather
+than a nicety: the free data tier we plan to start on covers **one** US exchange, not all of
+them, so a badge saying `IEX` would be technically accurate and would teach a non-specialist
+nothing. It will say _"Trades reported by the IEX exchange only — not the full US consolidated
+tape."_ And when the app is running on test data, it says so out loud — _"Generated test data.
+Not a market feed."_ — so a screenshot from a demo environment can never be mistaken for a
+screenshot of the real market.
+
+**The invisible thing: we built the socket before buying the appliance.**
+
+Six of this story's eight tasks wrote the _shape_ of how market data enters the product —
+without writing a single line of code for any particular data vendor. That is deliberate and it
+is the decision most worth explaining, because the cheaper order is to write the vendor code
+first and then "abstract" it afterwards.
+
+The problem with the cheaper order is that you don't end up with an abstraction, you end up
+with a rename of the vendor's own format — their field names, their quirks, their assumptions —
+baked into the heart of the product. Changing vendor then means changing everything. Writing
+the shape first means the vendor has to fit **our** requirements, and if it can't, we find out
+in the first week rather than the first year.
+
+Three of the decisions inside that are worth a stakeholder knowing:
+
+- **Every set of prices has to say where it came from and when we fetched it.** Not as a
+  footnote — it is structurally impossible to produce a price series in this system without
+  that record attached. The computer refuses to compile code that tries.
+- **We store the original prices and never rewrite them.** When a company splits its stock,
+  most systems quietly rewrite history so old charts look smooth. We don't, because one of this
+  product's headline features is _"replay a day in the market and show me only what was
+  knowable at that moment"_ — and a rewritten price is a number nobody could have seen at that
+  moment. That feature is Epic 13 and it would have been quietly broken by a decision taken
+  carelessly here, in a way no test would have caught.
+- **When something goes wrong fetching data, the system returns an answer describing what went
+  wrong rather than throwing up its hands.** There are eight possible answers, each one
+  requiring a different response — a rate limit means wait, a bad credential means fix the
+  configuration, an unknown ticker is just an answer. Adding a ninth is impossible without also
+  making it produceable, handleable and classified, all enforced by the compiler.
+
+**This task specifically** was the audit: re-run every promise the story made, against the code
+that actually shipped, taking every measurement fresh rather than trusting what earlier notes
+said. That is not ceremony — it caught six things, including a figure that had been wrong from
+the day it was written, and documentation in three files describing a version of the product
+that no longer exists.
+
+It also settled a decision that had been deferred four times: **the project now automatically
+checks that every internal link in its own documentation still points somewhere.** That was
+declined three times on a good argument — the links had never once been broken, while the
+_numbers_ in the documentation were wrong nearly every time anyone looked, and adding a check
+for the reliable half would have made the whole thing look supervised when it wasn't. Then four
+links did break, from a routine renumbering. So the check now exists, it runs on every change,
+and the documentation says plainly that it covers half the problem and not the other half.
+
+**The honest limitation, stated because it is the most important sentence here.** Everything in
+this story is tested against data we made up ourselves. That proves our code is internally
+consistent. It proves **nothing whatsoever** about whether we can correctly read a real market
+data feed — that is the very next story, and it is the only place that particular thing can be
+got wrong. We have written that obligation down explicitly rather than leaving it as an
+assumption, because "all our tests pass" is exactly the sentence that hides it.
+
+**What this unlocks.** The next story connects the real data provider and plugs it into the
+socket built here. Once real historical prices are flowing, the product can do the thing it
+exists for: chart a security, notice that today's move is unusual compared with its own
+history, and let a human — and later an AI agent — go and find out why.
