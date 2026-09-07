@@ -66,6 +66,16 @@ reason that a fourth axis makes worse.
 
 ### Where the value comes from — and a frontend literal is not an option
 
+**Amended 2026-09-07 by Task 2.6.4: `MarketDataProvider` now carries a `readonly id:
+ProviderId`, and it is deliberately NOT the source this task should reach for first.** It is
+there so a retry wrapper reports the id of the thing it _wraps_ rather than inventing one —
+and under `MARKET_DATA_PROVIDER=none`, which is the default and is the state this task exists
+to render honestly, **there is no provider object to ask**. So the question _"which provider
+is configured"_ is answered by the configuration, not by an instance; `id` is what answers
+_"which provider produced this series"_, which is a different question and is already carried
+on `SeriesProvenance` anyway. Reading it off a provider would make the one state this task
+must get right the one state it cannot reach.
+
 A hard-coded `IEX` in a React component is a caption, which Task 2.6.3 spent a whole task
 establishing is the thing this must not be. It also goes stale silently the day the plan is
 to move to SIP. So the value is read from the backend, and there are three candidate homes

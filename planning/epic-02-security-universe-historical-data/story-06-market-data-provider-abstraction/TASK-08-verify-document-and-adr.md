@@ -41,6 +41,14 @@ Epic 3 read before they touch this seam.
 
 2. **A fixture provider implements it fully and is what tests use.** "Fully" means no method
    throwing "not implemented"; "is what tests use" means grep for anything else.
+   **Amended 2026-09-07 by Task 2.6.4: that grep has one known hit and it is not drift.**
+   `apps/backend/src/market-data-provider.test.ts` holds a three-line `stub()` returning a
+   `BarsResult` it was handed, and it exists to prove the interface is _implementable_ and
+   that a call resolves rather than rejects — the one runtime property a task that ships no
+   implementation has. It reads no corpus, produces no bar and answers no question about
+   market data. A second _provider_ is what this criterion is about; a local test double for
+   the interface's own tests is not one, and striking it to make the grep clean would delete
+   the only executable evidence that `MarketDataProvider` can be satisfied at all.
 3. **Every response carries provenance and no code path produces a bar without it.**
    Re-**make** the compile failure rather than citing Task 2.6.3 — and note it is **two**
    compile failures rather than one, with two different error codes, because the mechanism has
