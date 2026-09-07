@@ -55,7 +55,14 @@ derivation in a comment so it can be re-derived rather than inherited:
 
 - **Attempts.** Bounded by constraint 2 before it is bounded by a count: at a three-second
   deadline and a measured round trip, the count that fits is small. Pick the number that fits,
-  not a round one.
+  not a round one. **AMENDED 2026-09-07 by Task 2.7.5, which measured the number: on a paginated
+  fetch at the default deadline it is ZERO.** A 5-page walk took **2,170 ms — 72% of
+  `DEFAULT_BARS_DEADLINE_MS`**, and that default was derived for a _single_ request against the
+  browser's 5-second budget. So the honest statement is that **the attempt count is a function of
+  how many pages the range spans**, which the wrapper cannot see: it wraps `getBars`, and a range
+  is not a page count. A caller that wants retries on a multi-page range must pass its own
+  `deadlineMs`, which Task 2.7.5 already hands forward to Story 2.8 — record it here as the
+  wrapper's precondition rather than leaving it to be discovered as an unexplained `timeout`.
 - **Backoff.** Exponential with **jitter**, and the jitter is not decoration: Story 2.8 fires a
   hundred requests, they hit a rate limit together, and a jitter-free backoff retries them
   together — a thundering herd against the service that just asked for less traffic.
@@ -71,6 +78,34 @@ derivation in a comment so it can be re-derived rather than inherited:
   cross-request pacing across a hundred symbols is Story 2.8's backfill.** Conflating them is
   how a backfill re-fetches ninety-nine symbols that answered perfectly because one was rate
   limited, which is the single most reliable way to make a rate limit worse.
+
+## What a retry actually retries, now that `getBars` is a WALK (added 2026-09-07 by Task 2.7.5)
+
+**This task was written when one `getBars` was one HTTP request. It is now up to five**, and
+that changes what a retry costs without changing a line of this wrapper's design.
+
+The wrapper composes around the **interface**, so a retry re-runs `getBars` — which means it
+re-runs the walk **from page 1**, discarding N−1 pages that succeeded and re-spending N requests
+against a 200-per-minute limit. On the measured 5-page month that is **five requests spent to
+recover from a failure on the fifth**, and it is the same arithmetic as constraint 3's queue: a
+hundred symbols retried once is not a hundred extra requests, it is a hundred times the page
+count.
+
+**Do not fix this by moving retry inside the walk.** That is a retry inside the transport, which
+`PROVIDER.md` §8.8 rejects and which makes the caller's deadline a lie — the deadline is now
+shared across pages _and_ attempts, so a per-page retry would multiply an already-shared budget.
+What is wanted is the decision **stated**, with its arithmetic, and one of:
+
+- **Accept it**, on the argument that a whole-walk retry is the only shape that can produce a
+  coherent `BarSeries` at all — a resumed walk needs a resume point, and Task 2.7.5 rejected
+  exposing one precisely because a clipped `covered` is indistinguishable from _"the vendor had
+  nothing after this point"_. This is the cheap answer and is probably right for V1.
+- **Bound retries by page count rather than by attempts**, so a wide range gets fewer attempts
+  than a narrow one. Honest, and it needs the wrapper to know something about the range that the
+  interface does not currently tell it.
+
+Either way, **say what it means for Story 2.8**, which composes this around a hundred symbols and
+is the caller most likely to discover the multiplication the hard way.
 
 ## Exercising it at the limit — criterion 4
 

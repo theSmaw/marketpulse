@@ -138,6 +138,38 @@ something the candidate list did not name.
   its own decisions with the measurements in hand. Its open decision 2 (the exact wording) is
   the right owner, and it is now a decision about **two** claims rather than one
 
+- **Story 2.8's own `STORY.md`, for the same reason Story 2.14's is on this list and with a
+  larger blast radius** — added 2026-09-07 by Task 2.7.5. That story carries a handover section
+  written by Task 2.7.1, and three of 2.7.5's findings land inside it:
+
+  **Its two request-construction traps do not cover the window-shape one.** Trap 2 is about
+  _bare-date_ ranges leaking extended hours; 2.7.5 measured that a multi-day span does it with
+  **explicit instants too**, at **~2.35×** — 22,952 bars for a month against 9,750 regular-hours
+  ones, with the regular-hours subset matching `minuteBars` exactly. A reader who fixes trap 2 by
+  sending instants has not fixed this. **The answer is to request per SESSION**, measured at
+  exactly 1.00×.
+
+  **The naïve backfill is the refused shape.** _"From the last bar I stored, to now"_ is a flat
+  **`403`** with nothing in it, and Story 2.8's file does not know that. The clamp protects it —
+  but a backfill that bookmarks `requested.end` rather than `covered.end` re-fetches or leaves a
+  permanent 16-minute hole, so the resume point is a design constraint rather than a courtesy.
+
+  **And its _"do not encode a threshold until Task 2.7.4 settles the feed question"_ is spent**,
+  since 2.7.4 settled and deployed it. That is the same shape as `CALENDAR.md` §2.4 above: an
+  instruction whose condition has already occurred.
+
+  **Do not rewrite that story's scope from here**, per the rule the Story 2.14 bullet sets — say
+  what was falsified and let it take its own decisions
+
+- **The `~1.18 GB/year` storage figure, which is CONDITIONALLY still correct and must not be
+  swept** — added 2026-09-07 by Task 2.7.5. It stands in `UNIVERSE.md` (4 sites), `HOSTING.md`
+  (2), `CLAUDE.md` and two task files, and it assumes 390 bars a session. 2.7.5 measured that a
+  span-shaped request stores **~2.8 GB/year** and a per-session one stores exactly the recorded
+  figure. **So the sweep is to attach the condition, not to restate the number**: inflating it
+  would be wrong for the design Story 2.8 should adopt, and deleting it would throw away a
+  measurement that is right. This is the live-versus-historical distinction Task 1.10.8
+  established, arriving as a _conditional_ rather than as a date
+
 - **`pnpm links`**, which is a `verify` step since Task 2.6.8 and therefore runs itself. Report
   its counts as figures rather than trusting the last recorded ones — they moved between two
   consecutive readings the first time they were taken
