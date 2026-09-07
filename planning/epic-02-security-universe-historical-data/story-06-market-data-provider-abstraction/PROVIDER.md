@@ -678,6 +678,11 @@ widen `config.ts`'s port range for a test's convenience.
 
 ### 8.8 The retry policy lives in a WRAPPER, and pacing does not live with it
 
+**Task 2.6.5 owns the final call on this** — its brief assigns it there — so what follows is a
+recommendation with the arguments already made rather than a decision taken over its head.
+It is recorded here because it belongs beside §8.1's retryable column, which is its input.
+Confirm it or overturn it with a reason; do not re-derive it.
+
 Three candidates, and the middle one wins:
 
 - **Inside each provider implementation** — rejected. It makes the caller's deadline a lie,
@@ -706,6 +711,14 @@ Three constraints, written here so they are not rediscovered:
 ---
 
 ## 9. The types, settled far enough that Task 2.6.2 has nothing left to guess
+
+**Some of this section is Task 2.6.2's brief to decide, and it is taken here on purpose.**
+§9.4's aggregation answer turns on readers in Epic 5 and Epic 13, and §9.5's numeric answer
+turns on which V1 calculation actually accumulates — both of which had to be worked out to
+answer §2 and §3 anyway. Deciding them beside the provenance record keeps **one** document
+rather than two that will disagree, which is the whole reason this file exists. Task 2.6.2
+implements these and may overturn any of them **with a reason recorded here**, which is the
+same latitude §8.8 leaves Task 2.6.5.
 
 ### 9.1 `Bar` — six fields, and the two that were declined have triggers
 

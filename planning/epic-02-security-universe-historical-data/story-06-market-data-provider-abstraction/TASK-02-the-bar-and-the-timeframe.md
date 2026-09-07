@@ -18,6 +18,24 @@ float paragraph below, which is the one thing in this task that is not merely na
 
 ## Work
 
+> **Amended 2026-09-07 by Task 2.6.1.** Four of the questions below are **settled** in
+> `PROVIDER.md` §9 and this task implements them rather than re-deciding them — the field
+> set (§9.1), the timestamp's name and convention (§9.2), the range's ends (§9.3), the
+> timeframe members and whether aggregation is expressible (§9.4), and the numeric type
+> (§9.5). They were taken there rather than here because §9.4's aggregation answer and
+> §9.5's numeric answer both turn on readers in Epics 5 and 13, and deciding them beside the
+> provenance record kept one document rather than two. **Overturn any of them only with a
+> recorded reason in `PROVIDER.md`**; the paragraphs below are kept because they carry the
+> arguments, not because the questions are still open.
+>
+> The short form, so this task can be started without a second read: six fields — `open`,
+> `high`, `low`, `close`, `volume`, **`startsAt`** — with `vw` and `n` declined against named
+> triggers; `symbol` and `timeframe` on the **series**, not the bar; a **half-open**
+> `TimeRange` that refuses a reversed or zero-width range naming both ends; `TIMEFRAMES` is
+> **`["1m", "1d"]`** and aggregation is **not expressible**; prices are **`number`**, with
+> the guard that an aggregate over prices is computed in SQL over `numeric` and never in
+> JavaScript.
+
 ### The field set is chosen against the vendor's list, not copied from it
 
 Task 2.6.1 wrote the vendor's bar fields into `PROVIDER.md` precisely so this decision is

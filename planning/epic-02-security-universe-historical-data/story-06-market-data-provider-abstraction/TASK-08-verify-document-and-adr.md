@@ -29,7 +29,10 @@ Epic 3 read before they touch this seam.
    case.
 4. **Each error cause producible and distinguishable.** Re-run them; report the count against
    `PROVIDER.md`'s list, because a member that was struck during implementation and left in
-   the document is the drift this task exists to catch.
+   the document is the drift this task exists to catch. **The number is SEVEN, not the
+   story's prose five** — Task 2.6.1 struck `bad-range` for `range-not-available` and added
+   `timeout` and `aborted` (`PROVIDER.md` §8.1, §8.3, §8.4). A count of five here means
+   somebody built from `STORY.md`'s scope list rather than from the settled table.
 5. **Adjustment explicit at the call site.** The check is that omitting it does not compile.
 6. **`pnpm verify` passes with no network access.** Take it with the network genuinely
    disabled, and take it twice — once from the working tree and once from a **clean clone**,
@@ -43,7 +46,13 @@ Epic 3 read before they touch this seam.
 - **the frontend artefact**, all four files with sizes and hashes. Task 2.6.1 predicted this
   story's `packages/shared` bundle cost; **measure it against the prediction and say whether
   the prediction was right.** Task 2.3.8's finding is the thing to look for: a vocabulary
-  declared as a literal is tree-shaken completely, one built by calling a function is not
+  declared as a literal is tree-shaken completely, one built by calling a function is not.
+  **The prediction is in two halves and only the second is a forecast** (`PROVIDER.md` §11):
+  Tasks 2.6.2–2.6.6 must move the artefact by **zero bytes**, which is a **check** — any
+  movement there means something was declared through a constructor call and should be found
+  and fixed rather than reported — and Task 2.6.7's movement is the feature, for which no
+  tighter prediction than "a few hundred bytes of strings plus a component" was offered and
+  a miss is not a defect
 - the install cost, if anything was added — store entries, KB, lockfile lines, and the
   install-script sweep, which should still return `esbuild@0.28.2` and nothing else
 - Storybook's file count, which has been carried as "unchanged" across closes that never
