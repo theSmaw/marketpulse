@@ -39,3 +39,10 @@ node_modules/
 # Root-level `prettier .` (Task 1.1.7) walks into them otherwise and rewrites
 # files belonging to another branch. Mirrored in eslint.config.mjs.
 .claude/worktrees/
+
+# Recorded vendor response bodies (Task 2.7.6). Prettier infers a parser for the
+# `.html` one and would reformat it — and the entire value of these files is
+# that they are BYTE-IDENTICAL to what the vendor sent. A reformatted 401 page
+# is a fixture that no longer proves the thing it was recorded to prove, which
+# is that a real error body is not JSON.
+apps/backend/src/fixtures/alpaca/

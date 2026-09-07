@@ -1,17 +1,23 @@
 /**
  * The first real market-data client in this product (Task 2.7.3).
  *
- * One symbol, one timeframe, **one page**, and the happy path. Pagination is
- * Task 2.7.5's, the error taxonomy is Task 2.7.6's and retry is Task 2.7.7's —
- * and this file **fails loudly on everything it does not handle**, which is
- * what makes splitting a client across four tasks honest rather than dangerous.
+ * ~~One symbol, one timeframe, **one page**, and the happy path.~~ **Amended
+ * 2026-09-07 by Task 2.7.6: two of the three gaps are closed.** Task 2.7.5 made
+ * the walk paginated and this task made every failure a `BarsResult` member
+ * rather than a throw. **Retry is still Task 2.7.7's and is deliberately still
+ * absent** — see below, because it is the one of the three that must not be
+ * added here at all.
  *
- * ## Why the happy path is the half that ships first
+ * ## What still fails loudly, and why that is the whole design
  *
- * The other three fail *silently*: a retry inside the transport lies about the
- * caller's deadline, a swallowed page lies about the data, and a laundered
- * parse failure lies about whose fault it is. Only this one fails loudly, so it
- * is the one that can stand alone.
+ * A retry inside the transport lies about the caller's deadline, a swallowed
+ * page lies about the data, and a laundered parse failure lies about whose
+ * fault it is. Two of those are now closed by *refusing* rather than by
+ * handling: a token loop throws rather than returning a short series, and a
+ * `400` or an unparseable body throws rather than becoming
+ * `upstream-unavailable`. `PROVIDER.md` §8.5's line — a union member is a fact
+ * about the world, a throw is a fact about our code — is what decides which
+ * failures got members here and which did not.
  *
  * ## What is deliberately NOT here
  *
@@ -52,6 +58,7 @@ import {
   ALPACA_MAX_LIMIT,
   ALPACA_PROVIDER_ID,
   alpacaServableEnd,
+  mapAlpacaFailure,
   parseAlpacaBarsBody,
   toAlpacaQuery,
   toBarSeriesFromAlpacaBars,
@@ -232,27 +239,56 @@ async function fetchBars(
       if (hasAborted()) {
         return classifyAbort(deadline, options.signal, deadlineMs);
       }
+
+      // **A `fetch` that rejects for any other reason never reached the vendor,
+      // and that is `upstream-unavailable`.** Measured whole rather than by
+      // message (Task 2.1.6's discipline, applied to a second vendor): a
+      // refused connection, a host that does not resolve and an unroutable
+      // address all reject with a `TypeError` whose message is the constant
+      // string `fetch failed`, carrying the real cause — `ECONNREFUSED`,
+      // `ENOTFOUND`, a connect timeout — underneath as `cause`. The `cause` is
+      // deliberately **not** read: it is undici's shape rather than a contract,
+      // and every value it takes maps to this one member anyway.
+      //
+      // An unroutable address does NOT arrive here, which is worth knowing
+      // before anyone tries to produce it: it hangs, so our own deadline fires
+      // first and the branch above answers `timeout`. That is correct —
+      // *"we gave up after N ms"* admits raising N where *"they are down"* does
+      // not — and it is why Task 2.1.7 used `203.0.113.7` to produce a timeout.
+      //
+      // Anything that is not a `TypeError` is rethrown, because `fetch` has no
+      // other documented rejection and an undocumented one is a defect rather
+      // than a fact about the world. `upstream-unavailable` is the member
+      // `PROVIDER.md` §8.1 calls *"where a defect goes to hide"*, so the
+      // `instanceof` is a gate rather than a formality.
+      if (error instanceof TypeError) {
+        return { outcome: "upstream-unavailable" };
+      }
       throw error;
     }
 
     if (!response.ok) {
-      // **Task 2.7.6's, and it throws rather than mapping.** Every status this
-      // vendor produces was recorded verbatim in `ALPACA.md` §9 and mapping them
-      // is a task with its own measurements — including the one a documentation
-      // -based mapping gets wrong, that a bad key answers with an **HTML** body
-      // from nginx rather than JSON, so a client assuming JSON turns a clear
-      // `unauthorised` into a laundered parse failure.
+      // **Task 2.7.6's mapping, and it reads the STATUS and never the body.**
+      // Every failure this vendor produces was produced against the live API
+      // and recorded verbatim under `fixtures/alpaca/`; `mapAlpacaFailure`
+      // carries the argument for each, including the one a documentation-based
+      // mapping gets wrong — a bad key answers `401` with an **HTML** body from
+      // nginx, so a client that parses an error body turns the clearest auth
+      // failure there is into a laundered parse error.
       //
-      // The body is deliberately NOT read into this message. It may be an HTML
-      // error page, and more to the point Task 2.7.2's leak list names a logged
-      // request path as the most plausible way this credential escapes: the URL
-      // carries no credential, but a habit of interpolating vendor bytes into
-      // messages is the habit that eventually does.
-      throw new Error(
-        `Alpaca answered ${String(response.status)} ${response.statusText} for ` +
-          `${request.symbol}. Task 2.7.6 maps this vendor's failures onto ` +
-          `BarsResult; until it does, this client refuses to guess which member ` +
-          `a status means rather than laundering it into one.`,
+      // The body is still never read into anything. Task 2.7.2's leak list
+      // names an interpolated vendor response as a way this credential could
+      // escape, and a `400`'s message is our own request echoed back.
+      //
+      // **A failure on page three discards pages one and two**, exactly as an
+      // abort mid-walk does and for the same recorded reason: a partial `ok`
+      // with `covered` clipped to what arrived is indistinguishable from
+      // *"the vendor had nothing after this point"*, which is the one
+      // distinction Story 2.8's backfill has to make.
+      return mapAlpacaFailure(
+        response.status,
+        response.headers.get("retry-after"),
+        new Date(),
       );
     }
 

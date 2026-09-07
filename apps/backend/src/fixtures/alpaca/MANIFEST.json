@@ -80,5 +80,85 @@
       "bars": 391,
       "token": null
     }
-  ]
+  ],
+  "failures": {
+    "recordedBy": "Task 2.7.6",
+    "recordedAt": "2026-09-07T13:07:07.258Z",
+    "host": "https://data.alpaca.markets",
+    "note": "Raw failure bodies, byte-for-byte. Every one produced against the live vendor. `retryAfterHeader` is null on EVERY row including the 429, which is the measurement Task 2.7.7 is sized against.",
+    "responses": [
+      {
+        "file": "error-401-bad-key.html",
+        "status": 401,
+        "contentType": "text/html",
+        "retryAfterHeader": null,
+        "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Min&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2026-09-03T13%3A30%3A00Z&end=2026-09-03T19%3A59%3A59.999Z",
+        "recordedAt": "2026-09-07T13:04:51.775Z",
+        "note": "A deliberately wrong secret. The body is HTML from nginx, produced BEFORE the application is reached — so a client that parses an error body as JSON turns the clearest auth failure there is into a laundered parse error. A no-credential request is byte-identical."
+      },
+      {
+        "file": "error-403-recent-window.json",
+        "status": 403,
+        "contentType": "application/json",
+        "retryAfterHeader": null,
+        "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Min&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2026-09-07T12%3A54%3A51.775Z&end=2026-09-07T13%3A04%3A51.775Z",
+        "recordedAt": "2026-09-07T13:04:53.269Z",
+        "note": "The recency cliff. The shipped client cannot produce this: `alpacaServableEnd` clamps `end` before the request is built. A range entirely in the FUTURE produces this same body, which corrects ALPACA.md §9s recorded 200."
+      },
+      {
+        "file": "error-400-end-before-start.json",
+        "status": 400,
+        "contentType": "application/json",
+        "retryAfterHeader": null,
+        "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Min&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2026-09-03T19%3A00%3A00Z&end=2026-09-03T13%3A30%3A00Z",
+        "recordedAt": "2026-09-07T13:04:53.757Z",
+        "note": "OUR defect, and structurally unreachable: `toTimeRange` refuses a reversed range naming both ends. A 400 is mapped to a THROW."
+      },
+      {
+        "file": "error-400-malformed-date.json",
+        "status": 400,
+        "contentType": "application/json",
+        "retryAfterHeader": null,
+        "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Min&feed=sip&adjustment=raw&sort=asc&limit=10000&start=not-a-date&end=2026-09-03T19%3A59%3A59.999Z",
+        "recordedAt": "2026-09-07T13:04:53.519Z",
+        "note": "OUR defect. Reachable only by a mapping bug in `toAlpacaQuery`."
+      },
+      {
+        "file": "error-400-bad-timeframe.json",
+        "status": 400,
+        "contentType": "application/json",
+        "retryAfterHeader": null,
+        "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=3Fortnight&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2026-09-03T13%3A30%3A00Z&end=2026-09-03T19%3A59%3A59.999Z",
+        "recordedAt": "2026-09-07T13:04:54.002Z",
+        "note": "OUR defect. `TIMEFRAMES` is a closed union, so this needs `ALPACA_TIMEFRAMES` to disagree with it."
+      },
+      {
+        "file": "error-429-rate-limited.json",
+        "status": 429,
+        "contentType": "application/json",
+        "retryAfterHeader": null,
+        "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Day&feed=sip&adjustment=raw&sort=asc&limit=1&start=2026-09-01T04%3A00%3A00Z&end=2026-09-02T03%3A59%3A59.999Z",
+        "recordedAt": "2026-09-07T13:05:55.039Z",
+        "note": "Produced by 320 concurrent requests: 207 answered, 113 refused. NO Retry-After header and no x-ratelimit-* header on the 429 — every one of the 113 carried the same body. This is why retryAfterMs is a BRANCH rather than an assignment, and why Task 2.7.7 must schedule its own backoff."
+      },
+      {
+        "file": "empty-200-unknown-symbol.json",
+        "status": 200,
+        "contentType": "application/json",
+        "retryAfterHeader": null,
+        "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=ZZZQQXNOTAREALTICKER&timeframe=1Min&feed=sip&adjustment=raw&sort=asc&limit=10000&start=2026-09-03T13%3A30%3A00Z&end=2026-09-03T19%3A59%3A59.999Z",
+        "recordedAt": "2026-09-07T13:04:54.241Z",
+        "note": "A ticker that does not exist. 200 and empty — byte-identical to a real symbol with no prints in range, so `unknown-symbol` is NOT PRODUCIBLE from this endpoint."
+      },
+      {
+        "file": "empty-200-before-history.json",
+        "status": 200,
+        "contentType": "application/json",
+        "retryAfterHeader": null,
+        "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=NVDA&timeframe=1Min&feed=sip&adjustment=raw&sort=asc&limit=10000&start=1990-01-02T14%3A30%3A00Z&end=1990-01-02T20%3A59%3A59.999Z",
+        "recordedAt": "2026-09-07T13:04:54.722Z",
+        "note": "1990, far before this plans history depth. 200 and empty, so `range-not-available` is not producible by this route either."
+      }
+    ]
+  }
 }
