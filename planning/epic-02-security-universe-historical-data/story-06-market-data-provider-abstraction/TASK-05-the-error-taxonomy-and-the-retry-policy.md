@@ -1,6 +1,6 @@
 # Task 2.6.5 — The error taxonomy, and where a retry policy is allowed to live
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [2.6 Market-Data Provider Abstraction](STORY.md)
 **Depends on:** Task 2.6.4
 
@@ -172,3 +172,228 @@ The failure mode to avoid is a single `ProviderError` with a `message`, which is
 codebase has before somebody needs to render two of them differently. Story 2.14's whole
 subject is that "we have nothing for this symbol" and "the feed refused us" are different
 sentences; a string cannot be switched on.
+
+---
+
+## What was done (2026-09-07)
+
+Two files changed — `apps/backend/src/market-data-provider.ts` and its tests — plus
+amendments back into `PROVIDER.md` §8.1, §8.6, §8.8 and §9.5. **No dependency, no lockfile
+change, no new script, no new `verify` step, and nothing in `packages/shared` or
+`apps/frontend` touched.**
+
+### The five members landed as a compile error in a file this task did not edit
+
+The mechanism Task 2.6.4 built was **executed rather than trusted**. Adding the members and
+running `pnpm typecheck` before touching anything else reported, in
+`market-data-provider.test.ts`:
+
+```
+error TS2322: Type '{ readonly outcome: "unknown-symbol"; } | ... ' is not assignable to type 'never'.
+error TS1360: ... does not satisfy the expected type 'never'.
+```
+
+That is the whole of why the taxonomy could arrive four tasks after the interface without
+being a rewrite, and it is the property a ninth member inherits.
+
+### §8.1's table shipped unchanged — no member struck, renamed or added
+
+Eight outcomes, exactly the table. What this task added on top of it is the **third column**,
+which was prose and is now `isRetryableOutcome()`, sitting beside the union it classifies for
+the reason `isApiError()` sits beside `ApiError`: **a wrapper that re-derives retryability in
+a `switch` of its own is a second copy of the taxonomy, and the two disagree the first time a
+member is added.**
+
+It is an **exhaustive `switch` rather than an array of retryable outcomes**, and that is the
+decision rather than an implementation detail: an array leaves a ninth member silently
+non-retryable — which is the _safe_ answer, arrived at by silence, and silence is the thing
+this repository keeps refusing.
+
+### The rule for what a member may carry came out NARROWER than §8.6 permitted
+
+§8.6 allowed the symbol and the range. Neither is carried, and the rule that replaced it is
+one sentence somebody can apply:
+
+> **A member carries only what the caller does not already hold.**
+
+That explains everything: `timeout` carries `deadlineMs` because a caller that omitted one
+does not know which number it was measured against; `rate-limited` may carry a hint because
+that is genuinely new information from the vendor; and nothing echoes the symbol or the
+range, because a request is for exactly one symbol over exactly one window, so a copy can
+only agree or be wrong. The batch case §8.6 anticipated does not need it either — a batch
+returns a `BarsResult` **per symbol**, so the symbol is beside the cause structurally.
+
+The result is **one rule rather than a rule with an exception**, and it agrees with the two
+members Task 2.6.4 had already shipped.
+
+### Three sub-decisions, each with the argument and the reversal trigger
+
+- **`retryAfterMs` is a duration and not an instant.** An absolute time from a vendor has to
+  be reconciled against our clock, and skew in the unlucky direction means retrying **early**,
+  against the service that has just asked us to stop. HTTP `Retry-After`'s two forms
+  (delta-seconds or a date) are therefore Story 2.7's mapping problem and arrive here already
+  resolved. It is a **floor, not an instruction** — constraint 2 still binds — which is what
+  makes a nonsensical value harmless without validating one.
+- **`unauthorised` is one member covering missing, wrong and unentitled credentials.**
+  `API_ERROR_CODES`' own merge rule: a caller does the same thing about all three, and they
+  are not reliably distinguishable from a vendor's response. **A member that is usually wrong
+  is worse than one that is coarse.**
+- **`range-not-available` ships with no sub-reason.** No `too-old` / `too-wide` /
+  `in-the-future`, and the argument is §8.7's rather than economy: a fixture produces this one
+  way, so a sub-reason would ship members nothing can produce — which §8.7 itself calls a
+  guess. Reversal trigger: a caller that **repairs** a range automatically rather than
+  reporting it.
+
+### The retry decision: §8.8's wrapper CONFIRMED, and nothing built
+
+The wrapper wins on three properties rather than on taste — testable against the fixture
+provider with **no network at all**, replaceable without touching a provider, and it keeps a
+provider a thing that makes exactly one attempt, which is what makes a fixture-backed test
+mean anything. Both rejections are written into the module comment beside the method they
+constrain, with what each costs: a retry **inside a provider** makes the caller's deadline a
+lie and makes "how many times did we ask the vendor" a per-vendor question; a retry **at the
+call site** is right for _pacing_ and wrong for retrying one request, and conflating them is
+how a backfill re-fetches ninety-nine symbols that answered perfectly because one was
+rate-limited — the single thing guaranteed to make a rate limit worse.
+
+The three constraints are recorded there too, no numbers. **Nothing was built**, and that is
+deliberate: there is no provider to wrap, no measured distribution to pick a backoff from, and
+a wrapper written now would be tested only against itself. Task 2.6.6 supplies the first thing
+it can be composed around.
+
+### Four deliberate breaks, each seen to fail and reverted — and the third is the best one
+
+| Break                                           | Result                                            |
+| ----------------------------------------------- | ------------------------------------------------- |
+| `unauthorised` classified retryable             | 2 tests red, naming the outcome list and the pair |
+| `upstream-unavailable` gains `message?: string` | `TS2578: Unused '@ts-expect-error' directive`     |
+| A ninth member added                            | **Three** errors, in three places                 |
+| `retryAfterMs?: number \| undefined`            | `TS2578` on the present-and-undefined directive   |
+
+The ninth-member break is the one worth carrying: it fails as `Property 'ninth' is missing`
+on the tests' `Record<BarsResult["outcome"], BarsResult>`, **and** on the test's exhaustive
+switch, **and** on `isRetryableOutcome`'s own switch. So a member cannot be added without
+being **constructed**, **handled** and **classified** — three obligations, none of them
+skippable, none of them documented in prose.
+
+**That third obligation only exists because of a mid-task correction.** The first version
+enumerated the members in an **array**, and its own comment claimed completeness was checked.
+It was not: an exhaustive `switch` proves every member is _handled_ and says nothing about
+whether a test ever _constructs_ one, so a ninth member would have been forced into the switch
+and quietly left unbuilt. Reframing it as a `Record` keyed by the discriminator — `health.ts`'s
+response-schema idiom — made the claim true. **The overclaim was caught by trying to write the
+break that would falsify it**, which is the cheapest place to catch one.
+
+Breaks 2–4 also reproduced Task 2.5.3's trap on the way: run as one batch they printed
+nothing, which reads as "the check does not work" and was in fact **the substitution not
+landing**. Re-run individually, all three fired. _A break that does not go red is not evidence
+the check is broken; it is evidence the break did not land_ — and the two are indistinguishable
+from the exit code.
+
+### One recorded claim had stopped being true
+
+The **naive** vendor grep over `packages/shared/src` returns **seven**, not the **six** this
+repository records in two live places (`PROVIDER.md` §9.5 and `CLAUDE.md`). The seventh is
+`market-provenance.ts:5`, added by Task 2.6.3 while explaining invariant 6 — the same
+"opposite of a leak" category as the other six. **Criterion 1 is unaffected: the code-only
+form is zero and has always been zero**, for both files this task touched and for
+`packages/shared` as a whole.
+
+Both live sites are corrected; Task 2.6.2's own write-up is left standing, because it is a
+record of what that task measured. What is worth carrying is **why** the prediction failed:
+2.6.2 wrote that its files added zero _"so the number does not grow"_, and that was **the
+wrong shape rather than merely unlucky** — the naive count grows whenever a file explains why
+a vendor-shaped decision was taken, which is a thing this repository wants more of. **Quote
+the code-only figure; re-run the naive one rather than citing it.**
+
+### Figures
+
+- `pnpm verify` **exit 0 in 32.6 s**
+- `pnpm test` **522** (198 + 161 + 163) — `apps/backend` 146 → 161 across 11 files
+- The frontend artefact **did not move**, which is §11's check rather than a coincidence:
+  369,437 B `4f17aff3…`, 17,317 B `eb223e53…`, `index.html` 1,101 B `898733b0…`, 300 B —
+  **388,155 B over four files**, identical at every hash and reproducing Task 2.5.6's figures
+  to the byte for the **fourth** task running
+- Vendor grep: **zero in both the code-only and the naive form** for both files, because they
+  say _"the vendor"_ throughout
+
+---
+
+## For the stakeholders — what this actually did, in plain English
+
+**Nothing new is on screen, and this one is closer to the user than it looks.**
+
+Every price MarketPulse will ever show comes from an outside company's data service. That
+service will sometimes not give us what we asked for — and this task is about the difference
+between a product that says **why**, and one that says _"Error."_
+
+Think of the difference between a delivery that arrives with a note reading **"this address
+doesn't exist"**, one reading **"we're running late, try us in ten minutes"**, and one reading
+**"your account is suspended"**. All three are "it didn't arrive". All three need a completely
+different response from you. A product that collapses them into one message has thrown away
+the only useful part.
+
+So we wrote down the **eight** distinct things that can happen when MarketPulse asks for a
+price history, and made it impossible for the software to say anything else:
+
+1. **Here's your data.**
+2. **There's no such company** — which is an _answer_, not a failure. Someone typed a ticker
+   that doesn't exist, and the honest response is to say so, not to show a red error box.
+3. **That date range isn't available** — the data provider's records don't go back that far.
+4. **We asked too often** — worth waiting and trying again, and this is the only one that can
+   carry the provider's own hint about when.
+5. **Our credentials are wrong** — a setup problem on our side. Trying again is pointless.
+6. **Their service is down** — worth trying again later.
+7. **We ran out of patience** — subtly different from "they're down", because the fix might be
+   _ours_: wait a bit longer.
+8. **The user navigated away** — not a fact about the market at all, and it must never be
+   shown as one.
+
+### Three decisions worth explaining
+
+**We refused to let the data provider's own error messages reach the screen.** This sounds
+like a small thing. It isn't — we've already been bitten by it once in this project, when an
+internal failure message leaked an internal server address out to a browser. Those messages
+are written by engineers for engineers, they change without warning, and they occasionally
+contain things that should never be public. So the _category_ goes to the screen and the
+_detail_ goes to our logs, joined by a reference number, and the design makes it structurally
+impossible to do it the other way round — there is literally nowhere to put such a message.
+
+**"There is no data for that period" is a success, not a failure.** This is the most likely
+thing for a future developer to get wrong, so it's written down in three places. If you ask
+for Christmas Day, the market was shut and the correct answer is an empty chart — not an error
+screen. A product that shows a failure on a public holiday looks broken when it is working
+perfectly.
+
+**We decided where "try again" is allowed to live, and deliberately built nothing.** Automatic
+retrying is genuinely useful and genuinely dangerous — done carelessly it hammers a service
+that has just asked you to stop, or it makes a request take three times as long as anyone was
+promised. We settled that it belongs in a single, separate, swappable layer wrapping the data
+connection, wrote down the three rules it must obey, and then **stopped**, because we don't yet
+have a real data connection to measure. Picking retry timings before we've ever talked to the
+real service would be guessing, and a guess dressed up as a decision is worse than an open
+question. Story 2.7 measures it.
+
+### Why this is worth doing before we connect to the real thing
+
+The obvious order is: plug in the data provider, see what breaks, then handle it. We're doing
+it the other way round on purpose. **An error list written after the fact describes whatever
+the first provider happened to do**, and the moment we want a second data source — or the
+current one changes something — that list is wrong in ways nobody notices. Written first, it's
+a standard any provider has to meet.
+
+The concrete payoff is a safety net that already works: we tested that adding a ninth
+possibility to the list is **impossible to do quietly** — the build refuses in three separate
+places until whoever added it has described it, handled it, and said whether retrying makes
+sense. That is the difference between a rule in a document nobody re-reads and a rule the
+computer enforces.
+
+### Where this sits on the road to something you can look at
+
+Story 2.6 is eight tasks and this was the fifth. The remaining three are where it becomes
+visible: **2.6.6** builds a working offline data source, so the whole pipeline can be
+exercised on a laptop with no internet and no vendor account; **2.6.7** is the one with a
+visible change — the "Market feed" indicator in the header has been showing a hard-coded
+`DISCONNECTED` since early in the project, and it starts telling the truth; **2.6.8** writes
+it up. Then Story 2.7 connects the real provider, and the eight outcomes above stop being
+theoretical.

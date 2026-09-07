@@ -57,7 +57,7 @@ import type {
  *   historical provider ship a `subscribe()` that throws. What the two share is
  *   the data and its provenance, not their shape.
  *
- * ## There is deliberately no retry in here
+ * ## There is deliberately no retry in here, and Task 2.6.5 decided where it goes
  *
  * `api-client.ts`'s stated reason transfers whole: **retry is a property of the
  * caller's policy, and a retry buried in the transport makes the deadline a
@@ -65,12 +65,54 @@ import type {
  * exactly one attempt, which is also what makes a fixture-backed test mean
  * something.
  *
- * `PROVIDER.md` §8.8 recommends a **wrapper implementing this same interface**
- * as retry's home, and Task 2.6.5 takes the final call. The distinction that
- * decides it is worth having here beside the method it constrains:
- * **per-request retry is the wrapper's; cross-request pacing across a hundred
- * symbols is Story 2.8's backfill**, and conflating them is how a backfill ends
- * up retrying a whole batch.
+ * **Task 2.6.5 confirms `PROVIDER.md` §8.8's recommendation: retry lives in a
+ * wrapper that implements this same interface, composed around a provider.**
+ * The two rejected homes, with what each costs:
+ *
+ * - **Inside each provider implementation** — rejected twice over. It makes the
+ *   caller's deadline a lie, as above; and every future provider then
+ *   re-implements it slightly differently, so *"how many times did we ask the
+ *   vendor"* becomes a question with a different answer per vendor and no
+ *   single place to read it.
+ * - **At the call site** — rejected for retry and **right for pacing**, which
+ *   is the distinction that actually decides this: **per-request retry is the
+ *   wrapper's; cross-request pacing across a hundred symbols is Story 2.8's
+ *   backfill.** Conflating them is how a backfill ends up retrying a whole
+ *   batch — re-fetching ninety-nine symbols that answered perfectly because one
+ *   was rate-limited, which is the one thing guaranteed to make a rate limit
+ *   worse.
+ *
+ * The wrapper wins on three properties rather than on taste: it is **testable
+ * against the fixture provider with no network at all**, it is **replaceable
+ * without touching a provider**, and it keeps a provider a thing that makes
+ * exactly one attempt, which is what makes a fixture-backed test mean anything.
+ * It also reports the id of the provider it *wraps* — see
+ * {@link MarketDataProvider.id} — rather than inventing one, so wrapping is
+ * invisible to everything downstream.
+ *
+ * ## What a retry wrapper is allowed to do — three constraints, no numbers
+ *
+ * The numbers are Story 2.7's, measured against a vendor documented at 200
+ * requests a minute. What is settled here is the shape:
+ *
+ * 1. **Only retryable causes are retried**, and
+ *    {@link isRetryableOutcome} is the source rather than a `switch` the
+ *    wrapper writes for itself. A retry on `unauthorised` is a loop against a
+ *    wall; a retry on `unknown-symbol` asks a settled question again.
+ * 2. **A retry must not outlive the caller's deadline or its abort signal.**
+ *    The wrapper receives both, is bounded by both, and gets no budget of its
+ *    own — which is the same sentence as *"a retry buried in the transport
+ *    makes the deadline a lie"*, applied to the thing that is allowed to retry.
+ *    A `rate-limited` hint is a floor inside that bound, never an extension
+ *    of it.
+ * 3. **A retry policy plus a rate limit is a queue.** A queue has a depth, and
+ *    an unbounded one is a memory leak wearing a politeness costume. Whatever
+ *    Story 2.7 builds states its depth and what it does when full.
+ *
+ * **Nothing is built here**, deliberately: there is no provider to wrap, no
+ * measured distribution to pick a backoff from, and a wrapper written now would
+ * be tested only against itself. Task 2.6.6 supplies the first thing it can be
+ * composed around.
  *
  * ## And deliberately no caching
  *
@@ -263,19 +305,31 @@ export interface BarsRequestOptions {
  * propagate** rather than counting it as a failed symbol, or a vendor shape
  * change presents as a hundred symbols mysteriously having no data.
  *
- * ## Three members here, five more in Task 2.6.5, and the split is principled
+ * ## Eight outcomes, and each member earns its place by what a caller does
  *
- * `PROVIDER.md` §8.1 settles **eight outcomes**. The three below are the ones
- * that follow from *this* file's own request shape — a success, and the two
- * ways the deadline and the abort signal defined in
- * {@link BarsRequestOptions} end a call — and they are producible with no
- * upstream and no implementation in existence. The remaining five are facts
- * about a *world* this task has not described yet: `unknown-symbol`,
- * `range-not-available`, `rate-limited`, `unauthorised` and
- * `upstream-unavailable`. They are added to this union by Task 2.6.5, which is
- * an addition rather than a rewrite; every exhaustive `switch` over this type
- * fails to compile until it handles them, which is the property that makes the
- * addition safe.
+ * `PROVIDER.md` §8.1's table, complete since Task 2.6.5. Three arrived with the
+ * interface — a success, and the two ways the deadline and the abort signal
+ * defined in {@link BarsRequestOptions} end a call, which are producible with
+ * no upstream in existence — and five are facts about the *world*, added by
+ * 2.6.5. The addition landed the way the mechanism promised: it was a
+ * **`TS2322`/`TS1360` in a file it did not edit**, because the exhaustive
+ * `switch` in this module's tests could no longer reach `never`. That is what
+ * "the taxonomy arrives later" costs when it is a compile error rather than a
+ * hope, and it is why a ninth member is safe to add too.
+ *
+ * **`API_ERROR_CODES`' rule governs the list, in both directions**: a member
+ * exists when a failure can be produced, and two causes merge when nothing
+ * branches on the difference. So `unauthorised` is one member covering a
+ * missing key, a wrong key and an unentitled one, while `timeout` and
+ * `upstream-unavailable` stay apart — the first admits a repair the second does
+ * not. **The failure mode this list exists to avoid is a single
+ * `ProviderError` with a `message`**, which is what every codebase has until
+ * somebody has to render two of them differently, and Story 2.14's whole
+ * subject is that *"we have nothing for this symbol"* and *"the feed refused
+ * us"* are different sentences. A string cannot be switched on.
+ *
+ * The retryable third column is {@link isRetryableOutcome} rather than prose,
+ * for the reason given there.
  *
  * ## The one member that is settled here and is NOT in that list
  *
@@ -299,9 +353,21 @@ export interface BarsRequestOptions {
  * *whether* and the log says *why* and `x-request-id` makes it one
  * investigation.
  *
- * Neither failure member below echoes the request back, because the caller
- * holds it. Task 2.6.5 decides that for its own members, where a batch caller
- * may genuinely need the symbol beside the cause.
+ * **No member echoes the request back, and Task 2.6.5 settled that as one rule
+ * rather than an exception.** The rule it chose is narrower and easier to apply
+ * than "may carry the symbol":
+ *
+ * > **A member carries only what the caller does not already hold.**
+ *
+ * That is why `timeout` carries `deadlineMs` — a caller that omitted
+ * `deadlineMs` does not know which number it was measured against — and why
+ * `rate-limited` may carry a hint, which is genuinely new information from the
+ * vendor. It is also why `unknown-symbol` does not name the symbol and
+ * `range-not-available` does not repeat the range: a request is for exactly one
+ * symbol over exactly one window, so echoing either is a second copy that can
+ * only ever agree or be wrong. The batch case §8.6 anticipated does not need it
+ * either, because a batch returns a `BarsResult` **per symbol**, so the symbol
+ * is already beside the cause structurally.
  */
 export type BarsResult =
   /**
@@ -333,7 +399,136 @@ export type BarsResult =
    * bug at the one place it can be closed — and every consumer here inherits
    * the same obligation: **never render an `aborted` as a market-data state.**
    */
-  | { readonly outcome: "aborted" };
+  | { readonly outcome: "aborted" }
+  /**
+   * The request was well-formed and there is no such security.
+   *
+   * **An answer rather than a failure**, and Story 2.14 renders it as one. This
+   * is the member `Ticker`'s brand deliberately does not buy: a well-formed
+   * ticker for a security that does not exist — or that this vendor does not
+   * carry, which is not the same thing and is indistinguishable from here — is
+   * a perfectly valid request with a definite answer.
+   *
+   * Not retryable: the vendor will say the same thing tomorrow.
+   */
+  | { readonly outcome: "unknown-symbol" }
+  /**
+   * The symbol exists and this provider will not serve *this window*: before
+   * its history depth, entirely in the future, or wider than it permits.
+   *
+   * **Not "the range is malformed"**, which is why the member is named for the
+   * world rather than for us — `PROVIDER.md` §8.3 struck `bad-range` for
+   * exactly that. A reversed, zero-width or invalid-`Date` range cannot reach a
+   * provider at all, because `toTimeRange` is the only way to obtain a
+   * {@link BarsRequest}'s `range` and it refuses all three naming both ends.
+   *
+   * **There is deliberately no sub-reason** — no `too-old` / `too-wide` /
+   * `in-the-future` discriminator — and the argument is §8.7's rather than
+   * economy: a fixture produces this one way, from a range outside its declared
+   * coverage window, so a sub-reason would ship members nothing can produce,
+   * which §8.7 calls a guess. It would also make every provider map a vendor's
+   * prose into our vocabulary, where a mis-mapping is silent. The reversal
+   * trigger is a caller that *repairs* the range automatically rather than
+   * reporting it; today the caller is a person narrowing a request.
+   */
+  | { readonly outcome: "range-not-available" }
+  /**
+   * The vendor refused because we asked too often.
+   *
+   * Retryable, and **the only member carrying a hint about when** — which is
+   * the whole of why it is a member of its own rather than folded into
+   * `upstream-unavailable`.
+   *
+   * `retryAfterMs` is a **duration and not an instant**, deliberately: an
+   * absolute time from the vendor has to be reconciled against our clock, and
+   * skew in the unlucky direction means retrying *early*, against the service
+   * that just asked us to stop. It is also milliseconds like every other
+   * duration here, so HTTP `Retry-After`'s two forms — delta-seconds or a date
+   * — are Story 2.7's mapping problem and arrive here already resolved.
+   *
+   * It is **optional because a vendor may not say**, and under
+   * `exactOptionalPropertyTypes` that means genuinely absent rather than
+   * present-and-`undefined` — so a provider building this branches, the way
+   * `apiError()` does:
+   *
+   * ```ts
+   * return hint === undefined
+   *   ? { outcome: "rate-limited" }
+   *   : { outcome: "rate-limited", retryAfterMs: hint };
+   * ```
+   *
+   * A hint is a **floor and not an instruction**: constraint 2 in the retry
+   * note above still binds, so a wrapper waits at least this long and never
+   * past the caller's deadline. That is also what makes a nonsensical value
+   * harmless without validating one.
+   */
+  | { readonly outcome: "rate-limited"; readonly retryAfterMs?: number }
+  /**
+   * The credential was missing, wrong, or not entitled to what was asked for.
+   *
+   * **A configuration fault, and never retryable** — a retry here is a loop
+   * against a wall, which is precisely the shape a naive
+   * "retry anything that failed" produces against a service that rate-limits.
+   *
+   * The three causes are one member on purpose: a caller does the same thing
+   * about all of them, which is `API_ERROR_CODES`' own rule for when to merge.
+   * They are also not reliably distinguishable from a vendor's response, and a
+   * member that is usually wrong is worse than one that is coarse.
+   *
+   * This is the one member Story 2.7's first deploy will produce for real.
+   */
+  | { readonly outcome: "unauthorised" }
+  /**
+   * The vendor is down, unreachable, or answered with something that is not a
+   * refusal we can name.
+   *
+   * Retryable — and read the module note above on the line between a result and
+   * a throw before mapping anything here. **This member is where a defect goes
+   * to hide.** A response we could not parse is *us*, and laundering it into
+   * this member is how a permanent break wears the costume of a transient one
+   * and becomes an invisible degradation nobody investigates.
+   */
+  | { readonly outcome: "upstream-unavailable" };
+
+/**
+ * Whether backing off and asking again could plausibly produce a different
+ * answer.
+ *
+ * **This is `PROVIDER.md` §8.1's third column as code, and it is part of the
+ * taxonomy rather than part of a policy.** It says nothing about how long to
+ * wait, how many times, or whether to wait at all — those are numbers Story 2.7
+ * measures and a wrapper applies. What it settles is the half that is a fact
+ * about each cause, and it lives here beside the union for the reason
+ * `isApiError()` lives beside `ApiError`: a wrapper that re-derives this in a
+ * `switch` of its own is a second copy of the taxonomy, and the two disagree
+ * the first time a member is added.
+ *
+ * **It is an exhaustive `switch` rather than a list of retryable outcomes**, and
+ * that is the point: a list leaves a new member silently non-retryable, which is
+ * the *safe* answer arrived at by silence, and a switch makes classifying it a
+ * condition of the build compiling.
+ *
+ * `aborted` is `false` and it is not really a member of this question at all —
+ * the caller tore down, so there is nobody left to retry on behalf of.
+ */
+export function isRetryableOutcome(result: BarsResult): boolean {
+  switch (result.outcome) {
+    case "rate-limited":
+    case "upstream-unavailable":
+    case "timeout":
+      return true;
+    case "ok":
+    case "aborted":
+    case "unknown-symbol":
+    case "range-not-available":
+    case "unauthorised":
+      return false;
+    default: {
+      const unhandled: never = result satisfies never;
+      return unhandled;
+    }
+  }
+}
 
 /**
  * A source of historical bars.
