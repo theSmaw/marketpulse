@@ -120,7 +120,12 @@ lookup table, this task under-delivered.
 ## Done when
 
 - The provenance record and the adjustment vocabulary exist in `packages/shared`, with no
-  vendor name anywhere — grepped
+  vendor name in a type, an identifier or a shipped value — grepped **over code rather than
+  text**, since Task 2.6.2 measured that a naive text grep over `packages/shared/src` returns
+  seven false positives, all of them comments explaining why a decision was taken.
+  `PROVIDER.md` §9.5 carries the command. Note this task's vocabulary is the one most likely
+  to leak for real: a `feed` field whose value is a vendor's spelling is a leak that a grep
+  over comments would never separate from the prose around it
 - A series cannot be constructed without provenance, and the attempt was **seen to fail**
 - The stitched-series case is either truthful or refused, demonstrated either way
 - Adjustment is a required part of the request, with no default

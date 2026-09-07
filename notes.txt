@@ -21,4 +21,4 @@ unlocks progress towards a user-facing product.
 Do we need to amend, add, delete or re-order any tasks in
 @planning/epic-02-security-universe-historical-data/story-06-market-data-provider-abstraction
  based on our implementation of
-@planning/epic-02-security-universe-historical-data/story-06-market-data-provider-abstraction/TASK-01-settle-the-shape-and-the-provenance-vocabulary.md?
+@planning/epic-02-security-universe-historical-data/story-06-market-data-provider-abstraction/TASK-02-the-bar-and-the-timeframe.md?
