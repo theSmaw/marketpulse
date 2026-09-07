@@ -130,7 +130,7 @@ invented value for six stories.
 
 | #     | Task                                                                                                                                                   | Status      |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
-| 2.6.1 | [Settle the shape, the provenance granularity and the adjustment default, shipping nothing](TASK-01-settle-the-shape-and-the-provenance-vocabulary.md) | Not started |
+| 2.6.1 | [Settle the shape, the provenance granularity and the adjustment default, shipping nothing](TASK-01-settle-the-shape-and-the-provenance-vocabulary.md) | Complete    |
 | 2.6.2 | [`Bar` and `Timeframe`: the smallest honest description of a price observation](TASK-02-the-bar-and-the-timeframe.md)                                  | Not started |
 | 2.6.3 | [Provenance and adjustment: a series that cannot exist without saying where it came from](TASK-03-provenance-and-adjustment.md)                        | Not started |
 | 2.6.4 | [The provider interface, the request, and a call that cannot throw](TASK-04-the-interface-and-the-result-shape.md)                                     | Not started |

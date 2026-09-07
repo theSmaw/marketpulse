@@ -79,7 +79,28 @@ Story 2.8's ingestion design — so it must precede it.
   locally, in `CONFIG_VARIABLES` and `.env.example` so `env:check` covers it, and
   **structurally unable to reach the browser** — the frontend talks to the MarketPulse
   backend and never to Alpaca (§7.1's provider isolation and ADR 0006's boundary)
-- Recording fixtures from real responses, so the fixture provider stays honest
+- **Recording fixtures from real responses — and note there are TWO corpora doing two
+  different jobs, which `PROVIDER.md` §6.1 settles and which this story must not conflate.**
+  Story 2.6's fixture provider produces **domain types** and parses no vendor JSON at all, so
+  it has nothing vendor-shaped it could be wrong about and does **not** need re-recording.
+  What this story records is the other corpus: **raw HTTP response bodies**, which are the
+  only thing that can test the vendor **mapping**, which is the only place a vendor's shape
+  can be got wrong. Do not "re-record Story 2.6's fixtures"; that is the wrong instruction
+- **And reconcile Story 2.6's generator against one real series — three numbers, each an
+  assumption that story is making and structurally cannot check** (`PROVIDER.md` §6.4, added
+  2026-09-07 as an obligation rather than a hope):
+  1. **Does a full regular session actually yield 390 IEX minute bars for a liquid name?**
+     Probably not — IEX is one venue, not the consolidated tape. If it does not, then
+     `market-session.ts`'s `minuteBars` is the count of **minutes in a session** and not the
+     count of **bars to expect**, and Story 2.8's gap handling is sized against the
+     difference. Getting this wrong makes every absent bar look like a fault
+  2. **How often does a minute have no bar for a thinly traded name?** This is the number
+     that decides whether an absent bar is ordinary or worth reporting, and Story 2.8's
+     acceptance criterion 4 rests on it
+  3. **Which end of the interval does Alpaca's `t` mark** — the start of the minute or its
+     end? Story 2.6 names its own field `startsAt` precisely so a mapping that gets this
+     backwards reads as an obvious contradiction rather than a plausible assignment. A
+     one-minute systematic error is invisible on a chart and wrong in every §11 calculation
 - **Inherited from Story 2.3: this is where `delisted` becomes producible.**
   `SECURITY_STATUSES` ships with exactly two members, `active` and `untracked`, because
   those are the two Story 2.3 could produce — following this repository's own rule that a

@@ -1,6 +1,6 @@
 # Task 2.6.1 — Settle where the seam lives, what provenance is attached to, and what "adjusted" means, shipping nothing
 
-**Status:** Not started
+**Status:** Complete (2026-09-07)
 **Story:** [2.6 Market-Data Provider Abstraction](STORY.md)
 **Depends on:** Story 2.5
 
@@ -173,3 +173,120 @@ not to is that decisions 2 and 3 are the two in this epic that **cannot be repai
 outside later** — one is a claim printed beside every chart, and the other is baked into ten
 million stored rows. That is the same position Task 2.4.1's seam was in, and the same
 position `CALENDAR.md` §3 records for the replay clock.
+
+---
+
+## What was done, in plain English — a status report for stakeholders
+
+**Date:** 2026-09-07 · **Outcome:** one document, `PROVIDER.md`. No software was written, and
+that was the point.
+
+### Where the product is right now
+
+MarketPulse can already show you the ~100 US companies it tracks, on a real deployed website,
+read out of a real database. It has a working clock that knows the market's holidays and half
+days. What it cannot yet do is show you a **price** — no charts, no numbers, nothing moving.
+
+Getting prices in is the job of the next few pieces of work. This one was the planning step
+that comes immediately before it, and it deliberately produced no code at all.
+
+### Why spend a whole step deciding rather than building
+
+Because two of the questions on the table are ones you only get to answer **once**.
+
+Think of it like laying drainage before pouring a floor. Once the concrete is down, moving a
+pipe means breaking the floor. Two decisions here are pipes under concrete:
+
+1. **What we record alongside every price.** MarketPulse is legally and ethically obliged to
+   be honest about where its data comes from. Our data supplier's free tier only sees trades
+   that happened on **one** US exchange (IEX), not all of them — so the volume figure we show
+   is genuinely smaller than "the market's volume". If we don't design a place to say that
+   from the very first price, we end up with a product quietly implying something untrue, and
+   bolting honesty on afterwards means touching every screen.
+
+2. **Whether we store prices "as they happened" or "corrected for later events".** When a
+   company splits its shares 10-for-1, its share price instantly drops to a tenth. Data
+   suppliers offer to retroactively rewrite all the old prices so the chart looks smooth. If
+   we accept that rewrite and save it, we have permanently destroyed the record of what the
+   price actually was on the day — and MarketPulse's signature feature is _"take me back to
+   11:07 AM and show me what was knowable at that moment"_. A rewritten price is a number
+   **nobody could have seen** at 11:07. That is the whole feature quietly broken, in a way
+   no test would ever catch, and the only fix would be re-downloading years of data.
+
+Deciding both now costs a day. Deciding them by accident, in whichever piece of work happens
+to write the first line of storage code, costs a rebuild later.
+
+### The decisions, and why
+
+**We store prices exactly as they happened, and never rewrite them.** When we do want the
+smoothed, split-corrected version for a chart, we ask the data supplier for it fresh rather
+than trying to compute it ourselves. This turned out to be the happy discovery of the day: an
+earlier plan assumed we'd need to build and maintain our own table of corporate events to do
+those corrections. We don't — the supplier already offers it as an option on the request. That
+removes a whole chunk of future work, and it is written up as a correction to the plan for a
+later piece of work rather than left to be discovered by whoever hit it.
+
+**Every set of prices carries a label saying where it came from — and that label can name more
+than one source.** This sounds fussy until you see the case it protects against. Soon,
+MarketPulse will answer a chart request by combining prices it already had saved with fresh
+ones it just fetched. If the label can only name one source, it becomes a lie the moment that
+happens — and it's a lie _about data_, printed on screen, which is exactly what this product
+exists not to do. So the label is a list. One sharp exception: if somebody ever tries to
+combine "as-they-happened" prices with "corrected" ones in a single chart, the system
+**refuses**, because those two are on different scales and every percentage change across the
+join would be wrong.
+
+**We wrote the actual sentence a user will read**, rather than leaving it to whoever builds
+the screen. "Market feed: IEX" technically discloses the source and tells a normal person
+nothing. The words we settled on are _"Trades reported by the IEX exchange only — not the full
+US consolidated tape."_ That is the difference between satisfying a rule and being honest.
+
+**We built in a safe way to develop without a data supplier account** — a "pretend" data
+source producing made-up prices, so the team can build charts on a train with no internet.
+And then we made its default setting **off**. Not "on because it's convenient": a system that
+quietly defaults to serving invented prices is a system that will eventually show invented
+prices to a real person. You have to deliberately switch it on, and any screen it feeds
+labels itself _"Generated test data. Not a market feed."_ automatically.
+
+**We deliberately kept the design small.** Our supplier offers eight fields per price bar; we
+are taking six. Every extra field would become a column in a table with roughly **ten million
+rows per year**, a value in every response, and something we'd have to keep honest forever.
+The rule applied throughout was: a field exists when something actually reads it, not when
+somebody can imagine reading it.
+
+**And we added no new third-party software**, which is worth saying because the reflexive
+answer to most of this is to install a library. Three candidates were considered and each was
+unnecessary.
+
+### What this unlocks
+
+The next piece of work writes the actual price types; the one after connects to the real data
+supplier; then the data gets stored, served, and finally **drawn as a chart** — that is the
+first moment a stakeholder sees a price on screen, and it is a handful of steps away rather
+than a rewrite away.
+
+There is also one visible improvement coming inside this same batch of work, and it is a
+correction rather than a new feature: the header of the site has been showing a hard-coded
+**"DISCONNECTED"** market-feed indicator since early in the project. It's invented — it isn't
+reporting anything real, and it's currently listed in our own documentation under "things a
+correct installation shows that look like faults". This planning step is what makes it
+fixable: the header will shortly say something _true_ about what data source is actually
+configured, and when the real supplier is connected, that same indicator will start reading
+"IEX" **with no change to the website's code at all**. That is the test of whether we built a
+genuine reporting mechanism or just a caption.
+
+### The honest caveats
+
+- **Everything in this batch of work will be tested against data we generated ourselves.** A
+  passing test proves our code is internally consistent; it proves nothing about the real
+  supplier until we connect to it. That is written into the plan explicitly rather than
+  glossed over, and the next piece of work carries three specific numbers it must check
+  against reality — including whether a full trading day really does produce 390 price bars
+  on a single-exchange feed. We suspect it doesn't, and finding out early matters.
+- **One known gap, named with a fix rather than hidden.** Until we do the extra work, a
+  company that splits its shares will chart with a visible step in it. The chart won't be
+  lying — it will be labelled as raw, unadjusted prices — but it will look odd. We know when
+  that will first happen, we know two ways to fix it, and we've chosen not to build either
+  until it actually matters.
+- **No dates moved and no scope was added.** This step's entire output is one document and
+  three corrections to later plans.
