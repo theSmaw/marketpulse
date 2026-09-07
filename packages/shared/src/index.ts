@@ -187,3 +187,36 @@ export type {
   MarketSessionState,
   MarketSessionStatus,
 } from "./market-session.js";
+
+// What a price observation IS, and the intervals one may be asked for (Task
+// 2.6.2). Here rather than in `apps/backend` because Story 2.12's chart axis and
+// Story 2.8's ingestion are on opposite sides of the wire and must not hold two
+// copies of it — `market-session.ts`'s reason, and Story 1.12's rule applied
+// honestly rather than as a slogan. What deliberately does NOT come here is the
+// `MarketDataProvider` interface: the frontend may know the NAME of a provider,
+// because it renders it, and may not know the SHAPE of one, because that is a
+// thing which holds a credential and makes vendor network calls (PROVIDER.md
+// §1.2).
+//
+// `Bar` is six fields and no more, and the two that were declined have named
+// triggers rather than being forgotten. `startsAt` is named for the end of the
+// interval it marks, because a one-minute systematic error is invisible on a
+// chart and wrong in every anomaly calculation. Prices are `number` and the
+// guard that comes with that is prose: an aggregate over prices is computed in
+// SQL over `numeric`, never in JavaScript over this type.
+//
+// The symbol, the timeframe and the provenance of a series all live on the
+// SERIES rather than on a bar — Task 2.6.3 builds it, and criterion 3 is that
+// there is no code path producing a bar without provenance.
+export { TIMEFRAMES } from "./bar.js";
+export type { Bar, Timeframe } from "./bar.js";
+
+// The window a request is made over (Task 2.6.2). One type rather than two
+// parameters, because two can be swapped at a call site and nothing notices;
+// BRANDED, because a bare interface fixes only the positional half of that and
+// lets an object literal skip the constructor entirely. Half-open, `[start,
+// end)`, which is what makes adjacent windows tile without a duplicated bar at
+// the seam — Story 2.8's backfill does that thousands of times, and a duplicate
+// there is a real corruption rather than a cosmetic one.
+export { toTimeRange } from "./time-range.js";
+export type { TimeRange } from "./time-range.js";

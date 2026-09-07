@@ -69,11 +69,17 @@ the story and each needs a stated meaning rather than a name:
   today and therefore permanently silent. Retrieval time is genuinely `now()` at fetch; it
   must not be re-stamped on read.
 
-Consider a fifth, and decide it rather than leaving it: **coverage** — whether this series is
-everything the range asked for. Story 2.14's "we have data through 15:42" is a partial answer
-rendered as an answer, and a consumer can only say that if something on the response says so.
-It may belong here or in Task 2.6.4's response shape; either is defensible, but it must have
-an owner before Story 2.14 needs it.
+~~Consider a fifth, and decide it rather than leaving it:~~ **There is a fifth and it is
+settled — `PROVIDER.md` §2.5, restated here because this paragraph is what a reader jumping
+to this section actually reads.** **Coverage** — whether this series is everything the range
+asked for. Story 2.14's "we have data through 15:42" is a partial answer rendered as an
+answer, and a consumer can only say that if something on the response says so. ~~It may
+belong here or in Task 2.6.4's response shape; either is defensible, but it must have an
+owner before Story 2.14 needs it.~~ **It goes on the SERIES, beside provenance, and the owner
+is this task** — not Task 2.6.4's response envelope, because a series outlives one HTTP
+exchange and an envelope-level field is gone the moment anything passes a `BarSeries` alone
+into a chart or a store. Note what it does **not** answer: how far the answer reaches, not
+whether it is dense. Density is Story 2.8's gap handling.
 
 ### Make it structurally unavoidable, and prove it
 
@@ -100,11 +106,21 @@ The criterion's own wording is the design: **no default that silently means "wha
 provider does".** So the request type requires it, and the vocabulary is ours rather than the
 vendor's.
 
-Two members is likely enough — raw and split-and-dividend adjusted — but decide it against
-what Story 2.8 stores and what Story 2.12 draws, and state the one thing that makes this
-worth a whole paragraph: an unadjusted series through a split has a **cliff in it that is not
-a market event**, and a chart that draws that cliff is making a false claim about a price.
-That is the visible consequence, and it is why this is not a flag.
+~~Two members is likely enough — raw and split-and-dividend adjusted — but decide it against
+what Story 2.8 stores and what Story 2.12 draws~~ — **the members are settled and they are
+`raw` and `split-adjusted`, with `dividend` DECLINED against a named trigger
+(`PROVIDER.md` §3.4).** The struck wording named the wrong second member, which matters
+because it is the one a reader jumping straight to this section would implement: a
+dividend-adjusted price **is not a price anybody saw**, a dividend gap is typically well
+under 1% and is not a cliff, and nothing in V1 computes total return. The reversal trigger is
+the first reader that compares two securities' _total_ return rather than their price return.
+
+What stands unchanged is the argument, and it is why this is not a flag: an unadjusted series
+through a split has a **cliff in it that is not a market event**, and a chart that draws that
+cliff is making a false claim about a price. The stronger reader for `split-adjusted` is
+**Epic 5** rather than the chart — §11 computes return percentiles over ~60 trading days, and
+an unadjusted 10-for-1 split is a **−90% return** sitting at the 100th percentile of every
+distribution it touches, producing a permanent, confident and entirely false anomaly.
 
 **And write down what happens to a series that spans no corporate action at all**, which is
 almost all of them: the two modes return identical numbers, so a wrong default is invisible
@@ -120,7 +136,12 @@ lookup table, this task under-delivered.
 ## Done when
 
 - The provenance record and the adjustment vocabulary exist in `packages/shared`, with no
-  vendor name anywhere — grepped
+  vendor name in a type, an identifier or a shipped value — grepped **over code rather than
+  text**, since Task 2.6.2 measured that a naive text grep over `packages/shared/src` returns
+  seven false positives, all of them comments explaining why a decision was taken.
+  `PROVIDER.md` §9.5 carries the command. Note this task's vocabulary is the one most likely
+  to leak for real: a `feed` field whose value is a vendor's spelling is a leak that a grep
+  over comments would never separate from the prose around it
 - A series cannot be constructed without provenance, and the attempt was **seen to fail**
 - The stitched-series case is either truthful or refused, demonstrated either way
 - Adjustment is a required part of the request, with no default

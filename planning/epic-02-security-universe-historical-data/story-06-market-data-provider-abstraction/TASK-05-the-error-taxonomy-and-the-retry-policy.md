@@ -29,7 +29,12 @@ rather than buried in a cross-reference:
 - ~~**bad range**~~ is **struck**, and `range-not-available` replaces it. The description
   below calls it "a defect at the call site", and Task 2.6.2's `TimeRange` constructor
   already makes that reading **unreachable** — a reversed or zero-width range is refused
-  naming both ends, following `marketSessionsBetween`. What remains is a range the provider
+  naming both ends, following `marketSessionsBetween`. **Confirmed 2026-09-07: that shipped,
+  and it is stronger than predicted here.** The type is branded, so a bad range cannot be
+  built by object literal at all rather than merely being refused by a constructor somebody
+  might not call; and there are three refusals rather than two, the third being an invalid
+  `Date`, which otherwise slips past the ordering check entirely. So `range-not-available`
+  stands as the only surviving reading, and it is a fact about the world. What remains is a range the provider
   will not serve (before its history depth, in the future, too large), which is a fact about
   the world. A member whose name lies about whose fault it is gets handled wrongly.
 - **`timeout` and `aborted` are added**, for `api-client.ts`'s reasons, which transfer whole
@@ -121,7 +126,8 @@ and an unbounded one is a memory leak wearing a politeness costume.
 ## Done when
 
 - The taxonomy is a closed union in `apps/backend`, **all seven members from `PROVIDER.md`
-  §8.1** and no others, with no vendor name — grepped
+  §8.1** and no others, with no vendor name in a type, an identifier or a value — grepped
+  **over code rather than text**, per Task 2.6.2's finding and `PROVIDER.md` §9.5
 - The empty-range question's settled answer (`PROVIDER.md` §8.2 — a successful empty answer,
   never an error) is **implemented**, and is written where Story 2.12 will read it
 - No member can carry an upstream message or body, and that is structural rather than a

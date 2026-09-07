@@ -46,6 +46,16 @@ Two candidates will be tempting and both should be argued rather than assumed:
 Symbol, range, timeframe, adjustment. The adjustment field is required with no default,
 which is criterion 5, and the range is Task 2.6.2's type rather than two parameters.
 
+**Amended 2026-09-07 by Task 2.6.2: `TimeRange` shipped BRANDED, and that changes what
+building a request looks like rather than only what it means.** A `{ start, end }` object
+literal is not assignable to `TimeRange` — `toTimeRange(start, end)` is the only way to obtain
+one, and it refuses a reversed, zero-width or invalid-`Date` range naming both ends. Two
+consequences to expect immediately rather than discover: every construction site, **including
+every test in this task and in Task 2.6.6**, calls `toTimeRange` rather than writing a
+literal; and a range that arrived as JSON is not a `TimeRange` and has to be re-validated,
+which is the correct behaviour and is what Story 2.9's route will have to do at its own
+boundary. The brand is erased at runtime, so it costs nothing on the wire.
+
 The symbol should be the branded `Ticker` `packages/shared` already ships, not a `string` —
 that type exists and Task 2.3.2 gave it its first real job; this is its second. Note what
 that does **not** buy: a well-formed ticker for a security we do not track is still a
@@ -114,7 +124,9 @@ anything.
 ## Done when
 
 - The interface exists in `apps/backend`, with the request and result types, and **no vendor
-  name anywhere in it** — grepped, criterion 1
+  name in a type, an identifier or a value** — grepped **over code rather than text**, per
+  Task 2.6.2's finding and `PROVIDER.md` §9.5. Prose naming the vendor is expected and correct
+  in these files, and is the reason the naive form of this check does not work
 - The result is a discriminated union and the interface's declared return type cannot reject
 - Adjustment is required at the call site
 - The deadline's coupled pair is named, and asserted by a test if it is reachable from code

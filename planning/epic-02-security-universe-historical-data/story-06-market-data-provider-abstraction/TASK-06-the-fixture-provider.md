@@ -54,6 +54,31 @@ otherwise lose:
 >   stamp is not byte-identical across runs — and it makes the series obviously not live,
 >   which §5.4 wants anyway.
 
+### What Task 2.6.2 handed forward, deliberately, rather than building on a forecast
+
+**This task is the named trigger for the one helper Task 2.6.2 declined**, and it is worth
+knowing before writing the filter rather than after. `TimeRange` is half-open, `[start, end)`,
+and `timeRangeIncludes` was **not** built because nothing yet needed to ask _"is this bar in
+this range"_ — this provider is the first thing that does. Three notes:
+
+- The half-open rule is in `time-range.ts`'s own comment, so the inline form is
+  `b.startsAt >= range.start && b.startsAt < range.end`. **The `<` is the whole point**: get
+  it wrong and adjacent windows each claim the bar at the seam, which is the corruption
+  Story 2.8's backfill would then report as a unique-constraint failure that was actually the
+  database being right.
+- If a second caller appears, the helper belongs **beside the type in `packages/shared`**
+  rather than local to the provider — one definition of half-openness, for
+  `market-time.ts`'s reason.
+- `TimeRange` is **branded**, so the corpus and every test in this task obtain one through
+  `toTimeRange(start, end)` and never by writing a `{ start, end }` literal. It refuses a
+  reversed, zero-width or invalid-`Date` range naming both ends, which means a fixture whose
+  window is degenerate fails loudly at construction rather than producing a confusingly empty
+  series.
+
+The corpus's own instants come from `market-session.ts` per `PROVIDER.md` §6.2, so the
+ranges are built from session bounds rather than written out — which is also what keeps the
+"no wall clock" property below true by construction.
+
 ### Determinism is the requirement, and it has a sharper edge than it looks
 
 The same request must produce the same series, byte for byte, on every machine and every run.
@@ -130,6 +155,9 @@ move the suite.
 - The half day, the holiday, the gap, the DST range and the corporate action are all covered,
   with counts derived from `market-session.ts` rather than written out
 - A fixture series' provenance cannot be mistaken for real market data
+- The range filter is half-open and was **seen to fail** against a bar sitting exactly on
+  `range.end`, which is the one boundary an inclusive comparison gets wrong and no other test
+  in the corpus would notice
 - If it ships: the provider selection is in `CONFIG_VARIABLES` and `.env.example`,
   `pnpm env:check` passes, and the default is the loud one
 - `pnpm test` passes **with the network disabled**, checked rather than assumed — criterion 6

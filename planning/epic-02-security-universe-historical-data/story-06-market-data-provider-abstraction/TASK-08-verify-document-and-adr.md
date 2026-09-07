@@ -18,10 +18,22 @@ Epic 3 read before they touch this seam.
 
 ### Re-run all six criteria, and note which two are not re-runnable by reading
 
-1. **No vendor reference, checked by grep.** Grep the whole seam — `packages/shared/src` and
-   the provider files in `apps/backend/src` — for every vendor name, and for the vendor's
-   own field and timeframe spellings, which is the form a leak actually takes. Report the
-   command and the count, not a claim.
+1. **No vendor reference, checked by grep. Amended 2026-09-07 by Task 2.6.2: the grep must
+   be over CODE, and run naively over text it reports SEVEN false positives in
+   `packages/shared/src` alone.** Measured on the shipping tree at that task: six occurrences
+   of a vendor name and one of a vendor timeframe spelling (`1Min`/`1Day`, in `bar.ts`'s own
+   argument for _not_ using them), and **zero of the seven are code** — they are comments and
+   one line of prose in a test, every one explaining _why_ a decision was taken, which is the
+   opposite of a leak. Deleting them to make a grep clean would destroy the record. Strip
+   comments before matching; `PROVIDER.md` §9.5 carries the exact command and it returns
+   nothing today.
+
+   So the criterion is **no vendor name in a type, an identifier or a shipped value**, and
+   the count to report is the code-only one. Report the command and both counts, not a claim
+   — and note the same treatment is needed for `apps/backend/src`, where the provider files
+   will legitimately carry _more_ vendor prose than `packages/shared` does, since that is
+   where the vendor's shape is discussed.
+
 2. **A fixture provider implements it fully and is what tests use.** "Fully" means no method
    throwing "not implemented"; "is what tests use" means grep for anything else.
 3. **Every response carries provenance and no code path produces a bar without it.**
