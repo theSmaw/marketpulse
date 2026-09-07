@@ -167,8 +167,19 @@ export const MARKET_FEED_DESCRIPTIONS = {
       "Trades reported by the IEX exchange only — not the full US consolidated tape.",
   },
   sip: {
-    label: "Consolidated tape",
-    sentence: "All US exchanges, via the consolidated tape.",
+    // **Amended 2026-09-07: the label and the sentence were the wrong way
+    // round.** `label` was `"Consolidated tape"` under a sentence reading
+    // *"All US exchanges, via the consolidated tape."* — so the **jargon** was
+    // the big word and the **plain meaning** was the small print, which is the
+    // inverse of this record's own rule that the word is the affordance and the
+    // sentence carries the meaning. `PRODUCT_SPEC.md` §3 says the product
+    // *"does not assume quantitative-finance expertise"*; the analyst who wants
+    // the industry term still gets it, one line down, where precision belongs.
+    //
+    // It cost nothing: 16 characters against 17, inside a region measured at
+    // 43% slack.
+    label: "All US exchanges",
+    sentence: "The full consolidated tape, not a single venue.",
   },
   synthetic: {
     label: "Simulated",

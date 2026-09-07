@@ -333,11 +333,19 @@ convenience, and the honest place to catch it is review.
 represents every US exchange — and three letters teach a non-specialist nothing at all. So
 the vocabulary carries the words:
 
-| Feed        | Label             | Sentence                                                                      |
-| ----------- | ----------------- | ----------------------------------------------------------------------------- |
-| `iex`       | IEX               | Trades reported by the IEX exchange only — not the full US consolidated tape. |
-| `sip`       | Consolidated tape | All US exchanges, via the consolidated tape.                                  |
-| `synthetic` | Simulated         | Generated test data. Not a market feed.                                       |
+| Feed  | Label             | Sentence                                                                      |
+| ----- | ----------------- | ----------------------------------------------------------------------------- |
+| `iex` | IEX               | Trades reported by the IEX exchange only — not the full US consolidated tape. |
+| `sip` | Consolidated tape | All US exchanges, via the consolidated tape.                                  |
+
+> **Amended 2026-09-07 (Task 2.7.4) — the decision is unchanged and one string is not.** `sip`'s
+> **label** is now `All US exchanges` and its **sentence** `"The full consolidated tape, not a
+single venue."` The two had been written the wrong way round: the jargon was the big word and
+> the plain meaning was the small print, which inverts this ADR's own rule that _the sentence is
+> the requirement and the word is only the affordance_. Nothing about the mechanism, the record's
+> `satisfies` guard or the argument above moves; `MARKET_FEED_DESCRIPTIONS` remains the single
+> source of both strings.
+> | `synthetic` | Simulated | Generated test data. Not a market feed. |
 
 **The sentence is the requirement; the label is the affordance.** They live in
 `MARKET_FEED_DESCRIPTIONS` in `packages/shared`, behind a `satisfies` guard that makes a feed

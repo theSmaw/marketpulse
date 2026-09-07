@@ -12,7 +12,7 @@ real session smaller than the calendar says it should be.
 
 ## What the user can see when this lands
 
-**Nothing new on screen.** The deployed chrome still reads `CONSOLIDATED TAPE`; there is still
+**Nothing new on screen.** The deployed chrome still reads `ALL US EXCHANGES`; there is still
 no chart.
 
 What changes is that `pnpm bars` can be asked for a **month** and returns one rather than

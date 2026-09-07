@@ -442,11 +442,18 @@ Task 2.6.3 is explicit that if Task 2.6.7 finds itself deriving a user-facing se
 three fields and a lookup table, this story under-delivered. So the table is part of the
 vocabulary and lives beside `MARKET_FEEDS`:
 
-| Feed        | Label             | Sentence                                                                      |
-| ----------- | ----------------- | ----------------------------------------------------------------------------- |
-| `iex`       | IEX               | Trades reported by the IEX exchange only — not the full US consolidated tape. |
-| `sip`       | Consolidated tape | All US exchanges, via the consolidated tape.                                  |
-| `synthetic` | Simulated         | Generated test data. Not a market feed.                                       |
+| Feed  | Label            | Sentence                                                                      |
+| ----- | ---------------- | ----------------------------------------------------------------------------- |
+| `iex` | IEX              | Trades reported by the IEX exchange only — not the full US consolidated tape. |
+| `sip` | All US exchanges | The full consolidated tape, not a single venue.                               |
+
+**Amended 2026-09-07 (Task 2.7.4).** `sip` shipped as `Consolidated tape` / _"All US exchanges,
+via the consolidated tape."_ and the two were the wrong way round: the **jargon** was the label
+and the **plain meaning** was the sentence, which inverts §4.4's own rule that the word is the
+affordance and the sentence carries the meaning. `PRODUCT_SPEC.md` §3 does not assume
+quantitative-finance expertise; the analyst who wants the industry term still gets it one line
+down. 16 characters against 17, so it cost no layout.
+| `synthetic` | Simulated | Generated test data. Not a market feed. |
 
 **`Market feed: IEX` alone satisfies §7.1's letter and fails its intent**, and that is the
 whole reason this table exists rather than a slug. §7.1's requirement is not that we print an

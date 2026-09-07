@@ -463,3 +463,43 @@ data we stored last month with data we fetched a minute ago, possibly from two d
 sources, the chart has to say so honestly rather than picking one and hoping. That is a real
 problem and it is scheduled; today's readout is not it, and should not be mistaken for finished
 work on the subject.
+
+---
+
+## Amendment, same day — the label and the sentence were the wrong way round
+
+**Raised by the user on reading the running application**, which is the review this task's own
+workshop screenshots did not substitute for: _"why do we show 'consolidated tape' to the user?
+Why is it meaningful to them?"_
+
+The answer is that it was not, and the defect is structural rather than a matter of taste.
+`FeedProvenance`'s own design rule — and `PROVIDER.md` §4.4's, and ADR 0018's — is that **the
+sentence is the requirement and the word is only the affordance**. `sip` shipped with those
+inverted:
+
+|              | Was                                              | Is                                                  |
+| ------------ | ------------------------------------------------ | --------------------------------------------------- |
+| **Label**    | `CONSOLIDATED TAPE` — the industry term          | **`ALL US EXCHANGES`** — the plain meaning          |
+| **Sentence** | _"All US exchanges, via the consolidated tape."_ | _"The full consolidated tape, not a single venue."_ |
+
+So the **jargon** was the big word and the **plain meaning** was the small print.
+`PRODUCT_SPEC.md` §3 states the product _"does not assume quantitative-finance expertise"_, and
+the analyst who wants the industry term still gets it one line down, where precision belongs.
+The new sentence also gains the contrast `iex`'s already had — _"not a single venue"_ against
+_"not the full US consolidated tape"_ — so the two feeds now read as opposites rather than as
+one claim and one label.
+
+**It cost no layout and no accessibility.** 16 characters against 17, re-measured in a real
+Chromium: label text **133.6 px** (was 141.7), one line, sentence one line, no horizontal
+overflow, at 1280×720, ×560 and ×480. Axe re-taken across **three feed states × three
+viewports**: **0 violations / 37 passes / 1 inconclusive (`color-contrast`, 68 nodes)** in all
+nine cells — the baseline unmoved for the second time in one task.
+
+**The measurements above this amendment stand as taken** and are not rewritten: `CONSOLIDATED
+TAPE` genuinely was 17 uppercase letter-spaced characters at 141.7 px in a 250.7 px measure, and
+the layout risk this task was written around genuinely did not materialise. What changed
+afterwards is the string, for a reason no layout measurement could have surfaced.
+
+**The transferable point**: every check in this task passed, and the thing that was wrong was
+visible in one sentence from somebody looking at the running product. A permutation grid proves
+six states render; it cannot tell you the word is jargon.

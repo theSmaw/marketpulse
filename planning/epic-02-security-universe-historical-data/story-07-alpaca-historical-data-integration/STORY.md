@@ -221,8 +221,8 @@ Story 2.8's ingestion design — so it must precede it.
      measured `403` that Task 2.7.6 maps.
 
    **RENDERED in Task 2.7.4 (2026-09-07), and decision 6 is now closed at both ends.** The
-   deployed chrome reads `MARKET FEED` / **`CONSOLIDATED TAPE`** / _"All US exchanges, via the
-   consolidated tape."_ on all five routes, `GET /market-data` answers `{"feed":"sip"}`, and it
+   deployed chrome reads `MARKET FEED` / **`ALL US EXCHANGES`** / _"The full consolidated tape,
+   not a single venue."_ on all five routes, `GET /market-data` answers `{"feed":"sip"}`, and it
    cost **one platform variable and no frontend rendering code** — which is what proves Task
    2.6.7 built a reporting mechanism rather than a caption. The layout risk that task carried
    did not materialise: 141.7 px of label inside a 250.7 px measure, one line, 43% headroom, at
@@ -309,7 +309,7 @@ backfill is bounded by pagination and history depth rather than by the rate limi
 
    > **Amended 2026-09-07, after Tasks 2.7.1, 2.7.3 and 2.7.4.** This criterion was written
    > before anyone held a key. Measured, this plan serves **SIP** for historical bars, the
-   > client sends `feed=sip` explicitly, and the deployed chrome renders `CONSOLIDATED TAPE`
+   > client sends `feed=sip` explicitly, and the deployed chrome renders `ALL US EXCHANGES`
    > — so a criterion checked against the word _IEX_ would go red against **correct** code.
    > The wording is deliberately _what the request asked for_ rather than `sip`, because that
    > is the property worth checking: provenance must name the feed we requested rather than
@@ -398,7 +398,7 @@ statement this product has ever made about market data** — the region it fixes
 **What a user still cannot do at the end of this story is see a price.** There is no chart, no
 series and no number on any screen; this story fetches into a terminal, Story 2.8 stores, Story
 2.9 serves and Story 2.12 draws. Any demonstration should say that, because a
-~~`Market feed: IEX`~~ **`MARKET FEED / CONSOLIDATED TAPE`** label beside no data invites exactly
+~~`Market feed: IEX`~~ **`MARKET FEED / ALL US EXCHANGES`** label beside no data invites exactly
 the opposite reading — and **more strongly than this sentence was written expecting**, because
 the deployed claim turned out to be _every US exchange_ rather than one venue.
 

@@ -71,7 +71,22 @@ describe("the provenance vocabulary", () => {
     // IEX is learns nothing from three letters, so the sentence is the
     // requirement and the label is the affordance.
     expect(MARKET_FEED_DESCRIPTIONS.iex.sentence).toMatch(/not the full US/i);
-    expect(MARKET_FEED_DESCRIPTIONS.sip.sentence).toMatch(/all us exchanges/i);
+
+    // **Amended 2026-09-07 (Task 2.7.4), and this assertion went red for the
+    // right reason.** It read `sip.sentence` for `/all us exchanges/i` — which
+    // locked the label and the sentence the wrong way round, because that
+    // phrase was the SENTENCE and the label was the jargon `Consolidated tape`.
+    // That inverts the rule this very test's comment states.
+    //
+    // So both halves are asserted now, and the inversion cannot come back
+    // silently: the **label** is the plain meaning a non-specialist reads at a
+    // glance, and the **sentence** carries the industry term plus the contrast
+    // with the other kind of feed — the shape `iex`'s sentence already had.
+    expect(MARKET_FEED_DESCRIPTIONS.sip.label).toMatch(/all us exchanges/i);
+    expect(MARKET_FEED_DESCRIPTIONS.sip.sentence).toMatch(/consolidated tape/i);
+    expect(MARKET_FEED_DESCRIPTIONS.sip.sentence).toMatch(
+      /not a single venue/i,
+    );
   });
 
   it("makes generated data announce itself", () => {

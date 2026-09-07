@@ -17,7 +17,7 @@ a number in it.
 ## What the user can see when this lands
 
 **Nothing new**, and the story's visible change already landed at Task 2.7.4: the deployed
-chrome says `CONSOLIDATED TAPE` and explains what that means. This task confirms it is still true from a clean
+chrome says `ALL US EXCHANGES` and explains what that means. This task confirms it is still true from a clean
 clone and a fresh deployment read, which is the check rather than a formality.
 
 ## The seven criteria, re-made rather than cited
@@ -142,7 +142,7 @@ something the candidate list did not name.
 ## The deployed read-back
 
 - `GET /market-data` answers `{"feed":"sip"}` — **not `iex`**, settled by Task 2.7.3 — and the
-  chrome renders `CONSOLIDATED TAPE`, read in a browser with the tab visible
+  chrome renders `ALL US EXCHANGES`, read in a browser with the tab visible
 - The `secrets` array is non-`null` and contains what it should, read off the running revision
 - Log Analytics returns zero for the key id, the secret, `APCA-` and `Authorization`
 - `/health` and `/diagnostics/database` unaffected, and ~~`uptimeSeconds` never reset by
