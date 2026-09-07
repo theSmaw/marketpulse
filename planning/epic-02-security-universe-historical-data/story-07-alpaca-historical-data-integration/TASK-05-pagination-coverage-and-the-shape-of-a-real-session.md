@@ -1,4 +1,4 @@
-# Task 2.7.5 — Pagination, coverage, and what a real IEX session actually contains
+# Task 2.7.5 — Pagination, coverage, and what a real session actually contains
 
 **Status:** Not started
 **Story:** [2.7 Alpaca Historical Data Integration](STORY.md)
@@ -21,8 +21,12 @@ throwing, which is what Story 2.8 needs before it can back-fill anything.
 
 The loop itself is small. Five things around it are not, and each is a decision.
 
-**A page ceiling.** `limit`'s documented maximum is 10,000 and Task 2.7.1 measured what this
-plan actually serves. Request the ceiling rather than the default: at 1,000 a single security's
+**A page ceiling — MEASURED 2026-09-07: the documented 10,000 is exact.** `limit=10000` returns
+10,000 bars; `limit=10001` and `limit=25000` are both a clean **`400`** rather than a silent
+clamp, so the ceiling cannot be exceeded by accident. `next_page_token` is an opaque base64
+string, and **on the last page the field is PRESENT and `null`** rather than omitted — walked to
+exhaustion over five pages. A loop testing for the key's _absence_ would never terminate; prefer
+a nullish check that handles both. Request the ceiling rather than the default: at 1,000 a single security's
 year of minute bars is ~99 requests against a 200/minute limit, and Story 2.8 multiplies that by
 a hundred securities. The arithmetic is the reason, and it belongs in a comment beside the
 constant so nobody "tidies" it back to the default.
@@ -71,16 +75,26 @@ sources' counts do not sum to `bars.length` — which is exactly the check a pag
 `PROVIDER.md` §2.5 puts it on the series for this reason. Three producers, all real, all
 measured by Task 2.7.1:
 
-1. **The withheld recent window.** The free plan withholds roughly the latest fifteen minutes.
-   A range ending `now` therefore returns bars that stop short. **This is not an error and must
-   never map onto one** — `PROVIDER.md` §7 says so explicitly — and it is the case most likely
-   to be misread as a fault, because it looks exactly like a feed that has stopped.
+1. **The withheld recent window — and THIS TASK OWES THE MEASUREMENT, because Task 2.7.1 could
+   not take it.** That task's probe ran at 06:59 UTC on Labor Day with the market shut, so its
+   `0 bars` means nothing; `ALPACA.md` §10 records it as explicitly unmeasured. **Re-take it
+   during a regular session**: request a range ending `now` and record where the bars actually
+   stop. Two things are known already — the documented figure is roughly fifteen minutes, and a
+   `feed=sip` request for recent data is refused outright with `403 subscription does not permit
+querying recent SIP data`, which independently confirms _some_ recency restriction is
+   enforced. **This is not an error and must never map onto one** — `PROVIDER.md` §7 says so
+   explicitly — and it is the case most likely to be misread as a fault, because it looks
+   exactly like a feed that has stopped.
 2. **A market holiday or a half day.** An empty answer is a **successful** answer: `bars: []`,
    `covered: null`. `PROVIDER.md` §8.2 calls this the single most likely thing to be got wrong
    by whoever writes the first `if (bars.length === 0)`, and Story 2.12 showing a failure screen
    on Thanksgiving is the consequence.
-3. **Minutes with no prints.** IEX is one venue. A thin name simply has no bar for many minutes,
-   and Task 2.7.1 measured how many. **An absent bar is ordinary, not missing.**
+3. **Minutes with no prints — and the number depends entirely on open decision 6's feed.**
+   Measured 2026-09-07 over the thinnest equities in the universe: **99.7% mean coverage on the
+   default (SIP) feed with a longest gap of 2 minutes**, against **82.8% and 15 minutes on
+   `feed=iex`**. So on SIP an absent bar is _rare and mildly notable_; on IEX it is _ordinary_.
+   **An absent bar is still never "missing"** in the error sense — but do not encode a threshold
+   here until decision 6 is settled, because it is the difference between those two sentences.
 
 `covered` must lie **inside** `requested` — `toBarSeries` refuses otherwise — so a vendor that
 returns a bar outside the requested window is clipped rather than trusted, and the clip is
@@ -92,16 +106,22 @@ logged at `debug` rather than silently performed.
 IEX minute bars?** Task 2.7.1 measured it; this task is where the consequence is written into
 code and documents.
 
-**If it does not — and it probably does not — then `market-session.ts`'s `minuteBars` is the
-count of minutes in a session and not the count of bars to expect**, and three things follow:
+**MEASURED 2026-09-07, and the prediction was wrong: it DOES.** A liquid name returned exactly
+**390** bars across five ordinary sessions, and the day after Thanksgiving 2025 returned exactly
+**210** — both matching the shipped calendar to the bar. `PROVIDER.md` §6.4's _"probably not"_
+was sound reasoning applied to the wrong feed: on `feed=iex` the same thin names run 43–99%,
+but the plan serves SIP for history. So:
 
-- `CALENDAR.md` gets a dated amendment saying so, if Task 2.7.1 has not already made it
-- **Nothing in this story asserts a bar count against `minuteBars`.** A test that expects 390
-  real bars is a test that will fail on an ordinary day for a correct reason, which is the worst
-  kind
-- Story 2.8's gap handling is sized against the **difference**, and that difference is a number
-  recorded in `ALPACA.md` rather than a shrug. Getting it wrong makes every absent bar look like
-  a fault, which is an alerting problem rather than a data one
+- **`CALENDAR.md` needed no correction and got a dated confirmation instead** — Task 2.7.1 made
+  it. `minuteBars` **is** a usable bar count for a liquid name on the default feed, which is the
+  opposite of what this section was written expecting
+- **Nothing in this story asserts a real bar count against `minuteBars` anyway, and that rule
+  survives the measurement.** Two reasons it is still right: thin names legitimately vary
+  (98.5–100%), and the count is **feed-dependent**, so a test asserting 390 would go red the day
+  open decision 6 sends `feed=iex`. A test that fails on an ordinary day for a correct reason is
+  still the worst kind
+- Story 2.8's gap handling is sized against the **measured density in `ALPACA.md` §5**, which is
+  now a number rather than a shrug — and a much smaller number than this task expected
 
 What this task _does_ assert is the relationship the fixture corpus can hold honestly: a real
 session's bars all fall inside the session's bounds, are strictly ascending, and are no more

@@ -31,10 +31,11 @@ member, and there are two hard cases.
 
 ### `unknown-symbol` may not be producible from this endpoint, and that is a finding
 
-Task 2.7.1 measured what an unknown symbol actually does. **If the bars endpoint answers `200`
-with an empty `bars` object** — which is entirely plausible and is what several market-data APIs
-do — then from here a symbol that does not exist is **indistinguishable from a symbol with no
-prints in the window**, and `PROVIDER.md` §8.2 is unambiguous that the second is a success.
+**MEASURED 2026-09-07 and CONFIRMED: it is not producible here.** The bars endpoint answers
+`200` with `{"bars":{},"next_page_token":null}` for a symbol that does not exist — **byte-identical
+to a valid symbol with no prints in the window** — and `PROVIDER.md` §8.2 is unambiguous that the
+second is a success. So this is no longer a conditional; take the first of the three responses
+below unless Task 2.7.8 adopts the assets endpoint anyway.
 
 Do not resolve that by guessing. Three responses, in order of preference:
 
@@ -51,12 +52,31 @@ Do not resolve that by guessing. Three responses, in order of preference:
 Whichever it is, write it into `ALPACA.md` beside the measurement, because Story 2.14 renders
 this member as an answer rather than a failure and needs to know whether it can ever arrive.
 
-### A `422` is two different things and only one of them is a result
+### The `422` split does not exist — it is a `400`, and `range-not-available` turns out to be a SECOND member this endpoint cannot produce
 
-The vendor returns a client error for both _"this range is before our history"_ and _"this
-parameter is malformed"_. The first is a fact about the vendor's limits and is
-`range-not-available`; the second is **our defect** — a mapping bug in Task 2.7.3 — and
-`PROVIDER.md` §8.5's line puts it on the **throw** side.
+**AMENDED 2026-09-07. This section was written against a `422` that this vendor does not send,
+and against a split that does not arise.** Measured:
+
+| Asked for                        |    Status | Body                                                  |
+| -------------------------------- | --------: | ----------------------------------------------------- |
+| Range **before** history depth   | **`200`** | `{"bars":{},"next_page_token":null}`                  |
+| Range entirely **in the future** | **`200`** | `{"bars":{},"next_page_token":null}`                  |
+| Malformed parameter              | **`400`** | `{"message":"Invalid format for parameter start: …"}` |
+| End before start                 | **`400`** | `{"message":"end should not be before start"}`        |
+
+**Neither range case is an error at all.** Both are empty successes — which §8.2 makes the
+correct answer, and which is the _safe_ shape, because the dangerous alternative was a silently
+clipped partial answer and that does not happen either.
+
+So **`range-not-available` is not producible from the bars endpoint**, exactly as
+`unknown-symbol` is not. That is two of the seven failure members, and it is a finding rather
+than a gap in the testing: §8.7's argument for shipping `range-not-available` without
+sub-reasons looks _better_ for it, and both belong in `ALPACA.md` and in Task 2.7.9's
+_"any member it cannot produce is named as such"_ check.
+
+What survives is the **principle**, and it still matters: a `400` is **our defect** — a mapping
+bug in Task 2.7.3 — and `PROVIDER.md` §8.5's line puts it on the **throw** side. Read the body
+rather than the status, and where the body does not distinguish, **prefer the throw**.
 
 Distinguishing them means reading the body rather than the status, and where the body does not
 distinguish them, **prefer the throw**. The asymmetry is deliberate: a defect reported as
@@ -67,20 +87,36 @@ first task with real bodies to hide one in.
 
 ### The rest
 
-| Vendor                                | Outcome                | Note                                                                       |
-| ------------------------------------- | ---------------------- | -------------------------------------------------------------------------- |
-| `401` / `403`                         | `unauthorised`         | Missing, wrong or unentitled — one member, `PROVIDER.md` §8.1's merge rule |
-| `429`                                 | `rate-limited`         | Carries `retryAfterMs` when the vendor says; **branches**, never assigns   |
-| `5xx`, connection refused, DNS, reset | `upstream-unavailable` | Retryable                                                                  |
-| Deadline expired                      | `timeout`              | Carries the deadline. Task 2.7.3 built this; confirm it survives contact   |
-| Caller's signal                       | `aborted`              | Carries nothing, and is never rendered as a market-data state              |
-| A body we cannot parse                | **throw**              | Us, not the world                                                          |
+> **A measured collision, and it is this task's sharpest trap.** A **bad key returns `401` with
+> an HTML body** — nginx's `<html><head><title>401 Authorization Required</title>…`, produced
+> before the application is reached — **not JSON**. The last row of this table says an
+> unparseable body is a **throw**. Applied naively, that turns the single most important
+> auth failure into a laundered parse error, which is precisely what §8.5 forbids.
+>
+> **So map on the STATUS first, and parse the body only when there is one and it is JSON.** The
+> unparseable-body throw is for a body we needed to read and could not — not for a status that
+> already tells us everything. Assert this with a recorded copy of the real HTML body, because
+> a fixture written as JSON would pass while the shipped path throws.
 
-**`Retry-After` has two forms and both arrive here already resolved.** Delta-seconds or an HTTP
-date; `retryAfterMs` is a **duration**, deliberately, because an absolute vendor time reconciled
-against our clock means skew in the unlucky direction retries _early_, against the service that
-just asked us to stop. Task 2.7.1 recorded which form this vendor actually sends; handle both
-anyway, because that is a two-line function and a vendor changing it is silent.
+| Vendor                                | Outcome                | Note                                                                                                               |
+| ------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `401` / `403`                         | `unauthorised`         | Missing, wrong or unentitled — one member, `PROVIDER.md` §8.1's merge rule. **Body is HTML, not JSON — see above** |
+| `429`                                 | `rate-limited`         | Carries `retryAfterMs` when the vendor says; **branches**, never assigns                                           |
+| `5xx`, connection refused, DNS, reset | `upstream-unavailable` | Retryable                                                                                                          |
+| Deadline expired                      | `timeout`              | Carries the deadline. Task 2.7.3 built this; confirm it survives contact                                           |
+| Caller's signal                       | `aborted`              | Carries nothing, and is never rendered as a market-data state                                                      |
+| A body we cannot parse                | **throw**              | Us, not the world                                                                                                  |
+
+**`Retry-After` — MEASURED 2026-09-07: this vendor sends NEITHER form. The header is absent
+from the `429` entirely**, along with every `x-ratelimit-*` header. The body is
+`{"message": "too many requests."}` and nothing else.
+
+So `retryAfterMs` **will be absent in practice against Alpaca**, which is not a problem — it is
+the vindication of `PROVIDER.md` §8.6 making the hint a **branch rather than an assignment** and
+a **floor rather than an instruction**. Handle both forms anyway, because that is a two-line
+function and a vendor adding the header is silent; but **test the absent case first**, because it
+is the only one this vendor currently produces, and Task 2.7.7's backoff must work with no
+server-supplied delay at all.
 
 And the optional field is **spread, not assigned**: under `exactOptionalPropertyTypes` an absent
 hint must be genuinely absent rather than present-and-`undefined`, or _"the vendor did not say"_
@@ -94,8 +130,10 @@ Each of these is a request somebody makes, once, with the response recorded:
 - **Bad key** — a deliberately wrong secret. This is the one member Story 2.7's first deploy
   produces for real, and `PROVIDER.md` §8.1 says so
 - **Unknown symbol** — per the finding above
-- **A range entirely in the future**
-- **A range before the plan's history depth**, which Task 2.7.1 measured
+- ~~**A range entirely in the future**~~ and ~~**a range before the plan's history depth**~~ —
+  **struck 2026-09-07: both are `200` with an empty body**, so neither produces an error to map.
+  Record them as the empty successes they are, which is a check that §8.2 is honoured rather
+  than an error production
 - **The rate limit**, exceeded on purpose. That is criterion 4's first half; Task 2.7.7 owns the
   behaviour at the limit and this task owns the mapping of the response
 - **The vendor unreachable** — which is the one that cannot be produced against the live API at

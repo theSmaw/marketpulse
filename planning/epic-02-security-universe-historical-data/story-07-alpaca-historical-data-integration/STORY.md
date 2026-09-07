@@ -184,7 +184,28 @@ Story 2.8's ingestion design — so it must precede it.
    with a named owner beats a mechanism built against no instance** — and note the answer
    is worth taking on evidence, because a symbol whose bars stop arriving and a symbol
    Alpaca reports inactive are two different signals and only one of them needs a request
-5. **Whether a ticker rename gets an identity, and if not, who says so next.** Added
+5. **Which feed we claim, now that the plan turns out to serve two.** Added 2026-09-07 by
+   Task 2.7.1, which measured that this plan is **asymmetric**: historical bars default to
+   **SIP**, the full consolidated tape, while the live stream is **IEX only**
+   (`wss://…/v2/sip` is refused, `409 insufficient subscription`). See [`ALPACA.md`](ALPACA.md)
+   §2. This was not anticipated by any of the five decisions above, and it is a
+   **product-truth** question rather than a technical one, because `PRODUCT_SPEC.md` §7.1 and
+   invariant 6 require the UI to label the feed and not imply coverage we do not have. Three
+   parts:
+   - Does `MarketFeed` gain `sip` beside `iex`? (`PROVIDER.md` §4.2 ships one member.)
+   - What does `MarketDataProvider.feed` mean when the deployment reads SIP for history and
+     will read IEX live? §4.2's own reversal trigger — _"a provider serving more than one
+     feed"_ — is arguably met.
+   - Does the client send `feed=iex` for consistency with the future live stream, or take the
+     default? **This is not cosmetic**: on the same thin names over the same sessions, `iex`
+     gives **82.8%** mean coverage against **99.7%** on the default, and gaps of 15 minutes
+     against 2. Choosing `iex` throws away most of the data quality this plan gives us.
+
+   **Settled in Task 2.7.3**, which is the first thing that must write a `feed` into a
+   provenance record, and **rendered in Task 2.7.4**. It cannot wait for 2.7.4: by then the
+   vocabulary and the provenance are already written.
+
+6. **Whether a ticker rename gets an identity, and if not, who says so next.** Added
    2026-09-06 from `UNIVERSE.md` §12.6. The candidates are a `previous_symbol` column, a
    rename map, or a `company_id` above `securities`; the fourth answer — accept that a
    rename orphans the old bars and write that down — is legitimate and is what ships today.
@@ -319,18 +340,19 @@ one day against a live third party, rather than figures reproducible from a clea
 | 2.7.8      | [`delisted`, and whether a ticker rename gets an identity](TASK-08-the-symbols-lifecycle-delisted-and-the-rename.md)                                                                                                                                                          | Not started               |
 | 2.7.9      | [Verify, sweep, and record ADR 0019](TASK-09-verify-document-and-adr.md)                                                                                                                                                                                                      | Not started               |
 
-### Where the five open decisions are settled
+### Where the six open decisions are settled
 
 None is left to a task that happens to trip over it, and none is settled anywhere but in a task
 that has the evidence for it.
 
-| Open decision                                    | Settled in | Why there                                                                                 |
-| ------------------------------------------------ | ---------- | ----------------------------------------------------------------------------------------- |
-| 1. Which timeframes                              | 2.7.1      | It is an arithmetic decision against measured cost and depth                              |
-| 2. How far back                                  | 2.7.1      | Same, and both sizes Story 2.8                                                            |
-| 3. Missing or invalid key at startup             | 2.7.2      | It is a configuration behaviour, and it turns out to have **two** answers rather than one |
-| 4. Whether `delisted` ships, and if not who does | 2.7.8      | It needs the assets endpoint, which needs a key                                           |
-| 5. Whether a rename gets an identity             | 2.7.8      | Same endpoint, same migration, and the deadline is Story 2.8                              |
+| Open decision                                    | Settled in    | Why there                                                                                 |
+| ------------------------------------------------ | ------------- | ----------------------------------------------------------------------------------------- |
+| 1. Which timeframes                              | 2.7.1         | It is an arithmetic decision against measured cost and depth                              |
+| 2. How far back                                  | 2.7.1         | Same, and both sizes Story 2.8                                                            |
+| 3. Missing or invalid key at startup             | 2.7.2         | It is a configuration behaviour, and it turns out to have **two** answers rather than one |
+| 4. Whether `delisted` ships, and if not who does | 2.7.8         | It needs the assets endpoint, which needs a key                                           |
+| 5. Whether a rename gets an identity             | 2.7.8         | Same endpoint, same migration, and the deadline is Story 2.8                              |
+| 6. Which feed we claim                           | 2.7.3 / 2.7.4 | 2.7.3 writes the first provenance record; 2.7.4 puts the word on screen                   |
 
 ### Eight of the nine change nothing a user can see, and the story says so plainly
 

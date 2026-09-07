@@ -39,10 +39,25 @@ is otherwise about, so adopting it is a real scope choice rather than a free con
 
 The three shapes, and the story's own file says the middle one is probably right:
 
+> **The endpoint was read incidentally by Task 2.7.1 (2026-09-07), and it changes the cost
+> arithmetic below.** `GET /v2/assets?status=active&asset_class=us_equity` answers **`200` with
+> every active US equity in ONE request** — 12,881 of them, of which 12,881 matched a plain
+> ticker pattern. It is **not** a per-symbol lookup, so _"a second request per symbol against a
+> metered plan"_ — the stated cost of the first shape below — **is wrong by four orders of
+> magnitude**. One request covers the entire universe, and Task 2.7.1 separately measured that
+> the rate limit is **per request rather than per symbol**, so it costs 1 of 201 per window.
+>
+> That materially strengthens the case for adopting the endpoint at all. It does **not** settle
+> decision 4, because the second-writer problem below is untouched by cost and is the stronger
+> argument — but the decision should now be taken on that argument rather than on a price that
+> turned out not to exist. The stable per-asset identifier decision 5 needs is on the same
+> response.
+
 - **Transition during ingestion.** Call the assets endpoint as part of fetching and move a
   symbol to `delisted` when the vendor says it is no longer active. Automatic and always
-  current, at the cost of a second request per symbol against a metered plan, and of a writer
-  that changes rows as a side effect of reading market data.
+  current, at the cost of ~~a second request per symbol against a metered plan~~ **one cheap
+  request covering the whole universe** (see above), and of a writer that changes rows as a side
+  effect of reading market data.
 - **A reporting check.** Call it once, name the symbols worth looking at, **change no row**.
   This is Task 2.1.7's shape for exactly this kind of question, and its argument transfers: the
   endpoint says _whether_, a person decides _what to do_, and a curated universe already has a
@@ -118,8 +133,10 @@ file so a reader of Story 2.7 alone is not left thinking it was forgotten.
 
 ## Work
 
-- Read the assets endpoint against the real key: what it carries, what an inactive symbol looks
-  like, whether the identifier is genuinely stable, and what it costs against the rate limit
+- Read the assets endpoint against the real key: what it carries, what an **inactive** symbol
+  looks like (Task 2.7.1 read only `status=active`, so the inactive shape is still unknown), and
+  whether the identifier is genuinely stable. **Its cost is already measured** — one request for
+  all 12,881 active US equities, 1 of 201 against the per-request window
 - Check whether any of the current 101 is inactive or renamed, because that decides whether
   either mechanism has an instance to be tested against
 - Take decision 4, with the second-writer interaction argued rather than discovered

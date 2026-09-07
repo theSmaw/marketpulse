@@ -75,13 +75,19 @@ adding one costs a column in a table with roughly ten million rows a year plus a
 response. **Do not widen `Bar` here.** If something genuinely needs `vw`, that is a decision
 with a trigger and an owner, not a convenience taken while writing a mapping.
 
-**The timestamp is the one to get right and the one nothing downstream can catch.** Task 2.7.1
-measured which end of the minute `t` marks; apply that measurement, and write the evidence into
-the mapping as a comment rather than the conclusion alone — because a future reader who
-disagrees needs to know what would settle it. If `t` marks the end, the mapping subtracts a
-timeframe and **that subtraction is the most load-bearing line in this story**: a one-minute
-systematic error is invisible on a chart and wrong in every §11 calculation. Assert it in a test
-against a recorded session whose first and last bars are known.
+**The timestamp is the one to get right and the one nothing downstream can catch.**
+
+**MEASURED 2026-09-07: `t` marks the START of the interval, so `startsAt` maps directly with no
+shift.** The first bar of a regular session is stamped at the session open exactly
+(`13:30:00Z`), where an end-marking convention would have put it one minute later. So the
+subtraction this paragraph used to call _"the most load-bearing line in this story"_ **is not
+needed** — which is the good outcome, and `PROVIDER.md` §9.2's naming decision cost nothing.
+
+Write the evidence into the mapping as a comment rather than the conclusion alone, because a
+future reader who disagrees needs to know what would settle it, and assert it in a test against
+a recorded session whose first and last bars are known. Note a daily bar's `t` is stamped at
+**midnight ET** (`04:00:00Z` under EDT) rather than at the session open — so a daily mapping
+must not reuse a minute mapping's assumption.
 
 ## The request
 
@@ -92,18 +98,51 @@ against a recorded session whose first and last bars are known.
   one-line pass-through instead of a corporate-actions table
 - **`timeframe`** mapping `1m` → `1Min` and `1d` → `1Day`, exhaustively over `TIMEFRAMES`, so a
   third member fails the build here
-- **`start` and `end`** as RFC-3339 from the `TimeRange`'s two instants, remembering the range
-  is **half-open** and the vendor's is not necessarily — Task 2.7.1's captured bodies say
-  whether the bar at `end` is included, and if it is, this mapping drops it. A duplicated bar at
-  a window seam is real corruption in Story 2.8's backfill, which tiles thousands of windows
-- **No `feed` parameter**, because the free plan serves IEX and asking for something the plan
-  does not carry is an error rather than an upgrade. The provider's own `feed` field declares
-  `iex`, and the trigger for that becoming a request parameter is a paid plan
+- **`start` and `end` — SETTLED 2026-09-07, and the vendor's `end` IS inclusive.** Our
+  `TimeRange` is half-open `[start, end)`; Alpaca's `end` is **inclusive**. Measured on one
+  session: asking `end = close` returns **391** bars for a 390-minute session, with the extra one
+  stamped at the close instant — and since `t` marks the **start** of its interval, that bar
+  covers 16:00–16:01 ET and is **outside the regular session** `CALENDAR.md` §2 scopes V1 to.
+  Asking `end = close - 1 timeframe` returns exactly 390.
+
+  **So this mapping subtracts one timeframe from `TimeRange.end`.** That is now the load-bearing
+  line the timestamp turned out not to be, and it is worth a named test: a duplicated bar at a
+  window seam is real corruption in Story 2.8's backfill, which tiles thousands of windows, and
+  it is exactly what `PROVIDER.md` §9.3 made the type half-open to prevent
+
+- **Explicit session bounds, never a bare date.** Measured: a date-only range
+  (`start=2025-11-28&end=2025-11-28`) returns **217 bars on a 210-minute half day**, the extras
+  running from an hour before the open to eight minutes after the early close. Date-only ranges
+  include **extended-hours** bars, which §2 puts out of V1 scope. `TimeRange` carries instants,
+  so this falls out for free — but it is the shape somebody reaches for when hand-testing, and it
+  silently changes the denominator every §11 calculation assumes
+- **The `feed` parameter — AMENDED 2026-09-07, this bullet was wrong and expensively so.**
+  It read _"no `feed` parameter, because the free plan serves IEX"_. Task 2.7.1 measured that
+  **the free plan serves SIP for historical bars** — the full consolidated tape — and that the
+  live stream is the IEX-only half. `feed=sip` is accepted for anything older than the withheld
+  window and refused only for recent data (`403 subscription does not permit querying recent SIP
+data`). **The default is SIP.**
+
+  It is not a cosmetic difference. Same thin names, same sessions: **`feed=iex` gives 82.8% mean
+  minute coverage with gaps to 15 minutes; the default gives 99.7% with gaps to 2.** `CCI` reads
+  53.6% on `iex` and 98.5% on the default. Sending `feed=iex` would throw away most of the data
+  quality this plan gives us, for no benefit.
+
+  **This is open decision 6 and it is settled HERE**, because this is the first thing that
+  writes a `feed` into a provenance record — see `STORY.md`. Decide, with the argument: whether
+  to send `feed` at all, whether `MarketFeed` gains `sip`, and what `MarketDataProvider.feed`
+  means on a deployment whose history is SIP and whose future stream is IEX
 
 ## Provenance: one source, and `retrievedAt` stamped exactly once
 
-Every series carries one `BarSource`: `providerId: "alpaca"`, `feed: "iex"`, the `adjustment`
-that was asked for, `barCount`, and `retrievedAt` **stamped at fetch and never re-stamped**.
+Every series carries one `BarSource`: `providerId: "alpaca"`, the `adjustment` that was asked
+for, `barCount`, and `retrievedAt` **stamped at fetch and never re-stamped**.
+
+**The `feed` value is open decision 6's and is NOT `iex` by default** — this paragraph said
+`feed: "iex"` until 2026-09-07, and Task 2.7.1 measured that historical bars come from SIP.
+Whatever is decided above is what goes here, and it must be the feed the request actually used
+rather than a constant, because `PROVIDER.md` §2 makes this record the authority for a
+particular series.
 
 `PROVIDER.md` §4.3 records the trap this repository has already fallen into once: Task 2.3.5's
 `checkedOn` defaulting to `now()` made a provenance date permanently silent about the one thing
