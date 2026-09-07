@@ -64,7 +64,17 @@ missing`**, which is the brand — and the brand is the half that matters, becau
    `timeout` and `aborted` (`PROVIDER.md` §8.1, §8.3, §8.4). A count of five here means
    somebody built from `STORY.md`'s scope list rather than from the settled table.
 5. **Adjustment explicit at the call site.** The check is that omitting it does not compile,
-   which Task 2.6.4 locks in with a `@ts-expect-error`. Beside it, the vocabulary layer's own
+   which Task 2.6.4 locks in with a `@ts-expect-error` in
+   `apps/backend/src/market-data-provider.test.ts`. **Amended 2026-09-07: that directive was
+   made to fail in BOTH directions, and re-running only one of them re-runs half the check.**
+   Removing the directive reports `TS2741: Property 'adjustment' is missing in type ... but
+required in type 'BarsRequest'`, which is the field being required; making the field
+   optional reports `TS2578: Unused '@ts-expect-error' directive`, which is the _lock_ — and
+   the second is the half that matters, because the first would still pass on the day
+   somebody adds a default. Two more directives sit beside it and are worth re-running in the
+   same pass, since both are properties this story's types rest on: a `{ start, end }`
+   literal in place of a `TimeRange` is `TS2741: Property '[brand]' is missing`, and
+   `timeframe: "5m"` is `TS2322`. Beside it, the vocabulary layer's own
    half is already asserted at run time: `market-provenance.test.ts` sweeps that module's
    export names for `/default/i` and expects none, so a `DEFAULT_ADJUSTMENT` added later is a
    red test rather than a silent regression.

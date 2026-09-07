@@ -20,6 +20,35 @@ symbol" and "the feed refused us" are different sentences rather than one error 
 
 ### The causes, from Task 2.6.1's list, and each one earns its place
 
+**Amended 2026-09-07 by Task 2.6.4: TWO of the seven already exist, so this task adds FIVE.**
+`BarsResult` in `apps/backend/src/market-data-provider.ts` ships with `ok`, `timeout` and
+`aborted`. The split is not an encroachment and it is worth understanding before reading it
+as one: those two are the only causes that follow from **2.6.4's own request shape** — they
+are the two ways the deadline and the abort signal on `BarsRequestOptions` end a call — and
+they are producible with no upstream and no implementation in existence. A deadline with no
+outcome to express its expiry is a deadline nobody can observe, so 2.6.4's own types would
+have been incoherent without them. What remains for this task is the five that are facts
+about a **world** 2.6.4 does not describe: `unknown-symbol`, `range-not-available`,
+`rate-limited`, `unauthorised`, `upstream-unavailable`. Eight outcomes total, exactly
+`PROVIDER.md` §8.1's table, with no member owned twice.
+
+**The addition is mechanically safe and that was verified rather than hoped for.**
+`market-data-provider.test.ts` switches exhaustively over `BarsResult` with a
+`satisfies never` in the default branch, and adding a sixth member was **made to fail**
+before this note was written: it reports `TS2322: Type '{ readonly outcome: "rate-limited"; }'
+is not assignable to type 'never'` plus `TS1360`. So every consumer of the union stops
+compiling until it handles the new members, which is what turns "the taxonomy arrives later"
+from a hope into a mechanism — and it means this task's first symptom will be a **red build
+in a file it did not edit**, which is correct rather than a problem.
+
+Two smaller things 2.6.4 settled that this task inherits rather than re-decides. **The
+empty-answer rule is already implemented and asserted** (`PROVIDER.md` §8.2): a test in that
+file constructs an empty `BarSeries` with `coverage.covered: null` and asserts it is an `ok`,
+so the "Done when" bullet below is a re-check rather than new work. And **neither existing
+failure member echoes the request back**, because the caller holds it — this task decides
+that for its own members, where a batch caller may genuinely need the symbol beside the
+cause, and `PROVIDER.md` §8.6 permits it.
+
 **Amended 2026-09-07 by Task 2.6.1. The list is settled in `PROVIDER.md` §8.1 and it is
 SEVEN causes rather than the five below — one struck, one renamed, two added. This task
 implements that table; it does not re-derive it. Read §8 before writing a line, and overturn
@@ -126,7 +155,8 @@ and an unbounded one is a memory leak wearing a politeness costume.
 ## Done when
 
 - The taxonomy is a closed union in `apps/backend`, **all seven members from `PROVIDER.md`
-  §8.1** and no others, with no vendor name in a type, an identifier or a value — grepped
+  §8.1** and no others — **of which `timeout` and `aborted` already shipped in Task 2.6.4, so
+  this task adds five** — with no vendor name in a type, an identifier or a value — grepped
   **over code rather than text**, per Task 2.6.2's finding and `PROVIDER.md` §9.5
 - The empty-range question's settled answer (`PROVIDER.md` §8.2 — a successful empty answer,
   never an error) is **implemented**, and is written where Story 2.12 will read it

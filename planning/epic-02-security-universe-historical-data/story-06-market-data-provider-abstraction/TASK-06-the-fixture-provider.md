@@ -33,6 +33,43 @@ otherwise lose:
 
 ## Work
 
+### What Task 2.6.4 shipped, so this task implements rather than infers
+
+**Amended 2026-09-07 by Task 2.6.4.** The seam is
+`apps/backend/src/market-data-provider.ts` and the shape to implement is:
+
+```ts
+interface MarketDataProvider {
+  readonly id: ProviderId; // `"fixture"` here
+  fetchBars(
+    request: BarsRequest,
+    options?: BarsRequestOptions,
+  ): Promise<BarsResult>;
+}
+```
+
+Five consequences worth knowing before writing a line, each of which would otherwise be
+discovered:
+
+- **The request and the options are two parameters and that is deliberate.** `BarsRequest`
+  is the _question_ — `symbol`, `range`, `timeframe`, `adjustment` — and is a legitimate
+  corpus lookup key. `BarsRequestOptions` is `deadlineMs` and `signal`, which are how one
+  invocation behaves. Do not key the corpus on the options; a signal in a key makes every
+  key unique.
+- **Every range in every test comes from `toTimeRange`.** `TimeRange` is branded, so a
+  `{ start, end }` literal is a compile error, and the corpus's declared coverage window is
+  built the same way.
+- **`timeout` is produced against `options.deadlineMs`, not against a wall clock.** §6.3
+  requires determinism and `PROVIDER.md` §8.7 already says the mechanism is _a corpus entry
+  with a delay against a short test deadline_ — so the test passes a small `deadlineMs`
+  rather than waiting out the 3,000 ms default.
+- **`aborted` needs no corpus entry at all**: the test aborts its own `AbortController`, and
+  the provider composes it with the deadline exactly as `api-client.ts` does — reading
+  **which** signal fired off the signals rather than off the rejection.
+- **`no method left throwing` is one method.** There is one, and the interface deliberately
+  has no batch fetch and no latest-price call; both are argued in that module's comment, and
+  Epic 3's streaming attaches as a **sibling interface** rather than as a method here.
+
 > **Amended 2026-09-07 by Task 2.6.1.** Three conditionals below are now settled and one of
 > them changes what this task builds rather than only how it is described:
 >
