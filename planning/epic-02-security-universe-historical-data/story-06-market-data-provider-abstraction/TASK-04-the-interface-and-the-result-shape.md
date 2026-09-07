@@ -61,6 +61,23 @@ that type exists and Task 2.3.2 gave it its first real job; this is its second. 
 that does **not** buy: a well-formed ticker for a security we do not track is still a
 perfectly valid request, and answering it is the error taxonomy's problem in Task 2.6.5.
 
+**Amended 2026-09-07 by Task 2.6.3: `BarSeries` shipped BRANDED too, so the success
+member's payload is not constructible by object literal.** `toBarSeries(input)` is the only
+way to obtain one and it checks five things beyond the type — bars strictly ascending, the
+sources' `barCount` summing to `bars.length`, `coverage.covered` null exactly when the series
+is empty, every bar starting inside `covered` (half-open at the top), and `covered` lying
+inside `requested`. The consequence for **this** task is narrow and worth knowing before
+writing a test rather than after: every fake success result in this task's tests is built
+through `toBarSeries` and `toSeriesProvenance`, exactly as every range is built through
+`toTimeRange`. `BarSeriesInput` is exported for that purpose.
+
+**And Task 2.6.3 proved a technique this task should reuse for criterion 5.** A compile-time
+claim can be locked in as a test rather than left as prose: a `// @ts-expect-error` on the
+call that omits `adjustment` errors today and fails the build with **`TS2578: Unused
+'@ts-expect-error' directive`** the moment the field stops being required. That is stronger
+than a comment and cheaper than a lint rule, and it is what Task 2.6.8's criterion 5 —
+_"omitting it does not compile"_ — is re-run against.
+
 ### A provider call does not throw, and the shape is `api-client.ts`'s
 
 The story points at it directly and the precedent is exact.
@@ -128,7 +145,10 @@ anything.
   Task 2.6.2's finding and `PROVIDER.md` §9.5. Prose naming the vendor is expected and correct
   in these files, and is the reason the naive form of this check does not work
 - The result is a discriminated union and the interface's declared return type cannot reject
-- Adjustment is required at the call site
+- Adjustment is required at the call site, and the omission is locked in by a
+  `@ts-expect-error` rather than described — Task 2.6.3's technique. Note the vocabulary
+  itself already ships with no default and a test asserting the module exports no
+  `/default/i` name; what is left here is the request field
 - The deadline's coupled pair is named, and asserted by a test if it is reachable from code
 - The absence of retry and of caching is written in the interface's own comment with the
   argument, not left as an omission

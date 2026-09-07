@@ -79,6 +79,41 @@ The corpus's own instants come from `market-session.ts` per `PROVIDER.md` §6.2,
 ranges are built from session bounds rather than written out — which is also what keeps the
 "no wall clock" property below true by construction.
 
+### What Task 2.6.3 handed forward, and one question it deliberately did not answer
+
+**Every series this provider returns is built through `toBarSeries`, and every provenance
+record through `toSeriesProvenance`.** Both types are branded, so there is no object-literal
+route — which is the point, and it means the corpus has to satisfy five runtime checks the
+types cannot express. Four are mechanical:
+
+- **bars strictly ascending by `startsAt`** — a repeated or reversed pair is refused
+- **the sources' `barCount` must sum to `bars.length`** — so a fixture that filters bars to a
+  requested range must recompute the count rather than carrying the corpus's own
+- **`coverage.covered` is `null` exactly when `bars` is empty**, which is the shape §8.2
+  already requires of the holiday, weekend and no-print answers: `bars: []`,
+  `coverage.covered: null`, and it is a **successful** result
+- **`retrievedAt` must be a UTC ISO 8601 instant ending in `Z`** and must parse. The corpus
+  declares a fixed one (§6.3), so write it in that spelling; an offset spelling is refused
+
+**The fifth is the one that is a decision rather than a constraint, and it is this task's to
+take.** `covered` is **supplied, not derived** — `bar.ts` deliberately ships no map from a
+timeframe to a duration, because `1d` has no honest number, so `toBarSeries` cannot compute
+`covered.end` from the last bar and does not try. What it enforces is only that every bar
+starts inside `covered` (half-open at the top) and that `covered` sits inside `requested`.
+That leaves two defensible readings and they differ on a real case:
+
+- **`covered` = the window the provider actually answered for**, which for a fixture holding
+  a whole session is the requested range intersected with the corpus's own extent
+- **`covered` = the span of the bars returned**, which makes a thinly traded name whose last
+  print was at 15:42 report coverage ending at 15:42
+
+The second is what Story 2.14's _"we have data through 15:42"_ sounds like, and it is
+probably wrong: §2.5 is explicit that coverage says **how far the answer reaches, not whether
+it is dense**, and a name with no print after 15:42 was still _covered_ to the close. Take
+the first reading unless there is an argument against it, and write the argument down either
+way — because whichever is chosen, Story 2.14 renders it and Story 2.8's gap handling is
+built beside it.
+
 ### Determinism is the requirement, and it has a sharper edge than it looks
 
 The same request must produce the same series, byte for byte, on every machine and every run.
@@ -154,7 +189,11 @@ move the suite.
   caller in a test
 - The half day, the holiday, the gap, the DST range and the corporate action are all covered,
   with counts derived from `market-session.ts` rather than written out
-- A fixture series' provenance cannot be mistaken for real market data
+- A fixture series' provenance cannot be mistaken for real market data — which is
+  `MARKET_FEED_DESCRIPTIONS.synthetic` doing its job: `provider: "fixture"`,
+  `feed: "synthetic"`, rendered as _"Generated test data. Not a market feed."_
+- `coverage.covered`'s meaning is decided and the argument is written down, per the
+  section above; the empty cases carry `covered: null`
 - The range filter is half-open and was **seen to fail** against a bar sitting exactly on
   `range.end`, which is the one boundary an inclusive comparison gets wrong and no other test
   in the corpus would notice

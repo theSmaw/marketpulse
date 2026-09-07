@@ -1,6 +1,6 @@
 # Task 2.6.3 — Provenance and adjustment: a series that cannot exist without saying where it came from
 
-**Status:** Not started
+**Status:** Complete
 **Story:** [2.6 Market-Data Provider Abstraction](STORY.md)
 **Depends on:** Tasks 2.6.1, 2.6.2
 
@@ -155,3 +155,200 @@ This is the task in the story a reviewer would call over-engineered, and the ans
 a false claim about a number, which is the precise thing MarketPulse exists not to do. The
 cheap version of this task is a `feed: string` on a response object, and it survives until
 the first stitch.
+
+---
+
+## What was built (2026-09-07)
+
+Two modules in `packages/shared`, with their tests, and nothing else. No dependency, no
+lockfile change, no new `verify` step, no change to either application.
+
+- **`packages/shared/src/market-provenance.ts`** — the vocabulary. `PROVIDER_IDS` (one
+  member, `fixture`), `MARKET_FEEDS` (`iex` / `sip` / `synthetic`),
+  `MARKET_FEED_DESCRIPTIONS` (§4.4's label and sentence per feed), `ADJUSTMENTS` (`raw` /
+  `split-adjusted`), `BarSource`, `SeriesProvenance`, and the two constructors
+  `toSeriesProvenance` and `mergeSeriesProvenance`.
+- **`packages/shared/src/bar-series.ts`** — `SeriesCoverage`, `BarSeries`, `BarSeriesInput`
+  and `toBarSeries`.
+
+### Three decisions taken here, recorded back into `PROVIDER.md` §2.1
+
+**Both `SeriesProvenance` and `BarSeries` are branded**, `TimeRange`'s precedent one task
+old. A required `provenance` field alone already makes a series without provenance
+uncompilable, so criterion 3 was never the hard half. The hard half is that a hand-written
+object literal skips every _coherence_ check, and the coherence checks are where the real
+failures live. The brand is erased at runtime, so the wire and the bundle are unaffected; the
+stated cost is that a series parsed out of JSON is not a `BarSeries` and has to be
+re-validated, which is correct behaviour rather than friction.
+
+**A multi-source record is obtainable only by merging, and that is what turns §2.4's refusal
+from an instruction into a mechanism.** `toSeriesProvenance` takes exactly one source;
+`mergeSeriesProvenance` takes two or more and refuses an adjustment disagreement. Without
+that pair, §2.4's "unrepresentable" is true of the _result_ and says nothing about how the
+result was chosen — a Story 2.8 stitcher would write a literal, pick one of two adjustment
+values, and nothing would ever notice.
+
+**`retrievedAt` is checked rather than merely typed** — it must end in `Z` and parse. It is
+the one field here whose wrongness is silent _and_ reaches a user: an offset spelling is how
+a local-time stamp gets into a provenance record and makes a stale series look current, which
+is §4.3's trap arriving through a different door.
+
+### What was deliberately not built
+
+- **No `BarsRequest`.** §1.1 puts the request type in `apps/backend` and Task 2.6.4 owns it.
+  What this task can hold of criterion 5 is that there is **no default anywhere in the
+  module** — asserted, by sweeping the module's own export names for `/default/i`, so the
+  criterion is checked rather than described. 2.6.4 makes `adjustment` a required field on
+  the request.
+- **No bar-array stitcher.** Story 2.8 owns joining bars, and doing it needs gap decisions
+  this story does not own. What is built is the part whose absence is the gap: the provenance
+  merge, which is where the refusal has to live.
+- **No `isBarSeries` predicate.** Task 1.7.3's rule — a validator ships with its first
+  reader, which is Story 2.9's wire boundary.
+- **No renderer, no component, no formatting.** Task 2.6.7 owns presentation. What it
+  inherits is `MARKET_FEED_DESCRIPTIONS`, so it renders a label and a sentence rather than
+  deriving one from three fields and a lookup table of its own.
+
+### Seen to fail
+
+Six runtime breaks, each reverted, each taking one or two tests red by name:
+
+| Break                                             | Result                 |
+| ------------------------------------------------- | ---------------------- |
+| `mergeSeriesProvenance` stops refusing a mismatch | 2 failed \| 196 passed |
+| `retrievedAt` no longer has to be UTC             | 1 failed \| 197 passed |
+| source bar counts no longer have to add up        | 1 failed \| 197 passed |
+| bars no longer have to ascend                     | 2 failed \| 196 passed |
+| a bar may fall outside the covered range          | 2 failed \| 196 passed |
+| a `DEFAULT_ADJUSTMENT` is exported                | 1 failed \| 197 passed |
+
+And **two compile-time breaks**, which are the ones criterion 3 actually rests on:
+
+- Making `provenance` optional on `BarSeriesInput` fails `tsc -b` with **`TS2578: Unused
+'@ts-expect-error' directive`** in `bar-series.test.ts`. That directive is the criterion
+  written as an assertion the build enforces: it errors today, and it fails the build the
+  moment it stops erroring.
+- A hand-written `BarSeries` literal skipping the constructor fails with **`TS2741: Property
+'[brand]' is missing`**, which is the brand doing the job a required field cannot.
+
+### Figures
+
+- `pnpm test` is **507** (198 + 146 + 163), up from 481; `packages/shared` is 198 across 13
+  files. `pnpm test:process` 14, `pnpm test:database` 61.
+- `pnpm verify` is **exit 0 in 32.25 s**, and **exit 0 with the database stopped** — this
+  task touches nothing that needs one, and nothing in it reaches the network.
+- **The frontend artefact did not move, and that is the check rather than a coincidence.**
+  `PROVIDER.md` §11 predicts zero bytes for Tasks 2.6.2–2.6.6 and says explicitly it is a
+  check: 369,437 B `4f17aff3…` of JavaScript, 17,317 B `eb223e53…` of CSS, `index.html`
+  1,101 B `898733b0…`, 300 B, **388,155 B over four files**, identical at every hash.
+  `MARKET_FEED_DESCRIPTIONS` was the one to watch, being an object rather than an array, and
+  it is tree-shaken completely for the same reason everything else is — a plain literal, not
+  built by calling anything.
+- The **vendor grep over code** (`PROVIDER.md` §9.5) returns nothing. One thing worth
+  recording, because it nearly went the other way: a first draft asserted the absence of
+  vendor names _in a test_, which made that grep report the test's own needle list as a hit
+  — and would additionally have gone red in Story 2.7, which legitimately adds a vendor
+  member to `PROVIDER_IDS`. §9.5 had already settled that check as prose plus a measured
+  grep, with a structural reason; the test was removed rather than the grep amended.
+- **The NAIVE text grep moved from seven occurrences to eight**, and the new one is correct:
+  `market-provenance.ts`'s module comment quotes §7.1's own wording — that the free tier is
+  IEX and not consolidated SIP — which is the invariant the module exists to serve. Task
+  2.6.8's criterion 1 is amended to say eight and to say the figure will keep moving, since
+  every module that explains why it did not copy the vendor adds one.
+
+---
+
+## For the stakeholder: what this actually does
+
+**Nothing appears on screen from this task**, and the story says so plainly. Task 2.6.7,
+four tasks from now, is where a user sees the result — and what it will show is decided
+here.
+
+### The problem, in one sentence
+
+The market data we can afford covers **one exchange, not all of them**. If we show a volume
+figure from that one exchange as though it were the whole US market's volume, we have not
+made a design mistake — we have told the user something false about a number. Our product
+spec (§35) lists _"hide data provenance"_ among the things MarketPulse must never do, and
+the whole reason this product exists is to be the thing you can trust the numbers in.
+
+### What we built, and why it is not a caption
+
+The obvious way to solve that is a caption under the chart: _"Market feed: IEX"_. We did not
+do that, for a reason that is mechanical rather than principled.
+
+**A caption is true of the chart. Where the data came from is true of the data.** Those come
+apart sooner than you would think. Two stories from now, a chart showing three months of
+prices will be built from two places at once: most of it from our own database, and the last
+few minutes fetched live. The caption is unchanged and is now wrong about half the picture.
+
+So instead, **every run of prices in this system carries its own record of where it came
+from** — who supplied it, which exchange it covers, when we asked for it, and whether the
+numbers have been adjusted. And because a run of prices can be assembled from several
+sources, that record holds a _list_ rather than a single answer, so it can honestly say
+"most of this is from our store, retrieved three weeks ago; the last twelve minutes are
+live".
+
+### The part we made impossible rather than discouraged
+
+We could have written a rule in a document saying "always attach this record". Rules in
+documents get forgotten, and this one's failure is silent — you get a plausible-looking
+chart making a false claim.
+
+So it is enforced by the code's own shape instead. **There is no way to construct a price
+series in this codebase without supplying its provenance**, and we proved it by trying: the
+compiler refuses. Beyond that, the constructor checks that the record and the data actually
+agree — that the "these 390 bars came from here, these 12 from there" adds up to the number
+of bars actually present. That is the check that catches the realistic mistake, which is
+somebody joining two lists of prices and keeping only one of the two source records.
+
+### The one thing we refuse rather than report
+
+There is a difference between two sources disagreeing about **which exchange** they cover —
+which is fine, and we say so — and two sources disagreeing about **whether the prices have
+been adjusted for stock splits**.
+
+The second is not a chart with a caveat; it is a chart that is wrong. When a company does a
+10-for-1 split, its share price divides by ten overnight and nothing has actually happened to
+the company. Adjusted prices smooth that out; raw prices show the cliff. Put the two kinds
+side by side in one line and you get a 90% "crash" on a day the market did nothing — and
+every percentage change calculated across that join is wrong.
+
+That matters far beyond charts. Epic 5's job is spotting unusual behaviour, by comparing
+today's move against the last sixty days. An unadjusted split looks like the largest one-day
+fall in the security's history: a permanent, confident, completely false alarm sitting at the
+top of the "unusual activity" list. So the code **refuses** to join two price runs that
+disagree about adjustment, rather than joining them and adding a footnote.
+
+### The decision that costs us nothing today and would have cost a lot later
+
+Whether prices are adjusted has to be **asked for explicitly**, every time. There is no
+default.
+
+That looks like unnecessary ceremony, and the reason it is not is the most uncomfortable fact
+in this task: **for almost every security, in almost every window, the two answers are
+identical numbers.** Splits are rare. So a wrong default would sail through every test we
+could write, and be wrong exactly once — on the one company and the one week somebody is
+actually looking at, which is precisely when they care. There is no safe default here, only
+one whose wrongness is postponed.
+
+### One quietly useful side effect
+
+When we later build a demo or run the product offline, it uses generated test data rather
+than the real market. Because that generated data carries the same provenance record — feed
+_"Simulated"_, described as _"Generated test data. Not a market feed."_ — **a screenshot of a
+demo chart announces itself as a demo**, structurally, without anybody remembering to add a
+"SAMPLE DATA" banner. We got that for free from the design above.
+
+### Where this sits in the plan
+
+The words a user reads are already written down here — _"Trades reported by the IEX exchange
+only — not the full US consolidated tape"_ — rather than being invented later by whoever
+builds the screen. That is deliberate: the header has been showing a hard-coded
+`DISCONNECTED` since Story 1.5, and Task 2.6.7 replaces it with the truth. After that, when
+we connect the real data provider in Story 2.7, **one configuration value changes and that
+region starts reading `IEX` with nothing in the frontend edited.**
+
+The larger payoff is Story 2.12, the first real price chart. This task is what makes it
+possible for that chart to be honest about what it is drawing without anybody having to
+remember to make it so.

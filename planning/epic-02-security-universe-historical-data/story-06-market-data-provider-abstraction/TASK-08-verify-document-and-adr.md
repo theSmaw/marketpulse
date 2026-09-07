@@ -19,10 +19,15 @@ Epic 3 read before they touch this seam.
 ### Re-run all six criteria, and note which two are not re-runnable by reading
 
 1. **No vendor reference, checked by grep. Amended 2026-09-07 by Task 2.6.2: the grep must
-   be over CODE, and run naively over text it reports SEVEN false positives in
-   `packages/shared/src` alone.** Measured on the shipping tree at that task: six occurrences
-   of a vendor name and one of a vendor timeframe spelling (`1Min`/`1Day`, in `bar.ts`'s own
-   argument for _not_ using them), and **zero of the seven are code** — they are comments and
+   be over CODE, and run naively over text it reports ~~SEVEN~~ **EIGHT** false positives in
+   `packages/shared/src` alone.** Measured at Task 2.6.2: six occurrences of a vendor name and
+   one of a vendor timeframe spelling (`1Min`/`1Day`, in `bar.ts`'s own argument for _not_
+   using them). **Re-measured at Task 2.6.3 and it is eight** — `market-provenance.ts`'s
+   module comment quotes §7.1's own wording, that the free tier is IEX and not consolidated
+   SIP, which is the invariant this whole module exists to serve. That is the seventh vendor
+   name and the eighth occurrence, it is correct, and it must not be deleted. **Re-measure
+   rather than citing this number, which has now moved once and will move again** every time
+   a module explains why it did not copy the vendor. Zero of them are code — they are comments and
    one line of prose in a test, every one explaining _why_ a decision was taken, which is the
    opposite of a leak. Deleting them to make a grep clean would destroy the record. Strip
    comments before matching; `PROVIDER.md` §9.5 carries the exact command and it returns
@@ -37,15 +42,32 @@ Epic 3 read before they touch this seam.
 2. **A fixture provider implements it fully and is what tests use.** "Fully" means no method
    throwing "not implemented"; "is what tests use" means grep for anything else.
 3. **Every response carries provenance and no code path produces a bar without it.**
-   Re-**make** the compile failure rather than citing Task 2.6.3, and re-take the stitched
-   case.
+   Re-**make** the compile failure rather than citing Task 2.6.3 — and note it is **two**
+   compile failures rather than one, with two different error codes, because the mechanism has
+   two halves:
+   - making `provenance` optional on `BarSeriesInput` fails `tsc -b` with **`TS2578: Unused
+'@ts-expect-error' directive`** in `bar-series.test.ts`, which is the required field
+   - a hand-written `BarSeries` object literal fails with **`TS2741: Property '[brand]' is
+missing`**, which is the brand — and the brand is the half that matters, because a
+     required field alone leaves every _coherence_ check skippable by a literal
+
+   Then re-take the stitched case, which also has two halves and they differ: **feed
+   disagreement is truthful** (both sources survive in the list) and **adjustment disagreement
+   is refused** by `mergeSeriesProvenance`, which is the only way to obtain a multi-source
+   record at all. A count of one compile failure or one stitch outcome means somebody re-ran
+   half of it.
+
 4. **Each error cause producible and distinguishable.** Re-run them; report the count against
    `PROVIDER.md`'s list, because a member that was struck during implementation and left in
    the document is the drift this task exists to catch. **The number is SEVEN, not the
    story's prose five** — Task 2.6.1 struck `bad-range` for `range-not-available` and added
    `timeout` and `aborted` (`PROVIDER.md` §8.1, §8.3, §8.4). A count of five here means
    somebody built from `STORY.md`'s scope list rather than from the settled table.
-5. **Adjustment explicit at the call site.** The check is that omitting it does not compile.
+5. **Adjustment explicit at the call site.** The check is that omitting it does not compile,
+   which Task 2.6.4 locks in with a `@ts-expect-error`. Beside it, the vocabulary layer's own
+   half is already asserted at run time: `market-provenance.test.ts` sweeps that module's
+   export names for `/default/i` and expects none, so a `DEFAULT_ADJUSTMENT` added later is a
+   red test rather than a silent regression.
 6. **`pnpm verify` passes with no network access.** Take it with the network genuinely
    disabled, and take it twice — once from the working tree and once from a **clean clone**,
    which is the eleventh such run and the only place some guards fire at all. Task 1.13.5
