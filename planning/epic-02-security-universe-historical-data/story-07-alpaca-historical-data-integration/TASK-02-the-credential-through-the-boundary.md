@@ -81,7 +81,9 @@ different answers**, which is the finding rather than a compromise.
 - **Present but wrong** — **not a startup concern at all**, because the only way to find out is
   to make a request, and a startup probe against a metered API is a request nobody asked for. A
   wrong key surfaces as `unauthorised`, already a member of `BarsResult` and already marked
-  non-retryable by `PROVIDER.md` §8.1. Task 2.7.5 produces it.
+  non-retryable by `PROVIDER.md` §8.1. ~~Task 2.7.5 produces it.~~ **Task 2.7.6 produces it** —
+  corrected 2026-09-07 on closing this task: 2.7.5 is pagination and coverage, and the error
+  taxonomy against a real vendor is 2.7.6, which names a bad key as its first deliberate cause.
 - **Absent, with `MARKET_DATA_PROVIDER` at its default `none`** — nothing happens, and that is
   the case a clean clone is in. The variables are **optional**, and a fresh checkout with no
   `.env` still runs, still passes `pnpm verify`, and still serves `pnpm dev`. Acceptance

@@ -73,9 +73,19 @@ something the candidate list did not name.
 - **The `pnpm verify` gap lists in `CLAUDE.md`** — the sixth kind gained the platform secret,
   and any recorded invariant this story created (a coupled constant, a second writer on
   `status`, a pin) belongs in the third kind with its durable copy named
-- **`README.md`** — the script table gains `pnpm bars`, the variable count moves, and the
-  "things that look like faults" list may lose or keep the market-feed row depending on what
-  Task 2.7.4 left on screen
+- **`README.md`** — the script table gains `pnpm bars`, the variable count moves (**13 → 15 at
+  Task 2.7.2, and further if anything after it adds one**), and the "things that look like
+  faults" list may lose or keep the market-feed row depending on what Task 2.7.4 left on screen
+- **`pnpm env:check`'s own description, in `CLAUDE.md` and `README.md`.** Task 2.7.2 gave it a
+  **fifth** failure mode — a variable with no default must be documented **blank**, which is a
+  leak guard rather than a formatting rule, because the default comparison is structurally
+  inapplicable to a no-default variable and every no-default variable is a credential. Anything
+  describing that script as "four checks" is now stale. Re-make all five fail rather than citing
+  2.7.2's run
+- **The test-count blocks' starting figure.** Task 2.7.2 moved `pnpm test` 619 → **629** and
+  deliberately did not sweep the ten blocks, per the precedent Task 2.6.8 set that a close owns
+  the sweep. So this close inherits **at least one** increment already outstanding before its own
+  tasks are counted — which is exactly the shape that produced "stale by two story closes" twice
 - **`pnpm links`**, which is a `verify` step since Task 2.6.8 and therefore runs itself. Report
   its counts as figures rather than trusting the last recorded ones — they moved between two
   consecutive readings the first time they were taken
