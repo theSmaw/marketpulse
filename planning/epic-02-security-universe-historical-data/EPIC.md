@@ -81,10 +81,16 @@ task in this project to place a bearer secret from a party with no Azure
 identity. ADR 0006's boundary is the half that did move: Story 2.1 is the first
 thing to test it, and it held — see `docs/adr/0014-*`.
 
-Today the Container App's `secrets`
-array is **empty** — measured in Task 1.11.3, which also identified the
+~~Today the Container App's `secrets`
+array is **empty**~~ — measured in Task 1.11.3, which also identified the
 mechanism for exactly this key and used none of it, and re-read in Tasks 2.1.6
-and 2.1.8. Note the deployed
+and 2.1.8. **Confirmed and closed 2026-09-07 by Task 2.7.2: the array now holds
+`alpaca-api-secret-key`, referenced by `secretRef` from
+`ALPACA_API_SECRET_KEY`.** So this paragraph's own correction was right — the
+claim expired in Story 2.7 and not in Story 2.1 — and it expired on the task
+that predicted it, in the mechanism that had been named four tasks in advance.
+`ALPACA_API_KEY_ID` is beside it as a plain `value`, deliberately, because a key
+id is an identifier rather than a credential. Note the deployed
 environment is **public**, accepted in Epic 1 on the stated grounds that nothing
 deployed holds a credential and the backend's entire surface is `GET /health`;
 ~~that argument expires here~~ **that argument expires in Story 2.7 — Story 2.1

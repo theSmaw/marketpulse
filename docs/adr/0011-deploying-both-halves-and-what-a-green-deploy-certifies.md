@@ -34,7 +34,12 @@ about hosting:
   rather than a principle.
 - **The backend has no secret to hold.** Its entire surface is `GET /health`.
   That is what made a public development environment acceptable, and it stops
-  being true the moment Epic 2's Alpaca key exists.
+  being true the moment Epic 2's Alpaca key exists. **It stopped being true on
+  2026-09-07 (Task 2.7.2)** — see the amendment on §10. The environment is still
+  public, and what now makes that acceptable is a different argument rather than
+  the same one: the stored secret is a read-only market-data key on a free plan,
+  it is never served to any client, and the surface is still unauthenticated
+  reads.
 - **Two epics that are nine and eleven stories away are constrained by the
   hosting choice**, through different mechanisms — Epic 3's outbound Alpaca
   socket and Epic 10's inbound SSE stream. Conflating them is the mistake §2
@@ -264,6 +269,19 @@ Accepted rather than chased: the fixes cost a sixth pinned action plus a
 reversal trigger is anything that actually consumes the attestations.**
 
 ### 10. No platform secret was needed, and the mechanism for Epic 2 is identified rather than created
+
+> **Amended 2026-09-07 by Task 2.7.2 — this section describes a tree that no
+> longer exists, and the decision it records is unchanged.** The `secrets` array
+> is **no longer empty**: it holds `alpaca-api-secret-key`, referenced by
+> `secretRef` from `ALPACA_API_SECRET_KEY`, on revision `0000113`. The prediction
+> in the paragraph below is what expired, and it expired exactly where it said it
+> would — Story 2.7, on the first third-party bearer secret with no Azure identity
+> behind it. Everything the section argues is confirmed by that rather than
+> falsified: the mechanism identified here is the mechanism that was used, and
+> because it had been named in advance its first use was not also the occasion for
+> learning where secrets go. `HOSTING.md`, "The Alpaca credential on the platform",
+> is the record, including the Key Vault alternative that was costed and lost.
+> The decision below is not rewritten, per the rule Task 2.5.6 established.
 
 The container app's `secrets` array is **empty**, re-read in Task 1.11.8. Five
 environment variables are set from the platform as plain values — `PORT`, `HOST`,

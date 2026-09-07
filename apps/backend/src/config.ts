@@ -268,6 +268,58 @@ export type MarketDataProviderSelection =
 // deliberateness of that act is the property being bought.
 const DEFAULT_MARKET_DATA_PROVIDER: MarketDataProviderSelection = "none";
 
+// --- The Alpaca credential (Task 2.7.2) ---
+//
+// **This is the first bearer secret this application has ever held**, and it is
+// a different kind of thing from every value above it. `DATABASE_PASSWORD` is a
+// fixture that authenticates a container published on loopback; the deployed
+// database credential is an Entra token this module never receives at all
+// (Task 2.1.6). This one is a third-party secret with no identity behind it:
+// there is nothing to mint, so it has to be stored, and the module's standing
+// rule that **the resolved configuration is never logged** stops being a
+// promise about a fixture and becomes a promise about a live credential.
+//
+// **Two variables and not one packed string.** Alpaca authenticates with a key
+// id and a secret sent as two headers, so they are two values. A packed
+// `id:secret` would need a parser somebody wrote — which is a failure mode —
+// and the halves could then not be documented, defaulted or redacted
+// separately. That last one is the deciding argument: exactly one of these two
+// is a secret, and that sentence is only expressible if they are two names.
+//
+// **Only the secret is secret.** The key id travels in the clear in every
+// request header and is on the vendor's own dashboard, so treating it as a
+// credential would mean redacting the one value whose visibility helps an
+// operator tell which of two keys is configured. `.env.example` says so
+// explicitly, because the reflex is to redact both.
+//
+// **Neither has a default**, which is a shape `CONFIG_VARIABLES` has not
+// carried before: every variable so far is optional *with* a default, because a
+// default is what a clean clone needs. A credential's absence cannot be
+// defaulted — an invented one is a value that is present and wrong, which fails
+// at the first request rather than at startup — so absent means absent, and the
+// `alpaca` key on `Config` is genuinely missing rather than holding empty
+// strings.
+export const ALPACA_KEY_ID_VARIABLE = "ALPACA_API_KEY_ID";
+export const ALPACA_SECRET_KEY_VARIABLE = "ALPACA_API_SECRET_KEY";
+
+// The provider selection that needs the pair, as a string rather than as a
+// member of `MarketDataProviderSelection` — because it is not one yet.
+//
+// `PROVIDER_IDS` ships `fixture` alone and gains `alpaca` in Task 2.7.3, in the
+// same commit as the client that can produce it: this repository's rule that a
+// union member arrives with the code that produces it, held four times and not
+// broken here for a configuration check's convenience. So the check below reads
+// the **raw** environment value, exactly as the `DATABASE_PASSWORD` check does
+// and for the same reason — only the raw value says what an operator *asked
+// for*, and a selection this build cannot honour is still a request.
+//
+// The consequence today is that `MARKET_DATA_PROVIDER=alpaca` with no key
+// reports **two** problems: that the selection is not one this build knows, and
+// that the credential is missing. Both are true, reporting every problem rather
+// than the first is what the accumulator is for, and the first line disappears
+// on its own when 2.7.3 adds the member — with no edit here.
+const ALPACA_PROVIDER_SELECTION = "alpaca";
+
 // The settings the application gets. Written by hand rather than inferred, and
 // that is the shape Task 1.6.1 measured into: `exactOptionalPropertyTypes`
 // makes an optional key `?: T`, while both schema libraries infer
@@ -286,6 +338,41 @@ export interface Config {
   readonly corsOrigin: string;
   readonly database: DatabaseConfig;
   readonly marketDataProvider: MarketDataProviderSelection;
+
+  // **Absent when no Alpaca credential is configured**, which is a clean
+  // clone, every test that does not ask for one, and the deployment until
+  // Task 2.7.4 flips it. Absent rather than present-and-empty: the two are
+  // different facts, and `exactOptionalPropertyTypes` is what keeps them
+  // distinguishable — a client that reads this key with no credential gets a
+  // compile error rather than a request signed with `""`.
+  //
+  // Both halves are present or neither is. There is no state in which one is
+  // set, because `loadConfig` refuses that configuration rather than
+  // representing it.
+  readonly alpaca?: AlpacaConfig;
+}
+
+// The Alpaca market-data credential, as two values.
+//
+// Nested for `DatabaseConfig`'s reason — one thing with parts, handed whole to
+// the one consumer that needs it (Task 2.7.3's client) — and frozen separately,
+// because `Object.freeze` is shallow.
+export interface AlpacaConfig {
+  /**
+   * The key id. **Not a secret**: it goes in the clear in an
+   * `APCA-API-KEY-ID` header on every request and is on the vendor's own
+   * dashboard, so a message may name it and an operator seeing it is being
+   * helped rather than leaked to.
+   */
+  readonly keyId: string;
+
+  /**
+   * The secret key. **This is the secret**, and the whole of this module's
+   * no-credential-in-a-log rule now points at this one field: no message this
+   * application can produce may contain its value, asserted in
+   * `config.test.ts` against a value that is deliberately not any fixture.
+   */
+  readonly secretKey: string;
 }
 
 // Nested rather than seven more `database`-prefixed keys on Config, because
@@ -328,7 +415,17 @@ export interface ConfigVariable {
 
   // The value used when the variable is absent or blank, as it would appear in
   // a shell — so `.env.example` can quote it verbatim. `undefined` means there
-  // is no default, which today cannot happen because nothing is required.
+  // is no default.
+  //
+  // ~~which today cannot happen because nothing is required.~~ **Amended
+  // 2026-09-07 by Task 2.7.2**: the sentence tied "no default" to "required",
+  // and the two came apart. The Alpaca pair below is **optional with no
+  // default** — absent is a legitimate configuration, and a credential is the
+  // one kind of value that cannot have an invented one, because an invented
+  // credential is present and wrong and fails at the first request instead of
+  // at startup. `check-env-example.mjs` already handles this shape: it skips
+  // the default comparison when `default` is `undefined`, so the example
+  // documents the variable with a blank value.
   readonly default: string | undefined;
   readonly description: string;
 }
@@ -371,6 +468,20 @@ export const CONFIG_VARIABLES: readonly ConfigVariable[] = [
     required: false,
     default: DEFAULT_MARKET_DATA_PROVIDER,
     description: `Which market-data provider serves prices: ${MARKET_DATA_PROVIDER_SELECTIONS.join(" or ")}. \`none\` means no provider is configured and the backend serves no market data — the default, because \`fixture\` serves INVENTED prices and a default that quietly works is one that quietly ships fabricated data.`,
+  },
+  {
+    key: ALPACA_KEY_ID_VARIABLE,
+    required: false,
+    default: undefined,
+    description:
+      "Alpaca market-data API key id. NOT a secret: it travels in the clear in a request header and is on Alpaca's dashboard, so it may appear in a message or a log line. Optional with no default — absent means no Alpaca credential is configured, which is what a clean clone is. Setting this without ALPACA_API_SECRET_KEY is a startup error rather than half a credential.",
+  },
+  {
+    key: ALPACA_SECRET_KEY_VARIABLE,
+    required: false,
+    default: undefined,
+    description:
+      "Alpaca market-data API secret key. THIS IS A SECRET: no message this application produces may contain its value, and it belongs in apps/backend/.env locally and in a Container App secret deployed — never in this repository. Optional with no default; setting it without ALPACA_API_KEY_ID is a startup error.",
   },
   {
     key: "DATABASE_HOST",
@@ -640,6 +751,15 @@ export function loadConfig(
     readEnum(env, "DATABASE_SSL", DATABASE_SSL_MODES, DEFAULT_DATABASE_SSL),
   );
 
+  // The credential is read raw rather than through `readString`, because
+  // `readString` takes a fallback and there is no fallback for a credential.
+  // `present()` is what makes a blank line in `.env` absent rather than an
+  // empty string — the same rule every other variable gets, and it matters
+  // more here: an empty-string secret would be a credential that exists and
+  // cannot work.
+  const alpacaKeyId = present(env[ALPACA_KEY_ID_VARIABLE]);
+  const alpacaSecretKey = present(env[ALPACA_SECRET_KEY_VARIABLE]);
+
   // --- Two checks that are about a pair of variables rather than one ---
   //
   // These are the first cross-variable rules in this module, and they exist
@@ -683,6 +803,71 @@ export function loadConfig(
   if (databaseAuth === "entra" && databaseSsl === "disable") {
     problems.push(
       "DATABASE_SSL is disable but DATABASE_AUTH is entra, which sends an access token as the password. That is a bearer credential in the clear; the managed server enforces encryption in any case. Use verify-full.",
+    );
+  }
+
+  // --- Two more cross-variable rules, and they are Story 2.7's open decision 3 ---
+  //
+  // The question the story asked — *what does a missing or invalid key do at
+  // startup?* — turns out to have **two halves with different answers**, and
+  // that is the finding rather than a compromise.
+  //
+  //   Absent, with a provider selected that needs it → a startup REFUSAL, here.
+  //     Selecting a provider is a deliberate act, so a deployment that selected
+  //     Alpaca and forgot the key has stated an intention this process cannot
+  //     honour. PRODUCT_SPEC §36's degrade-locally principle is about failures
+  //     at RUN time, and Story 1.12's `degraded` vocabulary is about a service
+  //     that answered badly — neither describes a configuration that was never
+  //     coherent.
+  //
+  //   Present but WRONG → not a startup concern at all, and deliberately not
+  //     checked here. The only way to find out is to make a request, and a
+  //     startup probe against a metered third party is a request nobody asked
+  //     for: it puts the process's liveness in a vendor's hands, on a platform
+  //     whose startup probe kills a replica at roughly ninety seconds, which
+  //     turns a vendor outage into a crash loop. That is the failure Task 2.1.4
+  //     designed the database probe to avoid, on this platform, for this
+  //     reason. A wrong key surfaces as `unauthorised`, already a member of
+  //     `BarsResult` and already non-retryable; Task 2.7.6 produces it.
+  //
+  //   Absent, with the default provider → NOTHING HAPPENS, and that is the case
+  //     a clean clone is in. Story 2.7's acceptance criterion 6 is that
+  //     sentence: a fresh checkout with no `.env` builds, tests, runs and
+  //     passes `pnpm verify` with no Alpaca key anywhere.
+
+  // Half a credential has no correct reading. Either the pair was meant and one
+  // line was lost, or neither was meant and one is left over — the
+  // `DATABASE_PASSWORD`-with-`entra` shape exactly, and refused for the same
+  // reason: guessing between two opposite readings is what produces a failure
+  // nobody can attribute. It fires regardless of which provider is selected,
+  // because a half-set pair is a mistake whether or not anything reads it.
+  //
+  // **The message names the variables and never a value.** The secret is
+  // obvious; the key id is deliberately not quoted either, because a message
+  // about a missing half has no use for the half that is present.
+  if (alpacaKeyId === undefined && alpacaSecretKey !== undefined) {
+    problems.push(
+      `${ALPACA_SECRET_KEY_VARIABLE} is set but ${ALPACA_KEY_ID_VARIABLE} is not. Alpaca authenticates with both, sent as two headers; set the pair or neither.`,
+    );
+  }
+
+  if (alpacaKeyId !== undefined && alpacaSecretKey === undefined) {
+    problems.push(
+      `${ALPACA_KEY_ID_VARIABLE} is set but ${ALPACA_SECRET_KEY_VARIABLE} is not. Alpaca authenticates with both, sent as two headers; set the pair or neither.`,
+    );
+  }
+
+  // The raw read is the point, and it is the `DATABASE_PASSWORD` check's own
+  // idiom: only the raw value says what an operator ASKED FOR. `alpaca` is not
+  // yet a member of `MARKET_DATA_PROVIDER_SELECTIONS` — `PROVIDER_IDS` gains it
+  // in Task 2.7.3, in the same commit as the client that can produce it — so
+  // the parsed value cannot express this request and the raw one can.
+  if (
+    present(env.MARKET_DATA_PROVIDER) === ALPACA_PROVIDER_SELECTION &&
+    (alpacaKeyId === undefined || alpacaSecretKey === undefined)
+  ) {
+    problems.push(
+      `MARKET_DATA_PROVIDER is ${ALPACA_PROVIDER_SELECTION} but ${ALPACA_KEY_ID_VARIABLE} and ${ALPACA_SECRET_KEY_VARIABLE} are not both set. Alpaca serves nothing without a credential, so this deployment asked for a provider it cannot use.`,
     );
   }
 
@@ -750,6 +935,17 @@ export function loadConfig(
   //
   // The rule stays exactly as it was, because Story 2.7's Alpaca key **will**
   // arrive through here and it is a bearer secret with no identity behind it.
+  // Spread in conditionally, and both halves at once — so the object either
+  // has a whole credential or has no `alpaca` key at all. The half-set case
+  // cannot reach here, because the checks above refused it.
+  //
+  // Frozen separately for `database`'s reason: `Object.freeze` is shallow, so a
+  // nested object is only frozen if it is frozen.
+  const alpaca: AlpacaConfig | undefined =
+    alpacaKeyId !== undefined && alpacaSecretKey !== undefined
+      ? Object.freeze({ keyId: alpacaKeyId, secretKey: alpacaSecretKey })
+      : undefined;
+
   return Object.freeze({
     port,
     host,
@@ -758,5 +954,6 @@ export function loadConfig(
     corsOrigin,
     database,
     marketDataProvider,
+    ...(alpaca === undefined ? {} : { alpaca }),
   });
 }
