@@ -25,18 +25,34 @@ on exactly this distinction.
 
 ## Where the throw you are removing actually lives (added 2026-09-07 by Task 2.7.3)
 
-Two throws shipped, and **only one of them is this task's to remove**:
+> **AMENDED 2026-09-07 by Task 2.7.5: there are now FOUR throws rather than two, and this task
+> still removes exactly one of them.** That task added two more to `alpaca-provider.ts`, both
+> on `PROVIDER.md` §8.5's argument — the same argument this section already makes — so a reader
+> working from the original inventory would find throws it does not mention, in the very file
+> this task is editing, each carrying a comment that reads like a candidate for mapping. They
+> are not candidates. Sweeping either into `BarsResult` is precisely the laundering §8.5
+> forbids, and one of them is the whole point of Task 2.7.5.
+
+Four throws shipped, and **only the first is this task's to remove**:
 
 - **`alpaca-provider.ts`, on `!response.ok`** — a single `throw` naming this task. It is what
   this task replaces with the mapping below. **It never reads the response body**, deliberately,
   so removing it is where the HTML-`401` collision below actually bites: the shipped code has
   no body-parsing path on the failure branch at all, and this task adds one.
+- **`alpaca-provider.ts`, on the page bound being exceeded** — added 2026-09-07 by Task 2.7.5,
+  and it **stays**. A `next_page_token` that never becomes null is the vendor behaving
+  impossibly or our page arithmetic being wrong; both are defects. Returning the bars collected
+  so far is the well-formed-but-incomplete series that task exists to prevent, and mapping it to
+  `upstream-unavailable` is the same lie with a member's name on it.
+- **`alpaca-provider.ts`, on neither composed signal having aborted** — added 2026-09-07 by Task
+  2.7.5, and it **stays**. It is unreachable by construction and says so; a member here would be
+  a defect wearing a fact about the world.
 - **`alpaca-mapping.ts`'s `parseAlpacaBarsBody`** — the unparseable-body throw, on a **`200`**
   whose shape is not what we believe. That one is the last row of the table below and it
   **stays**. It is already asserted against four malformed shapes and against a non-finite
   `close`.
 
-So the last row of that table is already built and the trap is that the two look like the same
+So the last row of that table is already built and the trap is that the throws look like one
 rule. They are not: one is _"a body we needed to read and could not"_, the other is _"a status
 that already tells us everything"_ — which is precisely why the box below says map on the
 **status** first.
@@ -121,9 +137,33 @@ first task with real bodies to hide one in.
 | `401` / `403`                         | `unauthorised`         | Missing, wrong or unentitled — one member, `PROVIDER.md` §8.1's merge rule. **Body is HTML, not JSON — see above** |
 | `429`                                 | `rate-limited`         | Carries `retryAfterMs` when the vendor says; **branches**, never assigns                                           |
 | `5xx`, connection refused, DNS, reset | `upstream-unavailable` | Retryable                                                                                                          |
-| Deadline expired                      | `timeout`              | Carries the deadline. Task 2.7.3 built this; confirm it survives contact                                           |
+| Deadline expired                      | `timeout`              | Carries the deadline. Task 2.7.3 built it; **Task 2.7.5 made it span the whole WALK** — see below                  |
 | Caller's signal                       | `aborted`              | Carries nothing, and is never rendered as a market-data state                                                      |
 | A body we cannot parse                | **throw**              | Us, not the world                                                                                                  |
+
+> **AMENDED 2026-09-07 by Task 2.7.5: the cheapest way to produce a `403` has been CLOSED, and
+> the `timeout` row now means something wider.**
+>
+> That task measured a **`403 subscription does not permit querying recent SIP data`** on any
+> request whose `end` falls inside the last 15 minutes — a cliff, keyed on `end` alone. It is the
+> obvious way to produce a `403` without a deliberately wrong key, it costs one request, and
+> **the shipped client can no longer produce it**: `alpacaServableEnd` clamps `end` to
+> `now − 16 min` unconditionally, before the request is built, so a recent-window fetch comes
+> back a clamped **`200`**. A task that reaches for it gets a success and no error at all, and
+> criterion 3 is left resting on a production that never happened.
+>
+> **So `unauthorised` must still be produced from a deliberately wrong secret**, as the bullet
+> below says — and the recency `403` is worth recording beside the mapping anyway, because it
+> is a **`403` that is not an authorisation failure**. The mapping is unaffected while the clamp
+> stands (the status never arrives), and the day anyone removes or widens the clamp it arrives
+> as `unauthorised`, which would tell an operator their key is wrong when it is not. That is the
+> reversal trigger, and it belongs in a comment beside the `401`/`403` branch.
+>
+> **The `timeout` row's _"confirm it survives contact"_ also grew.** The deadline now spans a
+> whole paginated walk rather than one request, and a walk that expires mid-pagination returns
+> `timeout` and **discards the pages already fetched** — argued in Task 2.7.5 against a partial
+> `ok`, because a clipped `covered` is indistinguishable from _"the vendor had nothing after this
+> point"_. Confirming the row means confirming that, not just that a single slow request expires.
 
 **`Retry-After` — MEASURED 2026-09-07: this vendor sends NEITHER form. The header is absent
 from the `429` entirely**, along with every `x-ratelimit-*` header. The body is
@@ -153,7 +193,9 @@ Each of these is a request somebody makes, once, with the response recorded:
   rests on it, and a reader who takes the struck sentence at face value will skip the one
   production that matters most. `PROVIDER.md` §8.1's point stands — it is the member a
   misconfigured deployment produces first — as a statement about what _can_ happen rather than
-  about what _has_
+  about what _has_. **And amended again 2026-09-07 by Task 2.7.5: the one cheap substitute for a
+  wrong secret is gone.** A recent-window request answered `403` until that task clamped `end`;
+  it now answers a clamped `200`, so a deliberately wrong secret is the only route left
 - **Unknown symbol** — per the finding above
 - ~~**A range entirely in the future**~~ and ~~**a range before the plan's history depth**~~ —
   **struck 2026-09-07: both are `200` with an empty body**, so neither produces an error to map.

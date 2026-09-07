@@ -348,6 +348,83 @@ loop forever. Prefer a nullish check that handles both.
 
 ---
 
+## 7b. The withheld recent window — ANSWERED, and it is a CLIFF not a gradient (2026-09-07, Task 2.7.5)
+
+§10 recorded this as unmeasured, because Task 2.7.1's probe ran on Labor Day with the market
+shut and its `0 bars` meant nothing. **It is measured now, and the market being shut does not
+matter, because what is being measured is the API's refusal rather than the presence of
+prints.**
+
+Holding `start` a day back and walking `end` towards now, `feed=sip`, `NVDA`:
+
+| `end`                               | Status    |
+| ----------------------------------- | --------- |
+| 30 / 20 / 18 / 17 / 16 / 15 min ago | **`200`** |
+| 14 / 13 / 12 / 10 min ago           | **`403`** |
+
+`{"message": "subscription does not permit querying recent SIP data"}`.
+
+**Three things this settles, and each one changes a design.**
+
+1. **The refusal keys on `end` ALONE.** `start` 31 and 60 minutes ago against an `end` 30
+   minutes ago are both `200`. So it is not "the window overlaps recent data"; it is "the
+   window's upper bound is recent".
+2. **It refuses the WHOLE request rather than answering partially.** A window from Friday's
+   open to now — 6½ hours of perfectly available data plus ~15 minutes that is not — is a flat
+   `403`. **Nothing comes back.** Task 2.7.5's brief expected a short answer to clip and there
+   is no answer to clip.
+3. **It applies to daily too.** A `1Day` request with `end` = now is also `403`.
+
+**The consequence, which is the whole of Task 2.7.5's coverage work.** The naïve backfill —
+_"from the last bar I stored, to now"_ — is exactly the refused shape, so it would store
+**nothing on every run**. `alpacaServableEnd` clamps `end` to `now − 16 min` before the
+request and reports the clamp as `coverage.covered`, which is what `SeriesCoverage` exists
+for. The extra minute over the measured 15 is margin: the boundary is exact, so a few seconds
+of clock skew is the difference between an answer and a total refusal, and the margin costs at
+most one bar where the wrong side costs the request.
+
+**`feed=iex` is NOT subject to it** — the same recent window is `200` on IEX. So this is a SIP
+entitlement restriction rather than a general recency rule, which matters for Epic 3, whose
+live stream is IEX.
+
+---
+
+## 7c. A real multi-page walk, and the number Story 2.8 is sized against (2026-09-07, Task 2.7.5)
+
+Driven through the **shipped** client at its `limit=10000`, `NVDA`, `1Min`, warm:
+
+| Range       | Sessions | Pages |   Bars | Regular-hours |     Ratio |     Wall |
+| ----------- | -------: | ----: | -----: | ------------: | --------: | -------: |
+| one session |        1 |     1 |    390 |           390 | **1.00×** | 1,030 ms |
+| 10 sessions |       10 |     1 |  8,948 |         3,900 | **2.29×** | 1,042 ms |
+| 25 sessions |       25 |     3 | 22,952 |         9,750 | **2.35×** | 1,448 ms |
+| 47 sessions |       47 |     5 | 43,515 |        18,330 | **2.37×** | 2,170 ms |
+
+**Two findings, and the first is the one that resizes Story 2.8.**
+
+**A window spanning a night collects extended-hours bars, at ~2.35×.** The regular-hours
+column is `market-session.ts`'s `minuteBars` summed over the sessions, and the walk matched it
+**exactly** (9,750 of 22,952 bars fall inside a regular session) — so the calendar is right and
+the _window shape_ is what differs. `[first.open, last.close)` spans the nights between, and
+SIP serves pre- and post-market prints across them: **57.5% of a month's bars are extended
+hours.**
+
+That generalises §4's _"a date-only range includes extended-hours bars (217 against a
+210-minute half day)"_ from a curiosity into a sizing fact. `UNIVERSE.md` §8's ~1.18 GB/year
+assumes 390 bars a session; a backfill using span-shaped windows would store **~2.8 GB/year**.
+**A backfill should ask per SESSION**, `[open, close)` per day, which returns exactly
+`minuteBars` — measured at 1.00× above. Story 2.8 owns that and it is now a number rather than
+a caution.
+
+**Pagination is cheap and the first request dominates.** 5 pages in 2,170 ms is ~434 ms a page
+against ~1,030 ms for a single-page fetch, so connection setup is most of a small fetch. But
+note the ceiling: a 5-page walk is **72% of `DEFAULT_BARS_DEADLINE_MS` (3,000 ms)**, and that
+default was derived for a _single_ request against the browser's 5-second budget. **A
+paginated caller must pass its own `deadlineMs`**; one that does not gets a `timeout`, which
+is at least loud. Story 2.8 inherits that.
+
+---
+
 ## 8. The bar payload and the response envelope (2026-09-07)
 
 **The documented field set is exactly the observed field set** — nothing documented-but-absent,
@@ -448,10 +525,18 @@ argument for shipping it without sub-reasons looks better for it, not worse.
 
 **Stated rather than quietly omitted.**
 
-- **The 15-minute withheld recent window.** Measured as `0 bars`, which is meaningless: the
-  measurement was taken at 06:59 UTC on **2026-09-07, which is Labor Day** — the market was
-  shut. **Re-take during a regular session.** Note the `403` on recent SIP data (§2) does
-  independently confirm that _some_ recency restriction is enforced.
+- ~~**The 15-minute withheld recent window.**~~ **ANSWERED 2026-09-07 by Task 2.7.5 — see §7b.**
+  The original probe measured `0 bars` on Labor Day with the market shut, which was
+  meaningless. What that probe got wrong was not the day but the **question**: the thing to
+  measure is not where bars stop, it is **whether the API answers at all**, and that is
+  measurable with the market shut. It is a `403` cliff at exactly 15 minutes, keyed on `end`
+  alone, refusing the whole request.
+
+  **One thing genuinely remains unmeasured here**: where bars actually stop _during a live
+  session_, i.e. whether a served window is dense right up to the cliff. That needs the market
+  open and this story never had a session — 2026-09-07 is Labor Day. It does not block
+  anything, because the clamp is driven by the refusal boundary rather than by the last bar.
+
 - **Whether the rate limit is per key or per endpoint** (§6).
 - **Anything about the WebSocket stream beyond the subscription cap.** Deliberate: the stream
   is Epic 3's, and the cap was an explicit, narrow exception because another story is parked

@@ -14,13 +14,15 @@
  * acceptance criterion 7 and the property Task 2.6.6 checked with a blocker.
  */
 
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { join } from "node:path";
 
 import { toTicker, toTimeRange } from "@marketpulse/shared";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { AlpacaPaginationUnsupportedError } from "./alpaca-mapping.js";
 import { createAlpacaProvider } from "./alpaca-provider.js";
 import type { AlpacaConfig } from "./config.js";
 import type { BarsRequest } from "./market-data-provider.js";
@@ -342,17 +344,293 @@ describe("what this task refuses to handle, loudly", () => {
       }).fetchBars(REQUEST),
     ).rejects.toThrow(/^(?!.*Authorization Required)/s);
   });
+});
 
-  it("lets the pagination refusal through rather than catching it", async () => {
+/**
+ * The walk (Task 2.7.5).
+ *
+ * These drive a **real local HTTP server** rather than a `fetch` stub, which is
+ * what `baseUrl` exists for and is the difference between testing this file and
+ * testing a mock of it. Pages are served from an array, so the assertions are
+ * about what the client *did* — how many requests, carrying which tokens, and
+ * what it assembled — rather than about how it is written.
+ */
+describe("createAlpacaProvider — pagination", () => {
+  /**
+   * A range wide enough that several pages are *legitimate*.
+   *
+   * **The page bound makes this necessary, and that is the bound working
+   * rather than an inconvenience.** `REQUEST` is one regular session — 390
+   * minutes — and at a measured 10,000-bar page ceiling a correct answer to it
+   * **cannot** span three pages. Written against `REQUEST`, the walk tests
+   * below fail on the bound, which is exactly the diagnosis the bound exists to
+   * give. Thirty days of wall clock is 43,200 possible minute bars, which is
+   * five pages of headroom.
+   */
+  const WIDE_REQUEST: BarsRequest = {
+    ...REQUEST,
+    range: toTimeRange(
+      new Date("2026-08-03T13:30:00Z"),
+      new Date("2026-09-04T20:00:00Z"),
+    ),
+  };
+
+  /** A body whose single bar is stamped `minute` minutes after the open. */
+  function pageBody(minute: number, token: string | null) {
+    const at = new Date(WIDE_REQUEST.range.start.getTime() + minute * 60_000);
+    return JSON.stringify({
+      bars: {
+        NVDA: [
+          {
+            t: at.toISOString(),
+            o: 1.5,
+            h: 2,
+            l: 1,
+            c: 1.75 + minute,
+            v: 100,
+            n: 3,
+            vw: 1.6,
+          },
+        ],
+      },
+      next_page_token: token,
+    });
+  }
+
+  it("walks every page and concatenates them into one series", async () => {
+    const pages = [pageBody(0, "p2"), pageBody(1, "p3"), pageBody(2, null)];
+    let served = 0;
     const harness = await serve(() => ({
       status: 200,
-      body: JSON.stringify({ ...ONE_BAR_BODY, next_page_token: "abc123" }),
+      body: pages[served++] ?? "unreachable",
+    }));
+
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars(WIDE_REQUEST);
+
+    assert(result.outcome === "ok");
+    expect(harness.requests).toHaveLength(3);
+    expect(result.series.bars).toHaveLength(3);
+
+    // Ascending across the seams, which is what `toBarSeries` refuses if a walk
+    // concatenates out of order — the check a pagination bug trips first.
+    expect(result.series.bars.map((bar) => bar.close)).toEqual([
+      1.75, 2.75, 3.75,
+    ]);
+  });
+
+  it("sends the token it was given, and sends none on the first page", async () => {
+    const pages = [pageBody(0, "TOKEN-TWO"), pageBody(1, null)];
+    let served = 0;
+    const harness = await serve(() => ({
+      status: 200,
+      body: pages[served++] ?? "unreachable",
+    }));
+
+    await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars(WIDE_REQUEST);
+
+    const [first, second] = harness.requests.map(
+      (captured) => new URL(captured.url, "http://x").searchParams,
+    );
+
+    // **Absent on the first page rather than empty.** An `undefined` spread into
+    // the query would reach the URL as the literal string `"undefined"`, which
+    // this vendor answers `400` for — the same absent-versus-present-and-
+    // undefined distinction `apiError()` makes, in a place that costs a metered
+    // request.
+    expect(first?.has("page_token")).toBe(false);
+    expect(second?.get("page_token")).toBe("TOKEN-TWO");
+  });
+
+  it("counts every page in the one provenance record", async () => {
+    const pages = [pageBody(0, "p2"), pageBody(1, null)];
+    let served = 0;
+    const harness = await serve(() => ({
+      status: 200,
+      body: pages[served++] ?? "unreachable",
+    }));
+
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars(WIDE_REQUEST);
+
+    assert(result.outcome === "ok");
+
+    // One fetch of one symbol from one feed at one adjustment is ONE source,
+    // however many HTTP requests it took — and `barCount` is the total, which
+    // `toBarSeries` cross-checks against `bars.length`. That check is exactly
+    // what a walk that drops or double-counts a page trips.
+    expect(result.series.provenance.sources).toHaveLength(1);
+    expect(result.series.provenance.sources[0].barCount).toBe(2);
+  });
+
+  it("stamps retrievedAt once, at the START of the walk", async () => {
+    const pages = [pageBody(0, "p2"), pageBody(1, null)];
+    let served = 0;
+    const before = Date.now();
+    const harness = await serve(async () => {
+      // A slow second page, so a stamp taken at completion would be visibly
+      // later than one taken at the start.
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      return { status: 200, body: pages[served++] ?? "unreachable" };
+    });
+
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars(WIDE_REQUEST);
+    const after = Date.now();
+
+    assert(result.outcome === "ok");
+    const stamped = Date.parse(result.series.provenance.sources[0].retrievedAt);
+
+    // Stamped before the first request rather than after the last: a slow walk
+    // stamped at completion claims a freshness its EARLIEST bars do not have,
+    // and reporting staleness is the field's whole job.
+    expect(stamped).toBeGreaterThanOrEqual(before);
+    expect(stamped).toBeLessThan(after - 100);
+  });
+
+  it("assembles three RECORDED pages into the session they came from", async () => {
+    // **Real vendor bodies rather than synthetic ones**, recorded 2026-09-07 by
+    // walking 2026-09-03's regular session at a deliberately small page size:
+    // 150 + 150 + 90 = 390, which is what the trading calendar says that
+    // session contains. The page size is small on purpose — the loop behaves
+    // identically at any size, and three pages at the shipped 10,000-bar
+    // ceiling is ~2.7 MB of fixtures to prove that a loop iterates.
+    //
+    // What these add over the synthetic pages above is everything the vendor
+    // decides: the real token format, the real bar shape, and a real page
+    // boundary falling mid-session.
+    const pages = [1, 2, 3].map((page) =>
+      readFileSync(
+        join(
+          import.meta.dirname,
+          "fixtures",
+          "alpaca",
+          `nvda-1min-walk-page-${String(page)}.json`,
+        ),
+        "utf8",
+      ),
+    );
+    let served = 0;
+    const harness = await serve(() => ({
+      status: 200,
+      body: pages[served++] ?? "unreachable",
+    }));
+
+    // **`WIDE_REQUEST` rather than the session's own range, and the reason is a
+    // constraint anyone recording more fixtures needs.** The page bound is
+    // derived from the requested range against the *shipped* 10,000-bar
+    // ceiling, so a 390-bar session can never legitimately span three pages —
+    // and these bodies were recorded at 150. A fixture taken at a reduced page
+    // size is therefore only replayable against a range wide enough to justify
+    // its page count. The alternative was making the bound injectable, which is
+    // test-shaped API on shipped code and is what Task 1.10.5 refused with
+    // `MIN_PORT`.
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars(WIDE_REQUEST);
+
+    assert(result.outcome === "ok");
+    expect(harness.requests).toHaveLength(3);
+
+    // 390 — the calendar's `minuteBars` for that session, reassembled across
+    // three pages. This is the assertion a walk that drops or double-counts a
+    // page fails, and `toBarSeries` cross-checks it against `barCount` too.
+    expect(result.series.bars).toHaveLength(390);
+    expect(result.series.provenance.sources[0].barCount).toBe(390);
+
+    // Ascending ACROSS the seams, which is what a walk that concatenates out of
+    // order breaks. `toBarSeries` refuses a non-ascending series outright, so
+    // this is belt and braces on the boundary specifically.
+    expect(result.series.bars[149]?.startsAt.getTime()).toBeLessThan(
+      result.series.bars[150]?.startsAt.getTime() ?? 0,
+    );
+    expect(result.series.bars[0]?.startsAt.toISOString()).toBe(
+      "2026-09-03T13:30:00.000Z",
+    );
+    expect(result.series.bars.at(-1)?.startsAt.toISOString()).toBe(
+      "2026-09-03T19:59:00.000Z",
+    );
+  });
+
+  it("costs no request at all when the whole window is withheld", async () => {
+    // A range entirely inside the last ~16 minutes. There is nothing the vendor
+    // could serve, so asking is a metered request guaranteed to be refused —
+    // and Story 2.8's backfill will produce exactly this shape on a symbol it
+    // is already caught up on.
+    const harness = await serve(() => ({ status: 200, body: "unreachable" }));
+    const now = Date.now();
+
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars({
+      ...REQUEST,
+      range: toTimeRange(new Date(now - 5 * 60_000), new Date(now)),
+    });
+
+    // **A success with nothing in it**, which `PROVIDER.md` §8.2 makes the
+    // correct answer — never an error, because §7 says the withheld window must
+    // not map onto one.
+    assert(result.outcome === "ok");
+    expect(result.series.bars).toHaveLength(0);
+
+    // `covered` is null rather than a window, so this reports "we reached
+    // nothing" rather than claiming coverage it does not have.
+    expect(result.series.coverage.covered).toBeNull();
+
+    // And the point: no HTTP request was made.
+    expect(harness.requests).toHaveLength(0);
+  });
+
+  it("refuses a token loop rather than returning what it has", async () => {
+    // A vendor that never stops. Without a bound this is an infinite loop that
+    // looks like a slow request and burns a rate limit producing nothing.
+    let served = 0;
+    const harness = await serve(() => ({
+      status: 200,
+      body: pageBody(served++ % 300, "never-ends"),
     }));
 
     await expect(
       createAlpacaProvider(CREDENTIAL, {
         baseUrl: harness.origin,
       }).fetchBars(REQUEST),
-    ).rejects.toThrow(AlpacaPaginationUnsupportedError);
+    ).rejects.toThrow(/next_page_token after/);
+
+    // **The bound is derived, and this is the tight case.** `REQUEST` is one
+    // regular session — 390 possible minute bars against a 10,000-bar page
+    // ceiling — so a correct answer cannot span two pages, let alone many. The
+    // floor of 2 plus the boundary slack is all this range ever gets, and a
+    // vendor that keeps handing out tokens is stopped almost immediately rather
+    // than after some round number nobody derived.
+    expect(harness.requests.length).toBeLessThanOrEqual(3);
+  });
+
+  it("bounds the whole walk by the caller's deadline, not each page", async () => {
+    const harness = await serve(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      return { status: 200, body: pageBody(0, "keeps-going") };
+    });
+
+    const started = Date.now();
+    const result = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchBars(WIDE_REQUEST, { deadlineMs: 90 });
+    const elapsed = Date.now() - started;
+
+    // `timeout`, discarding the pages already fetched — never a partial `ok`.
+    // A clipped `covered` is indistinguishable from "the vendor had nothing
+    // after this point", which is the one distinction Story 2.8's backfill has
+    // to make: one means resume, the other means done.
+    expect(result.outcome).toBe("timeout");
+
+    // A PER-PAGE deadline would let this run for as many pages as the vendor
+    // chose. One composed signal is what makes the promise the caller was given
+    // the promise they get.
+    expect(elapsed).toBeLessThan(400);
   });
 });
