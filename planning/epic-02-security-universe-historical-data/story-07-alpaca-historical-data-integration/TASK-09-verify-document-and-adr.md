@@ -34,7 +34,16 @@ clone and a fresh deployment read, which is the check rather than a formality.
 3. **Each mapped error cause produced against the live API** — re-read Task 2.7.6's record, and
    re-produce at least the bad key, which costs one request. Any member that could not be
    produced is named as such rather than left looking implemented
-4. **Rate limiting exercised at the limit** — re-read Task 2.7.7's live run
+4. **Rate limiting exercised at the limit** — re-read Task 2.7.7's live run, and note that it
+   did more than exercise the wrapper: it **settled `ALPACA.md` §6's open per-key-or-per-endpoint
+   question** (per _API_ — a second `data` path shares the bucket, the trading API does not) and
+   **falsified the "window" model everything before it was written against**. The limiter is a
+   **token bucket refilling at 3.23/s**, not a punished sixty seconds, so a `429` costs one
+   request rather than a minute. Everything in `ALPACA.md` §6 and in Tasks 2.7.1 and 2.7.6 that
+   says _window_ was written before that was measurable; §6b is the correction and it is
+   deliberately additive rather than a rewrite. **Re-take the burst rather than citing it** —
+   there are now four readings (201, 203, 207, 201) and they are one day's observations of a
+   live third party
 5. **The key is on the platform, absent from the repository, the bundle and every log record**,
    with a deliberate log of the request path inspected. That last clause is the one most likely
    to be skipped: turn the log level up, make a real request, and read what was written
@@ -106,7 +115,18 @@ something the candidate list did not name.
   reads, this is a directory tools _would_ read and are told not to.
 
   Any recorded invariant this story created (a coupled constant, a second writer on `status`, a
-  pin) belongs in the third kind with its durable copy named
+  pin) belongs in the third kind with its durable copy named.
+
+  **Task 2.7.7 created one of exactly that shape, and it is a precondition rather than a
+  constant.** The wrapper gives up when the delay plus one plausible attempt does not fit in
+  what is left, so **a caller with a tight deadline silently gets no retries at all** — correct,
+  and invisible, because the answer is the real cause rather than an error saying "I did not
+  try". `pnpm bars` honours it by passing its own 20 s (`BARS_COMMAND_DEADLINE_MS`, derived from
+  Task 2.7.5's measured five-page walk), and **nothing checks that a future caller does**. The
+  two constants that _are_ checkable — `RETRY_MAX_DELAY_MS + MIN_ATTEMPT_BUDGET_MS <
+DEFAULT_BARS_DEADLINE_MS` — are asserted by a test, which is this repository's own rule that a
+  test beats a `verify` step when the thing checked is reachable from code. The unchecked half
+  is the caller's deadline, which no test can see
 
 - **`README.md`** — ~~the script table gains `pnpm bars`~~ **added by Task 2.7.3 along with a
   `pnpm bars` section; verify rather than add.** The variable count moves (**13 → 15 at Task
@@ -123,11 +143,12 @@ something the candidate list did not name.
   describing that script as "four checks" is now stale. Re-make all five fail rather than citing
   2.7.2's run
 - **The test-count blocks' starting figure.** Task 2.7.2 moved `pnpm test` 619 → **629**, Task
-  2.7.3 moved it 629 → **683**, and **Task 2.7.6 moved it 683 → 722** (206 + 333 + 183) — none
-  of the three sweeping the ten blocks, per the precedent Task 2.6.8 set that a close owns the
-  sweep. So this close inherits **at least three** increments already outstanding before its own
-  remaining tasks are counted, which is exactly the shape that produced "stale by two story
-  closes" twice. **Re-count rather than adding to 722**
+  2.7.3 moved it 629 → **683**, **Task 2.7.6 moved it 683 → 722** (206 + 333 + 183)
+  and **Task 2.7.7 moved it 722 → 738** (206 + 349 + 183) — none of the four sweeping the ten
+  blocks, per the precedent Task 2.6.8 set that a close owns the sweep. So this close inherits
+  **at least four** increments already outstanding before its own remaining tasks are counted,
+  which is exactly the shape that produced "stale by two story closes" twice. **Re-count rather
+  than adding to 738**
 - **Story 2.14's own file, which is planned against a premise this story inverted — and it is
   the sweep most likely to be skipped, because it is a FUTURE story's file rather than a stale
   claim about the past.** Added 2026-09-07 by Task 2.7.4. Story 2.14 is written throughout as
@@ -268,7 +289,28 @@ those documents.
 - **Why a missing key is a startup refusal and a wrong key is a result** — the two halves of
   open decision 3 that turned out to have different answers
 - **Why retry lives in a wrapper**, confirming rather than re-deriving `PROVIDER.md` §8.8, and
-  what the measured numbers are
+  what the measured numbers are — plus the three things Task 2.7.7 measured that a design
+  argument alone would not have produced:
+
+  **The limiter is a refilling bucket, not a punished window**, which is what makes the whole
+  policy cheap: a backoff has to outlast a **token** (~310 ms) rather than a minute, and
+  `RETRY_BASE_DELAY_MS` is 300 because the refill interval and the round trip — two independent
+  measurements — land on the same number.
+
+  **`timeout` is retryable in the taxonomy and unreachable through the wrapper**, because a hung
+  attempt consumes the whole remaining budget by definition. Worth the ADR's space precisely
+  because it looks like a contradiction and is not: `isRetryableOutcome` classifies a _cause_ and
+  the wrapper is bounded by a _budget_. Slicing the caller's deadline into per-attempt portions
+  would make it reachable and was rejected — it invents a second timeout the caller cannot see.
+
+  **And the finding that belongs in _what a green X certifies_: retry helps one caller and does
+  not help a crowd.** 320 concurrent calls gave 91 answers bare, 206 through the wrapper at a 3 s
+  deadline (606 requests) and 263 at 20 s (1,473) — so it works, retries plainly count against
+  the limit, and the return diminishes while the cost does not: 2.5 requests per extra answer,
+  then 15, sustaining **73 req/s against a 3.23/s refill** and still leaving 57 refused. That is
+  the strongest evidence in this repository for §8.8's line that **pacing is Story 2.8's**, and
+  it is evidence rather than an argument, which is the difference worth recording
+
 - **Where the line between a result and a throw actually fell** against a real vendor — noting
   that the anticipated `422` split **does not exist** (malformed parameters are `400`), and that
   **two** members could not be produced from the bars endpoint rather than one:
@@ -306,8 +348,16 @@ Write this as a section rather than leaving it to be reconstructed:
 
 - The timeframes and the depth, decided in Task 2.7.1
 - The multi-symbol request's real cost, which sizes the backfill
-- The rate limit, the retry policy's numbers, and the line that **pacing is Story 2.8's** and
-  is not built here
+- The rate limit **as a bucket refilling at 3.23/s rather than a window**, the retry policy's
+  numbers, and the line that **pacing is Story 2.8's** and is not built here — with Task 2.7.7's
+  measurement attached rather than the assertion alone, because that story is the caller most
+  likely to discover the multiplication the hard way: a hundred concurrent retriers compete for
+  one refill, and what fixes it is asking less often. It gets that cheaply, since the limit is
+  per **request** rather than per symbol
+- **What a retry re-spends: a retried symbol costs its page count again.** The wrapper composes
+  around the interface, so a retry re-runs the walk from page 1 — accepted deliberately, because
+  a resumed walk needs a resume point and Task 2.7.5 refused to expose one. A hundred symbols
+  retried once is a hundred times the page count, not a hundred requests
 - The bar-density numbers — what a real session contains — which is what its gap handling is
   sized against, **and that they are feed-dependent**: 99.7% mean on SIP against 82.8% on IEX
 - **The THREE request-construction traps** — amended 2026-09-07, Task 2.7.3 produced a third —

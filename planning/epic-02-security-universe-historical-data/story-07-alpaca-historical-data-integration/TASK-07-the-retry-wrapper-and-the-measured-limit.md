@@ -1,6 +1,6 @@
 # Task 2.7.7 — The retry wrapper, bounded by the caller, with numbers taken from the measured limit
 
-**Status:** Not started
+**Status:** Complete (2026-09-07)
 **Story:** [2.7 Alpaca Historical Data Integration](STORY.md)
 **Depends on:** Task 2.7.6
 
@@ -236,3 +236,204 @@ an outage — ours, not theirs.
 
 Story 2.8 composes this around a hundred symbols. Everything that is wrong here is multiplied by
 a hundred there, which is the argument for measuring it against one.
+
+---
+
+# What shipped (2026-09-07)
+
+Two new files — `apps/backend/src/retry-provider.ts` and its tests — plus three lines of
+composition in `market-data.ts` and `fetch-bars.ts`. **No dependency and no lockfile change.**
+
+## The shape was confirmed, not re-decided
+
+`PROVIDER.md` §8.8's wrapper stands, unchanged and un-argued-with. `withRetry(provider)`
+implements `MarketDataProvider`, delegates `id` and `feed`, and is applied inside
+`createMarketDataProvider` around the value each `case` returns — so every consumer gets it,
+nothing chooses, `none` stays absence and the `alpaca` branch's credential check does not move.
+The fixture provider is wrapped too, deliberately: it is harmless (a corpus fault is permanent)
+and it is what keeps the two paths identical.
+
+`pnpm bars` was routed through it as well, because it is the one place a person sees the
+effect — and it passes **its own 20-second deadline**, since `DEFAULT_BARS_DEADLINE_MS` was
+derived for a single browser-budget request and Task 2.7.5 measured a five-page walk at 72% of
+it. That is the wrapper's stated precondition being honoured by its first caller rather than
+discovered later as an unexplained `timeout`.
+
+## The three constraints
+
+1. **`isRetryableOutcome()` is the only classifier** — one import, one call site, no `switch`
+   in the file. Made to fail: `unauthorised` marked retryable takes **four** tests red across
+   two files.
+2. **Bounded by the caller's deadline and signal, with no budget of its own**, by two
+   mechanisms rather than one — each attempt is delegated the **remaining** budget, and the
+   wrapper **never sleeps past the deadline**, giving up with the real cause rather than
+   manufacturing a `timeout`. Made to fail: passing the caller's original figure to every
+   attempt takes **two** tests red, one of which watches an individual attempt behave
+   perfectly while the whole call overruns.
+3. **There is no queue, stated as a decision.** A retry is a delay inside one call; depth is
+   the caller's own in-flight count. What that means for Story 2.8 is in the numbers below.
+
+## The numbers, and one derivation the live run changed
+
+There is deliberately **no `maxAttempts`**. A count is the wrong bound and would be reached
+second anyway: Task 2.7.6 measured a refused connection at ~1 ms and a hung host at the whole
+budget, so elapsed wall clock against the caller's deadline is the only rule correct for both.
+The attempt counter chooses the _shape_ of the delay; it decides nothing about whether there is
+another attempt.
+
+**`RETRY_BASE_DELAY_MS` was going to be 250 and is 300, because the live run produced a second
+measurement that agrees with the first.** ALPACA.md §6's round trip is ~280 ms; §6b's newly
+measured refill token is ~310 ms. Two independent numbers landing together is a better
+derivation than either alone.
+
+`RETRY_MAX_DELAY_MS` is 2,000, derived from `DEFAULT_BARS_DEADLINE_MS` rather than chosen — a
+delay larger than the whole default budget could never be slept. `MIN_ATTEMPT_BUDGET_MS` is 300
+and is a _second_ constant on purpose: one is how long to wait, the other is how much room an
+attempt needs, and they move for different reasons.
+
+**Equal jitter rather than full jitter**, which is the more commonly cited form: full jitter
+draws from `[0, scheduled]` and so can return approximately zero — straight back at the service
+that just refused us.
+
+**A consequence worth stating rather than discovering: `timeout` is retryable in the taxonomy
+and unreachable through this wrapper**, because a hung attempt consumes the entire remaining
+budget by definition. That is not a contradiction; `isRetryableOutcome` classifies a _cause_
+and this wrapper is bounded by a _budget_. Slicing the caller's deadline into per-attempt
+portions was rejected: it invents a second timeout the caller cannot see.
+
+## Three live findings, and two of them change other tasks
+
+Full tables in **ALPACA.md §6b**. Re-take them rather than citing; they are a live third
+party's behaviour on one day.
+
+**1. The limiter is a token bucket refilling at 3.23/s, not a punished 60-second window.** The
+burst reproduced exactly (320 concurrent → **201 ok / 119 refused**, a fourth reading), and
+then the very next request answered `200` with `x-ratelimit-remaining: 0`. Ten seconds of
+continuous asking let **33 through — 3.23/s** against a bucket's predicted 3.33/s and a fixed
+window's predicted zero. **So one `429` means one request refused, and a backoff only has to
+outlast a token (~310 ms) rather than a window.** That is what makes this policy cheap enough
+to apply to every call, and nothing here had established it.
+
+**2. The open per-key-or-per-endpoint question is answered, and the answer is per _API_.**
+Inside the same drained window: a second `data` path (`/v2/stocks/snapshots`) got **`429`**,
+while the trading API's `/v2/assets/NVDA` got **`200` with `x-ratelimit-remaining: 199`**.
+**Task 2.7.8's assets lookup therefore does not compete with bar fetching at all**, which
+removes the strongest argument against adopting it. ALPACA.md §6 and §10 are amended.
+
+**3. Criterion 4, the wrapper driven at the real limit — and retries are not free.**
+
+| Burst of 320                |    `ok` | `rate-limited` | HTTP requests |   Wall |
+| --------------------------- | ------: | -------------: | ------------: | -----: |
+| bare provider (the control) |      91 |            229 |       **320** |  1.0 s |
+| through the wrapper, 3 s    | **206** |            114 |       **606** |  3.0 s |
+| through the wrapper, 20 s   | **263** |             57 |     **1,473** | 19.9 s |
+
+It works — spare deadline becomes answers. **Retries count against the limit**, which the
+request counts settle rather than argue. And **the return diminishes while the cost does not**:
+the first 286 extra requests bought 115 extra answers (2.5 each), the next 867 bought 57
+(15 each), and at the 20-second deadline the wrapper sustained **73 requests a second against a
+3.23/s refill — 22× the limit** and still left 57 calls refused.
+
+**That last row is the strongest argument in this repository for §8.8's line that pacing is
+Story 2.8's.** A hundred concurrent retriers do not recover from a rate limit; they compete for
+the same refill. What fixes it is asking less often, which no per-request wrapper can do — and
+which Story 2.8 gets cheaply, because the limit is per _request_ rather than per symbol, so the
+whole universe is one request per window.
+
+## What a retry re-spends, and the decision taken
+
+A retry re-runs `fetchBars`, which since Task 2.7.5 is up to five HTTP requests, **from page 1**.
+**Accepted** — the cheap answer, and the only coherent one: a resumed walk needs a resume point,
+and Task 2.7.5 rejected exposing one precisely because a clipped `covered` is indistinguishable
+from _"the vendor had nothing after this point"_, so a resumable retry trades a wasted request
+for a series that lies about its own coverage. The number Story 2.8 inherits: **a retried symbol
+costs its page count again.**
+
+## Verification
+
+- **16 new tests, entirely offline** — the fixture provider for the real outcomes, plus a
+  counting stub for the _recovers-on-a-later-attempt_ case, because a corpus fault cannot
+  change its mind. No `simulateError` reaches the shipped interface.
+- The abort test uses a **real** 2,000 ms delay and no fake clock, because a fake clock can make
+  a cancelled-wait assertion pass while the shipped code waits the delay out. It aborts at 20 ms
+  and asserts the call returns in under 500 ms.
+- **Criterion 7 checked with a control rather than assumed**: the whole backend suite runs with
+  every off-machine `fetch`, `net.connect`, `net.createConnection`, `tls.connect` and
+  `dns.lookup` refused — **349 passed** — and a throwaway probe against `data.alpaca.markets`
+  was refused in the same run, so the blocker was proved to block. Loopback is allowed, because
+  _"no network"_ honestly means _"reaches no host but itself"_: `alpaca-provider.test.ts`'s
+  local HTTP harness binds 127.0.0.1 by design.
+- `pnpm verify` **exit 0 in 32.86 s**; `pnpm test` is **738** (206 + 349 + 183),
+  `test:process` 14. `pnpm bars NVDA 1d` prints 30 real daily bars through the wrapper.
+- The live harness was a throwaway outside the tree, deleted; `git status` is the five files
+  this task touched and nothing else.
+
+---
+
+# For a non-technical reader — where the product is, and what this adds
+
+**Nothing changed on screen, and that is expected for this task.** What changed is what happens
+when the outside world has a bad moment.
+
+MarketPulse gets its prices from Alpaca, a market-data company. Like every such service, Alpaca
+puts a ceiling on how often we may ask — roughly 200 questions a minute — and if we go over it
+simply refuses, politely, and tells us to come back later. Until today, one refusal meant one
+failed request: whatever we were doing stopped, and a person had to work out why.
+
+**This task built the thing that waits and asks again.** If a request fails for a reason that
+might not be true a moment later — the service was briefly busy, or briefly unreachable — we
+now pause and try once more, automatically. If it fails for a reason that will still be true in
+a second — a wrong password, or a stock symbol that does not exist — we do **not** try again,
+because asking a settled question twice is just noise.
+
+Three judgement calls are worth explaining, because each is a place this kind of code usually
+goes wrong.
+
+**We never take longer than we were asked to.** Whoever calls us says how long they are prepared
+to wait; every retry happens _inside_ that time rather than on top of it. This sounds obvious
+and is the single most common bug in retry code: the natural way to write it quietly multiplies
+everyone's patience by the number of attempts, so a page that promised to give up after five
+seconds silently takes fifteen. We wrote that mistake on purpose to confirm our tests catch it,
+and they do.
+
+**When we run out of time, we report the real reason.** If we cannot fit another attempt in, we
+say _"the service asked us to slow down"_ rather than _"it took too long"_ — because the first
+tells you something you can act on and the second describes our own stopwatch.
+
+**We deliberately did not build a queue.** The tempting next step is a central waiting room for
+all requests. We measured what that would actually buy and decided it belongs to the next piece
+of work — the one that downloads history for all ~100 companies — rather than here. That
+decision came out of a real experiment rather than a preference, and the experiment produced the
+most useful number of the day.
+
+**What we learned by pointing this at the real Alpaca service.** We deliberately went over the
+limit and watched what happened. Two things surprised us, both usefully.
+
+First, **Alpaca does not sulk.** We had assumed that going over the limit locks you out for a
+minute. It does not: the allowance refills continuously, at about three requests a second, so a
+refusal costs you one request rather than a minute. That means our "wait and try again" pause
+can be a third of a second rather than tens of seconds — which is the difference between a user
+noticing a hesitation and a user noticing nothing at all.
+
+Second, **retrying helps an individual request and does not help a crowd.** Firing 320 requests
+at once, we got 91 answers without the new code and 263 with it — a big improvement. But getting
+those extra answers cost four and a half times as many questions asked, and the last stretch was
+especially poor value: the first batch of extra effort bought an answer for every two and a half
+extra questions, the second bought one for every fifteen. The lesson is that patience helps a
+single request and cannot fix an overloaded queue; what fixes that is asking less often, which
+is a decision the _history downloader_ has to make. We have written that down for it, with the
+numbers, so it starts from evidence rather than from instinct. Happily, the same experiment
+showed that job can ask for all 100 companies in **one** request, so it has plenty of room.
+
+We also settled an open question worth a small saving later: Alpaca's price service and its
+company-information service have **separate** allowances. The next task needs the second one to
+tell a real company from a typo, and it can now do that without stealing from the price budget.
+
+**Where the product stands.** The deployed site shows the ~100 companies MarketPulse tracks,
+read live from a real database, and honestly labels where its data comes from. Behind it, a real
+connection to a real market-data vendor now fetches genuine historical prices — and as of today
+it survives the vendor having an off moment. The next tasks tell a real ticker from a typo, and
+then store the history we fetch. Once history is stored, the charts and the "is this move
+unusual?" scoring that the product is built around have something to compute against — which is
+the point at which a stakeholder stops being shown a list of companies and starts being shown
+the market.
