@@ -894,3 +894,99 @@ either side of the transition and none on the transition day. That is
 `0004_market_bars.sql`'s "single most damaging line in this story" — a
 `default now()` on `observed_at` — proved absent by the data rather than by
 reading the migration.
+
+### 8.12 Keeping it current — Task 2.8.7's "nothing runs automatically" is reversed
+
+**The catch-up mechanism already existed and is correct.** `planRequests` splits
+the sessions asked for into those NEWER than the ledger's frontier and those
+older, and walks the newer ones **forward and contiguously** from `covered.end`.
+Nothing had to be built; Task 2.8.6 found it and Task 2.8.7 left its home open.
+
+**But the size of `N` matters far more than it looks**, and this is the trap to
+carry. Measured through the real planner, with the frontier a week behind:
+
+| Command          | Requests planned | Genuinely new |  Wasted |
+| ---------------- | ---------------: | ------------: | ------: |
+| `--sessions 5`   |            **4** |         **4** |   **0** |
+| `--sessions 10`  |            **4** |         **4** |   **0** |
+| `--sessions 251` |          **193** |             4 | **189** |
+
+A catch-up asks only for recent sessions, which are all `newer`, so §8.7's
+intersection problem never arises. A large `N` drags the request set past the
+common window's start and re-fetches nearly a year at `0 new`. **Raising the
+number does not make a catch-up safer; it makes it expensive.**
+
+**So the store is kept current by a nightly `schedule:` on
+`.github/workflows/backfill.yml` running `--sessions 10` at 08:00 UTC.** That
+reverses Task 2.8.7's decision that neither the backfill nor the catch-up runs
+automatically in V1, and the reversal is recorded rather than quiet:
+
+- **Part of that decision's argument was that the backfill had nowhere good to
+  run.** §8.8 measured a laptop as the wrong machine by a factor of thirty-five,
+  and gave it a home. That premise is gone.
+- **The cost was never the objection and is now measured**: four vendor requests
+  and about three minutes a night, and **zero requests** on a night with nothing
+  new, because the planner plans none.
+- **What Task 2.8.7 was right about survives**: an unscheduled catch-up is what
+  makes the store quietly stale, and `bar_coverage.updated_at` — _when what we
+  hold last changed_, not _when the backfill last ran_ — is the only field that
+  can report it honestly. That field is now the check on the schedule rather than
+  the substitute for one.
+
+**The failure mode of a schedule, stated.** GitHub disables a `schedule:` on a
+repository with no pushes for 60 days, which is a real hazard for a project
+worked on in bursts — and it fails **silently**, which is the shape this
+repository keeps finding. The instrument that catches it is `pnpm bars:check`,
+whose default window is the ledger's own span, and not this workflow.
+
+### 8.13 Today's session, which the store deliberately does not hold
+
+**The walk takes COMPLETE sessions only** — `resolveSessions` asks for `N + 1`
+and drops the newest — and §8.12's catch-up runs at 08:00 UTC, before the open.
+So while a session is happening, it is not in the store, and that is a decision
+rather than an omission.
+
+**The mechanism to store a partial session exists and behaves correctly**,
+measured at a simulated 12:00 ET on a real session:
+
+| Reading          | Value                         |
+| ---------------- | ----------------------------- |
+| Session          | `13:30Z` → `20:00Z`, 390 bars |
+| Requested        | `13:30Z` → `20:00Z`           |
+| **Servable end** | **`15:44Z`** — now − 16 min   |
+| Would store      | **134 of 390 minutes**        |
+
+`alpacaServableEnd` is what makes that a partial answer rather than a **403**:
+`ALPACA.md` §10's recency cliff keys on `end` alone and refuses the whole
+request, so an unclamped mid-session request returns nothing at all. The ledger
+then records `covered` as the window actually answered for.
+
+**And it self-heals, which was checked with its control.** A later run asking
+for the same session plans **1 request**, because the session's close is beyond
+the recorded `covered.end`; the control — the same session recorded complete —
+plans **0**. So a mid-day fetch cannot leave a permanently half-stored session.
+
+**None of which makes it the right answer to "what is happening now", and three
+things say so:**
+
+- **It is always sixteen minutes stale**, which is the wrong instrument for a
+  live question.
+- **It would put a second feed in this table.** Epic 3's stream is **IEX** and
+  everything stored is **SIP**. `0004_market_bars.sql` names _a second feed
+  writing into this table_ as the trigger for a per-bar `feed` column, and the
+  ledger's one-feed-per-series statement stops being honest that day.
+- **Partial sessions change what "we hold this session" means** for every
+  reader — Task 2.8.9's coverage column and `bar-completeness.ts` both.
+
+**So today's session is Epic 3's, and the split is by how the data ARRIVES
+rather than by how old it is.**
+
+**What is genuinely open, and has no owner written down: the read-side join.**
+When Story 2.9 serves a chart window ending _now_, the window spans a stored
+part and a live part from two different tapes. Three shapes, none chosen:
+serve only what is stored and let the chart end sixteen minutes ago; stitch the
+store to a live tail and label the seam; or have the provider serve the whole
+window on demand and store nothing. `PROVIDER.md` §2.4 already refuses to let a
+`SeriesProvenance` hide a disagreement, so whichever is chosen has to say which
+feed each part came from. **Story 2.9 should take this explicitly rather than
+discovering it.**

@@ -228,3 +228,41 @@ so `feed === null` is exactly _"no provider is configured"_. `API_ERROR_CODES`' 
 a response's fields as much as a union's members — a field exists when something reads it.
 The provider's name arrives with its first reader, which is Story 2.14, off `SeriesProvenance`
 where it already travels.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.8 — a fourth open decision: the read-side join
+
+The store is full and its shape has one consequence this story owns and does not
+currently name.
+
+**The backfill stores COMPLETE sessions only**, and the nightly catch-up runs
+before the open — so while a session is happening it is not in the store. A
+chart window ending _now_ therefore spans two things: a stored part, and a live
+part that is not stored and comes from a different tape (everything stored is
+**SIP**; Epic 3's live stream is **IEX**).
+
+Three shapes, none chosen, and this story should take it explicitly rather than
+discovering it at the first chart:
+
+1. **Serve only what is stored**, and let a "today" chart end at yesterday's
+   close. Honest, cheapest, and visibly wrong to anybody who expected today.
+2. **Stitch the store to a live tail and label the seam.** `PROVIDER.md` §2.4
+   already refuses to let a `SeriesProvenance` hide a source disagreement, so the
+   response has to say which feed each part came from — which is the mechanism
+   that exists precisely for this.
+3. **Ask the provider for the whole window on demand** and store nothing extra.
+   Simple, and it makes every chart a metered vendor request.
+
+Two measurements this story should have before choosing:
+
+- **A mid-session fetch is possible and is always ~16 minutes stale.** Measured
+  at a simulated 12:00 ET: a request for today's session clamps to `now − 16 min`
+  and would return **134 of 390 minutes**. The clamp is mandatory rather than
+  polite — the plan's recency cliff refuses the **whole** request otherwise.
+- **A year of minute bars for one symbol is 97,530 rows ≈ 8.4 MB of JSON.** That
+  is this story's open decision 2 on downsampling, with a number under it: the
+  answer cannot be "send them all".
+
+See [`BARS.md`](../story-08-historical-bar-ingestion-and-storage/BARS.md) §8.13
+and §8.6.
