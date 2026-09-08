@@ -185,7 +185,7 @@ than one:
 ```sh
 pnpm db          # starts PostgreSQL 18 and waits until it is accepting connections
 pnpm migrate     # applies every migration the database has not seen
-pnpm universe    # loads the ~100 securities MarketPulse tracks
+pnpm universe    # loads the 518 securities MarketPulse tracks
 ```
 
 So the first run of a clean clone is **five** steps in this order —
@@ -1213,17 +1213,18 @@ actually checks, and which are prose because nothing can.
 pnpm universe
 ```
 
-Loads the ~100 securities MarketPulse tracks — the equities, the eleven sector
+Loads the 518 securities MarketPulse tracks — the S&P 500, the eleven sector
 ETFs and the four index proxies — into the `securities` table `pnpm migrate`
 created. It is the **fifth** step of a first run and the one with no symptom if
 you skip it: an empty `securities` table looks exactly like a full one to
 `pnpm ready`, `pnpm verify` and `pnpm dev`.
 
 **The list is [`apps/backend/src/universe.ts`](apps/backend/src/universe.ts)**,
-and it is a curated file in this repository rather than something fetched. Why
-those securities and not others — the eleven-sector taxonomy, the floor of six
-and ceiling of twelve equities per sector, and why "the top 100 by market cap"
-is the wrong list — is in `UNIVERSE.md` under
+and it is a curated file in this repository rather than something fetched at run
+time. Why those securities and not others — the eleven-sector taxonomy, why
+membership is a published index rather than a hand allocation, and why `industry`
+is the GICS industry group rather than the finer sub-industry — is in
+`UNIVERSE.md` under
 `planning/epic-02-security-universe-historical-data/story-03-…/`.
 
 **Re-running it converges on that file**, which is a stronger promise than "it
@@ -1233,10 +1234,10 @@ updated, and unchanged rows are not touched at all. It reports which of the thre
 each row was.
 
 ```text
-  ✓ 101 securities in the universe
+  ✓ 518 securities in the universe
       0 inserted
       1 updated
-      100 unchanged
+      517 unchanged
 ```
 
 **A universe that breaks its own rules fails the load and writes nothing.** An
@@ -1289,7 +1290,7 @@ first thing that can see any of it, and on the day it was written it found one:
 `WMT` said `NYSE`, and Walmart moved to NASDAQ in December 2024.
 
 ```text
-  ✓ 101 securities checked against the vendor
+  ✓ 518 securities checked against the vendor
 
   ○ 1 whose listing venue disagrees with the file:
       WMT  file says NYSE, vendor says NASDAQ

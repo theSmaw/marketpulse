@@ -112,8 +112,12 @@ What to decide explicitly rather than by accumulation:
   the decision here is to **not build it against no reader**, with Epic 5 named as the trigger
   and the note that adding it later on a populated table is what `CREATE INDEX CONCURRENTLY`
   is for.
-- **Every index is ~10M rows of write amplification.** State the cost in the migration beside
-  each one.
+- **Every index is ~50M rows of write amplification.** State the cost in the migration beside
+  each one. (~10M when this was written against 101 securities; Task 2.8.2 re-curated the
+  universe to 518, so a year of minute bars is **50.5M rows**. That also makes open decision
+  2's TimescaleDB trigger — Task 2.8.8's `EXPLAIN` against the real row count — five times
+  more likely to fire, and it makes the choice of what NOT to index the more consequential
+  half of this task.)
 
 ## `CREATE INDEX CONCURRENTLY`, and why it does not bind this task
 

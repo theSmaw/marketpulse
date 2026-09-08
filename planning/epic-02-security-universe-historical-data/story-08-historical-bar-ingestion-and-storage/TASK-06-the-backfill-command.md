@@ -208,3 +208,53 @@ over a shorter series.
 
 That is what Task 2.8.7 exists for, and it is the reason completeness is a separate task rather
 than a flag this one sets.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.2 — 518 securities, and CONCURRENCY becomes a real question
+
+### The arithmetic, re-taken
+
+The session-shaped loop is still right and its case is stronger: it replaces **~130,018**
+requests rather than ~25,350. But the figures in the body are 101's:
+
+| Reading                            | 101 (as written) | 518 (shipped) |
+| ---------------------------------- | ---------------: | ------------: |
+| Rows per session, whole universe   |           39,390 |   **202,020** |
+| Pages per session                  |                4 |        **21** |
+| Requests for a year of minute bars |           ~1,004 |    **~5,051** |
+| Reconciles with rows ÷ 10,000      |            985 ✓ |   **5,051 ✓** |
+
+### The thing that actually changed: the wall clock is no longer set by the rate limit
+
+**This is a correction to `BARS.md` §4's own amendment, made the same day.** That figure —
+"~26 minutes" — is `5,051 ÷ 3.23/s`, which is the **rate-limit floor** and is only the wall
+clock if enough requests are in flight to saturate the bucket. Measured, a page is
+**1,050,183 bytes and 2.52–2.65 s** from a development laptop, and Task 2.8.1 decided the
+backfill **runs from a laptop** against the deployed database. So:
+
+|                            | 101          | 518            |
+| -------------------------- | ------------ | -------------- |
+| Rate-limit floor           | ~5 min       | **~26 min**    |
+| **Sequential wall clock**  | **~43 min**  | **~3.6 hours** |
+| Concurrency to reach floor | ~8 in flight | ~8 in flight   |
+
+At 101 the gap between floor and sequential was 5 min against 43 — annoying. At 518 it is
+26 min against **3.6 hours**, and Task 2.8.5's own claim that the batch is "what makes the
+backfill a command somebody runs rather than an overnight job" **is false sequentially**.
+
+**So this task owes a decision it did not owe before: does the backfill issue requests
+concurrently?** Both branches are legitimate and neither should be drifted into:
+
+- **Sequential**, and the command is a ~4-hour job run once — which is defensible, because
+  Task 2.8.1 already scoped the one-off backfill as a local command rather than a pipeline
+  step, and a 4-hour local job is a thing you start and leave.
+- **A small fixed concurrency (~8)**, which reaches the rate-limit floor and needs the pacer
+  to be shared across in-flight requests rather than per-request. That is a materially more
+  complex pacer and it interacts with `withRetry`'s budget, which Task 2.7.7 measured
+  degrades badly under a crowd (320 concurrent → 73 req/s against a 3.23/s refill).
+
+**The recommendation is sequential for the one-off**, with the measurement recorded, and
+concurrency deferred to Task 2.8.8's evidence rather than assumed here — because Task 2.7.7's
+crowd measurement is the strongest evidence in this repository that concurrency against this
+vendor is not free, and ~4 hours once is cheaper than a pacer nobody can test.

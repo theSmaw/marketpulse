@@ -6,7 +6,7 @@
 
 ## Objective
 
-Make this story visible. `/securities` renders 101 rows of curated metadata today; after Task
+Make this story visible. `/securities` renders 518 rows of curated metadata today (101 until Task 2.8.2 re-curated the universe to the S&P 500); after Task
 2.8.8 the database holds roughly ten million bars behind those rows and **nothing on any screen
 says so**.
 

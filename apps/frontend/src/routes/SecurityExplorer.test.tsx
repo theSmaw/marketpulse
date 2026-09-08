@@ -10,7 +10,7 @@ import { SecurityExplorer } from "./SecurityExplorer.js";
 // makes this an assertion about the read path rather than about a table
 // rendering an array. The four states are asserted by what a user reads, and
 // the untracked row is asserted because nothing else can: the deployed table is
-// 101 rows all `active`, so a version of this page that filtered would pass
+// 518 rows all `active`, so a version of this page that filtered would pass
 // every other check in this task.
 
 const NVDA = {

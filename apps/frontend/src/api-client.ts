@@ -323,8 +323,14 @@ export function getHealth(
  * as a host that is not this API.
  *
  * No pagination parameter, because there is none — the whole universe is one
- * response, measured at 17,299 bytes for 101 securities and ~13 kB gzipped at
- * §6's 500. And no `?q=`: Story 2.11 owns search and has an open decision about
+ * response, **measured at 88,901 bytes and 8,725 gzipped for the 518 securities
+ * that ship today** (17,299 bytes at the 101 this was first written against).
+ * Note the second figure is smaller than the ~13 kB predicted for §6's 500,
+ * because Task 2.8.2's coarser industry taxonomy repeats 25 labels across 503
+ * rows where the old one had 45 near-unique ones, and repetition is what gzip
+ * is. The uncompressed figure is what actually crosses the wire from a laptop —
+ * nothing in this stack compresses, which is Story 2.10's to look at if it ever
+ * matters. And no `?q=`: Story 2.11 owns search and has an open decision about
  * whether matching happens here or in the server, which a parameter added now
  * would settle by accident.
  */

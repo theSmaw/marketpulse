@@ -199,3 +199,58 @@ zero bars because a fetch failed is not a gap in a chart — it is a zero in a d
 makes an ordinary day look like the most unusual one in the sample. That is a false anomaly with
 a plausible explanation attached, which is the worst output this product can produce, and it
 originates here rather than in Epic 5.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.2 — "complete" cannot mean 390 bars, and that is measured
+
+This task's sharpest warning is the half day: a check expecting 390 a session reports **180
+phantom gaps** on each of eleven days, and the fix is to ask
+`marketSessionOn(date).minuteBars` rather than to assume. **That is right and it is not
+enough**, and re-curating the universe to 518 S&P 500 constituents is what made the rest
+visible.
+
+**Most constituents are missing minutes on an ordinary regular session, on SIP.** Measured
+against the live API for 2026-09-03 — a full regular session — each symbol fetched alone and
+walked to `next_page_token: null`, so these are exhausted answers rather than truncated pages:
+
+| Symbol |    Bars | Span          |
+| ------ | ------: | ------------- |
+| `AAPL` | **390** | 13:30 → 19:59 |
+| `ACGL` | **385** | 13:30 → 19:59 |
+| `ABBV` | **384** | 13:30 → 19:59 |
+| `AME`  | **344** | 13:30 → 19:59 |
+
+Across the 28 symbols served on one 10,000-row page, **only 8 of 28 returned a full 390** —
+and every short one spans the whole session, so the minutes are genuinely absent rather than
+cut off. `AME` is missing 46 of them.
+
+### What that changes about this task
+
+**Not the structure — the vocabulary.** The three-way computation this task defines (what the
+calendar says should exist, what the ledger says was attempted, what the bars say arrived) is
+exactly right and is what survives. What does not survive is treating _calendar minus arrived_
+as a **gap**, because on that definition the universe is permanently ~5% incomplete on every
+session and the report is red forever — which is the same failure as the half day, arriving
+on the other 240 days of the year.
+
+So the report needs a distinction the body does not currently draw:
+
+- **Not fetched.** No ledger entry for `(security, timeframe, session)`. This is the only
+  state a catch-up run should act on, and the only one that means something is wrong with us.
+- **Fetched, and thin.** The ledger says the session was attempted and the vendor answered;
+  the count is below `minuteBars` because the security did not trade in every minute. **This
+  is the normal state of most securities on most days** and it is a fact about liquidity
+  rather than about our ingestion.
+
+**A percentage against `minuteBars` is therefore a liquidity measure, not a completeness
+measure**, and labelling it "completeness" is how somebody later re-fetches 240 sessions that
+were already complete. Completeness is a question about the **ledger**; thinness is a question
+about the **bars**. Keep them in separate columns and say which is which.
+
+### The deliberate breaks this adds
+
+The body lists a 390-bar expectation applied to a half day. Add its sibling: **a 390-bar
+expectation applied to a thin regular session**, which must report the security as _fetched
+and thin_ rather than as having 46 gaps — using `AME` on 2026-09-03 as the fixture, because it
+is a real measured case rather than an invented one.

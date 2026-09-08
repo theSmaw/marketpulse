@@ -1,7 +1,9 @@
 // The tracked universe: the securities MarketPulse watches, as data.
 //
-// This is the list PRODUCT_SPEC.md §6 asks for — "approximately 100 liquid
-// US-listed equities plus a small number of useful ETFs" — and it is the input
+// This is the list PRODUCT_SPEC.md §6 asks for — its stated V1 range is
+// "100-500 liquid US-listed equities plus a small number of useful ETFs", and
+// since Task 2.8.2 this file sits at the top of it: the **S&P 500** plus the
+// eleven sector SPDRs and four market proxies, 518 securities. It is the input
 // to Epics 4, 5, 6 and 7 rather than a fixture. Every argument behind it is in
 // `planning/epic-02-security-universe-historical-data/story-03-.../UNIVERSE.md`,
 // which is this story's one document about the subject: §1 the taxonomy, §6 why
@@ -25,10 +27,13 @@
 // `classification_retrieved_at` at load time, and `0003_security_vocabulary.sql`
 // makes all four `not null` with no default so it cannot forget. What this file
 // owes that arrangement is one negative fact, and it holds: **every row below
-// has the same source.** The profile fields (`symbol`, `name`, `exchange`) and
-// the classification fields (`sector`, `industry`) were both hand-curated here,
-// so the loader writes one source string for the whole file and no row needs an
-// override.
+// has the same source, per group.** All 503 equities' profile fields (`symbol`,
+// `name`, `exchange`) come from Alpaca's asset catalogue and all their
+// classification fields (`sector`, `industry`) from the published S&P 500 GICS
+// classification, so the loader writes one source string per group for the whole
+// file and no row needs an override. The fifteen ETFs are the stated exception
+// and are curated by hand, because neither source classifies a fund — see
+// {@link UNIVERSE_PROVENANCE}.
 //
 // **The FILE does carry one thing, and Task 2.3.5 put it here on purpose:
 // {@link UNIVERSE_PROVENANCE}, the date this list was last checked against a
@@ -76,61 +81,61 @@ import {
 /**
  * One curated row, before it becomes a {@link Security}.
  *
+ * **A labelled tuple rather than an object, and that is a decision the size
+ * forced.** At 86 equities the object form fitted on five lines a reviewer read
+ * as one unit; at 503 it is ~2,500 lines, and a tuple carrying the same fields
+ * is one line each. The labels survive in the type — an editor still shows
+ * `symbol`, `name`, `exchange` on hover — so what is lost is the field name at
+ * the call site and what is bought is a whole industry group visible at once,
+ * which is exactly the property `UNIVERSE.md` §5 justifies this file with.
+ *
+ * **`industry` is NOT on the row**, and that is §5's grouping argument applied
+ * one level down. The sector has never been on a row: it is a single typed
+ * argument per block, so a sector outside {@link SECTORS} is one compile error
+ * rather than one per row, and a row cannot acquire the wrong sector by being
+ * pasted into the wrong place. Every word of that is true of the industry group
+ * as well — and it buys something the sector version did not, because the group
+ * is what PRODUCT_SPEC.md §11's breadth example counts, so a block's length is
+ * the number that example is arithmetic over. You can read the depth of
+ * `Semiconductors & Semiconductor Equipment` off the file.
+ *
  * `symbol` is a plain `string` here and a `Ticker` on the far side of the
  * constructors below. That is the one cost `UNIVERSE.md` §6 stated in advance:
- * `Security.symbol` is branded, so `symbol: "AAPL"` does not satisfy it and
- * every row would otherwise read `symbol: toTicker("AAPL")`. Wrapping ~100 rows
- * individually is noise in a file whose whole job is to read as data, so the
- * wrapping happens in one place — which is also the only place it could be
- * validated, and a curated file is exactly where a boundary check belongs. A
- * malformed ticker is a `TypeError` at module load naming the value, not a
- * symbol that quietly matches nothing.
+ * `Security.symbol` is branded, so `"AAPL"` does not satisfy it and every row
+ * would otherwise read `toTicker("AAPL")`. Wrapping 500 rows individually is
+ * noise in a file whose whole job is to read as data, so the wrapping happens in
+ * one place — which is also the only place it could be validated, and a curated
+ * file is exactly where a boundary check belongs. A malformed ticker is a
+ * `TypeError` at module load naming the value, not a symbol that quietly matches
+ * nothing.
  */
-interface CuratedRow {
-  symbol: string;
-  name: string;
-  /** The listing venue. `NASDAQ`, `NYSE` or `ARCA` in this file. */
-  exchange: string;
-  /**
-   * The finer classification, or `null` where there genuinely is not one — a
-   * fund is not in an industry.
-   *
-   * Required rather than optional even though it is nullable: under
-   * `exactOptionalPropertyTypes` an omitted key and an explicit `null` are
-   * different types, and `Security` requires the key. That is deliberate, and
-   * it is the difference between an author who decided there is no answer and
-   * an author who never decided.
-   */
-  industry: string | null;
-}
+type CuratedRow = readonly [symbol: string, name: string, exchange: string];
 
 /**
- * The equities of one sector.
- *
- * Grouped by sector rather than carrying a `sector` on each row, which is a
- * decision and not a convenience. It makes the sector a single typed argument
- * per block — so a sector outside {@link SECTORS} is one compile error rather
- * than one per row, and a row cannot acquire the wrong sector by being pasted
- * into the wrong place. It also makes §7's allocation rule legible in the file
- * itself: the floor of 6 and the ceiling of 12 are the length of these blocks,
- * which is what {@link UNIVERSE.md} §9's distribution table counts.
+ * The equities of one sector and one industry group.
  *
  * `cik` is `null` on every row, and that is the stated instruction rather than
  * an omission: it is Epic 9's field, Epic 9 will trust it, and **a guessed
- * identifier is worse than an absent one**. It is null forever for the ETFs
- * below, which do not file the reports Epic 9 reads.
+ * identifier is worse than an absent one**. Task 2.8.2 had a validated CIK for
+ * all 503 in front of it — the S&P 500 constituent list carries one — and
+ * deliberately did not write it, because populating a field with no reader is
+ * the quiet over-building this repository has already had to remove twice, and
+ * because EDGAR is the authority for a CIK rather than a constituent table.
+ * It is null forever for the ETFs below, which do not file the reports Epic 9
+ * reads.
  */
 function equities(
   sector: Sector,
+  industry: string,
   rows: readonly CuratedRow[],
 ): readonly EquitySecurity[] {
-  return rows.map((row) => ({
+  return rows.map(([symbol, name, exchange]) => ({
     kind: "equity",
-    symbol: toTicker(row.symbol),
-    name: row.name,
-    exchange: row.exchange,
+    symbol: toTicker(symbol),
+    name,
+    exchange,
     sector,
-    industry: row.industry,
+    industry,
     status: "active",
     cik: null,
   }));
@@ -217,667 +222,649 @@ const SECTOR_PROXIES: readonly SectorEtfSecurity[] = SECTORS.map((sector) => ({
  */
 const INDEX_PROXIES: readonly IndexEtfSecurity[] = (
   [
-    {
-      symbol: "SPY",
-      name: "SPDR S&P 500 ETF Trust",
-      exchange: "ARCA",
-      industry: null,
-    },
-    {
-      symbol: "QQQ",
-      name: "Invesco QQQ Trust, Series 1",
-      exchange: "NASDAQ",
-      industry: null,
-    },
-    {
-      symbol: "DIA",
-      name: "SPDR Dow Jones Industrial Average ETF Trust",
-      exchange: "ARCA",
-      industry: null,
-    },
-    {
-      symbol: "IWM",
-      name: "iShares Russell 2000 ETF",
-      exchange: "ARCA",
-      industry: null,
-    },
+    ["SPY", "SPDR S&P 500 ETF Trust", "ARCA"],
+    ["QQQ", "Invesco QQQ Trust, Series 1", "NASDAQ"],
+    ["DIA", "SPDR Dow Jones Industrial Average ETF Trust", "ARCA"],
+    ["IWM", "iShares Russell 2000 ETF", "ARCA"],
   ] as const satisfies readonly CuratedRow[]
-).map((row) => ({
+).map(([symbol, name, exchange]) => ({
   kind: "index_etf",
-  symbol: toTicker(row.symbol),
-  name: row.name,
-  exchange: row.exchange,
+  symbol: toTicker(symbol),
+  name,
+  exchange,
   sector: null,
-  industry: row.industry,
+  industry: null,
   status: "active",
   cik: null,
 }));
 
 /**
- * The equities, allocated by sector against `UNIVERSE.md` §7 and **not ranked
- * by market capitalisation**.
+ * The equities: **the S&P 500, as published**, grouped by GICS sector and then
+ * by GICS industry group.
  *
- * That ordering is the rule a naive "top 100 by market cap" list fails: it
- * produces a universe that is ~40% technology, which makes half of Epic 5
- * uninteresting — a sector with one constituent has no peers to be relative to,
- * and its breadth number is 0% or 100% forever. So the sector allocation is
- * chosen first (a floor of 6, a ceiling of 12) and the names inside each block
- * are chosen second.
+ * **Membership is an index rather than an allocation, and that is the change
+ * Task 2.8.2 made.** Until then this list was 86 names hand-allocated against
+ * `UNIVERSE.md` §7 — a floor of six and a ceiling of twelve per sector, chosen
+ * so a naive "top 100 by market cap" universe (~40% technology, most sectors too
+ * thin to be relative to anything) did not happen. That rule did its job and is
+ * now **superseded rather than broken**: an index constituent list needs no
+ * allocation rule, because the index already is one, and unlike a hand
+ * allocation it is a rule a reader can check against a published source.
  *
- * The rule pulling the other way is liquidity, and it means liquid **on IEX**
- * rather than on the consolidated tape — invariant 6 and §7.1: Alpaca's free
- * tier is IEX, so a name that is busy on the SIP and thin on IEX gives an
- * anomaly score computed over noise. Every name below is a large, heavily
- * traded US listing for that reason. Within each block there is deliberate
- * market-capitalisation spread (§7 rule 5): a sector of ten mega-caps moves as
- * one thing.
+ * **Why this index and not a bigger list.** `UNIVERSE.md` §5 declined a metadata
+ * fetcher and §10 declined deriving sectors from the sector-SPDR holdings, on
+ * one decisive objection: *the SPDRs hold S&P 500 constituents only, so every
+ * tracked equity outside the index would derive to no sector at all.* Defining
+ * the universe **as** that index dissolves the objection rather than working
+ * around it — coverage becomes 100% by construction, the eleven sector SPDRs
+ * partition the list exactly, and `SECTOR_ETFS` stops being a mapping we assert
+ * and becomes one the data satisfies. That is why the size and the metadata
+ * source had to be settled in the same breath, which is what §10 meant by
+ * "settle §5 before picking a number".
+ *
+ * **The classification is GICS at two levels and neither is invented.** `sector`
+ * is the GICS sector, which §1 already shaped this product's eleven around.
+ * `industry` is the GICS **industry group** (level 2, 25 of them) rather than the
+ * sub-industry (level 4, 127 of them) this file carried before. That is the
+ * coarsening §10 called free and never blocked, and it is a published level of a
+ * published taxonomy rather than merges we chose: 45 labels at a mean depth of
+ * 1.91 with 23 singletons become 25 groups at a mean depth of 20.1 with **none**.
+ * PRODUCT_SPEC.md §11's worked breadth example — "82% of semiconductor
+ * securities currently negative" — needs a group of at least 11 to be reachable
+ * at all, and was arithmetic over 8; `Semiconductors & Semiconductor Equipment`
+ * is 20 here, and 20 of the 25 groups clear that bar.
+ *
+ * **The liquidity rule that used to pull the other way is gone, and it is worth
+ * saying why rather than letting it lapse.** §7 required names liquid *on IEX*,
+ * because Alpaca's free tier is IEX and a name thin there gives an anomaly score
+ * computed over noise. Task 2.7.1 measured that the free plan is asymmetric: the
+ * live stream is IEX, but **historical bars default to SIP** — 99.7% mean minute
+ * coverage against IEX's 82.8%. So the constraint survives for Epic 3's live
+ * feed and does not bind anything Story 2.8 stores, and it would not have
+ * excluded an S&P 500 constituent in any case.
+ *
+ * Ordering is `SECTORS` order, then industry groups by descending depth, then
+ * symbol. None of it is load-bearing — the loader keys on `symbol` — and all of
+ * it is for the reader.
  */
 const EQUITIES: readonly EquitySecurity[] = [
-  // 12 — at §7's ceiling, and the ceiling is why: 12 of 86 is 14.0%, so the
-  // "not 40% technology" criterion is met with margin rather than approached.
-  //
-  // EIGHT of the twelve are `Semiconductors`, which is §7 rule 7 and is the
-  // most consequential shape in this file. PRODUCT_SPEC.md §38's flagship demo
-  // concludes "semiconductor weakness is broad" and §11's worked breadth
-  // example is "82% of semiconductor securities currently negative" — both
-  // INDUSTRY-level claims, not sector-level. A group of two or three makes
-  // those sentences arithmetic over nothing. AMAT is `Semiconductor Equipment`
-  // and deliberately not folded in: it sells to the group rather than
-  // competing in it, and a curated file that blurs that to make a number look
-  // better is the failure this list is checked against.
-  ...equities("technology", [
-    {
-      symbol: "NVDA",
-      name: "NVIDIA Corporation",
-      exchange: "NASDAQ",
-      industry: "Semiconductors",
-    },
-    {
-      symbol: "AMD",
-      name: "Advanced Micro Devices, Inc.",
-      exchange: "NASDAQ",
-      industry: "Semiconductors",
-    },
-    {
-      symbol: "AVGO",
-      name: "Broadcom Inc.",
-      exchange: "NASDAQ",
-      industry: "Semiconductors",
-    },
-    {
-      symbol: "INTC",
-      name: "Intel Corporation",
-      exchange: "NASDAQ",
-      industry: "Semiconductors",
-    },
-    {
-      symbol: "MU",
-      name: "Micron Technology, Inc.",
-      exchange: "NASDAQ",
-      industry: "Semiconductors",
-    },
-    {
-      symbol: "QCOM",
-      name: "QUALCOMM Incorporated",
-      exchange: "NASDAQ",
-      industry: "Semiconductors",
-    },
-    {
-      symbol: "TXN",
-      name: "Texas Instruments Incorporated",
-      exchange: "NASDAQ",
-      industry: "Semiconductors",
-    },
-    {
-      symbol: "ADI",
-      name: "Analog Devices, Inc.",
-      exchange: "NASDAQ",
-      industry: "Semiconductors",
-    },
-    {
-      symbol: "AMAT",
-      name: "Applied Materials, Inc.",
-      exchange: "NASDAQ",
-      industry: "Semiconductor Equipment",
-    },
-    {
-      symbol: "AAPL",
-      name: "Apple Inc.",
-      exchange: "NASDAQ",
-      industry: "Technology Hardware, Storage & Peripherals",
-    },
-    {
-      symbol: "MSFT",
-      name: "Microsoft Corporation",
-      exchange: "NASDAQ",
-      industry: "Systems Software",
-    },
-    {
-      symbol: "ORCL",
-      name: "Oracle Corporation",
-      exchange: "NYSE",
-      industry: "Systems Software",
-    },
+  // technology — 73 of 503, in 3 industry groups.
+  ...equities("technology", "Software & Services", [
+    ["ACN", "Accenture PLC", "NYSE"],
+    ["ADBE", "Adobe Inc.", "NASDAQ"],
+    ["ADSK", "Autodesk, Inc.", "NASDAQ"],
+    ["AKAM", "Akamai Technologies, Inc.", "NASDAQ"],
+    ["CDNS", "Cadence Design Systems, Inc.", "NASDAQ"],
+    ["CRM", "Salesforce, Inc.", "NYSE"],
+    ["CRWD", "CrowdStrike Holdings, Inc. Class A", "NASDAQ"],
+    ["CTSH", "Cognizant Technology Solutions Corporation Class A", "NASDAQ"],
+    ["DDOG", "Datadog, Inc. Class A", "NASDAQ"],
+    ["FICO", "Fair Isaac Corporation", "NYSE"],
+    ["FTNT", "Fortinet, Inc.", "NASDAQ"],
+    ["GDDY", "GoDaddy Inc", "NYSE"],
+    ["GEN", "Gen Digital Inc.", "NASDAQ"],
+    ["IBM", "International Business Machines Corporation", "NYSE"],
+    ["INTU", "Intuit Inc.", "NASDAQ"],
+    ["IT", "Gartner, Inc.", "NYSE"],
+    ["MSFT", "Microsoft Corporation", "NASDAQ"],
+    ["NOW", "ServiceNow, Inc.", "NYSE"],
+    ["ORCL", "Oracle Corp", "NYSE"],
+    ["PANW", "Palo Alto Networks, Inc.", "NASDAQ"],
+    ["PLTR", "Palantir Technologies Inc. Class A", "NASDAQ"],
+    ["PTC", "PTC Inc.", "NASDAQ"],
+    ["SNPS", "Synopsys, Inc.", "NASDAQ"],
+    ["TRMB", "Trimble Inc.", "NASDAQ"],
+    ["TYL", "Tyler Technologies, Inc.", "NYSE"],
+    ["VRSN", "VeriSign, Inc.", "NASDAQ"],
+    ["WDAY", "Workday, Inc. Class A", "NASDAQ"],
+  ]),
+  ...equities("technology", "Technology Hardware & Equipment", [
+    ["AAPL", "Apple Inc.", "NASDAQ"],
+    ["ANET", "Arista Networks", "NYSE"],
+    ["APH", "Amphenol Corporation", "NYSE"],
+    ["CDW", "CDW Corporation", "NASDAQ"],
+    ["CIEN", "Ciena Corporation", "NYSE"],
+    ["COHR", "Coherent Corp.", "NYSE"],
+    ["CSCO", "Cisco Systems, Inc.", "NASDAQ"],
+    ["DELL", "Dell Technologies Inc.", "NYSE"],
+    ["FFIV", "F5, Inc.", "NASDAQ"],
+    ["FLEX", "Flex Ltd.", "NASDAQ"],
+    ["GLW", "Corning Incorporated", "NYSE"],
+    ["HPE", "Hewlett Packard Enterprise Company", "NYSE"],
+    ["HPQ", "HP Inc.", "NYSE"],
+    ["JBL", "Jabil Inc.", "NYSE"],
+    ["KEYS", "Keysight Technologies, Inc.", "NYSE"],
+    ["LITE", "Lumentum Holdings Inc.", "NASDAQ"],
+    ["MSI", "Motorola Solutions, Inc.", "NYSE"],
+    ["NTAP", "NetApp, Inc.", "NASDAQ"],
+    ["ROP", "Roper Technologies, Inc.", "NASDAQ"],
+    ["SMCI", "Super Micro Computer, Inc.", "NASDAQ"],
+    ["SNDK", "Sandisk Corporation", "NASDAQ"],
+    ["STX", "Seagate Technology Holdings PLC", "NASDAQ"],
+    ["TDY", "Teledyne Technologies Incorporated", "NYSE"],
+    ["TEL", "TE Connectivity plc", "NYSE"],
+    ["WDC", "Western Digital Corporation", "NASDAQ"],
+    ["ZBRA", "Zebra Technologies Corporation Class A", "NASDAQ"],
+  ]),
+  ...equities("technology", "Semiconductors & Semiconductor Equipment", [
+    ["ADI", "Analog Devices, Inc.", "NASDAQ"],
+    ["AMAT", "Applied Materials, Inc.", "NASDAQ"],
+    ["AMD", "Advanced Micro Devices, Inc.", "NASDAQ"],
+    ["AVGO", "Broadcom Inc.", "NASDAQ"],
+    ["FSLR", "First Solar, Inc.", "NASDAQ"],
+    ["INTC", "Intel Corporation", "NASDAQ"],
+    ["KLAC", "KLA Corporation", "NASDAQ"],
+    ["LRCX", "Lam Research Corporation", "NASDAQ"],
+    ["MCHP", "Microchip Technology Incorporated", "NASDAQ"],
+    ["MPWR", "Monolithic Power Systems, Inc.", "NASDAQ"],
+    ["MRVL", "Marvell Technology, Inc.", "NASDAQ"],
+    ["MU", "Micron Technology, Inc.", "NASDAQ"],
+    ["NVDA", "NVIDIA Corporation", "NASDAQ"],
+    ["NXPI", "NXP Semiconductors N.V.", "NASDAQ"],
+    ["ON", "ON Semiconductor Corporation", "NASDAQ"],
+    ["Q", "Qnity Electronics, Inc.", "NYSE"],
+    ["QCOM", "QUALCOMM Incorporated", "NASDAQ"],
+    ["SWKS", "Skyworks Solutions, Inc.", "NASDAQ"],
+    ["TER", "Teradyne, Inc.", "NASDAQ"],
+    ["TXN", "Texas Instruments Incorporated", "NASDAQ"],
   ]),
 
-  // 9 — three industries deep enough to be compared against each other, which
-  // is what makes a health-care move readable as "pharma, not biotech".
-  ...equities("health_care", [
-    {
-      symbol: "LLY",
-      name: "Eli Lilly and Company",
-      exchange: "NYSE",
-      industry: "Pharmaceuticals",
-    },
-    {
-      symbol: "JNJ",
-      name: "Johnson & Johnson",
-      exchange: "NYSE",
-      industry: "Pharmaceuticals",
-    },
-    {
-      symbol: "PFE",
-      name: "Pfizer Inc.",
-      exchange: "NYSE",
-      industry: "Pharmaceuticals",
-    },
-    {
-      symbol: "MRK",
-      name: "Merck & Co., Inc.",
-      exchange: "NYSE",
-      industry: "Pharmaceuticals",
-    },
-    {
-      symbol: "ABBV",
-      name: "AbbVie Inc.",
-      exchange: "NYSE",
-      industry: "Biotechnology",
-    },
-    {
-      symbol: "AMGN",
-      name: "Amgen Inc.",
-      exchange: "NASDAQ",
-      industry: "Biotechnology",
-    },
-    {
-      symbol: "GILD",
-      name: "Gilead Sciences, Inc.",
-      exchange: "NASDAQ",
-      industry: "Biotechnology",
-    },
-    {
-      symbol: "UNH",
-      name: "UnitedHealth Group Incorporated",
-      exchange: "NYSE",
-      industry: "Managed Health Care",
-    },
-    {
-      symbol: "TMO",
-      name: "Thermo Fisher Scientific Inc.",
-      exchange: "NYSE",
-      industry: "Life Sciences Tools & Services",
-    },
+  // health_care — 59 of 503, in 2 industry groups.
+  ...equities("health_care", "Health Care Equipment & Services", [
+    ["ABT", "Abbott Laboratories", "NYSE"],
+    ["ALGN", "Align Technology, Inc.", "NASDAQ"],
+    ["BAX", "Baxter International Inc.", "NYSE"],
+    ["BDX", "Becton, Dickinson and Co.", "NYSE"],
+    ["BSX", "Boston Scientific Corp.", "NYSE"],
+    ["CAH", "Cardinal Health, Inc.", "NYSE"],
+    ["CI", "The Cigna Group", "NYSE"],
+    ["CNC", "Centene Corporation", "NYSE"],
+    ["COO", "The Cooper Companies, Inc.", "NASDAQ"],
+    ["COR", "Cencora, Inc.", "NYSE"],
+    ["CVS", "CVS Health Corporation", "NYSE"],
+    ["DGX", "Quest Diagnostics Inc.", "NYSE"],
+    ["DVA", "DaVita Inc.", "NYSE"],
+    ["DXCM", "DexCom, Inc.", "NASDAQ"],
+    ["ELV", "Elevance Health, Inc.", "NYSE"],
+    ["EW", "Edwards Lifesciences Corp", "NYSE"],
+    ["GEHC", "GE HealthCare Technologies Inc.", "NASDAQ"],
+    ["HCA", "HCA Healthcare, Inc.", "NYSE"],
+    ["HSIC", "Henry Schein, Inc.", "NASDAQ"],
+    ["HUM", "Humana Inc.", "NYSE"],
+    ["IDXX", "IDEXX Laboratories, Inc.", "NASDAQ"],
+    ["ISRG", "Intuitive Surgical, Inc.", "NASDAQ"],
+    ["LH", "Labcorp Holdings Inc.", "NYSE"],
+    ["MCK", "McKesson Corporation", "NYSE"],
+    ["MDT", "Medtronic plc", "NYSE"],
+    ["PODD", "Insulet Corporation", "NASDAQ"],
+    ["RMD", "ResMed Inc.", "NYSE"],
+    ["RVTY", "Revvity, Inc.", "NYSE"],
+    ["SOLV", "Solventum Corporation", "NYSE"],
+    ["STE", "STERIS plc", "NYSE"],
+    ["SYK", "Stryker Corporation", "NYSE"],
+    ["UHS", "Universal Health Services, Inc. Class B", "NYSE"],
+    ["UNH", "UNITEDHEALTH GROUP INCORPORATED (Delaware)", "NYSE"],
+    ["VEEV", "Veeva Systems Inc.", "NYSE"],
+    ["WST", "West Pharmaceutical Services, Inc.", "NYSE"],
+    ["ZBH", "Zimmer Biomet Holdings, Inc.", "NYSE"],
+  ]),
+  ...equities("health_care", "Pharmaceuticals, Biotechnology & Life Sciences", [
+    ["A", "Agilent Technologies Inc.", "NYSE"],
+    ["ABBV", "AbbVie Inc.", "NYSE"],
+    ["AMGN", "Amgen Inc.", "NASDAQ"],
+    ["BIIB", "Biogen Inc.", "NASDAQ"],
+    ["BMY", "Bristol-Myers Squibb Co.", "NYSE"],
+    ["CRL", "Charles River Laboratories International, Inc.", "NYSE"],
+    ["DHR", "Danaher Corporation", "NYSE"],
+    ["GILD", "Gilead Sciences, Inc.", "NASDAQ"],
+    ["INCY", "Incyte Corp.", "NASDAQ"],
+    ["IQV", "IQVIA Holdings Inc.", "NYSE"],
+    ["JNJ", "Johnson & Johnson", "NYSE"],
+    ["LLY", "Eli Lilly & Co.", "NYSE"],
+    ["MRK", "Merck & Co., Inc.", "NYSE"],
+    ["MRNA", "Moderna, Inc.", "NASDAQ"],
+    ["MTD", "Mettler-Toledo International", "NYSE"],
+    ["PFE", "Pfizer Inc.", "NYSE"],
+    ["REGN", "Regeneron Pharmaceuticals, Inc.", "NASDAQ"],
+    ["TECH", "Bio-Techne Corp", "NASDAQ"],
+    ["TMO", "Thermo Fisher Scientific, Inc.", "NYSE"],
+    ["VRTX", "Vertex Pharmaceuticals Incorporated", "NASDAQ"],
+    ["VTRS", "Viatris Inc.", "NASDAQ"],
+    ["WAT", "Waters Corp", "NYSE"],
+    ["ZTS", "Zoetis Inc.", "NYSE"],
   ]),
 
-  // 9 — the banks are the point. Four diversified banks moving together is the
-  // clearest "this is not company-specific" signal in the whole universe, and
-  // it is the answer Epic 7's deterministic investigation should be able to
-  // reach without an LLM.
-  ...equities("financials", [
-    {
-      symbol: "JPM",
-      name: "JPMorgan Chase & Co.",
-      exchange: "NYSE",
-      industry: "Diversified Banks",
-    },
-    {
-      symbol: "BAC",
-      name: "Bank of America Corporation",
-      exchange: "NYSE",
-      industry: "Diversified Banks",
-    },
-    {
-      symbol: "WFC",
-      name: "Wells Fargo & Company",
-      exchange: "NYSE",
-      industry: "Diversified Banks",
-    },
-    {
-      symbol: "C",
-      name: "Citigroup Inc.",
-      exchange: "NYSE",
-      industry: "Diversified Banks",
-    },
-    {
-      symbol: "GS",
-      name: "The Goldman Sachs Group, Inc.",
-      exchange: "NYSE",
-      industry: "Investment Banking & Brokerage",
-    },
-    {
-      symbol: "MS",
-      name: "Morgan Stanley",
-      exchange: "NYSE",
-      industry: "Investment Banking & Brokerage",
-    },
-    {
-      symbol: "SCHW",
-      name: "The Charles Schwab Corporation",
-      exchange: "NYSE",
-      industry: "Investment Banking & Brokerage",
-    },
-    {
-      symbol: "V",
-      name: "Visa Inc.",
-      exchange: "NYSE",
-      industry: "Transaction & Payment Processing Services",
-    },
-    {
-      symbol: "AXP",
-      name: "American Express Company",
-      exchange: "NYSE",
-      industry: "Consumer Finance",
-    },
+  // financials — 76 of 503, in 3 industry groups.
+  ...equities("financials", "Financial Services", [
+    ["AMP", "Ameriprise Financial, Inc.", "NYSE"],
+    ["APO", "Apollo Global Management, Inc.", "NYSE"],
+    ["ARES", "Ares Management Corporation Class A", "NYSE"],
+    ["AXP", "American Express Company", "NYSE"],
+    ["BEN", "Franklin Templeton, Inc.", "NYSE"],
+    ["BLK", "Blackrock, Inc.", "NYSE"],
+    ["BNY", "Bank of New York Mellon Corporation", "NYSE"],
+    ["BRK.B", "Berkshire Hathaway Inc. Class B", "NYSE"],
+    ["BX", "Blackstone Inc.", "NYSE"],
+    ["CBOE", "Cboe Global Markets, Inc.", "BATS"],
+    ["CME", "CME Group Inc. Class A", "NASDAQ"],
+    ["COF", "Capital One Financial", "NYSE"],
+    ["COIN", "Coinbase Global, Inc. Class A", "NASDAQ"],
+    ["CPAY", "Corpay, Inc.", "NYSE"],
+    ["FDS", "Factset Research Systems", "NYSE"],
+    ["FIS", "Fidelity National Information Services, Inc.", "NYSE"],
+    ["FISV", "Fiserv, Inc.", "NASDAQ"],
+    ["GPN", "Global Payments, Inc.", "NYSE"],
+    ["GS", "Goldman Sachs Group Inc.", "NYSE"],
+    ["HOOD", "Robinhood Markets, Inc. Class A", "NASDAQ"],
+    ["IBKR", "Interactive Brokers Group, Inc. Class A", "NASDAQ"],
+    ["ICE", "Intercontinental Exchange  Inc.", "NYSE"],
+    ["IVZ", "Invesco LTD", "NYSE"],
+    ["JKHY", "Jack Henry & Associates, Inc.", "NASDAQ"],
+    ["KKR", "KKR & Co. Inc.", "NYSE"],
+    ["MA", "Mastercard Incorporated", "NYSE"],
+    ["MCO", "Moody's Corporation", "NYSE"],
+    ["MS", "Morgan Stanley", "NYSE"],
+    ["MSCI", "MSCI, Inc.", "NYSE"],
+    ["NDAQ", "Nasdaq, Inc.", "NASDAQ"],
+    ["NTRS", "Northern Trust Corporation", "NASDAQ"],
+    ["PYPL", "PayPal Holdings, Inc.", "NASDAQ"],
+    ["RJF", "Raymond James Financial, Inc.", "NYSE"],
+    ["SCHW", "The Charles Schwab Corporation", "NYSE"],
+    ["SPGI", "S&P Global Inc.", "NYSE"],
+    ["STT", "State Street Corporation", "NYSE"],
+    ["SYF", "Synchrony Financial", "NYSE"],
+    ["TROW", "T. Rowe Price Group, Inc.", "NASDAQ"],
+    ["V", "VISA Inc.", "NYSE"],
+    ["XYZ", "Block, Inc.", "NYSE"],
+  ]),
+  ...equities("financials", "Insurance", [
+    ["ACGL", "Arch Capital Group Ltd.", "NASDAQ"],
+    ["AFL", "Aflac Inc.", "NYSE"],
+    ["AIG", "American International Group, Inc.", "NYSE"],
+    ["AIZ", "Assurant, Inc.", "NYSE"],
+    ["AJG", "Arthur J. Gallagher & Co.", "NYSE"],
+    ["ALL", "The Allstate Corporation", "NYSE"],
+    ["AON", "Aon plc Class A", "NYSE"],
+    ["BRO", "Brown & Brown, Inc.", "NYSE"],
+    ["CB", "Chubb Limited", "NYSE"],
+    ["CINF", "Cincinnati Financial Corporation", "NASDAQ"],
+    ["EG", "Everest Group, Ltd.", "NYSE"],
+    ["ERIE", "Erie Indemnity Company Class A", "NASDAQ"],
+    ["GL", "Globe Life Inc.", "NYSE"],
+    ["HIG", "The Hartford Insurance Group, Inc.", "NYSE"],
+    ["L", "Loews Corporation", "NYSE"],
+    ["MET", "MetLife, Inc.", "NYSE"],
+    ["MRSH", "Marsh", "NYSE"],
+    ["PFG", "Principal Financial Group Inc", "NASDAQ"],
+    ["PGR", "Progressive Corporation", "NYSE"],
+    ["PRU", "Prudential Financial, Inc.", "NYSE"],
+    ["TRV", "The Travelers Companies, Inc.", "NYSE"],
+    ["WRB", "W.R. Berkley Corporation", "NYSE"],
+    ["WTW", "Willis Towers Watson Public Limited Company", "NASDAQ"],
+  ]),
+  ...equities("financials", "Banks", [
+    ["BAC", "Bank of America Corporation", "NYSE"],
+    ["C", "Citigroup Inc.", "NYSE"],
+    ["CFG", "Citizens Financial Group, Inc.", "NYSE"],
+    ["FITB", "Fifth Third Bancorp", "NYSE"],
+    ["HBAN", "Huntington Bancshares Incorporated", "NASDAQ"],
+    ["JPM", "JPMorgan Chase & Co.", "NYSE"],
+    ["KEY", "KeyCorp", "NYSE"],
+    ["MTB", "M&T Bank Corp.", "NYSE"],
+    ["PNC", "PNC Financial Services Group", "NYSE"],
+    ["RF", "Regions Financial Corp.", "NYSE"],
+    ["TFC", "Truist Financial Corporation", "NYSE"],
+    ["USB", "U.S. Bancorp", "NYSE"],
+    ["WFC", "Wells Fargo & Co.", "NYSE"],
   ]),
 
-  // 9 — AMZN and TSLA live HERE and not in technology, which is `UNIVERSE.md`
-  // §1's stated boundary rather than an oversight. Three automakers is the
-  // deliberate spread: TSLA against GM and F is a peer comparison that will
-  // usually disagree, which is more interesting than one that always agrees.
-  ...equities("consumer_discretionary", [
-    {
-      symbol: "AMZN",
-      name: "Amazon.com, Inc.",
-      exchange: "NASDAQ",
-      industry: "Broadline Retail",
-    },
-    {
-      symbol: "TSLA",
-      name: "Tesla, Inc.",
-      exchange: "NASDAQ",
-      industry: "Automobile Manufacturers",
-    },
-    {
-      symbol: "GM",
-      name: "General Motors Company",
-      exchange: "NYSE",
-      industry: "Automobile Manufacturers",
-    },
-    {
-      symbol: "F",
-      name: "Ford Motor Company",
-      exchange: "NYSE",
-      industry: "Automobile Manufacturers",
-    },
-    {
-      symbol: "HD",
-      name: "The Home Depot, Inc.",
-      exchange: "NYSE",
-      industry: "Home Improvement Retail",
-    },
-    {
-      symbol: "LOW",
-      name: "Lowe's Companies, Inc.",
-      exchange: "NYSE",
-      industry: "Home Improvement Retail",
-    },
-    {
-      symbol: "MCD",
-      name: "McDonald's Corporation",
-      exchange: "NYSE",
-      industry: "Restaurants",
-    },
-    {
-      symbol: "SBUX",
-      name: "Starbucks Corporation",
-      exchange: "NASDAQ",
-      industry: "Restaurants",
-    },
-    {
-      symbol: "NKE",
-      name: "NIKE, Inc.",
-      exchange: "NYSE",
-      industry: "Apparel, Accessories & Luxury Goods",
-    },
+  // consumer_discretionary — 47 of 503, in 4 industry groups.
+  ...equities("consumer_discretionary", "Consumer Services", [
+    ["ABNB", "Airbnb, Inc. Class A", "NASDAQ"],
+    ["BKNG", "Booking Holdings Inc.", "NASDAQ"],
+    ["CCL", "Carnival Corporation Ltd.", "NYSE"],
+    ["CMG", "Chipotle Mexican Grill, Inc.", "NYSE"],
+    ["DASH", "DoorDash, Inc. Class A", "NASDAQ"],
+    ["DPZ", "Domino's Pizza Inc", "NASDAQ"],
+    ["DRI", "Darden Restaurants, Inc.", "NYSE"],
+    ["EXPE", "Expedia Group, Inc.", "NASDAQ"],
+    ["HLT", "Hilton Worldwide Holdings Inc.", "NYSE"],
+    ["LVS", "Las Vegas Sands Corp.", "NYSE"],
+    ["MAR", "Marriott International Class A", "NASDAQ"],
+    ["MCD", "McDonald's Corporation", "NYSE"],
+    ["MGM", "MGM Resorts International", "NYSE"],
+    ["NCLH", "Norwegian Cruise Line Holdings Ltd.", "NYSE"],
+    ["RCL", "Royal Caribbean Group", "NYSE"],
+    ["SBUX", "Starbucks Corporation", "NASDAQ"],
+    ["WYNN", "Wynn Resorts, Limited", "NASDAQ"],
+    ["YUM", "Yum! Brands, Inc.", "NYSE"],
+  ]),
+  ...equities(
+    "consumer_discretionary",
+    "Consumer Discretionary Distribution & Retail",
+    [
+      ["AMZN", "Amazon.com, Inc.", "NASDAQ"],
+      ["AZO", "AutoZone, Inc.", "NYSE"],
+      ["BBY", "Best Buy Company, Inc.", "NYSE"],
+      ["CVNA", "Carvana Co.", "NYSE"],
+      ["EBAY", "eBay Inc.", "NASDAQ"],
+      ["GPC", "Genuine Parts Company", "NYSE"],
+      ["HD", "Home Depot, Inc.", "NYSE"],
+      ["LOW", "Lowe's Companies Inc.", "NYSE"],
+      ["ORLY", "O'Reilly Automotive, Inc.", "NASDAQ"],
+      ["ROST", "Ross Stores, Inc.", "NASDAQ"],
+      ["TJX", "TJX Companies, Inc. (The)", "NYSE"],
+      ["TSCO", "Tractor Supply Company", "NASDAQ"],
+      ["ULTA", "Ulta Beauty, Inc.", "NASDAQ"],
+      ["WSM", "Williams-Sonoma, Inc.", "NYSE"],
+    ],
+  ),
+  ...equities("consumer_discretionary", "Consumer Durables & Apparel", [
+    ["DECK", "Deckers Outdoor Corp", "NYSE"],
+    ["DHI", "D.R. Horton Inc.", "NYSE"],
+    ["GRMN", "Garmin Ltd", "NYSE"],
+    ["HAS", "Hasbro, Inc.", "NASDAQ"],
+    ["LEN", "Lennar Corporation Class A", "NYSE"],
+    ["LULU", "lululemon athletica inc.", "NASDAQ"],
+    ["NKE", "Nike, Inc.", "NYSE"],
+    ["NVR", "NVR, Inc.", "NYSE"],
+    ["PHM", "Pultegroup, Inc.", "NYSE"],
+    ["RL", "Ralph Lauren Corporation", "NYSE"],
+    ["TPR", "Tapestry, Inc.", "NYSE"],
+  ]),
+  ...equities("consumer_discretionary", "Automobiles & Components", [
+    ["APTV", "Aptiv PLC", "NYSE"],
+    ["F", "Ford Motor Company", "NYSE"],
+    ["GM", "General Motors Company", "NYSE"],
+    ["TSLA", "Tesla, Inc.", "NASDAQ"],
   ]),
 
-  // 7 — GOOGL and META live HERE and not in technology, the other half of
-  // §1's stated boundary. The two telecoms are the market-cap spread: they
-  // move on interest rates rather than on advertising, so this sector's breadth
-  // number is genuinely informative rather than a proxy for two mega-caps.
-  ...equities("communication_services", [
-    {
-      symbol: "GOOGL",
-      name: "Alphabet Inc.",
-      exchange: "NASDAQ",
-      industry: "Interactive Media & Services",
-    },
-    {
-      symbol: "META",
-      name: "Meta Platforms, Inc.",
-      exchange: "NASDAQ",
-      industry: "Interactive Media & Services",
-    },
-    {
-      symbol: "NFLX",
-      name: "Netflix, Inc.",
-      exchange: "NASDAQ",
-      industry: "Movies & Entertainment",
-    },
-    {
-      symbol: "DIS",
-      name: "The Walt Disney Company",
-      exchange: "NYSE",
-      industry: "Movies & Entertainment",
-    },
-    {
-      symbol: "WBD",
-      name: "Warner Bros. Discovery, Inc.",
-      exchange: "NASDAQ",
-      industry: "Movies & Entertainment",
-    },
-    {
-      symbol: "T",
-      name: "AT&T Inc.",
-      exchange: "NYSE",
-      industry: "Integrated Telecommunication Services",
-    },
-    {
-      symbol: "VZ",
-      name: "Verizon Communications Inc.",
-      exchange: "NYSE",
-      industry: "Integrated Telecommunication Services",
-    },
+  // communication_services — 24 of 503, in 2 industry groups.
+  ...equities("communication_services", "Media & Entertainment", [
+    ["APP", "Applovin Corporation Class A", "NASDAQ"],
+    ["CHTR", "Charter Communications, Inc. Class A", "NASDAQ"],
+    ["CMCSA", "Comcast Corporation Class A", "NASDAQ"],
+    ["DIS", "The Walt Disney Company", "NYSE"],
+    ["FOX", "Fox Corporation Class B", "NASDAQ"],
+    ["FOXA", "Fox Corporation Class A", "NASDAQ"],
+    ["GOOG", "Alphabet Inc. Class C", "NASDAQ"],
+    ["GOOGL", "Alphabet Inc. Class A", "NASDAQ"],
+    ["LYV", "Live Nation Entertainment Inc.", "NYSE"],
+    ["META", "Meta Platforms, Inc. Class A", "NASDAQ"],
+    ["NFLX", "Netflix, Inc.", "NASDAQ"],
+    ["NWS", "News Corporation Class B", "NASDAQ"],
+    ["NWSA", "News Corporation Class A", "NASDAQ"],
+    ["OMC", "Omnicom Group Inc.", "NYSE"],
+    ["PSKY", "Paramount Skydance Corporation Class B", "NASDAQ"],
+    ["RDDT", "Reddit, Inc.", "NYSE"],
+    ["TKO", "TKO Group Holdings, Inc.", "NYSE"],
+    ["TTD", "The Trade Desk, Inc. Class A", "NASDAQ"],
+    ["TTWO", "Take-Two Interactive Software, Inc.", "NASDAQ"],
+    ["WBD", "Warner Bros. Discovery, Inc. Series A", "NASDAQ"],
+  ]),
+  ...equities("communication_services", "Telecommunication Services", [
+    ["ECHO", "EchoStar Corporation", "NASDAQ"],
+    ["T", "AT&T Inc.", "NYSE"],
+    ["TMUS", "T-Mobile US, Inc.", "NASDAQ"],
+    ["VZ", "Verizon Communications", "NYSE"],
   ]),
 
-  // 8 — three aerospace names. ~~The second-deepest industry group in the file
-  // after semiconductors~~ — **wrong, and corrected by counting in Task 2.3.8:
-  // three is JOINT-FIFTH**, behind Semiconductors (8), Electric Utilities (5),
-  // Diversified Banks (4) and Pharmaceuticals (4). The reason the block exists
-  // is unaffected: §11's breadth reading needs somewhere to be tested that the
-  // demo does not already own, and three names give it one.
-  ...equities("industrials", [
-    {
-      symbol: "GE",
-      name: "GE Aerospace",
-      exchange: "NYSE",
-      industry: "Aerospace & Defense",
-    },
-    {
-      symbol: "BA",
-      name: "The Boeing Company",
-      exchange: "NYSE",
-      industry: "Aerospace & Defense",
-    },
-    {
-      symbol: "LMT",
-      name: "Lockheed Martin Corporation",
-      exchange: "NYSE",
-      industry: "Aerospace & Defense",
-    },
-    {
-      symbol: "CAT",
-      name: "Caterpillar Inc.",
-      exchange: "NYSE",
-      industry: "Construction Machinery & Heavy Transportation Equipment",
-    },
-    {
-      symbol: "DE",
-      name: "Deere & Company",
-      exchange: "NYSE",
-      industry: "Agricultural & Farm Machinery",
-    },
-    {
-      symbol: "HON",
-      name: "Honeywell International Inc.",
-      exchange: "NASDAQ",
-      industry: "Industrial Conglomerates",
-    },
-    {
-      symbol: "UPS",
-      name: "United Parcel Service, Inc.",
-      exchange: "NYSE",
-      industry: "Air Freight & Logistics",
-    },
-    {
-      symbol: "DAL",
-      name: "Delta Air Lines, Inc.",
-      exchange: "NYSE",
-      industry: "Passenger Airlines",
-    },
+  // industrials — 83 of 503, in 3 industry groups.
+  ...equities("industrials", "Capital Goods", [
+    ["ALLE", "Allegion Public Limited Company", "NYSE"],
+    ["AME", "Ametek, Inc.", "NYSE"],
+    ["AOS", "A.O. Smith Corporation", "NYSE"],
+    ["AXON", "Axon Enterprise, Inc.", "NASDAQ"],
+    ["BA", "Boeing Company", "NYSE"],
+    ["BLDR", "Builders FirstSource, Inc.", "NYSE"],
+    ["CARR", "Carrier Global Corporation", "NYSE"],
+    ["CAT", "Caterpillar Inc.", "NYSE"],
+    ["CMI", "Cummins Inc.", "NYSE"],
+    ["DD", "DuPont de Nemours, Inc.", "NYSE"],
+    ["DE", "Deere & Company", "NYSE"],
+    ["DOV", "Dover Corporation", "NYSE"],
+    ["EME", "EMCOR Group, Inc.", "NYSE"],
+    ["EMR", "Emerson Electric Co.", "NYSE"],
+    ["ETN", "Eaton Corporation, plc", "NYSE"],
+    ["FAST", "Fastenal Company", "NASDAQ"],
+    ["FERG", "Ferguson Enterprises Inc.", "NYSE"],
+    ["FIX", "Comfort Systems USA, Inc.", "NYSE"],
+    ["FTV", "Fortive Corporation", "NYSE"],
+    ["GD", "General Dynamics Corporation", "NYSE"],
+    ["GE", "GE Aerospace", "NYSE"],
+    ["GEV", "GE Vernova Inc.", "NYSE"],
+    ["GNRC", "Generac Holdings Inc.", "NYSE"],
+    ["GWW", "W.W. Grainger, Inc.", "NYSE"],
+    ["HII", "Huntington Ingalls Industries, Inc.", "NYSE"],
+    ["HON", "Honeywell International Inc.", "NASDAQ"],
+    ["HONA", "Honeywell Aerospace Inc.", "NASDAQ"],
+    ["HUBB", "Hubbell Incorporated", "NYSE"],
+    ["HWM", "Howmet Aerospace Inc.", "NYSE"],
+    ["IEX", "IDEX Corporation", "NYSE"],
+    ["IR", "Ingersoll Rand Inc.", "NYSE"],
+    ["ITW", "Illinois Tool Works Inc.", "NYSE"],
+    ["J", "Jacobs Solutions Inc.", "NYSE"],
+    ["JCI", "Johnson Controls International plc", "NYSE"],
+    ["LHX", "L3Harris Technologies, Inc.", "NYSE"],
+    ["LII", "Lennox International Inc.", "NYSE"],
+    ["LMT", "Lockheed Martin Corp.", "NYSE"],
+    ["MAS", "Masco Corporation", "NYSE"],
+    ["MMM", "3M Company", "NYSE"],
+    ["NDSN", "Nordson Corporation", "NASDAQ"],
+    ["NOC", "Northrop Grumman Corp.", "NYSE"],
+    ["OTIS", "Otis Worldwide Corporation", "NYSE"],
+    ["PCAR", "PACCAR Inc.", "NASDAQ"],
+    ["PH", "Parker-Hannifin Corporation", "NYSE"],
+    ["PNR", "Pentair plc", "NYSE"],
+    ["PWR", "Quanta Services, Inc.", "NYSE"],
+    ["ROK", "Rockwell Automation, Inc.", "NYSE"],
+    ["RTX", "RTX Corporation", "NYSE"],
+    ["SNA", "Snap-on Incorporated", "NYSE"],
+    ["SWK", "Stanley Black & Decker, Inc.", "NYSE"],
+    ["TDG", "TransDigm Group Incorporated", "NYSE"],
+    ["TT", "Trane Technologies plc", "NYSE"],
+    ["TXT", "Textron, Inc.", "NYSE"],
+    ["URI", "United Rentals, Inc.", "NYSE"],
+    ["VRT", "Vertiv Holdings Co Class A", "NYSE"],
+    ["WAB", "Wabtec Inc.", "NYSE"],
+    ["XYL", "Xylem Inc", "NYSE"],
+  ]),
+  ...equities("industrials", "Transportation", [
+    ["CHRW", "C.H. Robinson Worldwide, Inc.", "NASDAQ"],
+    ["CSX", "CSX Corporation", "NASDAQ"],
+    ["DAL", "Delta Air Lines, Inc.", "NYSE"],
+    ["EXPD", "Expeditors International of Washington, Inc.", "NYSE"],
+    ["FDX", "FedEx Corporation", "NYSE"],
+    ["FDXF", "FedEx Freight Holding Company, Inc.", "NYSE"],
+    ["JBHT", "J.B. Hunt Transport Services, Inc.", "NASDAQ"],
+    ["LUV", "Southwest Airlines Co.", "NYSE"],
+    ["NSC", "Norfolk Southern Corp.", "NYSE"],
+    ["ODFL", "Old Dominion Freight Line, Inc.", "NASDAQ"],
+    ["UAL", "United Airlines Holdings, Inc.", "NASDAQ"],
+    ["UBER", "Uber Technologies, Inc.", "NYSE"],
+    ["UNP", "Union Pacific Corp.", "NYSE"],
+    ["UPS", "United Parcel Service, Inc. Class B", "NYSE"],
+  ]),
+  ...equities("industrials", "Commercial & Professional Services", [
+    ["ADP", "Automatic Data Processing, Inc.", "NASDAQ"],
+    ["BR", "Broadridge Financial Solutions Inc", "NYSE"],
+    ["CPRT", "Copart, Inc.", "NASDAQ"],
+    ["CTAS", "Cintas Corporation", "NASDAQ"],
+    ["EFX", "Equifax, Incorporated", "NYSE"],
+    ["LDOS", "Leidos Holdings, Inc.", "NYSE"],
+    ["PAYX", "Paychex, Inc.", "NASDAQ"],
+    ["ROL", "Rollins, Inc.", "NYSE"],
+    ["RSG", "Republic Services Inc.", "NYSE"],
+    ["VLTO", "Veralto Corporation", "NYSE"],
+    ["VRSK", "Verisk Analytics, Inc.", "NASDAQ"],
+    ["WM", "Waste Management, Inc.", "NYSE"],
   ]),
 
-  // 7 — the defensive sector, and the one whose value to this product is that
-  // it usually does NOT move with technology. An anomaly score is a comparison,
-  // and a universe of only cyclicals gives it nothing to be unusual against.
-  ...equities("consumer_staples", [
-    {
-      symbol: "PG",
-      name: "The Procter & Gamble Company",
-      exchange: "NYSE",
-      industry: "Household Products",
-    },
-    {
-      symbol: "KO",
-      name: "The Coca-Cola Company",
-      exchange: "NYSE",
-      industry: "Soft Drinks & Non-alcoholic Beverages",
-    },
-    {
-      symbol: "PEP",
-      name: "PepsiCo, Inc.",
-      exchange: "NASDAQ",
-      industry: "Soft Drinks & Non-alcoholic Beverages",
-    },
-    {
-      symbol: "COST",
-      name: "Costco Wholesale Corporation",
-      exchange: "NASDAQ",
-      industry: "Consumer Staples Merchandise Retail",
-    },
-    {
-      symbol: "WMT",
-      // NASDAQ since 2024-12-09, and this row said NYSE until Task 2.7.8.
-      // **The first time anything in this product has caught `UNIVERSE.md` §5's
-      // silent staleness**, and it was caught by `pnpm universe:check` rather
-      // than by a person — which is the whole argument for that command
-      // existing. §15.4.
-      name: "Walmart Inc.",
-      exchange: "NASDAQ",
-      industry: "Consumer Staples Merchandise Retail",
-    },
-    {
-      symbol: "MO",
-      name: "Altria Group, Inc.",
-      exchange: "NYSE",
-      industry: "Tobacco",
-    },
-    {
-      symbol: "KHC",
-      name: "The Kraft Heinz Company",
-      exchange: "NASDAQ",
-      industry: "Packaged Foods & Meats",
-    },
+  // consumer_staples — 34 of 503, in 3 industry groups.
+  ...equities("consumer_staples", "Food, Beverage & Tobacco", [
+    ["ADM", "Archer Daniels Midland Company", "NYSE"],
+    ["BF.B", "Brown-Forman Corporation Class B", "NYSE"],
+    ["BG", "Bunge Global SA", "NYSE"],
+    ["GIS", "General Mills, Inc.", "NYSE"],
+    ["HRL", "Hormel Foods Corporation", "NYSE"],
+    ["HSY", "The Hershey Company", "NYSE"],
+    ["KDP", "Keurig Dr Pepper Inc.", "NASDAQ"],
+    ["KHC", "The Kraft Heinz Company", "NASDAQ"],
+    ["KO", "Coca-Cola Company", "NYSE"],
+    ["MDLZ", "Mondelez International, Inc. Class A", "NASDAQ"],
+    ["MKC", "McCormick & Company, Incorporated Non-VTG CS", "NYSE"],
+    ["MNST", "Monster Beverage Corporation", "NASDAQ"],
+    ["MO", "Altria Group, Inc.", "NYSE"],
+    ["PEP", "PepsiCo, Inc.", "NASDAQ"],
+    ["PM", "Philip Morris International Inc.", "NYSE"],
+    ["SJM", "The J.M. Smucker Company", "NYSE"],
+    ["STZ", "Constellation Brands, Inc.", "NYSE"],
+    ["TAP", "Molson Coors Beverage Company Class B", "NYSE"],
+    ["TSN", "Tyson Foods, Inc.", "NYSE"],
+  ]),
+  ...equities("consumer_staples", "Consumer Staples Distribution & Retail", [
+    ["CASY", "Casey's General Stores, Inc.", "NASDAQ"],
+    ["COST", "Costco Wholesale Corporation", "NASDAQ"],
+    ["DG", "Dollar General Corp.", "NYSE"],
+    ["DLTR", "Dollar Tree Inc.", "NASDAQ"],
+    ["KR", "The Kroger Co.", "NYSE"],
+    ["SYY", "Sysco Corporation", "NYSE"],
+    ["TGT", "Target Corporation", "NYSE"],
+    ["WMT", "Walmart Inc.", "NASDAQ"],
+  ]),
+  ...equities("consumer_staples", "Household & Personal Products", [
+    ["CHD", "Church & Dwight Co., Inc.", "NYSE"],
+    ["CL", "Colgate-Palmolive Company", "NYSE"],
+    ["CLX", "Clorox Company", "NYSE"],
+    ["EL", "The Estee Lauder Companies Inc. Class A", "NYSE"],
+    ["KMB", "Kimberly-Clark Corporation", "NASDAQ"],
+    ["KVUE", "Kenvue Inc.", "NYSE"],
+    ["PG", "Procter & Gamble Company", "NYSE"],
   ]),
 
-  // 7 — the sector that most reliably moves as a bloc, on a commodity price
-  // nothing else in the universe reacts to. That makes it the cleanest test
-  // case Epic 5's relative-move has: an energy name down 4% while the sector is
-  // down 4% is not news, and the score has to say so.
-  ...equities("energy", [
-    {
-      symbol: "XOM",
-      name: "Exxon Mobil Corporation",
-      exchange: "NYSE",
-      industry: "Integrated Oil & Gas",
-    },
-    {
-      symbol: "CVX",
-      name: "Chevron Corporation",
-      exchange: "NYSE",
-      industry: "Integrated Oil & Gas",
-    },
-    {
-      symbol: "COP",
-      name: "ConocoPhillips",
-      exchange: "NYSE",
-      industry: "Oil & Gas Exploration & Production",
-    },
-    {
-      symbol: "EOG",
-      name: "EOG Resources, Inc.",
-      exchange: "NYSE",
-      industry: "Oil & Gas Exploration & Production",
-    },
-    {
-      symbol: "DVN",
-      name: "Devon Energy Corporation",
-      exchange: "NYSE",
-      industry: "Oil & Gas Exploration & Production",
-    },
-    {
-      symbol: "SLB",
-      name: "SLB",
-      exchange: "NYSE",
-      industry: "Oil & Gas Equipment & Services",
-    },
-    {
-      symbol: "HAL",
-      name: "Halliburton Company",
-      exchange: "NYSE",
-      industry: "Oil & Gas Equipment & Services",
-    },
+  // energy — 21 of 503, in 1 industry group.
+  ...equities("energy", "Energy", [
+    ["APA", "APA Corporation", "NASDAQ"],
+    ["BKR", "Baker Hughes Company Class A", "NASDAQ"],
+    ["COP", "ConocoPhillips", "NYSE"],
+    ["CVX", "Chevron Corporation", "NYSE"],
+    ["DVN", "Devon Energy Corporation", "NYSE"],
+    ["EOG", "EOG Resources, Inc.", "NYSE"],
+    ["EQT", "EQT Corporation", "NYSE"],
+    ["EXE", "Expand Energy Corporation", "NASDAQ"],
+    ["FANG", "Diamondback Energy, Inc.", "NASDAQ"],
+    ["HAL", "Halliburton Company", "NYSE"],
+    ["KMI", "Kinder Morgan, Inc.", "NYSE"],
+    ["MPC", "Marathon Petroleum Corporation", "NYSE"],
+    ["OKE", "Oneok, Inc.", "NYSE"],
+    ["OXY", "Occidental Petroleum Corporation", "NYSE"],
+    ["PSX", "Phillips 66", "NYSE"],
+    ["SLB", "SLB Limited", "NYSE"],
+    ["TPL", "Texas Pacific Land Corporation", "NYSE"],
+    ["TRGP", "Targa Resources Corp.", "NYSE"],
+    ["VLO", "Valero Energy Corporation", "NYSE"],
+    ["WMB", "Williams Companies Inc.", "NYSE"],
+    ["XOM", "ExxonMobil Holdings Corporation", "NYSE"],
   ]),
 
-  // 6 — at §7's floor, and that is a decision rather than a shortfall. There
-  // are not many large, IEX-liquid US utilities, and rule 4 (liquid on IEX)
-  // beats padding the block with thin names whose anomaly scores would be
-  // computed over noise. Six is the number below which a breadth percentage
-  // stops meaning anything, so this sector sits exactly on the line.
-  ...equities("utilities", [
-    {
-      symbol: "NEE",
-      name: "NextEra Energy, Inc.",
-      exchange: "NYSE",
-      industry: "Electric Utilities",
-    },
-    {
-      symbol: "DUK",
-      name: "Duke Energy Corporation",
-      exchange: "NYSE",
-      industry: "Electric Utilities",
-    },
-    {
-      symbol: "SO",
-      name: "The Southern Company",
-      exchange: "NYSE",
-      industry: "Electric Utilities",
-    },
-    {
-      symbol: "AEP",
-      name: "American Electric Power Company, Inc.",
-      exchange: "NASDAQ",
-      industry: "Electric Utilities",
-    },
-    {
-      symbol: "EXC",
-      name: "Exelon Corporation",
-      exchange: "NASDAQ",
-      industry: "Electric Utilities",
-    },
-    {
-      symbol: "SRE",
-      name: "Sempra",
-      exchange: "NYSE",
-      industry: "Multi-Utilities",
-    },
+  // utilities — 31 of 503, in 1 industry group.
+  ...equities("utilities", "Utilities", [
+    ["AEE", "Ameren Corporation", "NYSE"],
+    ["AEP", "American Electric Power Company, Inc.", "NASDAQ"],
+    ["AES", "AES Corporation", "NYSE"],
+    ["ATO", "Atmos Energy Corporation", "NYSE"],
+    ["AWK", "American Water Works Company, Inc", "NYSE"],
+    ["CEG", "Constellation Energy Corporation", "NASDAQ"],
+    ["CMS", "CMS Energy Corporation", "NYSE"],
+    ["CNP", "CenterPoint Energy, Inc.", "NYSE"],
+    ["D", "Dominion Energy, Inc", "NYSE"],
+    ["DTE", "DTE Energy Company", "NYSE"],
+    ["DUK", "Duke Energy Corporation", "NYSE"],
+    ["ED", "Consolidated Edison, Inc.", "NYSE"],
+    ["EIX", "Edison International", "NYSE"],
+    ["ES", "Eversource Energy", "NYSE"],
+    ["ETR", "Entergy Corporation", "NYSE"],
+    ["EVRG", "Evergy, Inc.", "NASDAQ"],
+    ["EXC", "Exelon Corporation", "NASDAQ"],
+    ["FE", "FirstEnergy Corp.", "NYSE"],
+    ["LNT", "Alliant Energy Corporation", "NASDAQ"],
+    ["NEE", "NextEra Energy, Inc.", "NYSE"],
+    ["NI", "NiSource Inc.", "NYSE"],
+    ["NRG", "NRG Energy, Inc.", "NYSE"],
+    ["PCG", "PG&E Corporation", "NYSE"],
+    ["PEG", "Public Service Enterprise Group Incorporated", "NYSE"],
+    ["PNW", "Pinnacle West Capital Corporation", "NYSE"],
+    ["PPL", "PPL Corporation", "NYSE"],
+    ["SO", "The Southern Company", "NYSE"],
+    ["SRE", "Sempra", "NYSE"],
+    ["VST", "Vistra Corp.", "NYSE"],
+    ["WEC", "WEC Energy Group, Inc.", "NYSE"],
+    ["XEL", "Xcel Energy Inc.", "NASDAQ"],
   ]),
 
-  // 6 — at the floor, for the same liquidity reason as utilities. Note AMT and
-  // CCI: they are REITs that own mobile-phone towers, so they trade on interest
-  // rates and on telecom capital spending at once. Epic 6's topology should
-  // eventually put an edge between them and the telecoms above, and this file
-  // is why there is something to connect.
-  ...equities("real_estate", [
-    {
-      symbol: "PLD",
-      name: "Prologis, Inc.",
-      exchange: "NYSE",
-      industry: "Industrial REITs",
-    },
-    {
-      symbol: "AMT",
-      name: "American Tower Corporation",
-      exchange: "NYSE",
-      industry: "Telecom Tower REITs",
-    },
-    {
-      symbol: "CCI",
-      name: "Crown Castle Inc.",
-      exchange: "NYSE",
-      industry: "Telecom Tower REITs",
-    },
-    {
-      symbol: "SPG",
-      name: "Simon Property Group, Inc.",
-      exchange: "NYSE",
-      industry: "Retail REITs",
-    },
-    {
-      symbol: "O",
-      name: "Realty Income Corporation",
-      exchange: "NYSE",
-      industry: "Retail REITs",
-    },
-    {
-      symbol: "EQIX",
-      name: "Equinix, Inc.",
-      exchange: "NASDAQ",
-      industry: "Data Center REITs",
-    },
+  // real_estate — 30 of 503, in 2 industry groups.
+  ...equities("real_estate", "Equity REITs", [
+    ["AMT", "American Tower Corporation", "NYSE"],
+    ["ARE", "Alexandria Real Estate Equities, Inc.", "NYSE"],
+    ["BXP", "BXP, Inc.", "NYSE"],
+    ["CCI", "Crown Castle Inc.", "NYSE"],
+    ["CPT", "Camden Property Trust", "NYSE"],
+    ["DLR", "Digital Realty Trust, Inc.", "NYSE"],
+    ["DOC", "Healthpeak Properties, Inc.", "NYSE"],
+    ["EQIX", "Equinix, Inc.", "NASDAQ"],
+    ["ESS", "Essex Property Trust, Inc", "NYSE"],
+    ["EXR", "Extra Space Storage, Inc.", "NYSE"],
+    ["FRT", "Federal Realty Investment Trust", "NYSE"],
+    ["HST", "Host Hotels & Resorts, Inc.", "NASDAQ"],
+    ["INVH", "Invitation Homes Inc.", "NYSE"],
+    ["IRM", "Iron Mountain Inc.", "NYSE"],
+    ["KIM", "Kimco Realty Corp.", "NYSE"],
+    ["MAA", "Mid-America Apartment Communities, Inc.", "NYSE"],
+    ["O", "Realty Income Corporation", "NYSE"],
+    ["PLD", "Prologis, Inc.", "NYSE"],
+    ["PSA", "Public Storage", "NYSE"],
+    ["REG", "Regency Centers Corporation", "NASDAQ"],
+    ["SBAC", "SBA Communications Corporation Class A", "NASDAQ"],
+    ["SPG", "Simon Property Group, Inc.", "NYSE"],
+    ["UDR", "UDR, Inc.", "NYSE"],
+    ["VICI", "VICI Properties Inc.", "NYSE"],
+    ["VMRK", "Vivmark Residential", "NYSE"],
+    ["VTR", "Ventas, Inc.", "NYSE"],
+    ["WELL", "Welltower Inc.", "NYSE"],
+    ["WY", "Weyerhaeuser Company", "NYSE"],
+  ]),
+  ...equities("real_estate", "Real Estate Management & Development", [
+    ["CBRE", "CBRE Group, Inc.", "NYSE"],
+    ["CSGP", "CoStar Group, Inc.", "NASDAQ"],
   ]),
 
-  // 6 — at the floor. The widest industry spread of any block: industrial
-  // gases, paint, bulk chemicals, gold and copper have almost nothing in
-  // common, which makes this the sector where a sector-level breadth number is
-  // least informative and the industry column earns its place.
-  ...equities("materials", [
-    {
-      symbol: "LIN",
-      name: "Linde plc",
-      exchange: "NASDAQ",
-      industry: "Industrial Gases",
-    },
-    {
-      symbol: "APD",
-      name: "Air Products and Chemicals, Inc.",
-      exchange: "NYSE",
-      industry: "Industrial Gases",
-    },
-    {
-      symbol: "SHW",
-      name: "The Sherwin-Williams Company",
-      exchange: "NYSE",
-      industry: "Specialty Chemicals",
-    },
-    {
-      symbol: "DOW",
-      name: "Dow Inc.",
-      exchange: "NYSE",
-      industry: "Commodity Chemicals",
-    },
-    {
-      symbol: "NEM",
-      name: "Newmont Corporation",
-      exchange: "NYSE",
-      industry: "Gold",
-    },
-    {
-      symbol: "FCX",
-      name: "Freeport-McMoRan Inc.",
-      exchange: "NYSE",
-      industry: "Copper",
-    },
+  // materials — 25 of 503, in 1 industry group.
+  ...equities("materials", "Materials", [
+    ["ALB", "Albemarle Corporation", "NYSE"],
+    ["AMCR", "Amcor plc", "NYSE"],
+    ["APD", "Air Products & Chemicals, Inc.", "NYSE"],
+    ["AVY", "Avery Dennison Corp.", "NYSE"],
+    ["BALL", "Ball Corporation", "NYSE"],
+    ["CF", "CF Industries Holding, Inc.", "NYSE"],
+    ["CRH", "CRH Public Limited Company", "NYSE"],
+    ["CTVA", "Corteva, Inc.", "NYSE"],
+    ["DOW", "Dow Inc.", "NYSE"],
+    ["ECL", "Ecolab, Inc.", "NYSE"],
+    ["FCX", "Freeport-McMoran Inc.", "NYSE"],
+    ["IFF", "International Flavors & Fragrances Inc.", "NYSE"],
+    ["IP", "International Paper Co.", "NYSE"],
+    ["LIN", "Linde plc", "NASDAQ"],
+    ["LYB", "LyondellBasell Industries N.V. Class A", "NYSE"],
+    ["MLM", "Martin Marietta Materials", "NYSE"],
+    ["MOS", "The Mosaic Company", "NYSE"],
+    ["NEM", "Newmont Corporation", "NYSE"],
+    ["NUE", "Nucor Corporation", "NYSE"],
+    ["PKG", "Packaging Corp of America", "NYSE"],
+    ["PPG", "PPG Industries, Inc.", "NYSE"],
+    ["SHW", "The Sherwin-Williams Company", "NYSE"],
+    ["STLD", "Steel Dynamics, Inc.", "NASDAQ"],
+    ["SW", "Smurfit WestRock plc", "NYSE"],
+    ["VMC", "Vulcan Materials Company(Holding Company)", "NYSE"],
   ]),
 ];
 
@@ -944,16 +931,27 @@ export const UNIVERSE_PROVENANCE: Record<
   Extract<SecurityFieldGroup, "profile" | "classification">,
   { readonly source: string; readonly checkedOn: string }
 > = {
-  // Moved to 2026-09-08 by Task 2.7.8, which re-checked **every** row's symbol,
-  // name and exchange against Alpaca's asset catalogue — the whole of this
-  // group — and corrected `WMT`. That is what §11 asks moving this date to
-  // mean: the list was checked, not merely edited.
-  profile: { source: "curated", checkedOn: "2026-09-08" },
-  // **Deliberately NOT moved**, and the asymmetry is the point of having two
-  // groups rather than one. Alpaca's catalogue carries neither sector nor
-  // industry, so nothing in Task 2.7.8 re-checked this group and moving its
-  // date would claim a hundred verifications that did not happen — in the exact
-  // column §5 nominates as the mitigation against silent staleness. `UNIVERSE.md`
-  // §15.4.
-  classification: { source: "curated", checkedOn: "2026-09-05" },
+  // **Moved, and the source string changed with it**, because Task 2.8.2 did
+  // not re-check the old rows — it replaced the list. Every equity's symbol,
+  // name and exchange below was read from Alpaca's asset catalogue on this date
+  // (the name with its instrument-type tail removed and twelve all-capital
+  // names cased for display, which is a rendering of the same claim rather than
+  // a different one). `pnpm universe:check` re-reads the same source, so the
+  // date is honestly the date this group was last checked against it. The
+  // fifteen ETFs are hand-curated and are the reason the string is not simply
+  // the vendor's name.
+  profile: { source: "alpaca-assets + curated ETFs", checkedOn: "2026-09-08" },
+  // **Moved for the first time since Task 2.3.4 wrote it**, and moving it is
+  // the whole point of §11's rule: this group genuinely was re-checked, because
+  // every equity's sector and industry group now comes from the published S&P
+  // 500 GICS classification rather than from a person's memory. Task 2.7.8
+  // deliberately did NOT move it, because Alpaca carries neither field and
+  // moving it would have claimed a hundred verifications that did not happen.
+  // This task did the verifications: 503 rows, and every sub-industry -> group
+  // mapping checked against the constituent's own published sector, which is
+  // 503 independent checks of the mapping table rather than a spot check.
+  classification: {
+    source: "s&p-500-gics + curated ETFs",
+    checkedOn: "2026-09-08",
+  },
 };

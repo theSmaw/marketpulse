@@ -159,3 +159,63 @@ aggregate**: the session was attempted, it succeeded, and one symbol in it is em
 the system believes it understands.
 
 The only thing that catches it is knowing that page 1 is not an answer.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.2 — the universe is 518, and the batch was re-measured
+
+Everything above was written against 101 securities. The design is **unchanged and
+vindicated**; three of its numbers are not, and the re-measurement found two properties three
+symbols could not reveal.
+
+### The arithmetic, re-taken
+
+| Reading                             | 101 (as written) | 518 (shipped) |
+| ----------------------------------- | ---------------: | ------------: |
+| Rows in one session, whole universe |           39,390 |   **202,020** |
+| Pages per session at `limit=10000`  |                4 |        **21** |
+| Requests for a year of minute bars  |           ~1,004 |    **~5,051** |
+| The per-symbol loop it replaces     |          ~25,350 |  **~130,018** |
+
+The batch's case is **stronger**, not weaker: it now replaces ~130,000 requests with ~5,051.
+
+### 518 symbols in one request is accepted — measured, not assumed
+
+The obvious new risk at this size is a symbol-count or URL-length limit, and there is none.
+A single `GET` with all 518 symbols — a **3,209-character** encoded query string — answers
+**HTTP 200**, 1,050,183 bytes, `limit=10000` honoured exactly. No batching-the-batch is
+needed and none should be built.
+
+### The trap this task names goes from an edge case to the NORM
+
+Property 4 above — _a symbol can be entirely absent from a page while having a full session
+of data_ — was demonstrated with one symbol missing from one page of three. At 518 symbols,
+**page 1 contains 28 of them.** So on any given page **~95% of the universe is absent**, and
+the rule this task derives — _nothing may be concluded about any symbol until the walk is
+exhausted_ — stops being a caution and becomes the single property the whole backfill rests
+on. A client that treats an absent symbol as "no data" would mark ~95% of the universe as
+having not traded.
+
+### A NEW trap: the response object's key order is not the fill order
+
+Property 2 says symbols are filled in alphabetical order, one at a time. **That is still
+true of which symbols appear, and the JSON object's key order does not reflect it.** Measured
+on the 518-symbol page, `Object.keys(bars)` begins:
+
+```text
+AKAM  ALB  AFL  AMAT  AMCR  AMD  AMGN  ABNB      <- NOT sorted
+```
+
+while the symbols actually served run `AAPL … AMGN`, with `AMGN` the one straddling the
+boundary at 190 bars ending 16:40. Three symbols could not show this because any three keys
+look arbitrary. **So key order carries no information**: a walk must accumulate per symbol and
+key off the token, never off position in the object.
+
+### The deadline is now the sharpest constraint, and the number must be large
+
+A page is **1,050,183 bytes** and takes **2.52–2.65 s** from a development laptop (n=3,
+same request). So one session's 21-page walk is **~55 s**, against
+`DEFAULT_BARS_DEADLINE_MS` of **3,000 ms**. This task already said a batch caller must pass
+its own deadline; at 518 that stops being hygiene — the default is off by more than an order
+of magnitude, and a batch caller that forgets it fails on the first page rather than the
+fifth. See Task 2.8.6's amendment for the consequence at whole-backfill scale.

@@ -116,7 +116,7 @@ export type SecurityRow = {
  * the row and return the rest — is worse in the way that matters here, because
  * a universe list that is silently one security short is indistinguishable from
  * a universe that is one security smaller, and *that* is a claim this product
- * makes on screen ("101 securities · 11 sectors"). Dropping a row turns a
+ * makes on screen ("518 securities · 11 sectors"). Dropping a row turns a
  * malformed database into a wrong number, which is precisely the failure
  * PRODUCT_SPEC.md §35's "manufacture missing observations" prohibits. A read
  * that fails is a page that says the service could not be reached, which Story

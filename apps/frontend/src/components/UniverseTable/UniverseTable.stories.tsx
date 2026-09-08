@@ -128,7 +128,7 @@ type Story = StoryObj<typeof meta>;
 export const Loaded: Story = {};
 
 /** Acceptance criterion 6, and the only place it can be reviewed: the deployed
- *  table is 101 rows and every one of them is active. */
+ *  table is 518 rows and every one of them is active. */
 export const WithUntrackedSecurity: Story = {
   args: { view: loaded(WITH_UNTRACKED) },
 };
