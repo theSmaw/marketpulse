@@ -24,22 +24,19 @@ import {
   type Adjustment,
   ADJUSTMENTS,
   type BarSeries,
-  instantFromMarketTime,
   isTicker,
   lastMarketSessions,
   type MarketSession,
   marketDateAt,
   marketSessionsBetween,
-  nextMarketSession,
   type Timeframe,
   TIMEFRAMES,
   toMarketDate,
-  toMarketTimeOfDay,
   toTicker,
-  toTimeRange,
 } from "@marketpulse/shared";
 
 import { createAlpacaProvider } from "./alpaca-provider.js";
+import { windowFor } from "./bar-window.js";
 import { ConfigError, loadConfig, loadEnvFile } from "./config.js";
 import type { BarsRequest } from "./market-data-provider.js";
 import { withRetry } from "./retry-provider.js";
@@ -215,51 +212,6 @@ const BARS_COMMAND_DEADLINE_MS = 20_000;
  * measured page ceiling of 10,000.
  */
 const DAILY_SESSIONS = 30;
-
-/** Midnight ET, which is where this vendor stamps a daily bar. */
-const MIDNIGHT = toMarketTimeOfDay("00:00");
-
-/**
- * The window to ask over, and **the two timeframes need different shapes**.
- *
- * This is the trap `alpaca-mapping.ts` warns about, met in the one place it can
- * actually bite: a minute bar is stamped inside the session, and a **daily bar
- * is stamped at midnight ET** — `04:00:00Z` under EDT, hours *before* the
- * session opens. So a daily request framed on `[open, close)` contains no daily
- * bar at all and returns a perfectly well-formed **empty** answer.
- *
- * That is the shape of failure this whole story is written against, and it was
- * produced here rather than reasoned about: `pnpm bars NVDA 1d` printed *"no
- * bars"* against a session window before this function existed.
- *
- * So a daily window runs from midnight ET on the first date to midnight ET on
- * the day *after* the last — half-open, so the final day's bar is included and
- * the next one is not. `nextMarketSession` supplies that upper bound from the
- * calendar rather than by adding 24 hours, which would be an hour wrong across
- * a DST transition.
- */
-function windowFor(
-  timeframe: Timeframe,
-  first: MarketSession,
-  last: MarketSession,
-) {
-  if (timeframe === "1m") {
-    // Half-open, `[open, close)`. The mapping converts that to this vendor's
-    // inclusive `end`; nothing here needs to know that, which is the point.
-    //
-    // **`last.close` and not `first.close` since Task 2.7.5**, which is what
-    // makes a `--from`/`--to` range mean the range rather than its first day.
-    // The window spans the nights in between, which is correct and is also why
-    // it needs the walk: thirty sessions is ~11,700 minute bars against a
-    // 10,000-bar page ceiling, so an ordinary month paginates.
-    return toTimeRange(first.open, last.close);
-  }
-
-  return toTimeRange(
-    instantFromMarketTime(first.date, MIDNIGHT),
-    instantFromMarketTime(nextMarketSession(last.date).date, MIDNIGHT),
-  );
-}
 
 /**
  * Two market dates as the two sessions that bound a range, or a refusal.

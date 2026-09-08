@@ -31,6 +31,7 @@
     "universe": "node scripts/load-universe.mjs",
     "universe:check": "node scripts/check-universe.mjs",
     "bars": "node scripts/fetch-bars.mjs",
+    "backfill": "node scripts/run-backfill.mjs",
     "image": "node scripts/build-image.mjs",
     "e2e": "node scripts/run-e2e.mjs",
     "e2e:deployed": "node scripts/run-deployed-check.mjs",

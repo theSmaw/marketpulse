@@ -190,3 +190,61 @@ are the **bar count** and `updatedAt`, and the instruction is otherwise unchange
 statement actually changed, so it is honestly "when what we hold last changed" rather than "when
 the backfill last ran". If this page ever wants to say something about freshness, that is the
 field — and it is the reason it is safe to say it.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.6 — two rows per security, and one honest rendering that is now producible
+
+The backfill shipped, so the ledger this task reads has real content and three things about its
+shape are now facts rather than expectations.
+
+### 1. `listCoverage()` returns one row per `(security, timeframe)`, so this page has to choose
+
+Measured after a run: **519 ledger rows for 518 securities** — one `1m` row each plus one `1d`
+row for the symbol a daily backfill was run against. Once Task 2.8.8 fills both timeframes it is
+**1,036 rows for 518 securities**.
+
+The body's worked example reads `1y minute · from 3 Sep 2025`, which implicitly picks the minute
+row. **That is the right choice and it should be stated as one**: the minute series is what every
+chart in Epics 4, 5 and 12 reads, the daily series is a different depth (2024-01-01) and putting
+both on one line makes a row that nobody can scan. The daily depth belongs on the per-security
+route Story 2.11 owns, beside the chart that uses it.
+
+So: pick `1m`, say so in the code, and render **nothing rather than a zero** for a security whose
+minute row is absent — which is the rule the body already states for a security with no history
+at all, applied one level down.
+
+### 2. "How far back" is `covered.start`, and the backwards walk is what makes it meaningful
+
+Task 2.8.6 walks **backwards from the most recent session**, so a partially-filled security has a
+covered range whose `end` is recent and whose `start` is however far the run got. That is exactly
+the shape this column wants: `covered.start` is _"from"_ and it moves earlier as the store
+deepens, while `covered.end` stays pinned to the frontier.
+
+The consequence worth designing for: **during a backfill, and after an interrupted one,
+securities legitimately have different depths.** That is not a fault state and must not render as
+one — it is the store being partially filled, which §36's rule says degrades locally and says
+what it knows.
+
+### 3. The outlier this page should make legible now has a name and a cause
+
+The body predicts that a coverage bar is probably wrong because _"the backfill fills every
+tracked security to the same depth"_, and that the variation worth showing is the exception. Two
+exceptions are now producible rather than hypothetical, and they are different from the ones the
+body guessed at:
+
+- **A security blocked by `CoverageGapError`.** The backfill drops it from the rest of the run
+  and it stops extending, so it sits at a shallower depth than the other 517 **permanently**,
+  until somebody acts. This is the row the design should make findable.
+- **A security with a genuinely shorter history**, because it listed inside the window. The body
+  already names this one and it is the benign case.
+
+They render identically from the ledger alone — both are just a later `covered.start` — which is
+the argument for the page saying the **true simple thing** (how much we hold) and leaving _why_
+to Task 2.8.7's report. Do not try to distinguish them here; the body's instruction to reserve
+diagnostic detail for the report is right, and this is the specific case that will tempt somebody
+to break it.
+
+**One figure not to render, measured.** The mean is **364.3 bars per security-session** rather
+than 390, so a percentage against `minuteBars` reads ~93% for a completely healthy store. That is
+a liquidity fact, it is not completeness, and it must not appear on this page as either.

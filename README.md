@@ -5,7 +5,7 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all **750** fast tests passed, and
+files still agree with the configuration table, all **816** fast tests passed, and
 the 14-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
@@ -58,7 +58,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of **750** fast tests plus a 14-test process suite, with
+and a test suite of **816** fast tests plus a 14-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -564,7 +564,7 @@ Run from the repository root:
 | `pnpm stories`        | Fails if a component has no stories file                                  |
 | `pnpm env:check`      | Fails if `.env.example` and the configuration module disagree             |
 | `pnpm links`          | Fails if a relative Markdown link points at nothing — see below           |
-| `pnpm test`           | Every package's tests — 750 across the workspace — see below              |
+| `pnpm test`           | Every package's tests — 816 across the workspace — see below              |
 | `pnpm test:process`   | The backend's process half — 14 tests that spawn a real server            |
 | `pnpm coverage`       | The same tests with coverage — three reports, on demand — see below       |
 | `pnpm dev`            | Every package's `dev`, in parallel — see below                            |
@@ -573,6 +573,7 @@ Run from the repository root:
 | `pnpm universe`       | Loads the ~100 tracked securities into that database — see below          |
 | `pnpm universe:check` | Compares that list against Alpaca's catalogue; writes nothing — see below |
 | `pnpm bars`           | Fetches one symbol's bars from Alpaca and prints them — see below         |
+| `pnpm backfill`       | Fetches historical bars and **stores** them, resumably — see below        |
 | `pnpm ready`          | Is the development pair actually up? Not part of `verify` — see below     |
 | `pnpm image`          | Builds the backend's `linux/amd64` container image — see below            |
 | `pnpm e2e`            | The browser suite, against a pair you started — see below                 |
@@ -666,7 +667,7 @@ the same second half for the same reason.
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
 in this workspace. `packages/shared` runs 206 tests across 14 files,
-`apps/backend` 361 across 20, and `apps/frontend` 183 across 20 — **750 in
+`apps/backend` 427 across 22, and `apps/frontend` 183 across 20 — **816 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -729,7 +730,7 @@ answer.
 
 Three things about it worth knowing before changing it.
 
-**It is a separate command because it is a separate cost.** `pnpm test` is 750
+**It is a separate command because it is a separate cost.** `pnpm test` is 816
 tests in a few seconds, needs no build and no socket, and is the one you run all
 day; this suite takes about 9.2 s, of which 5 s is the shutdown ceiling being
 what it says it is. Both are steps in `pnpm verify`, so both gate.
@@ -799,7 +800,7 @@ pnpm coverage                                   # all three packages
 pnpm --filter @marketpulse/backend coverage     # one of them
 ```
 
-It is the same 750 tests with `--coverage` added, fanning out through
+It is the same 816 tests with `--coverage` added, fanning out through
 `pnpm -r` exactly as `pnpm test` does, so there are **three reports and no
 merged one** — each package answers for its own sources. It is deliberately
 not part of `pnpm test` and not a `pnpm verify` step of its own: nothing gates
@@ -1361,6 +1362,60 @@ screen, which is what lets a chart later say where each price came from.
 plan's history and a symbol the vendor does not know all answer identically,
 and the command says so in those words rather than reporting an error.
 
+### `pnpm backfill` — filling the store
+
+```sh
+pnpm backfill --symbols NVDA --sessions 20
+pnpm backfill --timeframe 1d --from 2024-01-02 --to 2026-09-04
+pnpm backfill --sessions 251                    # the whole tracked universe, a year
+```
+
+Fetches historical bars and **stores** them, which is the difference between
+this and `pnpm bars`. With no `--symbols` it is every security whose status is
+`active`; with no range it is the last five complete sessions, deliberately
+small, because a default that spends an hour against a metered API is a trap.
+
+```text
+backfill  518 securities  1m  raw  2026-09-01 → 2026-09-04  (4 sessions)
+  provider alpaca  feed sip
+
+  ✓ 2026-09-03  190184 bars, 189014 new  (1/3, ~31s left)
+  ✓ 2026-09-02  192111 bars, 190941 new  (2/3, ~17s left)
+  ✓ 2026-09-01  192382 bars, 191212 new  (3/3, done)
+
+  3 fetches, 3 sessions fetched, 1 already held
+  571167 bars stored, 0 corrected, 3510 unchanged
+```
+
+**The counters are the finding rather than the ceremony.** `0 bars stored, N
+already held` on a re-run is the line that says the store and the vendor agree
+about every session asked for — measured at 518 securities, where a completed
+range costs the metered API **zero requests** and returns in 0.4 s.
+
+**It resumes from the ledger rather than from a bookmark of its own.** Ctrl-C
+finishes the request in flight, writes its ledger row and stops with exit 0;
+`kill -9` rolls the session in flight back, because a session's bars and its
+ledger row are one transaction. Both were produced rather than reasoned about,
+and in both cases the next run continues from exactly where the last one
+stopped, with no duplicated and no skipped session.
+
+**One request is one session, for minute bars, and that is the most expensive
+thing here to get wrong.** A window spanning several sessions covers the nights
+in between, which the consolidated tape fills with pre- and post-market prints
+at **2.35× the regular-hours bar count** — data the trading calendar says should
+not be there, in a table this product treats as the record of what happened. A
+year of NVDA is 244 sessions at exactly 390 bars each and the two half days in
+it at exactly **210**, which is the calendar's own arithmetic arriving from the
+vendor.
+
+**Bars are stored raw and adjustment is not an option**, because this store is
+the record of what was observed rather than a cache: a stored _split-adjusted_
+series is retroactively wrong the moment the next split happens. An adjusted
+series is asked for at read time instead.
+
+Like `pnpm bars` it needs an Alpaca key and is **not** part of `pnpm verify`,
+and more firmly: this one makes metered requests _and_ writes to a database.
+
 ### `pnpm test:database` — the sixth level of test
 
 ```sh
@@ -1369,7 +1424,7 @@ pnpm build         # and a built tree
 pnpm test:database
 ```
 
-**55 tests against a real PostgreSQL server**, in about a second. It is the
+**128 tests against a real PostgreSQL server**, in a couple of seconds. It is the
 sixth level of test in this repository and the third command that runs tests,
 after `pnpm test` and `pnpm test:process`, and it exists because four things
 this repository claims are only answerable by a database: that a migration
