@@ -1,0 +1,274 @@
+# Fill the deployed bar store, from inside Azure (Task 2.8.8).
+#
+# ## Why this exists, which is a measurement rather than a preference
+#
+# Story 2.8's open decision 4 settled the initial backfill as "a local command
+# against the deployed database", on the argument that a one-off of hours and a
+# repeated job of minutes are different shapes and deciding them together is how
+# the one-off ends up in the pipeline. That argument still stands. What did not
+# survive contact with the run is the assumption underneath it: that a laptop is
+# a reasonable place to write fifty million rows from.
+#
+# Measured 2026-09-08, from a laptop in Singapore to the database in North
+# Central US:
+#
+#   begin; select 1; commit;  as one round trip   246-268 ms
+#   20 inserts, one transaction each              831 ms each
+#   deployed daily backfill, 10 minutes           4,120 rows, 206 of 518 symbols
+#
+# The write path issues several statements per security per session and there
+# are 518 securities, so the cost is round trips multiplied by geography. A full
+# deployed year projects to ~33 hours from that machine against ~97 minutes
+# locally, and the difference is **entirely** the ~250 ms it takes light and
+# routing to reach Chicago and come back.
+#
+# This repository has recorded the same finding twice before without it costing
+# anything: the deployed browser check runs FASTER on a GitHub runner than on
+# the development laptop (6.5 s against 9.7-10.5 s, Task 1.13.5), and
+# `pnpm universe` takes 0.428 s on the runner against ~3 s from a laptop (Task
+# 2.3.8). Both were noted as curiosities. This is the first time the same fact
+# decides where a piece of work has to run.
+#
+# So: the backfill runs from a runner, which is inside Azure and an order of
+# magnitude closer to the database. **It is still an operator's command rather
+# than part of a deploy** — `workflow_dispatch` only, never `push`, never
+# `workflow_run`, and no `schedule:`. Open decision 4's substance is unchanged;
+# only the machine moved.
+#
+# ## What it deliberately does NOT do
+#
+# **It is not part of `deploy.yml`.** A deploy is a rollout of code and a
+# backfill is a metered, hours-long walk against a third party; putting them in
+# one workflow means every merge either waits for one or races it. The migration
+# and universe steps are in the deploy because they are fast, idempotent and
+# required for the code being shipped to work. This is none of those things.
+#
+# **It has no `schedule:`.** Task 2.8.7 decided that neither the backfill nor
+# the catch-up runs automatically in V1, and said the cost in words: an
+# unscheduled catch-up is what makes the store quietly stale, and
+# `bar_coverage.updated_at` is the only field that can report it honestly. That
+# decision is unchanged and this file is not a way around it.
+#
+# **It holds no credential.** There is still no repository secret. The runner
+# authenticates to Azure with the same federated identity `deploy.yml` uses, and
+# then reads the Alpaca key **off the Container App** — the key id is a plain
+# environment value and the secret is a platform secret, both readable by an
+# identity with Contributor on the app. So the credential lives in exactly one
+# place, which is the property Task 2.7.2 established and this file does not
+# spend.
+#
+# ## The two failure modes worth knowing before dispatching one
+#
+# **A run can outlive its own database credential.** An Entra access token is
+# valid ~69 minutes; a full-year walk is longer than that. Each pass mints a
+# fresh one, and a pass that dies mid-walk is resumed by dispatching again —
+# a re-run of a range already held fetches nothing, so resuming is free.
+#
+# **`commonCoverage` is an intersection, so a resume can over-fetch.** The skip
+# window is the range EVERY security in the run already holds, and three
+# constituents listed inside the backfill window (`Q`, `FDXF`, `HONA` — 2025-11
+# and 2026-06 spin-offs). They will never hold history older than their listing
+# dates, so the intersection can never move back past them, and a resume issued
+# as `--sessions N` re-asks for everything older. Measured: 193 sessions
+# re-requested to fetch 43 sessions of new data, at `0 new` rows.
+#
+# **So resume with an explicit `--from`/`--to` naming the range that is actually
+# missing**, which the ledger states directly:
+#
+#   select covered_start::date, count(*) from bar_coverage
+#   where timeframe = '1m' group by 1 order by 1;
+#
+# That is why this workflow takes free-form arguments rather than a session
+# count: the operator has to be able to say which range, and a clever loop that
+# guessed would guess wrong on exactly the universe we have.
+name: backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      args:
+        description: 'Arguments for `pnpm backfill`, e.g. "--timeframe 1d --from 2024-01-02 --to 2026-09-04"'
+        required: true
+        type: string
+        default: "--sessions 5"
+
+# ONE backfill at a time, and cancellation OFF. Two concurrent walks against one
+# database is precisely the shape `market-bars.ts` refuses with a
+# `CoverageGapError` — sessions committing out of order leave a trading day in
+# the gap — so a second dispatch queues behind the first rather than racing it.
+concurrency:
+  group: backfill
+  cancel-in-progress: false
+
+# `id-token: write` mints the OIDC token azure/login exchanges. No stored
+# credential, exactly as in `deploy.yml`.
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  # Identifiers, not credentials — all three are already published in
+  # HOSTING.md in this public repository, and none authorises anything on its
+  # own. What authorises this run is the federated credential on the app
+  # registration, whose subject must match this run's OIDC claims.
+  AZURE_CLIENT_ID: 1bb765eb-fff3-4aed-80f2-90796c2fbcfb
+  AZURE_TENANT_ID: 6069915b-5bf2-4e36-8b25-8ffb25b5fdd1
+  AZURE_SUBSCRIPTION_ID: 5104e168-b3de-41c2-92a8-c68d28bd4d16
+  AZURE_RESOURCE_GROUP: rg-marketpulse-dev
+  AZURE_CONTAINER_APP: marketpulse-backend
+  DATABASE_HOST: psql-marketpulse-dev.postgres.database.azure.com
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: marketpulse
+  # The migration identity, which OWNS all four tables and therefore needs no
+  # grant to write them. `marketpulse-backend` would also work for the DML, but
+  # Task 2.1.6 measured that a service principal cannot mint a token for another
+  # principal's Postgres role — so a runner could not be that identity even if
+  # it wanted to. Consistent with the migration and universe steps.
+  DATABASE_USER: marketpulse-github-deploy
+  # WHY `password` AGAINST AN ENTRA-ONLY SERVER: the value IS an Entra access
+  # token. `entra` mode reads the container app's identity sidecar, which does
+  # not exist on a runner. `password` mode with a minted token is the same
+  # credential arriving through a different door. `verify-full` regardless —
+  # Task 2.1.5 measured that Node's bundled roots verify this chain with no CA
+  # file, and an unverified token on the wire is what `config.ts` refuses.
+  DATABASE_AUTH: password
+  DATABASE_SSL: verify-full
+
+jobs:
+  backfill:
+    name: backfill
+    runs-on: ubuntu-latest
+    # GitHub caps a job at 6 hours and kills it with no summary. This stops
+    # first, so a run that runs out of time ends with a readable ledger state
+    # and an explicit next range rather than a red X and nothing.
+    timeout-minutes: 330
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node from .nvmrc
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Resolve the pnpm store path
+        id: store
+        run: |
+          set -euo pipefail
+          path="$(pnpm store path)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          echo "node-major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+
+      # RESTORE ONLY, never save — `verify` owns saving this cache. Two savers
+      # computing the same key race to a "Cache already exists" warning that
+      # reads like a fault, which is the arrangement Task 1.13.4 settled.
+      - name: Restore the pnpm store
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Sign in to Azure
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Add the containerapp CLI extension
+        run: az extension add --name containerapp --upgrade --allow-preview true --only-show-errors
+
+      # The runner is inside Azure and `AllowAllAzureServicesAndResources`
+      # admits it, so nothing here writes a firewall rule — Task 2.2.7 measured
+      # runner egress at an Azure address that rule already covers. That is
+      # deliberately unlike a laptop, whose `developer-laptop` rule has moved
+      # SEVEN times, once mid-task.
+      - name: Report where this is running from
+        run: |
+          set -euo pipefail
+          echo "runner egress: $(curl -fsS --max-time 10 https://api.ipify.org || echo unknown)"
+
+      - name: Fill the store
+        env:
+          BACKFILL_ARGS: ${{ inputs.args }}
+        run: |
+          set -euo pipefail
+
+          # The package's own verb rather than a `tsc` invented here — root
+          # `pnpm build` would additionally build a frontend bundle and a
+          # Storybook this job does not use. `pnpm backfill` guards on the
+          # presence of `dist/` with a message naming `pnpm build`.
+          pnpm --filter @marketpulse/backend build
+
+          # The Alpaca credential, read off the Container App rather than from a
+          # repository secret. The key ID is a plain environment value and is
+          # NOT masked — it travels in the clear in every request header and on
+          # the vendor's own dashboard, and masking it would hide the one value
+          # that says which key is configured. The secret is masked.
+          ALPACA_API_KEY_ID="$(az containerapp show \
+            -g "$AZURE_RESOURCE_GROUP" -n "$AZURE_CONTAINER_APP" \
+            --query "properties.template.containers[0].env[?name=='ALPACA_API_KEY_ID'].value | [0]" -o tsv)"
+          ALPACA_API_SECRET_KEY="$(az containerapp secret show \
+            -g "$AZURE_RESOURCE_GROUP" -n "$AZURE_CONTAINER_APP" \
+            --secret-name alpaca-api-secret-key --query value -o tsv)"
+          echo "::add-mask::$ALPACA_API_SECRET_KEY"
+          export ALPACA_API_KEY_ID ALPACA_API_SECRET_KEY
+          export MARKET_DATA_PROVIDER=alpaca
+          echo "alpaca key id: $ALPACA_API_KEY_ID"
+
+          DATABASE_PASSWORD="$(az account get-access-token \
+            --resource https://ossrdbms-aad.database.windows.net \
+            --query accessToken -o tsv)"
+          echo "::add-mask::$DATABASE_PASSWORD"
+          export DATABASE_PASSWORD
+
+          echo "pnpm backfill $BACKFILL_ARGS"
+          started=$(date -u +%s)
+          status=0
+          # `$BACKFILL_ARGS` is deliberately unquoted: it is a list of arguments
+          # rather than one argument. It comes from a `workflow_dispatch` input,
+          # which only somebody with write access to this repository can supply.
+          # shellcheck disable=SC2086
+          pnpm backfill $BACKFILL_ARGS || status=$?
+          echo "backfill exit $status after $(( $(date -u +%s) - started ))s"
+          echo "BACKFILL_STATUS=$status" >> "$GITHUB_ENV"
+
+      # ALWAYS, including after a failure — a partial walk is the case where the
+      # ledger's own statement matters most, because it is what the next
+      # dispatch's `--from`/`--to` is read off.
+      - name: Report what the store now holds
+        if: always()
+        run: |
+          set -euo pipefail
+
+          DATABASE_PASSWORD="$(az account get-access-token \
+            --resource https://ossrdbms-aad.database.windows.net \
+            --query accessToken -o tsv)"
+          echo "::add-mask::$DATABASE_PASSWORD"
+          export DATABASE_PASSWORD
+
+          {
+            echo "## Deployed bar store"
+            echo
+            echo '```'
+            pnpm bars:check --timeframe 1m 2>&1 | tail -40 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail the job if the backfill did
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ "${BACKFILL_STATUS:-1}" != "0" ]; then
+            echo "::error::the backfill exited ${BACKFILL_STATUS:-unknown}. Every session it stored is stored — each is its own transaction. Read the ledger in this run's summary, then dispatch again with an explicit --from/--to naming the range that is still missing. Do NOT resume with --sessions N: commonCoverage is an intersection and three late-listing constituents drag the skip window forward, so it would re-fetch everything older at zero benefit."
+            exit 1
+          fi
+          echo "backfill completed"

@@ -566,7 +566,15 @@ export async function runBackfill(
 
     let runInserted = 0;
     let runBars = 0;
+    // **Counted in symbol-SESSIONS rather than in symbols, which is what the
+    // summary line calls it and what `bar_attempts` records.** The two agree
+    // only because of the multiplication below: `queueAttempts` writes one row
+    // per session in the request, so a daily request covering twenty sessions
+    // logs twenty rows for one symbol that answered with nothing. Task 2.8.8's
+    // first full-depth daily run is what found them disagreeing — 127 against
+    // 2,537 — and the table was the half that was right.
     let runEmpty = 0;
+    let runEmptySymbols = 0;
 
     for (const [symbol, result] of results) {
       if (result.outcome !== "ok") {
@@ -593,7 +601,8 @@ export async function runBackfill(
         // extends no ledger, so it is recorded in neither table, and at the
         // frontier of a walk it reads as *never asked* when it was asked and was
         // told nothing happened.
-        runEmpty += 1;
+        runEmpty += run.length;
+        runEmptySymbols += 1;
         queueAttempts([symbol], run, "ok");
         continue;
       }
@@ -668,7 +677,9 @@ export async function runBackfill(
     report(
       `  ✓ ${describeRun(run)}  ${String(runBars)} bars, ` +
         `${String(runInserted)} new` +
-        (runEmpty > 0 ? `, ${String(runEmpty)} symbols with nothing` : "") +
+        (runEmptySymbols > 0
+          ? `, ${String(runEmptySymbols)} symbols with nothing`
+          : "") +
         `  ${remainingEstimate(requests, runs.length, spentMs)}`,
     );
   }
