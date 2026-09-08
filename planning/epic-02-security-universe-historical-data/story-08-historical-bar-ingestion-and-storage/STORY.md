@@ -197,16 +197,25 @@ is listed here only so it is not forgotten alongside it.
    **document** is fetched on demand. Nobody is mirroring EDGAR. The line is whether the
    product must be able to answer without the vendor.
 
-2. **TimescaleDB.** §30 offers it optionally and §37 says do not add a second data
-   technology without a measurement. This is the story with the measurement in it. Note the
-   Azure-specific question that must be answered first: whether the extension is available
-   and enabled on the chosen tier — verify against the server rather than the documentation
-3. **Which timeframes are stored**, following Story 2.7's decision, and whether daily bars
-   are stored or derived from minute bars on read. Deriving is one source of truth and more
-   work per read; storing both is faster and can disagree with itself
-4. **Where the backfill runs.** A local command against the deployed database, a one-off
-   container job, or a step somewhere in the pipeline. Running it locally is simplest and
-   means the deployed system's data has a provenance of "somebody's laptop"
+2. ~~**TimescaleDB.**~~ **SETTLED 2026-09-08 by Task 2.8.1 — declined now, with a measured
+   trigger.** The Azure-specific question was answered first and against the servers rather
+   than the documentation: the extension **is** available deployed (2.24.0, not installed,
+   `azure.extensions` empty) and is **absent entirely from the local `postgres:18` image**, so
+   adopting it changes the local image, a server parameter, and a server restart. The trigger
+   is Task 2.8.7's `EXPLAIN` against the real row count. See [`BARS.md`](BARS.md) §1
+3. ~~**Which timeframes are stored**~~ **SETTLED — both `1Min` and `1Day`, stored and never
+   derived** (Story 2.7 upstream; `PROVIDER.md` §9.4 forbids deriving one from the other
+   because replay must reconstruct from what was stored). **The depth half was NOT settled
+   upstream and is now**: minute for 1 year, and **daily capped at 2024-01-01** rather than the
+   ~2016 the amendment below assumes — because the calendar covers 2024–2028 and **refuses**
+   outside it, measured, with no request made. Nothing in V1's scope reads 2016. See
+   [`BARS.md`](BARS.md) §2
+4. ~~**Where the backfill runs.**~~ **SETTLED 2026-09-08 — a local command against the deployed
+   database for the initial backfill; the incremental catch-up's home is decided separately
+   when it exists**, because a one-off of hours and a repeated job of minutes are different
+   shapes and deciding them together is how the one-off ends up in the pipeline. The cost is
+   accepted explicitly: the deployed store's provenance is a laptop, and a **third principal**
+   — the Entra administrator — writes the rows. See [`BARS.md`](BARS.md) §3
 5. **The universe, re-curated once before the first backfill** (added 2026-09-06, from
    Story 2.3's close). Two questions, and they are one editing session on
    `apps/backend/src/universe.ts`:
@@ -332,10 +341,18 @@ Daily is **0.26% of minute** — 3.1 MB/yr against 1.19 GB/yr for the whole univ
 must reconstruct from what was stored.
 
 **Depths, and they differ deliberately:** daily to the earliest available (**~2016**), minute
-for **1 year**. The reasoning is in Story 2.7's file, and the part that matters here is that
-**1 year of minute bars survives a re-size to 1,500 securities and 2 years does not** — so the
-depth was chosen by the sizing option it must not foreclose, and open decision 5's re-curation
-is not quietly pre-empted.
+for **1 year**.
+
+> **AMENDED 2026-09-08 by Task 2.8.1: the daily depth is capped at 2024-01-01, not ~2016.** The
+> trading calendar covers 2024–2028 and **refuses** outside it rather than truncating, so
+> `pnpm bars NVDA 1d --from 2016-01-04` fails at window construction with **no request made** —
+> measured, with the in-range control returning 9 bars for 9 trading days. Settled with the user
+> as option A of three: nothing in V1's scope reads 2016 (Epic 5's baseline is 60 trading days),
+> and the alternative that keeps the depth without the calendar would make `1Day` the one
+> timeframe where "is a bar missing?" has no answer. [`BARS.md`](BARS.md) §2. The reasoning is in Story 2.7's file, and the part that matters here is that
+> **1 year of minute bars survives a re-size to 1,500 securities and 2 years does not** — so the
+> depth was chosen by the sizing option it must not foreclose, and open decision 5's re-curation
+> is not quietly pre-empted.
 
 ### The backfill is bounded by pagination, NOT by the rate limit
 
