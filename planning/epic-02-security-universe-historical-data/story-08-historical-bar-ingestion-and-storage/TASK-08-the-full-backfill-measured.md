@@ -117,7 +117,11 @@ different image entirely**, because `timescaledb` is absent from `postgres:18`'s
 **Re-running the backfill changes nothing — proved by row counts and checksums, not by
 inspection.** Task 2.8.4 proved the property on a fixture; this proves it on ten million rows.
 A `md5` over an ordered projection of the table before and after, plus the ledger's own
-`recorded_at` values not moving, is the shape — Task 2.3.8's method, where idempotence is
+`updated_at` values not moving, is the shape — **`updated_at` and not `recorded_at`, corrected
+2026-09-08 by Task 2.8.4**: `bar_coverage.recorded_at` is insert-only and cannot move, so
+checking it would assert nothing. `updated_at` is the column that moves on a real change and
+deliberately does not on a no-op, which is what makes it the one worth watching. Both tables
+should be fingerprinted, for the same reason — Task 2.3.8's method, where idempotence is
 asserted on the data rather than on the counters.
 
 And criterion 3 the same way: interrupt the real run, resume it, and compare against a run that

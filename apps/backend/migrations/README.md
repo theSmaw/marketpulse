@@ -668,7 +668,7 @@ database-backed test**, after it has.
 | Every money column is `numeric(18, 6)`, and a count is `bigint`  | `pnpm test:database` — a real check since Task 2.8.3, with the non-vacuity guard kept                           |
 | A foreign key is `<referenced_table_singularised>_id`            | `pnpm test:database`, on `market_bars` — the first table in this schema with one                                |
 | `observed_at` has **no default**, on every table that has one    | `pnpm test:database` — the structural half of invariant 4's leak                                                |
-| No index exists that nothing asked for                           | `pnpm test:database`, on `market_bars` only, where an index costs ~50.5M rows a year                            |
+| No index exists that nothing asked for                           | `pnpm test:database`, on `market_bars` and `bar_coverage` — for opposite reasons, see below                     |
 
 **The three-hop arrangement behind the last two rows is worth understanding
 before adding a table**, because it is what makes a hand-written type safe
@@ -710,6 +710,16 @@ checks the half a sweep for `numeric` structurally cannot see — that `volume` 
 a `bigint`, because a `numeric(18, 6)` count would satisfy every other assertion
 and be wrong.
 
+**The index rule is asserted on two tables now and the two arguments are
+opposites**, which is worth stating because reading one as the other produces
+the wrong instinct. On `market_bars` an index is expensive — every one is ~50.5M
+rows a year of write amplification against a disk with ~22.5 GiB usable — so
+what is _not_ built is the consequential half. On `bar_coverage` (Task 2.8.4) an
+index is **useless**: the table is ~1,036 rows at 518 securities and two
+timeframes, so every query is a sub-millisecond scan. Both assert the exact set
+of indexes, and in both cases the fix for a red result is to say which query the
+new index serves.
+
 **And the foreign-key naming rule is tested at last.** Task 2.2.4 recorded
 `<referenced_table_singularised>_id` as untested because `securities` has no
 foreign key; `0003` recorded that it had survived Story 2.3, which had looked
@@ -728,6 +738,19 @@ and a check expecting `null` for anything that is not a `numeric` fails on every
 bare index: it reads back from `pg_constraint` with `contype = 'u'` and a btree
 behind it, where a bare index is invisible there — which matters to the
 `on conflict` inference a write path uses.
+
+**One convention this list cannot hold at all, added by Task 2.8.4 and recorded
+here because the next table with a range in it will meet it:** `bar_coverage`
+holds one contiguous window per series, so **the backfill's walk must be
+monotonic** — a walk that jumps leaves the ledger claiming a window it does not
+hold, which is the failure nothing downstream can detect. It is not enforceable
+in SQL, because whether a gap matters is a question about the _trading calendar_
+rather than about the interval: two adjacent sessions are disjoint as intervals,
+so no constraint can tell "the next session back" from "a month back". It is
+enforced in `market-bars.ts` instead, which reads the calendar and refuses a
+write whose gap contains a session — the same shape as the checksum pass, a
+check in the writer rather than in the schema, and for the same reason: it holds
+in every environment including the one where no test runs.
 
 The rest are **not** reachable and are prose permanently: plural table names,
 snake case, `text` over `varchar(n)`, and — the two that matter most — that

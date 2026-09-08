@@ -560,3 +560,37 @@ backfills a rename costs a re-backfill.
 deliberately **not** re-taken in Story 2.7, because §5's metadata source has to be settled
 first — that is this story's re-curation. **Re-sizing after this story backfills costs a
 re-backfill rather than a file edit**, which §10 names as the real deadline on the decision.
+
+---
+
+## Amended 2026-09-08 — the remaining tasks reviewed against Task 2.8.4
+
+**Nothing added, deleted or re-ordered.** Five task files amended, three of them substantively,
+because 2.8.4 shipped one thing its brief did not specify: the one-range ledger's stated cost —
+_the walk must be monotonic_ — is **enforced** rather than written down. `market-bars.ts` refuses
+a write whose gap from the stored range contains a trading session, read off the shipped
+calendar, and throws naming the missing dates.
+
+That is a behavioural change downstream tasks were written against, and it lands three ways:
+
+- **2.8.6's open concurrency question is now constrained rather than free.** Eight sessions in
+  flight complete out of order, and an out-of-order session write for one symbol is exactly what
+  the check refuses. The recommendation was already sequential; its argument is now structural.
+- **A failed or dropped session blocks the walk for that symbol, loudly**, instead of leaving a
+  silent hole. That gives **2.8.5's** _"one failure that survives every check"_ a second,
+  independent net — one session late, named as a gap rather than as a dropped symbol, and blind
+  to a drop on a run's last session — so it is a backstop rather than a reason to relax there.
+- **2.8.7's "no ledger entry for `(security, timeframe, session)`" describes a table that does
+  not exist.** The ledger is one row per `(security, timeframe)` with one range, so _not fetched_
+  is _outside the covered range_. The three-way computation survives; only the lookup changes.
+
+And one hole found in **2.8.7's** own recommendation: _log failures only, because successes are
+recorded by the bars_ misses the **empty success**, which writes no bars and extends no range and
+is therefore recorded in neither table. Usually absorbed by the next session on the far side of
+it; not absorbed at the frontier, where it reads as _never asked_ about a day we asked about. The
+attempt log records empty successes too.
+
+Smaller corrections: **2.8.9**'s repository read already exists as `listCoverage()`, and there is
+no _last attempt_ field to keep off the page because 2.8.4 refused one; **2.8.8**'s idempotence
+check should watch the ledger's `updated_at` rather than its `recorded_at`, which is insert-only
+and cannot move.

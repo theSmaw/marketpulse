@@ -29,14 +29,33 @@
 // needs a security to be a duplicate for.
 
 import pg from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { TIMEFRAMES } from "@marketpulse/shared";
+import {
+  TIMEFRAMES,
+  lastMarketSessions,
+  toBarSeries,
+  toMarketDate,
+  toSeriesProvenance,
+  toTicker,
+  toTimeRange,
+  type Bar,
+  type BarSeries,
+  type MarketSession,
+  type Ticker,
+  type Timeframe,
+} from "@marketpulse/shared";
 
 import { loadConfig, loadEnvFile } from "./config.js";
 import { loadUniverse } from "./load-universe.js";
+import {
+  CoverageGapError,
+  createMarketBarsRepository,
+  UnknownSecurityError,
+  type MarketBarsRepository,
+} from "./market-bars.js";
 import { runMigrations } from "./migrate.js";
-import type { MarketBarsTable } from "./schema.js";
+import type { BarCoverageTable, MarketBarsTable } from "./schema.js";
 
 /** The same database name the other three suites use, for the same reasons. */
 const TEST_DATABASE_NAME = "marketpulse_vitest";
@@ -117,10 +136,63 @@ const EXPECTED_MARKET_BARS = {
 /** The four columns the money rule is about, derived rather than restated. */
 const PRICE_COLUMNS = ["open", "high", "low", "close"] as const;
 
+/**
+ * The ledger's third description, after the migration and the interface.
+ *
+ * Same three-hop arrangement as {@link EXPECTED_MARKET_BARS}: the `satisfies`
+ * makes a column added to {@link BarCoverageTable} and not described here a
+ * compile error, and the suite compares the description against
+ * `information_schema` in both directions.
+ */
+const EXPECTED_BAR_COVERAGE = {
+  id: {
+    dataType: "bigint",
+    nullable: false,
+    identity: true,
+    precision: 64,
+    scale: 0,
+  },
+  security_id: { dataType: "bigint", nullable: false, precision: 64, scale: 0 },
+  timeframe: { dataType: "text", nullable: false },
+  // No default on either end of the range, for `observed_at`'s reason: a writer
+  // must supply the window it was answered for and cannot have one filled in on
+  // its behalf.
+  covered_start: { dataType: "timestamp with time zone", nullable: false },
+  covered_end: { dataType: "timestamp with time zone", nullable: false },
+  bar_count: {
+    dataType: "bigint",
+    nullable: false,
+    defaultExpression: "0",
+    precision: 64,
+    scale: 0,
+  },
+  recorded_at: {
+    dataType: "timestamp with time zone",
+    nullable: false,
+    defaultExpression: "now()",
+  },
+  updated_at: {
+    dataType: "timestamp with time zone",
+    nullable: false,
+    defaultExpression: "now()",
+  },
+} satisfies Record<keyof BarCoverageTable, ExpectedColumn>;
+
 let adminPool: pg.Pool | undefined;
 let testPool: pg.Pool | undefined;
 let securityId = "";
 let otherSecurityId = "";
+let symbol: Ticker = toTicker("AAPL");
+let otherSymbol: Ticker = toTicker("MSFT");
+let thirdSymbol: Ticker = toTicker("NVDA");
+let bars: MarketBarsRepository | undefined;
+
+function repository(): MarketBarsRepository {
+  if (bars === undefined) {
+    throw new Error("beforeAll did not create the repository.");
+  }
+  return bars;
+}
 
 function db(): pg.Pool {
   if (testPool === undefined) {
@@ -129,15 +201,122 @@ function db(): pg.Pool {
   return testPool;
 }
 
-async function marketBarColumns(): Promise<readonly ColumnRow[]> {
+async function columnsOf(table: string): Promise<readonly ColumnRow[]> {
   const result = await db().query<ColumnRow>(
     `select column_name, data_type, is_nullable, is_identity,
             column_default, numeric_precision, numeric_scale
        from information_schema.columns
-      where table_schema = 'public' and table_name = 'market_bars'
+      where table_schema = 'public' and table_name = $1
       order by ordinal_position`,
+    [table],
   );
   return result.rows;
+}
+
+async function marketBarColumns(): Promise<readonly ColumnRow[]> {
+  return columnsOf("market_bars");
+}
+
+/** Empty both tables, so a test that writes cannot leak into the next one. */
+async function clearStore(): Promise<void> {
+  await db().query("delete from bar_coverage");
+  await db().query("delete from market_bars");
+}
+
+/**
+ * A checksum over a whole table's content, ordered so it is stable.
+ *
+ * **This is what acceptance criterion 2 is asserted on**, rather than on the
+ * writer's own report that it wrote nothing. `id` is excluded deliberately: it
+ * is `generated always as identity` and an upsert consumes a sequence value per
+ * row per run whether or not anything changed (Task 2.3.5 measured it), so a
+ * fingerprint including it would report a difference that is not one.
+ */
+async function fingerprint(table: string, columns: string): Promise<string> {
+  const result = await db().query<{ digest: string | null }>(
+    `select md5(coalesce(string_agg(t::text, '|' order by t::text), '')) as digest
+       from (select ${columns} from ${table}) as t`,
+  );
+  return result.rows[0]?.digest ?? "";
+}
+
+const BARS_FINGERPRINT =
+  "security_id, timeframe, observed_at, open, high, low, close, volume, recorded_at";
+const COVERAGE_FINGERPRINT =
+  "security_id, timeframe, covered_start, covered_end, bar_count, recorded_at, updated_at";
+
+/**
+ * A deterministic minute bar, whose numbers are a function of its instant.
+ *
+ * Deterministic because idempotence is asserted on a checksum: a generator with
+ * a clock or a random in it would make a re-run differ for a reason that has
+ * nothing to do with the write path.
+ */
+function barAt(startsAt: Date, nudge = 0): Bar {
+  const tick = (startsAt.getTime() % 997) / 100;
+  return {
+    startsAt,
+    open: 100 + tick + nudge,
+    high: 101 + tick + nudge,
+    low: 99 + tick + nudge,
+    close: 100.5 + tick + nudge,
+    volume: 1_000 + (startsAt.getTime() % 313),
+  };
+}
+
+/** One session's worth of minute bars, `count` of them from the open. */
+function sessionBars(
+  session: MarketSession,
+  count: number,
+  nudge = 0,
+): readonly Bar[] {
+  return Array.from({ length: count }, (_, index) =>
+    barAt(new Date(session.open.getTime() + index * 60_000), nudge),
+  );
+}
+
+/**
+ * A `BarSeries` for one whole session — the shape the backfill writes.
+ *
+ * The window is `[open, close)` per session, which is `ALPACA.md`'s measured
+ * requirement rather than a convenience: a span-shaped request across a night
+ * collects extended-hours prints at ~2.35×, so the backfill asks per session
+ * and this is what it hands over.
+ */
+function seriesFor(
+  ticker: Ticker,
+  session: MarketSession,
+  options: {
+    readonly count?: number;
+    readonly nudge?: number;
+    readonly timeframe?: Timeframe;
+    readonly coveredEnd?: Date;
+  } = {},
+): BarSeries {
+  const requested = toTimeRange(session.open, session.close);
+  const seriesBars = sessionBars(session, options.count ?? 5, options.nudge);
+  const covered =
+    options.coveredEnd === undefined
+      ? requested
+      : toTimeRange(session.open, options.coveredEnd);
+
+  return toBarSeries({
+    symbol: ticker,
+    timeframe: options.timeframe ?? "1m",
+    bars: seriesBars,
+    provenance: toSeriesProvenance("raw", {
+      provider: "alpaca",
+      feed: "sip",
+      retrievedAt: "2026-09-08T00:00:00.000Z",
+      barCount: seriesBars.length,
+    }),
+    coverage: { requested, covered: seriesBars.length === 0 ? null : covered },
+  });
+}
+
+/** Real sessions, newest last. The calendar decides which days exist. */
+function sessions(count: number): readonly MarketSession[] {
+  return lastMarketSessions(count, toMarketDate("2026-09-03"));
 }
 
 /**
@@ -217,14 +396,19 @@ beforeAll(async () => {
     throw new Error(`could not load the universe: ${load.errors.join("")}`);
   }
 
-  const ids = await db().query<{ id: string }>(
-    "select id from securities order by symbol limit 2",
+  const ids = await db().query<{ id: string; symbol: string }>(
+    "select id, symbol from securities order by symbol limit 3",
   );
   securityId = ids.rows[0]?.id ?? "";
   otherSecurityId = ids.rows[1]?.id ?? "";
   if (securityId === "" || otherSecurityId === "") {
     throw new Error("the universe loaded no securities to reference");
   }
+  symbol = toTicker(ids.rows[0]?.symbol ?? "");
+  otherSymbol = toTicker(ids.rows[1]?.symbol ?? "");
+  thirdSymbol = toTicker(ids.rows[2]?.symbol ?? "");
+
+  bars = createMarketBarsRepository(db());
 });
 
 afterAll(async () => {
@@ -685,5 +869,578 @@ describe("the indexes, chosen rather than accumulated", () => {
       "market_bars_pkey",
       "market_bars_unique_bar",
     ]);
+  });
+});
+
+// ===========================================================================
+// The write path and the ledger (Task 2.8.4). Everything above this line is a
+// property of the migration; everything below is a property of
+// `market-bars.ts`.
+// ===========================================================================
+
+describe("the ledger's table", () => {
+  it("describes every column of bar_coverage, and no column it does not have", async () => {
+    const actual = await columnsOf("bar_coverage");
+
+    expect(actual.length).toBeGreaterThan(0);
+    expect(actual.map((column) => column.column_name).sort()).toEqual(
+      Object.keys(EXPECTED_BAR_COVERAGE).sort(),
+    );
+  });
+
+  it.each(Object.entries(EXPECTED_BAR_COVERAGE))(
+    "agrees with the database about bar_coverage.%s",
+    async (name, expected: ExpectedColumn) => {
+      const column = (await columnsOf("bar_coverage")).find(
+        (row) => row.column_name === name,
+      );
+
+      expect(column).toBeDefined();
+      expect(column?.data_type).toBe(expected.dataType);
+      expect(column?.is_nullable).toBe(expected.nullable ? "YES" : "NO");
+      expect(column?.is_identity).toBe(
+        expected.identity === true ? "YES" : "NO",
+      );
+      expect(column?.column_default).toBe(expected.defaultExpression ?? null);
+      expect(column?.numeric_precision).toBe(expected.precision ?? null);
+      expect(column?.numeric_scale).toBe(expected.scale ?? null);
+    },
+  );
+
+  it("holds one statement per security and timeframe", async () => {
+    // The `on conflict` target, and — per Task 2.2.4 — a `unique` CONSTRAINT
+    // rather than a bare index, because only the first is visible in
+    // `pg_constraint` where that inference looks.
+    const constraint = await db().query<{ contype: string; def: string }>(
+      `select contype, pg_get_constraintdef(oid) as def
+         from pg_constraint
+        where conrelid = 'bar_coverage'::regclass
+          and conname = 'bar_coverage_unique_series'`,
+    );
+
+    expect(constraint.rows[0]?.contype).toBe("u");
+    expect(constraint.rows[0]?.def).toContain(
+      "UNIQUE (security_id, timeframe)",
+    );
+  });
+
+  it("refuses a reversed or zero-width covered range", async () => {
+    // `toTimeRange`'s reason, restated at the database: an empty range is a
+    // plausible-looking answer to a swapped pair and to an off-by-one alike, so
+    // it must not be storable even by something that bypasses the type.
+    const insert = (start: string, end: string): Promise<unknown> =>
+      db().query(
+        `insert into bar_coverage (security_id, timeframe, covered_start, covered_end)
+         values ($1, '1m', $2, $3)`,
+        [securityId, start, end],
+      );
+
+    await expect(
+      insert("2026-09-03T14:00:00.000Z", "2026-09-03T13:00:00.000Z"),
+    ).rejects.toThrow(/bar_coverage_range_ordered/);
+    await expect(
+      insert("2026-09-03T14:00:00.000Z", "2026-09-03T14:00:00.000Z"),
+    ).rejects.toThrow(/bar_coverage_range_ordered/);
+  });
+
+  it("has no index nothing asked for", async () => {
+    // ~1,036 rows at 518 securities and two timeframes, so every query here is
+    // a sub-millisecond scan and an index would serve nothing. The constraint's
+    // own btree leads with `security_id`, which covers the write path's lookup
+    // AND stops every operation on a `securities` row scanning this table —
+    // Postgres does not index a referencing column on its own.
+    const indexes = await db().query<{ indexname: string }>(
+      `select indexname from pg_indexes
+        where schemaname = 'public' and tablename = 'bar_coverage'
+        order by indexname`,
+    );
+
+    expect(indexes.rows.map((row) => row.indexname)).toEqual([
+      "bar_coverage_pkey",
+      "bar_coverage_unique_series",
+    ]);
+  });
+});
+
+describe("writing a series", () => {
+  afterEach(clearStore);
+
+  it("writes the bars and reads them back unchanged", async () => {
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    const written = await repository().recordSeries(
+      seriesFor(symbol, session, { count: 5 }),
+    );
+
+    expect(written).toMatchObject({ inserted: 5, corrected: 0, unchanged: 0 });
+
+    const readBack = await repository().readBars(
+      symbol,
+      "1m",
+      toTimeRange(session.open, session.close),
+    );
+
+    // The round trip is the assertion, not the row count: it is what proves the
+    // parse and the write agree about scale, about `bigint`-as-string and about
+    // which timestamp is which. A write path whose output has never been read
+    // back is a write path nobody has checked.
+    expect(readBack).toEqual(sessionBars(session, 5));
+  });
+
+  it("reads half-open, so adjacent windows tile without a shared bar", async () => {
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 4 }));
+
+    const boundary = new Date(session.open.getTime() + 2 * 60_000);
+    const first = await repository().readBars(
+      symbol,
+      "1m",
+      toTimeRange(session.open, boundary),
+    );
+    const second = await repository().readBars(
+      symbol,
+      "1m",
+      toTimeRange(boundary, new Date(boundary.getTime() + 2 * 60_000)),
+    );
+
+    expect(first).toHaveLength(2);
+    expect(second).toHaveLength(2);
+    // The `<` is the whole point: `<=` claims the seam bar twice, which is a
+    // real corruption rather than a cosmetic one.
+    expect([...first, ...second]).toEqual(sessionBars(session, 4));
+  });
+
+  it("writes nothing the second time, proved on the data rather than the report", async () => {
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+    const series = seriesFor(symbol, session, { count: 20 });
+
+    await repository().recordSeries(series);
+
+    const barsBefore = await fingerprint("market_bars", BARS_FINGERPRINT);
+    const ledgerBefore = await fingerprint(
+      "bar_coverage",
+      COVERAGE_FINGERPRINT,
+    );
+
+    const again = await repository().recordSeries(series);
+
+    // The function's own report, which is worth having and is not the check.
+    expect(again).toMatchObject({ inserted: 0, corrected: 0, unchanged: 20 });
+
+    // The check. Both tables, byte for byte — Task 2.3.8's rule that
+    // idempotence is asserted on the data. The ledger is included deliberately:
+    // it is only byte-identical because `updated_at` moves on a real change and
+    // not on a re-run, which is a decision `0005` argues for at length.
+    expect(await fingerprint("market_bars", BARS_FINGERPRINT)).toBe(barsBefore);
+    expect(await fingerprint("bar_coverage", COVERAGE_FINGERPRINT)).toBe(
+      ledgerBefore,
+    );
+
+    const count = await db().query<{ count: string }>(
+      "select count(*) as count from market_bars",
+    );
+    expect(count.rows[0]?.count).toBe("20");
+  });
+
+  it("detects a corrected bar and reports it, so the reversal trigger can fire", async () => {
+    // Story 2.8's open decision 1 hangs on this: V1 overwrites a corrected bar,
+    // `recorded_at` moves, and Epic 13 therefore replays a bar as currently
+    // known rather than as known at the time — a real gap in the replay
+    // guarantee whose reversal trigger is **the first observed correction**.
+    // A plain `do nothing` would make that trigger unfireable.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+    const before = await db().query<{ recorded_at: Date }>(
+      "select recorded_at from market_bars order by observed_at limit 1",
+    );
+
+    const corrected = await repository().recordSeries(
+      // Three bars, all with different numbers: the vendor restated the session.
+      seriesFor(symbol, session, { count: 3, nudge: 0.5 }),
+    );
+
+    expect(corrected).toMatchObject({
+      inserted: 0,
+      corrected: 3,
+      unchanged: 0,
+    });
+
+    const after = await db().query<{ recorded_at: Date; close: string }>(
+      "select recorded_at, close from market_bars order by observed_at limit 1",
+    );
+
+    // `recorded_at` moving IS the record that a correction happened, which is
+    // why there is no `updated_at` on `market_bars`.
+    expect(after.rows[0]?.recorded_at.getTime()).toBeGreaterThan(
+      before.rows[0]?.recorded_at.getTime() ?? 0,
+    );
+    expect(Number(after.rows[0]?.close)).toBeCloseTo(
+      sessionBars(session, 1, 0.5)[0]?.close ?? 0,
+      6,
+    );
+
+    // And the ledger did not double-count: a correction is not a new bar.
+    const coverage = await repository().readCoverage(symbol, "1m");
+    expect(coverage?.barCount).toBe(3);
+  });
+
+  it("counts a partly-new series as part inserted and part unchanged", async () => {
+    // The realistic resume: a run re-fetches a session it already holds and
+    // extends past it. Neither number is the whole answer on its own.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+    const extended = await repository().recordSeries(
+      seriesFor(symbol, session, { count: 8 }),
+    );
+
+    expect(extended).toMatchObject({
+      inserted: 5,
+      corrected: 0,
+      unchanged: 3,
+    });
+  });
+
+  it("refuses a series for a symbol this database does not have", async () => {
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await expect(
+      repository().recordSeries(seriesFor(toTicker("ZZNOP"), session)),
+    ).rejects.toThrow(UnknownSecurityError);
+
+    // Nothing was written on the way to finding out.
+    const count = await db().query<{ count: string }>(
+      "select count(*) as count from market_bars",
+    );
+    expect(count.rows[0]?.count).toBe("0");
+  });
+
+  it("keeps series apart by symbol and by timeframe", async () => {
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+    await repository().recordSeries(
+      seriesFor(otherSymbol, session, { count: 4 }),
+    );
+    await repository().recordSeries(
+      seriesFor(symbol, session, { count: 2, timeframe: "1d" }),
+    );
+
+    const ledger = await repository().listCoverage();
+    expect(ledger).toHaveLength(3);
+    expect(
+      ledger.map(
+        (row) => `${row.symbol} ${row.timeframe} ${String(row.barCount)}`,
+      ),
+    ).toEqual(
+      [`${symbol} 1d 2`, `${symbol} 1m 3`, `${otherSymbol} 1m 4`].sort(),
+    );
+  });
+
+  it("writes past the bind-parameter chunk boundary without dropping a row", async () => {
+    // 8 written columns against Postgres's 65,535 bind parameters puts the
+    // chunk at 8,191 rows, so this series crosses it once. A backfill's daily
+    // walk is what reaches it: a session is 390 bars, and ~2,500 sessions is
+    // not.
+    const start = new Date("2026-09-01T00:00:00.000Z");
+    const count = 8_300;
+    const many = Array.from({ length: count }, (_, index) =>
+      barAt(new Date(start.getTime() + index * 60_000)),
+    );
+    const last = many[count - 1];
+    if (last === undefined) throw new Error("no bars");
+    const range = toTimeRange(
+      start,
+      new Date(last.startsAt.getTime() + 60_000),
+    );
+
+    const written = await repository().recordSeries(
+      toBarSeries({
+        symbol: thirdSymbol,
+        timeframe: "1m",
+        bars: many,
+        provenance: toSeriesProvenance("raw", {
+          provider: "alpaca",
+          feed: "sip",
+          retrievedAt: "2026-09-08T00:00:00.000Z",
+          barCount: count,
+        }),
+        coverage: { requested: range, covered: range },
+      }),
+    );
+
+    expect(written.inserted).toBe(count);
+    expect(written.coverage?.barCount).toBe(count);
+
+    const stored = await db().query<{ count: string }>(
+      "select count(*) as count from market_bars",
+    );
+    expect(stored.rows[0]?.count).toBe(String(count));
+  });
+});
+
+describe("the ledger, which is the statement rather than the data", () => {
+  afterEach(clearStore);
+
+  it("agrees with min/max/count over the bars — the expensive query as the control", async () => {
+    // **This is the only thing that can detect either of the two silent
+    // failures.** A ledger that under-reports re-fetches history it holds, on a
+    // metered API, in a command nobody investigates because it works; one that
+    // over-reports skips a window forever. Neither is visible from the ledger,
+    // and both are visible from this comparison — which is why the expensive
+    // query exists here and nowhere else.
+    const [older, newer] = sessions(2);
+    if (older === undefined || newer === undefined) {
+      throw new Error("no sessions");
+    }
+
+    await repository().recordSeries(seriesFor(symbol, newer, { count: 6 }));
+    await repository().recordSeries(seriesFor(symbol, older, { count: 4 }));
+    await repository().recordSeries(
+      seriesFor(otherSymbol, newer, { count: 9 }),
+    );
+
+    const control = await db().query<{
+      symbol: string;
+      timeframe: string;
+      first: Date;
+      last: Date;
+      count: string;
+    }>(
+      `select s.symbol, b.timeframe,
+              min(b.observed_at) as first, max(b.observed_at) as last,
+              count(*) as count
+         from market_bars b
+         join securities s on s.id = b.security_id
+        group by s.symbol, b.timeframe
+        order by s.symbol, b.timeframe`,
+    );
+
+    const ledger = await repository().listCoverage();
+    expect(ledger).toHaveLength(control.rows.length);
+
+    for (const row of control.rows) {
+      const stated = ledger.find(
+        (entry) =>
+          entry.symbol === row.symbol && entry.timeframe === row.timeframe,
+      );
+
+      expect(
+        stated,
+        `${row.symbol} ${row.timeframe} is not in the ledger`,
+      ).toBeDefined();
+      expect(stated?.barCount).toBe(Number(row.count));
+      // The range CONTAINS the bars rather than equalling their span, which is
+      // the distinction `SeriesCoverage` exists for: coverage says how far the
+      // answer reaches, not whether it is dense.
+      expect(stated?.covered.start.getTime()).toBeLessThanOrEqual(
+        row.first.getTime(),
+      );
+      expect(stated?.covered.end.getTime()).toBeGreaterThan(row.last.getTime());
+    }
+  });
+
+  it("stores the covered window and not the requested one", async () => {
+    // Task 2.7.5's measurement as a property: this plan refuses SIP data from
+    // the last ~16 minutes with a flat `403` keyed on `end` alone, so the client
+    // clamps before the request and reports the clamp as `covered`. A ledger
+    // storing `requested` would bookmark a window the vendor never served, and
+    // every catch-up would then begin after a hole it renews on every run.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    const clamped = new Date(session.close.getTime() - 16 * 60_000);
+    await repository().recordSeries(
+      seriesFor(symbol, session, { count: 5, coveredEnd: clamped }),
+    );
+
+    const coverage = await repository().readCoverage(symbol, "1m");
+
+    expect(coverage?.covered.end.getTime()).toBe(clamped.getTime());
+    expect(coverage?.covered.end.getTime()).toBeLessThan(
+      session.close.getTime(),
+    );
+  });
+
+  it("grows to the union as the walk extends backwards, session by session", async () => {
+    // One row, one contiguous range, extended from one end — `0005`'s shape
+    // decision. Backwards because that is the useful order: recent history is
+    // what every chart opens on, so an interrupted backfill leaves the product
+    // more useful than a forwards one does.
+    const walked = sessions(4);
+    const newest = walked[walked.length - 1];
+    const oldest = walked[0];
+    if (newest === undefined || oldest === undefined) {
+      throw new Error("no sessions");
+    }
+
+    for (const session of [...walked].reverse()) {
+      await repository().recordSeries(seriesFor(symbol, session, { count: 2 }));
+    }
+
+    const coverage = await repository().readCoverage(symbol, "1m");
+
+    expect(coverage?.covered.start.getTime()).toBe(oldest.open.getTime());
+    expect(coverage?.covered.end.getTime()).toBe(newest.close.getTime());
+    expect(coverage?.barCount).toBe(8);
+
+    const rows = await db().query<{ count: string }>(
+      "select count(*) as count from bar_coverage",
+    );
+    expect(rows.rows[0]?.count).toBe("1");
+  });
+
+  it("refuses a write that would leave it claiming a session it never fetched", async () => {
+    // **The one-range decision made safe rather than merely documented.** The
+    // check is exact rather than a threshold: two adjacent sessions are
+    // disjoint as intervals — the overnight, the weekend, a holiday — so no
+    // interval arithmetic can tell "the next session back" from "a month back".
+    // The calendar can.
+    const walked = sessions(6);
+    const newest = walked[walked.length - 1];
+    const skipped = walked[0];
+    if (newest === undefined || skipped === undefined) {
+      throw new Error("no sessions");
+    }
+
+    await repository().recordSeries(seriesFor(symbol, newest, { count: 2 }));
+
+    const before = await fingerprint("market_bars", BARS_FINGERPRINT);
+
+    await expect(
+      repository().recordSeries(seriesFor(symbol, skipped, { count: 2 })),
+    ).rejects.toThrow(CoverageGapError);
+
+    // And it refused before writing anything, so the bars and the ledger are
+    // exactly as they were.
+    expect(await fingerprint("market_bars", BARS_FINGERPRINT)).toBe(before);
+    const coverage = await repository().readCoverage(symbol, "1m");
+    expect(coverage?.covered.start.getTime()).toBe(newest.open.getTime());
+  });
+
+  it("accepts the next session in either direction, overnight and weekend included", async () => {
+    // The positive half, and it is not a formality: without it the refusal
+    // above could be passing because the check rejects everything, which is the
+    // blind-green result the money tripwire existed to prevent. The four
+    // sessions ending 2026-09-03 span a weekend.
+    const walked = sessions(4);
+    if (walked.length !== 4) throw new Error("expected four sessions");
+
+    for (const session of walked) {
+      await expect(
+        repository().recordSeries(
+          seriesFor(otherSymbol, session, { count: 1 }),
+        ),
+      ).resolves.toBeDefined();
+    }
+
+    const coverage = await repository().readCoverage(otherSymbol, "1m");
+    expect(coverage?.barCount).toBe(4);
+  });
+
+  it("records nothing at all for an empty answer", async () => {
+    // `BarSeries` requires `covered` to be null exactly when there are no bars,
+    // so an empty answer carries no window to record. The consequence is
+    // bounded rather than hidden: a genuinely untraded session at the frontier
+    // of the walk is re-fetched next run, and one in the middle is absorbed by
+    // the union the moment the session beyond it succeeds. Inferring the window
+    // from what was *requested* is the bug rather than the fix.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    const written = await repository().recordSeries(
+      seriesFor(symbol, session, { count: 0 }),
+    );
+
+    expect(written).toMatchObject({ inserted: 0, corrected: 0, unchanged: 0 });
+    expect(written.coverage).toBeUndefined();
+
+    const rows = await db().query<{ count: string }>(
+      "select count(*) as count from bar_coverage",
+    );
+    expect(rows.rows[0]?.count).toBe("0");
+  });
+});
+
+describe("the transaction, which is why these two things are one task", () => {
+  afterEach(clearStore);
+
+  it("rolls the bars back when a bar in the batch is refused", async () => {
+    // A real constraint violation rather than a mock: `numeric(18, 6)` refuses
+    // thirteen integer digits, and the offending bar is in the middle of the
+    // series so earlier rows have already been sent.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    const good = sessionBars(session, 5);
+    const broken = good.map((bar, index) =>
+      index === 2 ? { ...bar, close: 1e13 } : bar,
+    );
+    const range = toTimeRange(session.open, session.close);
+
+    await expect(
+      repository().recordSeries(
+        toBarSeries({
+          symbol,
+          timeframe: "1m",
+          bars: broken,
+          provenance: toSeriesProvenance("raw", {
+            provider: "alpaca",
+            feed: "sip",
+            retrievedAt: "2026-09-08T00:00:00.000Z",
+            barCount: broken.length,
+          }),
+          coverage: { requested: range, covered: range },
+        }),
+      ),
+    ).rejects.toThrow(/numeric field overflow/);
+
+    // Neither half landed. A ledger row without its bars over-reports and
+    // leaves a permanent hole; that is the failure this assertion is about.
+    const bars = await db().query<{ count: string }>(
+      "select count(*) as count from market_bars",
+    );
+    const ledger = await db().query<{ count: string }>(
+      "select count(*) as count from bar_coverage",
+    );
+    expect(bars.rows[0]?.count).toBe("0");
+    expect(ledger.rows[0]?.count).toBe("0");
+  });
+
+  it("rolls the bars back when the LEDGER write is refused", async () => {
+    // The mirror, and the one that needs producing rather than reasoning about:
+    // a bar written without its ledger row under-reports what we hold and
+    // re-fetches it forever. A temporary constraint makes the ledger write fail
+    // *after* the bars have been inserted in the same transaction.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await db().query(
+      "alter table bar_coverage add constraint tmp_refuse_writes check (bar_count < 0)",
+    );
+
+    try {
+      await expect(
+        repository().recordSeries(seriesFor(symbol, session, { count: 5 })),
+      ).rejects.toThrow(/tmp_refuse_writes/);
+
+      const bars = await db().query<{ count: string }>(
+        "select count(*) as count from market_bars",
+      );
+      expect(bars.rows[0]?.count).toBe("0");
+    } finally {
+      await db().query(
+        "alter table bar_coverage drop constraint tmp_refuse_writes",
+      );
+    }
   });
 });
