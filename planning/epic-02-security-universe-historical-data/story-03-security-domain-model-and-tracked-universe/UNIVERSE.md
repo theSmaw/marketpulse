@@ -1112,6 +1112,16 @@ and no limit anywhere.** `UNIVERSE.length` is still the only way to learn the co
 per security per year** (**assuming per-session requests — see the note below**), at Story 2.1's assumed ~120 bytes per row = **~11.8 MB per
 security per year** — 1.18 GB/year at 100, **5.9 GB/year at 500**.
 
+> **The ~120 bytes is SUPERSEDED as of 2026-09-08 (Task 2.8.6): it is 197 B a row.** That
+> assumption was always a **heap** estimate and `BARS.md` §4 flagged it as excluding the
+> index; `pg_total_relation_size` over **768,123 real rows** reads **144 MB — 197 bytes a
+> row including indexes**. So the per-security figure is **~18 MB a year rather than ~11.8**,
+> and against Story 2.1's ~22.5 GiB usable the headroom is **~2.4 years at 518 securities**
+> rather than the ~4 at 500 stated below. The condition attached in the note beneath this one
+> still holds and is now worth more, not less: a span-shaped backfill would put that at
+> **~1 year**. Task 2.8.8 owns re-taking the figure against the deployed server; the
+> arithmetic and both bases are in `BARS.md` §4.
+
 > **Conditional since 2026-09-08 (Task 2.7.9), and the condition is a request SHAPE rather
 > than a date.** This figure assumes **390 bars a session**, which is exactly what Alpaca
 > returns for a **per-session** request — measured at 1.00×. A **span-shaped** request

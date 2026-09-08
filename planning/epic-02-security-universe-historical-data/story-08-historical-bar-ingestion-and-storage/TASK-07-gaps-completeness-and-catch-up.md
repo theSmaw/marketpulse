@@ -328,3 +328,92 @@ session does not extend the ledger, the **next** session's write for that symbol
 name with `CoverageGapError`. So a mid-walk failure surfaces during the run rather than only in
 a later report — one session late, and named as a gap rather than by its cause, which is why the
 log is still needed to say _why_.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.6 — the catch-up mostly EXISTS, and "not fetched" is now provable rather than merely defined
+
+The backfill shipped. Four things change here and the first two shrink this task's Work list.
+
+### 1. Incremental catch-up is already built, and what is left is the HOME decision
+
+This task's body says the catch-up _"is not a different program from the backfill — it is the
+same walk with a different starting point"_, and treats that as an instruction. **It is a
+description of what shipped.** `planRequests` emits **two** monotonic walks: the sessions newer
+than the ledger's covered range, oldest request first, and then the sessions older than it,
+newest request first. The first of those **is** the catch-up. Run a week after the last run,
+`pnpm backfill --sessions N` fills the newer gap before it deepens anything, measured — a run
+that already held three of five sessions reported `3 fetches, 3 sessions fetched, 3 already
+held` and walked exactly the ones it did not have.
+
+So the Work list's _"Catch-up, as the same walk from a different start"_ is **done**, and what
+this task actually inherits is the half Task 2.8.1 deliberately deferred and the body already
+names: **where it runs, and how often.** That is a decision rather than code, and the body's own
+honest answer — that neither runs automatically in V1, with a person running it before a
+demonstration — is now the cheaper one, because there is nothing left to build for it.
+
+**One thing to say in those words if that answer is taken:** an unscheduled catch-up is what
+makes the store quietly stale, and the ledger's `updatedAt` is the only field that can report it
+honestly (it moves only when the statement actually changed, so it is _"when what we hold last
+changed"_ rather than _"when the backfill last ran"_). Task 2.8.9 has the same field available.
+
+### 2. "Not fetched" is not merely defined by the ledger's range — it is GUARANTEED by it
+
+Task 2.8.4's amendment corrected the lookup shape: **not fetched** is _the session's
+`[open, close)` lies outside the ledger's covered range_. What the backfill adds is the reason
+that lookup is **sound rather than approximate**, and it is worth stating because it is what
+lets `compareStoreToCalendar` be a simple function:
+
+> **Every session inside the ledger's covered range was attempted.**
+
+Not "probably". The walk extends the range **one contiguous step at a time from one of its two
+ends**, and `market-bars.ts` refuses by name any write that would leave a trading session in the
+gap. So a range with an unfetched session inside it cannot be constructed by this command at
+all — which means the report never has to distinguish _inside the range and never asked_ from
+_inside the range and asked_. There is no such state.
+
+The consequence for this task: **`compareStoreToCalendar` is a set difference against one
+interval per `(security, timeframe)`, not a per-session join.** The expensive-sounding version
+of this computation is not needed.
+
+### 3. The blocked set is the concrete instance of "loud until the command exits"
+
+The body says a failure _"stops being loud the moment the command exits"_ and that the attempt
+log is what fixes it. There is now a specific, shipped thing that is exactly that, and it is the
+strongest argument for the log rather than a generic one.
+
+The backfill catches `CoverageGapError` per symbol, **drops that symbol from every subsequent
+request in the run**, and prints it with its missing sessions. That set lives in memory. When the
+process exits it is gone, and the only trace is a terminal somebody closed — while the symbol
+itself is now **permanently behind the rest of the universe**, because its ledger stopped
+extending and every later run will hit the same gap at the same place.
+
+So the attempt log has a second reader this task did not anticipate: **not only "why was this
+session missing" but "which symbols has the backfill given up on, and where".** A blocked symbol
+is a state that persists in the data (as a shorter covered range) and is explained nowhere.
+Recording it is what turns a silent divergence into something the report can name.
+
+### 4. Empty successes are counted but not stored, which confirms 2.8.4's correction
+
+Task 2.8.4's amendment §2 said the log must record a **successful empty answer** as well as a
+failure, because such a session writes no bars and does not extend the ledger, so it is recorded
+in neither table. The backfill now surfaces that as a counter — `N symbol-sessions answered with
+no bars` — and stores nothing.
+
+That is the handover in its most useful shape: the command already knows the set, it already
+tells a person about it, and the log is the one place left to put it. **The counter also makes
+the size of the problem measurable before the log is built**, which is the cheap way to check
+whether "failures and empty successes only" really is a tiny fraction of sessions.
+
+### 5. Two smaller things
+
+**The report command's name is still to be checked.** `bars:check` was proposed here; `backfill`
+was claimed at Task 2.8.6 and `bars` at 2.7.3, so run the `pnpm help -a` detection **with its
+control** before claiming a third — the check that failed its own control at Task 2.7.8 and has
+been validated in every claim since.
+
+**A percentage against `minuteBars` has a measured denominator now.** The 2026-09-08 amendment
+above predicted most constituents would be thin; at universe scale the mean is **364.3 bars per
+security-session** (188,726 ÷ 518 on a full regular session). So _fetched and thin_ is not an
+edge case to allow for — **it is the normal state of roughly 93% of the universe**, and a report
+that leads with a completeness percentage against 390 leads with a number that is never 100.

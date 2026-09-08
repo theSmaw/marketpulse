@@ -219,6 +219,55 @@ laptop connects as the Entra administrator, which is a **third** principal writi
 > and **~1.6 years** to read-only rather than ~3.8. At 101 that was a number; at 518 it is
 > the difference between a store that lasts and one that fills.
 
+> **Re-taken again 2026-09-08 by Task 2.8.6, and three of the figures above are now
+> MEASUREMENTS rather than estimates.** The backfill shipped and was run against the live
+> vendor and a real database, so the two numbers this section had to guess at have been
+> taken. The estimates are left standing above rather than rewritten, because the gap between
+> a prediction and a reading is the record.
+>
+> | Reading                       |       Predicted |                Measured |
+> | ----------------------------- | --------------: | ----------------------: |
+> | Wall clock, one session @518  |           ~55 s |              **15.8 s** |
+> | Sequential wall clock, 1 year |      **~3.6 h** |             **~72 min** |
+> | Bytes a row                   | ~120 B **heap** | **197 B incl. indexes** |
+> | Bars per security-session     |             390 |               **364.3** |
+>
+> **The wall clock is the one that changes a decision, and it changes it in the direction
+> that removes one.** A sequential year is **~72 minutes** rather than ~3.6 hours — 251
+> sessions at a measured 17.3 s each — against a ~26-minute rate-limit floor. So the gap the
+> amendment above called _"the whole of the concurrency question"_ is 26 min against 72 min
+> rather than 26 min against 3.6 hours, and Task 2.8.6 closed that question sequentially with
+> the argument now much easier than it was. **`BARS.md` should no longer be read as saying a
+> full backfill is an overnight job.**
+>
+> **The row size goes the other way and is the number to carry forward.** ~120 B was a
+> **heap** estimate that this section already flagged as excluding the index;
+> `pg_total_relation_size` over 768,123 real rows reads **197 B a row**. Re-derived against
+> Story 2.1's ~22.5 GiB usable, at 518 securities:
+>
+> | Basis                                         | Rows / year | GiB / year | Years to read-only |
+> | --------------------------------------------- | ----------: | ---------: | -----------------: |
+> | The calendar's ceiling, 97,494 bars/security  |   **50.5M** |   **9.27** |           **~2.4** |
+> | The measured density, 364.3 bars/security-day |   **47.4M** |   **8.69** |           **~2.6** |
+>
+> **Plan against ~2.4 years** — the ceiling, because a thin name trading more actively moves
+> the density towards it rather than away. Either way the `~3.8 years` above is optimistic by
+> about a third, and **retention stops being theoretical inside this project's life**: open
+> decision 1's _"nothing is deleted, with disk pressure as the trigger"_ now has a date
+> attached to it, and `psql-storage-80pct` is the thing that will say so first.
+>
+> **The 364.3 figure is a liquidity fact and not an ingestion one.** 188,726 bars for 518
+> securities over one full regular session — Task 2.8.5 measured only 8 of 28 sampled S&P 500
+> constituents returning a full 390, and this is that at universe scale. It is why Task 2.8.7
+> must keep _fetched-and-thin_ in a different column from _not fetched_, and why nothing
+> asserts a bar count against `minuteBars`.
+>
+> **The session-shaped condition below was honoured and is now load-bearing in production.**
+> Every minute request the backfill makes is one session, `[open, close)`, and a year of NVDA
+> came back at exactly **390 a session with the two half days at exactly 210** — the
+> calendar's own arithmetic arriving from the vendor. The ~2.35× span-shaped alternative
+> would put the headroom at **~1 year**, not ~1.6, at the measured row size.
+
 ### Sessions and bars, computed from the shipped calendar rather than approximated
 
 | Year | Sessions | Early closes | Minute bars per security |

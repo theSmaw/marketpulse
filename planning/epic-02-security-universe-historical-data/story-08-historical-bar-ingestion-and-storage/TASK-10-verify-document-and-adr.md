@@ -171,3 +171,83 @@ re-runs `pnpm verify` and calls it done would be honestly reporting the wrong th
 The instrument that stands in for a re-run is Task 2.8.7's report, and this task should run it
 and quote it — because it is the only thing in the repository that can say, from outside the
 database, that the store is what the story says it is.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.6 — what the backfill adds to the ADR, the sweeps and the gap lists
+
+### The ADR gains two decisions and one correction
+
+The list above already names _"why the backfill asks per session"_ and _"why pacing lives in the
+backfill and retry lives in a wrapper"_. Two more belong beside them, and one entry is now
+falsified by measurement:
+
+- **Why the walk is backwards from the present, and why it is monotonic.** The monotonicity is
+  not a convention this command honours — Task 2.8.4's ledger **refuses** a write that would
+  leave a trading session in the gap, so the direction is a decision and honouring it is not
+  optional. The consequence worth recording is what that buys the rest of the system: **every
+  session inside the ledger's covered range was attempted**, which is what makes Task 2.8.7's
+  completeness computation a set difference against one interval rather than a per-session join.
+- **Why the backfill is sequential**, which is the concurrency decision. Two arguments, and the
+  second one only exists now: the ledger structurally refuses concurrency across sessions
+  (eight in flight is eight sessions in flight, completing out of order), and a sequential year
+  measures **~72 minutes** against a ~26-minute rate-limit floor — so the gap that made
+  concurrency look worth building is 46 minutes rather than the three hours the plan predicted.
+- **The correction:** `BARS.md` and Tasks 2.8.6 and 2.8.8 all predicted **~3.6 hours** for a
+  sequential year at 518 securities. Measured, it is **~72 minutes**. All three are amended;
+  the ADR should carry the measurement rather than the prediction, and the previous close's
+  habit applies — the estimate stays visible beside it, because the gap between a prediction
+  and a reading is the record.
+
+### The second list gains two entries, and both are about what a green run does not see
+
+The body says the second list is the important one and should be at least as long as the first.
+Two candidates from this task:
+
+- **It certifies nothing about the pages inside a walk.** `BACKFILL_PACE_MS` paces **provider
+  calls**, and `fetchManyBars` pages internally with no pacing between pages. Measured at ~1.3
+  pages a second against a 3.23/s refill, so it does not breach the limiter today — and nothing
+  checks that it stays true. The reversal trigger is a `rate-limited` outcome on a run this
+  pacer was supposed to keep under the limit, at which point the pace belongs **inside the
+  provider** and `PROVIDER.md` §8.8 has to be revisited rather than worked around.
+- **A green database suite certifies nothing about the window shape.** This is the finding worth
+  putting in the ADR rather than only in the task file: `backfill.database.test.ts`'s assertion
+  that no stored bar falls outside the sessions walked **cannot fail**, because
+  `fixture-corpus.ts` is synthetic and has no extended-hours prints to leak — widening the
+  window to three sessions leaves it green, measured. It ships with a non-vacuity guard and a
+  comment saying so. That is Task 1.13.6's blind-renderer problem in a new place and it belongs
+  in the same list as the axe gate's.
+
+### The gap lists gain one of the third kind
+
+**`BACKFILL_PACE_MS` paces walks rather than pages** — see above. It is reachable from code but
+not from a test, because what it bounds is a rate against a third party's limiter; it is prose
+with a measured trigger, which is the honest category for it.
+
+And one that is **not** a new gap and will look like one: the backfill's `--symbols`-less
+default filters on `status = 'active'`. That is `UNIVERSE.md` §12.2's write-path side of the
+invisible predicate, already documented there, and the asymmetry to re-check in the sweep is
+that **Story 2.9's read path and Epic 13's replay still do not filter**.
+
+### The sweeps gain three specific candidates
+
+- **The command table and the test counts.** `pnpm backfill` is the twelfth root script and the
+  fourth that touches a database; `README.md` gained a section for it and its counts were
+  refreshed to **816 fast tests** (206 + 427 + 183) and **128 database tests**. Both go stale on
+  the next task, and `CLAUDE.md`'s ten convention blocks were **not** touched by Task 2.8.6 —
+  so they are stale by at least this increment before this close begins.
+- **`windowFor` moved.** It lives in `apps/backend/src/bar-window.ts` now rather than inside
+  `fetch-bars.ts`, with two callers. Any claim that `pnpm bars` owns the window shape, or that
+  the two commands each compute their own, is stale.
+- **Claims about what the store contains.** `fetch-bars.ts`'s header says _"Story 2.8 owns
+  storage"_ and `README.md`'s `pnpm bars` section says _"It stores nothing — Story 2.8 is what
+  puts bars in the database"_. Both are still true and both are the shape that rots: check them
+  rather than assuming, because the sibling command now does put bars in the database.
+
+### One figure this close should re-derive rather than cite
+
+The row size. **197 bytes a row including indexes**, measured locally over 768,123 rows against
+the story's assumed ~120 B heap — which puts the headroom at **~2.4 years** rather than ~3.8.
+Task 2.8.8 owns taking it deployed, and this close owns checking that every document quoting a
+headroom figure quotes the same one. There are currently at least three: `BARS.md` §4,
+`UNIVERSE.md` §10 and this story's own scope bullet.

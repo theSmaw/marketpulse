@@ -535,10 +535,22 @@ its ledger row, and the resume reported **2 already held** and walked 6. Neither
 duplicated nor skipped a session.
 
 **Storage, measured rather than estimated.** 768,123 bars occupy **144 MB**
-including indexes — **197 bytes a row**, against the story's assumed ~120. At the
-measured density that is **~48.1M rows and ~9.5 GB a year** for 518 securities,
-so Story 2.1's ~22.5 GiB usable is **~2.4 years of headroom rather than ~3.8**.
-Task 2.8.8 owns the formal reading; this is the datum it should start from.
+including indexes — **197 bytes a row**, against the story's assumed ~120, which
+was a heap figure that explicitly excluded the index. Two headroom figures
+against Story 2.1's measured ~22.5 GiB usable, and both are worth having because
+they bracket the answer:
+
+| Basis                                         | Rows / year | GiB / year | Years to read-only |
+| --------------------------------------------- | ----------: | ---------: | -----------------: |
+| The calendar's ceiling, 97,494 bars/security  |   **50.5M** |   **9.27** |           **~2.4** |
+| The measured density, 364.3 bars/security-day |   **47.4M** |   **8.69** |           **~2.6** |
+
+**Plan against ~2.4 years**, the ceiling: the density figure is one session's
+mean and a thin name that starts trading more actively moves it towards the
+ceiling rather than away from it. Either way this is **not the ~3.8 years the
+story's ~120 B assumption gives**, and the `psql-storage-80pct` alert Story 2.1
+created stops being theoretical within the life of this project. Task 2.8.8 owns
+the formal reading, deployed; this is the datum it should start from.
 
 **`pnpm verify` is exit 0 in 34.7 s with no database**, and this command is in
 neither chain — for the reason `pnpm bars` is not, and more firmly: it makes

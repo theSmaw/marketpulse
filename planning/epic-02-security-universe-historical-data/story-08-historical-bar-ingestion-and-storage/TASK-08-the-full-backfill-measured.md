@@ -200,3 +200,94 @@ rather than re-confirmed out of habit:**
   trigger"_, which was safe against ~20 years of headroom. At **~3.8 years** — and **~1.6**
   if any request is span-shaped rather than session-shaped — the `psql-storage-80pct` alert
   Story 2.1 created stops being theoretical within the life of this project.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.6 — the concurrency question is CLOSED, and "tens of minutes" is right again
+
+The backfill shipped and was run. Four changes, and the first retires an open question this file
+was handed.
+
+### 1. Sequential is ~72 minutes, not ~3.6 hours — so this task owes no concurrency decision
+
+The 2026-09-08 amendment above says _"'Expect tens of minutes rather than hours' is now wrong
+unless the backfill is concurrent"_ and asks this task to record **both** the rate-limit floor
+and the wall clock _"because the gap between them is the whole of the concurrency question"_.
+
+Measured on the shipped command against the live vendor:
+
+| Reading                             | Predicted here |    Measured |
+| ----------------------------------- | -------------: | ----------: |
+| One session, whole universe         |          ~55 s |  **15.8 s** |
+| Four sessions, whole universe       |              — |    **52 s** |
+| Per session, sustained              |          ~55 s | **~17.3 s** |
+| **Sequential year, 518 securities** |     **~3.6 h** | **~72 min** |
+
+So the gap is **26 minutes against 72**, not 26 against 216, and `BARS.md` §4 has been amended
+with the reading. **The original sentence is right after all: expect tens of minutes.**
+
+The decision itself was already constrained rather than free — Task 2.8.4's ledger refuses
+concurrency across sessions by name — and Task 2.8.6 took it sequentially with that argument
+plus this measurement. **This task no longer owes a concurrency decision; what it owes is a
+confirmation that the figure holds at full depth**, which is a different and much cheaper thing.
+If a year of the whole universe comes in materially above ~72 minutes, that is a finding worth
+recording rather than a decision to re-open.
+
+### 2. The row size is measured, and it is worse than the estimate by more than a third
+
+This task's row-size section says `UNIVERSE.md` §10's ~120 bytes is an assumption and that
+`pg_total_relation_size` is the figure that matters. It has been taken locally, over **768,123
+real rows**: **144 MB, or 197 bytes a row including indexes.**
+
+Re-derived against Story 2.1's ~22.5 GiB usable, at 518 securities:
+
+| Basis                                         | Rows / year | GiB / year | Years to read-only |
+| --------------------------------------------- | ----------: | ---------: | -----------------: |
+| The calendar's ceiling, 97,494 bars/security  |   **50.5M** |   **9.27** |           **~2.4** |
+| The measured density, 364.3 bars/security-day |   **47.4M** |   **8.69** |           **~2.6** |
+
+**Plan against ~2.4 years.** That is a **local** reading and this task still owes the deployed
+one — a managed B1MS with different `fillfactor` behaviour under a sustained write is not a
+laptop — but it is a datum rather than an assumption, and the index-to-heap split this file asks
+for should be taken against it rather than against ~120.
+
+**The retention trigger sharpens again.** The amendment above already moved it from ~19–20 years
+to ~3.8; it is **~2.4**. Open decision 1's _"nothing is deleted, with disk pressure as the
+trigger"_ now has a date inside this project's life, and `psql-storage-80pct` is what says so
+first. This is the task that gives it something to watch.
+
+### 3. Two of this task's "expect" figures were wrong in the same direction, so check the third
+
+The 390-bars-a-session assumption underlying the row counts is optimistic: the measured mean is
+**364.3 bars per security-session** (188,726 ÷ 518 on a full regular session), which is Task
+2.8.5's liquidity finding at universe scale. A year is therefore **~47.4M minute rows rather
+than 50.5M**.
+
+That matters here for one reason beyond arithmetic: **the TimescaleDB trigger is an `EXPLAIN`
+against the real row count**, and the real row count is a little lower than the figure the
+amendment above sharpened the trigger with. It is still five times 9.84M, so the trigger is
+unchanged in substance — but take the count rather than citing either number.
+
+### 4. What is already done, and what the invocation actually is
+
+The local run is **partly done**: 768,123 rows across a handful of symbols plus one full-universe
+session, with idempotence, `SIGINT` and `kill -9` each produced. What remains local is **depth** —
+a year at both timeframes for the whole universe — rather than shape.
+
+The command's real invocations, so this task does not have to work them out:
+
+```sh
+pnpm backfill --sessions 251                                  # a year of minute bars, whole universe
+pnpm backfill --timeframe 1d --from 2024-01-02 --to <last>    # daily, to the 2024-01-01 bound
+```
+
+Three properties to use rather than re-derive. **A re-run of a held range costs zero requests**,
+so an interrupted deployed run is resumed by re-issuing the identical command. **`--sessions`
+defaults to 5**, deliberately, so a bare `pnpm backfill` is not the full run. And **daily chunks
+20 sessions to a request**, so a year of daily is ~13 requests rather than 251 — the whole daily
+backfill is a couple of minutes and should not be budgeted as if it were the minute one.
+
+**One thing to watch that the arithmetic does not predict**, beside the two this file already
+names: a symbol blocked by `CoverageGapError` is dropped from the rest of that run and falls
+permanently behind the others. At 518 securities over 251 sessions this is the first run large
+enough for it to happen, and the blocked list printed at the end is where it will show.
