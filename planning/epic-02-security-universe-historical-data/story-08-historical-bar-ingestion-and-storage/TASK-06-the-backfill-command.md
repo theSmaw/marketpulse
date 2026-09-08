@@ -1,13 +1,13 @@
-# Task 2.8.5 — The backfill: session-shaped windows, pacing, and resuming
+# Task 2.8.6 — The backfill: session-shaped windows, pacing, and resuming
 
 **Status:** Not started
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
-**Depends on:** Task 2.8.4
+**Depends on:** Task 2.8.5
 
 ## Objective
 
 `pnpm backfill` — the command that fills the store. It is the first thing in this repository
-that runs for hours, spends a metered budget, and can be interrupted halfway.
+that runs for tens of minutes, spends a metered budget, and can be interrupted halfway.
 
 Three properties, and each of them is a decision rather than an implementation:
 
@@ -24,7 +24,7 @@ Three properties, and each of them is a decision rather than an implementation:
 `/securities` renders the same page it did after Task 2.8.2.
 
 What can be **shown** rather than seen: the command's own progress output, and a row count. That
-is the honest demonstration for this task, and Task 2.8.8 is the one that puts it on a page.
+is the honest demonstration for this task, and Task 2.8.9 is the one that puts it on a page.
 
 ## The window shape, which is the single most expensive thing to get wrong
 
@@ -64,19 +64,22 @@ against the same ceiling as 201 single-symbol requests, i.e. ~10,150 symbol-fetc
 **So the whole universe is one request per bar-window.**
 
 That inverts the obvious design. The naïve loop is `for each symbol { for each session { fetch }
-}`, which is ~100 × 252 = 25,200 requests and two hours at the limit. The right loop is `for each
-session { fetch all symbols }`, which is **252 requests** for a year of minute bars across the
-whole universe — and the multi-symbol fetch is the thing `MarketDataProvider` deliberately does
+}`, which is ~101 × 251 ≈ **25,350 requests** and over two hours at the limit. The right loop is `for each
+session { fetch all symbols }`, which is **~1,004 requests** for a year of minute bars across the
+whole universe — four pages a session, measured (Task 2.8.5) — and the multi-symbol fetch is the thing `MarketDataProvider` deliberately does
 not have.
 
-**So this task meets `market-data-provider.ts`'s recorded batch decision**, which is already
-written down with its shape: **a batch method returns a `BarsResult` per symbol**, reusing every
-member unchanged, so partial success across a hundred symbols moves nothing in the taxonomy.
-Building it is this task's, and the interface note says so.
+**Building the batch is Task 2.8.5's** — it was this task's until 2026-09-08, when a probe
+found that `limit` is a **total row budget across all symbols** and a symbol can be **absent
+from a page entirely while having a full session of data**. That makes premature conclusion
+about a symbol a silent, well-formed lie, which is a different failure from this task's and
+earns its own task. What this task inherits is the method and the arithmetic.
 
-**Watch the page ceiling against the batch.** 100 securities × 390 bars is 39,000 bars for one
-session, against a 10,000-row `limit` ceiling — **four pages for one session**, where a single
-symbol is one. So batching trades requests for pages, and the walk is where the deadline goes:
+**Watch the page ceiling against the batch — measured 2026-09-08.** 101 securities × 390 bars
+is **39,390 rows for one session** against the shipped 10,000-row `limit`, so **one session for
+the whole universe is 4 pages**, where a single symbol is one. A year is ~251 sessions × 4 ≈
+**1,004 requests**, which reconciles with 9.84M rows ÷ 10,000 ≈ **985 pages**. So batching
+trades requests for pages, and the walk is where the deadline goes:
 **a paginated caller must pass its own `deadlineMs`**, because a 5-page walk is 72% of
 `DEFAULT_BARS_DEADLINE_MS` and that default was derived for a single request against a browser's
 budget.
@@ -131,15 +134,17 @@ the useful order — recent history is what every chart opens on, so an interrup
 the product more useful than a forwards one does — and it means the ledger's range grows from one
 end, which is what makes one row enough.
 
-**Interruption is a real case rather than a hypothetical**, because this runs for hours on a
-laptop. `SIGINT` should finish the session in flight, write its ledger row, and stop — which is
+**Interruption is a real case rather than a hypothetical**, because this runs for tens of
+minutes on a laptop over the public internet — and Task 1.11.7 already produced a 65-second
+"outage" that turned out to be the laptop rather than the environment. `SIGINT` should finish the session in flight, write its ledger row, and stop — which is
 `index.ts`'s drain shape applied to a command, and it is what makes criterion 3 a property rather
 than a hope. Killing it mid-transaction is also fine and must be tested: Postgres rolls the
 session back, the ledger does not move, and the next run re-fetches one session.
 
 ## Progress
 
-It runs for hours, so it has to say what it is doing. `pnpm migrate` and `pnpm universe` set the
+It runs long enough that silence is indistinguishable from a hang, so it has to say what it is
+doing. `pnpm migrate` and `pnpm universe` set the
 shape — three counters and a line per event — and this needs one more thing they do not: an
 **estimate**, because a command with no end in sight is one people kill and restart.
 
@@ -159,6 +164,16 @@ criterion 2 visible without a query.
 - The session walk, both timeframes, through `windowFor` and `toAlpacaQuery`
 - The pacer, with its measured constants and the arithmetic in a comment beside them
 - Resume from the ledger; `SIGINT` finishing the session in flight
+- **The daily walk's lower bound is `2024-01-01`, a constant with a reason** (Task 2.8.1): the
+  calendar covers 2024–2028 and **refuses** outside it, so a backfill asked for more history
+  than the calendar covers must **refuse in the same shape** rather than silently starting at the
+  bound — a short answer shaped like a right one is what ADR 0017 decision 9 rejected. Both
+  timeframes are bounded by the same calendar, which is what leaves Task 2.8.7 with no special
+  case
+- **A trap in the calendar's own API, met while measuring this**: `marketSessionsBetween`
+  returns **session objects, not dates**, and feeding one back into `marketSessionOn` throws a
+  `MarketCalendarRangeError` whose message renders `[object Object]`. The refusal is correct and
+  the message is not; the walk is the first thing to compose those two functions in anger
 - Arguments: which symbols, which timeframe, how far back — and **`status = 'active'` is the
   default and is a decision**, not a filter that happened. `UNIVERSE.md` §12.2 puts this reader
   on the filtering side, on Story 2.7's argument that a metered API is not spent on a security
@@ -174,6 +189,7 @@ criterion 2 visible without a query.
 
 - A single security's year of minute bars completes against a real key, resumes correctly after
   a `SIGINT` and after a `kill -9`, and a re-run reports everything already held
+- A daily request below 2024-01-01 refuses rather than clamping, and says which range it has
 - A session's bar count for a liquid name is exactly `minuteBars` — **not asserted in a test**,
   for the reason Task 2.7.5 records: thin names legitimately vary between 98.5% and 100%, so an
   assertion on 390 fails on an ordinary day for a correct reason
@@ -190,5 +206,5 @@ data.** Nothing downstream detects it — not the ledger, which believes the wal
 which draws what it is given; not an anomaly calculation, which happily computes a percentile
 over a shorter series.
 
-That is what Task 2.8.6 exists for, and it is the reason completeness is a separate task rather
+That is what Task 2.8.7 exists for, and it is the reason completeness is a separate task rather
 than a flag this one sets.

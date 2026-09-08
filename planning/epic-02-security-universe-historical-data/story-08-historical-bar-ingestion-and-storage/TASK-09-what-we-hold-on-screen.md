@@ -1,13 +1,13 @@
-# Task 2.8.8 — What we hold, on screen
+# Task 2.8.9 — What we hold, on screen
 
 **Status:** Not started
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
-**Depends on:** Task 2.8.7
+**Depends on:** Task 2.8.8
 
 ## Objective
 
 Make this story visible. `/securities` renders 101 rows of curated metadata today; after Task
-2.8.7 the database holds roughly ten million bars behind those rows and **nothing on any screen
+2.8.8 the database holds roughly ten million bars behind those rows and **nothing on any screen
 says so**.
 
 This task puts the store's own statement on the page: for each security, **how much history we
@@ -78,7 +78,7 @@ nowhere near a list of securities.
   history is not a failure, it is a security we have not backfilled. It gets the same treatment
   `checking` gets in the chrome — a neutral placeholder and a word — rather than an alarm.
 
-**And say what is missing rather than implying completeness.** If Task 2.8.6's report knows a
+**And say what is missing rather than implying completeness.** If Task 2.8.7's report knows a
 security has failed sessions, the honest rendering is not a percentage in a table — it is the
 absence of the confident sentence. Reserve the diagnostic detail for the report and let the page
 say the true simple thing.
@@ -154,7 +154,7 @@ repository has already stated twice.
 
 ## Notes
 
-The temptation is to make this page a data-quality dashboard, because after Task 2.8.6 there is
+The temptation is to make this page a data-quality dashboard, because after Task 2.8.7 there is
 a lot to report. Resist it: this is the **Security Explorer**'s list, its reader is somebody
 choosing a security to look at, and what they need to know is whether there is anything to look
 at. The failed sessions, the thin minutes and the outcome histogram are an operator's concern and

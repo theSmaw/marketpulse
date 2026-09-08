@@ -1,8 +1,8 @@
-# Task 2.8.6 — Four reasons a bar is missing, and telling them apart
+# Task 2.8.7 — Four reasons a bar is missing, and telling them apart
 
 **Status:** Not started
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
-**Depends on:** Task 2.8.5
+**Depends on:** Task 2.8.6
 
 ## Objective
 
@@ -19,8 +19,8 @@ missing" and therefore cannot be written until "missing" has a definition.
 **Nothing on screen.** What exists is a command that reports what the store holds and what it
 does not, and a catch-up that can be run repeatedly.
 
-The report is the second showable artefact in this story after Task 2.8.5's progress output, and
-Task 2.8.8 is what turns it into a page.
+The report is the second showable artefact in this story after Task 2.8.6's progress output, and
+Task 2.8.9 is what turns it into a page.
 
 ## The four causes, and why three of them look identical in the database
 
@@ -28,13 +28,21 @@ A missing bar has four causes and the database shows the same thing for all of t
 
 1. **The market was closed** — a weekend, a holiday, or minutes outside a half day's early
    close. **`market-session.ts` distinguishes this completely**, and it is the only one of the
-   four that is free.
+   four that is free. **And it distinguishes it for BOTH timeframes with no special case**,
+   because Task 2.8.1 capped daily at 2024-01-01 rather than reaching to ~2016: every bar this
+   story stores falls inside the calendar's range and therefore has a session to be checked
+   against. Had daily gone deeper by bypassing the calendar, `1Day` would have been the one
+   timeframe where this whole criterion had no answer.
 2. **The security did not trade in that minute.** Real and rare on this feed: SIP measures
    **99.7% mean coverage with a longest gap of 2 minutes**, against IEX's 82.8% and 15 minutes.
    So an absent bar in anything this story stores is **notable rather than ordinary** — which is
    the opposite of what `PROVIDER.md` §6.4 expected, and it is what makes a threshold encodable.
 3. **The fetch failed** — one of the eight `BarsResult` members, and the whole point of that
-   taxonomy is that this case is loud at the moment it happens. **It stops being loud the moment
+   taxonomy is that this case is loud at the moment it happens. **With one measured exception
+   that this task must not inherit**: Task 2.8.5 found that a multi-symbol page can omit a
+   symbol entirely, so a batch that concluded early reports it as a _successful_ empty answer.
+   That is cause 3 disguised as cause 2, it is the one failure in this story that survives every
+   check, and 2.8.5 is where it is prevented rather than detected. **It stops being loud the moment
    the command exits**, which is what this task fixes: a failed session has to leave a trace in
    the store, not only in a terminal somebody has closed.
 4. **The fetch never happened** — the window was never walked, because a backfill was
@@ -64,7 +72,7 @@ produce in principle. **If anything here pins a session count, pin the per-year 
 
 This is the piece that does not exist yet and is the reason this is a task rather than a query.
 
-Task 2.8.5's backfill meets all eight `BarsResult` members. Today a failure is a line of output.
+Task 2.8.6's backfill meets all eight `BarsResult` members. Today a failure is a line of output.
 For criterion 4 it has to be a **record**, and the smallest thing that works is an attempt log:
 `(security_id, timeframe, session_date, outcome, attempted_at)`, written for a failure and
 either written or not written for a success — decide which, and the cheaper answer is
@@ -135,11 +143,17 @@ Two things it is not:
   starting point, and the reason to say so is that two programs is how the two disagree about
   window shape.
 
-**Where it runs is Task 2.8.1's decision** and this is where it becomes concrete: a catch-up is
-minutes rather than hours, so the pipeline objection that kills a full backfill is weaker for
-it. It is still not free — it is metered traffic on every merge — and the honest answer may be
-that neither runs automatically in V1, with a person running the catch-up before a
-demonstration.
+**The catch-up's home is THIS task's decision**, and that is an ownership transfer rather than a
+restatement: Task 2.8.1 settled where the _initial backfill_ runs — a local command against the
+deployed database — and **deliberately deferred the catch-up**, on the argument that a one-off of
+hours and a repeated job of minutes are different shapes and deciding them together is how the
+one-off ends up in the pipeline. So this task inherits the open half.
+
+A catch-up is minutes, so the pipeline objection that kills a full backfill is weaker for it. It
+is still not free — it is metered traffic on every merge — and it would put a vendor's
+availability inside a deploy. The honest answer may be that neither runs automatically in V1,
+with a person running the catch-up before a demonstration; if so, say it in those words, because
+an unscheduled catch-up is the thing that makes the store quietly stale.
 
 ## The `delisted` signal, which Task 2.7.8 moved here
 

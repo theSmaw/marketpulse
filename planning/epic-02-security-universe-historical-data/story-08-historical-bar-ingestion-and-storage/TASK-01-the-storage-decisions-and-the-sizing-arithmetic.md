@@ -35,7 +35,7 @@ data exists.
 
 `PRODUCT_SPEC.md` §30 offers it optionally and §37 says do not add a second data technology
 without a measurement. **This is the story with the measurement in it, and the measurement is
-not available yet** — the row count that would justify it does not exist until Task 2.8.7.
+not available yet** — the row count that would justify it does not exist until Task 2.8.8.
 
 So this task does the half that must happen first, and it is a **platform** question rather
 than a performance one:
@@ -53,13 +53,13 @@ than a performance one:
   credits**; and `pnpm test:database` creates and drops a database per run, so the extension
   has to be installable in that database too or the sixth level of test stops describing
   production.
-- **What it would buy, stated as a hypothesis to be tested at 2.8.7 rather than assumed.**
+- **What it would buy, stated as a hypothesis to be tested at 2.8.8 rather than assumed.**
   Chunk exclusion on a time-ordered table, compression, and continuous aggregates. The first
   is what a plain btree index on `(security_id, timeframe, observed_at)` also gives at this
   row count; the third is Epic 5's problem and Epic 5 does not exist.
 
 **The recommendation this task should carry unless the platform check says otherwise: do not
-enable it now, and name Task 2.8.7's measured query plans against the real row count as the
+enable it now, and name Task 2.8.8's measured query plans against the real row count as the
 trigger.** ~10M rows in one table is not a large table for Postgres 18, and the cost of
 finding out is one `EXPLAIN ANALYZE` against real data rather than a decision made in advance.
 Record the reversal cost honestly: converting a populated table to a hypertable is a data
@@ -119,7 +119,7 @@ principal writing rows. Say which one writes the bars.
 
 ## The sizing arithmetic, done twice
 
-Do it now as an **estimate** and name Task 2.8.7 as the task that re-takes it against measured
+Do it now as an **estimate** and name Task 2.8.8 as the task that re-takes it against measured
 row sizes. Both halves matter: an estimate that is never re-taken is a guess with a table in it.
 
 The inputs are all measured already and should be cited rather than re-derived:
@@ -151,8 +151,8 @@ State the headroom in **years at the chosen universe size**, and state it again 
 - The timeframe and depth confirmation, including the pre-2024 daily question
 - The backfill's home, and the identity that writes the rows
 - The sizing table above, with the request-shape condition attached to the number
-- The two things this task explicitly hands forward: the row-size measurement (2.8.7) and the
-  Timescale trigger (2.8.7)
+- The two things this task explicitly hands forward: the row-size measurement (2.8.8) and the
+  Timescale trigger (2.8.8)
 
 ## Done when
 
@@ -190,7 +190,7 @@ is **absent from `pg_available_extensions` entirely** in `postgres:18`.
 with a restart, `CREATE EXTENSION`, and **a different local image** — which turns
 `LOCAL_DATABASE_VERSION` from a pin on a Postgres major into a pin on a vendor's distribution of
 one, and reaches `pnpm test:database`, which creates and drops its own database every run.
-Declined, with Task 2.8.7's `EXPLAIN` against the real row count as the trigger.
+Declined, with Task 2.8.8's `EXPLAIN` against the real row count as the trigger.
 
 ### The daily depth was NOT settled upstream, and the measurement is the whole finding
 
@@ -210,7 +210,7 @@ third request trap visible rather than cited.
 
 **Settled with the user as option A: daily is capped at 2024-01-01.** Both timeframes are now
 bounded by the same calendar, so every bar this story stores has a session to be checked against
-and Task 2.8.6's completeness computation has no special case.
+and Task 2.8.7's completeness computation has no special case.
 
 ### The sizing was computed from the calendar rather than approximated, and 252 is wrong
 

@@ -21,7 +21,7 @@ us. Re-read those rather than citing them.
 
 `PRODUCT_SPEC.md` §30 offers it optionally and §37 says do not add a second data technology
 without a measurement. Task 2.8.1 cannot take the performance measurement — the row count that
-would justify it does not exist until Task 2.8.7 — so what it took instead is the **platform**
+would justify it does not exist until Task 2.8.8 — so what it took instead is the **platform**
 half, which has to be true before the performance question is worth asking.
 
 ### What is available, read off both servers rather than off a documentation page
@@ -54,7 +54,7 @@ access pattern Story 2.9 needs — one symbol, one timeframe, one window, ascend
 the unique constraint's own btree, which chunk exclusion would be competing with rather than
 adding to.
 
-**The trigger is Task 2.8.7's `EXPLAIN (ANALYZE, BUFFERS)` against the real row count**, on the
+**The trigger is Task 2.8.8's `EXPLAIN (ANALYZE, BUFFERS)` against the real row count**, on the
 deployed instance rather than on a laptop, because a B1MS banks almost no CPU credits and a plan
 that is fine locally is not evidence. Two named candidates for what could fire it: the
 cross-sectional query (`every security at this instant`, which is §11's breadth and has no index
@@ -122,7 +122,7 @@ answer, which is the exact distinction acceptance criterion 4 exists to make.
 
 **So both timeframes are bounded by the same calendar, and that is worth stating as a property
 rather than as a coincidence**: every bar this story stores falls inside 2024-01-01 to 2028-12-31,
-every one of them has a session to be checked against, and Task 2.8.6's completeness computation
+every one of them has a session to be checked against, and Task 2.8.7's completeness computation
 has no special case. The depth is therefore **~2 years and 8 months of daily** at the time of
 writing rather than a fixed number of years, and it **grows on its own** as the calendar's own
 range is walked forward.
@@ -133,7 +133,7 @@ checked history that C would make unequal to itself. `MARKET_CALENDAR_PROVENANCE
 **2028-01-01**, so the calendar is already an editing obligation on a clock; extending it
 backwards is the same kind of work.
 
-**One consequence for Task 2.8.5 to inherit rather than discover:** the daily walk's lower bound
+**One consequence for Task 2.8.6 to inherit rather than discover:** the daily walk's lower bound
 is now a constant with a reason, and a backfill asked for more history than the calendar covers
 must **refuse in the same shape the calendar does** rather than silently starting at 2024-01-01 —
 a short answer shaped like a right one is precisely what ADR 0017 decision 9 rejected.
@@ -150,16 +150,17 @@ a short answer shaped like a right one is precisely what ADR 0017 decision 9 rej
   where_ a first-class question rather than a shrug.
 - **A one-off container job** running the backend's own image. Correct provenance, and it costs a
   new Azure resource and a second place the Alpaca credential lives.
-- **A step in `deploy.yml`.** Rejected on sight: a full backfill is hours of metered vendor traffic
-  and a deploy step runs on **every merge**.
+- **A step in `deploy.yml`.** Rejected on sight: a full backfill is tens of minutes of metered
+  vendor traffic (§4b) and a deploy step runs on **every merge**.
 
 **SETTLED 2026-09-08 with the user: the initial backfill runs as a local command against the
 deployed database, and the incremental catch-up's home is decided separately when it exists.**
 
-The two are different programs with different shapes — the first is a one-off of hours that
-belongs wherever it can be watched, the second is minutes and wants to run repeatedly — and
+The two are different programs with different shapes — the first is a one-off long enough to
+want watching, the second is minutes and wants to run repeatedly — and
 deciding them together is how the one-off ends up in the pipeline. **They are still one walk with
-different starting points** (Task 2.8.6), so what is being deferred is the _home_, not the code.
+different starting points** (Task 2.8.7), so what is being deferred is the _home_, not the code —
+and **Task 2.8.7 is its named owner**, rather than the question floating.
 
 **What the local choice costs, stated rather than left implicit.** The deployed store's provenance
 is a laptop, and this story's founding decision makes that a first-class fact rather than a shrug.
@@ -167,7 +168,8 @@ Three specific consequences:
 
 - **The laptop's network is inside the failure surface.** Task 1.11.7 already produced a 65-second
   "outage" that was the laptop rather than the environment, proved by a three-host control. A
-  backfill of hours will meet that, and Task 2.8.5's resumability is what makes it survivable.
+  backfill of tens of minutes will meet that, and Task 2.8.6's resumability is what makes it
+  survivable.
 - **The `developer-laptop` firewall rule must be current**, and it has moved five times. It is the
   first thing to check when the command cannot connect and the deployed backend can.
 - **A third principal writes the rows.** Neither `marketpulse-backend` nor
@@ -185,7 +187,7 @@ laptop connects as the Entra administrator, which is a **third** principal writi
 
 ---
 
-## 4. The sizing arithmetic — an estimate, to be re-taken at Task 2.8.7
+## 4. The sizing arithmetic — an estimate, to be re-taken at Task 2.8.8
 
 ### Sessions and bars, computed from the shipped calendar rather than approximated
 
@@ -223,7 +225,7 @@ consistent with it for the **heap**: a 23-byte tuple header, two `bigint` keys, 
 timeframe, two `timestamptz`, four `numeric(18, 6)` at ~12–14 bytes each at realistic equity
 prices, and a `bigint` volume. **What it does not include is the index**, and this table has one
 btree over every row by construction. So the estimate is a floor and
-`pg_total_relation_size` is the figure that matters — **Task 2.8.7 owns taking it.**
+`pg_total_relation_size` is the figure that matters — **Task 2.8.8 owns taking it.**
 
 Against Story 2.1's measured **~22.5 GiB usable** (32 GiB provisioned, less 3.74 GiB of filesystem
 overhead on an empty server, going read-only at under 5 GiB free), at ~120 B/row heap:
@@ -247,6 +249,50 @@ makes that safe rather than reckless is the table above plus the `psql-storage-8
 
 ---
 
+## 4b. The multi-symbol fetch — measured 2026-09-08, and it added a task
+
+`ALPACA.md` §6 records that the rate limit is **per request, not per symbol**, and concludes that
+Story 2.8 should batch aggressively — the whole universe in one request per bar-window. What it
+did not record is **what a multi-symbol response looks like when it paginates**, and that turned
+out to be the difference between a bullet in the backfill and a task of its own.
+
+Three symbols, one regular session, `limit=500`, walked to exhaustion:
+
+| Page | Contents                                                 | Token      |
+| ---- | -------------------------------------------------------- | ---------- |
+| 1    | `AAPL:390` (13:30–19:59) &nbsp; `MSFT:110` (13:30–15:19) | present    |
+| 2    | `MSFT:280` (15:20–19:59) &nbsp; `NVDA:220` (13:30–17:09) | present    |
+| 3    | `NVDA:170` (17:10–19:59)                                 | **`null`** |
+|      | **Totals: AAPL 390, MSFT 390, NVDA 390**                 |            |
+
+Four properties, three of them traps:
+
+1. **`limit` is a total row budget across ALL symbols**, not per symbol.
+2. **Symbols are filled in alphabetical order**, one at a time.
+3. **A symbol straddles a page boundary** — MSFT arrives as 110 then 280.
+4. **A symbol can be absent from a page entirely while having a full session of data** — NVDA is
+   not in page 1 at all.
+
+**The rule that follows: nothing may be concluded about any symbol until the walk is exhausted.**
+A batch that maps page 1's `bars` object into results reports `NVDA: ok, 0 bars`, and
+`PROVIDER.md` §8.2 makes an empty answer a **successful** one meaning "no prints in this window".
+So the store would record a security as genuinely not having traded, `toBarSeries` would accept
+it as coherent, and the completeness report would see a session attempted and correctly empty.
+**Every instrument in this story would agree the data is correctly absent.** That is the fourth
+well-formed lie this story's shape has produced and the only one that survives every check.
+
+**Task 2.8.5 was inserted for it** (2026-09-08), between the write path and the backfill command.
+
+**And it resizes the backfill's runtime.** 101 securities × 390 bars is **39,390 rows a session**
+against the shipped 10,000-row `limit`, so one session for the whole universe is **4 pages**; a
+year is ~251 × 4 ≈ **1,004 requests**, reconciling with 9.84M rows ÷ 10,000 ≈ **985 pages**. At
+the measured ~3.23/s refill and ~1 s a page that is roughly **twenty minutes of request time**,
+against **~25,350 requests and over two hours** for the per-symbol loop. So the word _hours_ in
+this document and in the task files describes the design the batch replaces; expect **tens of
+minutes**.
+
+---
+
 ## 5. What this task deliberately did not decide
 
 Open decision 5 — the universe's size and its industry taxonomy — is **Task 2.8.2's**, because it
@@ -255,7 +301,7 @@ is a product judgement about a list rather than an engineering decision about a 
 picked.
 
 The table's key, columns and indexes are Task 2.8.3's. The ledger is 2.8.4's. The row-size
-measurement and the TimescaleDB trigger are both 2.8.7's.
+measurement and the TimescaleDB trigger are both 2.8.8's.
 
 ---
 

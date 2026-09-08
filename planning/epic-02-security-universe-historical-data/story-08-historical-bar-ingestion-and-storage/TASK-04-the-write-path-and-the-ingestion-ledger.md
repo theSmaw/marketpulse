@@ -17,7 +17,7 @@ Two things, kept in one task because they are one transaction:
 
 ## What the user can see when this lands
 
-**Nothing.** There is still no command that runs this — Task 2.8.5 is the command. What exists
+**Nothing.** There is still no command that runs this — Task 2.8.6 is the command. What exists
 after this task is a module with tests and a table with rows a test put there.
 
 ## The module, and the seam it has to honour
@@ -65,7 +65,7 @@ is that a bar we already hold is the same bar. So:
 **Batching.** Postgres's bind-parameter ceiling is 65,535 and this row is 9 written columns, so
 the chunk is ~7,281 rows. `load-universe.ts` chunks at 5,461 for 12 columns and the arithmetic
 belongs in a comment beside the constant, as it does there. A regular session for one security
-is 390 rows, so a per-session write is one statement — which is the shape Task 2.8.5 uses — and
+is 390 rows, so a per-session write is one statement — which is the shape Task 2.8.6 uses — and
 the chunking exists for the daily backfill, where ~2,500 sessions × N securities is not.
 
 **The whole write of one series is one transaction, with its ledger update inside it.** That is
@@ -93,7 +93,7 @@ What a row has to carry, and each field is a decision:
 - **When the statement was last true**, which is a `recorded_at` and not an `observed_at` —
   this is a fact about us rather than about the market, which is the same reading `securities`
   takes and the reason that table has no `observed_at` either.
-- **Deliberately NOT a "complete" flag.** Completeness is Task 2.8.6's and it is a
+- **Deliberately NOT a "complete" flag.** Completeness is Task 2.8.7's and it is a
   computation over the calendar, not a boolean somebody sets. A flag here would be a second
   source of truth that can disagree with the bars, which is the shape `migrations/README.md`
   §5 warns about with `deleted_at`.
@@ -104,7 +104,7 @@ middle of a symbol's history leaves two. Two options:
 
 - **One row, one range, and the backfill only ever extends it from one end.** Simpler, and it
   makes resumability a property of the walk order rather than of the schema. Recommended, and
-  it makes Task 2.8.5's walk direction a **decision** rather than an implementation detail.
+  it makes Task 2.8.6's walk direction a **decision** rather than an implementation detail.
 - **Many rows, many ranges, merged on write.** More honest and more machinery, and the merge is
   the kind of code that is wrong in a way tests written by its author do not catch.
 

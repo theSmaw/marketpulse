@@ -202,7 +202,7 @@ is listed here only so it is not forgotten alongside it.
    than the documentation: the extension **is** available deployed (2.24.0, not installed,
    `azure.extensions` empty) and is **absent entirely from the local `postgres:18` image**, so
    adopting it changes the local image, a server parameter, and a server restart. The trigger
-   is Task 2.8.7's `EXPLAIN` against the real row count. See [`BARS.md`](BARS.md) §1
+   is Task 2.8.8's `EXPLAIN` against the real row count. See [`BARS.md`](BARS.md) §1
 3. ~~**Which timeframes are stored**~~ **SETTLED — both `1Min` and `1Day`, stored and never
    derived** (Story 2.7 upstream; `PROVIDER.md` §9.4 forbids deriving one from the other
    because replay must reconstruct from what was stored). **The depth half was NOT settled
@@ -252,7 +252,7 @@ is listed here only so it is not forgotten alongside it.
 
 ## Tasks
 
-Tackled in order. The story is complete when all nine are done.
+Tackled in order. The story is complete when all ten are done.
 
 **2.8.1 decides and ships nothing**, which is the shape Tasks 2.1.1, 2.2.1, 2.3.1, 2.5.1, 2.6.1
 and 2.7.1 set — and it carries more weight here than in any of them, because two of its
@@ -262,7 +262,7 @@ are both baked into ten million stored rows.
 **2.8.2 re-curates the universe, and it is deliberately second rather than fifth.** Open decision
 5 has to be settled before anything is filed against `security_id`, because after that a change
 to the list costs a re-backfill rather than a file edit. It is also **the only visible change in
-the story before 2.8.8**, since `/securities` renders the curated file — which is worth having
+the story before 2.8.9**, since `/securities` renders the curated file — which is worth having
 early in a nine-task story that is otherwise invisible.
 
 **2.8.3 and 2.8.4 build the store, split because they fail differently.** A wrong key on
@@ -270,20 +270,29 @@ early in a nine-task story that is otherwise invisible.
 that silently re-fetches history it holds, or silently skips history it does not. The second is
 the one nothing downstream can detect, which is why the ledger is a task rather than a table.
 
-**2.8.5, 2.8.6 and 2.8.7 are the backfill, split three ways for the same reason Story 2.7's
-client was split four.** 2.8.5's failure is silent — a walk that skips a window produces a
+**2.8.5 was inserted on 2026-09-08, after Task 2.8.1, and it is the clearest case in this story
+for splitting by failure mode.** The batch fetch was a bullet inside the backfill until a probe
+measured that Alpaca's `limit` is a **total row budget across all symbols**: symbols are filled
+alphabetically, one straddles page boundaries, and **a symbol can be absent from a page entirely
+while having a full session of data**. So a batch that concludes from page 1 reports a symbol as
+having _successfully_ no bars — which `PROVIDER.md` §8.2 makes a legitimate answer — and every
+instrument in this story then agrees the data is correctly absent. It is the one failure here
+that survives every check, and it is invisible in aggregate where the backfill's is not.
+
+**2.8.6, 2.8.7 and 2.8.8 are the backfill, split three ways for the same reason Story 2.7's
+client was split four.** 2.8.6's failure is silent — a walk that skips a window produces a
 well-formed, ascending, correctly provenanced store that is missing data, and neither the ledger
-nor a chart nor an anomaly calculation can tell. 2.8.6 is the instrument that catches it, and it
+nor a chart nor an anomaly calculation can tell. 2.8.7 is the instrument that catches it, and it
 is separate because "what is missing" needs a definition before "fetch what is missing" can be
-written. 2.8.7 is the run, and it is a task rather than a step because five of this story's nine
+written. 2.8.8 is the run, and it is a task rather than a step because five of this story's nine
 criteria are measurements against the real row count.
 
-**2.8.8 is the payoff, and taking it here rather than in Story 2.14 is a delivery decision.**
-Nine tasks of ingestion with one visible change is a run of work nobody outside the code can see;
+**2.8.9 is the payoff, and taking it here rather than in Story 2.14 is a delivery decision.**
+Ten tasks of ingestion with one visible change is a run of work nobody outside the code can see;
 one column and one sentence on a page that already exists is the cheapest honest demonstration of
 ten million rows available.
 
-**2.8.9 closes it, and its method differs from every previous close**: half of this story's
+**2.8.10 closes it, and its method differs from every previous close**: half of this story's
 criteria are properties of a populated database and cannot be re-taken from a clean clone. The
 code half is re-taken; the data half is re-read from the deployed store, and each criterion says
 which.
@@ -294,11 +303,12 @@ which.
 | [2.8.2](TASK-02-the-universe-recurated.md)                          | The size, the taxonomy, the rename map                 | **Yes — `/securities`** |
 | [2.8.3](TASK-03-the-market-bars-table.md)                           | `market_bars`: the key, the columns, the indexes       | No                      |
 | [2.8.4](TASK-04-the-write-path-and-the-ingestion-ledger.md)         | The write path, and "what do I have"                   | No                      |
-| [2.8.5](TASK-05-the-backfill-command.md)                            | `pnpm backfill` — windows, pacing, resuming            | No                      |
-| [2.8.6](TASK-06-gaps-completeness-and-catch-up.md)                  | Four reasons a bar is missing; catch-up                | No                      |
-| [2.8.7](TASK-07-the-full-backfill-measured.md)                      | Run it; measure everything                             | No                      |
-| [2.8.8](TASK-08-what-we-hold-on-screen.md)                          | Coverage on `/securities`                              | **Yes — the payoff**    |
-| [2.8.9](TASK-09-verify-document-and-adr.md)                         | Verify, document, ADR 0020                             | No                      |
+| [2.8.5](TASK-05-the-multi-symbol-fetch.md)                          | One request, many symbols — and the page that lies     | No                      |
+| [2.8.6](TASK-06-the-backfill-command.md)                            | `pnpm backfill` — windows, pacing, resuming            | No                      |
+| [2.8.7](TASK-07-gaps-completeness-and-catch-up.md)                  | Four reasons a bar is missing; catch-up                | No                      |
+| [2.8.8](TASK-08-the-full-backfill-measured.md)                      | Run it; measure everything                             | No                      |
+| [2.8.9](TASK-09-what-we-hold-on-screen.md)                          | Coverage on `/securities`                              | **Yes — the payoff**    |
+| [2.8.10](TASK-10-verify-document-and-adr.md)                        | Verify, document, ADR 0020                             | No                      |
 
 ## What this story hands forward
 

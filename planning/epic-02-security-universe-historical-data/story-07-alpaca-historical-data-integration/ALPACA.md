@@ -304,8 +304,31 @@ minute**.
 
 **Story 2.8 should batch aggressively.** The whole 101-security universe is **one request** per
 bar-window, so a backfill is bounded by **pagination and history depth** rather than by the
-rate limit. That is the single most consequential number for that story's design, and it is
-the one this task was most likely to get wrong by assuming.
+rate limit.
+
+> **AMENDED 2026-09-08 by Task 2.8.1's follow-up probe — "one request" is right about the RATE
+> and wrong about the PAGE, and the difference added a task to Story 2.8.**
+>
+> Three symbols, one regular session, `limit=500`, walked to exhaustion:
+>
+> | Page | Contents                                                 | Token      |
+> | ---- | -------------------------------------------------------- | ---------- |
+> | 1    | `AAPL:390` (13:30–19:59) &nbsp; `MSFT:110` (13:30–15:19) | present    |
+> | 2    | `MSFT:280` (15:20–19:59) &nbsp; `NVDA:220` (13:30–17:09) | present    |
+> | 3    | `NVDA:170` (17:10–19:59)                                 | **`null`** |
+> |      | **Totals: AAPL 390, MSFT 390, NVDA 390**                 |            |
+>
+> **`limit` is a total row budget across ALL symbols**, symbols are filled **alphabetically** one
+> at a time, **a symbol straddles a page boundary**, and — the trap — **a symbol can be absent
+> from a page entirely while having a full session of data.** So a caller that concludes from
+> page 1 reports `NVDA: ok, 0 bars`, which §8.2 of `PROVIDER.md` makes a **successful** answer
+> meaning "no prints in this window". **Nothing may be concluded about any symbol until the walk
+> is exhausted.**
+>
+> The arithmetic that follows: 101 × 390 = **39,390 rows a session** against a 10,000 `limit` is
+> **4 pages a session**, so a year of minute bars for the whole universe is **~1,004 requests**
+> rather than the ~25,350 a per-symbol loop costs. That is the single most consequential number for that story's design, and it is
+> the one this task was most likely to get wrong by assuming.
 
 ### What the `429` carries — and it is the absence that matters
 

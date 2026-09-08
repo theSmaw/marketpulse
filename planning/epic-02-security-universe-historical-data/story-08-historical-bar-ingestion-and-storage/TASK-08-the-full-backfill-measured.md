@@ -1,8 +1,8 @@
-# Task 2.8.7 — The full backfill, run and measured
+# Task 2.8.8 — The full backfill, run and measured
 
 **Status:** Not started
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
-**Depends on:** Task 2.8.6
+**Depends on:** Task 2.8.7
 
 ## Objective
 
@@ -18,7 +18,7 @@ parked on now exists.
 **Nothing on screen, and the database holds roughly ten million rows of real market history.**
 
 The honest way to show this task is a number and a query: the row count, the on-disk size, and a
-`select` returning a real security's real closing prices for a real week. Task 2.8.8 is what
+`select` returning a real security's real closing prices for a real week. Task 2.8.9 is what
 makes it a page.
 
 ## The run
@@ -30,14 +30,19 @@ starting again.
 
 Record, as measurements rather than estimates:
 
-- **Runtime**, split into vendor wall time and database wall time. The first is the rate limit
+- **Runtime**, split into vendor wall time and database wall time. **Expect tens of minutes
+  rather than hours**: 9.84M rows ÷ a 10,000-row page is ~985 requests, which at the measured
+  ~3.23/s refill and ~1 s a page is ~20 minutes of request time. The word "hours" in this
+  story's earlier drafts assumed a per-symbol loop and Task 2.8.5's batch removes it. The first is the rate limit
   and the second is the write path, and knowing which dominates decides whether the pacer or the
   batching is the thing to change.
 - **Requests made**, against the token bucket's ~3.23/s refill, and **`429`s received**. Zero
   `429`s means the pacer is possibly too conservative; a steady trickle means it is calibrated.
-- **Rows written per timeframe**, against the arithmetic: ~100 securities × 390 × ~251 sessions
-  for minute, ~2,500 sessions × ~100 for daily.
-- **Sessions attempted, held and failed**, from Task 2.8.6's report rather than from the
+- **Rows written per timeframe**, against the arithmetic Task 2.8.1 computed from the calendar
+  rather than approximated: **97,494 minute bars per security per year** (not `390 × 252 =
+98,280` — the eleven half days cost ~786 a year), so ~9.84M minute rows at 101 securities, and
+  **~670 daily sessions** rather than ~2,500, because daily is capped at 2024-01-01.
+- **Sessions attempted, held and failed**, from Task 2.8.7's report rather than from the
   command's own output — the report is the instrument and the command's counters are its
   narration.
 
@@ -96,8 +101,12 @@ take it:
 - If it is not, say which pattern is slow and whether a plain index fixes it before reaching for
   a second data technology — §37's rule, and the plain index is the cheaper experiment.
 
-Either way the answer goes in `BARS.md` with the numbers under it, and the conversion cost is
-restated: a populated table becoming a hypertable is a data migration rather than a flag.
+Either way the answer goes in `BARS.md` with the numbers under it, and the reversal cost is
+restated at what Task 2.8.1 actually measured — it is **worse than "a data migration rather than
+a flag"**: enabling it deployed is `azure.extensions`, then `shared_preload_libraries` (which is
+**not** dynamic, so a **server restart**), then `CREATE EXTENSION` — and **locally it is a
+different image entirely**, because `timescaledb` is absent from `postgres:18`'s
+`pg_available_extensions`. That reaches `LOCAL_DATABASE_VERSION` and `pnpm test:database`.
 
 ## Criterion 2, proved on the real store
 
@@ -113,7 +122,12 @@ was never interrupted.
 ## Work
 
 - The full local run, measured
-- The full deployed run, measured, with the identity Task 2.8.1 chose
+- The full deployed run, measured, from a laptop as the **Entra administrator** — the identity
+  Task 2.8.1 settled, and a third principal beside `marketpulse-backend` and
+  `marketpulse-github-deploy`, neither of which is reachable from a laptop. Check the
+  `developer-laptop` firewall rule first: it has moved **five** times, and the CLI's shape is a
+  trap of its own — `firewall-rule update` takes **no name argument at all**, and
+  `create -n <name>` is what upserts
 - Row size, table size, index ratio, headroom at three universe sizes
 - `EXPLAIN (ANALYZE, BUFFERS)` for the three access patterns, deployed
 - The TimescaleDB decision, with its numbers
@@ -128,7 +142,7 @@ was never interrupted.
 ## Done when
 
 - Criteria 1, 2, 3, 6 and 7 are each met by a measurement recorded in `BARS.md`
-- The deployed store holds the full universe at both timeframes, and Task 2.8.6's report says so
+- The deployed store holds the full universe at both timeframes, and Task 2.8.7's report says so
 - Every figure was taken rather than cited, including the ones this file predicts
 - The deployed backend was unaffected, observed rather than assumed
 - `pnpm verify` is exit 0; the artefact is unchanged, because this task ships no frontend source
