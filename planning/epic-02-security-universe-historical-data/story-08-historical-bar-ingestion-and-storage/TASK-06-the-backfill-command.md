@@ -66,8 +66,8 @@ against the same ceiling as 201 single-symbol requests, i.e. ~10,150 symbol-fetc
 That inverts the obvious design. The naïve loop is `for each symbol { for each session { fetch }
 }`, which is ~101 × 251 ≈ **25,350 requests** and over two hours at the limit. The right loop is `for each
 session { fetch all symbols }`, which is **~1,004 requests** for a year of minute bars across the
-whole universe — four pages a session, measured (Task 2.8.5) — and the multi-symbol fetch is the thing `MarketDataProvider` deliberately does
-not have.
+whole universe — four pages a session, measured (Task 2.8.5) — and the multi-symbol fetch is ~~the thing `MarketDataProvider` deliberately does
+not have~~ **`fetchManyBars`, a required member of `MarketDataProvider` since Task 2.8.5 shipped it**.
 
 **Building the batch is Task 2.8.5's** — it was this task's until 2026-09-08, when a probe
 found that `limit` is a **total row budget across all symbols** and a symbol can be **absent
@@ -84,10 +84,15 @@ trades requests for pages, and the walk is where the deadline goes:
 `DEFAULT_BARS_DEADLINE_MS` and that default was derived for a single request against a browser's
 budget.
 
-**And what a retry re-spends**: the wrapper composes around the interface, so a retry re-runs the
-walk **from page 1**. A batch of a hundred symbols retried once is a hundred times the page
+~~**And what a retry re-spends**: the wrapper composes around the interface, so a retry re-runs
+the walk **from page 1**. A batch of a hundred symbols retried once is a hundred times the page
 count, not one request. That is the argument for the batch being modest rather than maximal —
-measure where the knee is rather than assuming 100 is right.
+measure where the knee is rather than assuming 100 is right.~~
+**Falsified 2026-09-08 by Task 2.8.5 — see this file's last amendment before acting on it.** It
+is arithmetic about a batch of _independent fetches_; the batch that shipped is **one walk**, and
+a retried walk costs its own page count **once**. Its conclusion is the dangerous half: a modest
+batch is the opposite of what the measurement supports, and building one means building the
+chunking `alpaca-mapping.ts` explicitly says not to build.
 
 ## Pacing
 
@@ -160,7 +165,9 @@ criterion 2 visible without a query.
   code**; the mechanism is in `src/` so it is typechecked, linted and testable
 - `backfill` checked against `pnpm help -a` before it is claimed, with the detection validated
   in the same run against known built-ins — the check that failed its own control at Task 2.7.8
-- The multi-symbol batch on `MarketDataProvider`, returning a `BarsResult` **per symbol**
+- ~~The multi-symbol batch on `MarketDataProvider`, returning a `BarsResult` **per symbol**~~
+  — **built by Task 2.8.5.** What is left here is _calling_ it, and the four things that
+  inherits are in this file's last amendment
 - The session walk, both timeframes, through `windowFor` and `toAlpacaQuery`
 - The pacer, with its measured constants and the arithmetic in a comment beside them
 - Resume from the ledger; `SIGINT` finishing the session in flight
@@ -328,3 +335,90 @@ window, and inferring one from `requested` is the bug Task 2.7.5 measured. So a 
 untraded session **at the frontier of the walk** is re-fetched on the next run. One re-fetched
 session is the safe direction and it is written into `recordSeries`'s doc comment; the reporting
 consequence is Task 2.8.7's and is amended there.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.5 — the batch shipped, and four things here inherit from it
+
+Nothing about this task's shape changed: the session-shaped window, the pacer, the resume point
+and the sequential recommendation all stand. `fetchManyBars` exists, is a **required** member of
+`MarketDataProvider`, and all three implementations have one. What follows is the four things
+that are different for the code this task writes.
+
+### 1. The retry paragraph above is WRONG, and its conclusion is the dangerous half
+
+It reads _"a batch of a hundred symbols retried once is a hundred times the page count"_, and
+that is arithmetic about a batch of **independent fetches**. The batch that shipped is **one
+walk**: the whole thing succeeds or the whole thing fails, so a retry re-runs one walk and costs
+**its own page count once** — for which it recovers every symbol. **Retrying a batch is cheaper
+per symbol than retrying a single fetch, not more expensive.**
+
+That matters because of what the old paragraph concluded: _"the argument for the batch being
+modest rather than maximal"_. **Do not act on it.** Task 2.8.2 measured all 518 symbols in one
+`GET` — a 3,209-character query string, HTTP 200, `limit=10000` honoured — and
+`toAlpacaManyQuery` carries an explicit instruction that **no chunking should be built**, because
+a guard here would be a limit we invented sitting in front of one the vendor does not have. A
+"modest" batch trades the one property the batch exists for.
+
+The half of that paragraph that survives is the pacing argument, and it is unchanged: a retry
+re-runs from page 1, so the pacer must count **requests** rather than walks.
+
+### 2. A failed session fails the WHOLE universe, which SIMPLIFIES the `CoverageGapError` handling
+
+`isWholeBatchFailure` shipped as the taxonomy's fourth classification: **success is per symbol,
+failure is per batch.** A `429`, a timeout, an abort or a bad key ends the walk, and every symbol
+in the request carries that outcome — because the pages that never arrived held symbols we cannot
+name, so attributing the failure to a subset would be inventing information.
+
+The consequence for the 2026-09-08 amendment below on `CoverageGapError`: it asks this task to
+choose between _"retry that session, or stop that symbol and record why"_. **The second option
+does not exist for a transport failure.** A failed session leaves all 518 ledger rows equally one
+session behind, so the honest choices are to retry the session or to stop the run — there is no
+per-symbol divergence to record. That is simpler than the amendment anticipated, and it is a
+property of the batch rather than of this command.
+
+**The per-symbol case is still real and is narrower than it looks.** Only three outcomes stay
+with one symbol — `ok`, `unknown-symbol` and `range-not-available` — and Task 2.7.6 measured that
+this vendor produces neither of the latter two from the bars endpoint. So in practice the map
+this command receives is either **all failed with one shared outcome**, or **all `ok`**, some of
+them with empty series. The empty-series case is the one that needs judgement, and Task 2.8.4's
+note applies to it: an empty answer extends the ledger by nothing.
+
+### 3. The deadline is an unchecked precondition, and getting it wrong is silent twice over
+
+`DEFAULT_BARS_DEADLINE_MS` is unchanged at **3,000 ms** and a 21-page walk at 518 symbols is
+**~55 s**. So this command must pass its own `deadlineMs` — already stated above, and now with
+two measured reasons rather than one:
+
+- **Nothing enforces it.** The interface's own comment says so and no test can, because the
+  caller's deadline is the caller's.
+- **`withRetry` silently gives no retries at all when the deadline is tight** (Task 2.7.7's
+  recorded unchecked precondition): it gives up when the delay plus one plausible attempt does
+  not fit in what is left, and the caller then receives the _real_ cause rather than an error
+  saying "I did not try". So a backfill that forgets its deadline fails on the first page **and**
+  looks like a vendor problem while doing it.
+
+`pnpm bars` passes 20 s for a five-page single-symbol walk. This command's is larger, and the
+number belongs beside the arithmetic that produced it.
+
+### 4. The page count per session is a function of the symbol count, and both ends were measured
+
+`maxPagesFor` now multiplies its numerator by the symbol count, so the bound follows the batch.
+Two readings for this command's own arithmetic:
+
+| Request                             | Pages  | Measured                    |
+| ----------------------------------- | ------ | --------------------------- |
+| 3 symbols, one session, `limit` 10k | **1**  | 1,124 ms, one request, live |
+| 518 symbols, one session            | **21** | 2.52–2.65 s a page (2.8.2)  |
+
+The first matters because this command takes a `--symbols` argument: a small run is **one request
+per session**, not twenty-one, so a single-security backfill is bounded by round trips rather
+than by pages and the two cases should not share one estimate.
+
+### What did NOT change
+
+The window shape, `windowFor`, the one-millisecond `end` conversion, the pacer's constants, the
+resume point, the monotonic walk, the `SIGINT` behaviour, the `status = 'active'` default and the
+2024-01-01 daily bound are all untouched by this task. So is the **sequential** recommendation,
+and its argument is unchanged: the ledger refuses concurrency across sessions, and Task 2.7.7's
+crowd measurement says concurrency against this vendor is not free.
