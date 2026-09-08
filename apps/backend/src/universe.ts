@@ -677,8 +677,13 @@ const EQUITIES: readonly EquitySecurity[] = [
     },
     {
       symbol: "WMT",
+      // NASDAQ since 2024-12-09, and this row said NYSE until Task 2.7.8.
+      // **The first time anything in this product has caught `UNIVERSE.md` §5's
+      // silent staleness**, and it was caught by `pnpm universe:check` rather
+      // than by a person — which is the whole argument for that command
+      // existing. §15.4.
       name: "Walmart Inc.",
-      exchange: "NYSE",
+      exchange: "NASDAQ",
       industry: "Consumer Staples Merchandise Retail",
     },
     {
@@ -939,6 +944,16 @@ export const UNIVERSE_PROVENANCE: Record<
   Extract<SecurityFieldGroup, "profile" | "classification">,
   { readonly source: string; readonly checkedOn: string }
 > = {
-  profile: { source: "curated", checkedOn: "2026-09-05" },
+  // Moved to 2026-09-08 by Task 2.7.8, which re-checked **every** row's symbol,
+  // name and exchange against Alpaca's asset catalogue — the whole of this
+  // group — and corrected `WMT`. That is what §11 asks moving this date to
+  // mean: the list was checked, not merely edited.
+  profile: { source: "curated", checkedOn: "2026-09-08" },
+  // **Deliberately NOT moved**, and the asymmetry is the point of having two
+  // groups rather than one. Alpaca's catalogue carries neither sector nor
+  // industry, so nothing in Task 2.7.8 re-checked this group and moving its
+  // date would claim a hundred verifications that did not happen — in the exact
+  // column §5 nominates as the mitigation against silent staleness. `UNIVERSE.md`
+  // §15.4.
   classification: { source: "curated", checkedOn: "2026-09-05" },
 };

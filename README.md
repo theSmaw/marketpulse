@@ -552,31 +552,32 @@ the frontend's build.
 
 Run from the repository root:
 
-| Command             | What it does                                                          |
-| ------------------- | --------------------------------------------------------------------- |
-| `pnpm verify`       | The seven steps below, chained — this is what CI runs, by name        |
-| `pnpm build`        | `tsc -b` over the solution, then the frontend bundle, then Storybook  |
-| `pnpm typecheck`    | The same command as `build`, deliberately — see below                 |
-| `pnpm lint`         | `eslint .` over the whole workspace in one process                    |
-| `pnpm lint:fix`     | The same, with `--fix`                                                |
-| `pnpm format`       | `prettier --write .` — the whole tree, prose included                 |
-| `pnpm format:check` | `prettier --check .`                                                  |
-| `pnpm stories`      | Fails if a component has no stories file                              |
-| `pnpm env:check`    | Fails if `.env.example` and the configuration module disagree         |
-| `pnpm links`        | Fails if a relative Markdown link points at nothing — see below       |
-| `pnpm test`         | Every package's tests — 629 across the workspace — see below          |
-| `pnpm test:process` | The backend's process half — 14 tests that spawn a real server        |
-| `pnpm coverage`     | The same tests with coverage — three reports, on demand — see below   |
-| `pnpm dev`          | Every package's `dev`, in parallel — see below                        |
-| `pnpm db`           | Starts the local PostgreSQL 18 container — see below                  |
-| `pnpm migrate`      | Applies every migration the database has not seen — see below         |
-| `pnpm universe`     | Loads the ~100 tracked securities into that database — see below      |
-| `pnpm bars`         | Fetches one symbol's bars from Alpaca and prints them — see below     |
-| `pnpm ready`        | Is the development pair actually up? Not part of `verify` — see below |
-| `pnpm image`        | Builds the backend's `linux/amd64` container image — see below        |
-| `pnpm e2e`          | The browser suite, against a pair you started — see below             |
-| `pnpm e2e:deployed` | The same browser against the **live** environment — see below         |
-| `pnpm clean`        | `tsc -b --clean`, plus the frontend's `dist/` and `storybook-static/` |
+| Command               | What it does                                                              |
+| --------------------- | ------------------------------------------------------------------------- |
+| `pnpm verify`         | The seven steps below, chained — this is what CI runs, by name            |
+| `pnpm build`          | `tsc -b` over the solution, then the frontend bundle, then Storybook      |
+| `pnpm typecheck`      | The same command as `build`, deliberately — see below                     |
+| `pnpm lint`           | `eslint .` over the whole workspace in one process                        |
+| `pnpm lint:fix`       | The same, with `--fix`                                                    |
+| `pnpm format`         | `prettier --write .` — the whole tree, prose included                     |
+| `pnpm format:check`   | `prettier --check .`                                                      |
+| `pnpm stories`        | Fails if a component has no stories file                                  |
+| `pnpm env:check`      | Fails if `.env.example` and the configuration module disagree             |
+| `pnpm links`          | Fails if a relative Markdown link points at nothing — see below           |
+| `pnpm test`           | Every package's tests — 629 across the workspace — see below              |
+| `pnpm test:process`   | The backend's process half — 14 tests that spawn a real server            |
+| `pnpm coverage`       | The same tests with coverage — three reports, on demand — see below       |
+| `pnpm dev`            | Every package's `dev`, in parallel — see below                            |
+| `pnpm db`             | Starts the local PostgreSQL 18 container — see below                      |
+| `pnpm migrate`        | Applies every migration the database has not seen — see below             |
+| `pnpm universe`       | Loads the ~100 tracked securities into that database — see below          |
+| `pnpm universe:check` | Compares that list against Alpaca's catalogue; writes nothing — see below |
+| `pnpm bars`           | Fetches one symbol's bars from Alpaca and prints them — see below         |
+| `pnpm ready`          | Is the development pair actually up? Not part of `verify` — see below     |
+| `pnpm image`          | Builds the backend's `linux/amd64` container image — see below            |
+| `pnpm e2e`            | The browser suite, against a pair you started — see below                 |
+| `pnpm e2e:deployed`   | The same browser against the **live** environment — see below             |
+| `pnpm clean`          | `tsc -b --clean`, plus the frontend's `dist/` and `storybook-static/`     |
 
 Working on a single package uses the same six verbs, meaning the same thing:
 
@@ -1271,6 +1272,46 @@ a change that **ships nowhere**, so the repository's universe and production's
 would drift apart silently. Because a re-run that finds nothing to do writes
 nothing at all, the recurring cost of that is a comparison rather than a write.
 A refused universe stops the deploy there, before anything has rolled.
+
+### `pnpm universe:check` — is that list still true?
+
+```sh
+pnpm universe:check
+```
+
+Compares every security in `apps/backend/src/universe.ts` against Alpaca's asset
+catalogue and **changes nothing**. It reads the curated file and the vendor; it
+never opens a database, so unlike `pnpm universe` it needs no database at all.
+
+It exists because the curated list **goes stale silently** — a company moves its
+listing, a symbol is retired, and nothing in the repository can tell. This is the
+first thing that can see any of it, and on the day it was written it found one:
+`WMT` said `NYSE`, and Walmart moved to NASDAQ in December 2024.
+
+```text
+  ✓ 101 securities checked against the vendor
+
+  ○ 1 whose listing venue disagrees with the file:
+      WMT  file says NYSE, vendor says NASDAQ
+```
+
+It reports four things: a tracked symbol the vendor no longer lists as active, a
+symbol the vendor has never heard of, a listing venue that has moved, and a
+ticker that has been **recycled** from a different company. It deliberately does
+not compare **names**, because the vendor writes house style (`State Street
+Technology Select Sector SPDR ETF`) and comparing them is 64 lines of noise
+around one real finding.
+
+**A finding does not make it exit non-zero.** The exit code answers _did the
+check run_, never _did it find something_ — every finding is input to a human
+editing the list, not a fault. It is **not** a `pnpm verify` step and cannot be:
+`verify` runs with no network and no credential, and this needs both. It needs an
+Alpaca key, and it costs the bar-fetching rate limit nothing, because the asset
+catalogue is on a different API with a budget of its own.
+
+**A symbol it flags is a candidate, not a verdict.** The vendor's "inactive"
+means _it_ will not trade the symbol, which is not the same as delisted — 4 in 50
+sampled inactive symbols were still trading. Check before editing the file.
 
 ### `pnpm bars` — the first real market data
 

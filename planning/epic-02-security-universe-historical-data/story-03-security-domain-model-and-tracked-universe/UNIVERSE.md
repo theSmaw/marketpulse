@@ -181,6 +181,15 @@ story that can return it). A member with no producer is a vocabulary entry that 
 "this has never happened", which is indistinguishable in the data from "this cannot
 happen".
 
+> **ANSWERED 2026-09-07 by Task 2.7.8, and the answer is still two members — see §15.**
+> The producer was named, the producer looked, and the finding is that this vendor
+> **cannot produce the member honestly**: its `status` field means "we will not trade
+> this", which is a fact about the vendor rather than about the market, and it disagrees
+> with the tape 8% of the time. `delisted` therefore does not ship, the new owner is
+> **Story 2.8's ingestion** — bars stopping is a better-correlated signal that costs no
+> request — and what shipped instead is `pnpm universe:check`, which reports and changes
+> no row. The paragraph below is kept as the reasoning that was correct when written.
+
 **Its producer is named, so nobody has to rediscover it: Story 2.7**, which carries this
 forward in its own Scope and as its fourth open decision rather than only being named here
 — a deferral recorded in one document and not in the story that inherits it is a deferral
@@ -945,6 +954,16 @@ decide alone:
 on `status` when you are computing over _the market we track now_, and never when you are
 showing or replaying _something we stored_.
 
+> **`pnpm universe:check` (Task 2.7.8) is deliberately NOT an eighth row**, and saying why
+> is worth more than adding one. It reads the **curated file** and the vendor's catalogue,
+> and never opens a database at all — so the question this table asks does not arise for
+> it, and the file's rows are `active` by construction. That is the same property that
+> makes "it changes no row" structural rather than disciplined. §15.7.
+>
+> The row this table would have gained is the one that **did not ship**: a writer
+> transitioning `status` to `delisted` during ingestion. §15.3 produced why — the loader
+> writes `status` from the file on every deploy and would silently revert it.
+
 ### 12.3 The three changes, produced against a real database
 
 The subject sector is **health care**, chosen because §9's distribution sits on **both**
@@ -1108,6 +1127,20 @@ stable per-asset identifier, and the migration that adds `delisted` to `SECURITY
 is the natural place to decide whether a rename gets an identity too. Until then, **a
 rename loses the link between the old bars and the new symbol**, and that sentence is the
 whole of the gap.
+
+> **CLOSED 2026-09-07 by Task 2.7.8 — as a decision, not a mechanism. See §15.5.** A rename
+> orphans the old bars and that is now written down rather than owed. **The premise this
+> deferral rested on turned out to be false**: the assets endpoint's "stable per-asset
+> identifier" does **not** survive a rename — six real renames were checked and the id
+> differs in every one — so recording it would buy nothing, and the fourth answer wins on
+> measurement rather than on economy. If the trigger ever fires — **a rename in the list**,
+> of which there is none — the recommendation is a **rename map in the curated file**, which
+> §15.5 re-ranks first precisely because the cause diagnosed above is a file that cannot
+> express "these are the same company". The deadline is unchanged: Story 2.8.
+>
+> §15.6 records a hazard this measurement found that nobody had named — **tickers are
+> recycled**, 229 of them in the current market — which is why `pnpm universe:check` reports
+> one.
 
 ### 12.7 §9's distribution did not move, and that is a decision
 
@@ -1606,3 +1639,213 @@ is why this cost one command rather than a diagnosis.
 `certificate verify failed` even against `sslrootcert=system`, while the repository's own
 `pg` connects with nothing shipped. That is Task 2.1.5's finding — "no CA file in the
 Dockerfile" is a property of the **runtime**, not of the certificate — arriving unchanged.
+
+---
+
+## 15. The symbol lifecycle: `delisted`, and whether a rename gets an identity (Task 2.7.8, 2026-09-07)
+
+The two gaps §3 and §12.6 opened with **Story 2.7 named as the owner**, answered here
+because that story is the first thing in this product to hold a vendor credential. Both are
+now closed; neither closed the way the deferral expected.
+
+> **These figures are observations of a live third party on one day**, in `ALPACA.md`'s
+> sense rather than this document's. Re-measure rather than cite. The instrument that took
+> them ships as `pnpm universe:check`, so re-taking them is one command rather than a
+> harness.
+
+### 15.1 The decisions, in one paragraph
+
+**`delisted` does NOT ship as a `SECURITY_STATUSES` member**, and **a ticker rename gets no
+identity**. What ships instead is `pnpm universe:check`, a reporting command that compares
+the curated file against the vendor's catalogue and **changes no row** — the middle of open
+decision 4's three shapes, and Task 2.1.7's shape for exactly this kind of question. Both
+refusals are taken on measurement rather than on economy: the endpoint turned out to be
+nearly free, and **cost is not the axis either decision turns on**.
+
+### 15.2 Why `delisted` is not a member: the vendor's `inactive` is a fact about the VENDOR
+
+This is the argument that decided it, and it is a new one — neither §3 nor Story 2.7's own
+open decision 4 anticipated it.
+
+§3 refuses to collapse `active` and `untracked` into one `inactive` member precisely because
+**one is a fact about the market and the other a fact about us**. Alpaca's `status` field is
+a _third_ kind of thing: it means **"we will not trade this"**, which is a fact about
+Alpaca's brokerage. Importing it as `delisted` would be labelling a third party's fact about
+_itself_ as a fact about the market — the same conflation §3 already refuses, arriving
+through a door §3 did not have.
+
+**Measured, not asserted.** A deterministic sample of 50 active and 50 inactive US equities,
+each checked against the tape for daily bars in August 2026:
+
+| Vendor says | n   | Still printing bars |
+| ----------- | --- | ------------------: |
+| `active`    | 50  |       **50 (100%)** |
+| `inactive`  | 50  |          **4 (8%)** |
+
+So an automatic transition would have marked **4 in 50 still-trading securities as
+delisted**. `LWACU`, `FRSH`, `SEMG` and `ITG` were the four. That is the measured error rate
+of the shape open decision 4 called "probably right".
+
+**And an inactive row carries no delisting DATE.** It is identical in shape to an active one
+— `id`, `class`, `exchange`, `symbol`, `name`, `status`, `tradable`, the margin fields —
+with no timestamp anywhere. A `delisted` status sourced from here could therefore never
+answer _when_, and **Epic 13's replay needs exactly that**: it asks what was knowable on a
+past date, and "this security is delisted **now**" says nothing about whether it was listed
+then. §12.2's table already makes replay the reader that must not filter on `status`; a
+member with no date would be one it could not use even if it did.
+
+### 15.3 The second writer, produced rather than argued
+
+Open decision 4 predicted this and it is worth having the demonstration rather than the
+prediction. `load-universe.ts` writes `status` from the file on **every deploy** — that is
+how §12's untrack-and-re-add works — so a `status` written by anything else is reverted by
+the next merge.
+
+Produced in a scratch database, with the file unchanged and saying `active`:
+
+```text
+update securities set status='untracked' where symbol='GILD';   ->  GILD -> untracked
+pnpm universe                                                   ->  0 inserted, 1 updated, 100 unchanged
+select status from securities where symbol='GILD';              ->  GILD -> active
+```
+
+**Silently.** No warning, and the loader's own counters report it as an ordinary update. So
+adopting `delisted` was never one decision but two — the member, **and** who owns the column
+— and the three ways out are all worse than not needing them: the loader stops writing
+`status` for rows it did not insert (which changes §12's behaviour and needs its own
+argument), or `delisted` is expressed in the **file** (which makes it a reporting check after
+all), or the loader learns a precedence rule nothing checks and somebody later simplifies.
+
+A reporting command needs none of them, because it writes nothing.
+
+### 15.4 What the reporting command is actually for, and it is not mainly `delisted`
+
+**Zero of the 101 are inactive**, and zero are unknown to the vendor. So a `delisted`
+mechanism would have been built against **no instance**, which this document declines on
+principle (§12.6) and Task 2.7.8's own Notes name as the first failure mode to avoid.
+
+What justifies the command is a different gap with a real instance: §5 records the curated
+file's silent staleness as a gap of this repository's third kind, and nothing had ever been
+able to see any of it. `pnpm universe:check` is the first instrument that can, and on the day
+it was written it found a real defect — **`WMT` carried `NYSE` and Walmart moved its listing
+to NASDAQ on 2024-12-09.** Fixed in the same commit, and the check is clean afterwards.
+
+**Names are deliberately not compared, and that is a measurement rather than an omission.**
+The obvious third check reports **64 of 101** rows differing and **zero** of them
+substantive: the vendor writes house style — `State Street Technology Select Sector SPDR ETF`
+for `Technology Select Sector SPDR Fund`, `Eli Lilly & Co.` for `Eli Lilly and Company`. A
+report that is 64 lines of noise around one real finding is a report nobody reads, which is
+the failure §12's loader already refuses when it declines to shout the same line forever.
+`exchange` survives because it is a short controlled vocabulary that moves only when a
+listing genuinely moves.
+
+**`profile.checkedOn` moved to 2026-09-08 and `classification.checkedOn` did not**, which is
+the two-group design in §4 paying off visibly for the first time. Every row's symbol, name
+and exchange was re-checked against a source, so §11's bar for moving the date is genuinely
+met; Alpaca carries neither sector nor industry, so the classification group was not
+re-checked at all and moving its date would claim a hundred verifications that did not
+happen. The loader reports `0 inserted, 101 updated` afterwards, which is §12.9's stated
+behaviour, and the two dates now differ in the database — read back to confirm it.
+
+### 15.5 Why a rename gets no identity: the premise was FALSE
+
+§12.6, this task's brief and Story 2.7's open decision 5 all rest on one sentence — that the
+assets endpoint "carries a stable per-asset identifier that survives a symbol change", which
+would make a rename **detectable** rather than merely representable.
+
+**It does not. Six real renames, six different identifiers, and not one match:**
+
+| Rename                    | Old symbol today             | Ids equal? |
+| ------------------------- | ---------------------------- | ---------- |
+| `SQ` → `XYZ` (Block)      | **404, gone entirely**       | **No**     |
+| `ANTM` → `ELV` (Elevance) | **404, gone entirely**       | **No**     |
+| `RTN` → `RTX` (Raytheon)  | inactive, different id       | **No**     |
+| `TWTR` → `X` (Twitter)    | inactive, different id       | **No**     |
+| `FISV` → `FI` (Fiserv)    | both exist, different ids    | **No**     |
+| `FB` → `META` (Meta)      | **active — a ProShares ETF** | **No**     |
+
+The vendor issues a **new asset row with a new id** on a rename and retires or drops the old
+one. So recording `alpaca_asset_id` would buy nothing for the purpose it was proposed for:
+it identifies an asset **within a response**, not a company **across time**.
+
+Task 2.7.8's brief says of decision 5 that if the endpoint is not adopted "that argument
+evaporates and the fourth answer gets much stronger". It evaporates **even though the
+endpoint is adopted**, because the identifier does not do the job claimed for it — which is
+a stronger result, and only a measurement could have produced it.
+
+**So the fourth answer ships: a rename orphans the old bars, and this is where that is
+written down.** The other three candidates are re-ranked by the same measurement rather than
+merely re-declined:
+
+- **`previous_symbol` on `securities`** — still a list-of-one masquerading as a column, and
+  now with **no source to populate it from**, because the vendor cannot tell us a rename
+  happened.
+- **`company_id` above `securities`** — still the correct general answer, still a table §30
+  does not contain, and now demonstrably **not** derivable from this vendor.
+- **A rename map in the curated file** — **strengthened**, and it is the recommendation if
+  the trigger below ever fires. It is the only candidate that does not depend on a vendor
+  identifier that turns out not to exist, and §12.6's own diagnosis says why: the cause is a
+  file that cannot express _"these are the same company"_, so the fix belongs in the file.
+  A human editing the universe knows `FB` became `META`.
+
+**The deadline is unchanged and it is Story 2.8**, because it stops being cheap the moment
+bars hang off those ids. **The trigger is a rename in the list**, which today has none.
+
+### 15.6 The hazard the measurement found, which nobody had named
+
+`FB` today is **ProShares S&P 500 Dynamic Buffer ETF** — an entirely different company, on a
+different venue, with a different id. **Tickers are recycled**, and 229 of them in the
+current market carry both an active and an inactive row.
+
+That is a latent corruption risk in the mechanism §12 already ships, and it is worth stating
+because it is the one thing that makes "do nothing" unsafe **in the long run** rather than
+merely incomplete. The loader keys on `symbol`. §12's untrack-and-re-add is correct and cheap
+for the **same** company — the row flips back on its original `id`, which is the whole
+argument for it — and if a ticker is recycled to a **different** company and somebody adds it
+to the file, the loader does exactly the same thing: it flips the **old** company's row back
+to `active` on the old `id`, and Story 2.8's bars for two different companies land on one row.
+
+**Zero of our 101 are affected today**, checked. So this ships as a **line in the report**
+rather than as a mechanism — `pnpm universe:check` flags a tracked symbol that also carries a
+retired row under a different name — which keeps it on the right side of the line this
+document draws against mechanisms built with nothing to test them on: it is three lines over
+data already fetched, and it is testable as a pure function against a synthetic row, which is
+exactly what the fast suite does with it.
+
+### 15.7 What was adopted, and what it costs
+
+`pnpm universe:check`, `apps/backend/src/alpaca-assets.ts` and
+`apps/backend/src/check-universe.ts`, plus twelve tests. **No migration, no schema change, no
+new environment variable, no dependency, and no new writer of any column.**
+
+- **It reads the FILE and not the database**, which is what makes "changes no row" structural
+  rather than disciplined — there is no pool in it and nothing to point at a database. It
+  therefore needs no database at all, unlike `pnpm universe`.
+- **It is not and cannot be a `pnpm verify` step.** `verify` runs with no network and no
+  credential (Story 2.7's acceptance criterion 7). The `:check` suffix it shares with
+  `env:check` and `format:check` names the kind of thing it is, not where it runs.
+- **It gets no retry, and that is the decision rather than an omission.** `withRetry` is
+  typed to `MarketDataProvider` and wraps bar fetching only. This is a command a person runs
+  and reads, so a plain failure in front of somebody who can re-run it is the right answer.
+  The reversal trigger is this running unattended.
+- **A finding does not change the exit code.** The exit code answers _did the check run_,
+  never _did it find something_ — `/diagnostics/database`'s rule (Task 2.1.7), and the guard
+  against somebody wiring a network-dependent check into CI where it would go red on a
+  vendor's house-style change.
+- **It costs Story 2.8's backfill nothing.** The assets endpoint is on the **trading** API,
+  which Task 2.7.7 measured as a separate rate-limit budget (`ALPACA.md` §6b). Two requests,
+  ~2.5 s, and the whole catalogue — 14,277 active and 19,188 inactive US equities — rather
+  than a lookup per symbol.
+
+### 15.8 What §3 and §12.6 now say
+
+§3's `SECURITY_STATUSES` table is **unchanged at two members**, and its "its producer is
+named: Story 2.7" paragraph is superseded by this section rather than deleted — the producer
+was named, the producer looked, and the answer is that this vendor cannot produce the member
+honestly. **The owner of a future `delisted` is Story 2.8's ingestion**, which is the first
+thing that will notice bars stopping — a signal that is better correlated with reality than
+the vendor's flag (100% against 92%), costs no request, and arrives as a consequence of work
+that story is doing anyway.
+
+§12.6's gap is **closed as a decision rather than as a mechanism**: a rename orphans the old
+bars, the reason is §15.5, and the reversal trigger is a rename in the list.
