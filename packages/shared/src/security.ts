@@ -277,8 +277,24 @@ export const SECTOR_LABELS: Record<Sector, string> = {
  * was refused because no request produces a 415, and `SERVICE_UNAVAILABLE` was
  * designed and left unadded until the story that can return it. A member with
  * no producer means "this has never happened", which is indistinguishable in
- * the data from "this cannot happen". **Its producer is Story 2.7**, which
- * carries it in its own scope rather than only being named here.
+ * the data from "this cannot happen". ~~**Its producer is Story 2.7**, which
+ * carries it in its own scope rather than only being named here.~~
+ *
+ * **Amended 2026-09-07 by Task 2.7.8: the producer looked, and this vendor
+ * cannot produce the member honestly — so the vocabulary stays at two members
+ * and the owner moves.** Alpaca's assets endpoint has a `status`, and it means
+ * *"we will not trade this"* — a fact about the **vendor**, which is a third
+ * kind of thing beside the two this comment already separates. Measured against
+ * the tape, **4 of 50 symbols it marks inactive were still printing bars**, so
+ * importing it would be wrong once in twelve, in the direction that reports a
+ * live security as gone. It also carries **no delisting date**, so the member
+ * could never answer *when* — which is exactly what Epic 13's replay needs.
+ *
+ * **The new owner is Story 2.8's ingestion**, where bars stopping is a
+ * better-correlated signal that costs no request and arrives as a consequence
+ * of work that story is doing anyway. `UNIVERSE.md` §15 is the record, and the
+ * struck sentence is kept because it was correct when written — the deferral
+ * had an owner, and the owner answered.
  *
  * A single collapsed `inactive` member is rejected outright: it is cheaper than
  * either and it destroys the distinction permanently, because a symbol we
