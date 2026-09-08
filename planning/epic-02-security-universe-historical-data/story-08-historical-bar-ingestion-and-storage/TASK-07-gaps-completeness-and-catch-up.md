@@ -1,6 +1,6 @@
 # Task 2.8.7 — Four reasons a bar is missing, and telling them apart
 
-**Status:** Not started
+**Status:** Complete (2026-09-08)
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
 **Depends on:** Task 2.8.6
 
@@ -417,3 +417,169 @@ above predicted most constituents would be thin; at universe scale the mean is *
 security-session** (188,726 ÷ 518 on a full regular session). So _fetched and thin_ is not an
 edge case to allow for — **it is the normal state of roughly 93% of the universe**, and a report
 that leads with a completeness percentage against 390 leads with a number that is never 100.
+
+---
+
+## What shipped, 2026-09-08
+
+Six new files, four amended, **no dependency and no lockfile change**. The full record — the
+measurements, the corrections and the demonstrations — is `BARS.md` §7; what follows is the
+inventory and then the stakeholder report.
+
+| File                                | What it is                                                          |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| `migrations/0006_bar_attempts.sql`  | The attempt log: nine-member vocabulary, sparse, cleared on success |
+| `src/bar-attempts.ts`               | Its vocabulary, its two classifiers and its repository              |
+| `src/bar-completeness.ts`           | `compareStoreToCalendar` — pure, both sides as parameters           |
+| `src/check-bars.ts`                 | `pnpm bars:check`: the reading and every sentence a person reads    |
+| `scripts/check-bars.mjs`            | The wrapper — a name, a built-output guard, the exit code           |
+| `src/bar-attempts.database.test.ts` | The four causes, one at a time, **from a real database**            |
+
+`backfill.ts` writes the log and clears it; `market-bars.ts` gained `readLastBarDates`;
+`schema.ts` gained `BarAttemptsTable`; `package.json` gained one script.
+
+`pnpm verify` is exit 0 with no database. `pnpm test` is **861** (206 + 472 + 183),
+`pnpm test:database` **141 across 6 files**, `pnpm test:process` 14.
+
+### The Work list, item by item
+
+- **The attempt log** — shipped, with the vocabulary/constraint pair closed in a database test
+  that parses the constraint **Postgres rewrote** rather than matching the migration's text.
+- **The backfill writes it and clears it** — and the writes are queued and flushed once per
+  request, because a round trip per symbol would put 518 of them inside a loop that already
+  spends fifty seconds on the vendor.
+- **`compareStoreToCalendar`** — pure, tested against synthetic stores holding holidays, half
+  days, thin sessions, failures and a series behind the rest.
+- **The report command** — `pnpm universe:check`'s four properties, each stated in the file.
+- **Catch-up** — **already existed** (Task 2.8.6's forward walk). What this task owed was the
+  **home**, and the answer is that neither runs automatically in V1. See `BARS.md` §7.6.
+- **The `delisted` signal** — reported and never written, with the overwrite problem stated in
+  the report's own output.
+- **Deliberate breaks** — four, each seen to fail and reverted: a hard-coded 390 (2 tests red,
+  including the half day, once the fixture was made independent of the function under test); a
+  failure that leaves no trace (1 red); a report whose exit code changes on a finding (4 red);
+  and the thin-regular-session sibling, which is asserted as _fetched and thin_ rather than as 46
+  gaps.
+
+### The one thing to read before extending this
+
+**The `delisted` proxy produced a false positive on the day it was written**, and the fix is a
+third value rather than a better threshold. It reads **daily** bars because the same query over
+minute bars is a full table scan (192 ms over 863k rows here, ~11 s extrapolated to a year of the
+universe) — but a store with minute bars and no daily backfill has no daily row for anything, so
+"no daily bar" meant _we never asked_ and it reported **AMD and MSFT as delisted** while they held
+3,900 and 3,120 minute bars. `lastBarAt` is now `Date | null | absent`, and the report **prints
+its own blind spot** rather than staying silent, because a reader who sees no findings would
+otherwise conclude that nothing has stopped printing.
+
+---
+
+## For the stakeholders — what this actually does, in plain English
+
+### The problem, in one sentence
+
+Until today, if MarketPulse had no price data for a particular stock on a particular day, the
+database gave exactly the same answer for four completely different reasons — and we had no way
+to tell which one it was.
+
+### Why that matters more than it sounds
+
+Those four reasons are:
+
+1. **The market was shut.** Christmas Day, a Saturday, the afternoon of Christmas Eve.
+2. **Nobody traded that stock in that minute.** Perfectly normal — most companies do not trade
+   in every single minute of the day.
+3. **Our download failed.** The vendor was busy, or our key was wrong, or the connection dropped.
+4. **We never asked.** The download was interrupted, or the stock was added to our list
+   afterwards.
+
+Reasons 1 and 2 are the market behaving normally. Reasons 3 and 4 are **us being broken**. And in
+the database all four looked identical: nothing there.
+
+That is not a cosmetic problem, and here is the concrete harm. Later in the roadmap, MarketPulse
+flags "unusual" trading by comparing today's volume against a typical day's. If a day's data is
+missing because our download failed, the system reads it as _a day on which almost nothing
+traded_ — which is one of the most unusual things a stock can do. So it flags a false alarm, and
+attaches a confident-sounding explanation to it. **A confident wrong answer is the single worst
+thing this product can produce**, and it would have originated here, in a piece of plumbing, five
+epics before anyone noticed.
+
+### What we built
+
+Two things.
+
+**A logbook.** Whenever the system tries to download a day's prices and comes back with nothing,
+it writes down what happened — and crucially, _whether the vendor said "there were no trades" or
+whether the download failed_. If a later download succeeds, the note is torn up, so the logbook
+only ever holds things that are still true. When everything is working it is completely empty.
+
+**A report.** A new command, `pnpm bars:check`, that reads the store and says in plain terms what
+we hold, what we do not, and why. It changes nothing — it cannot, by construction — so it is safe
+to run at any time against any environment, including live.
+
+### The judgement call we are most pleased with
+
+The obvious way to build this report is to say: a normal trading day has 390 minutes, so count
+the minutes we hold and report the shortfall as a gap.
+
+**That would have been wrong on almost every day of the year.** We measured it against the real
+market: on an ordinary full session, only 8 of 28 large US companies actually traded in all 390
+minutes. The typical figure is 364. So a report built that way would announce that our data was
+permanently 7% broken, every single day, forever — and the entirely predictable result is that
+people stop reading it, and then miss the day it is telling the truth.
+
+So the report keeps two numbers apart and gives them two different names:
+
+- **Completeness** — did we ask for this day at all? This is the one that means something is
+  wrong with _us_.
+- **Density** — of the minutes in the days we did fetch, how many had trades? This is a fact
+  about how heavily a stock trades, not about our software.
+
+Same distinction applies to the shortened trading days. There are eleven a year that close at
+1pm and hold 210 minutes rather than 390. Naive software reports 180 missing minutes on each of
+them. Ours asks the trading calendar what that particular day _should_ hold, so it reports
+nothing at all — verified live against the day after Thanksgiving.
+
+### We caught one of our own mistakes with it
+
+The report also tries to answer "has this company stopped trading altogether?" — which is how
+you spot a delisting without paying a data vendor for the privilege.
+
+On the first live run it confidently reported **two perfectly healthy companies as delisted**. The
+cause was a shortcut: that check reads the cheap daily price data, and our test store had only
+ever downloaded the expensive minute-by-minute data, so "no daily prices" was being read as "no
+trading" when it actually meant "we never downloaded that".
+
+We fixed it, and the more valuable part of the fix is that the report now **states its own blind
+spot out loud** when it cannot answer that question, rather than staying quiet. A reader who sees
+no warnings should be able to trust that there is nothing to warn about — a silent check that
+cannot see anything looks exactly like a check that found nothing wrong.
+
+### What we deliberately did not do
+
+The report can see that a company has stopped trading. It does **not** update that company's
+record to say so. That is not laziness — we tried the alternative and it silently undid itself:
+our tracked-company list is reloaded from a file on every deployment, so anything written by
+another part of the system is quietly overwritten within hours. So the report tells a person, and
+the person edits the list. The instrument says _whether_; a human decides _what to do_.
+
+We also decided **not** to schedule the top-up download automatically. It costs real money per
+request against our data vendor, and putting it inside a deployment would mean a deploy could fail
+because a third party was having a bad afternoon. In V1 a person runs it before a demonstration —
+and this report is how they find out whether they needed to. We have written down the cost of that
+choice honestly: an unscheduled top-up is what lets the data go quietly stale, and the store
+records _when what we hold last changed_ so that staleness is at least visible rather than
+invisible.
+
+### Where this leaves the product
+
+Nothing new is on screen today. What is now true is that **the historical price data underneath
+the product can be trusted, and where it cannot, it says so.** That is the last piece of
+groundwork before the next task turns it into something you can look at: a page showing how much
+history MarketPulse holds for each of the 518 companies it tracks.
+
+It is also the quiet precondition for the headline features. The anomaly detection in Epic 5 is
+only as honest as the data underneath it, and the market replay in Epic 13 — reconstructing what
+was knowable at 11:07 on a particular morning — is only meaningful if we can say with confidence
+that a gap in the record is a gap in the _market_ rather than a gap in our _downloading_. As of
+today, we can.

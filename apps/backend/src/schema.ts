@@ -65,6 +65,8 @@ import type {
   Timeframe,
 } from "@marketpulse/shared";
 
+import type { BarAttemptOutcome } from "./bar-attempts.js";
+
 /**
  * `securities` — the tracked universe. See `../migrations/0002_securities.sql`,
  * which is the source of truth this mirrors.
@@ -407,6 +409,68 @@ export interface BarCoverageTable {
 }
 
 /**
+ * `bar_attempts` — what happened on a session that left no bars (Task 2.8.7).
+ *
+ * The third and last table in this story, and the one that makes acceptance
+ * criterion 4 answerable. `market_bars` is the data, {@link BarCoverageTable} is
+ * how far it reaches, and this is what happened on a particular session that is
+ * inside that reach and holds nothing — which without it is indistinguishable
+ * from a session nobody ever asked about.
+ *
+ * **Sparse by construction.** A session that stored bars has no row here, and a
+ * later success deletes any row that was here. When everything is well this
+ * table is empty.
+ */
+export interface BarAttemptsTable {
+  /** `bigint generated always as identity`. {@link SecuritiesTable.id}'s reasoning. */
+  id: GeneratedAlways<string>;
+
+  /** `securities.id`. `string` because it is a `bigint`. */
+  security_id: string;
+
+  /** The union rather than `string`, backed by `bar_attempts_timeframe_check`. */
+  timeframe: Timeframe;
+
+  /**
+   * The market date, as a label rather than as an instant.
+   *
+   * `string` and never `Date`, and the migration explains why at length: `pg`
+   * hands a Postgres `date` back as a `Date` at local midnight, so a row written
+   * as 2026-09-03 reads back as 2026-09-02 in any process east of UTC — the
+   * same silent reinterpretation §2 forbids a naive `timestamp` for.
+   *
+   * It is a plain `string` here rather than `MarketDate` for the reason
+   * {@link SecuritiesTable} keeps `symbol` a plain `string`: a brand asserts a
+   * check happened, and a value that arrived from a database has been checked by
+   * nothing in this process. `bar-attempts.ts` re-validates it through
+   * `toMarketDate` on the way out.
+   */
+  session_date: string;
+
+  /**
+   * The union rather than `string`, backed by `bar_attempts_outcome_check`.
+   *
+   * Nine members: `BarsResult`'s eight, where `ok` means *answered and left no
+   * bars*, plus `coverage-gap`, which is our own refusal rather than a vendor
+   * outcome.
+   */
+  outcome: BarAttemptOutcome;
+
+  /** A short human note. Nullable, and never parsed by anything. */
+  detail: ColumnType<string | null, string | null, string | null>;
+
+  /** When we first recorded an attempt at this session. Update is `never`. */
+  recorded_at: ColumnType<Date, Date | undefined, never>;
+
+  /**
+   * When the outcome last changed. Maintained by the writer with the
+   * `is distinct from` idiom, so a re-run that fails the same way twice leaves
+   * this table byte-identical.
+   */
+  updated_at: Generated<Date>;
+}
+
+/**
  * Every table, by the name Postgres knows it by.
  *
  * `snake_case` keys because these are the database's identifiers rather than
@@ -417,4 +481,5 @@ export interface Database {
   securities: SecuritiesTable;
   market_bars: MarketBarsTable;
   bar_coverage: BarCoverageTable;
+  bar_attempts: BarAttemptsTable;
 }

@@ -5,7 +5,7 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all **816** fast tests passed, and
+files still agree with the configuration table, all **861** fast tests passed, and
 the 14-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
@@ -58,7 +58,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of **816** fast tests plus a 14-test process suite, with
+and a test suite of **861** fast tests plus a 14-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -564,7 +564,7 @@ Run from the repository root:
 | `pnpm stories`        | Fails if a component has no stories file                                  |
 | `pnpm env:check`      | Fails if `.env.example` and the configuration module disagree             |
 | `pnpm links`          | Fails if a relative Markdown link points at nothing — see below           |
-| `pnpm test`           | Every package's tests — 816 across the workspace — see below              |
+| `pnpm test`           | Every package's tests — 861 across the workspace — see below              |
 | `pnpm test:process`   | The backend's process half — 14 tests that spawn a real server            |
 | `pnpm coverage`       | The same tests with coverage — three reports, on demand — see below       |
 | `pnpm dev`            | Every package's `dev`, in parallel — see below                            |
@@ -574,6 +574,7 @@ Run from the repository root:
 | `pnpm universe:check` | Compares that list against Alpaca's catalogue; writes nothing — see below |
 | `pnpm bars`           | Fetches one symbol's bars from Alpaca and prints them — see below         |
 | `pnpm backfill`       | Fetches historical bars and **stores** them, resumably — see below        |
+| `pnpm bars:check`     | What the store holds, what it does not, and why; writes nothing — below   |
 | `pnpm ready`          | Is the development pair actually up? Not part of `verify` — see below     |
 | `pnpm image`          | Builds the backend's `linux/amd64` container image — see below            |
 | `pnpm e2e`            | The browser suite, against a pair you started — see below                 |
@@ -667,7 +668,7 @@ the same second half for the same reason.
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
 in this workspace. `packages/shared` runs 206 tests across 14 files,
-`apps/backend` 427 across 22, and `apps/frontend` 183 across 20 — **816 in
+`apps/backend` 472 across 25, and `apps/frontend` 183 across 20 — **861 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -730,7 +731,7 @@ answer.
 
 Three things about it worth knowing before changing it.
 
-**It is a separate command because it is a separate cost.** `pnpm test` is 816
+**It is a separate command because it is a separate cost.** `pnpm test` is 861
 tests in a few seconds, needs no build and no socket, and is the one you run all
 day; this suite takes about 9.2 s, of which 5 s is the shutdown ceiling being
 what it says it is. Both are steps in `pnpm verify`, so both gate.
@@ -800,7 +801,7 @@ pnpm coverage                                   # all three packages
 pnpm --filter @marketpulse/backend coverage     # one of them
 ```
 
-It is the same 816 tests with `--coverage` added, fanning out through
+It is the same 861 tests with `--coverage` added, fanning out through
 `pnpm -r` exactly as `pnpm test` does, so there are **three reports and no
 merged one** — each package answers for its own sources. It is deliberately
 not part of `pnpm test` and not a `pnpm verify` step of its own: nothing gates
@@ -1416,6 +1417,54 @@ series is asked for at read time instead.
 Like `pnpm bars` it needs an Alpaca key and is **not** part of `pnpm verify`,
 and more firmly: this one makes metered requests _and_ writes to a database.
 
+### `pnpm bars:check` — what the store holds, and what it does not
+
+```sh
+pnpm bars:check
+pnpm bars:check --timeframe 1d
+pnpm bars:check --symbols NVDA,AMD --from 2026-09-01 --to 2026-09-05
+```
+
+Reads the store and **changes nothing**, which is `pnpm universe:check`'s shape
+and for its reasons. It is the instrument acceptance criterion 4 needs: a market
+holiday, a half day and a genuinely untraded minute must each be distinguishable
+from a **failed fetch**, and in the database all four look the same — no rows.
+
+```text
+  1m bars, 2026-09-01 → 2026-09-04, 1 series
+
+  sessions   1/1 series hold every session in the window
+  density    1419 bars held of 1560 the sessions could hold  (91.0%)
+
+  ○ 1 sessions attempted that left no bars:
+      AME     2026-08-31  unauthorised
+```
+
+**Two numbers with two names, and merging them is the trap.** _Sessions_ is
+**completeness** — did we ask for this day at all? — and it is the only figure
+that means something is wrong with us. _Density_ is **liquidity**: measured
+against the live feed, only 8 of 28 large constituents traded in all 390 minutes
+of an ordinary session, at a universe-wide mean of 364.3. A report that led with
+a completeness percentage against 390 would lead with a number that is never
+100, and would announce that the store was permanently ~7% broken.
+
+The same applies to the eleven short sessions a year that close at 13:00 ET and
+hold **210** bars. Nothing here writes 390 or 210 down — it asks
+`marketSessionOn(date).minuteBars`, so a half day is complete at 210 rather than
+180 minutes short.
+
+**A finding never changes the exit code.** The exit code answers _did the check
+run_, never _did it find something_, which is `/diagnostics/database`'s rule —
+and it is what stops somebody wiring this into CI, where it would go red on a
+thin security having a quiet Tuesday. It is not and never can be a `pnpm verify`
+step, because `verify` runs with no database.
+
+**With no range the window is the ledger's own span**, so a series reported as
+_behind_ is behind the rest of the universe rather than behind an arbitrary date.
+
+It needs a database and a built tree, and unlike `pnpm bars` and `pnpm backfill`
+it needs **no Alpaca key and makes no request**.
+
 ### `pnpm test:database` — the sixth level of test
 
 ```sh
@@ -1424,7 +1473,7 @@ pnpm build         # and a built tree
 pnpm test:database
 ```
 
-**128 tests against a real PostgreSQL server**, in a couple of seconds. It is the
+**141 tests against a real PostgreSQL server**, in a couple of seconds. It is the
 sixth level of test in this repository and the third command that runs tests,
 after `pnpm test` and `pnpm test:process`, and it exists because four things
 this repository claims are only answerable by a database: that a migration

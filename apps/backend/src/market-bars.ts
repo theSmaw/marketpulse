@@ -426,6 +426,23 @@ export interface MarketBarsRepository {
    * prevent.
    */
   listCoverage(): Promise<readonly BarCoverage[]>;
+
+  /**
+   * The newest bar we hold for each security at one timeframe.
+   *
+   * **Read at the DAILY timeframe even when reporting on minute bars**, and that
+   * is a cost decision rather than an approximation: a
+   * `max(observed_at) group by security_id` over daily bars is ~130,000 rows for
+   * a year of the tracked universe and finishes in milliseconds, where the same
+   * query over minute bars is fifty million. Both answer the same question —
+   * whether this security is still printing at all — which is Task 2.7.8's
+   * `delisted` signal, moved here on the measurement that bars stopping
+   * correlates with reality at 100% against the vendor's own flag at 92%.
+   *
+   * Keyed by symbol, and a security holding no bars is simply absent rather than
+   * present with a null.
+   */
+  readLastBarDates(timeframe: Timeframe): Promise<ReadonlyMap<Ticker, Date>>;
 }
 
 interface CoverageRow {
@@ -638,6 +655,25 @@ export function createMarketBarsRepository(
     },
 
     readCoverage: coverageFor,
+
+    async readLastBarDates(timeframe) {
+      const rows = await db
+        .selectFrom("market_bars")
+        .innerJoin("securities", "securities.id", "market_bars.security_id")
+        .select(({ fn }) => [
+          "securities.symbol",
+          fn.max("market_bars.observed_at").as("last_observed_at"),
+        ])
+        .where("market_bars.timeframe", "=", timeframe)
+        .groupBy("securities.symbol")
+        .execute();
+
+      return new Map(
+        rows.map(
+          (row) => [toTicker(row.symbol), row.last_observed_at] as const,
+        ),
+      );
+    },
 
     async listCoverage() {
       const rows = await db

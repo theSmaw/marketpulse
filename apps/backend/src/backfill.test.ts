@@ -37,6 +37,10 @@ import {
   SESSIONS_PER_REQUEST,
   type BackfillDependencies,
 } from "./backfill.js";
+import type {
+  BarAttemptRecord,
+  BarAttemptsRepository,
+} from "./bar-attempts.js";
 import {
   CoverageGapError,
   type BarCoverage,
@@ -112,6 +116,13 @@ function seriesFor(
 interface Recorded {
   readonly requests: ManyBarsRequest[];
   readonly written: BarSeries[];
+  /** Every attempt the run asked to be logged, in order. */
+  readonly attempts: BarAttemptRecord[];
+  /** Every `(symbols, sessions)` pair the run asked to be forgotten. */
+  readonly cleared: {
+    symbols: readonly Ticker[];
+    sessionDates: readonly string[];
+  }[];
 }
 
 /**
@@ -127,8 +138,14 @@ function harness(
   readonly recorded: Recorded;
   readonly provider: MarketDataProvider;
   readonly bars: MarketBarsRepository;
+  readonly attempts: BarAttemptsRepository;
 } {
-  const recorded: Recorded = { requests: [], written: [] };
+  const recorded: Recorded = {
+    requests: [],
+    written: [],
+    attempts: [],
+    cleared: [],
+  };
 
   const provider: MarketDataProvider = {
     id: "alpaca",
@@ -167,9 +184,22 @@ function harness(
     readBars: () => Promise.resolve([]),
     readCoverage: () => Promise.resolve(undefined),
     listCoverage: () => Promise.resolve([]),
+    readLastBarDates: () => Promise.resolve(new Map()),
   };
 
-  return { recorded, provider, bars };
+  const attempts: BarAttemptsRepository = {
+    recordAttempts: (entries) => {
+      recorded.attempts.push(...entries);
+      return Promise.resolve(entries.length);
+    },
+    clearAttempts: (symbols, _timeframe, sessionDates) => {
+      recorded.cleared.push({ symbols, sessionDates });
+      return Promise.resolve(0);
+    },
+    listAttempts: () => Promise.resolve([]),
+  };
+
+  return { recorded, provider, bars, attempts };
 }
 
 function coverageOf(symbol: Ticker, covered: TimeRange): BarCoverage {
@@ -186,6 +216,7 @@ function dependencies(
   overrides: Partial<BackfillDependencies> & {
     provider: MarketDataProvider;
     bars: MarketBarsRepository;
+    attempts: BarAttemptsRepository;
   },
 ): BackfillDependencies {
   return {
@@ -305,9 +336,9 @@ describe("planRequests", () => {
 
 describe("runBackfill", () => {
   it("asks for exactly one session per minute-bar request", async () => {
-    const { recorded, provider, bars } = harness();
+    const { recorded, provider, bars, attempts } = harness();
 
-    await runBackfill(dependencies({ provider, bars }));
+    await runBackfill(dependencies({ provider, bars, attempts }));
 
     expect(recorded.requests).toHaveLength(WEEK.length);
     for (const request of recorded.requests) {
@@ -324,10 +355,16 @@ describe("runBackfill", () => {
   });
 
   it("frames a daily request on midnight ET rather than on the session", async () => {
-    const { recorded, provider, bars } = harness();
+    const { recorded, provider, bars, attempts } = harness();
 
     await runBackfill(
-      dependencies({ provider, bars, timeframe: "1d", sessions: WEEK }),
+      dependencies({
+        provider,
+        bars,
+        attempts,
+        timeframe: "1d",
+        sessions: WEEK,
+      }),
     );
 
     const [request] = recorded.requests;
@@ -338,9 +375,9 @@ describe("runBackfill", () => {
   });
 
   it("stores raw and never asks for an adjustment", async () => {
-    const { recorded, provider, bars } = harness();
+    const { recorded, provider, bars, attempts } = harness();
 
-    await runBackfill(dependencies({ provider, bars }));
+    await runBackfill(dependencies({ provider, bars, attempts }));
 
     for (const request of recorded.requests) {
       expect(request.adjustment).toBe("raw");
@@ -348,12 +385,13 @@ describe("runBackfill", () => {
   });
 
   it("fetches nothing when the ledger already holds every session asked for", async () => {
-    const { recorded, provider, bars } = harness();
+    const { recorded, provider, bars, attempts } = harness();
 
     const report = await runBackfill(
       dependencies({
         provider,
         bars,
+        attempts,
         coverage: new Map([
           [NVDA, coverageOf(NVDA, toTimeRange(WEEK[0].open, WEEK[4].close))],
         ]),
@@ -367,11 +405,13 @@ describe("runBackfill", () => {
   });
 
   it("stops the whole run on a batch failure and names it", async () => {
-    const { recorded, provider, bars } = harness({
+    const { recorded, provider, bars, attempts } = harness({
       answer: () => ({ outcome: "rate-limited" }),
     });
 
-    const report = await runBackfill(dependencies({ provider, bars }));
+    const report = await runBackfill(
+      dependencies({ provider, bars, attempts }),
+    );
 
     // Success is per symbol; failure is per batch. The pages that never
     // arrived held symbols we cannot name, so there is nothing to continue to.
@@ -382,7 +422,7 @@ describe("runBackfill", () => {
   });
 
   it("blocks one symbol on a coverage gap and carries on with the rest", async () => {
-    const { recorded, provider, bars } = harness({
+    const { recorded, provider, bars, attempts } = harness({
       onWrite: (series) => {
         if (series.symbol === AMD) {
           throw new CoverageGapError(
@@ -397,7 +437,7 @@ describe("runBackfill", () => {
     });
 
     const report = await runBackfill(
-      dependencies({ provider, bars, symbols: [NVDA, AMD] }),
+      dependencies({ provider, bars, attempts, symbols: [NVDA, AMD] }),
     );
 
     expect(report.stoppedBy).toBe("completed");
@@ -415,7 +455,7 @@ describe("runBackfill", () => {
   });
 
   it("stops when every symbol has been blocked", async () => {
-    const { provider, bars } = harness({
+    const { provider, bars, attempts } = harness({
       onWrite: (series) => {
         throw new CoverageGapError(
           series.symbol,
@@ -427,21 +467,25 @@ describe("runBackfill", () => {
       },
     });
 
-    const report = await runBackfill(dependencies({ provider, bars }));
+    const report = await runBackfill(
+      dependencies({ provider, bars, attempts }),
+    );
 
     expect(report.stoppedBy).toBe("failed");
     expect(report.failedWith).toBe("every symbol is blocked");
   });
 
   it("counts an empty answer without moving the ledger", async () => {
-    const { recorded, provider, bars } = harness({
+    const { recorded, provider, bars, attempts } = harness({
       answer: (symbol, request) => ({
         outcome: "ok",
         series: seriesFor(symbol, request.range, []),
       }),
     });
 
-    const report = await runBackfill(dependencies({ provider, bars }));
+    const report = await runBackfill(
+      dependencies({ provider, bars, attempts }),
+    );
 
     expect(report.emptyAnswers).toBe(WEEK.length);
     expect(recorded.written).toEqual([]);
@@ -449,25 +493,26 @@ describe("runBackfill", () => {
   });
 
   it("re-throws an error that is not a coverage gap", async () => {
-    const { provider, bars } = harness({
+    const { provider, bars, attempts } = harness({
       onWrite: () => {
         throw new Error("the database is on fire");
       },
     });
 
-    await expect(runBackfill(dependencies({ provider, bars }))).rejects.toThrow(
-      "the database is on fire",
-    );
+    await expect(
+      runBackfill(dependencies({ provider, bars, attempts })),
+    ).rejects.toThrow("the database is on fire");
   });
 
   it("finishes the request in flight when asked to stop, and no more", async () => {
-    const { recorded, provider, bars } = harness();
+    const { recorded, provider, bars, attempts } = harness();
     let stop = false;
 
     const report = await runBackfill(
       dependencies({
         provider,
         bars,
+        attempts,
         report: () => {
           stop = true;
         },
@@ -485,7 +530,7 @@ describe("runBackfill", () => {
 
 describe("the pacer", () => {
   it("waits out the remainder of a token when a request was quicker", async () => {
-    const { provider, bars } = harness();
+    const { provider, bars, attempts } = harness();
     const slept: number[] = [];
     let clock = 0;
 
@@ -493,6 +538,7 @@ describe("the pacer", () => {
       dependencies({
         provider,
         bars,
+        attempts,
         // Each request takes 100 ms of a 350 ms floor.
         now: () => {
           clock += 100;
@@ -516,7 +562,7 @@ describe("the pacer", () => {
   });
 
   it("costs nothing when a request already took longer than the floor", async () => {
-    const { provider, bars } = harness();
+    const { provider, bars, attempts } = harness();
     const slept: number[] = [];
     let clock = 0;
 
@@ -524,6 +570,7 @@ describe("the pacer", () => {
       dependencies({
         provider,
         bars,
+        attempts,
         now: () => {
           clock += 60_000;
           return clock;
@@ -639,5 +686,130 @@ describe("backfillCommand arguments", () => {
 
     expect(outcome.exitCode).toBe(1);
     expect(outcome.errors[0]).toContain("No Alpaca credential");
+  });
+});
+
+describe("runBackfill — the attempt log (Task 2.8.7)", () => {
+  it("records a successful EMPTY answer, which no other table can hold", () => {
+    // The correction Task 2.8.4 made to "failures only". An empty answer writes
+    // no bars *and* extends no ledger — `BarSeries` gives an empty series no
+    // `covered` window — so it is recorded in neither table, and at the frontier
+    // of a walk it reads as *never asked* when it was asked and was told nothing
+    // happened. Those are the two states criterion 4 exists to tell apart.
+    const { recorded, provider, bars, attempts } = harness({
+      answer: (symbol, request) => ({
+        outcome: "ok",
+        series: seriesFor(symbol, request.range, []),
+      }),
+    });
+
+    return runBackfill(dependencies({ provider, bars, attempts })).then(() => {
+      expect(recorded.attempts).toHaveLength(WEEK.length);
+      for (const entry of recorded.attempts) {
+        expect(entry.outcome).toBe("ok");
+        expect(entry.symbol).toBe(NVDA);
+      }
+      // Newest first, because a first run with an empty ledger is one backward
+      // walk from the most recent session asked for — which is what leaves an
+      // interrupted backfill holding contiguous *recent* history.
+      expect(recorded.attempts.map((entry) => entry.sessionDate)).toEqual(
+        [...WEEK].reverse().map((session) => session.date),
+      );
+    });
+  });
+
+  it("records NOTHING for an ordinary session that stored bars", async () => {
+    // Sparse by construction: this table is empty when everything is well.
+    const { recorded, provider, bars, attempts } = harness();
+
+    await runBackfill(dependencies({ provider, bars, attempts }));
+
+    expect(recorded.attempts).toEqual([]);
+  });
+
+  it("clears the log for every session it stored bars for", async () => {
+    // A later success clears it, and that is not tidiness: without it the log
+    // accumulates a permanent record of a transient failure and every report
+    // from then on reads worse than the store is.
+    const { recorded, provider, bars, attempts } = harness();
+
+    await runBackfill(dependencies({ provider, bars, attempts }));
+
+    expect(recorded.cleared).toHaveLength(WEEK.length);
+    expect(recorded.cleared.map((entry) => entry.sessionDates)).toEqual(
+      [...WEEK].reverse().map((session) => [session.date]),
+    );
+  });
+
+  it("records a per-symbol failure against every session in the request", async () => {
+    const { recorded, provider, bars, attempts } = harness({
+      // `unknown-symbol` and not `unauthorised`: the second is a whole-batch
+      // failure, because the pages that never arrived held symbols we cannot
+      // name — so it takes the other path entirely and is asserted below.
+      answer: (symbol, request) =>
+        symbol === AMD
+          ? { outcome: "unknown-symbol" }
+          : { outcome: "ok", series: seriesFor(symbol, request.range) },
+    });
+
+    await runBackfill(
+      dependencies({ provider, bars, attempts, symbols: [NVDA, AMD] }),
+    );
+
+    const failures = recorded.attempts.filter(
+      (entry) => entry.outcome === "unknown-symbol",
+    );
+    // Once, because the symbol is dropped from every subsequent request in the
+    // run rather than asked again.
+    expect(failures).toHaveLength(1);
+    expect(failures[0]?.symbol).toBe(AMD);
+  });
+
+  it("records a WHOLE-BATCH failure before it stops, for every active symbol", async () => {
+    // The case that is loudest right now and completely silent the moment the
+    // process exits: the sessions it did not fetch become indistinguishable in
+    // the database from sessions nobody ever asked about.
+    const { recorded, provider, bars, attempts } = harness({
+      answer: () => ({ outcome: "upstream-unavailable" }),
+    });
+
+    const report = await runBackfill(
+      dependencies({ provider, bars, attempts, symbols: [NVDA, AMD] }),
+    );
+
+    expect(report.stoppedBy).toBe("failed");
+    expect(recorded.attempts).toHaveLength(2);
+    expect(recorded.attempts.map((entry) => entry.symbol).sort()).toEqual(
+      [AMD, NVDA].sort(),
+    );
+    for (const entry of recorded.attempts) {
+      expect(entry.outcome).toBe("upstream-unavailable");
+    }
+  });
+
+  it("records a coverage gap with the sessions it named", async () => {
+    // Task 2.8.6's blocked set, which lives in memory and dies with the process
+    // while the symbol stays permanently behind the rest of the universe.
+    const { recorded, provider, bars, attempts } = harness({
+      onWrite: (series) => {
+        if (series.symbol === NVDA) {
+          throw new CoverageGapError(
+            NVDA,
+            "1m",
+            toTimeRange(WEEK[0].open, WEEK[0].close),
+            toTimeRange(WEEK[3].open, WEEK[3].close),
+            ["2026-03-03", "2026-03-04"],
+          );
+        }
+      },
+    });
+
+    await runBackfill(dependencies({ provider, bars, attempts }));
+
+    expect(recorded.attempts[0]).toMatchObject({
+      symbol: NVDA,
+      outcome: "coverage-gap",
+      detail: "missing 2026-03-03, 2026-03-04",
+    });
   });
 });
