@@ -153,8 +153,12 @@ for a group of fields — which is invariant 5's _retrieval_ timestamp with **no
 event timestamp beside it, because there is no event**: a security's sector is
 not a fact about the market at an instant, and there is no moment at which "AAPL
 is in technology" became true the way a price became true. So `securities` still
-has no `observed_at`, and `market_bars` in Story 2.8 remains the first table that
-exercises the pair.
+has no `observed_at`, and ~~`market_bars` in Story 2.8 remains the first table
+that exercises the pair~~ — **`market_bars` arrived at Task 2.8.3 and does, so
+the pair is no longer hypothetical.** Its `observed_at` is when the bar's
+interval _begins in the market_ and carries **no default**, which is the half a
+database can check; that a writer put the right value in it is the half nothing
+can, and is why this section exists.
 
 It is not `recorded_at` either, and the difference is real rather than pedantic:
 `recorded_at` is when we wrote the **row**, and a row can be rewritten from
@@ -661,6 +665,10 @@ database-backed test**, after it has.
 | `schema.ts` and the real schema agree, column for column         | `pnpm test:database`, in **both** directions — and the compiler covers a third                                  |
 | A closed set's union and its `check` constraint agree            | `pnpm test:database`, parsing the constraint Postgres **rewrote**                                               |
 | An applied migration's file has not been edited since            | the runner's checksum pass, in **every** environment — the only one of these that holds where no test runs      |
+| Every money column is `numeric(18, 6)`, and a count is `bigint`  | `pnpm test:database` — a real check since Task 2.8.3, with the non-vacuity guard kept                           |
+| A foreign key is `<referenced_table_singularised>_id`            | `pnpm test:database`, on `market_bars` — the first table in this schema with one                                |
+| `observed_at` has **no default**, on every table that has one    | `pnpm test:database` — the structural half of invariant 4's leak                                                |
+| No index exists that nothing asked for                           | `pnpm test:database`, on `market_bars` only, where an index costs ~50.5M rows a year                            |
 
 **The three-hop arrangement behind the last two rows is worth understanding
 before adding a table**, because it is what makes a hand-written type safe
@@ -684,36 +692,47 @@ from `information_schema.columns.is_nullable`, which is stable across majors.
 
 ### Prose
 
-Everything in sections 1 to 7 above **except the rows Task 2.2.5 moved into the
-checked list**. Of the five conventions this document originally handed forward,
-four are now checked and **one is not, for a reason worth stating rather than
-hiding**: "every price column is `numeric(18, 6)`" is **untested, because the
-schema has no money column**. `securities` holds none, so a check would pass by
-having nothing to look at — a green result that certifies nothing, and
-indistinguishable from one that certifies something.
+Everything in sections 1 to 7 above **except the rows moved into the checked
+list** — four by Task 2.2.5 and four more by Task 2.8.3, when `market_bars`
+arrived and made three of them reachable for the first time.
 
-What stands in for it is a **tripwire**: the suite asserts there are **no**
-`numeric` columns at all, so it fails the moment one arrives — `market_bars` in
-Story 2.8 — with a message telling whoever added it to replace the tripwire with
-the real check and update these two lists. A rule that cannot yet be enforced is
-recorded as failing-open rather than as quietly passing.
+**The money rule was the one recorded as failing-open, and it has now closed.**
+From Task 2.2.5 until Story 2.8 "every price column is `numeric(18, 6)`" was
+untested, because the schema had no money column: `securities` holds none, so
+the check would have passed by having nothing to look at — a green result that
+certifies nothing, and indistinguishable from one that certifies something. What
+stood in for it was a **tripwire** asserting there were **zero** `numeric`
+columns anywhere, which failed the moment one arrived. `market_bars` fired it,
+Task 2.8.3 replaced it with the real rule, and **the non-vacuity guard was
+kept**: the check now fails if it finds no `numeric` column to look at, so the
+schema cannot quietly return to the state the tripwire existed to catch. It also
+checks the half a sweep for `numeric` structurally cannot see — that `volume` is
+a `bigint`, because a `numeric(18, 6)` count would satisfy every other assertion
+and be wrong.
 
-**And the foreign-key naming rule is STILL UNTESTED after the story most likely to
-have exercised it.** Task 2.2.4 recorded `<referenced_table_singularised>_id` as
-untested because `securities` has no foreign key, and Story 2.3 looked like the
-story that would add one. It did not, and both candidates were closed
-deliberately rather than by accident: the sector-to-ETF mapping went to
-`packages/shared` as a `Record` total over the taxonomy rather than becoming a
-`sectors` table, and a separate `security_field_provenance` table was rejected in
-favour of columns on the row. So `market_bars.security_id` in Story 2.8 inherits
-it. Recorded rather than left silent, because a convention that quietly survives
-the story that should have tested it is exactly this repository's third class of
-gap.
+**And the foreign-key naming rule is tested at last.** Task 2.2.4 recorded
+`<referenced_table_singularised>_id` as untested because `securities` has no
+foreign key; `0003` recorded that it had survived Story 2.3, which had looked
+like the story that would add one. `market_bars.security_id` is the first, and
+`market-bars.database.test.ts` asserts the column name, the reference target and
+— the part that is a decision rather than a spelling — that there is no
+`on delete` clause, so the database refuses a delete that would orphan bars
+rather than cascading it into unrecoverable data loss.
+
+**Two mechanical facts anyone extending these checks needs**, both produced by
+writing the check the obvious way first and watching it fail. A `bigint` reports
+`numeric_precision: 64` and `numeric_scale: 0` in `information_schema` — the
+_binary_ precision of the integer type — so those are not numeric-only fields
+and a check expecting `null` for anything that is not a `numeric` fails on every
+`bigint` in the table. And a `unique` constraint is **not** the same object as a
+bare index: it reads back from `pg_constraint` with `contype = 'u'` and a btree
+behind it, where a bare index is invisible there — which matters to the
+`on conflict` inference a write path uses.
 
 The rest are **not** reachable and are prose permanently: plural table names,
-snake case, the `security_id` foreign key spelling, `text` over `varchar(n)`, and
-— the two that matter most — that `observed_at` means _when it happened in the
-market_ and `recorded_at` means _when we wrote it_. A database can confirm both
+snake case, `text` over `varchar(n)`, and — the two that matter most — that
+`observed_at` means _when it happened in the market_ and `recorded_at` means
+_when we wrote it_. A database can confirm both
 columns are `timestamptz`; nothing can confirm a writer put the right value in the
 right one. That is what review is for, and it is why this document exists.
 

@@ -622,9 +622,13 @@ describe("the provenance columns", () => {
     // is no event timestamp beside it, because there is no instant at which
     // "AAPL is in technology" became true the way a price became true. A
     // defaulted `observed_at` here would be exactly the leak that convention
-    // forbids. `market_bars` in Story 2.8 is the first table that exercises the
-    // pair, and this assertion fails there — deliberately, so whoever adds it
-    // reads this comment.
+    // forbids.
+    //
+    // **It is scoped to `securities` and stays that way.** `market_bars` (Task
+    // 2.8.3) is the first table that carries the pair, and it carries it
+    // correctly — so this is not a schema-wide claim that no `observed_at`
+    // exists, it is this table answering the question §2 asks of every table.
+    // `market-bars.database.test.ts` is where the other answer is checked.
     const names = (await readColumns(db()))
       .filter((column) => column.table_name === "securities")
       .map((column) => column.column_name);
@@ -714,25 +718,51 @@ describe("the conventions in migrations/README.md that a database can check", ()
     }
   });
 
-  it("has no money column yet, so the numeric(18,6) rule is UNTESTED", async () => {
-    // Not a check — a **tripwire**, and the honest way to record a vacuous
-    // rule. `securities` holds no money, so "every price column is
-    // numeric(18, 6)" would pass against a schema containing no numbers at all,
-    // which is a green result that certifies nothing.
+  it("stores every money column as numeric(18, 6), and never as a float", async () => {
+    // **This replaced a tripwire, and the history is the point.** From Task
+    // 2.2.5 until Story 2.8 this assertion was its own opposite: it asserted
+    // there were ZERO `numeric` columns anywhere, with a message telling
+    // whoever added one to come here and write the real rule. `securities`
+    // holds no money, so "every price column is numeric(18, 6)" would have
+    // passed by having nothing to look at — a green result that certifies
+    // nothing, and indistinguishable from one that certifies something. A rule
+    // that cannot yet be enforced was recorded as failing-open rather than as
+    // quietly passing.
     //
-    // This assertion fails the moment a numeric column arrives, which is
-    // `market_bars` in Story 2.8. That failure is the point: it puts whoever
-    // adds it in this file, to replace this test with the real one rather than
-    // to discover months later that the rule was never enforced.
-    const numerics = (await projectColumns()).filter(
-      (column) => column.data_type === "numeric",
-    );
+    // `market_bars` fired it (Task 2.8.3), so this is now a real check, and it
+    // keeps the non-vacuity guard rather than dropping it: a schema-wide sweep
+    // that finds no numeric columns is exactly the blind-green state the
+    // tripwire existed to prevent, so finding none is a failure here too.
+    const columns = await projectColumns();
+    const numerics = columns.filter((column) => column.data_type === "numeric");
 
     expect(
-      numerics,
-      "A numeric column now exists, so the money rule is no longer vacuous: " +
-        "replace this tripwire with a real check that every price column is " +
-        "numeric(18, 6), and update migrations/README.md's two lists.",
-    ).toEqual([]);
+      numerics.length,
+      "no numeric column exists, so this check is vacuous again",
+    ).toBeGreaterThan(0);
+
+    for (const column of numerics) {
+      const where = `${column.table_name}.${column.column_name}`;
+      expect(column.numeric_precision, `${where} has no precision`).toBe(18);
+      expect(column.numeric_scale, `${where} has the wrong scale`).toBe(6);
+    }
+
+    // The other half of the rule, which a sweep for `numeric` structurally
+    // cannot see: a count is a `bigint` and never money. A `numeric(18, 6)`
+    // volume would satisfy every assertion above and be wrong.
+    const volumes = columns.filter(
+      (column) =>
+        column.column_name === "volume" ||
+        column.column_name.endsWith("_count"),
+    );
+    expect(volumes.length, "no count column exists to check").toBeGreaterThan(
+      0,
+    );
+    for (const column of volumes) {
+      expect(
+        column.data_type,
+        `${column.table_name}.${column.column_name} is a count and must be a bigint`,
+      ).toBe("bigint");
+    }
   });
 });
