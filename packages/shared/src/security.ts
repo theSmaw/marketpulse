@@ -339,9 +339,19 @@ interface SecurityBase {
    * an owner rather than building a mechanism against no instance** — produced,
    * not assumed: renaming a symbol in the universe file gives **two rows, two
    * ids and nothing joining them**, the old one correctly `untracked` with its
-   * history and the new one empty. **The owner is Story 2.7**, the first thing
-   * here with any opinion about a symbol's lifecycle. Until then a rename loses
-   * the link between the old bars and the new symbol. `UNIVERSE.md` §12.6.
+   * history and the new one empty. ~~**The owner is Story 2.7**, the first thing
+   * here with any opinion about a symbol's lifecycle.~~ **Answered 2026-09-07 by
+   * Task 2.7.8, and the answer is the fourth one: a rename orphans the old bars,
+   * and that is written down rather than mechanised.** The premise the other
+   * three rested on was falsified by measurement — Alpaca's assets endpoint does
+   * **not** carry an identifier that survives a rename, checked against six real
+   * ones and different in every case, so recording it would buy nothing. Of the
+   * three mechanisms a **rename map in the curated file** is re-ranked first,
+   * being the only one that does not depend on a vendor id that turns out not to
+   * exist; the trigger is a rename appearing in the list, of which there is none,
+   * and the deadline is **Story 2.8**, because after it backfills a rename costs
+   * a re-backfill. Until then a rename loses the link between the old bars and
+   * the new symbol. `UNIVERSE.md` §12.6 and §15.5.
    */
   symbol: Ticker;
 
@@ -358,6 +368,13 @@ interface SecurityBase {
    * here would be a vocabulary that story has to migrate rather than adopt —
    * the same reason Task 2.2.4 left `status` unconstrained for this story to
    * choose.
+   *
+   * **Confirmed 2026-09-07 by Task 2.7.8, and it stayed a plain `string`.**
+   * `pnpm universe:check` reads this field back from Alpaca's assets endpoint
+   * and compares it, which found a real defect on the day it was written —
+   * `WMT` carried `NYSE` where Walmart moved its listing to NASDAQ in December
+   * 2024. The vendor's spellings agree with ours, so nothing had to be
+   * migrated; had they not, a union here would have been the thing in the way.
    */
   exchange: string;
 
@@ -461,8 +478,12 @@ export function isEtf(security: Security): security is EtfSecurity {
  * this exists at all: the fields have genuinely different sources, so one
  * column would be a claim that is true of some of them.
  *
- * - **`profile`** — `symbol`, `name`, `exchange`. The curated file today;
- *   plausibly Alpaca's assets endpoint from Story 2.7.
+ * - **`profile`** — `symbol`, `name`, `exchange`. The curated file, ~~plausibly
+ *   Alpaca's assets endpoint from Story 2.7~~ — **and since Task 2.7.8 that
+ *   endpoint is what `pnpm universe:check` reconciles it against**, which is the
+ *   first time this split has produced two genuinely different dates: `profile`
+ *   was re-checked and `classification` was not, so moving both would have
+ *   claimed a hundred verifications that did not happen.
  * - **`classification`** — `sector`, `industry`. The curated file, and the
  *   group whose staleness is recorded as a gap: Alpaca carries neither, so
  *   there is nothing to reconcile it against.

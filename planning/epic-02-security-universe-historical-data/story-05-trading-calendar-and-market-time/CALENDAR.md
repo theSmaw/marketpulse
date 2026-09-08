@@ -243,11 +243,31 @@ an inherited requirement.
 
 ### 2.4 The reversal trigger
 
-**A feed with real extended-hours coverage** — SIP, i.e. a paid Alpaca tier — **or Epic 5
-finding that opening-gap anomalies are systematically unexplainable without it.** The second
-is the likelier one and it is a measurement Epic 5 can make. The change is a fourth session
-kind in the same table plus a wider bar count; it is not a redesign, which is what makes
-deferring it cheap.
+~~**A feed with real extended-hours coverage** — SIP, i.e. a paid Alpaca tier — **or Epic 5
+finding that opening-gap anomalies are systematically unexplainable without it.**~~
+
+> **Re-stated 2026-09-08 by Task 2.7.9, because the first half's condition had SILENTLY
+> ALREADY FIRED — and a reversal trigger written against something that has already happened
+> is a trigger that will never fire.** Both of its clauses turned out to be wrong. This plan
+> serves **SIP on the free tier** rather than as a paid upgrade (`ALPACA.md` §2), and Task
+> 2.7.1 measured extended-hours bars arriving from it — that is precisely what the
+> 217-bars-on-a-210-minute-half-day finding _is_. So the coverage this trigger was waiting to
+> be able to buy has been sitting in the responses since the first request Story 2.7 made.
+>
+> **The decision to scope V1 to the regular session is untouched and stands on its own
+> merits.** §2 argues about what a baseline denominator should _contain_ — a session's minutes,
+> comparably, every day — and never about what is purchasable; a thin, erratically-populated
+> pre-market hour makes a percentile worse whether or not the bytes are free.
+>
+> **The trigger is therefore Epic 5's measurement alone**: opening-gap anomalies turning out
+> to be systematically unexplainable without pre-market context. That was always the likelier
+> half and is now the only half. The change is unchanged in size — a fourth session kind in
+> the same table plus a wider bar count — and note the request-shape consequence recorded in
+> §2.2: extended-hours bars are what a bare-date request returns **by default**, so honouring
+> this decision is an active choice made on every request rather than a passive one.
+
+The change is a fourth session kind in the same table plus a wider bar count; it is not a
+redesign, which is what makes deferring it cheap.
 
 ---
 

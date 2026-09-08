@@ -1057,10 +1057,25 @@ added `market-provenance.ts:5` naming the vendor while explaining invariant 6. *
 prediction was the wrong shape rather than merely unlucky**: the naive count grows whenever a
 file explains why a vendor-shaped decision was taken, which is a thing this repository wants
 more of, so it is not a number to hold flat. **The figure worth watching is the code-only
-one, which is zero and has always been zero.** Quote that; re-run the naive one rather than
+one, ~~which is zero and has always been zero~~.** Quote that; re-run the naive one rather than
 citing it.
 
-The check Task 2.6.8 should run, and it returns nothing today:
+> **Amended 2026-09-08 by Task 2.7.9: the code-only figure is no longer zero, it is TWO, and
+> both are correct.** Story 2.7 shipped a real Alpaca client, so `PROVIDER_IDS` gained
+> `"alpaca"` — a `ProviderId` is deliberately _our name for whoever sold us the data_, and a
+> vocabulary of provider names that cannot name a provider is not a vocabulary. The second hit
+> is `market-provenance.test.ts`'s `expect(PROVIDER_IDS).toEqual(["fixture", "alpaca"])`, and
+> it is unavoidable: a test that locks which members exist has to name them.
+>
+> **So the check's meaning changes rather than its command.** It is no longer _"this must be
+> zero"_; it is **"every hit must be a member of `PROVIDER_IDS` or the test that locks it"**,
+> and anything else — a vendor URL, a vendor header, a vendor response shape, a `switch` on a
+> vendor's error codes — is the leak criterion 1 is about. The frontend still learns a
+> provider's **name**, which it renders; it still learns nothing about a provider's **shape**,
+> which is `apps/backend`'s and is where the 367 naive hits across 19 files live. Re-run the
+> naive count in both packages rather than citing either.
+
+The check Task 2.6.8 should run, and it returns two lines today — both of them `PROVIDER_IDS`:
 
 ```
 for f in packages/shared/src/*.ts; do
@@ -1381,6 +1396,13 @@ known-benign hit" is a check that decays. The naive counts are **8** in `package
 and **7 across 4 files** in `apps/backend/src` — the latter correcting Task 2.6.6's amendment
 of "five across three", which was **wrong when written** rather than gone stale, since
 `routes/securities.test.ts` has carried two occurrences unchanged since Task 2.4.2.
+
+> **Re-run 2026-09-08 by Task 2.7.9, and both counts moved a long way — read the amendment in
+> §9.4 first, because the check's MEANING changed.** Code-only in `packages/shared/src` is now
+> **2**, both `PROVIDER_IDS`; naive is **13 across 7 files** there and **367 across 19 files**
+> in `apps/backend/src`. That last number is not a regression: those nineteen files _are_ the
+> Alpaca client, its mapping, its fixtures and its tests, which is §1's split working exactly
+> as designed. **Quote the code-only figure with its rule attached and re-run the naive ones.**
 
 `docs/adr/0018-*` is the decision record. This document remains the arguments, the rejected
 alternatives, the vendor's shape and what Story 2.7 and Epic 3 each inherit.

@@ -1,6 +1,6 @@
 # Task 2.7.9 — Verify against the shipped tree, sweep what has gone stale, and record ADR 0019
 
-**Status:** Not started
+**Status:** Complete (2026-09-08)
 **Story:** [2.7 Alpaca Historical Data Integration](STORY.md)
 **Depends on:** Task 2.7.8
 
@@ -477,3 +477,224 @@ decisions and can change without telling us.
 So `ALPACA.md`'s dates are load-bearing rather than decorative, and the close should say which
 figures are **reproducible** and which are **observations from one day**. That distinction is
 new to this repository and Epic 3 will need it more than this story does.
+
+---
+
+## What was done (2026-09-08)
+
+`docs/adr/0019-the-alpaca-client-a-measured-vendor-and-what-a-recorded-fixture-certifies.md`
+exists. All seven criteria were re-made and every figure re-taken; nothing was cited.
+
+### The seven criteria
+
+| #   | Criterion                                                  | Re-made how                                                           | Result                                                                                                                             |
+| --- | ---------------------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Real bars, mapped, provenance naming the requested feed    | `pnpm bars NVDA` from the clean clone, deployed credential's key      | **390 bars**, 2026-09-03, `provider alpaca / feed sip`, coverage exactly the session window                                        |
+| 2   | Measured plan limits, dated, incl. the WebSocket cap       | Read `ALPACA.md` and `UNIVERSE.md` §10                                | §10's trigger **fired** and the sizing is **unblocked** (handed to Story 2.8), not still parked                                    |
+| 3   | Each mapped cause produced live                            | Bad key against the live API, with a good-key control in the same run | `unauthorised`; whole result is `{"outcome":"unauthorised"}` — no message, no secret, no key id                                    |
+| 4   | Rate limiting exercised at the limit                       | 320 concurrent, re-taken                                              | **206 ok / 113 `429`** — a **fifth** reading beside 201, 203, 207, 201                                                             |
+| 5   | Key absent from repo, bundle, logs; request path inspected | Instrumented probe **with a control**                                 | Probe sees the secret **once** (the header we send); application output: **0** occurrences of secret **or key id** across 22 lines |
+| 6   | Builds, tests, runs with no key                            | Clean clone, **no `.env` anywhere**                                   | build 0, **750** tests, server starts, `/health` 200, `/market-data` `{"feed":null}`                                               |
+| 7   | `pnpm verify` with no network                              | `sandbox-exec`, off-machine sockets denied                            | **exit 0 in 35.86 s**, three controls proving the blocker blocks                                                                   |
+
+Criterion 7's wording is ambiguous and the honest reading is **"reaches no host but itself"** —
+a blanket `deny network*` takes **13 of 14** process tests red on `listen EPERM`, reproducing
+Task 2.6.8's finding exactly.
+
+Criterion 5's control is the part that makes it worth anything: **a sweep that finds nothing
+and cannot be shown capable of finding something is indistinguishable from a broken sweep.**
+
+Beside criterion 6, the other half of open decision 3 was produced: `MARKET_DATA_PROVIDER=alpaca`
+with no credential **refuses at startup by name**, and half a credential reports **two** lines
+through `config.ts`'s accumulator.
+
+### The figures
+
+|                                          |                                                                                                                                                                                               |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clean clone install                      | **417 packages** cold in 3.58 s; **419 store entries / 285,008 KB / 4,766 lockfile lines** — Story 2.6's baseline **exactly**, because this story added no dependency                         |
+| Install-script sweep (clone's own store) | `esbuild@0.28.2` and nothing else                                                                                                                                                             |
+| `pnpm verify`                            | **exit 0 in 43.74 s cold from the clone, 33.81 s warm** — build 3.95 / lint 6.91 / `format:check` 8.71 / `stories` 0.30 / `env:check` 0.26 / `links` 0.34 / `test` 5.93 / `test:process` 9.50 |
+| `pnpm test`                              | **750** across 54 files (206 + 361 + 183)                                                                                                                                                     |
+| `pnpm test:process` / `test:database`    | **14** / **61 in 1.9 s**                                                                                                                                                                      |
+| `pnpm e2e` / `pnpm e2e:deployed`         | **28 in 1.0 m** / **15 in 15.1 s**                                                                                                                                                            |
+| `pnpm env:check`                         | **15 backend variables**; **all five** failure modes re-made to fail                                                                                                                          |
+| `pnpm links`                             | **220 documents, 511 cross-file links, 34 anchor links, 0 broken**                                                                                                                            |
+| Frontend artefact                        | 371,406 B `80c4f6c3…` / 18,063 B `ed3d1744…` / 1,101 B `36eeb287…` / 300 B = **390,870 B**, 4 files, 300 modules                                                                              |
+| Storybook                                | **76 files / 9.4 MB**                                                                                                                                                                         |
+
+**The artefact MOVED and the mechanism is the check rather than the number: −57 bytes.** That is
+Task 2.7.4 removing `sip`'s sentence, because `MARKET_FEED_DESCRIPTIONS` genuinely ships —
+`FeedProvenance` reads it. **`alpaca` is ZERO in the bundle**, confirmed by grep: `PROVIDER_IDS`
+is a plain array literal and is tree-shaken completely, which is Task 2.3.8's
+literal-versus-constructor rule holding for the third time.
+
+### The deployed read-back
+
+`GET /market-data` → `{"feed":"sip"}`. In a real browser with the tab visible, the chrome reads
+`MARKET FEED` / **`ALL US EXCHANGES`** beside `BACKEND SERVICE ● HEALTHY` and
+`MARKET CLOCK ○ CLOSED / Labor Day`. The `secrets` array holds `alpaca-api-secret-key`;
+fourteen environment variables on the app; `/health` and `/diagnostics/database` unaffected.
+**Log Analytics returns zero** for the secret, the key id, `eyJ`, `APCA-`, `Authorization` and
+`Bearer` across a **non-vacuous 24,216-record** window — the key **id** too, though it is not a
+secret.
+
+**What it does not certify, stated in the ADR: nothing deployed has ever fetched a bar.** The
+credential is configured, the provider selected, the feed declared. _Correctly configured to
+fetch_ and _fetching works_ look identical until Story 2.8.
+
+### The sweeps — five found something, and two claims were wrong when written
+
+- **The ten convention blocks were stale by FIVE task increments** (619 → 750), the largest
+  outstanding run yet. Amended together, verified to land on **one md5**; Stories 1.2 and 1.3's
+  two historical variants left at 103.
+- **`README.md` was stale at six sites**; Epic 1's `EPIC.md` at four — and its fourth is inside
+  the **trailing clause of a line an earlier sweep had already edited**, found stale for the
+  second time. A sweep that edits a line does not necessarily finish the line.
+- **The vendor grep's MEANING changed rather than its command**, which is the sweep most likely
+  to be misread. Code-only over `packages/shared/src` is **2** where `PROVIDER.md` §9.4 recorded
+  _"zero and always having been zero"_. Both hits are `PROVIDER_IDS` gaining `"alpaca"` and the
+  test that locks the vocabulary, and **neither is a leak**: a `ProviderId` is deliberately _our
+  name for whoever sold us the data_, and a vocabulary of provider names that cannot name a
+  provider is not one. The check is now **"every hit must be a member of `PROVIDER_IDS` or the
+  test that locks it"**. Naive: **13 across 7 files** in shared, **367 across 19** in the backend
+  — the second is not a regression, because those files _are_ the vendor client.
+- **Two live claims had their conditions ALREADY FIRE**, which is the class this close was best
+  at finding. `CALENDAR.md` §2.4's extended-hours trigger reads _"a feed with real
+  extended-hours coverage — SIP, i.e. a paid Alpaca tier"_ and **both halves are wrong**: this
+  plan serves SIP on the **free** tier and Task 2.7.1 measured extended-hours bars arriving from
+  it. Re-stated as **Epic 5's measurement alone**; the V1 scoping decision is untouched, because
+  §2 argues about what a baseline denominator should contain rather than about what is
+  purchasable. And Story 2.8's _"do not encode a threshold until Task 2.7.4 settles the feed
+  question"_ is **spent**.
+- **Epic 2's `EPIC.md` carries a third of that shape and it is the one with teeth.** The
+  deployed environment being **public** was accepted on two grounds, one being ADR 0011's
+  _"nothing deployed holds a credential"_ — expired at Task 2.7.2. The argument is **replaced
+  rather than dropped**: no public route returns anything derived from the credential, and
+  **Story 2.9 is where this must be re-argued rather than inherited**.
+- **`~1.18 GB/year` was given its CONDITION rather than a new number** at all five live sites:
+  it assumes per-session requests (1.00×) and a span-shaped backfill stores ~2.8 GB/year.
+  Inflating it would misprice the design Story 2.8 should adopt.
+- **Three source claims amended, one CONFIRMED.** `security.ts`'s _"the owner is Story 2.7"_ for
+  the ticker rename is discharged; its `profile` provenance group is now genuinely reconciled
+  against Alpaca, producing **two different dates** for the first time (`profile` 2026-09-08,
+  `classification` 2026-09-05) — confirmed and deliberately not tidied into agreement. And its
+  prediction that `exchange` stay a plain `string` **came true and held**.
+- **`0003_security_vocabulary.sql` names the wrong story twice and was NOT touched** — applied
+  and checksummed, so editing a comment breaks the checksum and the deploy refuses, which this
+  repository already produced once during the 2026-09-05 renumber. A historical record inside an
+  immutable file is the correct state.
+- **Clean:** ADR 0011's amendment and Epic 2's prediction already stood; `CALENDAR.md` §2.2's
+  `minuteBars` confirmation still describes the shipped client (which subtracts one
+  **millisecond**, the exact half-open-to-inclusive conversion); `README.md`'s `pnpm bars` and
+  `pnpm universe:check` sections were already present; the market-feed row had already left the
+  faults list at Task 2.6.7.
+
+### One thing recorded that this brief did not anticipate
+
+**`CLAUDE.md` was missing its Story 2.7 record for Tasks 2.7.4 through 2.7.7 entirely** — it
+jumped from 2.7.3 to 2.7.8. Four paragraphs were written from the task files and `ALPACA.md`
+rather than the sweep only correcting numbers. That is a different failure from staleness: a
+figure that rots is visible once somebody re-measures, where an **absent** paragraph looks
+exactly like a story that did nothing.
+
+---
+
+## In plain English — a status report for whoever is paying for this
+
+### What actually happened this week
+
+Up to now, MarketPulse has been a very carefully built empty building. Real rooms, real wiring,
+real front door, real address on the internet — and no furniture, because there was no market
+data in it. Everything on screen was either a placeholder or a hand-written example.
+
+**That changed.** The product now talks to a real market-data provider, with a real account,
+and can fetch real prices for real companies. Typing one command prints Nvidia's actual
+minute-by-minute prices for a real trading day — 390 of them, which is exactly how many minutes
+a US trading session has. It is the first genuinely real number this product has ever produced.
+
+**This particular task did not build that. It checked it, and wrote down why it is built the
+way it is.** Every project accumulates claims that quietly stop being true; this repository's
+habit is that at the end of each chunk of work, somebody re-does every check from a completely
+fresh copy of the code and goes looking for sentences that have expired. That is what this was.
+
+### The three findings worth a stakeholder's attention
+
+**1. The data is much better than we thought we were buying.** The provider's own website says
+the free plan gives you prices from a single stock exchange — a slice of the market, not the
+whole thing. We measured it, and for historical data it actually gives us **the full US
+consolidated tape: every exchange**. That is a large, free upgrade to the quality of every
+number the product will ever show. On thinly traded companies the difference is stark: one
+security we sampled had 43% of its minutes covered on the single-exchange feed and 98.5% on the
+full one.
+
+We did not take this on trust. Two pages on the vendor's own site contradict each other by a
+factor of a hundred on a related limit, which is exactly why we measure rather than read.
+
+**2. The screen now tells the truth, and getting the wording right took three attempts.** The
+live site's status bar reads **ALL US EXCHANGES**. That matters more than it sounds: the product
+spec has a hard rule that we must never let a user believe a number covers the whole market when
+it does not, because that is a false claim about a number and this product exists not to make
+those.
+
+The first version we shipped said "Consolidated tape" in large letters with a plain-English
+explanation underneath in small print. Technically accurate; practically useless, because
+"consolidated tape" is industry jargon and the person reading a status bar in a hurry sees the
+big words. **Every automated check passed** — accessibility, layout, all the visual states side
+by side — because none of them can tell you that a word is jargon. A human read the running
+page and spotted it in a sentence.
+
+Worse, and more instructive: **an automated test had locked the wrong version in place**, with a
+comment beside it stating the rule its own check contradicted. A test can preserve a mistake as
+easily as it can prevent one. That is now fixed at both ends.
+
+**3. The universe question is unblocked.** MarketPulse currently tracks 101 companies, and we
+had deliberately parked the question of whether that is enough, because it depended on a
+technical limit nobody had measured. We measured it. The limit does not apply to the kind of
+data we use — we successfully subscribed to **5,000** companies at once on a free account. So
+growing the tracked list is now a curation question (who picks the companies and classifies
+them) rather than a technical one. That is a much better problem to have.
+
+### Two decisions we deliberately did NOT make
+
+Both were things the plan expected us to build, and in both cases we looked at real evidence and
+declined — which is worth reporting, because "we built less than planned" and "we found out we
+shouldn't" are very different outcomes.
+
+**We did not add a "delisted" status for companies that stop trading.** The provider has a flag
+that looked like it would tell us. We sampled it against actual market activity and found it is
+**wrong 8% of the time, in the dangerous direction** — it marks companies as gone that are still
+trading. It also cannot tell us _when_ a company was delisted, which is precisely what our
+future replay feature needs. So we built a **report** instead: a command an operator runs that
+says "these look worth a look" and changes nothing. It found a real error on the day it was
+written — Walmart was recorded on the wrong stock exchange, having moved listings in December
+2024, and nothing we had could previously see that.
+
+**We did not build machinery for company ticker changes** (Facebook → Meta, that kind of thing).
+The whole plan for it rested on the provider giving each company a permanent ID. We checked six
+real renames. **The ID changed in all six** — and Facebook's old ticker now belongs to a
+completely different fund. The premise was simply false, so the mechanism would have been built
+on sand. We wrote down what happens instead, and named the story that has to solve it before it
+becomes expensive.
+
+### What is honestly still missing
+
+**Nothing on the live site fetches market data yet.** The credential is installed, the provider
+is selected, the site correctly announces which feed it reads — but no price has ever been
+fetched in production. That is the next story's job. We have said so plainly in the record
+rather than letting "correctly configured" quietly read as "working".
+
+**And a new kind of risk arrived this week that the project has not had before.** Every previous
+piece of this system could be re-verified from scratch, forever, by anyone with the code. Half
+of what we now depend on is a third party's behaviour on one particular day — their rate limits,
+their history depth, which data they serve. Those can change without telling us, and no
+automated test we have would notice. So every one of those numbers is now recorded **with the
+date it was taken**, with a standing instruction to re-measure rather than quote. That is a
+deliberate, documented limitation rather than a gap somebody will trip over.
+
+### Where this leaves the product
+
+The next story stores the data. The one after that serves it. Then a chart. **Story 2.12 is
+where a stakeholder sees a real price chart for a real company**, and everything between here
+and there is plumbing that had to be measured before it could be sized. This week's work is
+what makes that plumbing the right size.

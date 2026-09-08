@@ -9,11 +9,35 @@
 
 Make the product tell the truth about its own data, and then prove the epic end to end.
 
-Invariant 6 is not a nice-to-have and it is not a caption: Alpaca's free tier is **IEX, not
-consolidated SIP**, and §7.1 says explicitly that MarketPulse must display the feed and must
+Invariant 6 is not a nice-to-have and it is not a caption: ~~Alpaca's free tier is **IEX, not
+consolidated SIP**~~, and §7.1 says explicitly that MarketPulse must display the feed and must
 not imply full US-market coverage. A product that shows a volume figure from one venue as
 though it were the market's volume is making a false claim about a number, which is exactly
 the thing this product exists not to do.
+
+> **The premise this whole story is planned against was inverted on 2026-09-07, and Task
+> 2.7.9 is recording it rather than rewriting this story's scope — that is this story's own
+> to re-take, with the measurements in hand.** Two things falsified it and only one of them
+> is a wording change.
+>
+> **Stored historical bars are SIP, the full consolidated tape.** Measured, not cited: the
+> free plan is **asymmetric** (`ALPACA.md` §2) — historical bars default to SIP while the
+> live stream is IEX only, with `wss://…/v2/sip` refused. So for everything this epic stores
+> the honest label is the **opposite of a disclaimer**, and the deployed chrome has read
+> `ALL US EXCHANGES` since Task 2.7.4.
+>
+> **And the harder one: a single series can name TWO feeds at once.** Epic 3's live stream
+> is IEX where this epic's stored bars are SIP, so a series stitched from both has two
+> sources disagreeing about feed — which `PROVIDER.md` §2.4 deliberately designed for by
+> making a **feed** disagreement truthful and reportable while refusing only an
+> **adjustment** disagreement.
+>
+> **So this story's job is not _"label the feed"_ but _"render a LIST of sources that may
+> disagree about feed"_**, which is a materially larger surface than the scope below
+> describes. Open decision 2 is the right owner and is now a decision about **two** claims
+> rather than one. See `docs/adr/0019-*` §2 and §3 — §3 in particular, because it records a
+> rule this story will otherwise have to rediscover: **a feed gets a sentence when its label
+> cannot stand alone, and not otherwise.**
 
 The story also closes the epic: the exit criterion re-run against the deployed environment,
 and the decisions recorded as ADRs.
@@ -23,8 +47,10 @@ and the decisions recorded as ADRs.
 **Where every number came from, and an honest answer when part of it is missing** — which is
 the story that turns a working chart into one an analyst can trust.
 
-Concretely: the feed labelled as **IEX rather than the consolidated tape**, so nobody reads
-it as full US market coverage; whether a price is adjusted; when the data was retrieved; and
+Concretely: ~~the feed labelled as **IEX rather than the consolidated tape**, so nobody reads
+it as full US market coverage~~ **the feed labelled truthfully per source — which for stored
+bars is the consolidated tape and for Epic 3's live stream is IEX, and a series carrying both
+has to say so** (2026-09-07); whether a price is adjusted; when the data was retrieved; and
 partial answers rendered as answers rather than errors — "we have data through 15:42" and
 "we have nothing for this symbol" are both correct outcomes and neither is a failure screen.
 
@@ -44,9 +70,12 @@ plumbing — which is why it is last and why it is small.
 
 ## Scope
 
-- **The feed label.** `Market feed: IEX` where a user reading a number can see it, worded so
+- **The feed label.** ~~`Market feed: IEX` where a user reading a number can see it, worded so
   a reader who does not know what IEX is still learns that this is one venue rather than all
-  of them
+  of them~~ — **amended 2026-09-07: this is per SOURCE rather than per product, because a
+  stitched series has more than one.** The wording rule is settled and inherited rather than
+  re-taken (ADR 0019 §3): a feed gets a sentence when its label cannot stand alone, so `iex`
+  gets one and `ALL US EXCHANGES` does not
 - Coverage honesty in the places it is easy to imply otherwise: volume figures, a "market"
   breadth reading later, and any phrase containing the word "market"
 - Data recency: what period is on screen, and through when the data runs — §36's
@@ -82,7 +111,15 @@ plumbing — which is why it is last and why it is small.
    argument for the second is that a screenshot of a chart is a thing that travels
 2. **The exact wording**, which is a product-voice decision and will be read by every
    visitor. It has to be accurate without being alarming — IEX is a real feed, not a
-   degraded one
+   degraded one.
+
+   **Amended 2026-09-07: this is now a decision about TWO claims rather than one**, and the
+   second is the harder one. The chrome's standing claim about what this deployment reads is
+   already shipped and settled (`ALL US EXCHANGES`, ADR 0019 §3). What is open is what a
+   **series** says when its sources disagree — stored SIP bars beside a live IEX tail — which
+   is a sentence nobody has had to write yet and which must not collapse into naming whichever
+   feed happens to be first in the list
+
 3. **Whether "data through …" appears when the data is simply historical**, or only when it
    is unexpectedly behind
 

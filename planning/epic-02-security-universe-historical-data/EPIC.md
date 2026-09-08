@@ -93,10 +93,29 @@ that predicted it, in the mechanism that had been named four tasks in advance.
 id is an identifier rather than a credential. Note the deployed
 environment is **public**, accepted in Epic 1 on the stated grounds that nothing
 deployed holds a credential and the backend's entire surface is `GET /health`;
-~~that argument expires here~~ **that argument expires in Story 2.7 — Story 2.1
+~~that argument expires here~~ ~~**that argument expires in Story 2.7**~~ — Story 2.1
 left both halves of it standing, and it added one route,
 `GET /diagnostics/database`, which is public, unauthenticated, and deliberately
-carries no error message, host, port or SQLSTATE for that reason**.
+carries no error message, host, port or SQLSTATE for that reason.
+
+**It expired on 2026-09-07 (Task 2.7.2), and Task 2.7.9 records what replaced it
+rather than leaving a discharged prediction standing.** The deployment now holds
+an Alpaca secret, so "nothing deployed holds a credential" is simply no longer
+the reason the public environment is acceptable. The replacement argument is
+narrower and has to be stated because nothing infers it:
+
+- **No public route returns anything derived from the credential.** The four
+  routes are `/health`, `/diagnostics/database`, `/securities` and
+  `/market-data`; the last reports a configured feed **slug** and never a vendor
+  response. Story 2.9 is the first thing that serves vendor-derived data and is
+  where this has to be re-argued rather than inherited.
+- **The credential is read-only, on a free paper plan, and regenerating it is
+  free** — which is why `HOSTING.md` records Key Vault as costed and declined,
+  with the reversal trigger being a credential whose compromise costs something.
+- **The exposure the secret adds is the platform's, not the route's.** It lives
+  in the Container App's `secrets` array behind Azure RBAC, and the leak sweep is
+  re-run every close against the repository, the two build artefacts, the image,
+  a CI log and Log Analytics.
 
 Also worth reading before starting: `apps/frontend/.env.example` exists in the
 shape it does specifically because it is the file open in front of whoever is

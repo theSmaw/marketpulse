@@ -5,7 +5,7 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all **629** fast tests passed, and
+files still agree with the configuration table, all **750** fast tests passed, and
 the 14-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
@@ -58,7 +58,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of **629** fast tests plus a 14-test process suite, with
+and a test suite of **750** fast tests plus a 14-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -564,7 +564,7 @@ Run from the repository root:
 | `pnpm stories`        | Fails if a component has no stories file                                  |
 | `pnpm env:check`      | Fails if `.env.example` and the configuration module disagree             |
 | `pnpm links`          | Fails if a relative Markdown link points at nothing — see below           |
-| `pnpm test`           | Every package's tests — 629 across the workspace — see below              |
+| `pnpm test`           | Every package's tests — 750 across the workspace — see below              |
 | `pnpm test:process`   | The backend's process half — 14 tests that spawn a real server            |
 | `pnpm coverage`       | The same tests with coverage — three reports, on demand — see below       |
 | `pnpm dev`            | Every package's `dev`, in parallel — see below                            |
@@ -666,7 +666,7 @@ the same second half for the same reason.
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
 in this workspace. `packages/shared` runs 206 tests across 14 files,
-`apps/backend` 240 across 15, and `apps/frontend` 183 across 20 — **629 in
+`apps/backend` 361 across 20, and `apps/frontend` 183 across 20 — **750 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -729,7 +729,7 @@ answer.
 
 Three things about it worth knowing before changing it.
 
-**It is a separate command because it is a separate cost.** `pnpm test` is 629
+**It is a separate command because it is a separate cost.** `pnpm test` is 750
 tests in a few seconds, needs no build and no socket, and is the one you run all
 day; this suite takes about 9.2 s, of which 5 s is the shutdown ceiling being
 what it says it is. Both are steps in `pnpm verify`, so both gate.
@@ -799,7 +799,7 @@ pnpm coverage                                   # all three packages
 pnpm --filter @marketpulse/backend coverage     # one of them
 ```
 
-It is the same 629 tests with `--coverage` added, fanning out through
+It is the same 750 tests with `--coverage` added, fanning out through
 `pnpm -r` exactly as `pnpm test` does, so there are **three reports and no
 merged one** — each package answers for its own sources. It is deliberately
 not part of `pnpm test` and not a `pnpm verify` step of its own: nothing gates
@@ -2133,11 +2133,23 @@ means adding it in both places, and nothing checks that pair.**
 ### `pnpm env:check`
 
 A step in `pnpm verify`. It walks `CONFIG_VARIABLES` in
-`apps/backend/src/config.ts` and fails if a variable the code reads is missing
-from `apps/backend/.env.example`, if the example documents one nothing reads,
-if a documented default no longer matches the code, or if a name in
-`apps/frontend/.env.example` lacks the `VITE_` prefix. Adding a variable to the
-code and not to the example is a failing build rather than stale documentation.
+`apps/backend/src/config.ts` and fails **five** ways: if a variable the code
+reads is missing from `apps/backend/.env.example`, if the example documents one
+nothing reads, if a documented default no longer matches the code, if a name in
+`apps/frontend/.env.example` lacks the `VITE_` prefix, or — since Task 2.7.2 —
+if a variable with **no default** is documented with a value rather than blank.
+Adding a variable to the code and not to the example is a failing build rather
+than stale documentation. All five are re-made to fail at every story close;
+they were last re-made on 2026-09-08.
+
+**The fifth is a leak guard rather than a formatting rule**, and it exists
+because the other four structurally cannot reach a credential: the default
+comparison has nothing to compare a no-default variable against, and every
+no-default variable here is a credential — `ALPACA_API_KEY_ID` and
+`ALPACA_API_SECRET_KEY` are the two, because a credential's absence cannot be
+defaulted and an invented one is a value that is present and wrong. Without it
+`.env.example` — a **tracked** file — could carry a real key while
+`pnpm verify` stayed green.
 
 `.env` and `.env.*` are gitignored; `.env.example` is negated back in. Verified
 in place at both package roots and the repository root — the six `.env` /
@@ -2956,12 +2968,23 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 ## Documentation
 
 - [`docs/adr/`](docs/adr/) — architecture decision records, newest last.
-  **There are eighteen files, 0001 to 0018.** This list said "0010 is the most
+  **There are nineteen files, 0001 to 0019.** This list said "0010 is the most
   recent" for four ADRs and then "fourteen" for two more, which is the prose-rot
   this README's own gap list warns about, so **read the directory rather than
   this sentence** — `ls docs/adr/` is the check and it takes a second.
+  [0019](docs/adr/0019-the-alpaca-client-a-measured-vendor-and-what-a-recorded-fixture-certifies.md)
+  is the most recent: the Alpaca client and a vendor measured rather than cited —
+  why every plan limit is a dated measurement and where the vendor's own pages
+  contradict each other, why this plan is **asymmetric** so stored bars are the
+  consolidated tape while the live stream is one venue, why a feed gets a
+  sentence only when its label cannot stand alone, why the key is a platform
+  secret where the database credential needed none, why a **missing** key is a
+  startup refusal and a **wrong** key is a result, why retry lives in a wrapper
+  and what the numbers say about retrying in a crowd, and what a recorded
+  fixture certifies — which is what the vendor sent on the day it was recorded,
+  and nothing about today.
   [0018](docs/adr/0018-the-market-data-seam-provenance-on-screen-and-what-a-fixture-backed-test-certifies.md)
-  is the most recent: how market data enters the product and what it has to say
+  covers the market-data seam: how market data enters the product and what it has to say
   about itself — why the provider interface is written before any vendor code,
   why the domain types are shared with the browser and the interface is not, why
   provenance travels with a series rather than with a response, why bars are

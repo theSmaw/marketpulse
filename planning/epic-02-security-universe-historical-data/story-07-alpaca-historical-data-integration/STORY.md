@@ -1,6 +1,6 @@
 # Story 2.7 — Alpaca Historical Data Integration
 
-**Status:** In progress
+**Status:** Complete (2026-09-08)
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.6 (and Story 2.1 for the credential mechanism)
 **Epic scope covered:** Alpaca historical-data integration; Alpaca credential on the platform (the _key_ half)
@@ -434,7 +434,7 @@ one day against a live third party, rather than figures reproducible from a clea
 | 2.7.6      | [Every failure this vendor can produce, mapped and produced rather than imagined](TASK-06-the-error-taxonomy-against-a-real-vendor.md)                                                                                                                                        | **Complete (2026-09-07)** |
 | 2.7.7      | [The retry wrapper, bounded by the caller, with numbers from the measured limit](TASK-07-the-retry-wrapper-and-the-measured-limit.md)                                                                                                                                         | **Complete (2026-09-07)** |
 | 2.7.8      | [`delisted`, and whether a ticker rename gets an identity](TASK-08-the-symbols-lifecycle-delisted-and-the-rename.md)                                                                                                                                                          | **Complete (2026-09-07)** |
-| 2.7.9      | [Verify, sweep, and record ADR 0019](TASK-09-verify-document-and-adr.md)                                                                                                                                                                                                      | Not started               |
+| 2.7.9      | [Verify, sweep, and record ADR 0019](TASK-09-verify-document-and-adr.md)                                                                                                                                                                                                      | **Complete (2026-09-08)** |
 
 ### Where the six open decisions are settled
 
