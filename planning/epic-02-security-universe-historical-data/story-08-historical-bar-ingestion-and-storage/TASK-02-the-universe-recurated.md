@@ -196,28 +196,51 @@ Sizing consequences: [`BARS.md` §4](BARS.md).
 
 ---
 
-## The honest gap: the deployed load has not run
+## The gap is CLOSED — deployed and read back 2026-09-08
 
-**Tasks 2.2.7 and 2.3.7's word for word, and for the same reason.** `pnpm universe` is a
-step in `deploy.yml`, and `deploy.yml` only runs on `main` — so the 518-security load has
-run against the **local** database and not the managed one, and `/securities` has been read
-in a browser against the **local** pair and not the deployed one. The first merge after this
-one is its first execution, and it will report `417 inserted, 101 updated, 0 unchanged`
-against the deployed table exactly as it did locally.
+The section this replaces recorded the deployed load as outstanding, because `deploy.yml`
+only runs on `main`. PR #229 merged, the pipeline ran, and every prediction it made held.
 
-What _is_ established rather than assumed:
+**The `Load the tracked universe` step reported exactly what was predicted:**
 
-- **All three required checks pass on the runner** — `verify` (2m1s), `e2e` (1m56s,
-  including the axe gate at three viewports against 518 real rows) and `database` (51s).
-- **`pnpm universe:check` is clean against the vendor's live catalogue**, 0 flags across
-  all 518, which is the check this task promotes to blocking — and it is the check that
-  actually protects the deployed table, because it reads the file rather than a database.
-- **The local load is byte-identical in shape to what the deploy will produce**: 518 rows,
-  all `active`, 0 untracked, 11 sectors, 25 industry groups, and both provenance columns
-  carrying the new sources and dates. Fingerprint `a7a03020d1a90e5863136eaa30df0d3c`.
-- **The page was read in a browser** at 518 rows: all twelve sector bands present, their
-  counts summing to 518, the summary line reading `518 securities tracked · 11 sectors ·
-15 ETFs`, and the fifteen ETF rows correctly rendering an em dash for industry.
+```text
+  ✓ 518 securities in the universe
+      417 inserted
+      101 updated
+      0 unchanged
+```
+
+`417 inserted, 101 updated, 0 unchanged` — the same three counters as the local load, and the
+101 updated are the pre-existing rows whose industry group and both provenance dates moved.
+No row was untracked, which is the check rather than a hope: it says every one of the original
+101 is an S&P 500 constituent, so nothing was orphaned on the last day that was still cheap.
+
+**Read back from the deployed API** (`GET /securities`, 200, `x-request-id`
+`408121a3-3a24-408e-8562-dce4b6fac93c`):
+
+| Reading              | Deployed                                               |
+| -------------------- | ------------------------------------------------------ |
+| Securities           | **518** — 503 equity, 11 sector ETF, 4 index ETF       |
+| Sectors              | **11**                                                 |
+| Industry groups      | **25**, with **0 singletons**                          |
+| `Semiconductors & …` | **20**                                                 |
+| Untracked rows       | **0**                                                  |
+| Response size        | **88,901 B** — byte-identical to the local measurement |
+| `profile` provenance | `alpaca-assets + curated ETFs`, `2026-09-08`           |
+| `classification`     | `s&p-500-gics + curated ETFs`, `2026-09-08`            |
+
+**And read in a browser against the deployed pair**, which is Task 2.4.6's method: all twelve
+sector bands present, **their counts summing to 518** and matching the API's own grouping band
+for band, the summary line reading `518 securities tracked · 11 sectors · 15 ETFs`, the live
+region announcing `The tracked universe loaded. 518 securities in 11 sectors.`, four navigation
+links, and **zero error fallbacks**. The chrome reads `MARKET FEED ● ALL US EXCHANGES`, so the
+page is showing a real provenance claim beside real data for the first time.
+
+**The post-deploy browser check passed on its own run** — 15 tests in 14.0 s — and its axe
+reading on the deployed securities route is **0 violations, 35 passes, 1 inconclusive
+(`th-has-data-cells`)**, which is the figure recorded at 101 rows. So a five-fold table and a
+new taxonomy introduced no accessibility regression, measured deployed rather than inferred
+from the pre-merge gate.
 
 ## Status report — for a non-technical reader
 
