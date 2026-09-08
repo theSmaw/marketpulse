@@ -379,3 +379,151 @@ So the finding this task predicts is recoverable after the fact rather than only
 success deletes any row that was there — so it contributes nothing measurable to the storage
 arithmetic and is empty when everything is well. Measure it anyway if it is cheap, but the
 headroom table is `market_bars` plus its indexes, unchanged.
+
+---
+
+## What this task actually did — a status report for stakeholders
+
+_Written 2026-09-08, in plain language. No technical background assumed._
+
+### The short version
+
+**MarketPulse now has a memory.** Until this morning the product could look up
+market data on demand, one question at a time, from our data supplier. It could
+not remember anything. Today it holds **roughly 48 million price observations** —
+every one of the 518 companies we track, recorded minute by minute for a full
+year, plus a daily summary going back to the start of 2024.
+
+That is the raw material for almost everything the product is meant to do. It is
+also, deliberately, invisible: nothing on screen changed today. The next task
+puts it on screen.
+
+### Why we store it at all, when the data is available online
+
+This is a fair question and it was asked earlier in the project, so it is worth
+answering plainly.
+
+We are not caching the supplier's data to make things faster. We are keeping **a
+record of what was observed**. The difference matters for the feature this whole
+product is built around: the ability to wind the clock back to, say, 11:07 on a
+Tuesday and show only what was knowable at that moment — no hindsight, no
+information from later in the day.
+
+You cannot do that by asking a supplier "what happened?", because a supplier
+answers with what it knows _now_. You can only do it from your own record of what
+you saw and when you saw it. So the store exists to make that honest.
+
+### What we did, and the four decisions worth explaining
+
+**1. We filled it, and it took about an hour and forty minutes.**
+
+Not one smooth run. It stopped once, three-quarters of the way through, because
+our data supplier got slower over the course of the morning and one request took
+longer than we were willing to wait. That sounds like a problem and it was
+actually the best thing that happened today: it proved the system can be
+interrupted and picked up again without losing or duplicating anything. We had
+tested that deliberately before; this was the real thing, unplanned, and it
+behaved.
+
+**2. We proved that running it twice is safe — on the real data, not a sample.**
+
+This sounds like a small thing. It is not. If re-running the job could
+accidentally duplicate or alter records, then every future top-up would risk
+quietly corrupting a year of history, and nobody would notice until a chart
+looked wrong months later.
+
+So we took a fingerprint of all 48 million records, re-fetched two million of
+them from the supplier, offered them back to the database, and took the
+fingerprint again. **Identical.** Not one record moved. That is the property the
+whole design rests on, and it is now demonstrated at full scale rather than
+argued.
+
+**3. We discovered the job has to run somewhere else — and this is the finding
+we did not expect.**
+
+The plan said an engineer would run this from their laptop. We tried. It would
+have taken **33 hours**.
+
+The reason is pure geography. The database lives in Chicago; the laptop is in
+Singapore. Every single instruction has to cross the Pacific and come back, which
+takes about a quarter of a second, and filling the store means an enormous number
+of those round trips. Nothing was broken — the code was fine and the database was
+fine — the planet is simply large.
+
+So we moved the job to a machine that already sits inside the same cloud as the
+database. **The same work now runs about 35 times faster.** It is still something
+a person chooses to run, deliberately, rather than something that happens on a
+schedule — we want a human deciding when to spend money with our supplier.
+
+Worth noting for the record: this cost us nothing in credentials or security. The
+cloud job borrows the same identity the deployment already uses, and reads the
+supplier key from where it is already stored. We still have **no passwords stored
+in the code repository at all**, which has been true for the life of this project
+and stays true.
+
+**4. We found a gigabyte of wasted space and deliberately left it alone.**
+
+While measuring, we found that one of the database's internal lookup structures
+occupies **just over a gigabyte and has never once been used** — not by a single
+query, ever. Removing it would free about a tenth of a year's storage.
+
+We did not remove it. It is there because of a house rule we apply to every table
+in the system, and that rule exists for good reasons — consistency, and making
+future changes cheaper. Changing it means altering a rule the codebase actively
+checks, on a table with 48 million rows in it, on the strength of a measurement
+taken an hour earlier. So we wrote down exactly what it costs and exactly what
+would justify removing it, and moved on. If storage ever gets tight, that
+paragraph is what somebody will read.
+
+### One thing we checked that we did not expect to be interesting
+
+The product has a hand-written calendar of which days the US stock market is
+open, closed, or closes early. It was built months ago and checked against
+published records, but it had never met a large volume of real data.
+
+It has now been tested against 48 million real observations and it is **correct
+in every case we crossed**: Thanksgiving absent entirely; the half-days after
+Thanksgiving and before Christmas each stopping at exactly the right minute; and
+— the one most likely to be wrong — the daylight-saving changeover in March,
+where the market's opening time shifts by an hour in world time but not in local
+time. All of it correct, with no special handling anywhere.
+
+That matters because a calendar error would not look like an error. It would look
+like missing data, and somebody would eventually "fix" it by fetching data that
+should not exist.
+
+### Where this leaves the product
+
+**Done:** the store, the filling of it, and the proof that it behaves.
+
+**Next (the very next task):** the list of companies that has been on screen
+since a fortnight ago gains a column saying how much history we hold for each
+one. That is the first time the product says anything at all about market data
+it owns, and it is the demonstration for this whole run of work.
+
+**Then:** serving that data to the screen, charts, the "is this unusual?"
+calculation that compares a company against its sector and the market, and
+eventually the replay feature.
+
+To put the scale in perspective: **every chart, every anomaly score, every sector
+comparison and every replay in this product will read these rows.** Nine tasks of
+invisible plumbing produce one column on one page next week — but nothing
+downstream of here can be built without them.
+
+### The honest caveats
+
+- **The store is one year deep for minute-by-minute data**, not more. That was a
+  deliberate trade against storage cost, and at the current size we have roughly
+  **two and a half years of room** before the disk fills. Nothing is ever deleted;
+  when space gets tight, an alarm fires and somebody makes a decision.
+- **Three companies have shorter histories than the rest**, because they did not
+  exist a year ago — they were spun out of larger companies in 2025 and 2026. That
+  is correct rather than a gap, and the product needs to say so honestly rather
+  than showing them as incomplete.
+- **The stored prices are unadjusted.** If a company splits its shares, the older
+  prices in our record are the prices as they were actually quoted at the time,
+  not restated. That is the right choice for a record of what was observed, and
+  it means a chart spanning a split will show a step in it. We label it.
+- **Nothing here runs automatically.** If nobody runs the top-up, the store
+  quietly ages. That was a deliberate decision, and the product can report how
+  stale it is.
