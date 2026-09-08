@@ -277,6 +277,15 @@ introduces a new metadata source.
 
 ## 5. Where sector and industry come from: a curated file in this repository
 
+> **Amended 2026-09-08 by Task 2.8.2 — the decision is narrowed and the trigger below has
+> fired.** The universe is now the S&P 500 (503 equities), and the classification comes from
+> that index's own published GICS assignment, read at **curation** time and checked into this
+> same file. The objection this section raises against ETF-derived sectors — that the SPDRs
+> hold index constituents only — is dissolved rather than worked around, because the universe
+> _is_ the index. Everything below is the record of the decision as taken at ~100 rows and is
+> correct in its own terms; §16 is what supersedes it, including this section's own reversal
+> trigger and what replaced it.
+
 **Alpaca's assets endpoint carries neither.** That is the fact that makes this a decision
 rather than a default, and it is the one people assume is free.
 
@@ -409,6 +418,13 @@ to generate it from a spreadsheet. That is fine — the generator writes the mod
 
 ## 7. The selection rule
 
+> **Superseded 2026-09-08 by Task 2.8.2 (§16.5), and rules 1, 6 and 7 survive.** Membership
+> is now an index rather than an allocation, so the floor of 6, the ceiling of 12 and the
+> market-cap-spread rule no longer decide anything — though all three are still _met_, which
+> is a stronger result than meeting a rule written to be met. Rule 4's IEX liquidity
+> constraint lapses for stored bars (§16.6) and survives for Epic 3's live feed. Read on for
+> what the rules were for; §16.5 is the table of where each one stands.
+
 Written before the list, because a list written first gives a rule reverse-engineered from
 it, which is how "not 40% technology" becomes something asserted rather than met.
 
@@ -488,6 +504,10 @@ now exist and none of them constrains the count; the table above is the predicti
 ---
 
 ## 9. The list, and the distribution read against §7 (Task 2.3.4, 2026-09-05)
+
+> **This is a historical record of the 101-security list, correct as at 2026-09-05 and left
+> standing.** The shipped file is 518 securities since Task 2.8.2; §16.4 carries the current
+> distribution. Do not read the table below as describing the tree.
 
 **Written by Task 2.3.4, into this document rather than into a task file**, because §7's
 rule and the list that satisfies it disagreeing is the failure the split exists to catch,
@@ -609,6 +629,14 @@ the accurate form and is the one that matters. Task 2.3.6 owes the argument; thi
 ---
 
 ## 10. Is ~100 enough? — the sizing question, PARKED with a trigger (2026-09-05)
+
+> **UN-PARKED and settled 2026-09-08 by Task 2.8.2 — the universe is the S&P 500, 518
+> securities in total, and the taxonomy is coarsened to GICS industry groups.** The trigger
+> fired in the bars-are-exempt direction (recorded at the foot of this section), and this
+> section's own instruction — settle §5's metadata source before picking a number — turned
+> out to be sharper than it reads: the two are **one** decision, because one number is what
+> makes one source correct. §16 is the record. This section's evidence stands as written and
+> its deadline ("after Story 2.8 it costs a re-backfill") is **met** rather than passed.
 
 **Raised by the user after Task 2.3.4 shipped, and worth recording rather than answering
 in a conversation that scrolls away.** The question: 100 securities does not sound like
@@ -1759,6 +1787,12 @@ behaviour, and the two dates now differ in the database — read back to confirm
 
 ### 15.5 Why a rename gets no identity: the premise was FALSE
 
+> **Confirmed 2026-09-08 by Task 2.8.2 (§16.7) rather than re-taken.** The deadline named
+> below is now spent: Task 2.8.6 stores bars against these ids, so the cost of a future
+> rename is stated rather than deferred — the old row keeps its bars and its id, the new
+> symbol gets an empty row, and nothing joins them. The trigger is unchanged (a rename in the
+> list) and there is still none.
+
 §12.6, this task's brief and Story 2.7's open decision 5 all rest on one sentence — that the
 assets endpoint "carries a stable per-asset identifier that survives a symbol change", which
 would make a rename **detectable** rather than merely representable.
@@ -1802,6 +1836,12 @@ merely re-declined:
 bars hang off those ids. **The trigger is a rename in the list**, which today has none.
 
 ### 15.6 The hazard the measurement found, which nobody had named
+
+> **Promoted 2026-09-08 by Task 2.8.2 (§16.7) from a report line to a PRE-BACKFILL CHECK.**
+> Run `pnpm universe:check` before loading a changed universe and treat a recycled-ticker
+> line as **blocking**, not informational: after Task 2.8.6 this stops being a latent
+> corruption risk and becomes corruption of stored history. Run against the 518-security
+> list it is clean — 0 flags.
 
 `FB` today is **ProShares S&P 500 Dynamic Buffer ETF** — an entirely different company, on a
 different venue, with a different id. **Tickers are recycled**, and 229 of them in the
@@ -1859,3 +1899,192 @@ that story is doing anyway.
 
 §12.6's gap is **closed as a decision rather than as a mechanism**: a rename orphans the old
 bars, the reason is §15.5, and the reversal trigger is a rename in the list.
+
+---
+
+## 16. The re-curation: the size, the metadata source and the taxonomy (Task 2.8.2, 2026-09-08)
+
+§10 parked the sizing with a trigger, §5 declined a metadata source, and §10's own
+instruction was that the second must be settled **before** the first. Both are settled here,
+in one editing session, because they touch one file and a second pass after Story 2.8's
+backfill is exactly what §10's deadline exists to prevent.
+
+> **The deadline was real and this is the last cheap moment.** Nothing in the tree encodes
+> the count, so this cost one file edit. After Task 2.8.6 stores a bar against
+> `security_id`, a security added has no history and a security removed leaves rows filed
+> against a row that says `untracked`.
+
+### 16.1 The decisions, in one paragraph
+
+**The universe is the S&P 500** — 503 equities — plus the eleven sector SPDRs and the four
+market proxies, **518 securities**. **The metadata source is the index's own published GICS
+classification**, which is what makes the size affordable rather than what the size forced.
+**`industry` is the GICS industry group (level 2, 25 labels)** rather than the sub-industry
+(level 4) this file carried, which is the coarsening §10 called free and never blocked.
+**A rename still gets no identity**, and the recycled-ticker hazard is promoted from a
+report to a **pre-backfill check**.
+
+### 16.2 The size and the metadata source are ONE decision, and that is the finding
+
+§10 says to settle §5 first and does not say why the two are the same question. They are,
+and the mechanism is worth stating because it inverts §5's own conclusion.
+
+§5 declined ETF-derived classification on one decisive objection, quoted:
+
+> the **SPDRs hold S&P 500 constituents only**, so every tracked equity outside the index
+> would derive to _no sector at all_, which acceptance criterion 3 turns into a failed load.
+
+That objection is a statement about the **relationship between the universe and the index**,
+not about the source. Defining the universe **as** the index dissolves it rather than working
+around it:
+
+- **Coverage is 100% by construction.** There is no equity outside the index to have no
+  sector, so criterion 3 cannot fail for the reason §5 feared.
+- **`SECTOR_ETFS` stops being a mapping we assert and becomes one the data satisfies.** §1
+  chose eleven sectors because eleven SPDRs exist; the eleven SPDRs partition this list
+  exactly. §1's own stated cost — that the mapping is a claim nothing checks — is now
+  checkable against a published source.
+- **The selection rule becomes something a reader can verify.** §7's floor-of-6 /
+  ceiling-of-12 allocation was a rule only this document could adjudicate. "The S&P 500" is
+  a rule anyone can check.
+
+So the answer to §10's "settle §5 before picking a number" is not _pick a source, then a
+number_: it is that **one number makes one source correct**, and 503 is that number.
+
+### 16.3 What was actually read, and the check that makes the mapping evidence
+
+Three sources, each used for exactly the fields it is authoritative for:
+
+| Fields                       | Source                                             | Rows |
+| ---------------------------- | -------------------------------------------------- | ---: |
+| `symbol`, `name`, `exchange` | Alpaca's asset catalogue                           |  503 |
+| `sector`, `industry`         | the published S&P 500 GICS classification          |  503 |
+| everything, for the 15 ETFs  | curated by hand — neither source classifies a fund |   15 |
+
+**The taxonomy mapping is validated rather than asserted, and that is the part worth
+copying.** GICS nests industry group inside sector, so a sub-industry mapped to a group
+whose sector disagrees with the constituent's own published sector is a **mapping error**
+rather than a datum. The mapping table names the sector each of its 25 groups belongs to,
+and every one of the 503 constituents was checked against it: **127 of 127 sub-industries
+mapped, 0 unmapped, 0 sector mismatches.** That is 503 independent checks of a hand-written
+table, which is a different claim from having read it twice.
+
+**The generator is deliberately not in the repository.** It read three files and wrote one,
+and it is checked in nowhere, because a generator beside its output creates a question
+nothing answers — _is the file still what the generator would produce?_ — which is this
+repository's third kind of gap, in a new place. §5's artefact is the **file**: typechecked
+by the compiler, validated by the loader, constrained by the database, and reviewable in a
+diff. The procedure is recorded here so it is reproducible; the reversal trigger is
+**needing to regenerate more than about once a year**, at which point the generator ships
+with a staleness answer rather than without one.
+
+### 16.4 The taxonomy: what the coarsening actually bought
+
+Not a merge we chose — a **published level of a published taxonomy**, which is what §10
+meant by "finer than GICS's own industry-group level (25 groups)".
+
+|                                |   Before |          After |
+| ------------------------------ | -------: | -------------: |
+| Equities                       |       86 |        **503** |
+| Distinct `industry` labels     |       45 |         **25** |
+| Mean members per label         |     1.91 |      **20.12** |
+| Labels with exactly one member | 23 (51%) |          **0** |
+| Labels with ≥ 11 members       |        0 |   **20 of 25** |
+| Equities in a label of ≥ 11    |        0 | **478 of 503** |
+| Deepest label                  |        8 |         **57** |
+
+Three defects §10 recorded as _defects rather than opinions_, and where each stands:
+
+1. **"Relative to its industry" was undefined for 23 of 86 equities.** It is now defined for
+   **all 503**: the shallowest group has two members and there are no singletons.
+2. **PRODUCT_SPEC.md §11's worked example was arithmetically unreachable.** "82% of
+   semiconductor securities currently negative" needs a group of at least 11 to land within
+   ±0.5pp; the deepest group was 8. `Semiconductors & Semiconductor Equipment` is now **20**
+   — the demo's own group, and the one §7 rule 7 exists to protect.
+3. **§27 names 500 nodes as the _initial_ topology target.** The live graph now ships at
+   **518 nodes** rather than at a fifth of its specified size, so Epic 6 renders the thing
+   §28's 60 FPS target was written against rather than a scaled-down stand-in.
+
+**The sector allocation was not chosen and still passes §7's intent.** The largest sector is
+industrials at **16.5%** of equities against §7 rule 3's "not 40% technology" criterion, and
+the smallest is energy at 21, comfortably above rule 2's floor of 6. Both were **met** by an
+index nobody tuned, which is a stronger result than meeting a rule written to be met.
+
+### 16.5 The rules from §7 that survive, are superseded, or lapse
+
+| §7 rule                              | Status                                                                                    |
+| ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| 1. Every sector present with its ETF | **Survives**, and is now satisfied by construction rather than by allocation              |
+| 2. Floor of 6 per sector             | **Superseded.** Met (min 21), but the index decides membership                            |
+| 3. Ceiling of 12 per sector          | **Superseded.** Its _intent_ — no sector dominating — is met at 16.5%                     |
+| 4. Liquidity means liquid on IEX     | **Lapses for stored data**, see §16.6. Survives for Epic 3's live feed                    |
+| 5. Market-cap spread within a sector | **Superseded.** An index spanning ~$5bn to ~$4tn has more spread than a hand-picked block |
+| 6. Every symbol the spec names       | **Survives and is re-checked.** NVDA, SPY, AMD, AVGO, TSLA, QQQ, DIA, IWM all present     |
+| 7. A deep semiconductor group        | **Survives, and is met with far more margin** — 20 rather than 8                          |
+
+### 16.6 The IEX-versus-SIP correction §10 owes, applied
+
+§10's ~1,000–1,500 "useful universe" estimate was derived from **IEX's ~3.8% volume share**,
+and the argument was that thin names gain gaps and pollute breadth. Task 2.7.1 measured the
+free plan to be **asymmetric**: the live stream is IEX-only, and **historical bars default
+to SIP** — 99.7% mean minute coverage against IEX's 82.8%.
+
+**So that quality ceiling binds Epic 3 and does not bind anything Story 2.8 stores**, and it
+would not have excluded an S&P 500 constituent at either tape in any case. What §10 got
+right and is unaffected: the ceiling is real for live data, and a **volume ratio** survives
+a sampled tape where an **absolute share count** does not.
+
+### 16.7 The rename map, and the hazard promoted to a check
+
+Both are §15's handover and both had Story 2.8 as their deadline.
+
+**A rename still gets no identity, and §15.5's decision is confirmed rather than re-taken.**
+The premise every alternative rested on — that the vendor's asset id survives a symbol
+change — was measured false across six real renames. The recommendation if the trigger ever
+fires is unchanged and is the **rename map in the curated file**, because it is the only
+candidate that does not depend on an identifier that turns out not to exist. **The trigger
+is a rename in the list, and there is none**: all 503 symbols are listed and active at the
+vendor, checked. Building a map against no instance is what §12.6 declines on principle.
+
+**What did change is the deadline's status.** It was _"cheap until bars hang off these
+ids"_, and Task 2.8.6 is about to make bars hang off them. So the cost of a future rename is
+now stated rather than deferred: **the old row keeps its bars and its id, the new symbol
+gets a new row with none, and nothing joins them.** That is the accepted outcome, and the
+repair is a forward one — a rename map plus a backfill of the new symbol.
+
+**The recycled-ticker hazard is promoted from a report line to a pre-backfill check.** §15.6
+found 229 tickers in the current market carrying both an active and a retired row, and the
+loader keys on `symbol`, so a recycled ticker added to the file flips a **different**
+company's row back to `active` on the old `id` and two companies' bars land on one row.
+Before this task that was a corruption risk; after Task 2.8.6 it is corruption of stored
+history. **The rule: run `pnpm universe:check` before loading a changed universe, and treat
+a recycled-ticker line as blocking rather than informational.** Run against this list it is
+**clean — 0 flags across all 518** — which is what made the growth safe rather than merely
+large.
+
+### 16.8 What §5's decision now is, and its new reversal trigger
+
+§5's _"a curated file, because ~100 rows is reviewable in a diff"_ is **narrowed rather than
+overturned**, and the honest form is: the file is still the artefact, still reviewed, still
+typechecked — and at 503 rows a reviewer checks its **shape** (the counts, the group depths,
+the sectors) rather than reading every row, because the rows came from a source rather than
+from memory.
+
+**Two of §5's three staleness modes now have an instrument and one still does not.**
+`pnpm universe:check` sees a ticker change and a delisting; **a sector reclassification
+remains the dangerous one with no symptom at all**, exactly as §5 says — and it is now worse
+in one respect, because a constituent leaving or joining the index is a fourth mode that did
+not exist when the list was hand-picked. What mitigates it is unchanged and is now honest
+rather than decorative: `classification_retrieved_at` says when this group was last checked
+against its source, and Task 2.8.2 moved it for the first time since the list was written.
+
+**§5's stated reversal trigger — "the universe passes ~250 securities" — has fired**, and
+the answer it predicted was _"a metadata provider and the licence question that comes with
+it"_. That is **not** what was adopted, and the reason is worth recording: a published index
+constituent list with its own classification is neither a licensed provider nor a runtime
+dependency, and it is read at curation time rather than at load time, so the loader still
+has one job and the deployment still holds one credential. The **new** trigger is a universe
+that is not an index — the moment membership stops being decidable from a published list,
+the fetcher and the licence question come back.
+
+---

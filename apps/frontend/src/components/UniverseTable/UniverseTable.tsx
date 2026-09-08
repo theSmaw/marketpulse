@@ -195,7 +195,7 @@ function kindRank(kind: SecurityKind): number {
  * which one it means.** Since Task 2.3.6 a security removed from the curated
  * file is marked `untracked` and kept, so `securities.length` is *rows we hold*
  * and the count of active rows is *securities we track*. They are equal today —
- * the deployed table is 101 rows, all active — which is exactly the trap: the
+ * the deployed table is 518 rows, all active — which is exactly the trap: the
  * wrong one passes every check this story can run and is silently wrong the
  * first time somebody edits the universe file.
  *
@@ -247,7 +247,7 @@ function SummaryLine({
  * Deliberately a line of facts rather than a row of stat tiles. A big number
  * over a small caption is the shape every dashboard reaches for first, and on a
  * page whose actual subject is a *structure* it would put the least interesting
- * thing — that there are 101 of something — in the largest type on the screen.
+ * thing — that there are 518 of something — in the largest type on the screen.
  */
 function Figure({
   value,
@@ -356,7 +356,7 @@ function UniverseRows({
        * The entrance, and it is the one place motion lands on this page.
        *
        * A table arriving is the moment §5.6 means by "it must feel alive": the
-       * alternative is 101 rows appearing between two frames with no indication
+       * alternative is 518 rows appearing between two frames with no indication
        * that a request completed, which is what a screen that reads as dead
        * looks like. It plays **once, before anybody is reading**, which is the
        * line the motion tokens' own comment draws — nothing here animates a
@@ -452,7 +452,7 @@ function UniverseRows({
  *
  * **Skeleton rows rather than a line of text, and the reason is layout rather
  * than fashion.** A one-line "loading" message collapses the region to the
- * height of that line and then shoves the whole page down when 101 rows land.
+ * height of that line and then shoves the whole page down when 518 rows land.
  * Something table-shaped holds the space, so the arrival is an arrival rather
  * than a jolt.
  *
@@ -619,10 +619,10 @@ function FailedState({
  *
  * What is left is not really duplication either, and `PriceChange` is the
  * precedent: visible text is written to be **scanned** and an announcement is
- * written to be **heard, once, out of context**. `101 securities tracked · 11
+ * written to be **heard, once, out of context**. `518 securities tracked · 11
  * sectors · 15 ETFs` is a good line to scan and a poor sentence to hear — and
  * measurably so, since those separators are CSS `::before` content, so the
- * element's own text runs together as `101 securities tracked11 sectors15 ETFs`.
+ * element's own text runs together as `518 securities tracked11 sectors15 ETFs`.
  * That is `e2e/README.md`'s `Backend servicehealthy` trap arriving in a place
  * where it would have been *heard* rather than merely mis-asserted on.
  *

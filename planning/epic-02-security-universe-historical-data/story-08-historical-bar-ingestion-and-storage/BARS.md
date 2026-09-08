@@ -189,6 +189,31 @@ laptop connects as the Entra administrator, which is a **third** principal writi
 
 ## 4. The sizing arithmetic — an estimate, to be re-taken at Task 2.8.8
 
+> **Re-taken 2026-09-08 by Task 2.8.2, because the universe grew from 101 to 518.** The
+> tables below are unchanged and still correct per security; what changed is which row of
+> them is the live case. **The `500` row is now the real one.** The figures at 518, computed
+> the same way:
+>
+> | Reading                               |     101 |     **518** |
+> | ------------------------------------- | ------: | ----------: |
+> | Minute rows / year                    |    9.8M |   **50.5M** |
+> | Daily rows / year                     |  ~25.4k |    **130k** |
+> | Minute GB / year at ~120 B/row (heap) |    ~1.2 |    **~6.1** |
+> | Years to read-only on ~22.5 GiB       |  ~19–20 |    **~3.8** |
+> | Pages / year at `limit=10000`         |  ~1,004 |  **~5,051** |
+> | Request time at the measured 3.23/s   | ~20 min | **~26 min** |
+> | Rows per session, whole universe      |  39,390 | **202,020** |
+> | Pages per session                     |       4 |      **21** |
+>
+> Two things that change in kind rather than in degree. **The pages-per-year figure is now
+> ~5,051 and the request time is only ~26 minutes**, because Task 2.8.5's multi-symbol fetch
+> makes the cost a function of _rows_ rather than of securities — a five-fold universe is a
+> five-fold row count and a 1.3× wall clock against the per-symbol loop it replaced. And
+> **the session-shaped-request condition below stops being an optimisation and becomes
+> load-bearing**: a span-shaped backfill stores ~2.35× the rows, which is **~14.2 GB/year**
+> and **~1.6 years** to read-only rather than ~3.8. At 101 that was a number; at 518 it is
+> the difference between a store that lasts and one that fills.
+
 ### Sessions and bars, computed from the shipped calendar rather than approximated
 
 | Year | Sessions | Early closes | Minute bars per security |
