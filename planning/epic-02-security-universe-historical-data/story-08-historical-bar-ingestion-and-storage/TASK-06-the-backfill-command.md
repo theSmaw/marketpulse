@@ -1,6 +1,6 @@
 # Task 2.8.6 — The backfill: session-shaped windows, pacing, and resuming
 
-**Status:** Not started
+**Status:** Complete (2026-09-08)
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
 **Depends on:** Task 2.8.5
 
@@ -422,3 +422,269 @@ resume point, the monotonic walk, the `SIGINT` behaviour, the `status = 'active'
 2024-01-01 daily bound are all untouched by this task. So is the **sequential** recommendation,
 and its argument is unchanged: the ledger refuses concurrency across sessions, and Task 2.7.7's
 crowd measurement says concurrency against this vendor is not free.
+
+---
+
+## What shipped (2026-09-08)
+
+Three new files in `apps/backend/src` — `backfill.ts`, `bar-window.ts` and two
+test suites — plus `scripts/run-backfill.mjs` and one root script, `pnpm
+backfill`. **No dependency and no lockfile change.**
+
+`windowFor` was **extracted from `fetch-bars.ts` rather than copied**, into
+`bar-window.ts`. Two callers now share one definition of the window shape, which
+is the trap `alpaca-mapping.ts` names for the inclusive-`end` conversion
+arriving one level up: a window shape that disagreed between the command a
+person checks by eye and the command that fills the database would disagree in
+the worst possible place, because only one of the two is ever looked at.
+
+`backfill` was checked against `pnpm help -a` before it was claimed, **with the
+detection validated in the same run** against names known to be built-ins
+(`clean`, `test`, `start`, `config`, `env`, `deploy`) — the control that failed
+its own first attempt at Task 2.7.8. `backfill`, `ingest` and `fill` are all
+free.
+
+## The decisions this task owed, and what they came out as
+
+**Sequential, and the recommendation is confirmed rather than re-taken.** The
+2026-09-08 amendment left it open between ~3.6 hours sequential and ~8 requests
+in flight; Task 2.8.4's amendment then constrained it, because eight in flight
+is eight _sessions_ in flight and they do not complete in order — which the
+ledger refuses by name. The measurement below removes the last of the argument
+for concurrency anyway: the sequential year is **~72 minutes, not ~3.6 hours**.
+
+**Backwards from the present, and forwards first when there is a gap at the
+recent end.** `planRequests` emits two monotonic walks: the newer half oldest
+request first (the catch-up), then the older half newest request first (the
+deepening). Both extend the one contiguous ledger range from one of its ends,
+which is what makes a single ledger row enough. On a first run there is nothing
+held, so the whole thing is one backward walk — and the direction is why an
+interrupted run leaves the product _more_ useful rather than less: what it has
+is the recent history, contiguous, which is what every chart opens on.
+
+**`commonCoverage` is the intersection across the batch, and skipping is a spend
+optimisation rather than a correctness mechanism.** A batch fetches one window
+for every symbol, so there is no such thing as fetching it for some; a session is
+skipped only when _every_ symbol already holds it. Correctness is the upsert,
+which makes re-writing a held session change no byte. The cost is stated: one
+symbol behind the rest drags the whole batch's skip window back to its own.
+
+**`CoverageGapError` blocks the symbol and the run continues.** Task 2.8.4's
+amendment asked for a choice between retrying the session and stopping the
+symbol; Task 2.8.5's then removed the first option for a transport failure, so
+what is left is genuinely per symbol. A blocked symbol is dropped from the
+**request** and not merely from the write — fetching bars we would then refuse to
+store spends a metered budget on nothing — and it is named in the report with its
+missing sessions. Ending the run on it would let one thin symbol stop 517 others;
+swallowing it would reopen the hole the check was built to close.
+
+**A whole-batch failure stops the run.** It is already retried, because
+`withRetry` wraps the provider, and carrying on to the next session would leave a
+gap the ledger refuses on the very next write anyway, for every symbol at once.
+
+**`raw`, always, and adjustment is not an argument.** A stored _adjusted_ series
+is retroactively wrong the moment the next split happens, which makes the store a
+cache by the back door — the one thing open decision 1 settled it is not.
+
+**`--sessions` defaults to 5.** A backfill whose default spends an hour against a
+metered API is a trap; `--sessions 251` is a year and is typed deliberately.
+
+**`SIGINT` finishes the request in flight, and exits 0.** A request already sent
+has been paid for, so abandoning it wastes it _and_ leaves the ledger one session
+further behind. A second `SIGINT` exits immediately. Exit **0** is a decision: an
+interrupted run did exactly what it was asked to up to the point somebody asked
+it to stop, and a non-zero code would make Ctrl-C indistinguishable from a
+failure in anything that wraps this.
+
+## What was measured, against a real key and a real database
+
+**A year of one security.** `--symbols NVDA --from 2025-09-09 --to 2026-09-04`:
+**244 sessions, 94,800 bars, 89.4 s**, every regular session **exactly 390** and
+**both half days in the year exactly 210** — `2025-11-28` and `2025-12-24`.
+Nothing else in 244 sessions deviated. That is criterion 4's half-day half
+produced rather than reasoned about: a check expecting 390 would have reported
+180 phantom gaps on each of those two days, and a span-shaped window would have
+inflated both.
+
+**The whole universe, one session: ONE fetch.** 518 securities, **188,726 bars in
+15.8 s**. A four-session run is 3 fetches, 571,167 bars, 52 s — **~17.3 s a
+session**.
+
+**That corrects this file's own amendment.** It predicted ~55 s a session (21
+pages × 2.52–2.65 s) and therefore **~3.6 hours** for a sequential year at 518.
+Measured, a year is **251 × 17.3 s ≈ 72 minutes**. The amendment's conclusion —
+sequential — survives with a much easier argument, and Task 2.8.5's claim that
+the batch is _"what makes the backfill a command somebody runs rather than an
+overnight job"_ turns out to be **true sequentially** after all.
+
+**The mean is 364 bars a security-session, not 390.** 188,726 ÷ 518. That is Task
+2.8.5's liquidity finding at universe scale — only 8 of 28 sampled S&P 500
+constituents returned a full 390 — and it is why no test here asserts a bar
+count.
+
+**Criterion 2, at scale and on the rows.** A re-run of a held range is **0
+fetches, 0 bars, 0.4 s** at 518 securities. The database suite asserts the
+stronger form: an `md5` over every stored bar _and_ the ledger, byte-identical
+across a re-run. `updated_at` is inside that digest deliberately, because
+`market-bars.ts` only moves it when the statement actually changed.
+
+**Criterion 3, both ways.** `SIGINT` mid-run: the request in flight finished, its
+ledger row was written, exit 0, and the resume reported **4 already held** and
+walked the remaining 6. `kill -9` mid-run: the session in flight rolled back with
+its ledger row, and the resume reported **2 already held** and walked 6. Neither
+duplicated nor skipped a session.
+
+**Storage, measured rather than estimated.** 768,123 bars occupy **144 MB**
+including indexes — **197 bytes a row**, against the story's assumed ~120. At the
+measured density that is **~48.1M rows and ~9.5 GB a year** for 518 securities,
+so Story 2.1's ~22.5 GiB usable is **~2.4 years of headroom rather than ~3.8**.
+Task 2.8.8 owns the formal reading; this is the datum it should start from.
+
+**`pnpm verify` is exit 0 in 34.7 s with no database**, and this command is in
+neither chain — for the reason `pnpm bars` is not, and more firmly: it makes
+metered requests _and_ writes to a database.
+
+## Four deliberate breaks, each seen to fail and reverted
+
+| Break                                            | Red                                     |
+| ------------------------------------------------ | --------------------------------------- |
+| `SESSIONS_PER_REQUEST["1m"]` 1 → 5               | 7 tests, naming the window and the walk |
+| The daily window framed on the session           | 1 test, naming midnight ET              |
+| `commonCoverage` as the union not the section    | 2 tests, naming the intersection        |
+| `CoverageGapError` swallowed instead of blocking | 2 tests, naming the blocked symbol      |
+
+The tree was confirmed byte-identical after each revert.
+
+## One finding worth more than a passing test: a check that could not fail
+
+The database suite's first version asserted that **no stored bar falls outside
+the sessions walked** — which reads like the deliberate-break assertion for the
+window shape and is not one. Widening `SESSIONS_PER_REQUEST["1m"]` to 3 leaves it
+**green**, measured, because `fixture-corpus.ts` is synthetic: it generates a bar
+per minute of a session and nothing outside one, so it has **no extended-hours
+prints to leak**. A synthetic corpus cannot exhibit the failure the assertion is
+written against.
+
+It was kept with a **non-vacuity guard** and an honest comment saying what it does
+and does not hold, rather than deleted or left looking like a check. That is Task
+1.13.6's blind-renderer problem in a new place: a query finding nothing outside
+the sessions passes identically whether the walk is session-shaped or whether the
+symbol has no bars at all. The window _shape_ is held by `backfill.test.ts`'s
+assertion on the request range, which is the level that can see it, and by the
+real vendor at the point a real key is used — where it was produced, at 390 and 210.
+
+## The pacer paces walks, not pages, and that is stated rather than hidden
+
+`BACKFILL_PACE_MS` is 350 ms — one ~310 ms token plus margin — measured from the
+_start_ of the previous provider call, so it costs nothing whenever the previous
+call took longer than the floor. Task 2.8.5's amendment warns that a pacer must
+count **requests** rather than walks, and this one counts walks: `fetchManyBars`
+pages internally with no pacing between pages. Measured rather than assumed, a
+518-symbol session is ~21 pages in 15.8 s — **~1.3 pages a second against a
+3.23/s refill** — so it does not breach the limiter and the floor between walks is
+what actually binds. **The reversal trigger is a `rate-limited` outcome on a run
+this pacer was supposed to keep under the limit**, at which point the pace belongs
+inside the walk, which means inside the provider, and `PROVIDER.md` §8.8 would
+have to be revisited rather than worked around here.
+
+`BackfillReport.requests` is documented as _calls to the provider_ rather than
+HTTP requests, and the summary line says `fetches` for the same reason.
+
+## The honest gap
+
+**Nothing was written to the deployed database.** Open decision 4 settled the
+initial backfill as a local command against the deployed store, and this task
+built the command; running it there is Task 2.8.8's, alongside the query-plan and
+storage measurements it needs a real row count for. What ran here is the same
+command, the same key and the same code path, against the local PostgreSQL 18
+container — which is the same major, and the write path is Task 2.2.7-verified as
+producing an identical schema at both ends.
+
+---
+
+## For a non-technical reader — where the product has got to
+
+**In one sentence: MarketPulse can now go and get its own market history, and
+keep it.**
+
+Everything before this could _look at_ market data. Until now the product could
+ask Alpaca for one day of one company's prices and print them to a terminal, and
+they vanished when the window closed. This task builds the machine that fetches
+that history in bulk and files it in the database, so the product owns a record
+of what happened in the market rather than borrowing one.
+
+**Why that matters more than it sounds.** Almost everything on the roadmap needs
+history rather than "right now". You cannot say a price move is _unusual_ without
+knowing what usual looks like for that company — which means months of its own
+past. You cannot compare a chip-maker against its sector without both sides'
+history. And the product's signature feature, replaying a past trading day and
+asking "what could anyone have known at 11:07 that morning?", is obviously
+impossible without it. The database is what makes the answer to all three ours to
+compute rather than something we have to ask a vendor for, over the internet,
+every time somebody clicks.
+
+**What it actually does.** You type `pnpm backfill`. It works out which trading
+days it needs from the trading calendar the product already knows, asks Alpaca
+for one day at a time, and writes each day's prices into the database as it goes,
+printing a running commentary with an estimate of how much longer it will take.
+Fetching the last four trading days for **all 518 tracked companies** — 571,167
+individual price bars — took **52 seconds**.
+
+**The decisions worth explaining, because each of them is a trap avoided:**
+
+- **It asks for one trading day at a time, and that is not fussiness.** Ask for a
+  week in one go and the vendor helpfully throws in overnight and early-morning
+  trading, which is **2.35 times as much data**, more than half of it from hours
+  the product's own calendar says the market was shut. We would be paying to
+  store, and then quietly reasoning over, prices from a market that was closed.
+  Asking day by day gets exactly the day.
+
+- **It can be stopped and picked up again.** This is a job that runs for over an
+  hour for the full universe. Press Ctrl-C and it finishes the day it is in the
+  middle of, records that it has that day, and stops cleanly; pull the plug and
+  the half-finished day is discarded whole rather than half-written. Either way
+  the next run carries on from precisely where it left off. That was tested by
+  actually doing both, not by reasoning about it.
+
+- **Running it twice is free.** It keeps a small ledger of what it already holds,
+  so a second run of the same range asks the vendor for **nothing** and finishes
+  in under half a second. That matters because a vendor allowance is finite and
+  because the honest way to find out whether we already have something is to
+  look, not to fetch it again and hope.
+
+- **It fills the most recent history first and works backwards.** If it gets
+  interrupted at 60%, what the product has is the most _recent_ months — the part
+  every chart opens on — rather than a stretch of old data with a hole where
+  today should be.
+
+- **It stores prices exactly as they were quoted on the day**, not "helpfully"
+  restated to account for later stock splits. A restated price is right today and
+  wrong after the next split; a quoted price is permanently true. If somebody
+  wants the restated view, we ask for it when they ask, which keeps the stored
+  record honest.
+
+- **When something goes wrong it stops and says so.** If one company's data comes
+  back with a hole in it, that company is set aside by name with the missing
+  dates printed, and the other 517 carry on. If the vendor refuses the whole
+  request, the run stops rather than skipping ahead and leaving a gap nobody
+  would ever notice. The failure this whole area of work is designed against is
+  not a crash — it is a database that looks perfectly healthy and is quietly
+  missing a fortnight.
+
+**Two numbers that turned out better than planned, and one that turned out
+worse.** We had estimated roughly three and a half hours to fetch a full year for
+all 518 companies; measured, it is about **72 minutes**. And we had assumed each
+stored price would take about 120 bytes; measured, it is 197, which means our
+free storage allowance holds about **two and a half years** of history rather
+than nearly four. Neither changes a decision, and both are now written down as
+measurements rather than guesses — which is the point of measuring.
+
+**What a stakeholder can be shown today:** a terminal filling half a million real
+market prices into a database in under a minute, and then being run again and
+correctly doing nothing at all.
+
+**What they still cannot see:** any of it on a screen. `/securities` renders the
+same 518-company page it did before. The next tasks build the instrument that
+reports what history we hold and what is missing from it, and then put that on
+the page — after which the product can say, per company, exactly how much of the
+market's past it can reason about.
