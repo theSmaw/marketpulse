@@ -248,3 +248,67 @@ to break it.
 **One figure not to render, measured.** The mean is **364.3 bars per security-session** rather
 than 390, so a percentage against `minuteBars` reads ~93% for a completely healthy store. That is
 a liquidity fact, it is not completeness, and it must not appear on this page as either.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.7 — one instruction whose reason evaporated, and it should still be followed
+
+The attempt log and `pnpm bars:check` shipped. One thing in this file is now **false as written**,
+and the instruction it supports is nonetheless still right — which is exactly the shape that gets
+overturned by the next reader unless the surviving argument is written down.
+
+### The two outliers are now distinguishable, and the page still must not distinguish them
+
+Task 2.8.6's amendment §3 names two securities that sit at a shallower depth than the rest:
+
+- one **blocked by `CoverageGapError`**, which stopped extending and is permanently behind;
+- one with a **genuinely shorter history**, because it listed inside the window.
+
+It then says: _"They render identically from the ledger alone — both are just a later
+`covered.start` — which is the argument for the page saying the true simple thing."_
+
+**The first half of that sentence is no longer true.** A blocked symbol now leaves a
+`coverage-gap` row in `bar_attempts`, carrying the sessions the refusal named, so the two cases
+are separable with a second read. The conclusion survives and its argument changes from _you
+cannot_ to **you could and should not**:
+
+- The reader of `/securities` is somebody choosing a security to look at, and what they need to
+  know is whether there is anything to look at. _Why_ the depth is shallow is an operator's
+  question with an operator's command.
+- Rendering the reason means rendering `coverage-gap` — engineering vocabulary about our own
+  ingestion — on the page a first-time viewer meets. That is the caption problem Task 2.7.4
+  produced and corrected: the sentence is the requirement, and there is no honest short sentence
+  for this one.
+- And the two look the same **to a user** whatever the database knows, because in both cases the
+  true statement is _"we hold history from this date"_.
+
+So: the body's instruction stands unchanged. **Do not join `bar_attempts` on this path.** The
+page reads the ledger and nothing else, which is also what keeps it one query.
+
+### What the report already does instead, so this page does not have to
+
+The body says _"say what is missing rather than implying completeness"_ and _"reserve the
+diagnostic detail for the report"_. That report exists and is `pnpm bars:check`, so the sentence
+is now a pointer rather than a promise: a security behind the rest is reported there by name,
+with its recorded reason beside it, and the page carries the simple true thing.
+
+### One number this page must not compute, restated with its measured value
+
+The mean is **364.3 bars per security-session** against a nominal 390, so a percentage against
+`minuteBars` reads ~93% for a **completely healthy** store. `bar-completeness.ts` calls that
+figure **density** and never _completeness_, deliberately, and keeps it in a separate column from
+the session count. If this page ever grows a second figure, take the vocabulary from that module
+rather than inventing one — two names for one number in two places is how somebody comes to
+re-fetch 240 sessions that were already complete.
+
+### A small thing that is now available and is probably still not worth rendering
+
+`bar_coverage.updatedAt` means _when what we hold last changed_ rather than _when the backfill
+last ran_ — Task 2.8.4 refused a last-attempt column precisely so that it could. Task 2.8.7 then
+took the decision that **neither the backfill nor a catch-up runs automatically in V1**, which
+makes staleness a real state rather than a hypothetical one, and this field the only honest way
+to report it.
+
+That is a reason to know the field exists, not a reason to put a date on every row. If freshness
+ever belongs on this page it belongs in the **summary line** — one statement about the store —
+rather than as a per-row column nobody scans.

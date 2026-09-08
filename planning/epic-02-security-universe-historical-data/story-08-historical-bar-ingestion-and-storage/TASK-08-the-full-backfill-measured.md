@@ -291,3 +291,91 @@ backfill is a couple of minutes and should not be budgeted as if it were the min
 names: a symbol blocked by `CoverageGapError` is dropped from the rest of that run and falls
 permanently behind the others. At 518 securities over 251 sessions this is the first run large
 enough for it to happen, and the blocked list printed at the end is where it will show.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.7 — one ordering hazard, one run order, and a third table
+
+The attempt log and `pnpm bars:check` shipped. Nothing about this task's shape changes; five
+things about **running it** do, and the first is a hard failure rather than a note.
+
+### 1. `0006_bar_attempts.sql` has to be applied to the deployed database BEFORE this runs
+
+This is the one that will cost an afternoon if it is not read first. This task runs `pnpm
+backfill` **from a laptop against the deployed database** (open decision 4), and the backfill now
+writes and clears the attempt log — `clearAttempts` runs after **every** successful request, not
+only after a failure. Against a deployed database that has not seen `0006`, the first session's
+bars commit and then the run stops on `relation "bar_attempts" does not exist`.
+
+It degrades correctly — the command catches it and reports _"Every session it did store is
+stored"_ — but it stops after one session and the message names a table rather than a cause.
+
+The migration reaches the deployed database through `deploy.yml`'s **`Run database migrations`
+step, which only runs on `main`**. So the ordering is: merge, watch that step, _then_ back-fill.
+Confirm it rather than assume it — `select name from kysely_migration order by name` against the
+deployed server, which is the same check Task 2.2.7 used.
+
+### 2. Run the DAILY timeframe first, and it is a two-minute decision that changes the whole run
+
+The Work list has both timeframes and no order. Take daily first, for two reasons that both point
+the same way:
+
+- **It is ~13 requests and a couple of minutes**, because `SESSIONS_PER_REQUEST["1d"]` is 20 — so
+  it costs essentially nothing against the minute run's ~72.
+- **It is what makes `pnpm bars:check`'s delisting signal able to answer at all.** That signal
+  reads **daily** bars, because the same `max(observed_at) group by security_id` over minute bars
+  is a full parallel sequential scan — measured at **192 ms over 863k rows**, ~11 s extrapolated
+  to a year of the universe, which is not a routine report's query. With no daily backfill the
+  report is honest and blind: it prints `The "has it stopped printing" check is BLIND for N of
+these series` and produces no findings.
+
+So daily first means the report is a working instrument **during** the long minute run rather
+than after it — which matters, because this task's own Notes predict the first full run will find
+something.
+
+### 3. Three tables to fingerprint for criterion 2, not two
+
+The criterion-2 section says _"Both tables should be fingerprinted"_. There are three the
+backfill writes now: `market_bars`, `bar_coverage` and `bar_attempts`.
+
+The third is fingerprintable for the same reason the second is — it takes `securities`'
+`is distinct from` idiom, so **a re-run that fails the same way twice leaves it byte-identical**,
+and a re-run that succeeds where one failed leaves it **empty**. Both are assertable. A no-op
+re-run of a held range writes nothing to any of the three, which was produced locally: the
+ledger's md5 was identical before and after a second run (`171cd30e…`).
+
+Note the log is **advisory rather than authoritative** and the report is built that way:
+completeness is computed from `bar_coverage`'s range, never from this table, so a stale row
+surviving a failed `clearAttempts` degrades the report's _explanation_ and not its _arithmetic_.
+Worth knowing before reading a surprising row as corruption.
+
+### 4. `pnpm bars:check`'s default window will read alarming mid-backfill, and it is correct
+
+With no `--from`/`--to` the window is **the ledger's own union span** — earliest covered start to
+latest covered end across every series — so _not fetched_ means **behind the rest of the
+universe**. That is the design, and it is what surfaces a symbol the backfill gave up on.
+
+During a partial run it means something else that looks identical: with one security deep and 517
+shallow, the report says **517 series behind**, because they are. Produced locally, with exactly
+that reading. Use `--symbols` or an explicit `--from`/`--to` while a run is in progress, and read
+the default form once it has finished — that is when _behind_ means what the report is for.
+
+### 5. The blocked-symbol prediction now has a durable instrument
+
+Task 2.8.6's amendment says a symbol blocked by `CoverageGapError` _"falls permanently behind the
+others"_ and that _"the blocked list printed at the end is where it will show"_. It shows in
+**three** places now, and only one of them survives the terminal closing:
+
+- the run's own blocked list, in memory;
+- a **`coverage-gap` row in `bar_attempts`**, carrying the sessions the refusal named;
+- and `pnpm bars:check`, which reports the symbol as behind **and** prints the recorded reason
+  beside it.
+
+So the finding this task predicts is recoverable after the fact rather than only during the run.
+
+### 6. One figure not to budget for
+
+`bar_attempts` is **sparse by construction** — a session that stored bars has no row, and a later
+success deletes any row that was there — so it contributes nothing measurable to the storage
+arithmetic and is empty when everything is well. Measure it anyway if it is cheap, but the
+headroom table is `market_bars` plus its indexes, unchanged.

@@ -594,3 +594,64 @@ Smaller corrections: **2.8.9**'s repository read already exists as `listCoverage
 no _last attempt_ field to keep off the page because 2.8.4 refused one; **2.8.8**'s idempotence
 check should watch the ledger's `updated_at` rather than its `recorded_at`, which is insert-only
 and cannot move.
+
+---
+
+## Amended 2026-09-08 — the remaining tasks reviewed against Task 2.8.7
+
+**Nothing added, deleted or re-ordered.** Three task files amended, and two of this story's own
+sections above are now discharged rather than open.
+
+2.8.7 shipped the shape its brief and three amendments predicted — an attempt log, a pure
+comparison, and `pnpm bars:check` on `pnpm universe:check`'s four properties — and took the two
+decisions that were handed to it. The changes downstream are about **running** the remaining work
+rather than about its shape.
+
+### The two open questions this story was carrying are answered
+
+- **`delisted`** — the section _"This story is the named owner of a future `delisted`"_ above is
+  answered: **reported and never written.** The member does not ship. `UNIVERSE.md` §15.3's
+  produced overwrite is why — a `status` written by anything other than the loader is silently
+  reverted by the next deploy's `pnpm universe` — so adopting it is two decisions rather than
+  one, and this is Task 2.1.7's shape where the instrument says _whether_ and a person decides
+  _what to do_. The signal itself is real and cheap: bars stopping, at 100% correlation against
+  the vendor's flag at 92%.
+- **Open decision 4's second half** — _"the incremental catch-up's home is decided separately when
+  it exists"_ — is decided. It exists (Task 2.8.6's forward walk), and **neither it nor the
+  backfill runs automatically in V1**: a person runs `pnpm backfill` before a demonstration and
+  `pnpm bars:check` is how they find out whether they needed to. The cost is stated rather than
+  implied — an unscheduled catch-up is what makes the store quietly stale, and
+  `bar_coverage.updated_at` is the only field that can report it honestly. `BARS.md` §7.6.
+
+### The three amendments
+
+- **2.8.8** gains an **ordering hazard that is a hard failure**: the backfill now writes and
+  clears the attempt log on every request, so `0006_bar_attempts.sql` has to reach the deployed
+  database — through `deploy.yml`'s migration step, which only runs on `main` — **before** a
+  laptop backfill runs against it. It also gains a run order: **daily first**, because it is ~13
+  requests and a couple of minutes and it is what makes the report's delisting signal able to
+  answer at all during the ~72-minute minute run. Plus a third table to fingerprint for criterion
+  2, and a warning that the report's default window reads as _N series behind_ mid-backfill,
+  correctly.
+- **2.8.9** gains a correction to a **reason** rather than to an instruction. Task 2.8.6's
+  amendment said a blocked security and a genuinely-short-history security _"render identically
+  from the ledger alone"_; they no longer do, because a blocked one leaves a `coverage-gap` row.
+  The instruction — do not distinguish them on the page — stands, and its argument changes from
+  _you cannot_ to **you could and should not**, which is the shape that otherwise gets overturned
+  by the next reader.
+- **2.8.10** gains three ADR decisions (why empty successes are logged, why completeness and
+  density are two names, why the delisting signal is reported and not written), two second-list
+  entries (the signal is blind without a daily backfill **and says so**; the log is advisory
+  rather than authoritative), and four sweep candidates whose conditions have **already fired** —
+  `delisted` ownership described in the future tense, "two tables" claims that are now three, the
+  catch-up's home described as open, and the test counts, which moved twice inside this story.
+
+### One finding worth carrying out of the story
+
+The delisting signal **produced a false positive on the day it was written** — two healthy
+securities reported as delisted, because it reads daily bars and the store held only minute ones,
+so _no daily bar_ meant _we never asked_. The fix is a **third value** rather than a better
+threshold, and the more transferable half is that the report now **prints its own blind spot**.
+That is Task 1.13.6's blind-renderer problem in a third place, after the axe gate and
+`backfill.database.test.ts`'s window assertion: **a check that cannot see something must say so**,
+because a reader who sees no findings will otherwise conclude there is nothing to find.
