@@ -43,11 +43,27 @@
 # and universe steps are in the deploy because they are fast, idempotent and
 # required for the code being shipped to work. This is none of those things.
 #
-# **It has no `schedule:`.** Task 2.8.7 decided that neither the backfill nor
-# the catch-up runs automatically in V1, and said the cost in words: an
-# unscheduled catch-up is what makes the store quietly stale, and
-# `bar_coverage.updated_at` is the only field that can report it honestly. That
-# decision is unchanged and this file is not a way around it.
+# **It DOES have a `schedule:`, and that reverses Task 2.8.7 — deliberately, with
+# the reason.** That task decided neither the backfill nor the catch-up runs
+# automatically in V1, and stated the cost in its own words: an unscheduled
+# catch-up is what makes the store quietly stale. Part of the argument was that
+# the backfill had nowhere good to run; measured, a laptop was the wrong machine
+# by a factor of thirty-five, and this file is the home it did not have. Against
+# that, a nightly catch-up is **four vendor requests and about three minutes**,
+# so the thing being traded away was never cost.
+#
+# The nightly run is a CATCH-UP and not a backfill. `--sessions 10` is a margin
+# over five trading days, so a long weekend or a missed night is absorbed rather
+# than becoming a gap, and on a day with nothing new it plans **zero requests**
+# and finishes in seconds.
+#
+# **Small N is load-bearing and is not a rounding-down.** See the over-fetch note
+# below: a catch-up asks only for sessions NEWER than the frontier, which
+# `planRequests` walks forward and contiguously. Measured through the real
+# planner with the frontier a week behind: `--sessions 10` plans 4 requests and
+# fetches 4 new sessions, where `--sessions 251` plans **193 requests to fetch
+# the same 4**. Raising this number does not make the catch-up safer; it makes it
+# waste a metered budget.
 #
 # **It holds no credential.** There is still no repository secret. The runner
 # authenticates to Azure with the same federated identity `deploy.yml` uses, and
@@ -91,6 +107,19 @@ on:
         required: true
         type: string
         default: "--sessions 5"
+  # 08:00 UTC daily — comfortably after the US close (20:00 UTC in EDT, 21:00 in
+  # EST) and before the next open, so the most recent COMPLETE session is
+  # yesterday's and its bars are long past the plan's ~15-minute withheld
+  # window. Daily rather than weekdays-only because a run with nothing to do
+  # costs nothing: it plans zero requests and exits. That is cheaper to reason
+  # about than a cron that has to know about holidays, which is the same
+  # argument `market-calendar.ts` makes about rule sets.
+  #
+  # GitHub disables a `schedule:` on a repository with no pushes for 60 days.
+  # That is a real failure mode for a portfolio project between bursts of work,
+  # and the thing that reports it is `pnpm bars:check` rather than this file.
+  schedule:
+    - cron: "0 8 * * *"
 
 # ONE backfill at a time, and cancellation OFF. Two concurrent walks against one
 # database is precisely the shape `market-bars.ts` refuses with a
@@ -198,7 +227,9 @@ jobs:
 
       - name: Fill the store
         env:
-          BACKFILL_ARGS: ${{ inputs.args }}
+          # A scheduled run supplies no inputs, so the catch-up default lives
+          # here. Ten sessions: see the header on why this number is small.
+          BACKFILL_ARGS: ${{ inputs.args || '--sessions 10' }}
         run: |
           set -euo pipefail
 

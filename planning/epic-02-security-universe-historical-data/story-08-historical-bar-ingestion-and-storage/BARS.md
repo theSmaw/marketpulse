@@ -581,3 +581,412 @@ Against the local store and the real vendor on 2026-09-08:
 | Untraded minutes | `AME` on a real regular session                 | **304 of 390**, density 91.0%, **no finding**                      |
 | Failed fetch     | `ALPACA_API_SECRET_KEY=deliberatelywrongsecret` | `unauthorised` recorded against 2026-08-31, named in the report    |
 | Recovery         | Re-run with the real key                        | `304 bars, 304 new`, and the log back to **0 rows**                |
+
+---
+
+## 8. The full backfill, run and measured — Task 2.8.8
+
+Everything in this section is a reading rather than a projection. Where a
+prediction existed it is left standing beside the measurement, because the gap
+between the two is the record.
+
+### 8.1 What the local store holds
+
+| Timeframe |           Rows | Securities | Sessions | Range                   |
+| --------- | -------------: | ---------: | -------: | ----------------------- |
+| `1m`      | **47,682,213** |        518 |  **251** | 2025-09-08 → 2026-09-04 |
+| `1d`      |    **345,559** |        518 |  **672** | 2024-01-02 → 2026-09-04 |
+
+**48,027,772 rows**, and 515 securities hold the full minute year. The three
+that do not are `Q` (Qnity Electronics), `FDXF` (FedEx Freight) and `HONA`
+(Honeywell Aerospace) — 2025 and 2026 spin-offs that did not exist for the whole
+window. See §8.7, because they turn out to matter far more than three rows
+should.
+
+**The row-count prediction is confirmed to within 0.6%.** Task 2.8.6 projected
+**~47.4M** from a measured 364.3 bars per security-session against the
+calendar's ceiling of 50.5M; the reading is **47.68M**. So the liquidity
+discount is real, stable at universe scale, and the right basis for sizing.
+
+### 8.2 Runtime, and which half dominates
+
+| Run                   |  Wall clock | Sessions | Rows      |
+| --------------------- | ----------: | -------: | --------- |
+| Daily, full depth     | **135.6 s** |      672 | 345,519   |
+| Minute, first pass    | **81m 36s** |  203/247 | ~39.6M    |
+| Minute, gap fill      | **15m 45s** |       43 | 7,902,369 |
+| Minute, final session |       ~20 s |        1 | 184,562   |
+
+**The vendor dominates, and it is not constant.** The first 39% of the minute
+walk averaged **20.0 s a session** (measured directly: 5 sessions in 100 s), and
+the last quarter averaged **60–90 s**. Diagnosed rather than guessed: Postgres
+reported the in-flight insert in `wait_event: ClientRead` — the server idle,
+waiting for the client — and the Node process sat at **10.5% CPU** over 73
+minutes. Neither the write path nor the process was the constraint, so the time
+was network wait on the vendor.
+
+**Zero `429`s, zero retries, zero timeouts across ~5,200 requests.** This task
+was asked to read that as "the pacer is possibly too conservative", and the
+honest answer is that it is conservative **by construction**:
+`BACKFILL_PACE_MS` is 350 ms against a measured ~310 ms token, so the sustained
+rate sits just under the refill and a burst can never accumulate. The wall clock
+is therefore set by the vendor and the write path, never by the limiter, and the
+~26-minute rate-limit floor is a number this design guarantees will not be
+approached.
+
+**One correction to a recorded figure.** Task 2.8.7's amendment says daily is
+"~13 requests and a couple of minutes". That is 251 sessions; the daily bound is
+2024-01-01, which is **672 sessions and 34 requests**. The conclusion — run daily
+first, it is cheap — is unaffected.
+
+### 8.3 The row size, taken properly
+
+| Reading                |           Value |
+| ---------------------- | --------------: |
+| Rows                   |      48,027,772 |
+| Heap                   |    **5,001 MB** |
+| Indexes                |    **3,944 MB** |
+| **Total**              |    **8,947 MB** |
+| **Bytes a row, total** |         **195** |
+| Bytes a row, heap only |         **109** |
+| Index as % of heap     |       **78.9%** |
+| TOAST                  | **8,192 bytes** |
+
+`pg_column_size` on a real row is **104 bytes** (mean 103.93, min 96, max 104),
+split `security_id` 8, `timeframe` 3, `observed_at` 8, four prices at 7 each,
+`volume` 8, `recorded_at` 8.
+
+**`numeric(18, 6)` does not TOAST at equity prices** — the whole TOAST relation
+is one empty page — so §4's worry that "the packed size is not the sum of the
+declared widths, in either direction" resolves in the harmless direction: prices
+are 7 bytes inline, not 12–14.
+
+**197 B/row reproduced at sixty times the sample.** Task 2.8.6 measured 197 over
+768,123 rows; this is **195** over 48M. The ~120 B heap assumption `UNIVERSE.md`
+§10 carried was a **heap** figure and is close to the 109 measured here — what
+it omitted, and what doubles the answer, is the index.
+
+### 8.4 Headroom, against 22.5 GiB usable
+
+At the measured 195 B/row, and Story 2.1's **~22.5 GiB usable** (32 GiB less
+3.74 GiB of filesystem overhead, read-only under 5 GiB free):
+
+| Universe | Minute rows / yr |  GiB / yr | Years to read-only |
+| -------: | ---------------: | --------: | -----------------: |
+|      101 |            9.30M |  **1.69** |          **~13.3** |
+|  **518** |       **47.68M** |  **8.66** |           **~2.6** |
+|    1,500 |           138.1M | **25.10** |           **~0.9** |
+
+Against the calendar's ceiling of 50.5M rather than the measured density it is
+**~2.4 years**. **Plan against ~2.4**, which is what Task 2.8.6 said and what
+this confirms.
+
+**Criterion 7's honest sentence names 22.5 GiB rather than 32**, because the
+difference is a third of the disk. The `psql-storage-80pct` alert (severity 2,
+enabled, re-read) is what makes "nothing is deleted" safe rather than reckless,
+and this is the first time it has had anything to watch.
+
+### 8.5 The index nobody reads
+
+| Index                                                              |         Size |          Scans | Tuples read |
+| ------------------------------------------------------------------ | -----------: | -------------: | ----------: |
+| `market_bars_unique_bar` — `(security_id, timeframe, observed_at)` |     2,915 MB | **15,327,127** |      76,422 |
+| `market_bars_pkey` — the surrogate `id`                            | **1,029 MB** |          **0** |       **0** |
+
+**A gigabyte of index with zero scans**, across the backfill, the daily run and
+every query since the table was created — ~11% of a year's storage on a disk
+with ~22.5 GiB usable, plus write amplification on all 48M inserts.
+
+**It is a convention with a price rather than a defect.**
+`migrations/README.md` §3 requires an identity `id` primary key with the natural
+key as a `unique` constraint beside it, and `market-bars.database.test.ts`
+**asserts** it — Task 2.2.5 made it a checked convention deliberately.
+`0004_market_bars.sql` gives the argument: a three-column natural primary key
+propagates three columns into every future foreign key referencing a bar.
+
+That argument was made against no measurement and now there is one. **The
+decision is to keep it and record the price**, on this repository's own rule that
+an index question is settled against a reader rather than in advance — the same
+rule `0004` applies to the indexes it declines to build. **The reversal trigger
+is the first thing that references a bar by `id`**, or disk pressure arriving
+before it does. Whoever takes it should know it is a migration on a populated
+table plus an edit to a checked convention.
+
+### 8.6 Query performance at 48M rows
+
+`EXPLAIN (ANALYZE, BUFFERS)`, local, against the full store:
+
+| Pattern                                   | Plan                               |   Rows |        Time |
+| ----------------------------------------- | ---------------------------------- | -----: | ----------: |
+| A. One symbol, one month, ascending       | Bitmap Index Scan + Sort           |  8,190 | **11.8 ms** |
+| B. A calendar-resolved window, 5 sessions | Bitmap Index Scan + Sort           |  2,340 |  **2.1 ms** |
+| C. The whole universe at one instant      | **Index Scan, 588 index searches** |    493 | **28.2 ms** |
+| D. A year for one symbol                  | Index Scan, already ordered        | 97,530 | **61.6 ms** |
+
+Two things here were not predicted.
+
+**The cross-sectional query uses the existing index, via a PostgreSQL 18 skip
+scan.** `0004_market_bars.sql` says that query "cannot use the constraint above,
+because `observed_at` is its trailing column", and names a deferred
+`(observed_at)`-leading index with Epic 5 as the trigger. Postgres 18 performs
+**588 index searches** — one per distinct leading value — and answers in
+**28.2 ms**. So the deferred index is still not needed, and the reason has
+changed from _we will build it when Epic 5 asks_ to _the engine already solved
+it_. The deferral is enforced by `market-bars.database.test.ts` asserting the
+table has exactly two indexes, and it should stay enforced.
+
+**The chart query is a bitmap scan plus a sort, not the "one index range scan
+already sorted" the migration claims.** The planner prefers building a bitmap
+over a contiguous range and quicksorting 8,190 rows in 704 kB. The index is the
+right index and the column order is right — query D, over the full range, _is_ a
+plain ordered Index Scan with no Sort node — but the recorded sentence is
+optimistic for bounded windows.
+
+**The payload Story 2.9 has to serve**: a year of minute bars for one symbol is
+**97,530 rows ≈ 8.4 MB of JSON**. That is the number Story 2.9's open decision 2
+on downsampling needs, and it says the answer cannot be "send them all".
+
+Note NVDA holds **97,530** bars for the year — exactly the calendar's figure for
+251 sessions with two early closes. The most liquid names run at **100%
+density** while the universe mean is 364.3/390; the discount is a property of
+thin names rather than of the feed.
+
+### 8.7 Two design findings the arithmetic did not predict
+
+**A late-listing constituent breaks the resume, permanently.** `commonCoverage`
+is the **intersection** of every symbol's covered range, and `Q`, `FDXF` and
+`HONA` will never hold history older than their listing dates — so the skip
+window can never move back past them. Measured: a resume issued as
+`--sessions 251` planned **193 sessions to fetch 43 sessions of new data**, and
+the first re-fetched session wrote **`0 new`**. It costs vendor budget and wall
+clock, never correctness, and `--from`/`--to` is the working escape hatch.
+
+**The fix, for whoever takes it: a per-symbol skip window rather than one
+intersection.** The ledger already holds per-symbol ranges; `planRequests` takes
+one common window because that was the cheap thing to write when every symbol
+had the same depth. It is not this task's to change, and the trigger is a
+universe re-curation, which guarantees new late-listing constituents.
+
+**`bar_attempts` is not sparse.** Task 2.8.7 predicted it would be "empty when
+everything is well". A security that listed inside the window answers
+successfully-with-no-bars for every earlier session, and each writes an `ok` row
+that is never cleared — **2,953 rows on a completely healthy store**. The
+behaviour is right and the prediction about the table's size was wrong.
+
+### 8.8 Where the backfill runs — open decision 4, corrected by measurement
+
+§3 settled the initial backfill as "a local command against the deployed
+database". Measured from the development laptop (Singapore) to the database
+(North Central US):
+
+| Reading                                      |                       Measured |
+| -------------------------------------------- | -----------------------------: |
+| `begin; select 1; commit;` as one round trip |                 **246–268 ms** |
+| One `begin; insert; commit;`                 |                     **831 ms** |
+| 20 inserts in **one** transaction            |                       7,319 ms |
+| Ten minutes of deployed daily backfill       | 4,120 rows, 206 of 518 symbols |
+| Projected deployed year                      |                  **~33 hours** |
+
+The write path issues several statements per security per session, so the cost
+is round trips multiplied by geography. **The database is not slow and the code
+is not slow** — a warm statement is ~250 ms because Chicago is ~250 ms away.
+
+**From a GitHub runner, which is inside Azure, the same work runs at 152 rows/s
+against ~7 rows/s from the laptop — roughly 20×.**
+
+This repository had already recorded the same fact twice without it costing
+anything: the deployed browser check runs **faster** on a runner than on the
+laptop (6.5 s against 9.7–10.5 s, Task 1.13.5), and `pnpm universe` takes
+**0.428 s** on the runner against ~3 s from a laptop (Task 2.3.8). This is the
+first time it decides where work has to happen.
+
+**So the backfill's execution home is `.github/workflows/backfill.yml` —
+`workflow_dispatch` only, never `push`, never `schedule:`.** Open decision 4's
+substance is unchanged: it is still an operator's command run before a
+demonstration rather than part of a deploy, and Task 2.8.7's decision that
+nothing runs automatically in V1 stands. Only the machine moved.
+
+**It holds no credential.** The runner authenticates with the same federated
+identity `deploy.yml` uses and reads the Alpaca key **off the Container App** —
+the key id a plain environment value, the secret a platform secret — so Task
+2.7.2's "the credential lives in exactly one place" is unspent, and there is
+still no repository secret.
+
+**Two operational facts worth carrying**, both of which cost this task time:
+
+- **A run outlives its own database credential.** An Entra access token is valid
+  ~69 minutes; a full-year walk is longer. Each pass mints a fresh one, and the
+  ledger makes resuming free.
+- **The `developer-laptop` firewall rule moved twice in one morning** —
+  `122.11.246.144` → `.18` → `.132`, the **seventh** sighting and the first
+  _mid-task_. The symptom is `Connection terminated due to connection timeout`
+  after the pool's 5 s deadline. A runner is immune, because
+  `AllowAllAzureServicesAndResources` already admits it.
+
+### 8.9 Two failures, both of which taught more than a clean run would have
+
+**The minute walk failed at session 203 with `The operation was aborted due to
+timeout`** — `BACKFILL_REQUEST_DEADLINE_MS`, 180 s. That constant was derived
+from a measured ~55 s walk; the vendor's degradation over 81 minutes pushed a
+single walk past it. **It is deliberately not raised**: failing loudly at three
+minutes and resuming at zero vendor cost is the resumability this story is built
+on, and a longer deadline buys a slower failure. What it does mean is that the
+constant was derived from a sample that does not describe a long run, and
+`BARS.md` should not be read as promising that a year completes in one
+invocation.
+
+**The failure message names the wrong subsystem.** It printed _"If the database
+is not running, `pnpm db` starts it"_ for a **vendor** timeout. Recorded rather
+than fixed, because the honest fix is to branch on the error and this task ships
+measurements.
+
+**And the failure proved acceptance criterion 3 better than a manufactured
+interruption could.** Task 2.8.6 produced `SIGINT` and `kill -9` deliberately;
+this was a real one, mid-walk, unplanned — and the store was left cleanly
+bounded with every stored session stored, because each session is its own
+transaction.
+
+### 8.10 Criterion 2, proved on 48 million rows
+
+Fingerprints over **every column including `recorded_at`**, so a silent rewrite
+moves them even when the row count does not:
+
+| Table          | Before                                     | After         |
+| -------------- | ------------------------------------------ | ------------- |
+| `market_bars`  | 48,027,772 / `-11361615698356078390196`    | **identical** |
+| `bar_coverage` | 1,036 / `ac909cd4c5eff7ef16a73b659719a532` | **identical** |
+| `bar_attempts` | 2,953 / `d546fed50139cc5f9f128d7e822d1fb8` | **identical** |
+
+Between the two readings, `pnpm backfill --from 2025-10-01 --to 2025-10-15`
+re-fetched eleven sessions from the vendor and re-offered **2,012,055 bars** to
+the database: `0 bars stored, 0 corrected, 2,012,055 unchanged`. Nothing moved —
+not a bar, not a ledger row, not an attempt row.
+
+`bar_coverage` is **1,036 rows for 518 securities**, which is Task 2.8.6's
+prediction of one row per `(security, timeframe)` once both timeframes are
+filled.
+
+### 8.11 The calendar, tested against 48 million real bars
+
+Every one of these was a claim asserted against hand-written literals in Story
+2.5 and is now a reading from stored production data.
+
+| Case                    | Session    | Stored                                    |
+| ----------------------- | ---------- | ----------------------------------------- |
+| Regular session         | 2025-11-26 | 188,840 bars, `14:30`–`20:59` UTC         |
+| **Full closure**        | 2025-11-27 | **absent entirely** — no session, no rows |
+| **Half day**            | 2025-11-28 | **102,098 bars**, last bar `17:59` UTC    |
+| **Half day**            | 2025-12-24 | **99,172 bars**, max **210** per security |
+| **DST, Friday before**  | 2026-03-06 | 390 bars, open **`14:30Z`**               |
+| **DST, transition day** | 2026-03-08 | **no session at all**                     |
+| **DST, Monday after**   | 2026-03-09 | 390 bars, open **`13:30Z`**               |
+
+**No security exceeded 210 bars on either half day**, and the universe mean was
+192.2 — so density scales with session length rather than being an artefact of
+it, which is why `bar-completeness.ts` keeps _density_ in a different column from
+_completeness_. A report treating 192 against 210 as a gap would call a healthy
+Christmas Eve eighteen minutes broken for each of 516 securities.
+
+**And the DST pair is the strongest available evidence that `observed_at` is the
+market instant rather than the write instant.** Bars written on 2026-09-08 carry
+timestamps six months old whose UTC offset _changes mid-series_, with 390 bars
+either side of the transition and none on the transition day. That is
+`0004_market_bars.sql`'s "single most damaging line in this story" — a
+`default now()` on `observed_at` — proved absent by the data rather than by
+reading the migration.
+
+### 8.12 Keeping it current — Task 2.8.7's "nothing runs automatically" is reversed
+
+**The catch-up mechanism already existed and is correct.** `planRequests` splits
+the sessions asked for into those NEWER than the ledger's frontier and those
+older, and walks the newer ones **forward and contiguously** from `covered.end`.
+Nothing had to be built; Task 2.8.6 found it and Task 2.8.7 left its home open.
+
+**But the size of `N` matters far more than it looks**, and this is the trap to
+carry. Measured through the real planner, with the frontier a week behind:
+
+| Command          | Requests planned | Genuinely new |  Wasted |
+| ---------------- | ---------------: | ------------: | ------: |
+| `--sessions 5`   |            **4** |         **4** |   **0** |
+| `--sessions 10`  |            **4** |         **4** |   **0** |
+| `--sessions 251` |          **193** |             4 | **189** |
+
+A catch-up asks only for recent sessions, which are all `newer`, so §8.7's
+intersection problem never arises. A large `N` drags the request set past the
+common window's start and re-fetches nearly a year at `0 new`. **Raising the
+number does not make a catch-up safer; it makes it expensive.**
+
+**So the store is kept current by a nightly `schedule:` on
+`.github/workflows/backfill.yml` running `--sessions 10` at 08:00 UTC.** That
+reverses Task 2.8.7's decision that neither the backfill nor the catch-up runs
+automatically in V1, and the reversal is recorded rather than quiet:
+
+- **Part of that decision's argument was that the backfill had nowhere good to
+  run.** §8.8 measured a laptop as the wrong machine by a factor of thirty-five,
+  and gave it a home. That premise is gone.
+- **The cost was never the objection and is now measured**: four vendor requests
+  and about three minutes a night, and **zero requests** on a night with nothing
+  new, because the planner plans none.
+- **What Task 2.8.7 was right about survives**: an unscheduled catch-up is what
+  makes the store quietly stale, and `bar_coverage.updated_at` — _when what we
+  hold last changed_, not _when the backfill last ran_ — is the only field that
+  can report it honestly. That field is now the check on the schedule rather than
+  the substitute for one.
+
+**The failure mode of a schedule, stated.** GitHub disables a `schedule:` on a
+repository with no pushes for 60 days, which is a real hazard for a project
+worked on in bursts — and it fails **silently**, which is the shape this
+repository keeps finding. The instrument that catches it is `pnpm bars:check`,
+whose default window is the ledger's own span, and not this workflow.
+
+### 8.13 Today's session, which the store deliberately does not hold
+
+**The walk takes COMPLETE sessions only** — `resolveSessions` asks for `N + 1`
+and drops the newest — and §8.12's catch-up runs at 08:00 UTC, before the open.
+So while a session is happening, it is not in the store, and that is a decision
+rather than an omission.
+
+**The mechanism to store a partial session exists and behaves correctly**,
+measured at a simulated 12:00 ET on a real session:
+
+| Reading          | Value                         |
+| ---------------- | ----------------------------- |
+| Session          | `13:30Z` → `20:00Z`, 390 bars |
+| Requested        | `13:30Z` → `20:00Z`           |
+| **Servable end** | **`15:44Z`** — now − 16 min   |
+| Would store      | **134 of 390 minutes**        |
+
+`alpacaServableEnd` is what makes that a partial answer rather than a **403**:
+`ALPACA.md` §10's recency cliff keys on `end` alone and refuses the whole
+request, so an unclamped mid-session request returns nothing at all. The ledger
+then records `covered` as the window actually answered for.
+
+**And it self-heals, which was checked with its control.** A later run asking
+for the same session plans **1 request**, because the session's close is beyond
+the recorded `covered.end`; the control — the same session recorded complete —
+plans **0**. So a mid-day fetch cannot leave a permanently half-stored session.
+
+**None of which makes it the right answer to "what is happening now", and three
+things say so:**
+
+- **It is always sixteen minutes stale**, which is the wrong instrument for a
+  live question.
+- **It would put a second feed in this table.** Epic 3's stream is **IEX** and
+  everything stored is **SIP**. `0004_market_bars.sql` names _a second feed
+  writing into this table_ as the trigger for a per-bar `feed` column, and the
+  ledger's one-feed-per-series statement stops being honest that day.
+- **Partial sessions change what "we hold this session" means** for every
+  reader — Task 2.8.9's coverage column and `bar-completeness.ts` both.
+
+**So today's session is Epic 3's, and the split is by how the data ARRIVES
+rather than by how old it is.**
+
+**What is genuinely open, and has no owner written down: the read-side join.**
+When Story 2.9 serves a chart window ending _now_, the window spans a stored
+part and a live part from two different tapes. Three shapes, none chosen:
+serve only what is stored and let the chart end sixteen minutes ago; stitch the
+store to a live tail and label the seam; or have the provider serve the whole
+window on demand and store nothing. `PROVIDER.md` §2.4 already refuses to let a
+`SeriesProvenance` hide a disagreement, so whichever is chosen has to say which
+feed each part came from. **Story 2.9 should take this explicitly rather than
+discovering it.**
