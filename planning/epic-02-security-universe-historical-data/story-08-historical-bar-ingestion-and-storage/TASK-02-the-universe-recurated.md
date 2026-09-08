@@ -307,6 +307,17 @@ plumbing: creating the table that holds prices, downloading the history, checkin
 for gaps. The next thing a stakeholder will see is a **price chart**, and it will be
 drawn from real market history rather than from anything invented.
 
+### One consequence worth flagging rather than fixing here
+
+The Security Explorer page is now a **20,000-pixel scroll** with no search box. At 101
+rows that page was browsable; at 518 it is a reference list you scroll rather than a
+thing you use. That is a real step down in usability and it is **deliberately not fixed
+in this task**: Story 2.11 owns search and selection and has an open decision about
+whether matching happens in the browser or on the server, and putting a search box here
+would settle that decision by accident rather than by argument. The counts, the sector
+bands and the benchmark labels all still read correctly, and every row is reachable by
+keyboard — which the accessibility gate re-checked at three window sizes.
+
 ### What this unlocks, and what it costs
 
 Storing a year of minute-by-minute history for 518 companies is about **50 million rows
