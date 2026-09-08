@@ -1,8 +1,8 @@
-# Task 2.8.9 — Verify, document, and ADR 0020
+# Task 2.8.10 — Verify, document, and ADR 0020
 
 **Status:** Not started
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
-**Depends on:** Task 2.8.8
+**Depends on:** Task 2.8.9
 
 ## Objective
 
@@ -13,14 +13,14 @@ the sweeps.
 **This close is unlike every previous one in one respect and it should say so at the top:
 half of its criteria cannot be re-taken from a clean clone.** A clean clone has no bars. Criteria
 1, 2, 3, 6 and 7 are properties of a populated database, and re-running the backfill to prove
-them would take hours and spend a metered budget for a result Task 2.8.7 already recorded. So
+them would take hours and spend a metered budget for a result Task 2.8.8 already recorded. So
 this task's method splits: **the code half is re-taken from a clone; the data half is re-read
 from the deployed store.** State which is which, per criterion, so a later reader can tell a
 measurement from a citation.
 
 ## What the user can see when this lands
 
-**Nothing new.** Task 2.8.8's coverage column is the story's visible surface and it is already
+**Nothing new.** Task 2.8.9's coverage column is the story's visible surface and it is already
 deployed.
 
 What this task produces is the record: `docs/adr/0020-*`, an amended `BARS.md`, and the sweeps.
@@ -109,7 +109,7 @@ artefact's four files with their hashes.
 **The artefact is the one that needs a mechanism rather than a number.** It moved 115 bytes on a
 story that shipped no `apps/frontend` file, because `packages/shared` is inlined and
 `SECTOR_ETFS` is built by **calling** `toTicker()` eleven times — a call expression is not
-provably side-effect-free, so the bundler keeps the calls and drops the object. Task 2.8.8 ships
+provably side-effect-free, so the bundler keeps the calls and drops the object. Task 2.8.9 ships
 real frontend source and Task 2.8.2 may have changed a shared vocabulary, so **rebuild the
 previous close's commit** rather than comparing against a recorded figure: a figure that has
 moved looks exactly like a figure that was mis-recorded, and only a rebuild tells them apart.
@@ -165,6 +165,6 @@ a clean clone**. Nine tasks of ingestion produce one column on one page, and eve
 a claim about ten million rows sitting in a managed database in North Central US. A close that
 re-runs `pnpm verify` and calls it done would be honestly reporting the wrong thing.
 
-The instrument that stands in for a re-run is Task 2.8.6's report, and this task should run it
+The instrument that stands in for a re-run is Task 2.8.7's report, and this task should run it
 and quote it — because it is the only thing in the repository that can say, from outside the
 database, that the store is what the story says it is.

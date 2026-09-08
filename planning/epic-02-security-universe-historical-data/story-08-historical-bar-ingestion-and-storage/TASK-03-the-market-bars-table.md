@@ -121,7 +121,7 @@ What to decide explicitly rather than by accumulation:
 `Migrator` over a separate directory as the answer. **It does not bind here**, and saying why
 matters: an index created in the same migration as an empty table takes no meaningful lock,
 because there is nothing to lock. The problem arrives when an index is added to a **populated**
-table — Epic 5's cross-sectional index above, or anything Task 2.8.7's query measurement turns
+table — Epic 5's cross-sectional index above, or anything Task 2.8.8's query measurement turns
 up.
 
 So this task **does not build the second `Migrator`**, and records the trigger precisely: the

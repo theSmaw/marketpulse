@@ -1,6 +1,6 @@
 # Task 2.8.1 — The storage decisions, the sizing arithmetic, and where the backfill runs
 
-**Status:** Not started
+**Status:** Complete (2026-09-08)
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
 **Depends on:** Story 2.7 (complete)
 
@@ -35,7 +35,7 @@ data exists.
 
 `PRODUCT_SPEC.md` §30 offers it optionally and §37 says do not add a second data technology
 without a measurement. **This is the story with the measurement in it, and the measurement is
-not available yet** — the row count that would justify it does not exist until Task 2.8.7.
+not available yet** — the row count that would justify it does not exist until Task 2.8.8.
 
 So this task does the half that must happen first, and it is a **platform** question rather
 than a performance one:
@@ -53,13 +53,13 @@ than a performance one:
   credits**; and `pnpm test:database` creates and drops a database per run, so the extension
   has to be installable in that database too or the sixth level of test stops describing
   production.
-- **What it would buy, stated as a hypothesis to be tested at 2.8.7 rather than assumed.**
+- **What it would buy, stated as a hypothesis to be tested at 2.8.8 rather than assumed.**
   Chunk exclusion on a time-ordered table, compression, and continuous aggregates. The first
   is what a plain btree index on `(security_id, timeframe, observed_at)` also gives at this
   row count; the third is Epic 5's problem and Epic 5 does not exist.
 
 **The recommendation this task should carry unless the platform check says otherwise: do not
-enable it now, and name Task 2.8.7's measured query plans against the real row count as the
+enable it now, and name Task 2.8.8's measured query plans against the real row count as the
 trigger.** ~10M rows in one table is not a large table for Postgres 18, and the cost of
 finding out is one `EXPLAIN ANALYZE` against real data rather than a decision made in advance.
 Record the reversal cost honestly: converting a populated table to a hypertable is a data
@@ -119,7 +119,7 @@ principal writing rows. Say which one writes the bars.
 
 ## The sizing arithmetic, done twice
 
-Do it now as an **estimate** and name Task 2.8.7 as the task that re-takes it against measured
+Do it now as an **estimate** and name Task 2.8.8 as the task that re-takes it against measured
 row sizes. Both halves matter: an estimate that is never re-taken is a guess with a table in it.
 
 The inputs are all measured already and should be cited rather than re-derived:
@@ -151,8 +151,8 @@ State the headroom in **years at the chosen universe size**, and state it again 
 - The timeframe and depth confirmation, including the pre-2024 daily question
 - The backfill's home, and the identity that writes the rows
 - The sizing table above, with the request-shape condition attached to the number
-- The two things this task explicitly hands forward: the row-size measurement (2.8.7) and the
-  Timescale trigger (2.8.7)
+- The two things this task explicitly hands forward: the row-size measurement (2.8.8) and the
+  Timescale trigger (2.8.8)
 
 ## Done when
 
@@ -169,3 +169,81 @@ obvious first thing. The table is downstream of three of these decisions: Timesc
 how it is created, the timeframes change what its key contains, and the request shape changes
 how much of it there will be. Getting the order wrong here is the one mistake in this story
 that costs a re-backfill rather than an edit.
+
+---
+
+## What was done, and what it measured (2026-09-08)
+
+`BARS.md` exists and every open decision this task owned is settled in it. **No file outside
+`planning/` changed**, which is criterion 3 of this task's own Done-when list and is the property
+that makes a decide-and-ship-nothing task honest.
+
+### The TimescaleDB question was a PLATFORM question and the answer is an asymmetry
+
+Read off both servers rather than off a documentation page. **Deployed**: `timescaledb` **2.24.0
+is available and not installed**, `azure.extensions` is **empty**, and `shared_preload_libraries`
+is `pg_cron,pg_stat_statements` with `timescaledb` in its allowed values and
+**`isDynamicConfig: false`, so changing it requires a server restart**. **Local**: the extension
+is **absent from `pg_available_extensions` entirely** in `postgres:18`.
+
+**So enabling it is not one decision, it is four**: a server parameter, a second server parameter
+with a restart, `CREATE EXTENSION`, and **a different local image** — which turns
+`LOCAL_DATABASE_VERSION` from a pin on a Postgres major into a pin on a vendor's distribution of
+one, and reaches `pnpm test:database`, which creates and drops its own database every run.
+Declined, with Task 2.8.8's `EXPLAIN` against the real row count as the trigger.
+
+### The daily depth was NOT settled upstream, and the measurement is the whole finding
+
+Story 2.7's amendment says daily to **~2016**. It is unreachable through any code path this
+repository has, produced rather than reasoned about:
+
+```
+$ pnpm bars NVDA 1d --from 2016-01-04 --to 2016-01-15
+2016-01-04 is outside the trading calendar, which covers 2024-01-01 to 2028-12-31. …
+```
+
+**No request was made** — the refusal fires at window construction, which is ADR 0017 decision 9
+working as designed. The control is the same command inside the range: `--from 2024-01-02 --to
+2024-01-12` returns **9 bars for 9 trading days** with `2024-01-01` correctly absent, and it shows
+the **midnight-ET stamp in production data** (`2024-01-02T05:00:00.000Z`), which is Story 2.7's
+third request trap visible rather than cited.
+
+**Settled with the user as option A: daily is capped at 2024-01-01.** Both timeframes are now
+bounded by the same calendar, so every bar this story stores has a session to be checked against
+and Task 2.8.7's completeness computation has no special case.
+
+### The sizing was computed from the calendar rather than approximated, and 252 is wrong
+
+| Year | Sessions | Early closes | Minute bars per security |
+| ---: | -------: | -----------: | -----------------------: |
+| 2024 |      252 |            3 |               **97,740** |
+| 2025 |      250 |            3 |               **96,960** |
+| 2026 |      251 |            2 |               **97,530** |
+| 2027 |      251 |            1 |               **97,710** |
+| 2028 |      251 |            2 |               **97,530** |
+
+**Mean 97,494 rather than the naive `390 × 252 = 98,280`** — the eleven half days cost ~786 bars a
+year, so the approximation overstates by ~0.8%. Small, and it is the denominator every other
+figure divides by. The calendar itself is **61 rows: 50 full closures and 11 early closes**,
+counted from the shipped table.
+
+At 101 securities that is **9.8M minute rows a year** and ~25.4k daily; at 500, 48.7M; at 1,500,
+146.2M. **Daily is noise at every size**, which is what makes storing it rather than deriving it
+free.
+
+### Two things measured in passing
+
+**The `developer-laptop` firewall rule had moved again** — the **fifth** sighting — and the CLI's
+own shape is worth carrying: `firewall-rule update` takes **no name argument at all**, and
+`--rule-name` is rejected on `create`. The working form is `create ... -n <name>`, which upserts.
+
+**`MarketCalendarRangeError` renders `[object Object]`** when handed a session object rather than a
+date string, reached by passing `marketSessionsBetween`'s return value into `marketSessionOn`. The
+refusal is correct and its message is not. Recorded rather than fixed, because Story 2.5 owns that
+module and this task changes no source.
+
+### What is still open
+
+**Open decision 5 — the universe's size and taxonomy — is untouched here**, deliberately, and it
+is Task 2.8.2's. **The incremental catch-up's home** is deferred with the backfill's own decision,
+because a one-off of hours and a repeated job of minutes are different shapes.

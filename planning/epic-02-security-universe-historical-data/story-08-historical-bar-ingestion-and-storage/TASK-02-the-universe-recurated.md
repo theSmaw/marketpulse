@@ -33,7 +33,7 @@ stops being a column of near-unique labels and starts being one that groups. The
 Task 2.4.6 measured that it takes no count from anywhere but the data.
 
 **That is worth showing to a stakeholder**, and it is the only thing in this story that can be
-shown before Task 2.8.8.
+shown before Task 2.8.9.
 
 ## The size
 
@@ -158,7 +158,7 @@ reports `0 inserted, N updated` — every row rewritten. That is correct and it 
 - `pnpm universe:check` is clean, or its findings are resolved
 - The deployed `/securities` page renders the re-curated universe and its counts reconcile
   against the database
-- No bar has been stored yet, anywhere — that is Task 2.8.5's, and the whole point of this task
+- No bar has been stored yet, anywhere — that is Task 2.8.6's, and the whole point of this task
   is that it precedes it
 - `pnpm verify` is exit 0 and `pnpm test:database` passes; three tests name `ABBV`, `AMGN` and
   `GILD` **by literal**, so removing any of those three from the universe takes the `database`
@@ -168,7 +168,7 @@ reports `0 inserted, N updated` — every row rewritten. That is correct and it 
 
 This is a product judgement rather than an engineering task, and the engineering half is one
 file edit. What makes it a task rather than a paragraph is the ordering: it has to be finished
-before Task 2.8.5 runs, because a security added afterwards has no history and a security
+before Task 2.8.6 runs, because a security added afterwards has no history and a security
 removed afterwards leaves rows filed against a row that says `untracked`.
 
 The failure mode to avoid is doing half of it — coarsening the taxonomy without settling the
