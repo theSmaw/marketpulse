@@ -79,7 +79,11 @@ Criterion 6 says "the access patterns Story 2.9 needs" and that story names them
 - **The whole universe at one instant** — §11's breadth, which is Epic 5's and is the query with
   **no index behind it today**, deliberately. Measure it anyway, because the number is what
   decides whether Task 2.8.3's deferred `(observed_at)`-leading index gets built and whether it
-  needs `CREATE INDEX CONCURRENTLY`.
+  needs `CREATE INDEX CONCURRENTLY`. **Note the deferral is now enforced rather than intended**:
+  `market-bars.database.test.ts` asserts the table has exactly two indexes and both are
+  constraints, so building one here is a red test until somebody writes down which query it
+  serves — which is the point, and is what turns "chosen rather than accumulated" into something
+  that stays true.
 
 `EXPLAIN (ANALYZE, BUFFERS)` on each, against the real row count, on the **deployed** instance —
 because the laptop's Postgres has a different amount of memory and a B1MS banks almost no CPU

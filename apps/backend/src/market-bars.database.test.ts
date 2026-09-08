@@ -477,9 +477,18 @@ describe("the two timestamps, which this table is the first to need", () => {
 
     expect(names).toContain("observed_at");
     expect(names).toContain("recorded_at");
-    for (const banned of ["created_at", "deleted_at", "updated_at"]) {
+    for (const banned of ["created_at", "deleted_at"]) {
       expect(names).not.toContain(banned);
     }
+
+    // `updated_at` is **absent by decision rather than banned** — `securities`
+    // has one — and the two are worth telling apart. There, a loader
+    // converging on a file rewrites rows routinely, so "when we first wrote it"
+    // and "when it last changed" are different questions. Here the only event
+    // that rewrites a bar is a vendor correction, which Story 2.8's open
+    // decision 1 settled overwrites rather than versions — so `recorded_at`
+    // moves with it and a second column would carry nothing extra.
+    expect(names).not.toContain("updated_at");
   });
 });
 

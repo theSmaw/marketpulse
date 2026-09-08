@@ -92,7 +92,10 @@ Run all of them, and read the counts rather than citing them.
   not a version.
 - **Live claims whose conditions have already fired**, which is the class the last two closes
   were best at finding. Specific candidates here: anything still saying the universe sizing is
-  parked; anything saying `market_bars` does not exist; `schema.ts` and
+  parked; anything saying `market_bars` does not exist; **anything still calling the money rule,
+  the foreign-key naming rule or the `numeric` tripwire untested — all three closed at Task
+  2.8.3, and `migrations/README.md`'s two lists and `0003`'s own closing comment are where the
+  stale wording will be**; `schema.ts` and
   `migrations/README.md`'s statements about which conventions are untested, three of which this
   story made testable; `database.ts`'s narrowed _"the only place this application knows there is
   a database driver"_, which gains a fourth exception; and Task 2.1.7's note that the deployed

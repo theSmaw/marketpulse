@@ -150,11 +150,28 @@ create table market_bars (
     -- the retrieval, and invariant 5 wants the retrieval timestamp rather than a
     -- per-row clock reading.
     --
-    -- There is no `updated_at`, unlike `securities`. A bar is an observation of
-    -- a past interval and does not change; Task 2.8.4's write path is an insert
-    -- with a conflict rule rather than an upsert that edits prices, and a column
-    -- that would never move is a column claiming something the writer does not
-    -- do.
+    -- **It MOVES when a bar is corrected, and that is a decision taken upstream
+    -- rather than a property of this column falling out.** Story 2.8's open
+    -- decision 1 settled that V1 stores one row per bar: a pure record would
+    -- keep every version, and a second row per bar is a version predicate on
+    -- every read — a second invisible predicate on top of `securities.status`,
+    -- which §5 calls "a bug waiting for whoever forgets". So a vendor
+    -- correction OVERWRITES, `recorded_at` moves with it, and Epic 13 therefore
+    -- replays a bar as currently known rather than as known at the time. That
+    -- is a real gap in the replay guarantee, recorded rather than papered over,
+    -- and its reversal trigger is the first observed correction — nobody has
+    -- seen one.
+    --
+    -- **There is no `updated_at`, unlike `securities`, and the reason is that
+    -- one here would carry no information this column does not.** On
+    -- `securities` the pair is needed because a loader converging on a file
+    -- rewrites rows routinely, so "when we first wrote it" and "when it last
+    -- changed" are genuinely different questions. Here the ONLY event that
+    -- rewrites a row is a correction, so `recorded_at` moving IS the record
+    -- that one happened — and because a batch shares one value (above), a bar
+    -- whose `recorded_at` sits apart from its session's is a corrected bar,
+    -- which is what makes the trigger above fire from the data rather than from
+    -- a counter in a terminal somebody has closed.
     recorded_at timestamptz not null default now(),
 
     -- ========================================================================

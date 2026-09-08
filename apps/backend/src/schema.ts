@@ -309,18 +309,24 @@ export interface MarketBarsTable {
   /**
    * When we wrote the row: `timestamptz not null default now()`.
    *
-   * The three parameters do the same work as {@link SecuritiesTable.recorded_at}
-   * and for the same reasons — optional on insert because of the default,
-   * **`never` on update** because "when we wrote it" is not a fact that
-   * changes.
+   * Optional on insert because of the default, exactly as
+   * {@link SecuritiesTable.recorded_at} is — and then the two **diverge on the
+   * update parameter**, which is the one place this table deliberately departs
+   * from that one.
    *
-   * There is deliberately no `updated_at` beside it, unlike `securities`: a bar
-   * is an observation of a past interval and is not edited, so a column that
-   * would never move would be claiming something the writer does not do. The
-   * day a vendor correction has to be applied to a stored bar, that is a new
-   * column and a decision, not a silent `set`.
+   * There it is `never`, because a loader converging on a file rewrites rows
+   * routinely and `updated_at` carries the change. Here it is writable, because
+   * Story 2.8's open decision 1 settled that a vendor **correction overwrites**
+   * the bar rather than versioning it — so `recorded_at` moves with it, and
+   * making that a compile error would make the decision unimplementable.
+   *
+   * There is no `updated_at` beside it for the same reason: the only event that
+   * rewrites a bar is a correction, so this column moving *is* the record that
+   * one happened. See `../migrations/0004_market_bars.sql`, which carries the
+   * argument and the cost — Epic 13 replays a bar as currently known rather
+   * than as known at the time.
    */
-  recorded_at: ColumnType<Date, Date | undefined, never>;
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
 }
 
 /**
