@@ -184,6 +184,29 @@ Story 2.8's ingestion design — so it must precede it.
    with a named owner beats a mechanism built against no instance** — and note the answer
    is worth taking on evidence, because a symbol whose bars stop arriving and a symbol
    Alpaca reports inactive are two different signals and only one of them needs a request
+
+   **SETTLED in Task 2.7.8 (2026-09-07): `delisted` does NOT ship, and the SECOND shape
+   does — `pnpm universe:check`, which reports and changes no row.** `UNIVERSE.md` §15 is
+   the record. Taken on evidence rather than on cost, which turned out to be zero and
+   therefore decided nothing:
+   - **The vendor's `inactive` is a fact about the VENDOR**, meaning "we will not trade
+     this". Sampled against the tape, **4 of 50 inactive symbols were still printing daily
+     bars** — so an automatic transition is 8% wrong, in the direction that reports a live
+     security as gone. Importing it as `delisted` is the exact conflation `UNIVERSE.md` §3
+     already refuses between a fact about the market and a fact about somebody else.
+   - **An inactive row carries no delisting DATE**, so the member could never answer
+     _when_ — and Epic 13's replay is the one reader that needs precisely that.
+   - **Zero of the 101 are inactive**, so the mechanism would have had no instance.
+   - **The second-writer problem was produced rather than argued**: a `status` written by
+     anything else is silently reverted by the next deploy's `pnpm universe`.
+
+   The new owner of a future `delisted` is **Story 2.8's ingestion** — bars stopping is a
+   better-correlated signal that costs no request and arrives as a consequence of work that
+   story is doing anyway. And the command earns its place on a different gap than this
+   decision was about: it is the first instrument that can see `UNIVERSE.md` §5's silent
+   staleness, and it **found a real defect on the day it was written** — `WMT` carried
+   `NYSE` where Walmart moved to NASDAQ in December 2024, corrected in the same commit.
+
 5. **Which feed we claim, now that the plan turns out to serve two.** Added 2026-09-07 by
    Task 2.7.1, which measured that this plan is **asymmetric**: historical bars default to
    **SIP**, the full consolidated tape, while the live stream is **IEX only**
@@ -234,6 +257,29 @@ Story 2.8's ingestion design — so it must precede it.
    rename orphans the old bars and write that down — is legitimate and is what ships today.
    The decision is cheapest **before** Story 2.8 backfills, and it is the same migration as
    `delisted` if the assets endpoint is adopted at all, which is why the two sit together
+
+   **SETTLED in Task 2.7.8 (2026-09-07): the FOURTH answer — a rename orphans the old bars,
+   and `UNIVERSE.md` §15.5 is where that is written down.** It ships as a decision rather
+   than as a mechanism, and **the premise this decision rested on was falsified**: the
+   assets endpoint's "stable per-asset identifier" does **not** survive a ticker rename.
+   Six real renames were checked and the id differs in **every one** — `SQ` and `ANTM` 404
+   outright, `RTN` and `TWTR` are inactive under different ids, and **`FB` is now an active
+   ProShares ETF**. The vendor issues a new row on a rename, so the id identifies an asset
+   _within a response_ rather than a company _across time_, and recording it would buy
+   nothing.
+
+   That is a stronger result than the decision expected, because the argument evaporates
+   **even though the endpoint was adopted**. Of the three mechanisms, the **rename map in
+   the curated file** is re-ranked first and is the recommendation if the trigger fires,
+   being the only one that does not depend on a vendor identifier that turns out not to
+   exist. **The trigger is a rename in the list** — there is none — and the deadline is
+   unchanged at Story 2.8.
+
+   One hazard the measurement found that nobody had named: **tickers are recycled** — 229
+   in the current catalogue carry both an active and an inactive row — so a recycled ticker
+   added to the file would make the loader flip a _different_ company's row back to
+   `active` on its old id. Zero of our 101 are affected, and `pnpm universe:check` reports
+   it. `UNIVERSE.md` §15.6.
 
 ## Open decisions 1 and 2 — SETTLED by Task 2.7.1 (2026-09-07)
 
@@ -387,7 +433,7 @@ one day against a live third party, rather than figures reproducible from a clea
 | 2.7.5      | [Pagination, coverage, and what a real session actually contains](TASK-05-pagination-coverage-and-the-shape-of-a-real-session.md)                                                                                                                                             | **Complete (2026-09-07)** |
 | 2.7.6      | [Every failure this vendor can produce, mapped and produced rather than imagined](TASK-06-the-error-taxonomy-against-a-real-vendor.md)                                                                                                                                        | **Complete (2026-09-07)** |
 | 2.7.7      | [The retry wrapper, bounded by the caller, with numbers from the measured limit](TASK-07-the-retry-wrapper-and-the-measured-limit.md)                                                                                                                                         | **Complete (2026-09-07)** |
-| 2.7.8      | [`delisted`, and whether a ticker rename gets an identity](TASK-08-the-symbols-lifecycle-delisted-and-the-rename.md)                                                                                                                                                          | Not started               |
+| 2.7.8      | [`delisted`, and whether a ticker rename gets an identity](TASK-08-the-symbols-lifecycle-delisted-and-the-rename.md)                                                                                                                                                          | **Complete (2026-09-07)** |
 | 2.7.9      | [Verify, sweep, and record ADR 0019](TASK-09-verify-document-and-adr.md)                                                                                                                                                                                                      | Not started               |
 
 ### Where the six open decisions are settled

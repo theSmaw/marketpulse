@@ -34,6 +34,17 @@ clone and a fresh deployment read, which is the check rather than a formality.
 3. **Each mapped error cause produced against the live API** — re-read Task 2.7.6's record, and
    re-produce at least the bad key, which costs one request. Any member that could not be
    produced is named as such rather than left looking implemented
+
+   > **Amended 2026-09-07 by Task 2.7.8, because the obvious reading of that task is wrong.**
+   > That task **adopted the assets endpoint**, and Task 2.7.6's own note says adopting it "is
+   > what would make `unknown-symbol` producible". **It did not, and the count is unchanged at
+   > two.** The endpoint was adopted for a **reporting command** (`pnpm universe:check`) and is
+   > deliberately not wired into `MarketDataProvider`, so nothing in the bars path gained an
+   > opinion about whether a symbol exists. `unknown-symbol` and `range-not-available` are both
+   > still unproducible, for the reasons 2.7.6 recorded and unchanged by 2.7.8. Do not go
+   > looking for a third producible member, and do not record the endpoint's adoption as having
+   > moved this criterion.
+
 4. **Rate limiting exercised at the limit** — re-read Task 2.7.7's live run, and note that it
    did more than exercise the wrapper: it **settled `ALPACA.md` §6's open per-key-or-per-endpoint
    question** (per _API_ — a second `data` path shares the bucket, the trading API does not) and
@@ -129,7 +140,9 @@ DEFAULT_BARS_DEADLINE_MS` — are asserted by a test, which is this repository's
   is the caller's deadline, which no test can see
 
 - **`README.md`** — ~~the script table gains `pnpm bars`~~ **added by Task 2.7.3 along with a
-  `pnpm bars` section; verify rather than add.** The variable count moves (**13 → 15 at Task
+  `pnpm bars` section; verify rather than add.** **Task 2.7.8 added a SECOND command the same
+  way** — `pnpm universe:check` in the script table and its own section — so the table now
+  carries two entries this story added. Verify both rather than adding either.** The variable count moves (**13 → 15 at Task
   2.7.2, and further if anything after it adds one**), and ~~the "things that look like faults"
   list may lose or keep the market-feed row depending on what Task 2.7.4 left on screen~~ —
   **resolved 2026-09-07: there is nothing to do.** That row left the list at Task 2.6.7, which
@@ -144,11 +157,13 @@ DEFAULT_BARS_DEADLINE_MS` — are asserted by a test, which is this repository's
   2.7.2's run
 - **The test-count blocks' starting figure.** Task 2.7.2 moved `pnpm test` 619 → **629**, Task
   2.7.3 moved it 629 → **683**, **Task 2.7.6 moved it 683 → 722** (206 + 333 + 183)
-  and **Task 2.7.7 moved it 722 → 738** (206 + 349 + 183) — none of the four sweeping the ten
-  blocks, per the precedent Task 2.6.8 set that a close owns the sweep. So this close inherits
-  **at least four** increments already outstanding before its own remaining tasks are counted,
-  which is exactly the shape that produced "stale by two story closes" twice. **Re-count rather
-  than adding to 738**
+  **Task 2.7.7 moved it 722 → 738** (206 + 349 + 183) and **Task 2.7.8 moved it 738 → 750**
+  (206 + 361 + 183) — none of the five sweeping the ten blocks, per the precedent Task 2.6.8 set
+  that a close owns the sweep. So this close inherits **at least five** increments already
+  outstanding, which is exactly the shape that produced "stale by two story closes" twice.
+  **Re-count rather than adding to 750** — and note Task 2.7.8 found `CLAUDE.md`'s own recorded
+  figure was **619**, stale by four tasks, which is the same drift arriving in the file that
+  documents the sweep
 - **Story 2.14's own file, which is planned against a premise this story inverted — and it is
   the sweep most likely to be skipped, because it is a FUTURE story's file rather than a stale
   claim about the past.** Added 2026-09-07 by Task 2.7.4. Story 2.14 is written throughout as
@@ -202,6 +217,29 @@ DEFAULT_BARS_DEADLINE_MS` — are asserted by a test, which is this repository's
   measurement that is right. This is the live-versus-historical distinction Task 1.10.8
   established, arriving as a _conditional_ rather than as a date
 
+- **The `delisted`-producer claim, which Task 2.7.8 falsified in FOUR places and amended in
+  three of them** — added 2026-09-07. `SECURITY_STATUSES`' absent member was recorded
+  everywhere as "its producer is Story 2.7"; that story looked and declined, so the owner is now
+  **Story 2.8's ingestion**. `UNIVERSE.md` §3, `packages/shared/src/security.ts` and
+  `security.test.ts` carry dated amendments already — **verify rather than re-amend**.
+
+  **The fourth is `apps/backend/migrations/0003_security_vocabulary.sql`, and it MUST NOT be
+  touched.** It is applied and checksummed, so editing a comment in it breaks the checksum and
+  the deploy refuses — which this repository has already produced once, during the 2026-09-05
+  renumber. It also names **Story 2.6**, which was already stale for the same reason. It is a
+  historical record inside an immutable file and that is the correct state; the close should
+  record it as such rather than reporting it as drift. This is the live-versus-historical
+  distinction with a mechanical enforcer behind it
+
+- **`UNIVERSE.md` §11's unenforceable provenance date, which is now INSTRUMENTED but still
+  unenforced** — added 2026-09-07 by Task 2.7.8. §11 records that nothing can check
+  `checkedOn` is honest, because whether a person re-read a source is unobservable. That is
+  unchanged and always will be. What changed is that **re-checking the `profile` group is now
+  one command** (`pnpm universe:check`) rather than a manual pass over a hundred rows, and that
+  the two dates now legitimately **differ** — `profile` at 2026-09-08, `classification` at
+  2026-09-05 — which is the first time §4's two-group design has produced two different values.
+  Confirm both, and do not "tidy" them into agreement
+
 - **`pnpm links`**, which is a `verify` step since Task 2.6.8 and therefore runs itself. Report
   its counts as figures rather than trusting the last recorded ones — they moved between two
   consecutive readings the first time they were taken
@@ -235,7 +273,10 @@ DEFAULT_BARS_DEADLINE_MS` — are asserted by a test, which is this repository's
   report a failure that did not happen.** Setting a platform variable creates a **new revision**,
   a new revision is a **new replica**, and `process.uptime()` therefore _must_ restart —
   measured, 164.9 s → 11.3 s. Two of this story's tasks already did it (2.7.2's credential,
-  2.7.4's provider) and 2.7.8 may do it again.
+  2.7.4's provider) and ~~2.7.8 may do it again~~ — **2.7.8 did NOT: it deployed nothing and set
+  no platform variable, because what it shipped is an operator's command run from a laptop.** So
+  there are **two** rollovers in this story rather than three, and a close looking for a third
+  will not find one.
 
   The checkable claim, which is stronger and which **held** at 2.7.4: **no request returned a
   non-200 through the rollover**, `restartCount: 0`, and the superseded revision served at
@@ -340,7 +381,29 @@ those documents.
   on the day it was recorded** and nothing about what it sends today. That is the honest
   counterpart to Story 2.6's _"a green suite certifies internal consistency and nothing about a
   vendor"_, and it is what Story 2.8 inherits
-- **The lifecycle decisions** and their owners
+- **The lifecycle decisions and their owners**, which are two refusals rather than a feature and
+  need the arguments recorded rather than the outcomes. `UNIVERSE.md` §15 is the source; the ADR
+  should carry four things it would otherwise lose:
+
+  **A vendor's status field is a fact about the VENDOR** — a third kind of thing beside "a fact
+  about the market" and "a fact about us", which is the distinction `UNIVERSE.md` §3 was already
+  built on and did not have a third slot for. That generalises well past Alpaca and is the
+  reusable half.
+
+  **Cost did not decide it, and the file says so four times over.** The endpoint turned out to be
+  free on a separate budget, and both decisions still went the other way. Worth recording as an
+  instance of a decision nearly taken on the wrong axis.
+
+  **A premise can be falsified by measurement even when the thing it is about IS adopted.** The
+  "stable per-asset identifier" that decision 5 rested on does not survive a rename — six for six
+  — so the argument evaporated despite the endpoint being adopted, which is not the branch the
+  brief anticipated.
+
+  **And the second writer, which is the transferable engineering lesson**: a column written from
+  a file on every deploy cannot have a second writer without a precedence rule, and a precedence
+  rule nothing checks is one somebody later simplifies. Produced rather than argued, which is why
+  it belongs in _what a green X certifies_: the overwrite is silent and reports as an ordinary
+  `1 updated`
 
 ## What Story 2.8 inherits, stated rather than implied
 
@@ -373,7 +436,21 @@ Write this as a section rather than leaving it to be reconstructed:
      Story 2.8 builds windows for both timeframes and will meet it
 - Whether the universe is being re-sized, and that after 2.8 backfills, re-sizing costs a
   re-backfill rather than a file edit
-- The lifecycle answer, and whether `status` now has a second writer
+- **The lifecycle answer, and that Story 2.8 is now the NAMED OWNER of a future `delisted`** —
+  amended 2026-09-07 by Task 2.7.8, which declined the member and moved the ownership on a new
+  argument rather than deferring it. `status` gained **no** second writer, deliberately. What
+  that story inherits is the signal: **bars stopping is better correlated with reality than the
+  vendor's flag** (100% against 92% on a 50/50 sample), costs no request, and arrives as a
+  consequence of ingestion it is doing anyway. If it adopts the member, `UNIVERSE.md` §15.3's
+  produced overwrite is the thing it has to solve first
+- **The recycled-ticker hazard, which is Story 2.8's to care about because it is the story that
+  files bars against `security_id`** — added 2026-09-07. Tickers are reused: 229 in the current
+  catalogue carry both an active and an inactive row, and `FB` today is a ProShares ETF rather
+  than Meta. The loader keys on `symbol`, so a recycled ticker added to the file would flip a
+  **different** company's row back to `active` on its old id and land two companies' bars on one
+  row. **Zero of the 101 are affected today** and `pnpm universe:check` reports it, but the
+  report is only run by a person — so a backfill that assumes `security_id` means one company
+  forever is assuming something nothing enforces
 - **The label-and-sentence rule, which Epic 3 is the next thing to have to honour.** It adds no
   member — `iex` already exists and already has its words — but it is the first thing to make
   `iex` render anywhere, so it is where the rule gets its next real test. The two assertions in

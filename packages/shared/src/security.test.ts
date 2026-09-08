@@ -99,9 +99,15 @@ describe("SECURITY_STATUSES", () => {
 
   // `delisted` is a fact about the market and `untracked` is a fact about us.
   // Its absence is this repository's own rule — a member is added when the
-  // thing it names can be produced — and its producer is Story 2.7, which
-  // reads an asset status from Alpaca. A test asserting the absence is what
-  // makes adding it a deliberate act rather than a tidy-up.
+  // thing it names can be produced. ~~Its producer is Story 2.7, which reads an
+  // asset status from Alpaca.~~ **Amended 2026-09-07 by Task 2.7.8: Story 2.7
+  // read that status and declined it.** The vendor's `inactive` means "we will
+  // not trade this" and disagrees with the tape 8% of the time, and it carries
+  // no delisting date, so the member is not producible honestly from it. The
+  // owner is now Story 2.8's ingestion — bars stopping. `UNIVERSE.md` §15.
+  //
+  // A test asserting the absence is what makes adding it a deliberate act
+  // rather than a tidy-up, and that is unchanged.
   it("does not yet claim to know whether a security is delisted", () => {
     expect(SECURITY_STATUSES).not.toContain("delisted");
   });

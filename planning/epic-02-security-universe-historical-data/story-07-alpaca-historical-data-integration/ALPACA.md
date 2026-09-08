@@ -737,3 +737,113 @@ Two measurements carried their **own control**, which is what makes them measure
 
 **And one automated verdict was wrong** (§5.1) — caught only because 391 > 390 is arithmetically
 impossible for missing data. Read the numbers, not the script's conclusion.
+
+---
+
+## 12. The assets endpoint (2026-09-07, Task 2.7.8)
+
+A **different endpoint on a different host** from everything above: the bars endpoint is
+`data.alpaca.markets`, this is the **trading** API. §6b measured that as a separate
+rate-limit budget, which is why reading it costs Story 2.8's backfill nothing.
+
+`GET https://paper-api.alpaca.markets/v2/assets?status={active|inactive}&asset_class=us_equity`
+
+| Question                           | **Measured 2026-09-07**                                 |
+| ---------------------------------- | ------------------------------------------------------- |
+| Active US equities, one request    | **14,277** in ~2.0 s                                    |
+| Inactive US equities, one request  | **19,188**                                              |
+| Cost against the **bars** budget   | **Zero** — separate API, separate bucket (§6b)          |
+| Per-symbol lookup needed?          | **No.** The whole catalogue is one response             |
+| Does `id` survive a ticker rename? | **NO — six renames checked, six different ids**         |
+| Does an inactive row carry a date? | **No.** Identical shape to an active one, no timestamp  |
+| Does `inactive` mean delisted?     | **No.** 8% of sampled inactive symbols still print bars |
+
+**Task 2.7.1's 12,881 figure was for active tradable equities; the plain active count is
+14,277.** Both are one request. The count moves daily and is not worth citing.
+
+### 12.1 The row, verbatim
+
+```json
+{
+  "id": "4ce9353c-66d1-46c2-898f-fce867ab0247",
+  "class": "us_equity",
+  "exchange": "NASDAQ",
+  "symbol": "NVDA",
+  "name": "NVIDIA Corporation Common Stock",
+  "status": "active",
+  "tradable": true,
+  "marginable": true,
+  "maintenance_margin_requirement": 30,
+  "margin_requirement_long": "30",
+  "margin_requirement_short": "30",
+  "shortable": true,
+  "easy_to_borrow": true,
+  "borrow_status": "easy_to_borrow",
+  "fractionable": true,
+  "attributes": ["fractional_eh_enabled", "has_options", "overnight_tradable"]
+}
+```
+
+**An inactive row is the same fifteen fields** with `status: "inactive"`, `tradable: false`
+and the margin requirements at 100. **There is no delisting date and no successor symbol
+anywhere in the payload** — which is the finding that stops this endpoint from being able to
+populate a `delisted` status Epic 13 could use.
+
+Nine of the fifteen fields are facts about **trading through Alpaca** rather than about the
+security, so `alpaca-assets.ts` reads six.
+
+### 12.2 `status` is a fact about the VENDOR, measured against the tape
+
+50 active and 50 inactive symbols, sampled deterministically from the catalogue (plain
+tickers, listed venues), each asked for daily bars over August 2026 in one multi-symbol
+request per group:
+
+| Vendor says | n   |                         Still printing bars |
+| ----------- | --- | ------------------------------------------: |
+| `active`    | 50  |                               **50 (100%)** |
+| `inactive`  | 50  | **4 (8%)** — `LWACU`, `FRSH`, `SEMG`, `ITG` |
+
+So `inactive` means "Alpaca will not trade this", not "this is delisted". The two signals
+agree 92% of the time and the 8% is in the direction that matters: it would report a
+still-trading security as gone. `UNIVERSE.md` §15.2 is where that decides something.
+
+### 12.3 The `id` does NOT survive a rename — six for six
+
+The measurement that falsified Story 2.7's open decision 5, and the thing most likely to be
+assumed rather than checked, because "stable per-asset identifier" is what the word `id`
+suggests:
+
+| Rename                    | Old symbol today                                    |
+| ------------------------- | --------------------------------------------------- |
+| `SQ` → `XYZ` (Block)      | **`404 asset not found`**                           |
+| `ANTM` → `ELV` (Elevance) | **`404 asset not found`**                           |
+| `RTN` → `RTX` (Raytheon)  | `inactive`, id `a95c8fe1…` ≠ `4d8f7f83…`            |
+| `TWTR` → `X` (Twitter)    | `inactive`, id `2e91ded3…` ≠ `4ea43090…`            |
+| `FISV` → `FI` (Fiserv)    | both rows exist, different ids                      |
+| `FB` → `META` (Meta)      | **`active` — ProShares S&P 500 Dynamic Buffer ETF** |
+
+The vendor issues a **new row with a new id** and retires or drops the old one. The id
+identifies an asset **within a response**, not a company **across time**.
+
+**Two traps in that table.** `FB` is the sharp one — an old ticker may be **recycled to an
+entirely different company**, so "the old symbol is gone" is not a safe assumption and
+neither is "the old symbol still means what it did". **229 tickers** in the current catalogue
+carry both an active and an inactive row. And `X` is inactive because United States Steel was
+acquired, which is unrelated to Twitter — a reminder that a symbol pair proves nothing
+without reading both rows.
+
+**`FISV`/`FI` was cross-checked against the tape** rather than assumed to be vendor staleness:
+`FISV` printed 22 daily bars in August 2026 and `FI` printed none, so the catalogue and the
+tape agree and the endpoint is not wrong here. Worth recording because the obvious reading —
+"the vendor's data is stale" — was the first hypothesis and the control refuted it.
+
+### 12.4 What was NOT measured here
+
+- **Whether the `id` is stable across anything other than a rename.** It is unique within a
+  response and never collides between the active and inactive lists (checked: 0 collisions,
+  0 duplicates in 14,277). Nothing here establishes that it survives a re-listing, and
+  nothing in this product depends on it, because it is never stored.
+- **`asset_class` other than `us_equity`.** Crypto and options are `PRODUCT_SPEC.md` §37
+  exclusions.
+- **The live `api.alpaca.markets` host.** Only `paper-api` was read; the catalogue is
+  documented as identical and this product has no reason to hold a live trading credential.
