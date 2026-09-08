@@ -258,3 +258,73 @@ concurrently?** Both branches are legitimate and neither should be drifted into:
 concurrency deferred to Task 2.8.8's evidence rather than assumed here — because Task 2.7.7's
 crowd measurement is the strongest evidence in this repository that concurrency against this
 vendor is not free, and ~4 hours once is cheaper than a pacer nobody can test.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.4 — the ledger REFUSES a non-monotonic walk, and that changes two things here
+
+The body says _"the walk must be monotonic, or the ledger claims a range it does not hold.
+Decide the direction and say why."_ That was written expecting the one-range decision to be a
+**convention this task honours**. It shipped as a **mechanism**: `market-bars.ts` refuses a
+write whose gap from the stored range contains a trading session, computed from the shipped
+calendar, and throws `CoverageGapError` naming the missing dates. The direction is still this
+task's decision; **honouring it is no longer optional.**
+
+Two consequences, and the first is the one that changes a design.
+
+### 1. Concurrency across SESSIONS is now refused, and that resolves the open question above
+
+The 2026-09-08 amendment asks this task to decide between a sequential ~3.6-hour run and a
+small fixed concurrency of ~8 in flight. **That decision is now constrained rather than free.**
+
+The batch loop is `for each session { fetch all symbols }`, so ~8 in flight means **eight
+sessions in flight**, and they will not complete in order. Session `N` commits, then `N−3`
+commits before `N−1` and `N−2` — and `N−3`'s write is disjoint from the stored range with two
+trading sessions in the gap, so the ledger **refuses it**. Concurrency across symbols is
+unaffected (different ledger rows); concurrency across sessions for one symbol is exactly what
+the check exists to stop.
+
+So a concurrent design needs one of: ordered commits behind the in-flight window (a completion
+buffer, which is the pacer's complexity again), a second ledger shape (which Task 2.8.4
+declined with its reasons), or per-symbol concurrency instead — which buys nothing, because the
+batch already collapses 518 symbols into one request.
+
+**The recommendation is therefore unchanged and its argument is now stronger: sequential.**
+~4 hours once, against a completion buffer plus a shared pacer plus a design the ledger was
+built to refuse.
+
+### 2. A failed or dropped session BLOCKS the walk for that symbol, loudly
+
+This is new behaviour and it is the useful kind. A session that fails, or a symbol silently
+absent from a page (Task 2.8.5's trap), writes no bars and **does not extend the ledger**. The
+very next session's write for that symbol is then disjoint by one session and is **refused by
+name**.
+
+So this command has to handle `CoverageGapError` rather than let it end the run: the honest
+options are to retry that session, or to stop that symbol and record why, and the choice is
+this task's. What it must not do is catch and ignore it — that is the hole the check was built
+to close.
+
+**The compensating fact is worth stating plainly: this gives Task 2.8.5's "one failure that
+survives every check" a second, independent net.** A symbol dropped from a page is reported as
+a successful empty answer, which every instrument in this story accepts — and the ledger
+refuses the next write for it. It is caught one session late and named as a gap rather than as
+a dropped symbol, so it does not replace 2.8.5's own protection. It is a backstop, and the one
+case it cannot see is a drop on the **last** session of a run.
+
+### 3. `SIGINT` and `kill -9` are already proved at this level
+
+Task 2.8.4 asserts the transaction in both directions against a real server, including a
+deliberate constraint violation on the ledger write rolling the bars back with it. So the body's
+_"killing it mid-transaction is also fine and must be tested: Postgres rolls the session back,
+the ledger does not move, and the next run re-fetches one session"_ is now a property of the
+write path rather than a hope; what this task still owes is the **signal handling**, not the
+atomicity.
+
+### 4. One API note
+
+An empty answer extends the ledger by nothing — `BarSeries` gives an empty series no `covered`
+window, and inferring one from `requested` is the bug Task 2.7.5 measured. So a genuinely
+untraded session **at the frontier of the walk** is re-fetched on the next run. One re-fetched
+session is the safe direction and it is written into `recordSeries`'s doc comment; the reporting
+consequence is Task 2.8.7's and is amended there.

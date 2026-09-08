@@ -163,3 +163,30 @@ they have a command.
 The one sentence to get right is the one about a security we hold nothing for, because it is the
 sentence a first-time viewer is most likely to see if anything went wrong — and §36's rule is
 that it degrades locally and says what it knows, rather than reading as a fault.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.4 — the read this task needs already exists, and one field does not
+
+**`listCoverage()` on `MarketBarsRepository` is the query this task's Work list describes** —
+one statement against `bar_coverage` joined to `securities`, ordered by symbol then timeframe,
+returning a few hundred rows regardless of how many bars exist. It never touches `market_bars`,
+which is the property this page's figures depend on. What is still owed here is the wire
+contract, the shape on the page and the render; the repository read is not new work.
+
+Each `BarCoverage` carries `symbol`, `timeframe`, `covered` (a `TimeRange`), `barCount` and
+`updatedAt` — so **the depth of history and where it starts** are `covered.end − covered.start`
+and `covered.start`, both available without a second query.
+
+**One correction to the body:** it lists _"the exact bar count, the resume point, the last
+attempt"_ as diagnostic fields to keep off the page. There is no last-attempt field — Task 2.8.4
+refused one outright, because it would be a date that always says today and therefore
+permanently silent about staleness, which is the trap `UNIVERSE.md` §11 records. The resume point
+is not a field either: it is `covered.end` or `covered.start` depending on the walk's direction,
+read off the range rather than stored beside it. So the diagnostic fields to keep off the page
+are the **bar count** and `updatedAt`, and the instruction is otherwise unchanged.
+
+**And one property worth using rather than re-deriving:** `updatedAt` moves only when the ledger's
+statement actually changed, so it is honestly "when what we hold last changed" rather than "when
+the backfill last ran". If this page ever wants to say something about freshness, that is the
+field — and it is the reason it is safe to say it.

@@ -254,3 +254,77 @@ The body lists a 390-bar expectation applied to a half day. Add its sibling: **a
 expectation applied to a thin regular session**, which must report the security as _fetched
 and thin_ rather than as having 46 gaps — using `AME` on 2026-09-03 as the fixture, because it
 is a real measured case rather than an invented one.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.4 — what the ledger actually holds, and the one case "failures only" misses
+
+The ledger shipped. Three corrections, and the second is a hole in this task's own recommendation.
+
+### 1. "No ledger entry for `(security, timeframe, session)`" — the ledger is not per session
+
+The 2026-09-08 amendment above defines **not fetched** as _"no ledger entry for `(security,
+timeframe, session)`"_. There is no such entry and there never will be: `bar_coverage` holds
+**one row per `(security_id, timeframe)` with one contiguous covered window**, because a row per
+symbol per session per timeframe is another ten million rows — the same argument this task
+already makes against logging successes.
+
+The correct reading is the same computation with the right query behind it:
+
+> **Not fetched** — the session's `[open, close)` lies **outside** the ledger's covered range
+> for that `(security, timeframe)`.
+> **Fetched** — it lies inside it.
+
+Everything else in that amendment survives unchanged, including the distinction it exists to
+draw: completeness is a question about the **ledger's range**, thinness is a question about the
+**bar count**, and a percentage against `minuteBars` is a liquidity measure. Only the shape of
+the lookup changes.
+
+The overnight and the weekend between two adjacent sessions fall inside the range and contain no
+session, which is why one contiguous window can answer a per-session question at all. Task
+2.8.4's contiguity check is what keeps that true: a walk that skips a session is refused rather
+than producing a range with an unfetched session inside it.
+
+### 2. "Failures only" is not enough, because an EMPTY SUCCESS is recorded nowhere
+
+This task recommends logging failures only, _"because successes are already recorded by the bars
+themselves"_. That is true of every success **except one**, and the exception is exactly the case
+criterion 4 is about.
+
+A session the vendor answers successfully with **no bars** writes no bars — and it does not
+extend the ledger either, because `BarSeries` gives an empty series no `covered` window and
+inferring one from `requested` is the bug Task 2.7.5 measured. So it is recorded in **neither**
+table.
+
+It is usually recovered anyway: a later session on the far side of it extends the range **across**
+it, because the range is a union. What is not recovered is an empty session at the **frontier**
+of the walk — the oldest or newest attempted — which reads as _not fetched_ when it was fetched
+and genuinely empty. Those are the two states this criterion exists to tell apart.
+
+**So the attempt log records a successful empty answer as well as a failure**, and that is a
+correction to this task's cheaper answer rather than a new idea: the row set becomes _"every
+attempt that left no bars"_, which is still a tiny fraction of the sessions and is the smallest
+thing that closes the gap. The alternative — leaving it — is a report that says _"we never asked"_
+about a day we asked about and were told nothing happened.
+
+### 3. Two tables, two jobs, and they are not interchangeable
+
+`bar_coverage` (Task 2.8.4) answers **how far our history reaches**, in one row per series, read
+by Task 2.8.9 to render a page. The attempt log this task adds answers **what happened on a
+particular session**, sparsely, read by an operator. Neither can do the other's job: the ledger
+cannot name a session and the log cannot state a range without a scan.
+
+Two things the ledger already gives this task for free, so they do not need re-deriving:
+`listCoverage()` returns every statement in a few hundred rows, and the ledger's `updated_at`
+moves **only when the statement actually changed** — so a catch-up that fetched nothing leaves
+the table byte-identical, which is the shape "catch-up run twice fetches nothing the second time"
+should be asserted on.
+
+### 4. The failed-session case is now partly loud rather than wholly silent
+
+The body says a failure _"stops being loud the moment the command exits"_. That is still the
+reason the attempt log exists, and it is now less true in one useful way: because a failed
+session does not extend the ledger, the **next** session's write for that symbol is refused by
+name with `CoverageGapError`. So a mid-walk failure surfaces during the run rather than only in
+a later report — one session late, and named as a gap rather than by its cause, which is why the
+log is still needed to say _why_.

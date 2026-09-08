@@ -219,3 +219,30 @@ same request). So one session's 21-page walk is **~55 s**, against
 its own deadline; at 518 that stops being hygiene — the default is off by more than an order
 of magnitude, and a batch caller that forgets it fails on the first page rather than the
 fifth. See Task 2.8.6's amendment for the consequence at whole-backfill scale.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.4 — the store gives this task's trap a second net, one session late
+
+This task exists because a symbol can be **absent from a page entirely while having a full
+session of data**, and a batch that concludes from that page reports it as a _successful empty
+answer_ — the one failure in this story that survives every check.
+
+**It no longer survives quite every check, and the reason is worth knowing so it is not mistaken
+for a reason to relax here.** Task 2.8.4's ledger extends only on a non-empty answer, and refuses
+a write whose gap from the stored range contains a trading session. So a symbol dropped from a
+page writes nothing, does not extend its ledger row, and **the next session's write for that
+symbol is refused by name**.
+
+Three reasons that is a backstop rather than a replacement:
+
+- It fires **one session late**, and it names the failure as a coverage gap rather than as a
+  dropped symbol, so the diagnosis still has to be made by hand.
+- It cannot see a drop on the **last** session of a run, which is the frontier case.
+- It says nothing at all if the walk is not continued for that symbol.
+
+So the two assertions this task already owes stand unchanged and are still the primary
+protection: **every requested symbol must appear in the result map**, with a test asserting the
+key set equals the request's, and **a conclusion about a symbol is correct only after
+exhaustion**. What the ledger adds is that getting it wrong is now noisy somewhere rather than
+nowhere.
