@@ -55,6 +55,16 @@ is that a bar we already hold is the same bar. So:
   at the time**. That is a real gap in the replay guarantee and it is recorded rather than
   papered over. **The reversal trigger is the first observed correction** — not a story number —
   and nobody has seen one.
+  **The schema is now built for this rather than merely compatible with it (Task 2.8.3).**
+  `MarketBarsTable.recorded_at` is writable on update, deliberately — the first draft of that
+  table made it `never`, copying `securities`, which would have made this decision
+  _unimplementable_ and was caught by re-reading the downstream tasks before the migration
+  reached production. There is no `updated_at`: the only event that rewrites a bar is a
+  correction, so `recorded_at` moving **is** the record that one happened, and because a batch
+  shares one `recorded_at` a corrected bar is the one whose value sits apart from its session's.
+  **That is the mechanism the reversal trigger fires from** — a property of the data rather than
+  a counter in a terminal somebody has closed — so the counting below is the report and this is
+  the record.
 - **Which means this task should be able to SEE one.** A `do nothing` that silently discards a
   changed bar is how the first correction goes unnoticed forever. Prefer a form that can report
   "we already had this bar and it differed" — `do update ... where` on the OHLCV columns being
@@ -62,8 +72,11 @@ is that a bar we already hold is the same bar. So:
   `load-universe.ts`'s `is distinct from` idiom applied for a different reason: there it keeps
   `updated_at` honest, here it makes an undetectable event detectable.
 
-**Batching.** Postgres's bind-parameter ceiling is 65,535 and this row is 9 written columns, so
-the chunk is ~7,281 rows. `load-universe.ts` chunks at 5,461 for 12 columns and the arithmetic
+**Batching.** Postgres's bind-parameter ceiling is 65,535 and this row is ~~9~~ **8** written
+columns — `recorded_at` defaults, so a writer supplies `security_id`, `timeframe`,
+`observed_at`, the four prices and `volume` — so the chunk is ~~~7,281~~ **~8,191** rows
+(counted off the shipped table by Task 2.8.3; re-count it rather than citing it if the write
+path ends up setting `recorded_at` explicitly, which takes it back to 9 and ~7,281). `load-universe.ts` chunks at 5,461 for 12 columns and the arithmetic
 belongs in a comment beside the constant, as it does there. A regular session for one security
 is 390 rows, so a per-session write is one statement — which is the shape Task 2.8.6 uses — and
 the chunking exists for the daily backfill, where ~2,500 sessions × N securities is not.
@@ -116,8 +129,14 @@ that jumps around leaves the ledger claiming a range it does not hold.
 - `apps/backend/src/market-bars.ts` — its own `Kysely` instance, unexported; `insertBars`, the
   row→`Bar` parse beside it, and the ledger read/write
 - `apps/backend/migrations/0005_bar_coverage.sql`, with the one-range decision in a comment
-- `schema.ts` gains the second table; `migrations/README.md`'s lists updated if anything moved
-- `market-bars.database.test.ts`: writing the same series twice writes nothing the second time,
+  (`0004` is `market_bars`, applied)
+- `schema.ts` gains the story's second table; `migrations/README.md`'s lists updated if anything
+  moved — **noting Task 2.8.3 already moved four rows into the checked list**, so the money rule,
+  the foreign-key naming rule, `observed_at`-has-no-default and no-unasked-for-index are checks
+  now and this table inherits all four
+- `market-bars.database.test.ts` — which **already exists** (Task 2.8.3, 35 tests over the
+  table's shape), so this extends it rather than creating it, and its `beforeAll` already
+  migrates and loads the universe: writing the same series twice writes nothing the second time,
   asserted on **row counts and a checksum of the table** rather than on the function's own
   report — Task 2.3.8's rule that idempotence is asserted on the data
 - A changed bar is detected and reported, so open decision 1's reversal trigger can fire

@@ -58,7 +58,12 @@
 
 import type { ColumnType, Generated, GeneratedAlways } from "kysely";
 
-import type { Sector, SecurityKind, SecurityStatus } from "@marketpulse/shared";
+import type {
+  Sector,
+  SecurityKind,
+  SecurityStatus,
+  Timeframe,
+} from "@marketpulse/shared";
 
 /**
  * `securities` — the tracked universe. See `../migrations/0002_securities.sql`,
@@ -206,6 +211,125 @@ export interface SecuritiesTable {
 }
 
 /**
+ * `market_bars` — one price observation per security, timeframe and interval.
+ * See `../migrations/0004_market_bars.sql`, which is the source of truth this
+ * mirrors.
+ *
+ * **Read this alongside `Bar` in `packages/shared` rather than instead of it.**
+ * They describe the same thing at two levels and they deliberately disagree
+ * about types: `Bar` carries `number` prices and a `volume`, because that is
+ * what a chart axis and an anomaly calculation need, and this carries `string`,
+ * because that is what `pg` hands JavaScript for a `numeric` and a `bigint`.
+ * The gap between them is a **parse**, and per this file's own rule it lives
+ * beside the query as one function per domain type — `toSecurity`'s precedent,
+ * and Task 2.8.4 writes this one.
+ *
+ * The row type also carries three things `Bar` does not, and their absence
+ * there is the decision rather than an omission: the security, the timeframe
+ * and the bookkeeping. A bar carrying its own symbol and timeframe would be
+ * fifty million copies of two constants (`bar.ts` says so); here they are the
+ * key.
+ */
+export interface MarketBarsTable {
+  /**
+   * `bigint generated always as identity`. {@link SecuritiesTable.id}'s
+   * reasoning applies unchanged, including that `GeneratedAlways` makes an
+   * insert supplying an `id` a compile error as well as a run-time one.
+   */
+  id: GeneratedAlways<string>;
+
+  /**
+   * The security this bar was observed for — `securities.id`, so a ticker
+   * change is a one-row update rather than a rewrite of every bar.
+   *
+   * `string` because it is a `bigint`, which means the write path carries the
+   * id it read from `securities` around as a string rather than converting it.
+   * That is the correct direction: converting it to a `number` to "tidy" it is
+   * the exact thing `../migrations/README.md` §4 forbids.
+   */
+  security_id: string;
+
+  /**
+   * The union rather than `string`, backed by `market_bars_timeframe_check`.
+   * `TIMEFRAMES` in `packages/shared` is the source of truth and the constraint
+   * is the database's backstop; `pnpm test:database` is what stops the two
+   * drifting, by parsing the constraint Postgres rewrote.
+   */
+  timeframe: Timeframe;
+
+  /**
+   * When the interval **begins in the market**. `Bar.startsAt`, with no shift.
+   *
+   * `Date` on all three parameters and **no default anywhere**, which is this
+   * type restating the column's most important property: a writer must supply
+   * it. `../migrations/0004_market_bars.sql` has the argument at length — a
+   * `default now()` here would silently turn "when it happened" into "when we
+   * wrote it" on the column Epic 13's temporal isolation filters on.
+   *
+   * Contrast {@link recorded_at} directly below, which is the same Postgres
+   * type and means the opposite thing. That the two are indistinguishable by
+   * type is exactly why `../migrations/README.md` §2 exists.
+   */
+  observed_at: Date;
+
+  /**
+   * The four prices, `numeric(18, 6)`.
+   *
+   * **Select is `string`**, and that is `pg` being right rather than awkward: a
+   * JavaScript `number` is a double, so a type parser turning these into
+   * numbers throws away the exactness the column type was chosen for. Any
+   * arithmetic that has to be exact — Epic 5's aggregates — happens in SQL.
+   *
+   * **Insert and update accept a `number` as well**, because `Bar` carries
+   * `number` prices and the write path is handed domain objects. That is safe
+   * for a *single* price at scale 6, which is exact in a double four orders of
+   * magnitude beyond any equity price; it is accumulation that is lossy, and
+   * nothing accumulates on the way in.
+   */
+  open: ColumnType<string, string | number, string | number>;
+  high: ColumnType<string, string | number, string | number>;
+  low: ColumnType<string, string | number, string | number>;
+  close: ColumnType<string, string | number, string | number>;
+
+  /**
+   * Shares traded in the interval. A **count**, so `bigint` and not
+   * `numeric(18, 6)` — `../migrations/README.md` §4 draws that line explicitly,
+   * and it is the one value in `Bar` that V1 does sum.
+   *
+   * `string` out for the same reason as the prices, `bigint` accepted in
+   * alongside `number` and `string` because a caller that already has one
+   * should not have to widen it.
+   */
+  volume: ColumnType<
+    string,
+    string | number | bigint,
+    string | number | bigint
+  >;
+
+  /**
+   * When we wrote the row: `timestamptz not null default now()`.
+   *
+   * Optional on insert because of the default, exactly as
+   * {@link SecuritiesTable.recorded_at} is — and then the two **diverge on the
+   * update parameter**, which is the one place this table deliberately departs
+   * from that one.
+   *
+   * There it is `never`, because a loader converging on a file rewrites rows
+   * routinely and `updated_at` carries the change. Here it is writable, because
+   * Story 2.8's open decision 1 settled that a vendor **correction overwrites**
+   * the bar rather than versioning it — so `recorded_at` moves with it, and
+   * making that a compile error would make the decision unimplementable.
+   *
+   * There is no `updated_at` beside it for the same reason: the only event that
+   * rewrites a bar is a correction, so this column moving *is* the record that
+   * one happened. See `../migrations/0004_market_bars.sql`, which carries the
+   * argument and the cost — Epic 13 replays a bar as currently known rather
+   * than as known at the time.
+   */
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
+}
+
+/**
  * Every table, by the name Postgres knows it by.
  *
  * `snake_case` keys because these are the database's identifiers rather than
@@ -214,4 +338,5 @@ export interface SecuritiesTable {
  */
 export interface Database {
   securities: SecuritiesTable;
+  market_bars: MarketBarsTable;
 }

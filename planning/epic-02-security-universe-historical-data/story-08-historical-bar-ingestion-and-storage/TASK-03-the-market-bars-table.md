@@ -1,6 +1,6 @@
 # Task 2.8.3 — `market_bars`: the key, the columns, and the indexes chosen rather than accumulated
 
-**Status:** Not started
+**Status:** Complete (2026-09-08)
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
 **Depends on:** Tasks 2.8.1, 2.8.2
 
@@ -185,3 +185,135 @@ comments and getting `2 applied migrations have been edited since they were appl
 deploy. So every comment in this file — every index's justification, every rejected column — has
 to be right the first time, because it can never be corrected. That is a stronger reason to
 think before writing it than the schema is.
+
+---
+
+## What was built, in plain terms — a status report
+
+**Status: complete (2026-09-08).** Nothing on the screen changed. What changed is
+that MarketPulse now has somewhere to put the prices.
+
+### What this actually is
+
+Until today the product knew _which_ 518 companies it watches, but had nowhere at
+all to keep _what they did_. This task built that place: a single table called
+`market_bars`, where every row is one company's price over one slice of time —
+what it opened at, its high, its low, what it closed at, and how many shares
+changed hands.
+
+It is empty. Deliberately. Filling it is the next task, and splitting the two
+apart matters because they go wrong in completely different ways: a badly shaped
+table is a mistake you can only fix by throwing away every price you have
+collected and starting again, while a badly written import is a mistake you fix
+by running the import again. So the shape gets its own task and its own scrutiny.
+
+### The decision everything else rests on
+
+The hardest question here was deceptively small: **what makes two price
+observations "the same"?**
+
+The answer we settled on is _this company, this size of time slice, this
+instant_. That is enforced by the database itself, which means the database will
+physically refuse to store the same bar twice.
+
+That one rule buys two things the product genuinely needs. If the overnight
+import crashes halfway through, we can simply run it again from the start — the
+prices already saved are silently rejected as duplicates rather than doubled up.
+And a year of history stays a year of history rather than slowly inflating into
+two years of the same year. Without it, "did that import work?" becomes a
+question nobody can answer by looking.
+
+### Three decisions worth explaining to a non-engineer
+
+**1. We store prices in a format that cannot drift.** There is a fast, common way
+for computers to store decimal numbers, and it has a notorious flaw: adding the
+same set of numbers in a different order can give a different answer. That sounds
+academic until you picture the consequence here — the same percentage change
+showing two different values on two different screens, with no bug to find and
+nothing to blame. MarketPulse's entire promise is that _the numbers come from
+code, not from an AI's guesswork_ (§5.1 of the spec), so a number that disagrees
+with itself is not a small defect, it is the promise failing. We use the slower,
+exact format instead. Share volumes, being whole numbers of shares, are stored as
+whole numbers — no rounding to worry about.
+
+**2. Every bar records two different times, and mixing them up would quietly
+destroy the flagship feature.** One timestamp is _when this happened in the
+market_; the other is _when we wrote it down_. They are the same kind of thing to
+a computer and completely different things to the product.
+
+The reason this matters more here than anywhere else is Market Replay — the
+feature the whole portfolio is built around, where you wind the clock back to
+11:07 on some past morning and the system shows you only what was knowable _at
+that moment_ (§21–§23). That filter runs entirely on the first timestamp. There
+is a single word we could have added to this table's definition — a convenience
+that would have filled that timestamp in automatically — and it would have
+silently replaced "when it happened" with "when we imported it". Every replay
+would then have shown a whole day's prices arriving at once, at the moment of the
+import, and it would have looked plausible. We left it out, and there is now an
+automated test whose only job is to fail if anyone ever adds it.
+
+**3. We deliberately built almost no indexes.** An index is a shortcut that makes
+one kind of question fast and makes every single write a bit slower. At fifty
+million rows a year, "a bit slower" is a real cost, and it is the sort of thing
+that gets added one at a time by well-meaning people until writing is slow and
+nobody remembers why.
+
+So the table has exactly one, and it is not an extra — it is a free side effect
+of the duplicate rule above, and it happens to be arranged in precisely the order
+the charts will want ("this company, this timeframe, this date range, oldest
+first"). The obvious _second_ index — the one that answers "what did the whole
+market do at 10:42?" — was left out on purpose, with a note naming the exact
+future feature that will need it. There is a test that fails if an index appears
+that nobody asked for.
+
+### Two long-standing promises that are now actually checked
+
+This repository keeps a written list of its own database conventions, split into
+"things a machine checks" and "things only a human reviewer can catch". Two rules
+had been sitting on the wrong side of that line for months, simply because
+`securities` — the only table that existed — had no prices in it and no links to
+other tables.
+
+Rather than leaving them as good intentions, a previous task had planted a
+**tripwire**: an automated test asserting that the database contained _no_ price
+columns at all, with a message aimed at whoever eventually added one. This task
+is what set it off. Both rules are now real, enforced checks rather than
+paragraphs of prose — and the price check keeps a guard so it can never quietly
+go back to passing by having nothing to look at, which is the failure mode the
+tripwire existed to prevent in the first place.
+
+### How we know it works
+
+The table's definition, its interface in code, and the database's own report of
+what it built are three separate descriptions of one thing, and they are all
+compared against each other automatically. The database-backed test suite grew
+from **61 tests to 96**.
+
+More importantly, every one of those checks was **deliberately broken first** and
+watched to fail. We added the dangerous automatic timestamp — four tests went
+red. We switched the prices to the imprecise format — fourteen went red. We
+renamed a column in one place and not the other — fourteen went red. We stored
+share volume as money — four went red. Each break was then undone and the file
+confirmed byte-for-byte identical. A test that has never been seen to fail is not
+evidence of anything.
+
+### One thing worth flagging for the record
+
+The migration file that creates this table can never be edited again. The system
+verifies that applied migrations have not changed since they ran, by fingerprint,
+and it will refuse to deploy if one has — a safeguard that has already caught a
+real mistake. That includes the comments. So the reasoning behind every column
+and every rejected alternative had to be written correctly the first time, and it
+lives permanently inside the file it describes.
+
+### What this unlocks
+
+- **Next task:** the import path that actually writes prices into this table.
+- **Then:** a full year of history for all 518 companies (~50 million rows), and
+  the first screen in the product that can honestly say _what data we hold_.
+- **After that:** price and volume charts (§8.3), the anomaly detection that
+  compares today's move against sixty days of history (§11), and eventually
+  Market Replay.
+
+Every one of those reads from this table. Getting its shape right today is what
+stops all of them from being rebuilt later.

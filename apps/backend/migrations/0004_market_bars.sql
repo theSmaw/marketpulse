@@ -1,0 +1,276 @@
+-- 0004_market_bars — the bar store (Task 2.8.3).
+--
+-- The second real table in this schema, and the first that exercises three
+-- conventions `securities` structurally could not: the `observed_at` /
+-- `recorded_at` pair (README.md §2), `numeric(18, 6)` for money (§4), and a
+-- foreign key and its naming rule (§1). All three were written down in Task
+-- 2.2.3 and all three have been untested since — `0003` recorded that the
+-- foreign-key rule had survived the story most likely to have exercised it, and
+-- `migrate.database.test.ts` has carried a tripwire asserting there are ZERO
+-- `numeric` columns precisely so that adding one lands whoever added it in that
+-- file. This migration is what fires it.
+--
+-- The table holds ZERO rows when this migration finishes. The write path is
+-- Task 2.8.4's and the backfill is Task 2.8.6's.
+--
+-- Sizing, so the decisions below are read against the right number: the tracked
+-- universe is 518 securities (Task 2.8.2) and a mean trading year is 97,494
+-- minute bars per security, so **one year of minute bars is ~50.5M rows** and a
+-- year of daily bars is ~130k. Every index on this table is ~50.5M rows a year
+-- of write amplification, which is why the index section below says what it
+-- does NOT build as carefully as what it does.
+
+create table market_bars (
+    -- §3's surrogate key, unchanged from `securities` and for the same reasons.
+    -- `bigint` and not `int` is load-bearing here rather than uniform-for-its-
+    -- own-sake: a 32-bit key tops out at 2.1 billion, which is ~42 years of
+    -- minute bars at this universe size — comfortably inside the horizon of a
+    -- product that stores a year of history and never deletes.
+    id bigint generated always as identity primary key,
+
+    -- §1's foreign-key naming rule, `<referenced_table_singularised>_id`, and
+    -- the first place in this schema it is exercised.
+    --
+    -- **`security_id` and not `symbol`**, so a ticker change is a one-row update
+    -- rather than a rewrite of every bar. Read the honest limit of that with it:
+    -- Task 2.7.8 measured six real renames against Alpaca's asset catalogue and
+    -- found that a rename produces a NEW asset row with a NEW identifier, so the
+    -- curated file cannot express "these are the same company" and the loader
+    -- creates a second `securities` row. The bars stay correctly attached to the
+    -- security they were observed for; nothing joins the two rows. That is
+    -- `UNIVERSE.md` §16.7's recorded gap and this column inherits it rather than
+    -- solving it.
+    --
+    -- **No `on delete` clause, which means `no action`, and that is the choice
+    -- rather than the default falling through.** §5 says nothing here is ever
+    -- deleted — a security that leaves the tracked universe is marked
+    -- `untracked` and keeps its row precisely so its history stays reachable —
+    -- so a `securities` delete is already a thing that should not happen, and
+    -- this makes the database refuse it rather than quietly taking ten million
+    -- bars with it. `on delete cascade` would turn a mistaken delete into
+    -- unrecoverable data loss; `set null` would break the not-null. The refusal
+    -- is the backstop for the convention.
+    security_id bigint not null references securities (id),
+
+    -- §1's closed set: `text` + `check`, never a Postgres `enum`. The vocabulary
+    -- is `TIMEFRAMES` in `packages/shared` and this constraint is the database's
+    -- backstop against a writer that bypassed the type.
+    --
+    -- The enum argument pays here in a shape worth naming, because this is the
+    -- table it was always about: adding `5m` to an enum and backfilling rows to
+    -- it is refused outright (`unsafe use of new value`) inside the single
+    -- transaction the migrator runs, and splitting it across two files does not
+    -- escape that — the migrator wraps the WHOLE RUN. As `text` + `check` it is
+    -- drop-check / add-check, which `0003` has a worked example of.
+    --
+    -- `TIMEFRAMES` is two members and that is a decision rather than a starting
+    -- point: aggregation is deliberately not expressible, because Epic 13's
+    -- replay must reconstruct a five-minute return from what was STORED, and a
+    -- provider-side aggregate would be a second source of truth replay could not
+    -- use. See `packages/shared/src/bar.ts`.
+    timeframe text not null check (timeframe in ('1m', '1d')),
+
+    -- ========================================================================
+    -- §2's pair, and the first table in this schema to carry both halves.
+    -- ========================================================================
+    --
+    -- **`observed_at` is when the bar's interval BEGINS in the market.** It maps
+    -- from `Bar.startsAt` with NO shift — Task 2.7.3 measured that Alpaca's `t`
+    -- marks the start of its interval, and `PROVIDER.md` §9.2 chose the name
+    -- `startsAt` precisely so a mapping that got it backwards would read as an
+    -- obvious contradiction rather than as a plausible assignment. The interval
+    -- is half-open, matching `TimeRange`: a `1m` bar at 13:30:00Z covers 13:30
+    -- up to but not including 13:31, so adjacent windows tile with no bar
+    -- claimed twice at the seam.
+    --
+    -- **It has NO DEFAULT, and `default now()` here would be the single most
+    -- damaging line in this story.** It is one word, it would be accepted
+    -- silently by every writer, and it would turn "when it happened in the
+    -- market" into "when we wrote it" on the exact column Epic 13's temporal
+    -- isolation filters on — so a replay of 11:07 would serve bars whose
+    -- timestamps are the moment of the backfill. Invariant 4 says that leak must
+    -- be structurally impossible rather than remembered; the absence of a
+    -- default is the structural half, and a writer supplying the wrong value is
+    -- the half nothing can check. §2 says so in the abstract. This is the table
+    -- where it stops being hypothetical.
+    observed_at timestamptz not null,
+
+    -- ========================================================================
+    -- §4's money rule: `numeric(18, 6)`, never a float.
+    -- ========================================================================
+    --
+    -- Invariant 1 says every number a user sees comes from deterministic code,
+    -- and binary floating point is not deterministic in the way that sentence
+    -- needs. Float addition is **not associative** — measured, `sum()` over
+    -- `[1e16, 1.0, -1e16]` returns 0 and the same values reordered return 1,
+    -- where `numeric` returns 1.0 for both — so a percentage change can disagree
+    -- with itself between two renders because a query plan changed the
+    -- aggregation order. That is an Epic 5 bug report with no cause in it.
+    --
+    -- Scale 6 clears the $0.0001 sub-penny quoting increment by two orders of
+    -- magnitude and leaves a VWAP or a mean unrounded; twelve integer digits is
+    -- $999,999,999,999.999999 against BRK.A at roughly $700,000. Both edges were
+    -- produced: excess scale ROUNDS silently, excess precision is REFUSED
+    -- (`numeric field overflow`). The rule is scoped to a per-share value for
+    -- that reason — a market capitalisation is thirteen integer digits and would
+    -- overflow it — and every column here is per-share.
+    --
+    -- `pg` hands a `numeric` to JavaScript as a **string**, deliberately, and
+    -- that must not be "fixed" with a type parser: a JavaScript number is a
+    -- double. `Bar` in `packages/shared` carries `number` prices on the stated
+    -- guard that an aggregate over prices is computed in SQL over `numeric` and
+    -- never in JavaScript, so the parse is a mapping step beside the query.
+    --
+    -- **No `check` on the OHLC relationship** (`high >= low`, `high >= open`,
+    -- and so on), and the absence is a decision rather than an oversight. It is
+    -- definitionally true of a well-formed bar, so it looks free; what it
+    -- actually is, is a claim about a third party's data that nothing here has
+    -- measured, enforced at the point where being wrong is most expensive — a
+    -- constraint violation three million rows into a backfill fails the whole
+    -- transaction and costs the run. Where a swapped high and low CAN be caught
+    -- is in our own mapping, which is one pure function with its own tests and
+    -- recorded fixtures. The reversal trigger is a mapping defect that reached
+    -- the store, at which point the constraint is added additively as
+    -- `not valid` and validated separately, which takes no table lock.
+    open numeric(18, 6) not null,
+    high numeric(18, 6) not null,
+    low numeric(18, 6) not null,
+    close numeric(18, 6) not null,
+
+    -- §4 draws this line explicitly: **a volume is a count, not a price.** It is
+    -- exact by being an integer, and a daily consolidated volume exceeds 32
+    -- bits, so it is `bigint` and the `numeric` rule above does not apply to it.
+    -- A ratio DERIVED from counts — Epic 5's volume ratio — becomes `numeric`
+    -- again the moment it is stored, in whichever table stores it.
+    volume bigint not null,
+
+    -- §2's other half: when we wrote the row. `now()` is transaction start time
+    -- rather than statement time — measured — so every bar written by one batch
+    -- shares one `recorded_at`. That is correct and is not a bug: the batch is
+    -- the retrieval, and invariant 5 wants the retrieval timestamp rather than a
+    -- per-row clock reading.
+    --
+    -- **It MOVES when a bar is corrected, and that is a decision taken upstream
+    -- rather than a property of this column falling out.** Story 2.8's open
+    -- decision 1 settled that V1 stores one row per bar: a pure record would
+    -- keep every version, and a second row per bar is a version predicate on
+    -- every read — a second invisible predicate on top of `securities.status`,
+    -- which §5 calls "a bug waiting for whoever forgets". So a vendor
+    -- correction OVERWRITES, `recorded_at` moves with it, and Epic 13 therefore
+    -- replays a bar as currently known rather than as known at the time. That
+    -- is a real gap in the replay guarantee, recorded rather than papered over,
+    -- and its reversal trigger is the first observed correction — nobody has
+    -- seen one.
+    --
+    -- **There is no `updated_at`, unlike `securities`, and the reason is that
+    -- one here would carry no information this column does not.** On
+    -- `securities` the pair is needed because a loader converging on a file
+    -- rewrites rows routinely, so "when we first wrote it" and "when it last
+    -- changed" are genuinely different questions. Here the ONLY event that
+    -- rewrites a row is a correction, so `recorded_at` moving IS the record
+    -- that one happened — and because a batch shares one value (above), a bar
+    -- whose `recorded_at` sits apart from its session's is a corrected bar,
+    -- which is what makes the trigger above fire from the data rather than from
+    -- a counter in a terminal somebody has closed.
+    recorded_at timestamptz not null default now(),
+
+    -- ========================================================================
+    -- WHAT MAKES A BAR THE SAME BAR. This is the decision the whole story rests
+    -- on.
+    -- ========================================================================
+    --
+    -- `(security_id, timeframe, observed_at)`. It is what makes re-running a
+    -- backfill idempotent instead of duplicating a year — acceptance criteria 2
+    -- and 3 are both properties of this line — and it is what lets an
+    -- interrupted run resume by writing the same rows again.
+    --
+    -- **A `unique` constraint beside a surrogate `id` rather than the primary
+    -- key itself**, per §3, plus one reason specific to this table: the natural
+    -- key is three columns wide, so as a primary key it would propagate three
+    -- columns into every future foreign key that ever references a bar.
+    --
+    -- **The column ORDER is chosen for the read rather than written in the order
+    -- the columns are declared.** Story 2.9's access pattern is known and it is
+    -- one shape: one security, one timeframe, one time window, in ascending
+    -- time. A btree serves that only when the equality columns lead and the
+    -- range column is last — which is exactly this order, so `where security_id
+    -- = $1 and timeframe = $2 and observed_at >= $3 and observed_at < $4 order
+    -- by observed_at` is one index range scan already sorted. Any other
+    -- ordering of these three columns is a different and worse index for the
+    -- only query this table currently has.
+    --
+    -- **So the primary access path costs NO EXTRA INDEX AT ALL**, which is worth
+    -- saying because the reflex on reading a table of ten million rows is to add
+    -- one. The constraint's own btree is it.
+    --
+    -- It also serves the foreign key. Postgres does NOT create an index on a
+    -- referencing column, and without one every operation on the parent row has
+    -- to scan the child table; `security_id` leading here means it never does.
+    constraint market_bars_unique_bar
+        unique (security_id, timeframe, observed_at)
+);
+
+-- ---------------------------------------------------------------------------
+-- The indexes this migration deliberately does NOT create.
+-- ---------------------------------------------------------------------------
+--
+-- README.md's rule is that an index chosen before there is a query to serve is a
+-- guess with a write cost, and at this table's size the cost is the point: every
+-- additional index is ~50.5M rows a year of write amplification, plus its own
+-- share of a 32 GiB disk with ~22.5 GiB usable.
+--
+-- **A `(observed_at)`-leading index is what a CROSS-SECTIONAL query wants** —
+-- "every security at this minute", which is PRODUCT_SPEC.md §11's breadth
+-- calculation and Epic 5's relative-move. That query cannot use the constraint
+-- above, because `observed_at` is its trailing column. It is not built here, and
+-- the trigger is **Epic 5**: the first reader that actually issues it. Adding it
+-- later against a populated table is what `create index concurrently` is for.
+--
+-- **`create index concurrently` does NOT bind this migration**, and the reason
+-- is worth stating so nobody reads its absence as an oversight. `DATA-LAYER.md`
+-- names this table as the place this project meets it: the statement is refused
+-- inside a transaction, and Kysely's migrator runs one transaction for the whole
+-- run, with `disableTransactions` a per-`Migrator` all-or-nothing setting — so
+-- the answer is a second `Migrator` over a separate directory rather than a
+-- flag. None of that is needed HERE, because an index created in the same
+-- migration as an empty table takes no meaningful lock: there is nothing to
+-- lock. The trigger for building that second migrator is precisely **the first
+-- index added to a POPULATED `market_bars`**, which is Epic 5's index above or
+-- anything Task 2.8.8's query measurement turns up.
+--
+-- **No index on `recorded_at`.** The tempting reader is "what did the last
+-- backfill write", and that is Task 2.8.4's ledger — a statement per symbol and
+-- timeframe, which is a hundreds-of-rows table rather than a scan of fifty
+-- million.
+--
+-- **Nothing is partitioned and nothing is a hypertable.** Open decision 2
+-- declined TimescaleDB with a measured trigger (`timescaledb` is available and
+-- not installed on the deployed server, `azure.extensions` is empty, enabling it
+-- needs a server restart AND a different local image), and the trigger is Task
+-- 2.8.8's `EXPLAIN` against the real row count rather than an opinion.
+
+-- ---------------------------------------------------------------------------
+-- Provenance is deliberately NOT a column on the bar, and this is the decision
+-- most likely to be revisited by somebody who has read `PROVIDER.md` §2.
+-- ---------------------------------------------------------------------------
+--
+-- Invariant 6 says market-data provenance is displayed rather than implied, and
+-- `securities` carries four provenance columns for exactly that reason — so
+-- their absence here needs an argument rather than a shrug.
+--
+-- The argument is that **provenance travels with a SERIES, not with an
+-- observation.** A `feed`, an `adjustment` and a `retrieved_at` on every one of
+-- fifty million rows is fifty million copies of a constant — measurably, roughly
+-- a quarter of the row width for information that is identical across a whole
+-- backfill. What the store actually needs is a statement per symbol and
+-- timeframe: what we hold, from where, as of when. That is **Task 2.8.4's
+-- ledger**, and acceptance criterion 5 is a property of it.
+--
+-- **The trigger for a per-bar feed column is a SECOND FEED writing into this
+-- table**, and it is not hypothetical: this story's history is `sip` (Alpaca's
+-- free plan serves the consolidated tape for historical bars) while Epic 3's
+-- live stream is `iex` (the same plan serves one venue live). The day Epic 3
+-- writes a bar here, a series can no longer state one feed for its whole range,
+-- and the ledger stops being able to answer honestly. Written down now because
+-- Epic 3 is the task that meets it, and by then it would look like a schema
+-- change with no reason attached.
