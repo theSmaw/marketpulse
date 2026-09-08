@@ -70,6 +70,7 @@ import {
   marketSessionsBetween,
   toMarketDate,
   toTicker,
+  type MarketDate,
   type MarketSession,
   type Ticker,
   type Timeframe,
@@ -77,6 +78,12 @@ import {
 } from "@marketpulse/shared";
 
 import { createAlpacaProvider } from "./alpaca-provider.js";
+import {
+  attemptOutcomeFor,
+  createBarAttemptsRepository,
+  type BarAttemptRecord,
+  type BarAttemptsRepository,
+} from "./bar-attempts.js";
 import { windowFor } from "./bar-window.js";
 import { ConfigError, loadConfig, loadEnvFile } from "./config.js";
 import { closeDatabasePool, createDatabasePool } from "./database.js";
@@ -242,6 +249,16 @@ export interface BackfillDependencies {
   readonly sessions: readonly MarketSession[];
   /** What the ledger already says, per symbol. */
   readonly coverage: ReadonlyMap<Ticker, BarCoverage>;
+  /**
+   * Where a session that left no bars is recorded, and where one that did is
+   * forgotten.
+   *
+   * **Required rather than optional, and that is deliberate.** An optional
+   * dependency here is one a future call site can leave out, and what it would
+   * silently switch off is the only thing that tells a failed fetch from a
+   * session nobody asked about — acceptance criterion 4, disabled by omission.
+   */
+  readonly attempts: BarAttemptsRepository;
   /** One line of progress. Written as it happens, not collected — see below. */
   readonly report: (line: string) => void;
   readonly now?: () => number;
@@ -372,6 +389,7 @@ export async function runBackfill(
   const {
     provider,
     bars,
+    attempts,
     timeframe,
     sessions,
     coverage,
@@ -402,6 +420,75 @@ export async function runBackfill(
   let failedWith: string | undefined;
   let lastRequestStartedAt: number | undefined;
   let spentMs = 0;
+
+  /**
+   * The attempt rows this request will write, and the ones it will delete.
+   *
+   * **Queued and flushed once per request rather than written as they are
+   * decided**, because the alternative is up to 518 round trips inside a loop
+   * that already spends fifty seconds on the vendor — a log that costs more
+   * than the thing it is logging is one somebody removes.
+   */
+  let pendingWrites: BarAttemptRecord[] = [];
+  let pendingClears: { symbol: Ticker; sessions: readonly MarketSession[] }[] =
+    [];
+
+  function queueAttempts(
+    symbols: readonly Ticker[],
+    over: readonly MarketSession[],
+    outcome: BarAttemptRecord["outcome"],
+    detail?: string,
+  ): void {
+    for (const symbol of symbols) {
+      for (const session of over) {
+        pendingWrites.push({
+          symbol,
+          timeframe,
+          sessionDate: session.date,
+          outcome,
+          ...(detail === undefined ? {} : { detail }),
+        });
+      }
+    }
+  }
+
+  function queueClear(symbol: Ticker, over: readonly MarketSession[]): void {
+    pendingClears.push({ symbol, sessions: over });
+  }
+
+  /**
+   * Write what was queued, in as few statements as the shapes allow.
+   *
+   * The clears are grouped by the *set of sessions* rather than issued per
+   * symbol: at `1m` a request is one session, so every symbol that stored bars
+   * falls into one group and the whole batch is a single `delete`. At `1d` a
+   * symbol can have traded on some of the twenty sessions and not others, so
+   * there are as many groups as there are distinct patterns — still a handful,
+   * and never one per symbol.
+   */
+  async function flushAttempts(): Promise<void> {
+    const writes = pendingWrites;
+    const clears = pendingClears;
+    pendingWrites = [];
+    pendingClears = [];
+
+    const grouped = new Map<
+      string,
+      { symbols: Ticker[]; dates: readonly MarketDate[] }
+    >();
+    for (const entry of clears) {
+      const dates = entry.sessions.map((session) => session.date);
+      const key = dates.join(",");
+      const group = grouped.get(key) ?? { symbols: [], dates };
+      group.symbols.push(entry.symbol);
+      grouped.set(key, group);
+    }
+
+    for (const group of grouped.values()) {
+      await attempts.clearAttempts(group.symbols, timeframe, group.dates);
+    }
+    await attempts.recordAttempts(writes);
+  }
 
   for (const run of runs) {
     if (shouldStop()) {
@@ -462,6 +549,14 @@ export async function runBackfill(
     if (batchFailure !== undefined) {
       stoppedBy = "failed";
       failedWith = batchFailure.outcome;
+      // **Recorded before the loop breaks, and that is the whole point of the
+      // log.** A whole-batch failure is loud right now and completely silent the
+      // moment this process exits: the sessions it did not fetch are then
+      // indistinguishable in the database from sessions nobody ever asked
+      // about. One row per active symbol per session in the run, cleared by the
+      // next run that succeeds here.
+      queueAttempts(active, run, attemptOutcomeFor(batchFailure));
+      await flushAttempts();
       report(
         `  ✗ ${describeRun(run)}  ${batchFailure.outcome} — the whole request, ` +
           `so nothing was stored for any symbol. Re-run to continue from here.`,
@@ -480,6 +575,7 @@ export async function runBackfill(
         // that this vendor produces neither of them from the bars endpoint, so
         // reaching here is a finding worth printing rather than a routine skip.
         blocked.set(symbol, result.outcome);
+        queueAttempts([symbol], run, attemptOutcomeFor(result));
         report(
           `  · ${symbol} ${result.outcome} — dropped from the rest of this run.`,
         );
@@ -491,7 +587,14 @@ export async function runBackfill(
         // rather than a failure. It extends the ledger by nothing, so the next
         // session on the far side of it is disjoint by one and will be refused
         // below — which is where an empty answer stops being free.
+        //
+        // **This is the one success the log has to record**, and it is the
+        // correction Task 2.8.4 made to "failures only": it writes no bars and
+        // extends no ledger, so it is recorded in neither table, and at the
+        // frontier of a walk it reads as *never asked* when it was asked and was
+        // told nothing happened.
         runEmpty += 1;
+        queueAttempts([symbol], run, "ok");
         continue;
       }
 
@@ -502,6 +605,24 @@ export async function runBackfill(
         corrected += written.corrected;
         unchanged += written.unchanged;
         runBars += result.series.bars.length;
+
+        // **A later success clears the log**, which is not tidiness: without it
+        // the log accumulates a permanent record of a transient failure and
+        // every report from then on reads worse than the store is.
+        //
+        // The split is per session rather than per request, because a daily
+        // request covers up to twenty of them and a symbol can genuinely have
+        // traded on some and not others. A bar's session is
+        // `marketDateAt(startsAt)` at both timeframes — a minute bar falls
+        // inside `[open, close)` and a daily bar is stamped at midnight ET of
+        // its own session date, and both map to the same market date.
+        const traded = new Set(
+          result.series.bars.map((bar) => marketDateAt(bar.startsAt) as string),
+        );
+        const held = run.filter((session) => traded.has(session.date));
+        const missed = run.filter((session) => !traded.has(session.date));
+        if (held.length > 0) queueClear(symbol, held);
+        if (missed.length > 0) queueAttempts([symbol], missed, "ok");
       } catch (error) {
         if (error instanceof CoverageGapError) {
           // **Caught rather than ignored, and this is the one thing this
@@ -516,6 +637,17 @@ export async function runBackfill(
             symbol,
             `coverage gap: ${error.missingSessions.join(", ")}`,
           );
+          // Task 2.8.6 named this the concrete instance of "loud until the
+          // command exits": the blocked set lives in memory, the symbol is now
+          // permanently behind the rest of the universe with a shorter covered
+          // range, and nothing anywhere says why. This is the row that says why.
+          queueAttempts(
+            [symbol],
+            run,
+            "coverage-gap",
+            `missing ${error.missingSessions.slice(0, 5).join(", ")}` +
+              (error.missingSessions.length > 5 ? ", …" : ""),
+          );
           report(
             `  · ${symbol} blocked — the ledger will not join this window to ` +
               `what it holds, missing ${error.missingSessions.join(", ")}. ` +
@@ -526,6 +658,8 @@ export async function runBackfill(
         throw error;
       }
     }
+
+    await flushAttempts();
 
     fetched += run.length;
     emptyAnswers += runEmpty;
@@ -708,6 +842,7 @@ export async function backfillCommand(
 
   const pool = createDatabasePool(config.database, log, "marketpulse-backfill");
   const bars = createMarketBarsRepository(pool);
+  const attempts = createBarAttemptsRepository(pool);
   const securities = createSecuritiesRepository(pool);
   const provider = withRetry(createAlpacaProvider(config.alpaca));
 
@@ -749,6 +884,7 @@ export async function backfillCommand(
     const result = await runBackfill({
       provider,
       bars,
+      attempts,
       symbols,
       timeframe: parsed.timeframe,
       sessions: resolved.sessions,

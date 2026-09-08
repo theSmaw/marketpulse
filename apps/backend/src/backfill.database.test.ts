@@ -34,6 +34,10 @@ import { loadConfig, loadEnvFile } from "./config.js";
 import { createFixtureProvider } from "./fixture-provider.js";
 import { loadUniverse } from "./load-universe.js";
 import {
+  createBarAttemptsRepository,
+  type BarAttemptsRepository,
+} from "./bar-attempts.js";
+import {
   createMarketBarsRepository,
   type BarCoverage,
   type MarketBarsRepository,
@@ -60,6 +64,7 @@ const SYMBOL: Ticker = toTicker("NVDA");
 let adminPool: pg.Pool | undefined;
 let testPool: pg.Pool | undefined;
 let bars: MarketBarsRepository | undefined;
+let attempts: BarAttemptsRepository | undefined;
 
 function db(): pg.Pool {
   if (testPool === undefined) {
@@ -73,6 +78,13 @@ function repository(): MarketBarsRepository {
     throw new Error("beforeAll did not create the repository.");
   }
   return bars;
+}
+
+function attemptLog(): BarAttemptsRepository {
+  if (attempts === undefined) {
+    throw new Error("beforeAll did not create the attempt log.");
+  }
+  return attempts;
 }
 
 async function coverageMap(): Promise<Map<Ticker, BarCoverage>> {
@@ -90,6 +102,7 @@ async function dependencies(
   return {
     provider: createFixtureProvider(),
     bars: repository(),
+    attempts: attemptLog(),
     symbols: [SYMBOL],
     timeframe: "1m",
     sessions: SESSIONS,
@@ -178,6 +191,7 @@ beforeAll(async () => {
   }
 
   bars = createMarketBarsRepository(db());
+  attempts = createBarAttemptsRepository(db());
 });
 
 afterAll(async () => {

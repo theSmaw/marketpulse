@@ -251,3 +251,111 @@ the story's assumed ~120 B heap — which puts the headroom at **~2.4 years** ra
 Task 2.8.8 owns taking it deployed, and this close owns checking that every document quoting a
 headroom figure quotes the same one. There are currently at least three: `BARS.md` §4,
 `UNIVERSE.md` §10 and this story's own scope bullet.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.7 — what the attempt log adds to the ADR, and four sweep candidates that are already stale
+
+### The ADR gains three decisions, and one of them is the story's own criterion 4
+
+The list above names _"why 'we do not have that' is an answer rather than a bug, which is what
+criterion 4 is really asserting"_. That is right and it is the **conclusion**; the ADR needs the
+mechanism under it, because the mechanism is three separate decisions:
+
+- **Why the attempt log records SUCCESSFUL EMPTY ANSWERS as well as failures**, which is the
+  correction to this story's own cheaper answer. A session the vendor answers successfully with
+  no bars writes no bars **and** extends no ledger — `BarSeries` gives an empty series no
+  `covered` window — so it is recorded in **neither** table. In the middle of a walk it is
+  absorbed because the range is a union; at the **frontier** it reads as _never asked_ about a
+  day we asked about. The row set is therefore _every attempt that left no bars_, and `ok` is a
+  member of the vocabulary meaning **answered and empty**.
+- **Why completeness and density are two columns with two names.** This is the decision most
+  likely to be undone by somebody tidying, and it has a measurement under it: only **8 of 28**
+  large constituents traded in all 390 minutes of an ordinary session, at a universe-wide mean of
+  **364.3**. A report that treats _calendar minus arrived_ as a gap announces that the store is
+  permanently ~7% broken every day forever — which is the half-day failure arriving on the other
+  240 days of the year, and the reliable outcome is that people stop reading the report.
+- **Why the delisting signal is REPORTED and never WRITTEN.** `UNIVERSE.md` §15.3 **produced**
+  the overwrite — a `status` written by anything other than the loader is silently reverted by
+  the next deploy's `pnpm universe`, reported as an ordinary `1 updated` — so adopting `delisted`
+  is two decisions rather than one. Task 2.1.7's shape: the instrument says _whether_ and a
+  person decides _what to do_.
+
+And **one decision that was handed here and is now taken**, which belongs in the ADR as a
+decision rather than as a deferral: **neither the backfill nor the catch-up runs automatically in
+V1.** Task 2.8.1 settled the initial backfill's home and deliberately deferred the catch-up's;
+Task 2.8.6 then found the catch-up already existed as `planRequests`' forward walk, so what was
+left was only where it runs. A person runs it before a demonstration, and `pnpm bars:check` is
+how they find out whether they needed to. **Say the cost in those words**: an unscheduled
+catch-up is what makes the store quietly stale, and `bar_coverage.updated_at` — _when what we
+hold last changed_ rather than _when the backfill last ran_ — is the only field that can report
+it honestly.
+
+### The second list gains two entries, and the first is the strongest one in the story
+
+- **The delisting signal is BLIND without a daily backfill, and it says so.** It reads daily bars
+  because the same `max(observed_at) group by security_id` over minute bars is a full parallel
+  sequential scan — **192 ms over 863k rows**, ~11 s extrapolated to a year of the universe. A
+  store with minute bars and no daily backfill has no daily row for **anything**, so _no daily
+  bar_ means _we never asked_ rather than _it has stopped printing_ — and on its first live run
+  it reported **AMD and MSFT as delisted** while they held 3,900 and 3,120 minute bars.
+  `lastBarAt` is three-valued as a result (`Date` / `null` / **absent**) and the report prints
+  its own blind spot. That is Task 1.13.6's blind-renderer problem in a **third** place, after
+  the axe gate and `backfill.database.test.ts`'s window assertion, and the three belong in one
+  paragraph rather than three: **a check that cannot see something must say so.**
+- **A green `pnpm bars:check` certifies nothing about the attempt log's own upkeep.** The log is
+  **advisory rather than authoritative** by design — completeness is computed from
+  `bar_coverage`'s range and never from the log — so a stale row surviving a failed
+  `clearAttempts` degrades the report's _explanation_ and not its _arithmetic_. That is the safe
+  direction and it is a limit rather than a defect, which is why it belongs in the second list
+  rather than in a gap list.
+
+### Four sweep candidates whose conditions have ALREADY fired
+
+This is the class the last three closes were best at finding, and 2.8.7 discharged four claims at
+once:
+
+- **`delisted` ownership.** Task 2.7.8 declined the member and _"moved the ownership here"_;
+  Story 2.3's close, `UNIVERSE.md` §15, `STORY.md`'s own _"This story is the named owner of a
+  future `delisted`"_ section and `packages/shared/src/security.ts`'s `SECURITY_STATUSES` comment
+  all name Story 2.8 as the owner **in the future tense**. It is answered: reported, not written.
+  Sweep for the phrasing, not for the word.
+- **"Two tables."** Task 2.8.4's amendments and several file headers say the backfill writes
+  `market_bars` and `bar_coverage`. It writes **three** now. Specific sites: this file's own
+  criterion-2 section (amended), `0005_bar_coverage.sql`'s _"two tables, two jobs"_ framing, and
+  anything in `BARS.md` enumerating what a backfill touches.
+- **The catch-up's home, described as open.** `BARS.md` §3, Task 2.8.1 and `STORY.md`'s open
+  decision 4 all say the incremental catch-up's home _"is decided separately when it exists"_. It
+  exists and it is decided; `BARS.md` §7.6 is the record.
+- **The counts, which moved twice in one story.** `pnpm test` is **861** (206 + 472 + 183),
+  `test:database` **141 across 6 files**, `test:process` 14 — against the **816 / 128** Task
+  2.8.6's amendment recorded and correctly predicted would go stale. `CLAUDE.md`'s ten convention
+  blocks are stale by **at least two** task increments before this close begins, and were last
+  amended at Task 2.7.9 to 750.
+
+### One figure to re-take rather than cite, and one artefact to quote
+
+**`pnpm bars:check`'s own output is a figure this close should include**, because the Notes
+already name it as _"the only thing in the repository that can say, from outside the database,
+that the store is what the story says it is"_. Two conditions on quoting it:
+
+- **Run the daily backfill first**, or the quoted output carries a `BLIND for N of these series`
+  line and answers nothing about delistings. See Task 2.8.8's amendment §2 — daily is ~13
+  requests and a couple of minutes.
+- **Quote the default-window form only after a completed run.** Mid-backfill the default window
+  is the ledger's union span, so a partially-filled store reads as _N series behind_, which is
+  correct and is not what this close wants to publish.
+
+### Not a new gap of the third kind, and worth saying so
+
+The obvious candidate is the `BAR_ATTEMPT_OUTCOMES` array against
+`bar_attempts_outcome_check` — and it is **closed** rather than open:
+`bar-attempts.database.test.ts` parses the constraint **Postgres rewrote** and compares it
+against the shipped array, which is the arrangement `SECURITY_KINDS` and `TIMEFRAMES` already
+have. `attemptOutcomeFor`'s exhaustive `switch` closes the other half, so a ninth `BarsResult`
+member cannot be added without being spelled here.
+
+What the gap lists **do** gain is the first-kind entry every migration adds:
+`0006_bar_attempts.sql` is a sixth `.sql` file that Prettier reports as
+`"inferredParser": null` and ESLint reports as `File ignored`. That count grows by one per
+migration for the rest of the project, which is the thing to notice rather than the number.

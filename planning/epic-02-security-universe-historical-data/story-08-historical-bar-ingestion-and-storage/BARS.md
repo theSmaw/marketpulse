@@ -426,3 +426,158 @@ string.** Reached by passing `marketSessionsBetween`'s return value — which is
 not dates — into `marketSessionOn`. The refusal is correct and its message is not, and it is a
 one-line fix in a file this story does not otherwise touch. Recorded rather than fixed here,
 because Story 2.5 owns that module and the error is loud enough to diagnose either way.
+
+---
+
+## 7. Completeness, thinness, and the four causes — Task 2.8.7
+
+Acceptance criterion 4 says a market holiday, a half day and a genuinely untraded minute must
+each be distinguishable from a **failed fetch**. This section records what shipped and, more
+usefully, the three things that turned out not to be true.
+
+### 7.1 The four causes, and which instrument answers each
+
+| Cause                      | Answered by                     | Cost                                   |
+| -------------------------- | ------------------------------- | -------------------------------------- |
+| The market was closed      | `market-session.ts`             | Free, exact, both timeframes           |
+| The security did not trade | `bar_coverage.bar_count`        | One number already stored              |
+| The fetch never happened   | `bar_coverage.covered` (0005)   | A set difference against one interval  |
+| **The fetch failed**       | **`bar_attempts` (0006)** — new | A sparse table, empty when all is well |
+
+The fourth had no answer before this task, and its absence is what made the criterion a
+correctness requirement rather than a reporting one: a session stored as zero bars because a
+fetch failed is not a gap in a chart, it is a **zero in a denominator** for Epic 5's volume
+baseline, and it makes an ordinary day look like the most unusual one in the sample.
+
+### 7.2 The computation is a set difference, and that is a property rather than an optimisation
+
+`compareStoreToCalendar` is pure, takes both sides as parameters, and never joins per session
+against `market_bars`. It can be that cheap because the backfill guarantees something stronger
+than "probably":
+
+> **Every session inside the ledger's covered range was attempted.**
+
+The walk extends the range one contiguous step at a time from one of its two ends, and
+`market-bars.ts` refuses by name any write that would leave a trading session in the gap. So a
+range with an unfetched session inside it **cannot be constructed by `pnpm backfill` at all**,
+and the report never has to distinguish _inside the range and never asked_ from _inside the range
+and asked_. There is no such state.
+
+### 7.3 Completeness and thinness are two columns, and merging them is the trap
+
+Measured live on 2026-09-08 against the shipping store: **`AME` returned 304 bars for a
+390-minute regular session**, spanning the whole session — the minutes are genuinely absent
+rather than cut off, and the density reads 91.0%. Across the 28 constituents served on one page,
+only 8 returned a full 390, at a universe-wide mean of 364.3.
+
+So _calendar minus arrived_ is **not** a gap. On that definition the universe is permanently ~7%
+incomplete on every session and the report is red forever, which is the same failure as expecting
+390 bars on a half day arriving on the other 240 days of the year. The report prints two figures
+with two names:
+
+```text
+  sessions   1/1 series hold every session in the window
+  density    1419 bars held of 1560 the sessions could hold  (91.0%)
+```
+
+**Completeness is a question about the ledger's range; thinness is a question about the bars.**
+The one direction that _is_ an invariant violation is more bars than minutes, which means the
+timestamp mapping or the window shape is wrong — a span-shaped request collects extended-hours
+prints at a measured 2.35× — so it is a finding of its own rather than a number over 100.
+
+### 7.4 Three things that were not true
+
+**"Failures only" is not enough, and Task 2.8.4 was right.** A session the vendor answers
+successfully with **no bars** writes no bars and does not extend the ledger, because `BarSeries`
+gives an empty series no `covered` window. It is recorded in **neither** table. In the middle of
+a walk it is absorbed, because the range is a union; at the **frontier** it reads as _never
+asked_. So the row set is _every attempt that left no bars_, and `ok` is a member of the
+vocabulary meaning **answered and empty**.
+
+**The ledger is not per session, so "no ledger entry for `(security, timeframe, session)`" was
+the wrong lookup.** It is one contiguous range per series, and the correct reading is a set
+difference against one interval — which is also what makes the comparison cheap.
+
+**The `delisted` proxy produced a FALSE POSITIVE on the day it was written, and the fix is a
+third value rather than a better threshold.** Task 2.7.8 moved that question here on a
+measurement: bars stopping correlates with reality at 100% against the vendor's `inactive` flag
+at 92%. The signal reads **daily** bars, because the same `max(observed_at) group by security_id`
+over minute bars is a full parallel sequential scan — measured at **192 ms over 863k rows**, so
+~11 s extrapolated to a year of the universe, which is not a routine report's query. But a store
+with minute bars and no daily backfill has no daily row for anything, and "no daily bar" then
+means _we never asked_ rather than _it has stopped printing_ — which reported **AMD and MSFT as
+delisted** while they held 3,900 and 3,120 minute bars.
+
+`SeriesStore.lastBarAt` is therefore three-valued: a `Date`, `null` for _the daily ledger covers
+this and it holds nothing_, and **absent** for _the daily ledger cannot answer_. The report
+prints its own blind spot rather than staying silent, because a reader who sees no findings would
+otherwise conclude that nothing has stopped printing:
+
+```text
+  ! The "has it stopped printing" check is BLIND for 517 of these series,
+    because the daily ledger holds nothing for them.
+```
+
+That is Task 1.13.6's blind-renderer lesson in a new place: **a check that cannot see something
+must say so.**
+
+### 7.5 The delisting decision: report and never write
+
+`delisted` still does not ship as a `SECURITY_STATUSES` member, and the reason has not changed —
+`UNIVERSE.md` §15.3 **produced** the overwrite: a `status` written by anything other than the
+loader is silently reverted by the next deploy's `pnpm universe`, reported as an ordinary
+`1 updated`. So adopting it is two decisions and not one. The report says _whether_ and a person
+edits `universe.ts`, which is Task 2.1.7's shape.
+
+### 7.6 Incremental catch-up: it already existed, and the open half was its HOME
+
+Task 2.8.6 shipped it without naming it. `planRequests` emits two monotonic walks and the
+**forward** one _is_ the catch-up: run a week after the last run, `pnpm backfill --sessions N`
+fills the newer gap before it deepens anything. Verified again here — a second run against a
+store that already held the window reported `0 fetches, 4 already held`, and the ledger's md5 was
+**byte-identical before and after** (`171cd30e…`), which is the shape "catch-up run twice fetches
+nothing the second time" should be asserted on, because `bar_coverage.updated_at` moves only when
+the statement actually changed.
+
+**So what this task inherited from Task 2.8.1 was the home, and the answer is: NEITHER RUNS
+AUTOMATICALLY IN V1.** A person runs `pnpm backfill` before a demonstration, and `pnpm bars:check`
+is how they find out whether they needed to. Stated in those words rather than left implicit,
+because the honest cost of that answer is that **an unscheduled catch-up is what makes the store
+quietly stale** — and the mitigation is that `bar_coverage.updated_at` is _"when what we hold last
+changed"_ rather than _"when the backfill last ran"_, so staleness is reportable rather than
+invisible. Task 2.8.9 has the same field.
+
+The pipeline is refused for the reason 2.8.1 refused it for the full backfill and one more: it is
+metered traffic on every merge, and it would put a vendor's availability inside a deploy. A
+`schedule:` is refused for Task 1.13.5's reason — that is monitoring, which nothing in the roadmap
+owns.
+
+### 7.7 What `pnpm bars:check` is, in four properties
+
+It follows `pnpm universe:check` exactly: **it reads and changes nothing**; **a finding does not
+change the exit code** (the exit code answers _did the check run_); **it is not and never can be a
+`pnpm verify` step**, because `verify` runs with no database; and **its comparison is pure and
+takes both sides as parameters**, which is what lets the fast suite make findings happen that a
+healthy store has no instance of.
+
+The name was checked against `pnpm help -a` **with its control** — six known built-ins detected,
+`bars:check` free — which is the validation that exists because a detector at Task 2.7.8 failed
+its own control.
+
+**The default window is the ledger's own span**, earliest covered start to latest covered end, so
+_not fetched_ means **behind the rest of the universe**. That is the state Task 2.8.6 left with no
+instrument at all: the backfill catches `CoverageGapError` per symbol, drops it from the rest of
+the run and prints it, and that set lives in memory — so on exit the symbol is permanently behind
+with a shorter covered range and nothing anywhere saying why.
+
+### 7.8 Demonstrated live, one cause at a time
+
+Against the local store and the real vendor on 2026-09-08:
+
+| Cause            | Produced by                                     | What the store showed                                              |
+| ---------------- | ----------------------------------------------- | ------------------------------------------------------------------ |
+| Market closed    | 2025-11-27, Thanksgiving                        | No session in the calendar, no bars, and **not** a gap or thinness |
+| Half day         | 2025-11-28, closes 13:00 ET                     | **210 bars**, density 100.0% — not 180 phantom gaps                |
+| Untraded minutes | `AME` on a real regular session                 | **304 of 390**, density 91.0%, **no finding**                      |
+| Failed fetch     | `ALPACA_API_SECRET_KEY=deliberatelywrongsecret` | `unauthorised` recorded against 2026-08-31, named in the report    |
+| Recovery         | Re-run with the real key                        | `304 bars, 304 new`, and the log back to **0 rows**                |
