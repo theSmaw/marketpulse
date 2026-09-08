@@ -37,6 +37,23 @@
  * configured"*. The configuration value is. That is why this module exports the
  * selection alongside the provider rather than expecting a renderer to
  * reconstruct it from a possibly-absent object.
+ *
+ * ## Where retry is composed (Task 2.7.7)
+ *
+ * **Every provider this function returns is wrapped in `withRetry`, so every
+ * consumer gets it and nothing chooses.** A per-call-site decision is a
+ * decision each call site can get wrong, and the one that forgets is the one
+ * that reports a transient vendor refusal to a user as a failure.
+ *
+ * That wraps the fixture provider too, which is deliberate rather than
+ * incidental: it is harmless — the fixture's faults are permanent, so a retry
+ * changes nothing but the elapsed time — and it is what keeps the two paths
+ * **identical**, so a behaviour observed against the fixture is a behaviour of
+ * the shipped composition rather than of a simpler thing that resembles it.
+ *
+ * The wrapping happens around the value each `case` returns rather than around
+ * the whole `switch`, so `none` stays absence and the `alpaca` branch's
+ * credential check stays exactly where it is.
  */
 
 import { createAlpacaProvider } from "./alpaca-provider.js";
@@ -47,6 +64,7 @@ import type {
 } from "./config.js";
 import { createFixtureProvider } from "./fixture-provider.js";
 import type { MarketDataProvider } from "./market-data-provider.js";
+import { withRetry } from "./retry-provider.js";
 
 /**
  * The provider the configuration selects, or `undefined` when it selects none.
@@ -72,7 +90,7 @@ export function createMarketDataProvider(
     case "none":
       return undefined;
     case "fixture":
-      return createFixtureProvider();
+      return withRetry(createFixtureProvider());
     case "alpaca": {
       // **The credential is required and its absence is a THROW, which is a
       // narrower claim than it looks** (Task 2.7.3). It is not a runtime check
@@ -92,7 +110,7 @@ export function createMarketDataProvider(
             "credential beside it — use resolveMarketData(config).",
         );
       }
-      return createAlpacaProvider(credentials.alpaca);
+      return withRetry(createAlpacaProvider(credentials.alpaca));
     }
     default: {
       const unhandled: never = selection satisfies never;

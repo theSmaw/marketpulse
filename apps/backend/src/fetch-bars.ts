@@ -42,6 +42,7 @@ import {
 import { createAlpacaProvider } from "./alpaca-provider.js";
 import { ConfigError, loadConfig, loadEnvFile } from "./config.js";
 import type { BarsRequest } from "./market-data-provider.js";
+import { withRetry } from "./retry-provider.js";
 
 /** What a run produced, so the wrapper can turn it into a process result. */
 export interface FetchBarsOutcome {
@@ -105,7 +106,7 @@ export async function fetchBarsCommand(
     };
   }
 
-  const provider = createAlpacaProvider(config.alpaca);
+  const provider = withRetry(createAlpacaProvider(config.alpaca));
 
   // Sessions come from the trading calendar rather than from arithmetic on
   // today's date, so weekends, holidays and half days are all correct without
@@ -165,7 +166,9 @@ export async function fetchBarsCommand(
     "",
   );
 
-  const result = await provider.fetchBars(request);
+  const result = await provider.fetchBars(request, {
+    deadlineMs: BARS_COMMAND_DEADLINE_MS,
+  });
 
   if (result.outcome !== "ok") {
     // Every non-`ok` member is printed rather than mapped to a message per
@@ -181,6 +184,30 @@ export async function fetchBarsCommand(
   lines.push(...render(result.series));
   return { exitCode: 0, lines, errors };
 }
+
+/**
+ * This command's own deadline, and it is passed explicitly because
+ * `DEFAULT_BARS_DEADLINE_MS` is the wrong number here twice over.
+ *
+ * That default is 3,000 ms, derived for a **single** request against the
+ * browser's 5-second budget — and Task 2.7.5 then measured a five-page walk at
+ * **2,170 ms, 72% of it**, so at the default a paginated range has room for
+ * zero retries. `retry-provider.ts` states that as its precondition: a caller
+ * that wants retries on a multi-page range must pass its own deadline, because
+ * the wrapper wraps `fetchBars` and a range is not a page count.
+ *
+ * The second reason is that a browser's budget is not this command's. Nobody is
+ * waiting on a render; a person is waiting on a terminal, and would rather wait
+ * ten seconds than read an error.
+ *
+ * **20 s ≈ nine of the measured five-page walks**, which leaves room for a walk
+ * plus a retried walk plus backoff, and is short enough that a human does not
+ * wonder whether it has hung. The limit worth stating rather than hiding: the
+ * rate-limit window is ~60 s, so this recovers from a burst that has just
+ * cleared and **not** from a saturated minute — a genuinely rate-limited key
+ * still reports `rate-limited`, which is the honest answer.
+ */
+const BARS_COMMAND_DEADLINE_MS = 20_000;
 
 /**
  * How many sessions a daily run covers. Enough to be a demonstration and small

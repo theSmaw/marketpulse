@@ -323,8 +323,89 @@ it is a **floor rather than an instruction**. Both decisions are vindicated by m
 The `x-ratelimit-remaining` header does appear on **successful** responses, hovering near 199,
 but it did not decrement usefully under sequential load and is not a reliable budget.
 
-**Open:** whether the limit is per key or per endpoint was **not** established. Settling it
-needs a second endpoint driven inside the same window; the burst above used one endpoint only.
+~~**Open:** whether the limit is per key or per endpoint was **not** established.~~
+**ANSWERED 2026-09-07 by Task 2.7.7 — see §6b, and the answer is BOTH, on a line nobody had
+drawn.**
+
+---
+
+## 6b. The limiter is a refilling BUCKET, and the budget is per API rather than per key or per endpoint (2026-09-07, Task 2.7.7)
+
+Three things measured in one sitting, each of which changes a decision. Re-take them rather
+than citing this section: it is a live third party's behaviour on one day.
+
+### It is a token bucket refilling at ~3.3/s, NOT a punished 60-second window
+
+**This is the finding that reshapes the backoff**, and every previous reading here is
+consistent with it without establishing it, because every previous reading stopped at the
+`429`.
+
+The burst reproduced exactly — **320 concurrent gave 201 ok / 119 refused**, a fourth reading
+against §6's 201, 203 and §9b's 207. What is new is what happens _next_: the very next
+request after the burst answered **`200` with `x-ratelimit-remaining: 0`**, and a poll a
+second later succeeded on its **first** attempt.
+
+So the bucket was drained and immediately re-measured under continuous load:
+
+| Over 10.2 s of continuous asking | Allowed | Refused |       Rate |
+| -------------------------------: | ------: | ------: | ---------: |
+|             measured, post-burst |  **33** |       9 | **3.23/s** |
+
+A 200/min bucket predicts **3.33/s**; a fixed 60-second window predicts approximately **zero**.
+The measurement is decisive.
+
+**Two consequences.** A backoff only has to outlast a **token**, ~310 ms, rather than a
+window — which is why `RETRY_BASE_DELAY_MS` is 300 and not seconds. And **one `429` means one
+request refused, not a punished period**, so the vendor does not "stay angry": there is nothing
+to wait out beyond the refill.
+
+### Per key across the DATA API; the TRADING API is a separate budget
+
+Driven immediately after a drained burst, on the same key, inside the same window:
+
+| Endpoint                                         |    Status | `x-ratelimit-remaining` |
+| ------------------------------------------------ | --------: | ----------------------: |
+| `data` `/v2/stocks/bars` (the drained one)       |     `200` |                   **0** |
+| `data` `/v2/stocks/snapshots` (a different path) | **`429`** |                    none |
+| `paper-api` `/v2/assets/NVDA`                    | **`200`** |                 **199** |
+
+**So the budget is per API and not per path.** A second _data_ endpoint competes for the same
+tokens; the trading API has a budget of its own, sitting untouched at 199 while the data
+bucket was empty.
+
+**This is directly consequential for Task 2.7.8**, whose assets lookup lives on the trading
+API: **it does not compete with bar fetching at all**, which removes the strongest argument
+against adopting it and is worth knowing before that task designs around a shared budget it
+does not have.
+
+### The wrapper at the limit, and what retries cost — criterion 4
+
+The shipped `withRetry` composed around the shipped Alpaca provider, 320 concurrent calls,
+counting every HTTP request actually spent:
+
+| Burst of 320                |    `ok` | `rate-limited` | HTTP requests |   Wall |
+| --------------------------- | ------: | -------------: | ------------: | -----: |
+| bare provider (the control) |      91 |            229 |       **320** |  1.0 s |
+| through the wrapper, 3 s    | **206** |            114 |       **606** |  3.0 s |
+| through the wrapper, 20 s   | **263** |             57 |     **1,473** | 19.9 s |
+
+**Read it three ways.**
+
+1. **It works.** Spare deadline is converted into answers — 91 → 206 → 263 successful fetches
+   out of the same 320 calls.
+2. **Retries count against the limit**, which the request counts settle rather than argue: the
+   wrapper spent 1.9× and then 4.6× the requests. Nothing about a retry is free to the bucket.
+3. **The return diminishes and the cost does not.** The first 286 extra requests bought 115
+   extra answers (**2.5 each**); the next 867 bought 57 more (**15 each**). At the 20-second
+   deadline the wrapper sustained **73 requests a second against a 3.3/s refill — 22× the
+   limit** — and still left 57 calls refused.
+
+**That third row is the strongest argument in this repository for `PROVIDER.md` §8.8's line
+that pacing is Story 2.8's and not this wrapper's.** A hundred concurrent retriers do not
+recover from a rate limit, they compete with each other for the same refill and pay for the
+privilege. What fixes it is asking less often, which no per-request wrapper can do — and which
+Story 2.8 gets cheaply, because the limit is **per request rather than per symbol** (§6), so
+the whole universe is one request per window.
 
 ---
 
@@ -620,7 +701,10 @@ for it, not worse.
   open and this story never had a session — 2026-09-07 is Labor Day. It does not block
   anything, because the clamp is driven by the refusal boundary rather than by the last bar.
 
-- **Whether the rate limit is per key or per endpoint** (§6).
+- ~~**Whether the rate limit is per key or per endpoint** (§6).~~ **ANSWERED 2026-09-07 by
+  Task 2.7.7 — see §6b. Per API: a second `data` path shares the bucket, the trading API does
+  not.** The same probe found the limiter is a refilling bucket rather than a punished window,
+  which nothing here had established.
 - **Anything about the WebSocket stream beyond the subscription cap.** Deliberate: the stream
   is Epic 3's, and the cap was an explicit, narrow exception because another story is parked
   on it. No bar was consumed from the socket, and no reconnection behaviour was touched.
