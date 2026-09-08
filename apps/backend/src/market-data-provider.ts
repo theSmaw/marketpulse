@@ -498,6 +498,117 @@ export type BarsResult =
   | { readonly outcome: "upstream-unavailable" };
 
 /**
+ * The same question, asked about many symbols at once (Task 2.8.5).
+ *
+ * **Separate from {@link BarsRequest} rather than a widened version of it**, so
+ * that neither can be passed where the other is expected: a one-symbol batch
+ * and a single fetch are different calls with different failure semantics, and
+ * a `symbol?: Ticker | Ticker[]` would make the difference a run-time check.
+ * Everything except the symbol is shared, because **one batch is one window,
+ * one timeframe and one adjustment** — the vendor's endpoint takes exactly one
+ * of each, and expressing anything else here would be an interface promising
+ * something no implementation can keep.
+ */
+export interface ManyBarsRequest {
+  /**
+   * Which securities. Order is not significant and duplicates are a caller
+   * defect rather than a request — an implementation is free to collapse them,
+   * and the result map has one entry per *distinct* symbol either way.
+   *
+   * There is deliberately **no size limit here**, because the one that matters
+   * is the vendor's and it was measured rather than guessed: all 518 tracked
+   * securities in one request is a 3,209-character query string answered `200`
+   * (`BARS.md`, Task 2.8.2). An implementation that ever needs to split is
+   * splitting for its own reasons and owes the reassembly.
+   */
+  readonly symbols: readonly Ticker[];
+
+  /** The window, half-open — `[start, end)`. See {@link BarsRequest.range}. */
+  readonly range: TimeRange;
+
+  /** The interval each bar covers. See {@link BarsRequest.timeframe}. */
+  readonly timeframe: Timeframe;
+
+  /** Required with no default, for {@link BarsRequest.adjustment}'s reason. */
+  readonly adjustment: Adjustment;
+}
+
+/**
+ * What a batch produced: **one {@link BarsResult} per requested symbol**, and
+ * no new member of that union.
+ *
+ * This is the shape `market-data-provider.ts` has recorded since Task 2.6.4 and
+ * deliberately not built, and building it changed nothing about the taxonomy:
+ * partial success across five hundred symbols is one symbol's `ok` sitting
+ * beside another's `unauthorised`, which the eight members already express.
+ *
+ * ## A `Map` keyed by `Ticker`, and the key type is the point
+ *
+ * Not an array of pairs and not an object keyed by `string`. The entire hazard
+ * this method exists to guard against is **attributing bars to the wrong
+ * symbol**, and an object key is a `string` that has been through no
+ * validation, so an implementation could key a result by whatever the vendor
+ * happened to spell. A branded `Ticker` cannot be produced except through
+ * `toTicker`.
+ *
+ * ## Every requested symbol appears, and a missing key is a bug
+ *
+ * **A symbol asked for and never seen in any page is `ok` with an empty
+ * series** — `PROVIDER.md` §8.2's rule, unchanged. What makes that correct is
+ * *when* it is concluded: only after the walk is exhausted. See
+ * {@link MarketDataProvider.fetchManyBars}, because the whole task is in that
+ * sentence.
+ */
+export type ManyBarsResult = ReadonlyMap<Ticker, BarsResult>;
+
+/**
+ * Whether an outcome is a fact about the **request** rather than about one
+ * symbol — which is the rule that decides how a batch failure is reported.
+ *
+ * ## The asymmetry, in one sentence
+ *
+ * > **Success is per symbol; failure is per batch.**
+ *
+ * A `429`, a timeout, an abort or a bad key ended the *walk*, and the pages
+ * that never arrived held symbols we cannot name. Reporting such an outcome
+ * against only the symbols that happened to be missing would be inventing
+ * information — it would claim we know which symbols the vendor refused, when
+ * what actually happened is that we stopped asking. So every symbol in the
+ * batch carries it, and a caller retries or resumes the whole window.
+ *
+ * The three that stay per symbol are the ones that are genuinely answers about
+ * a security rather than about a request: `ok` (including an empty series),
+ * `unknown-symbol` and `range-not-available`. Note that in practice this
+ * vendor produces neither of the latter two from the bars endpoint — Task
+ * 2.7.6 measured both as `200` with an empty body — so today the classification
+ * only ever splits `ok` from the rest. It is written for the classification
+ * rather than for today's producers, which is the same reason
+ * {@link isRetryableOutcome} is a switch.
+ *
+ * **An exhaustive `switch` rather than a list**, for that function's reason: a
+ * ninth member must be *classified* to compile, and the safe-looking default —
+ * "it is about one symbol" — is exactly the wrong one for a transport failure.
+ */
+export function isWholeBatchFailure(result: BarsResult): boolean {
+  switch (result.outcome) {
+    case "timeout":
+    case "aborted":
+    case "rate-limited":
+    case "unauthorised":
+    case "upstream-unavailable":
+      return true;
+    case "ok":
+    case "unknown-symbol":
+    case "range-not-available":
+      return false;
+    default: {
+      const unhandled: never = result satisfies never;
+      return unhandled;
+    }
+  }
+}
+
+/**
  * Whether backing off and asking again could plausibly produce a different
  * answer.
  *
@@ -618,4 +729,54 @@ export interface MarketDataProvider {
     request: BarsRequest,
     options?: BarsRequestOptions,
   ): Promise<BarsResult>;
+
+  /**
+   * Fetch **one window for many symbols**, returning a {@link BarsResult} per
+   * symbol (Task 2.8.5).
+   *
+   * This is the method the module comment above recorded in Task 2.6.4 and
+   * deliberately declined to build until there was a caller to check its shape
+   * against. The shape it predicted is the shape it got: `BarsResult` **per
+   * symbol**, so every member of that union is reused unchanged and nothing
+   * about a single fetch had to move.
+   *
+   * ## The obligation an implementation takes on, and it is the whole method
+   *
+   * > **Nothing may be concluded about any symbol until the walk is
+   * > exhausted.**
+   *
+   * This vendor's `limit` is a **total row budget across all symbols**, filled
+   * one symbol at a time, so a symbol can be **entirely absent from a page
+   * while having a full session of data**. An implementation that concludes
+   * from a page reports that symbol as `ok` with an empty series — which is a
+   * *successful* answer by `PROVIDER.md` §8.2, is accepted by `toBarSeries`,
+   * is stored, and is read by every downstream instrument as *"it did not
+   * trade"*. It is the one failure in this story that survives every check the
+   * system has. `alpaca-provider.ts` carries the measurement.
+   *
+   * Two consequences an implementation owes, both asserted rather than
+   * described:
+   *
+   *  - **Every requested symbol appears in the result map.** A missing key is a
+   *    bug, not an implicit empty answer, and the map's key set equals the
+   *    request's distinct symbols.
+   *  - **Success is per symbol; failure is per batch.** See
+   *    {@link isWholeBatchFailure}.
+   *
+   * ## The deadline is the caller's, and the default is not it
+   *
+   * {@link DEFAULT_BARS_DEADLINE_MS} is 3,000 ms and was derived against a
+   * *single* request. A batch of the whole tracked universe over one session is
+   * twenty-one pages at ~2.6 s each — **about 55 seconds** — so a caller that
+   * does not pass its own `deadlineMs` fails on the first page rather than the
+   * twenty-first. That is Task 2.7.7's handover applied at the scale that makes
+   * it mandatory rather than hygienic.
+   *
+   * **Returns; it does not reject** for any modelled failure, exactly as
+   * {@link fetchBars} does.
+   */
+  fetchManyBars(
+    request: ManyBarsRequest,
+    options?: BarsRequestOptions,
+  ): Promise<ManyBarsResult>;
 }

@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import {
   type Bar,
   type BarSeries,
@@ -573,5 +574,99 @@ describe("the provider itself", () => {
     const result = await ask("ZZUP");
     expect(isRetryableOutcome(result)).toBe(true);
     expect(result.outcome).toBe("upstream-unavailable");
+  });
+});
+
+/**
+ * The batch, over the corpus (Task 2.8.5).
+ *
+ * **What these cover and what they cannot.** This provider has no pagination,
+ * so it structurally cannot reproduce the trap the real client is written
+ * around — a symbol absent from a page while having data. That is covered by
+ * replaying recorded vendor bodies in `alpaca-provider.test.ts`. What is
+ * covered here is the *contract* every implementation owes: every requested
+ * symbol present, success per symbol, failure per batch.
+ */
+describe("the multi-symbol fetch", () => {
+  const WINDOW = sessionRange(REGULAR.open, REGULAR.close);
+
+  function many(symbols: readonly string[]) {
+    return {
+      symbols: symbols.map(toTicker),
+      range: WINDOW,
+      timeframe: "1m" as const,
+      adjustment: "raw" as const,
+    };
+  }
+
+  it("answers every requested symbol, and each with its own series", async () => {
+    const results = await provider.fetchManyBars(many(["NVDA", "SPY", "AMD"]));
+
+    expect([...results.keys()]).toEqual(["NVDA", "SPY", "AMD"].map(toTicker));
+
+    for (const [symbol, result] of results) {
+      assert(result.outcome === "ok");
+      expect(result.series.symbol).toBe(symbol);
+
+      // Within the session and non-empty. Not an exact count, because the
+      // corpus gives some names deliberately thin coverage — 384 of 390 on a
+      // regular session — and asserting a full session here would be asserting
+      // against the generator rather than against the batch.
+      expect(result.series.bars.length).toBeGreaterThan(0);
+      expect(result.series.bars.length).toBeLessThanOrEqual(REGULAR.minuteBars);
+    }
+  });
+
+  it("agrees bar for bar with the single fetch of the same window", async () => {
+    // The batch is not allowed to be a *different* answer. A backfill that
+    // switched between the two forms and got different numbers would be
+    // storing two versions of one session.
+    const batched = await provider.fetchManyBars(many(["NVDA"]));
+    const single = await provider.fetchBars({
+      symbol: toTicker("NVDA"),
+      range: WINDOW,
+      timeframe: "1m",
+      adjustment: "raw",
+    });
+
+    const fromBatch = batched.get(toTicker("NVDA"));
+    assert(fromBatch?.outcome === "ok");
+    assert(single.outcome === "ok");
+    expect(fromBatch.series.bars).toEqual(single.series.bars);
+  });
+
+  it("gives a symbol the corpus does not carry its own answer, and the rest theirs", async () => {
+    const results = await provider.fetchManyBars(many(["NVDA", "ZZUK"]));
+
+    // `unknown-symbol` is a fact about a SECURITY rather than about the
+    // request, so it does not take the batch down with it — which is the half
+    // of the asymmetry that is easy to get backwards.
+    expect(results.get(toTicker("ZZUK"))?.outcome).toBe("unknown-symbol");
+    expect(results.get(toTicker("NVDA"))?.outcome).toBe("ok");
+  });
+
+  it("reports a transport failure against every symbol", async () => {
+    // `ZZRL` is the corpus's rate-limited entry. In the real client a `429`
+    // ends the walk, so the symbols after it never arrive — this provider
+    // reproduces that rather than reporting four `ok`s beside one failure,
+    // because a caller tested against a partial batch would be written to
+    // handle a case the vendor cannot produce.
+    const results = await provider.fetchManyBars(many(["NVDA", "ZZRL", "AMD"]));
+
+    expect([...results.values()].map((result) => result.outcome)).toEqual([
+      "rate-limited",
+      "rate-limited",
+      "rate-limited",
+    ]);
+  });
+
+  it("collapses a duplicated symbol into one entry", async () => {
+    const results = await provider.fetchManyBars(many(["NVDA", "NVDA", "SPY"]));
+    expect(results.size).toBe(2);
+  });
+
+  it("makes exactly one attempt per symbol — no retry hides inside it", async () => {
+    const results = await provider.fetchManyBars(many(["ZZUP"]));
+    expect(results.get(toTicker("ZZUP"))?.outcome).toBe("upstream-unavailable");
   });
 });

@@ -60,11 +60,14 @@ import {
   alpacaServableEnd,
   mapAlpacaFailure,
   parseAlpacaBarsBody,
+  singleRequestFor,
+  toAlpacaManyQuery,
   toAlpacaQuery,
   toBarSeriesFromAlpacaBars,
+  toBarsBySymbolFromAlpacaPage,
   toBarsFromAlpacaPage,
 } from "./alpaca-mapping.js";
-import type { Bar } from "@marketpulse/shared";
+import type { Bar, Ticker, Timeframe, TimeRange } from "@marketpulse/shared";
 
 import type { AlpacaConfig } from "./config.js";
 import {
@@ -72,6 +75,9 @@ import {
   type BarsRequestOptions,
   type BarsResult,
   DEFAULT_BARS_DEADLINE_MS,
+  isWholeBatchFailure,
+  type ManyBarsRequest,
+  type ManyBarsResult,
   type MarketDataProvider,
 } from "./market-data-provider.js";
 
@@ -100,6 +106,8 @@ export function createAlpacaProvider(
     feed: ALPACA_FEED,
     fetchBars: (request, requestOptions) =>
       fetchBars(credential, baseUrl, request, requestOptions),
+    fetchManyBars: (request, requestOptions) =>
+      fetchManyBars(credential, baseUrl, request, requestOptions),
   };
 }
 
@@ -311,6 +319,253 @@ async function fetchBars(
 }
 
 /**
+ * One window, many symbols, in one walk (Task 2.8.5).
+ *
+ * ## Why this exists at all, in one number
+ *
+ * **The rate limit is per REQUEST and not per symbol** — measured, 203 requests
+ * of fifty symbols each against the same ceiling as 201 single-symbol ones
+ * (`ALPACA.md` §6). So a backfill written as a loop over symbols is
+ * 518 x 251 ~= **130,000 requests** for a year of minute bars, which is hours of
+ * pure rate-limited waiting; batched by session it is **~5,051**. The batch is
+ * not an optimisation, it is what makes the backfill a command somebody runs.
+ *
+ * ## The one rule, and everything below is a consequence of it
+ *
+ * > **Nothing may be concluded about any symbol until the walk is exhausted.**
+ *
+ * Measured 2026-09-08 by walking three symbols over one session at `limit=500`:
+ * page 1 held `AAPL:390` and `MSFT:110`, page 2 `MSFT:280` and `NVDA:220`, page
+ * 3 `NVDA:170` and a null token. Four properties fall out and three of them are
+ * traps: `limit` is a **total row budget across all symbols**, symbols are
+ * filled one at a time, **a symbol straddles a page boundary**, and — the one
+ * this function is written around — **a symbol can be entirely absent from a
+ * page while having a full session of data.**
+ *
+ * A walk that mapped page 1 into results would report `NVDA: ok, 0 bars`. That
+ * is not an error anywhere downstream: `PROVIDER.md` §8.2 makes an empty answer
+ * a **success** meaning *"the symbol exists and had no prints in this window"*,
+ * `toBarSeries` accepts it as coherent, the store records it, and Task 2.8.7's
+ * completeness report sees a session that was attempted and correctly returned
+ * nothing. **Every instrument in this story would agree the data is correctly
+ * absent.** Task 2.8.4's ledger catches it one session late, as a coverage gap
+ * rather than as a dropped symbol — a backstop rather than a replacement.
+ *
+ * At 518 symbols this stops being an edge case: **page 1 holds 28 of them**, so
+ * ~95% of the universe is absent from any given page and a premature conclusion
+ * would mark ~95% of it as having not traded.
+ *
+ * **And the vendor's own key order carries no information** — measured on the
+ * 518-symbol page, `Object.keys(bars)` begins `AKAM ALB AFL AMAT`, unsorted and
+ * unrelated to the alphabetical fill order. So the accumulator is keyed by
+ * symbol and the loop ends on the **token**, never on a position.
+ *
+ * ## Success is per symbol; failure is per batch
+ *
+ * {@link isWholeBatchFailure} is the classification and this is its only
+ * caller. A `429`, a timeout, an abort or a bad key ended the *walk*, and the
+ * pages that never arrived held symbols we cannot name — so attributing the
+ * failure to some subset would be inventing information. Every symbol gets it.
+ */
+async function fetchManyBars(
+  credential: AlpacaConfig,
+  baseUrl: string,
+  request: ManyBarsRequest,
+  options: BarsRequestOptions = {},
+): Promise<ManyBarsResult> {
+  // **The distinct requested set, decided once and used three times** — for the
+  // query, for the page bound and for the result map's keys. Deriving it per
+  // use is how a duplicate in the caller's array becomes two entries in a map
+  // whose whole job is to have one per symbol.
+  const symbols = [...new Set(request.symbols)];
+
+  const deadlineMs = options.deadlineMs ?? DEFAULT_BARS_DEADLINE_MS;
+  const deadline = AbortSignal.timeout(deadlineMs);
+  const signal =
+    options.signal === undefined
+      ? deadline
+      : AbortSignal.any([deadline, options.signal]);
+
+  if (signal.aborted) {
+    return sameForAll(
+      symbols,
+      classifyAbort(deadline, options.signal, deadlineMs),
+    );
+  }
+
+  /** See `fetchBars` above: a call expression is never narrowed. */
+  const hasAborted = (): boolean => signal.aborted;
+
+  // One instant for the whole walk, for `fetchBars`' two reasons — and the
+  // provenance argument is *stronger* here, because every symbol in the batch
+  // carries this same stamp and a walk that spans twenty-one pages stamped at
+  // completion would claim a freshness its earliest bars do not have.
+  const startedAt = new Date();
+  const retrievedAt = startedAt.toISOString();
+  const servableEnd = alpacaServableEnd(request.range, startedAt);
+
+  // A window entirely inside the withheld recent window costs no request, for
+  // every symbol at once.
+  if (servableEnd <= request.range.start) {
+    return new Map(
+      symbols.map((symbol) => [
+        symbol,
+        seriesFor(request, symbol, [], retrievedAt, servableEnd),
+      ]),
+    );
+  }
+
+  // **Keyed by the vendor's spelling and reconciled only at the end.** A page
+  // may name a symbol we did not ask for far more plausibly than it may omit
+  // one we did, and dropping an unexpected key mid-walk would hide that.
+  const bySymbol = new Map<string, Bar[]>();
+  let pageToken: string | undefined;
+
+  // The single-symbol bound multiplied by the symbol count — see
+  // {@link maxPagesFor}. A bound left at the single-symbol figure throws on a
+  // *correct* answer the moment a batch is more than one symbol wide, which is
+  // the failure that function's own comment warns about.
+  const maxPages = maxPagesFor(request, servableEnd, symbols.length);
+
+  for (let page = 1; ; page += 1) {
+    if (page > maxPages) {
+      // A throw and not a member, for `fetchBars`' recorded reason — and the
+      // stake is higher here, because returning what was collected so far is
+      // *precisely* the premature conclusion this whole function is written to
+      // prevent, applied to every symbol the remaining pages held.
+      throw new Error(
+        `Alpaca kept returning a next_page_token after ${String(maxPages)} ` +
+          `pages for ${String(symbols.length)} symbols, which is more than the ` +
+          `requested range can contain at ${String(ALPACA_MAX_LIMIT)} bars a ` +
+          `page. Refusing to loop, and refusing to return a partial walk as if ` +
+          `it were the whole answer.`,
+      );
+    }
+
+    const url = new URL(ALPACA_BARS_PATH, baseUrl);
+    const query = toAlpacaManyQuery(request, {
+      end: servableEnd,
+      ...(pageToken === undefined ? {} : { pageToken }),
+    });
+    for (const [key, value] of Object.entries(query)) {
+      url.searchParams.set(key, value);
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        signal,
+        headers: {
+          "APCA-API-KEY-ID": credential.keyId,
+          "APCA-API-SECRET-KEY": credential.secretKey,
+          accept: "application/json",
+        },
+      });
+    } catch (error) {
+      if (hasAborted()) {
+        return sameForAll(
+          symbols,
+          classifyAbort(deadline, options.signal, deadlineMs),
+        );
+      }
+      if (error instanceof TypeError) {
+        return sameForAll(symbols, { outcome: "upstream-unavailable" });
+      }
+      throw error;
+    }
+
+    if (!response.ok) {
+      return sameForAll(
+        symbols,
+        mapAlpacaFailure(
+          response.status,
+          response.headers.get("retry-after"),
+          new Date(),
+        ),
+      );
+    }
+
+    const body: unknown = await response.json();
+    const parsed = parseAlpacaBarsBody(body);
+    for (const [symbol, bars] of toBarsBySymbolFromAlpacaPage(parsed)) {
+      const accumulated = bySymbol.get(symbol);
+      if (accumulated === undefined) bySymbol.set(symbol, [...bars]);
+      else accumulated.push(...bars);
+    }
+
+    if (parsed.next_page_token === null) break;
+    pageToken = parsed.next_page_token;
+  }
+
+  // **Only here, after exhaustion, does an absent symbol mean an empty answer.**
+  // Keyed off the REQUESTED set rather than off what the pages contained, which
+  // is what makes "every requested symbol appears" structural: a symbol the
+  // vendor never mentioned still gets an entry, and a symbol it mentioned that
+  // we did not ask for is not in the map at all.
+  return new Map(
+    symbols.map((symbol) => [
+      symbol,
+      seriesFor(
+        request,
+        symbol,
+        bySymbol.get(symbol) ?? [],
+        retrievedAt,
+        servableEnd,
+      ),
+    ]),
+  );
+}
+
+/**
+ * One symbol's slice of a batch, as an `ok` result.
+ *
+ * It goes through `singleRequestFor` and the single-symbol series builder
+ * rather than assembling a `BarSeries` here, so `covered`, the withheld-window
+ * clamp and the `barCount` cross-check are the same decisions the single fetch
+ * makes. That cross-check is this task's most valuable safety net: `toBarSeries`
+ * refuses a series whose sources' counts do not sum to `bars.length`, which is
+ * exactly what a mis-attribution across symbols trips.
+ */
+function seriesFor(
+  request: ManyBarsRequest,
+  symbol: Ticker,
+  bars: readonly Bar[],
+  retrievedAt: string,
+  servableEnd: Date,
+): BarsResult {
+  return {
+    outcome: "ok",
+    series: toBarSeriesFromAlpacaBars(
+      singleRequestFor(request, symbol),
+      bars,
+      retrievedAt,
+      servableEnd,
+    ),
+  };
+}
+
+/**
+ * The same outcome against every symbol in the batch.
+ *
+ * Guarded by {@link isWholeBatchFailure} rather than trusted, because the
+ * asymmetry it encodes is invisible at a call site: handing an `ok` here would
+ * quietly give five hundred symbols one symbol's series, which is the
+ * mis-attribution this whole module is written against.
+ */
+function sameForAll(
+  symbols: readonly Ticker[],
+  result: BarsResult,
+): ManyBarsResult {
+  if (!isWholeBatchFailure(result)) {
+    throw new Error(
+      `A ${result.outcome} outcome is a fact about one symbol and must not be ` +
+        `reported against a whole batch.`,
+    );
+  }
+  return new Map(symbols.map((symbol) => [symbol, result]));
+}
+
+/**
  * The most pages the requested range could possibly need.
  *
  * **A provable upper bound rather than a modelled one, and that is the
@@ -331,10 +586,14 @@ async function fetchBars(
  * for an empty final page, and a bound that throws on a *correct* answer is the
  * failure this function exists to avoid being.
  */
-function maxPagesFor(request: BarsRequest, servableEnd: Date): number {
+function maxPagesFor(
+  request: { readonly range: TimeRange; readonly timeframe: Timeframe },
+  servableEnd: Date,
+  symbolCount = 1,
+): number {
   const spanMs = servableEnd.getTime() - request.range.start.getTime();
   const intervalMs = request.timeframe === "1m" ? 60_000 : 24 * 60 * 60_000;
-  const upperBoundBars = Math.ceil(spanMs / intervalMs);
+  const upperBoundBars = Math.ceil(spanMs / intervalMs) * symbolCount;
   return Math.max(2, Math.ceil(upperBoundBars / ALPACA_MAX_LIMIT) + 1);
 }
 

@@ -1,6 +1,6 @@
 # Task 2.8.5 — The multi-symbol fetch, and the page that lies about a symbol
 
-**Status:** Not started
+**Status:** Complete (2026-09-08)
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
 **Depends on:** Task 2.8.4
 
@@ -246,3 +246,220 @@ protection: **every requested symbol must appear in the result map**, with a tes
 key set equals the request's, and **a conclusion about a symbol is correct only after
 exhaustion**. What the ledger adds is that getting it wrong is now noisy somewhere rather than
 nowhere.
+
+---
+
+## What was built, 2026-09-08
+
+`fetchManyBars` is a **required member** of `MarketDataProvider`, so all three
+implementations — the Alpaca client, the fixture provider and the retry wrapper
+— had to grow one, and the compile lock fired exactly as intended: adding the
+method took **three test stubs red with `TS2741`** before a line of any
+implementation had been written. A provider cannot ship half the interface.
+
+### The measurement reproduced exactly
+
+The three-symbol walk was re-recorded against the live API and matches this
+file's table to the bar:
+
+| Page | Contents                     | Token   |
+| ---- | ---------------------------- | ------- |
+| 1    | `AAPL:390` &nbsp; `MSFT:110` | present |
+| 2    | `MSFT:280` &nbsp; `NVDA:220` | present |
+| 3    | `NVDA:170`                   | `null`  |
+
+Recorded verbatim as `fixtures/alpaca/multi-1min-walk-page-{1,2,3}.json`
+(128,165 B at `limit=500`), with the same constraint the single-symbol walk
+fixtures carry and for the same reason: **a fixture recorded at a reduced page
+size is only replayable against a range wide enough to justify its page count**,
+because the shipped bound is derived against the 10,000-bar ceiling.
+
+### The shape, as shipped
+
+- **`ManyBarsRequest` is a separate type rather than a widened `BarsRequest`.**
+  A `symbol?: Ticker | Ticker[]` would make the difference between a single
+  fetch and a batch a run-time check, and their failure semantics differ.
+- **`ManyBarsResult` is `ReadonlyMap<Ticker, BarsResult>`.** No new union
+  member: partial success across five hundred symbols is one symbol's `ok`
+  beside another's `unauthorised`, which the eight members already express.
+- **`isWholeBatchFailure` is the asymmetry as code**, an exhaustive `switch`
+  beside `isRetryableOutcome`. It makes a ninth member's obligations **four**
+  rather than three: construct, handle, classify-as-retryable, and now
+  classify-as-per-symbol-or-per-request. The safe-looking default there — _"it
+  is about one symbol"_ — is exactly wrong for a transport failure. Only three
+  outcomes stay per symbol: `ok`, `unknown-symbol`, `range-not-available`.
+- **The distinct symbol set is computed once** and used for the query, the page
+  bound and the result map's keys, so a duplicate in a caller's array cannot
+  become two entries in a map whose whole job is one per symbol.
+- **`sameForAll` refuses to spread a non-batch outcome**, guarded rather than
+  trusted, because handing an `ok` to it would quietly give five hundred symbols
+  one symbol's series.
+
+### The page bound, recomputed
+
+`maxPagesFor` gained a `symbolCount` that multiplies the numerator. The
+arithmetic is in the comment: **518 × 390 = 202,020 rows for one session**,
+21 pages at the 10,000-bar ceiling, ~5,051 requests for a year — against
+~130,000 for a per-symbol loop. A bound left at the single-symbol figure throws
+on a **correct** answer the moment a batch is more than one symbol wide, which
+is the failure that function was written to avoid being.
+
+### The retry wrapper: the standing warning does not apply here, and that is worth reading
+
+`market-data-provider.ts` warns that retrying a batch _"re-fetches ninety-nine
+symbols that answered perfectly because one was rate-limited"_. **That describes
+a batch of independent single fetches and not this one.** Here the batch is a
+single walk whose failure is per batch by construction, so on a failure _no_
+symbol answered — there is nothing being needlessly re-fetched, and one retried
+walk recovers the whole universe for the price of one symbol's page count.
+**Retrying a batch is cheaper per symbol, not more expensive.**
+
+The wrapper re-derives the shared outcome from the map rather than being handed
+it on a second channel, because a second channel carrying _"the batch failed as
+a whole"_ would be a copy of a fact already in the map, and the two could then
+disagree. A **partial** map is deliberately not retried: its failures are facts
+about individual symbols, which asking again cannot change.
+
+### Six deliberate breaks, each seen to fail and reverted
+
+1. **Concluding from page 1** — the break this task exists for. It reports
+   `expected [] to have a length of 390 but got 0` **naming NVDA**, which is a
+   symbol with a full session reported as a _successful empty answer_.
+2. Keying the result map off what the pages contained rather than off the
+   request — 1 red, on the symbol the vendor never mentioned.
+3. Attributing a batch failure to a subset of symbols — 2 red.
+4. Re-stamping `retrievedAt` per page — **green at first**, and that is the
+   finding: the original test asserted only that every symbol shared one stamp,
+   which a re-stamp at the _end_ also satisfies. Task 2.5.3's rule from the
+   other side — a break that does not go red is evidence the test is missing.
+   The test now asserts the stamp is at the **start** of the walk, and the break
+   then goes red.
+5. Leaving the page bound at the single-symbol figure — 1 red.
+6. The fixture provider reporting a fault per symbol rather than per batch —
+   1 red.
+
+### Verified against the live API
+
+The shipped client, real key, 2026-09-03's regular session, three symbols:
+**390 bars each** — the calendar's own `minuteBars` — one shared `retrievedAt`,
+`feed: sip`, in **1,124 ms** and **one request**, because the whole session fits
+in one page at the shipped 10,000-bar `limit`. A fourth symbol the vendor never
+mentions comes back present in the map with zero bars and `covered: null`.
+
+### What the fixture provider can and cannot cover, stated
+
+Its batch is a **fan-out over its own single fetch**, because it has no
+pagination and a hand-written second walk would be a second implementation of
+`barsIn` invented so the file _looked_ like the real one. The cost is stated
+rather than hidden: **it cannot reproduce the trap the real client is written
+around**, since a symbol absent from a page is a property of the vendor's
+paging. It covers the contract — every requested symbol present, success per
+symbol, failure per batch — and the page-straddling case is covered by replaying
+recorded vendor bodies.
+
+### Figures
+
+`pnpm verify` exit 0; `pnpm test` **784** (206 + **395** + 183), up from 750;
+`pnpm test:process` 14; `pnpm test:database` 124. No dependency, no lockfile
+change, no new script and no new `verify` step. **The frontend artefact did not
+move** — 371,406 B `80c4f6c3…`, 18,063 B `ed3d1744…`, `index.html` 1,101 B
+`36eeb287…`, 300 B, **390,870 B over four files at 300 modules** — which is the
+check rather than a coincidence, because everything here is in `apps/backend`
+and the browser never sees a provider's shape.
+
+---
+
+## For the stakeholders — what this actually did, in plain terms
+
+### The problem in one sentence
+
+We need a year of minute-by-minute price history for all 518 companies
+MarketPulse tracks. Asking our data supplier for them **one company at a time**
+would take roughly **130,000 separate requests** and several hours, because the
+supplier limits how many times we may ask per minute — and crucially, that limit
+counts _requests_, not companies. Asking for all 518 in one go costs the same as
+asking for one. So this task built the "ask for many at once" capability, and
+the whole backfill drops from hours to about twenty minutes of asking.
+
+That is the boring half. The interesting half is why it needed a task of its own
+rather than being a line inside the backfill.
+
+### The bug that would have looked like good data
+
+When you ask for many companies at once, the supplier does not send everything
+back in one lump. It sends it in **pages**, like a book — and it fills each page
+by working through the companies alphabetically until the page is full. So the
+first page might contain all of Apple's day and only the first third of
+Microsoft's, and **Nvidia might not appear on that page at all**.
+
+Now imagine a programmer writing the obvious version: ask for the data, look at
+what came back, file it away. That version looks at page one, sees no Nvidia,
+and records _"Nvidia had no trading activity that day."_
+
+Here is why that is genuinely dangerous rather than merely wrong. **Every safety
+check we have built would agree with it.** "No trades today" is a perfectly
+legitimate answer — it is what a public holiday looks like, and our system is
+deliberately built to accept it rather than treat it as an error. So the record
+is well-formed, it passes validation, our storage accepts it, and the
+completeness report we are about to build in a later task would see a day that
+_was_ checked and _did_ correctly come back empty. Nobody is alerted. Months
+later, a chart has a hole in it, or an "unusual activity" score is computed
+against history that is quietly missing — and there is nothing in any log to
+explain it.
+
+At 518 companies this is not a corner case. We measured it: **page one contains
+28 of the 518**, so about 95% of the tracked market is absent from any given
+page. The naive version would mark 95% of the market as not having traded.
+
+### What we did about it
+
+The rule is one sentence, and it is written into the code where the next person
+will meet it: **nothing may be concluded about any company until every page has
+been read.** The code is structured so that the "this company had no data"
+conclusion is physically only reachable at the end of the walk — the function
+that reads a single page is deliberately built so it _cannot_ say anything about
+a company that is missing from it.
+
+Then we proved it, rather than asserting it. We deliberately broke the code six
+different ways and confirmed each break makes the test suite fail loudly and
+name the problem. The most important one — the "conclude from page one" bug —
+fails with a message pointing directly at Nvidia and saying it found zero bars
+where there should be 390. Then we put every break back.
+
+One of those six is worth mentioning because it _didn't_ work first time. We
+broke the code in a subtle way — re-recording the "when did we fetch this"
+timestamp at the end of the download rather than the start — and the test stayed
+green. That told us the test was too weak, not that the code was fine, so we
+strengthened the test until the break was caught. A test that cannot fail is
+not protection, it is decoration.
+
+### Why the safety net we already have is not enough
+
+The previous task built a ledger that tracks what price history we hold. It
+_would_ eventually notice a company that had been silently skipped — but only
+one day later, and it would describe it as a gap in coverage rather than as a
+dropped company, so a human would still have to work out what happened. It also
+cannot see the problem on the most recent day, which is exactly the day a live
+system is working on. So it is a backstop, and this task is the actual
+protection.
+
+### Where this leaves the product
+
+Still nothing on screen — this is plumbing, and the next two tasks are what use
+it. But it is the last piece needed before we can actually go and get the
+history: the ordering mechanism is built, it is fast enough to be a command
+somebody runs over a coffee rather than an overnight job, and it is honest about
+what it does and does not know.
+
+That honesty is not incidental to MarketPulse. The whole product rests on being
+able to say _"here is the evidence, and here is how confident we are in it."_
+A system that quietly records "nothing happened" when the truth is "we did not
+look properly" undermines that at the foundation — every anomaly score,
+every AI investigation and every historical replay would be computed against
+data that lies in a way nobody can detect. This task is where that was headed
+off.
+
+**What you still cannot do:** see any of this. There is no command that fetches
+history yet (next task), nothing is stored from the live market, and no chart
+exists. What has changed is that when the backfill does run, we can trust what
+it stored.

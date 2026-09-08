@@ -14,6 +14,7 @@ import {
   type BarsResult,
   isRetryableOutcome,
   type MarketDataProvider,
+  type ManyBarsRequest,
 } from "./market-data-provider.js";
 import {
   MIN_ATTEMPT_BUDGET_MS,
@@ -70,6 +71,18 @@ function countingProvider(results: readonly BarsResult[]): {
       calls += 1;
       if (result === undefined) expect.fail("countingProvider needs a result");
       return Promise.resolve(result);
+    },
+
+    // The same sequence, counted the same way, so a batch test reads "was it
+    // retried" off the same number a single-fetch test does.
+    fetchManyBars: (request, options) => {
+      deadlines.push(options?.deadlineMs);
+      const result = results[Math.min(calls, results.length - 1)];
+      calls += 1;
+      if (result === undefined) expect.fail("countingProvider needs a result");
+      return Promise.resolve(
+        new Map(request.symbols.map((symbol) => [symbol, result])),
+      );
     },
   };
 
@@ -191,6 +204,9 @@ describe("the caller's deadline bounds the whole call, not each attempt", () => 
     const provider: MarketDataProvider = {
       id: "fixture",
       feed: "synthetic",
+      fetchManyBars: () => {
+        expect.fail("this test drives the single fetch only");
+      },
       fetchBars: async (_request, options) => {
         calls += 1;
         if (calls === 1) {
@@ -371,5 +387,112 @@ describe("the policy's numbers carry their derivations", () => {
     // 200 ms of budget, a 20 ms cap and a 300 ms minimum attempt budget: the
     // give-up rule is what stops it, not a count.
     expect(calls()).toBe(1);
+  });
+});
+
+/**
+ * The batch (Task 2.8.5).
+ *
+ * **Retrying a batch is cheaper per symbol, not more expensive**, and that is
+ * the counter-intuitive half worth locking in. The standing warning — that
+ * retrying a batch re-fetches ninety-nine symbols that answered perfectly —
+ * describes a batch of *independent* fetches. This batch is one walk whose
+ * failure is per batch by construction, so on a failure no symbol answered.
+ */
+describe("the batch, retried", () => {
+  function manyFor(symbols: readonly string[]): ManyBarsRequest {
+    return {
+      symbols: symbols.map(toTicker),
+      range: RANGE,
+      timeframe: "1m",
+      adjustment: "raw",
+    };
+  }
+
+  it("retries a whole-batch failure and returns the recovered map", async () => {
+    const { provider, calls } = countingProvider([
+      { outcome: "rate-limited" },
+      OK_RESULT,
+    ]);
+
+    const results = await withRetry(provider, FAST).fetchManyBars(
+      manyFor(["NVDA", "SPY"]),
+    );
+
+    expect(calls()).toBe(2);
+    expect([...results.values()].map((result) => result.outcome)).toEqual([
+      "ok",
+      "ok",
+    ]);
+  });
+
+  it("does not retry a map whose failures are facts about symbols", async () => {
+    // A partial map — some `ok`, some `unknown-symbol` — is a settled answer.
+    // Asking again cannot change whether a security exists, and a wrapper that
+    // retried it would spend the caller's whole budget re-asking a question
+    // with one answer.
+    const provider = createFixtureProvider();
+    const started = Date.now();
+
+    const results = await withRetry(provider, FAST).fetchManyBars(
+      manyFor(["NVDA", "ZZUK"]),
+    );
+
+    expect(results.get(toTicker("ZZUK"))?.outcome).toBe("unknown-symbol");
+    expect(Date.now() - started).toBeLessThan(200);
+  });
+
+  it("does not retry unauthorised, which is a wall rather than a wobble", async () => {
+    const { provider, calls } = countingProvider([{ outcome: "unauthorised" }]);
+
+    const results = await withRetry(provider, FAST).fetchManyBars(
+      manyFor(["NVDA"]),
+    );
+
+    expect(calls()).toBe(1);
+    expect(results.get(toTicker("NVDA"))?.outcome).toBe("unauthorised");
+  });
+
+  it("keeps every requested symbol in the map when the caller tears down", async () => {
+    const controller = new AbortController();
+    const { provider } = countingProvider([
+      { outcome: "upstream-unavailable" },
+    ]);
+    controller.abort();
+
+    const results = await withRetry(provider, FAST).fetchManyBars(
+      manyFor(["NVDA", "SPY", "AMD"]),
+      { signal: controller.signal },
+    );
+
+    // The "every requested symbol appears" property survives the wrapper
+    // rather than being re-derived by it: the key set is the one the walk
+    // returned, and every value is the caller's own teardown.
+    expect([...results.keys()]).toEqual(["NVDA", "SPY", "AMD"].map(toTicker));
+    expect([...results.values()].map((result) => result.outcome)).toEqual([
+      "aborted",
+      "aborted",
+      "aborted",
+    ]);
+  });
+
+  it("bounds the whole batch by the caller's deadline across every attempt", async () => {
+    const { provider, deadlines } = countingProvider([
+      { outcome: "upstream-unavailable" },
+      { outcome: "upstream-unavailable" },
+      OK_RESULT,
+    ]);
+
+    await withRetry(provider, FAST).fetchManyBars(manyFor(["NVDA"]), {
+      deadlineMs: 500,
+    });
+
+    // Each attempt is handed the REMAINING budget rather than the original, so
+    // its own `timeout` member carries the number it was genuinely measured
+    // against — and the wrapper cannot overrun the caller by retrying.
+    const seen = deadlines();
+    expect(seen[0]).toBe(500);
+    expect(seen[1]).toBeLessThan(500);
+    expect(seen[2]).toBeLessThan(seen[1] ?? 0);
   });
 });

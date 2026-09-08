@@ -13,6 +13,8 @@ import {
   type BarsResult,
   DEFAULT_BARS_DEADLINE_MS,
   isRetryableOutcome,
+  isWholeBatchFailure,
+  type ManyBarsRequest,
   type MarketDataProvider,
 } from "./market-data-provider.js";
 
@@ -114,6 +116,16 @@ function stub(result: BarsResult): MarketDataProvider {
     // called. A stub declaring one is the compiler saying so.
     feed: "synthetic",
     fetchBars: () => Promise.resolve(result),
+
+    // Task 2.8.5 made the batch a required member, so a stub that omits it is
+    // `TS2741` — which is the lock working: a provider cannot ship half the
+    // interface. The fan-out is a stub's answer and not a real one; the rule
+    // that success is per symbol and failure is per batch is enforced in the
+    // implementations, and asserted against them.
+    fetchManyBars: (request) =>
+      Promise.resolve(
+        new Map(request.symbols.map((symbol) => [symbol, result])),
+      ),
   };
 }
 
@@ -381,5 +393,71 @@ describe("DEFAULT_BARS_DEADLINE_MS", () => {
     // what is checked here is the shape: a caller can override it.
     expect(DEFAULT_BARS_DEADLINE_MS).toBe(3_000);
     expect(Number.isInteger(DEFAULT_BARS_DEADLINE_MS)).toBe(true);
+  });
+});
+
+describe("isWholeBatchFailure", () => {
+  it("classifies every outcome, and only three are facts about one symbol", () => {
+    const perSymbol = EVERY_RESULT.filter(
+      (result) => !isWholeBatchFailure(result),
+    ).map((result) => result.outcome);
+
+    // **Success is per symbol; failure is per batch.** Only an answer *about a
+    // security* stays with that security: an `ok` (including an empty series),
+    // a security that does not exist, and a window this provider will not
+    // serve. Everything else ended the walk, and the pages that never arrived
+    // held symbols we cannot name — so reporting it against a subset would be
+    // claiming knowledge we do not have.
+    expect(perSymbol).toEqual(["ok", "unknown-symbol", "range-not-available"]);
+  });
+
+  it("is the fourth obligation a ninth member takes on", () => {
+    // Task 2.6.5 made a new member need CONSTRUCTING, HANDLING and
+    // CLASSIFYING to compile. This adds a fourth: it must be classified as a
+    // fact about a symbol or a fact about the request — and the default that
+    // looks safe, "it is about one symbol", is exactly wrong for a transport
+    // failure, because it would leave five hundred symbols reported as `ok`
+    // with empty series after a walk that never happened.
+    for (const result of EVERY_RESULT) {
+      expect(typeof isWholeBatchFailure(result)).toBe("boolean");
+    }
+    expect(EVERY_RESULT).toHaveLength(8);
+  });
+});
+
+describe("ManyBarsRequest and the batch method", () => {
+  it("returns one result per requested symbol, keyed by a branded Ticker", async () => {
+    const provider = stub({ outcome: "ok", series: series() });
+    const symbols = [toTicker("NVDA"), toTicker("SPY")];
+
+    const results = await provider.fetchManyBars({
+      symbols,
+      range: request().range,
+      timeframe: "1m",
+      adjustment: "raw",
+    });
+
+    // A `Map` keyed by `Ticker` rather than an object keyed by `string`, and
+    // the key type is the point: the whole hazard this method guards against is
+    // attributing bars to the wrong symbol, and an object key is a string that
+    // has been through no validation at all.
+    expect([...results.keys()]).toEqual(symbols);
+  });
+
+  it("cannot be built without an adjustment either", () => {
+    const { range, timeframe } = request();
+
+    // The same lock, on the batch. The USEFUL direction of this directive is
+    // TS2578: removing it only proves the field is required today, where
+    // making it optional fails the build — so a batch cannot quietly acquire
+    // the default a single fetch is forbidden.
+    // @ts-expect-error - adjustment is required on a batch too
+    const incomplete: ManyBarsRequest = {
+      symbols: [toTicker("NVDA")],
+      range,
+      timeframe,
+    };
+
+    expect(incomplete.symbols).toHaveLength(1);
   });
 });

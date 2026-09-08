@@ -4,6 +4,9 @@ import {
   type BarsResult,
   DEFAULT_BARS_DEADLINE_MS,
   isRetryableOutcome,
+  isWholeBatchFailure,
+  type ManyBarsRequest,
+  type ManyBarsResult,
   type MarketDataProvider,
 } from "./market-data-provider.js";
 
@@ -161,6 +164,8 @@ export function withRetry(
     feed: provider.feed,
     fetchBars: (request, options) =>
       fetchWithRetry(provider, resolved, request, options ?? {}),
+    fetchManyBars: (request, options) =>
+      fetchManyWithRetry(provider, resolved, request, options ?? {}),
   };
 }
 
@@ -272,6 +277,111 @@ async function fetchWithRetry(
       ...signalPart,
     });
   }
+}
+
+/**
+ * The same policy over a batch (Task 2.8.5).
+ *
+ * ## Retrying a batch is cheaper per symbol, not more expensive
+ *
+ * The instinct is that a batch is the thing you must *not* retry — the module
+ * comment above says as much about the backfill, and `market-data-provider.ts`
+ * warns that retrying a batch "re-fetches ninety-nine symbols that answered
+ * perfectly because one was rate-limited". **That warning is about a batch of
+ * independent single fetches, and it does not describe this one.** Here the
+ * batch is a single walk whose failure is per batch by construction
+ * ({@link isWholeBatchFailure}), so on a failure *no* symbol answered — there
+ * is nothing being needlessly re-fetched, and one retried walk recovers five
+ * hundred symbols for the price of one symbol's page count.
+ *
+ * ## Why it re-derives the outcome from the map rather than being handed it
+ *
+ * The map is the contract, and a second channel carrying "the batch failed as a
+ * whole" would be a copy of a fact already in it — the two would then be
+ * able to disagree, which is precisely the class of defect this story keeps
+ * finding. Reading it back is cheap and exact: the walk sets one shared outcome
+ * across every key, so *"every entry is the same whole-batch failure"* is a
+ * faithful test rather than a heuristic.
+ *
+ * A partial map — some `ok`, some failed — is therefore **not retried**, and
+ * that is correct rather than a gap: the failures in it are facts about
+ * individual symbols (`unknown-symbol`, `range-not-available`), which asking
+ * again cannot change.
+ */
+async function fetchManyWithRetry(
+  provider: MarketDataProvider,
+  policy: ResolvedPolicy,
+  request: ManyBarsRequest,
+  options: BarsRequestOptions,
+): Promise<ManyBarsResult> {
+  const deadlineMs = options.deadlineMs ?? DEFAULT_BARS_DEADLINE_MS;
+  const startedAt = Date.now();
+  const remaining = (): number => deadlineMs - (Date.now() - startedAt);
+
+  const callerSignal = options.signal;
+  const signalPart = callerSignal === undefined ? {} : { signal: callerSignal };
+
+  let results = await provider.fetchManyBars(request, {
+    deadlineMs,
+    ...signalPart,
+  });
+
+  for (let attempt = 1; ; attempt += 1) {
+    const failure = sharedBatchFailure(results);
+    if (failure === undefined || !isRetryableOutcome(failure)) return results;
+
+    if (callerSignal?.aborted === true) {
+      return abortedForAll(results);
+    }
+
+    const delayMs = delayFor(attempt, failure, policy);
+    if (delayMs + MIN_ATTEMPT_BUDGET_MS > remaining()) return results;
+
+    if ((await sleep(delayMs, callerSignal)) === "aborted") {
+      return abortedForAll(results);
+    }
+
+    results = await provider.fetchManyBars(request, {
+      deadlineMs: remaining(),
+      ...signalPart,
+    });
+  }
+}
+
+/**
+ * The one outcome every entry shares, when that outcome is a whole-batch
+ * failure — otherwise `undefined`.
+ *
+ * `undefined` covers three genuinely different cases and deliberately does not
+ * distinguish them, because the answer is the same for all three: an empty map,
+ * a map holding any success, and a map whose failures are per-symbol facts.
+ * None of them is a walk that can be usefully repeated.
+ */
+function sharedBatchFailure(results: ManyBarsResult): BarsResult | undefined {
+  let shared: BarsResult | undefined;
+  for (const result of results.values()) {
+    if (!isWholeBatchFailure(result)) return undefined;
+    if (shared === undefined) shared = result;
+    else if (shared.outcome !== result.outcome) return undefined;
+  }
+  return shared;
+}
+
+/**
+ * The caller tore down, reported against every symbol.
+ *
+ * Keyed off the map we already hold rather than off the request, so the key set
+ * the caller receives is the same one it would have received had the walk
+ * completed — the "every requested symbol appears" property, preserved through
+ * the wrapper rather than re-derived by it.
+ */
+function abortedForAll(results: ManyBarsResult): ManyBarsResult {
+  return new Map(
+    [...results.keys()].map((symbol) => [
+      symbol,
+      { outcome: "aborted" as const },
+    ]),
+  );
 }
 
 /**

@@ -25,7 +25,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { createAlpacaProvider } from "./alpaca-provider.js";
 import type { AlpacaConfig } from "./config.js";
-import type { BarsRequest } from "./market-data-provider.js";
+import type { BarsRequest, ManyBarsRequest } from "./market-data-provider.js";
 
 const CREDENTIAL: AlpacaConfig = Object.freeze({
   // Deliberately not a real key, and deliberately not shaped like one either.
@@ -199,6 +199,14 @@ async function closedPort(): Promise<number> {
  * A real hang rather than a fake clock, because the thing under test is the
  * composition of two real `AbortSignal`s — a fake clock would test the fake.
  */
+/** The vendor's own bytes, verbatim, as recorded under `fixtures/alpaca/`. */
+function recorded(file: string): string {
+  return readFileSync(
+    join(import.meta.dirname, "fixtures", "alpaca", file),
+    "utf8",
+  );
+}
+
 function neverAnswers(): Promise<never> {
   return new Promise<never>(() => {
     // Deliberately never settles. The caller's signal or the deadline is what
@@ -392,14 +400,6 @@ describe("the two outcomes this task's own signals produce", () => {
  * throws.
  */
 describe("the failures this vendor actually produces", () => {
-  /** The vendor's own bytes, and the content type it sent them with. */
-  function recorded(file: string): string {
-    return readFileSync(
-      join(import.meta.dirname, "fixtures", "alpaca", file),
-      "utf8",
-    );
-  }
-
   it("maps a real 401 — whose body is HTML from nginx — onto unauthorised", async () => {
     // **The sharpest trap in the task.** A bad key never reaches Alpaca's
     // application: nginx refuses it and answers `text/html`. A client that
@@ -976,5 +976,308 @@ describe("createAlpacaProvider — pagination", () => {
     // chose. One composed signal is what makes the promise the caller was given
     // the promise they get.
     expect(elapsed).toBeLessThan(400);
+  });
+});
+
+/**
+ * The batch (Task 2.8.5).
+ *
+ * **The one rule these tests exist to hold:** nothing may be concluded about
+ * any symbol until the walk is exhausted. Every assertion below is either that
+ * rule or a consequence of it.
+ */
+describe("createAlpacaProvider — the multi-symbol fetch", () => {
+  const SYMBOLS = [toTicker("AAPL"), toTicker("MSFT"), toTicker("NVDA")];
+
+  /**
+   * A range wide enough that three pages are *legitimate*, for the same reason
+   * the single-symbol walk tests need one and with the same constraint
+   * attached: the recorded bodies were taken at `limit=500` and the shipped
+   * page bound is derived against the 10,000-bar ceiling, so **a fixture
+   * recorded at a reduced page size is only replayable against a range wide
+   * enough to justify its page count.** Making the bound injectable was the
+   * alternative and is test-shaped API on shipped code — what Task 1.10.5
+   * refused with `MIN_PORT`.
+   */
+  const WIDE_MANY: ManyBarsRequest = {
+    symbols: SYMBOLS,
+    range: toTimeRange(
+      new Date("2026-08-03T13:30:00Z"),
+      new Date("2026-09-04T20:00:00Z"),
+    ),
+    timeframe: "1m",
+    adjustment: "raw",
+  };
+
+  /** The three recorded vendor bodies of one real three-symbol walk. */
+  function recordedWalk(): string[] {
+    return [1, 2, 3].map((page) =>
+      recorded(`multi-1min-walk-page-${String(page)}.json`),
+    );
+  }
+
+  async function serveInOrder(bodies: readonly string[]): Promise<Harness> {
+    let served = 0;
+    return serve(() => ({
+      status: 200,
+      body: bodies[served++] ?? "unreachable",
+    }));
+  }
+
+  it("reassembles a real three-symbol walk into a full session each", async () => {
+    // **Recorded 2026-09-08 against the live API**, three symbols over
+    // 2026-09-03's regular session at `limit=500`. The measurement is the
+    // fixture: page 1 is `AAPL:390` and `MSFT:110`, page 2 is `MSFT:280` and
+    // `NVDA:220`, page 3 is `NVDA:170`. So `limit` is a total row budget across
+    // all symbols, MSFT straddles a boundary, and **NVDA is not on page 1 at
+    // all** while having a full session of data.
+    const harness = await serveInOrder(recordedWalk());
+
+    const results = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchManyBars(WIDE_MANY);
+
+    expect(harness.requests).toHaveLength(3);
+
+    // **The headline case, asserted first and on its own.** NVDA is on pages 2
+    // and 3 and is not on page 1 at all. A walk that concluded from page 1
+    // reports it as `ok` with ZERO bars — a *successful* empty answer meaning
+    // "it did not trade", which `toBarSeries` accepts, the store records and
+    // Task 2.8.7's completeness report reads as a session correctly attempted.
+    const nvda = results.get(toTicker("NVDA"));
+    assert(nvda?.outcome === "ok");
+    expect(nvda.series.bars).toHaveLength(390);
+
+    for (const symbol of SYMBOLS) {
+      const result = results.get(symbol);
+      assert(result?.outcome === "ok");
+
+      // 390 — the trading calendar's `minuteBars` for that session, for every
+      // one of the three. **This is the assertion the premature-conclusion
+      // break fails**, and it fails naming NVDA: a walk that maps page 1 into
+      // results reports NVDA as `ok` with zero bars, which is a *successful*
+      // answer everywhere downstream.
+      expect(result.series.bars).toHaveLength(390);
+
+      // The cross-check `toBarSeries` performs itself, asserted here too
+      // because it is the one thing a mis-attribution across symbols trips:
+      // sources' counts must sum to `bars.length`.
+      expect(result.series.provenance.sources[0].barCount).toBe(390);
+
+      // Each series belongs to its own symbol. A walk keyed off position in the
+      // response object rather than off the symbol would hand one symbol
+      // another's bars — and the vendor's key order carries no information: on
+      // the 518-symbol page it begins `AKAM ALB AFL AMAT`, unsorted.
+      expect(result.series.symbol).toBe(symbol);
+    }
+  });
+
+  it("keeps each symbol's bars strictly ascending across the page it straddles", async () => {
+    const harness = await serveInOrder(recordedWalk());
+
+    const results = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchManyBars(WIDE_MANY);
+
+    // MSFT is the straddling symbol — 110 bars on page 1 and 280 on page 2.
+    // `toBarSeries` refuses a non-ascending series outright, so reaching this
+    // assertion at all is most of the check; the boundary is asserted because
+    // an accumulator that prepended rather than appended would still be
+    // ascending *within* each page.
+    const msft = results.get(toTicker("MSFT"));
+    assert(msft?.outcome === "ok");
+    expect(msft.series.bars[109]?.startsAt.toISOString()).toBe(
+      "2026-09-03T15:19:00.000Z",
+    );
+    expect(msft.series.bars[110]?.startsAt.toISOString()).toBe(
+      "2026-09-03T15:20:00.000Z",
+    );
+  });
+
+  it("gives every requested symbol an entry, including one the vendor never mentioned", async () => {
+    const harness = await serveInOrder(recordedWalk());
+    const absent = toTicker("ZZZQQ");
+
+    const results = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchManyBars({ ...WIDE_MANY, symbols: [...SYMBOLS, absent] });
+
+    // **A missing key is a bug, not an implicit empty answer.** The map is keyed
+    // off the REQUESTED set, so a symbol no page ever named still gets an entry
+    // — and only here, after exhaustion, does absence honestly mean "no bars".
+    expect([...results.keys()].sort()).toEqual(
+      ["AAPL", "MSFT", "NVDA", "ZZZQQ"].map(toTicker).sort(),
+    );
+
+    const empty = results.get(absent);
+    assert(empty?.outcome === "ok");
+    expect(empty.series.bars).toHaveLength(0);
+
+    // `covered` is null exactly when the series is empty, which `toBarSeries`
+    // enforces both ways: an empty answer says nothing about *why* it is empty.
+    expect(empty.series.coverage.covered).toBeNull();
+  });
+
+  it("collapses a duplicated symbol into one entry", async () => {
+    const harness = await serveInOrder(recordedWalk());
+
+    const results = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchManyBars({
+      ...WIDE_MANY,
+      symbols: [...SYMBOLS, toTicker("NVDA")],
+    });
+
+    // A duplicate is a caller defect rather than a request. The map has one
+    // entry per DISTINCT symbol, which is the property that stops a duplicate
+    // in a backfill's symbol list quietly doubling a write.
+    expect(results.size).toBe(3);
+  });
+
+  it("sends one comma-separated symbols parameter and nothing per symbol", async () => {
+    const harness = await serveInOrder(recordedWalk());
+
+    await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchManyBars(WIDE_MANY);
+
+    const first = new URL(harness.requests[0]?.url ?? "", "http://x")
+      .searchParams;
+
+    // The whole outbound half of the batch. **This is why the batch exists**:
+    // the rate limit is per REQUEST, so three symbols cost what one does.
+    expect(first.get("symbols")).toBe("AAPL,MSFT,NVDA");
+    expect(first.get("limit")).toBe("10000");
+    expect(first.get("sort")).toBe("asc");
+  });
+
+  it("stamps retrievedAt once, at the START of the whole batch", async () => {
+    const bodies = recordedWalk();
+    let served = 0;
+    const before = Date.now();
+    const harness = await serve(async () => {
+      // A slow walk, so a stamp taken per page or at completion would be
+      // visibly later than one taken at the start.
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      return { status: 200, body: bodies[served++] ?? "unreachable" };
+    });
+
+    const results = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchManyBars(WIDE_MANY);
+
+    const stamps = SYMBOLS.map((symbol) => {
+      const result = results.get(symbol);
+      assert(result?.outcome === "ok");
+      return result.series.provenance.sources[0].retrievedAt;
+    });
+
+    const after = Date.now();
+
+    // One instant, shared. A batch stamped per page would give AAPL an earlier
+    // freshness than NVDA for data fetched in one breath.
+    expect(new Set(stamps).size).toBe(1);
+
+    // **And that instant is the START of the walk, which is the half a sameness
+    // check alone cannot see.** Re-stamping at the end still gives every symbol
+    // the same value — the break that does exactly that leaves a sameness
+    // assertion green — and it claims a freshness the earliest bars do not
+    // have. The argument is stronger here than for a single fetch, because a
+    // twenty-one-page walk spreads wider than a five-page one.
+    const stamped = Date.parse(stamps[0] ?? "");
+    expect(stamped).toBeGreaterThanOrEqual(before);
+    expect(stamped).toBeLessThan(after - 100);
+  });
+
+  it("reports a mid-walk failure against EVERY symbol, including ones already answered", async () => {
+    const bodies = recordedWalk();
+    let served = 0;
+    const harness = await serve(() => {
+      served += 1;
+      // Page 1 answers — AAPL is complete at that point — and page 2 is
+      // refused.
+      return served === 1
+        ? { status: 200, body: bodies[0] ?? "unreachable" }
+        : { status: 429, body: recorded("error-429-rate-limited.json") };
+    });
+
+    const results = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchManyBars(WIDE_MANY);
+
+    // **Success is per symbol; failure is per batch.** AAPL's 390 bars did
+    // arrive, and they are discarded: the pages that never came held symbols we
+    // cannot name, so reporting the failure against only some of them would be
+    // claiming we know which symbols the vendor refused. A caller retries or
+    // resumes the whole window.
+    expect([...results.values()].map((result) => result.outcome)).toEqual([
+      "rate-limited",
+      "rate-limited",
+      "rate-limited",
+    ]);
+  });
+
+  it("reports a timeout against every symbol rather than a partial answer", async () => {
+    const harness = await serve(async () => {
+      await neverAnswers();
+      return { status: 200, body: "" };
+    });
+
+    const results = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchManyBars(WIDE_MANY, { deadlineMs: 60 });
+
+    expect([...results.values()].map((result) => result.outcome)).toEqual([
+      "timeout",
+      "timeout",
+      "timeout",
+    ]);
+  });
+
+  it("costs no request at all when the whole window is withheld", async () => {
+    const harness = await serve(() => ({ status: 200, body: "{}" }));
+    const now = Date.now();
+
+    const results = await createAlpacaProvider(CREDENTIAL, {
+      baseUrl: harness.origin,
+    }).fetchManyBars({
+      ...WIDE_MANY,
+      range: toTimeRange(new Date(now - 60_000), new Date(now)),
+    });
+
+    // Nothing the vendor could answer, so asking is a metered request
+    // guaranteed to be refused — for every symbol at once. Story 2.8's backfill
+    // produces exactly this shape on a universe it is already caught up on.
+    expect(harness.requests).toHaveLength(0);
+    expect(results.size).toBe(3);
+    for (const result of results.values()) {
+      assert(result.outcome === "ok");
+      expect(result.series.bars).toHaveLength(0);
+    }
+  });
+
+  it("scales the page bound by the symbol count", async () => {
+    // A vendor that never stops handing out tokens. The bound is what stops it;
+    // the point of this test is that the bound is *bigger* for a batch — a
+    // bound left at the single-symbol figure would throw on a correct answer
+    // the moment a batch is more than one symbol wide.
+    const body = recorded("multi-1min-walk-page-1.json").replace(
+      '"next_page_token":null',
+      '"next_page_token":"keeps-going"',
+    );
+    const harness = await serve(() => ({ status: 200, body }));
+
+    await expect(
+      createAlpacaProvider(CREDENTIAL, {
+        baseUrl: harness.origin,
+      }).fetchManyBars(WIDE_MANY),
+    ).rejects.toThrow(/next_page_token after/);
+
+    // 32 days of wall clock is ~46,080 possible minute bars per symbol, so
+    // three symbols is ~138,240 — about 14 pages at the 10,000-bar ceiling,
+    // against the ~6 a single symbol would get. Asserted as a band rather than
+    // an exact figure, because the derivation is the claim and not the integer.
+    expect(harness.requests.length).toBeGreaterThan(7);
+    expect(harness.requests.length).toBeLessThanOrEqual(20);
   });
 });
