@@ -45,7 +45,21 @@ The three shapes, and the story's own file says the middle one is probably right
 > ticker pattern. It is **not** a per-symbol lookup, so _"a second request per symbol against a
 > metered plan"_ — the stated cost of the first shape below — **is wrong by four orders of
 > magnitude**. One request covers the entire universe, and Task 2.7.1 separately measured that
-> the rate limit is **per request rather than per symbol**, so it costs 1 of 201 per window.
+> the rate limit is **per request rather than per symbol**, so it costs ~~1 of 201 per window~~
+> **nothing at all against the bars budget — amended 2026-09-07 by Task 2.7.7.**
+>
+> That task settled `ALPACA.md` §6's open per-key-or-per-endpoint question while driving the
+> limit, and the answer is **per API**: with the data bucket drained to `429`, a second _data_
+> path was refused in the same window while `paper-api`'s `/v2/assets/NVDA` answered **`200` at
+> `x-ratelimit-remaining: 199`**. **The assets endpoint lives on the trading API and therefore
+> has a budget of its own**, untouched by anything this story does. Task 2.7.7 also hit it on
+> the real key incidentally, so it is confirmed reachable with this credential.
+>
+> **Read that as removing an objection rather than as an argument for adoption**, which is the
+> trap this bullet is now four deep in. This task's own text says the second-writer problem is
+> the stronger argument and that cost should not decide it; a fourth consecutive cost finding
+> on the adoption side is exactly how a decision gets taken on the wrong axis. The price is now
+> known to be **zero**, and the question is still whether `status` should have two writers.
 >
 > **And a THIRD argument arrived 2026-09-07 from Task 2.7.6, from outside this task's own
 > subject.** That task confirmed by measurement that **`unknown-symbol` is not producible from
@@ -150,7 +164,15 @@ file so a reader of Story 2.7 alone is not left thinking it was forgotten.
 - Read the assets endpoint against the real key: what it carries, what an **inactive** symbol
   looks like (Task 2.7.1 read only `status=active`, so the inactive shape is still unknown), and
   whether the identifier is genuinely stable. **Its cost is already measured** — one request for
-  all 12,881 active US equities, 1 of 201 against the per-request window
+  all 12,881 active US equities, and **free against the bars budget** — the trading API meters
+  separately (Task 2.7.7, `ALPACA.md` §6b)
+
+  **One thing not to assume: an assets client gets no retry for free.** `withRetry` is typed to
+  `MarketDataProvider`, so it wraps bar fetching and nothing else. If this endpoint is called
+  from a scheduled or deployed path rather than by a person, decide whether it needs its own
+  resilience; if it is a reporting command somebody runs, a plain failure is the right answer
+  and saying so is the decision
+
 - Check whether any of the current 101 is inactive or renamed, because that decides whether
   either mechanism has an instance to be tested against
 - Take decision 4, with the second-writer interaction argued rather than discovered
