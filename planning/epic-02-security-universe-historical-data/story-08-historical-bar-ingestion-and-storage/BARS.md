@@ -990,3 +990,52 @@ window on demand and store nothing. `PROVIDER.md` §2.4 already refuses to let a
 `SeriesProvenance` hide a disagreement, so whichever is chosen has to say which
 feed each part came from. **Story 2.9 should take this explicitly rather than
 discovering it.**
+
+### 8.14 The deployed run, and a workflow claim that was false
+
+The deployed store was filled from the runner in three dispatches. Both
+timeframes reached the depths §2 settled.
+
+| Dispatch                               | Wall clock | Result                                   |
+| -------------------------------------- | ---------: | ---------------------------------------- |
+| `1d --from 2026-06-01 --to 2026-09-04` | **4m 27s** | 35,214 rows — the rate measurement       |
+| `1d --from 2024-01-02 --to 2026-09-04` | **5m 44s** | **345,559 rows**, 672 sessions, complete |
+| `--sessions 251`                       | **5h 30m** | 39,174,100 rows, 208 of 251 sessions     |
+| `--from 2025-09-08 --to 2025-11-10`    |          — | the remaining 46 sessions                |
+
+**The deployed daily count matches the local one exactly at 345,559**, which is
+a stronger check than comparing ranges: the same 34 requests against the same
+vendor produced the same rows on two different machines into two different
+databases.
+
+**The runner is ~35× the laptop and the arithmetic that matters is transactions
+rather than rows.** 4 chunks × 518 securities is ~2,072 transactions in ~150 s —
+**13.8/s, ~72 ms each** — against ~0.4/s from Singapore. The daily backfill that
+projected to **~4.5 hours** from a laptop took **5m 44s** from the runner.
+
+**And a claim this workflow made about itself was false, found by hitting it.**
+`backfill.yml` said its `timeout-minutes` guard "stops first, so a run that runs
+out of time ends with a readable ledger state … rather than a red X and
+nothing". It does not. **`timeout-minutes` expiry CANCELS the job**, and a
+cancelled job does not let `if: always()` steps finish: both summary steps
+started at `17:05:32Z` and were dead by `17:05:33Z`. The run did five and a half
+hours of correct work and reported none of it.
+
+The fix is a **signal** rather than a job cancellation, which is the shape
+`deploy.yml`'s `timeout 120 pnpm migrate` already had:
+`timeout --signal=INT --kill-after=300 17400 pnpm backfill …`.
+`run-backfill.mjs` handles `SIGINT` as a graceful stop — it finishes the request
+in flight, writes its ledger row, prints the summary and exits **0**, because
+`summarise` treats `interrupted` as a run that did exactly what it was asked and
+simply did less of it. So the deadline now ends in a green job with a report and
+a resume point, and `timeout-minutes` is a backstop rather than the mechanism.
+
+**The general form, which is this repository's own rule arriving somewhere
+new:** a guard whose failure branch has never been executed is a guess. Task
+1.11.7 found `deploy.yml`'s revision-wait deadline wrong the same way — right
+pattern, wrong number, discovered only by running the failure branch.
+
+**One operational note.** The `developer-laptop` firewall rule moved for the
+**eighth** time overnight (`122.11.246.132` → `58.182.90.91`), and the symptom
+from `psql` is `Connection refused` rather than the timeout the pool reports.
+The runner is immune, which is one more argument for where the backfill lives.
