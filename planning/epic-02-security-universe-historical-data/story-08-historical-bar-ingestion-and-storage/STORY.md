@@ -77,7 +77,7 @@ is listed here only so it is not forgotten alongside it.
 - The `market_bars` table: its key, its indexes, and its unique constraint. The key
   decision is what makes a bar the same bar — symbol, timeframe and timestamp — because
   that is what makes re-running a backfill idempotent instead of duplicating a year
-- **The sizing arithmetic, done before the table is created.** Roughly: ~100 securities ×
+- **The sizing arithmetic, done before the table is created.** Roughly (at the ~100 securities this was written against; it is 518 since Task 2.8.2, so multiply by ~5 and see `BARS.md` §4): ~100 securities ×
   390 minute-bars per session × ~252 sessions is ~10M rows per year of minute data, against
   the free offer's 32 GB of storage — comfortable, but only if the row is narrow and the
   indexes are chosen rather than accumulated. Daily bars are ~25k rows a year and are
@@ -219,6 +219,14 @@ is listed here only so it is not forgotten alongside it.
 5. **The universe, re-curated once before the first backfill** (added 2026-09-06, from
    Story 2.3's close). Two questions, and they are one editing session on
    `apps/backend/src/universe.ts`:
+
+   > **SETTLED 2026-09-08 by Task 2.8.2: the universe is the S&P 500 plus the fifteen
+   > proxies — 518 securities — and `industry` is the GICS industry group (25 labels).
+   > `UNIVERSE.md` §16 is the record. The two questions below turned out to be ONE: defining
+   > the universe as the index dissolves §5's objection to deriving classification from it,
+   > because coverage becomes 100% by construction. Everything after this point in the story
+   > that quotes 101, 86 equities, 45 industries, ~1,004 requests or ~1.2 GB is 101's figure;
+   > the amendments in Tasks 2.8.3 and 2.8.5–2.8.9 carry the re-taken ones.**
    - **The size.** `UNIVERSE.md` §10 parks 101 as provisional on Story 2.7's measurement of
      Alpaca's channel cap, with **this story** as the deadline. Both branches are written
      out there.
@@ -370,7 +378,7 @@ for **1 year**.
 each in one window against the same ceiling as 201 single-symbol requests, i.e. ~10,150
 symbol-fetches per minute.
 
-**So the whole 101-security universe is ONE request per bar-window.** Batch aggressively. The
+**So the whole universe is ONE request per bar-window** — measured at 518 symbols in a 3,209-character query string, HTTP 200 (Task 2.8.5's amendment). Batch aggressively. The
 real bounds are the **10,000-row `limit` ceiling** and pagination, and the 429 carries **no
 `Retry-After`**, so pacing uses our own schedule.
 
@@ -413,7 +421,7 @@ already occurred.)
 ### And open decision 5's first half is unblocked
 
 `UNIVERSE.md` §10's cap trigger fired in the **bars-are-exempt** direction: minute-bar
-subscriptions accepted **5,000 symbols** on the free plan. **101 is nowhere near a cap and
+subscriptions accepted **5,000 symbols** on the free plan. **518 is nowhere near a cap and
 neither is 1,500**, so the size question is now a curation question rather than a feed one —
 which is what §10 always said the harder limit was. The taxonomy half was never blocked.
 
@@ -535,7 +543,7 @@ next deploy's `pnpm universe`, reported as an ordinary `1 updated`.
 Tickers are reused: **229** in the current catalogue carry both an active and an inactive row,
 and `FB` today is an active ProShares ETF rather than Meta. The loader keys on `symbol`, so a
 recycled ticker added to `universe.ts` would flip a **different** company's row back to
-`active` on its old id and land two companies' bars on one row. **Zero of the 101 are affected
+`active` on its old id and land two companies' bars on one row. **Zero of the 518 are affected
 today** and `pnpm universe:check` reports it — but the report is only run by a person, so a
 backfill assuming `security_id` means one company forever is assuming something nothing
 enforces.

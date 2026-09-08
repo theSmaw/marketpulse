@@ -161,3 +161,34 @@ they do not happen.
 **And the second run is the one that proves the first.** A backfill that completes is evidence
 of very little; a backfill that completes, is re-run, and writes nothing is evidence of the
 property this whole story is built on.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.2 — the figures to expect are 518's, not 101's
+
+| Reading                   | As written (101) |   Expect (518) |
+| ------------------------- | ---------------: | -------------: |
+| Minute rows, one year     |            9.84M |      **50.5M** |
+| Pages at `limit=10000`    |             ~985 |     **~5,051** |
+| Rate-limit floor          |          ~20 min |    **~26 min** |
+| **Sequential wall clock** |          ~43 min | **~3.6 hours** |
+| Heap at ~120 B/row        |          ~1.2 GB |    **~6.1 GB** |
+| Years to read-only        |           ~19–20 |       **~3.8** |
+| Daily rows                |           ~25.4k |      **~130k** |
+
+**"Expect tens of minutes rather than hours" is now wrong unless the backfill is
+concurrent** — see Task 2.8.6's amendment, which measures a page at 1,050,183 bytes and
+2.52–2.65 s from a laptop and leaves the concurrency decision to this task's evidence. Record
+**both** numbers: the rate-limit floor and the wall clock, because the gap between them is the
+whole of the concurrency question.
+
+**Two of this story's deferred decisions get materially sharper here and should be re-read
+rather than re-confirmed out of habit:**
+
+- **TimescaleDB** (open decision 2) was declined with _"Task 2.8.8's `EXPLAIN` against the
+  real row count"_ as the trigger. That row count is now **50.5M rather than 9.84M**, so the
+  trigger is five times more likely to fire than when it was written.
+- **Retention** (open decision 1) is _"nothing is deleted, with disk pressure as the
+  trigger"_, which was safe against ~20 years of headroom. At **~3.8 years** — and **~1.6**
+  if any request is span-shaped rather than session-shaped — the `psql-storage-80pct` alert
+  Story 2.1 created stops being theoretical within the life of this project.

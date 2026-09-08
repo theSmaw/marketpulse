@@ -194,21 +194,26 @@ laptop connects as the Entra administrator, which is a **third** principal writi
 > them is the live case. **The `500` row is now the real one.** The figures at 518, computed
 > the same way:
 >
-> | Reading                               |     101 |     **518** |
-> | ------------------------------------- | ------: | ----------: |
-> | Minute rows / year                    |    9.8M |   **50.5M** |
-> | Daily rows / year                     |  ~25.4k |    **130k** |
-> | Minute GB / year at ~120 B/row (heap) |    ~1.2 |    **~6.1** |
-> | Years to read-only on ~22.5 GiB       |  ~19–20 |    **~3.8** |
-> | Pages / year at `limit=10000`         |  ~1,004 |  **~5,051** |
-> | Request time at the measured 3.23/s   | ~20 min | **~26 min** |
-> | Rows per session, whole universe      |  39,390 | **202,020** |
-> | Pages per session                     |       4 |      **21** |
+> | Reading                               |         101 |     **518** |
+> | ------------------------------------- | ----------: | ----------: |
+> | Minute rows / year                    |        9.8M |   **50.5M** |
+> | Daily rows / year                     |      ~25.4k |    **130k** |
+> | Minute GB / year at ~120 B/row (heap) |        ~1.2 |    **~6.1** |
+> | Years to read-only on ~22.5 GiB       |      ~19–20 |    **~3.8** |
+> | Pages / year at `limit=10000`         |      ~1,004 |  **~5,051** |
+> | Rate-limit FLOOR at 3.23/s            |     ~20 min | **~26 min** |
+> | **Sequential wall clock @2.6 s/page** | **~43 min** |  **~3.6 h** |
+> | Rows per session, whole universe      |      39,390 | **202,020** |
+> | Pages per session                     |           4 |      **21** |
 >
 > Two things that change in kind rather than in degree. **The pages-per-year figure is now
-> ~5,051 and the request time is only ~26 minutes**, because Task 2.8.5's multi-symbol fetch
-> makes the cost a function of _rows_ rather than of securities — a five-fold universe is a
-> five-fold row count and a 1.3× wall clock against the per-symbol loop it replaced. And
+> ~5,051**, because Task 2.8.5's multi-symbol fetch makes the cost a function of _rows_ rather
+> than of securities. **But ~26 minutes is the rate-limit FLOOR rather than the wall clock, and
+> the first version of this amendment said otherwise — corrected the same day.** `5,051 ÷
+3.23/s` needs ~8 requests in flight; measured sequentially a page is **1,050,183 bytes and
+> 2.52–2.65 s** from a laptop (n=3), which is the machine open decision 4 puts the backfill on,
+> so a sequential year is **~3.6 hours**. At 101 that gap was 5 min against 43 and needed no
+> decision; at 518 it is 26 min against 3.6 hours, and Task 2.8.6 now owes one. And
 > **the session-shaped-request condition below stops being an optimisation and becomes
 > load-bearing**: a span-shaped backfill stores ~2.35× the rows, which is **~14.2 GB/year**
 > and **~1.6 years** to read-only rather than ~3.8. At 101 that was a number; at 518 it is
