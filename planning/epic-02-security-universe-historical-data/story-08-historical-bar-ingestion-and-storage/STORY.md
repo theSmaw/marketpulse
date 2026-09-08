@@ -325,9 +325,13 @@ A liquid name yields **exactly 390** bars for a regular session and a half day *
 both matching the shipped calendar — so `minuteBars` **is** a usable completeness target, which
 is the opposite of what `PROVIDER.md` §6.4 expected.
 
-**But do not encode a threshold until Task 2.7.4 settles the feed question**, because an absent
-bar is _ordinary_ on IEX and _notable_ on SIP, and criterion 4 is the difference between those
-two sentences.
+~~**But do not encode a threshold until Task 2.7.4 settles the feed question**~~ — **that
+instruction is SPENT: Task 2.7.4 settled it and deployed it on 2026-09-07.** The client sends
+`feed=sip` explicitly, `MarketDataProvider.feed` declares `sip`, and the deployed chrome reads
+`ALL US EXCHANGES`. So an absent bar in anything this story stores is **notable** rather than
+ordinary, and the threshold can be encoded against `minuteBars`. (Leaving the instruction
+standing would have been the `CALENDAR.md` §2.4 shape — an instruction whose condition has
+already occurred.)
 
 ### And open decision 5's first half is unblocked
 
@@ -335,3 +339,139 @@ two sentences.
 subscriptions accepted **5,000 symbols** on the free plan. **101 is nowhere near a cap and
 neither is 1,500**, so the size question is now a curation question rather than a feed one —
 which is what §10 always said the harder limit was. The taxonomy half was never blocked.
+
+---
+
+## Amended 2026-09-08 — what Task 2.7.9 hands over at Story 2.7's close
+
+The four sections above were written from Task 2.7.1's first day of measurement. Five more
+tasks measured things that land inside this story, and three of them change a design here.
+The full record is [`ALPACA.md`](../story-07-alpaca-historical-data-integration/ALPACA.md);
+`docs/adr/0019-*` is the decision record and carries a _What Story 2.8 inherits_ section.
+
+### The two request traps above are THREE, and there is a fourth about window SHAPE
+
+**A third trap, produced rather than reasoned about** (Task 2.7.3): **a daily bar is stamped
+at midnight ET**, hours before the session opens. So a `1Day` request framed on
+`[open, close)` — the obviously correct window for minute bars — contains **no daily bar at
+all** and returns a perfectly well-formed empty answer. `pnpm bars NVDA 1d` printed _"no
+bars"_ until `fetch-bars.ts` gave the two timeframes different windows. **This story builds
+windows for both timeframes and will meet it.**
+
+**And the fourth is not covered by trap 2, which is the part most likely to be missed.** Trap
+2 is about _bare-date_ ranges; Task 2.7.5 measured that a multi-day span leaks extended-hours
+bars **with explicit instants too**, at **~2.35×**:
+
+| Range       | Sessions | Pages |   Bars | Regular-hours |     Ratio |
+| ----------- | -------: | ----: | -----: | ------------: | --------: |
+| one session |        1 |     1 |    390 |           390 | **1.00×** |
+| 25 sessions |       25 |     3 | 22,952 |         9,750 | **2.35×** |
+| 47 sessions |       47 |     5 | 43,515 |        18,330 | **2.37×** |
+
+`[first.open, last.close)` spans the nights between, and SIP serves pre- and post-market
+prints across them — **57.5% of a month's bars are extended hours.** The regular-hours column
+is `minuteBars` summed over the sessions and the walk matched it **exactly**, so the calendar
+is right and the window shape is what differs.
+
+**A reader who fixes trap 2 by sending instants has not fixed this. The answer is to request
+per SESSION**, `[open, close)` per day, measured at exactly 1.00×.
+
+**Consequence for storage sizing**: `UNIVERSE.md`'s **~1.18 GB/year** assumes 390 bars a
+session and is therefore **conditional on per-session requests**. A span-shaped backfill
+stores **~2.8 GB/year**. The recorded figure is right for the design this story should adopt
+and wrong for the one it might drift into.
+
+### The naïve backfill is the REFUSED shape
+
+_"From the last bar I stored, to now"_ is a flat **`403`** carrying
+`{"message": "subscription does not permit querying recent SIP data"}`, and this story's file
+did not know that. Three properties, each measured (`ALPACA.md` §7b):
+
+1. **The refusal keys on `end` ALONE** — a `start` 60 minutes ago with an `end` 30 minutes ago
+   is `200`.
+2. **It refuses the WHOLE request rather than answering partially.** Friday's open to now —
+   6½ hours of available data plus ~15 minutes that is not — returns **nothing**.
+3. **It applies to daily too**, and **not** to `feed=iex`, so it is a SIP entitlement
+   restriction rather than a general recency rule. Epic 3's live stream is unaffected.
+
+`alpacaServableEnd` clamps `end` to `now − 16 min` and reports the clamp as
+`coverage.covered`, which is what `SeriesCoverage` exists for. **So the resume point is a
+design constraint rather than a courtesy: a backfill that bookmarks `requested.end` rather
+than `covered.end` either re-fetches or leaves a permanent 16-minute hole.**
+
+### Pacing is this story's, and there is now a measurement rather than an assertion
+
+`PROVIDER.md` §8.8 says pacing is Story 2.8's. Task 2.7.7 measured why, and it is the
+strongest evidence in this repository for that line.
+
+**The limiter is a token bucket refilling at ~3.23/s, not a punished sixty-second window** —
+so one `429` costs one request rather than a minute, and a backoff has to outlast a token
+(~310 ms). **The budget is per API rather than per key or per path**: a second `data` endpoint
+competes for the same tokens, while the **trading** API sits on its own budget (which is why
+`pnpm universe:check`'s asset lookups cost this story's bar fetching nothing).
+
+And 320 concurrent calls through the shipped retry wrapper:
+
+| Burst of 320                |    `ok` | HTTP requests |
+| --------------------------- | ------: | ------------: |
+| bare provider (the control) |      91 |       **320** |
+| through the wrapper, 3 s    | **206** |       **606** |
+| through the wrapper, 20 s   | **263** |     **1,473** |
+
+**Retry helps one caller and does not help a crowd.** The return diminishes while the cost
+does not — 2.5 extra requests per extra answer, then 15 — and at the 20-second deadline the
+wrapper sustained **73 req/s against a 3.23/s refill** and still left 57 calls refused. A
+hundred concurrent retriers do not recover from a rate limit; they compete for the same
+refill. **What fixes it is asking less often**, which this story gets cheaply because the
+limit is per **request** rather than per symbol.
+
+**And what a retry re-spends: a retried symbol costs its page count again.** The wrapper
+composes around the interface, so a retry re-runs the walk from page 1 — accepted
+deliberately, because a resumed walk needs a resume point Task 2.7.5 refused to expose. A
+hundred symbols retried once is a hundred times the page count, not a hundred requests.
+
+**A paginated caller must pass its own `deadlineMs`.** A 5-page walk is **72% of
+`DEFAULT_BARS_DEADLINE_MS` (3,000 ms)**, and that default was derived for a _single_ request
+against the browser's 5-second budget. One that does not gets a `timeout`, which is at least
+loud.
+
+### Two members of `BarsResult` are not producible, and this story may be able to produce one
+
+`unknown-symbol` and `range-not-available` are both **unproducible from the bars endpoint**
+and are named as such rather than left looking implemented — an unknown symbol answers `200`
+with an empty `bars` object, byte-identical to a real symbol with no prints in range. This
+story is the first thing that could tell them apart, because it knows which symbols are in
+the universe.
+
+### This story is the named owner of a future `delisted`, on a new argument
+
+Task 2.7.8 declined the member and **moved the ownership here rather than deferring it**.
+`status` gained **no** second writer, deliberately. What this story inherits is the signal:
+**bars stopping is better correlated with reality than the vendor's flag** — 100% against 92%
+on a 50/50 sample — costs no request, and arrives as a consequence of ingestion this story is
+doing anyway. If it adopts the member, `UNIVERSE.md` §15.3's **produced** overwrite is the
+thing it has to solve first: a `status` written by anything else is silently reverted by the
+next deploy's `pnpm universe`, reported as an ordinary `1 updated`.
+
+### The recycled-ticker hazard is this story's, because it files bars against `security_id`
+
+Tickers are reused: **229** in the current catalogue carry both an active and an inactive row,
+and `FB` today is an active ProShares ETF rather than Meta. The loader keys on `symbol`, so a
+recycled ticker added to `universe.ts` would flip a **different** company's row back to
+`active` on its old id and land two companies' bars on one row. **Zero of the 101 are affected
+today** and `pnpm universe:check` reports it — but the report is only run by a person, so a
+backfill assuming `security_id` means one company forever is assuming something nothing
+enforces.
+
+Related and settled: **a ticker rename orphans the old bars**, and that ships as a written
+decision rather than a mechanism, because the premise it rested on was falsified — Alpaca's
+asset id does **not** survive a rename, six for six. The recommendation if the trigger fires
+is a **rename map in the curated file**, and **the deadline is this story**, because after it
+backfills a rename costs a re-backfill.
+
+### And the universe sizing is unblocked rather than parked
+
+`UNIVERSE.md` §10's trigger fired in the bars-are-exempt direction. The sizing was
+deliberately **not** re-taken in Story 2.7, because §5's metadata source has to be settled
+first — that is this story's re-curation. **Re-sizing after this story backfills costs a
+re-backfill rather than a file edit**, which §10 names as the real deadline on the decision.

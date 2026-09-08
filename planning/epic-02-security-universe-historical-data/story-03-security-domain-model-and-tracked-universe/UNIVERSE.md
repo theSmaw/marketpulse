@@ -1081,11 +1081,21 @@ and no limit anywhere.** `UNIVERSE.length` is still the only way to learn the co
 **Two costs are real and neither is in this repository.**
 
 **Storage**, derived rather than quoted: ~390 minutes × 252 trading days = **98,280 bars
-per security per year**, at Story 2.1's assumed ~120 bytes per row = **~11.8 MB per
-security per year** — 1.18 GB/year at 100, **5.9 GB/year at 500**. Against Story 2.1's
-measured **~22.5 GiB usable** (27.46 GiB free on an empty disk, read-only below 5 GiB),
-that is **~20 years of headroom at 100 and ~4 at 500**. Expansion costs a factor of five
-against a figure already taken, and the disk is resizable upward.
+per security per year** (**assuming per-session requests — see the note below**), at Story 2.1's assumed ~120 bytes per row = **~11.8 MB per
+security per year** — 1.18 GB/year at 100, **5.9 GB/year at 500**.
+
+> **Conditional since 2026-09-08 (Task 2.7.9), and the condition is a request SHAPE rather
+> than a date.** This figure assumes **390 bars a session**, which is exactly what Alpaca
+> returns for a **per-session** request — measured at 1.00×. A **span-shaped** request
+> (`[first.open, last.close)` over many days) also collects extended-hours prints across the
+> nights between, at **~2.35×**, giving **~2.8 GB/year**. So the number is right for the
+> backfill design Story 2.8 should adopt and wrong for the one it might drift into. It is
+> **not** restated upward, because inflating it would misprice the correct design; it is
+> restated **with its condition attached**. `ALPACA.md` §7c.
+> Against Story 2.1's
+> measured **~22.5 GiB usable** (27.46 GiB free on an empty disk, read-only below 5 GiB),
+> that is **~20 years of headroom at 100 and ~4 at 500**. Expansion costs a factor of five
+> against a figure already taken, and the disk is resizable upward.
 
 **The feed is what actually binds, and it binds well below 500.** §10 parked the sizing on
 one unmeasured fact Story 2.7 owns — whether minute-bar subscriptions are exempt from

@@ -194,7 +194,7 @@ step is a 2× jump to 64 GiB at $7.36/month that cannot be undone.
 **Usable capacity is ~22.5 GiB, not the 32 provisioned**, and not the ~27 Task
 2.1.1 predicted: read-only mode triggers under 5 GiB free, and an _empty_ server
 already reports `storage_used` of **3.740 GiB** of filesystem overhead. Against
-Story 2.8's ~1.18 GB/year of minute bars at an assumed ~120 bytes/row that is
+Story 2.8's ~1.18 GB/year of minute bars — conditional on per-session requests, per ADR 0019 — at an assumed ~120 bytes/row that is
 ~20 years of headroom, or ~4 at five times the estimate — **a prediction for
 Story 2.8 to measure rather than a substitute for measuring**.
 

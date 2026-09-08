@@ -641,7 +641,7 @@ Assume the narrowest reasonable row — `security_id int4`, `ts timestamptz`, fo
 | One btree index on `(security_id, ts)`, at the default fill factor | ~27           |
 | **Assumed total, rounded up for bloat and alignment slack**        | **~120**      |
 
-- **A year of minute bars is ~1.18 GB.** A year of daily bars is ~3 MB and is, as Story 2.8 says, effectively free.
+- **A year of minute bars is ~1.18 GB**, conditional on **per-session** requests — a span-shaped one is ~2.8 GB/year (Task 2.7.9; `ALPACA.md` §7c). A year of daily bars is ~3 MB and is, as Story 2.8 says, effectively free.
 - Against ~~~27 GiB~~ **~22.5 GiB** usable that is roughly ~~**24 years**~~ **~20 years** of minute history for 100 securities — or ~~**~5 years**~~ **~4 years if this estimate is wrong by a factor of five**, which is the number worth remembering, because it is the one that still says "comfortable". (Re-taken by Task 2.1.5 against the created server; the conclusion is unchanged and the arithmetic was ~17% optimistic.)
 - **Two things this estimate deliberately does not include**, both of which Story 2.8 must add: WAL, which shares the same volume and which a bulk backfill generates in quantity, and any index beyond the primary key. Story 2.8's instruction to "do this arithmetic with real row sizes measured after loading a sample, not estimated" stands unchanged — **this is the prediction that measurement checks**, not a replacement for it.
 
