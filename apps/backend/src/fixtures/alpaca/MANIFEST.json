@@ -160,5 +160,47 @@
         "note": "1990, far before this plans history depth. 200 and empty, so `range-not-available` is not producible by this route either."
       }
     ]
+  },
+  "multiSymbolWalk": {
+    "recordedBy": "Task 2.8.5",
+    "recordedAt": "2026-09-08T14:50:00.000Z",
+    "host": "https://data.alpaca.markets",
+    "note": "Three symbols, ONE regular session (2026-09-03), limit=500, walked to exhaustion. This is the corpus for the trap the batch exists to guard against: `limit` is a TOTAL row budget across all symbols, symbols are filled one at a time, MSFT straddles the page-1/page-2 boundary, and NVDA is ABSENT FROM PAGE 1 ENTIRELY while having a full 390-bar session. A walk that concluded from page 1 would report NVDA as a SUCCESSFUL empty answer. Recorded at limit=500 rather than the shipped 10,000 so three pages fit in kilobytes — which means these bodies are only replayable against a range wide enough to justify three pages at the shipped ceiling, exactly as the single-symbol walk fixtures are.",
+    "responses": [
+      {
+        "file": "multi-1min-walk-page-1.json",
+        "status": 200,
+        "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=AAPL%2CMSFT%2CNVDA&timeframe=1Min&adjustment=raw&feed=sip&sort=asc&limit=500&start=2026-09-03T13%3A30%3A00Z&end=2026-09-03T19%3A59%3A59.999Z",
+        "bars": {
+          "AAPL": 390,
+          "MSFT": 110
+        },
+        "token": "present"
+      },
+      {
+        "file": "multi-1min-walk-page-2.json",
+        "status": 200,
+        "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=AAPL%2CMSFT%2CNVDA&timeframe=1Min&adjustment=raw&feed=sip&sort=asc&limit=500&start=2026-09-03T13%3A30%3A00Z&end=2026-09-03T19%3A59%3A59.999Z&page_token=TVNGVHxNfDE3ODg0NDg4MDAwMDAwMDAwMDA%3D",
+        "bars": {
+          "MSFT": 280,
+          "NVDA": 220
+        },
+        "token": "present"
+      },
+      {
+        "file": "multi-1min-walk-page-3.json",
+        "status": 200,
+        "url": "https://data.alpaca.markets/v2/stocks/bars?symbols=AAPL%2CMSFT%2CNVDA&timeframe=1Min&adjustment=raw&feed=sip&sort=asc&limit=500&start=2026-09-03T13%3A30%3A00Z&end=2026-09-03T19%3A59%3A59.999Z&page_token=TlZEQXxNfDE3ODg0NTU0MDAwMDAwMDAwMDA%3D",
+        "bars": {
+          "NVDA": 170
+        },
+        "token": null
+      }
+    ],
+    "totals": {
+      "AAPL": 390,
+      "MSFT": 390,
+      "NVDA": 390
+    }
   }
 }

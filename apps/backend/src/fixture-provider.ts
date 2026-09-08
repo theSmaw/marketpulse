@@ -48,6 +48,7 @@ import {
   type Adjustment,
   type Bar,
   type BarSeries,
+  type Ticker,
   marketDateAt,
   marketSessionsBetween,
   type Timeframe,
@@ -71,6 +72,9 @@ import {
   type BarsRequestOptions,
   type BarsResult,
   DEFAULT_BARS_DEADLINE_MS,
+  isWholeBatchFailure,
+  type ManyBarsRequest,
+  type ManyBarsResult,
   type MarketDataProvider,
 } from "./market-data-provider.js";
 
@@ -100,6 +104,7 @@ export function createFixtureProvider(): MarketDataProvider {
     id: FIXTURE_PROVIDER_ID,
     feed: FIXTURE_FEED,
     fetchBars,
+    fetchManyBars,
   };
 }
 
@@ -169,6 +174,69 @@ async function fetchBars(
   }
 
   return { outcome: "ok", series: buildSeries(request, entry, effective) };
+}
+
+/**
+ * The batch, over the same corpus (Task 2.8.5).
+ *
+ * ## It is written as a fan-out, and that is honest rather than lazy
+ *
+ * `alpaca-provider.ts`'s batch is a genuinely different walk from its single
+ * fetch, because the vendor's pagination interleaves symbols. This provider has
+ * no pagination at all — every bar is generated on demand — so there is nothing
+ * for a batch to do differently, and a hand-written second walk here would be a
+ * second implementation of `barsIn` invented so that this file *looked* like
+ * the other one.
+ *
+ * What that costs, stated: **this provider cannot reproduce the trap the real
+ * one is written around.** A symbol absent from a page is a property of the
+ * vendor's paging, and no offline corpus produces it. So the offline tests
+ * cover the *contract* — every requested symbol present, per-symbol success,
+ * per-batch failure — and the page-straddling case is covered by replaying
+ * recorded vendor bodies against the real client, which is what
+ * `fixtures/alpaca/` exists for.
+ *
+ * ## Success is per symbol; failure is per batch — enforced here too
+ *
+ * The corpus declares faults per entry, so a batch containing one faulty symbol
+ * could report four `ok`s beside one `rate-limited`. It deliberately does not:
+ * {@link isWholeBatchFailure} classifies the outcome, and anything that is a
+ * fact about the *request* is reported against every symbol. That is what makes
+ * the fixture provider a faithful stand-in for the real one where it matters —
+ * a caller tested against a batch that fails partially would be written to
+ * handle a case the real vendor cannot produce.
+ */
+async function fetchManyBars(
+  request: ManyBarsRequest,
+  options: BarsRequestOptions = {},
+): Promise<ManyBarsResult> {
+  // The distinct requested set, decided once — `alpaca-provider.ts`'s reason.
+  const symbols = [...new Set(request.symbols)];
+
+  const results = new Map<Ticker, BarsResult>();
+  for (const symbol of symbols) {
+    // Sequential rather than concurrent, deliberately: generation is pure and
+    // cheap, and a `Promise.all` here would buy nothing while making the order
+    // in which faults are observed non-deterministic.
+    const result = await fetchBars(
+      {
+        symbol,
+        range: request.range,
+        timeframe: request.timeframe,
+        adjustment: request.adjustment,
+      },
+      options,
+    );
+
+    // The first whole-batch failure ends the batch and is reported against
+    // every symbol, including the ones already answered — because in the real
+    // client those answers would never have arrived.
+    if (isWholeBatchFailure(result)) {
+      return new Map(symbols.map((each) => [each, result]));
+    }
+    results.set(symbol, result);
+  }
+  return results;
 }
 
 /**

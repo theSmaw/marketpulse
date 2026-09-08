@@ -318,8 +318,36 @@ against the shipped 10,000-row `limit`, so one session for the whole universe is
 year is ~251 × 4 ≈ **1,004 requests**, reconciling with 9.84M rows ÷ 10,000 ≈ **985 pages**. At
 the measured ~3.23/s refill and ~1 s a page that is roughly **twenty minutes of request time**,
 against **~25,350 requests and over two hours** for the per-symbol loop. So the word _hours_ in
-this document and in the task files describes the design the batch replaces; expect **tens of
-minutes**.
+this document and in the task files describes the design the batch replaces; ~~expect **tens of
+minutes**~~.
+
+**Scoped 2026-09-08 by Task 2.8.2: every figure in that paragraph is 101's, and the last clause
+is wrong at 518.** The re-taken numbers are **202,020 rows a session, 21 pages, ~5,051 requests**
+— and twenty minutes was only ever the **rate-limit floor**, which is the wall clock only if
+enough requests are in flight to saturate the bucket. A page is 1,050,183 B and 2.52–2.65 s from
+a laptop, so a **sequential** run of the shipped universe is **~3.6 hours** against a ~26 minute
+floor. Task 2.8.6 carries the sequential-versus-concurrent decision and its recommendation.
+
+### 4c. What shipped, 2026-09-08
+
+The three-symbol walk above was **re-recorded through the shipped client and reproduced to the
+bar**, and the fixtures are `fixtures/alpaca/multi-1min-walk-page-{1,2,3}.json`. Four things a
+later reader needs that the measurement above does not carry:
+
+- **`fetchManyBars` is a required member of `MarketDataProvider`**, so a provider cannot ship
+  half the interface — adding it took three test stubs red with `TS2741`.
+- **`ManyBarsResult` is `ReadonlyMap<Ticker, BarsResult>`, with no new union member.** Every
+  requested symbol appears; a missing key is a bug.
+- **`isWholeBatchFailure` is the asymmetry as code** — success per symbol, failure per batch —
+  which takes a ninth `BarsResult` member's obligations from three to four. Only `ok`,
+  `unknown-symbol` and `range-not-available` stay with one symbol.
+- **No chunking exists and none should be built.** 518 symbols in one request is measured, and
+  `toAlpacaManyQuery` says so beside the code, because a guard there would be a limit we invented
+  in front of one the vendor does not have.
+
+Live, against a real key: three symbols over one regular session returned **390 bars each** —
+the calendar's own `minuteBars` — in **1,124 ms and one request**, because at `limit=10000` a
+session of that size fits in one page.
 
 ---
 

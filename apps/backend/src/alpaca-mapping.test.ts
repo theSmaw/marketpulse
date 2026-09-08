@@ -49,8 +49,11 @@ import {
   toAlpacaQuery,
   toBarSeriesFromAlpacaBars,
   toBarsFromAlpacaPage,
+  singleRequestFor,
+  toAlpacaManyQuery,
+  toBarsBySymbolFromAlpacaPage,
 } from "./alpaca-mapping.js";
-import type { BarsRequest } from "./market-data-provider.js";
+import type { BarsRequest, ManyBarsRequest } from "./market-data-provider.js";
 
 /**
  * The recorded bodies, read from `src/` at run time rather than `import`ed.
@@ -713,5 +716,97 @@ describe("parseRetryAfterMs", () => {
     // instruction, so silence is safe and a guess is not.
     expect(parseRetryAfterMs("soon", NOW)).toBeUndefined();
     expect(parseRetryAfterMs("-5", NOW)).toBeUndefined();
+  });
+});
+
+describe("toAlpacaManyQuery", () => {
+  const MANY: ManyBarsRequest = {
+    symbols: [toTicker("AAPL"), toTicker("MSFT"), toTicker("NVDA")],
+    range: toTimeRange(
+      new Date("2026-09-03T13:30:00Z"),
+      new Date("2026-09-03T20:00:00Z"),
+    ),
+    timeframe: "1m",
+    adjustment: "raw",
+  };
+
+  it("joins the symbols and changes nothing else", () => {
+    const many = toAlpacaManyQuery(MANY);
+    const single = toAlpacaQuery({
+      symbol: toTicker("AAPL"),
+      range: MANY.range,
+      timeframe: MANY.timeframe,
+      adjustment: MANY.adjustment,
+    });
+
+    // One comma-separated parameter is the whole outbound half of the batch —
+    // this vendor's endpoint has always been plural and the single-symbol form
+    // is the degenerate case of it. Asserting the rest is IDENTICAL is what
+    // stops the two forms drifting apart on `sort` or `limit`, which no test of
+    // either one alone could see.
+    expect(many.symbols).toBe("AAPL,MSFT,NVDA");
+    expect({ ...many, symbols: "" }).toEqual({ ...single, symbols: "" });
+  });
+
+  it("clamps the end and carries a page token exactly as the single form does", () => {
+    const withToken = toAlpacaManyQuery(MANY, {
+      end: new Date("2026-09-03T18:00:00Z"),
+      pageToken: "T2",
+    });
+
+    expect(withToken.page_token).toBe("T2");
+    // Half-open to inclusive, still minus one millisecond.
+    expect(withToken.end).toBe("2026-09-03T17:59:59.999Z");
+  });
+
+  it("omits the token on a first page rather than sending undefined", () => {
+    expect("page_token" in toAlpacaManyQuery(MANY)).toBe(false);
+  });
+});
+
+describe("toBarsBySymbolFromAlpacaPage", () => {
+  it("reports what the page contained and says nothing about what it did not", () => {
+    const page = parseAlpacaBarsBody({
+      bars: {
+        AAPL: [{ t: "2026-09-03T13:30:00Z", o: 1, h: 2, l: 1, c: 1.5, v: 10 }],
+      },
+      next_page_token: "more",
+    });
+
+    const bySymbol = toBarsBySymbolFromAlpacaPage(page);
+
+    // **The whole difference from the single-symbol form.** That one asks for
+    // one key and reads `[]` when it is absent, which is correct there. Here it
+    // is not: a symbol absent from a page may have a full session on the next
+    // one, so this function reports only what arrived and structurally cannot
+    // fill in an empty array for a symbol that was asked for. The conclusion
+    // belongs after exhaustion and nowhere else.
+    expect([...bySymbol.keys()]).toEqual(["AAPL"]);
+    expect(bySymbol.get("MSFT")).toBeUndefined();
+  });
+});
+
+describe("singleRequestFor", () => {
+  it("is one symbol's slice of a batch, with the window untouched", () => {
+    const many: ManyBarsRequest = {
+      symbols: [toTicker("AAPL"), toTicker("MSFT")],
+      range: toTimeRange(
+        new Date("2026-09-03T13:30:00Z"),
+        new Date("2026-09-03T20:00:00Z"),
+      ),
+      timeframe: "1d",
+      adjustment: "split-adjusted",
+    };
+
+    // This is what lets a batch reuse the single-symbol series builder verbatim
+    // — and reusing it is not tidiness: `covered`, the withheld-window clamp
+    // and the `barCount` cross-check each have an argument attached, and a
+    // batch-specific copy would be a second place each is decided.
+    expect(singleRequestFor(many, toTicker("MSFT"))).toEqual({
+      symbol: "MSFT",
+      range: many.range,
+      timeframe: "1d",
+      adjustment: "split-adjusted",
+    });
   });
 });

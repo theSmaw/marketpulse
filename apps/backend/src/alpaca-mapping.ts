@@ -37,6 +37,7 @@ import {
   type BarSource,
   type MarketFeed,
   type ProviderId,
+  type Ticker,
   type Timeframe,
   type TimeRange,
   toBarSeries,
@@ -44,7 +45,11 @@ import {
   toSeriesProvenance,
 } from "@marketpulse/shared";
 
-import type { BarsRequest, BarsResult } from "./market-data-provider.js";
+import type {
+  BarsRequest,
+  BarsResult,
+  ManyBarsRequest,
+} from "./market-data-provider.js";
 
 /**
  * Who this is, and which venues are in the numbers — **once**, because both are
@@ -237,8 +242,55 @@ export function toAlpacaQuery(
     end: request.range.end,
   },
 ): Record<string, string> {
+  return alpacaQuery(request.symbol, request, options);
+}
+
+/**
+ * The same, for a batch (Task 2.8.5) — **one comma-separated `symbols`
+ * parameter and nothing else different.**
+ *
+ * That is the whole outbound half of the batch: this vendor's endpoint has
+ * always been plural, and the single-symbol form is the degenerate case of it.
+ * The interesting half is entirely inbound, in
+ * {@link toBarsBySymbolFromAlpacaPage} and in the walk that calls it.
+ *
+ * **No chunking and no length guard**, measured rather than assumed: all 518
+ * tracked securities in one request is a 3,209-character encoded query string
+ * answered `200` (`BARS.md`, Task 2.8.2). A guard here would be a limit we
+ * invented sitting in front of one the vendor does not have.
+ *
+ * Duplicates are not collapsed here, because the vendor tolerates them and the
+ * caller has already keyed its accumulator by symbol — collapsing would be a
+ * second place the symbol set is decided.
+ */
+export function toAlpacaManyQuery(
+  request: ManyBarsRequest,
+  options: { readonly end: Date; readonly pageToken?: string } = {
+    end: request.range.end,
+  },
+): Record<string, string> {
+  return alpacaQuery(request.symbols.join(","), request, options);
+}
+
+/**
+ * Everything both forms share, written once.
+ *
+ * `symbols` is the only parameter that differs between a single fetch and a
+ * batch, so it is the only one passed separately — and writing the other seven
+ * twice is how the two forms come to disagree about `sort` or `limit`, which
+ * would be a difference nothing in a test of either one could see.
+ */
+function alpacaQuery(
+  symbols: string,
+  request: {
+    readonly range: TimeRange;
+    readonly timeframe: Timeframe;
+    readonly adjustment: Adjustment;
+  },
+  options: { readonly end: Date; readonly pageToken?: string },
+): Record<string, string> {
   return {
-    symbols: request.symbol,
+    symbols,
     timeframe: ALPACA_TIMEFRAMES[request.timeframe],
     adjustment: ALPACA_ADJUSTMENTS[request.adjustment],
     feed: ALPACA_FEED,
@@ -523,6 +575,60 @@ export function toBarsFromAlpacaPage(
   // §8.2), and `unknown-symbol` is not producible from this endpoint at all —
   // which is Task 2.7.8's assets-endpoint decision, not a gap here.
   return (parsed.bars[symbol] ?? []).map(toBar);
+}
+
+/**
+ * Every symbol a page touched, as bars (Task 2.8.5).
+ *
+ * **The plural counterpart of {@link toBarsFromAlpacaPage}, and the difference
+ * between them is the whole hazard this task exists for.** The single-symbol
+ * form asks the page for one key and reads `[]` when it is absent, which is
+ * correct there because the walk is for one symbol and an absent key on the
+ * *last* page means the same as an absent key on the only page. In a batch it
+ * does not: a symbol absent from a page may have a full session of data on the
+ * next one.
+ *
+ * So this function reports **what the page actually contained** and nothing
+ * about what it did not. It takes no symbol list and deliberately cannot
+ * "helpfully" fill in an empty array for a symbol that was asked for and did
+ * not appear — that conclusion belongs after the walk is exhausted and nowhere
+ * else, and a function shaped so it could draw it here is a function somebody
+ * will call from inside the loop.
+ *
+ * Keys are returned as the vendor spelled them, unvalidated: mapping them onto
+ * the requested `Ticker`s is the caller's, because that is where the requested
+ * set is known.
+ */
+export function toBarsBySymbolFromAlpacaPage(
+  parsed: AlpacaBarsBody,
+): ReadonlyMap<string, readonly Bar[]> {
+  return new Map(
+    Object.entries(parsed.bars).map(([symbol, bars]) => [
+      symbol,
+      bars.map(toBar),
+    ]),
+  );
+}
+
+/**
+ * One symbol's slice of a batch request, as the single-symbol question.
+ *
+ * This is what lets a batch reuse {@link toBarSeriesFromAlpacaBars} verbatim
+ * rather than growing a second series builder — and reusing it is not tidiness:
+ * `covered`, the withheld-window clamp and the `barCount` cross-check are all
+ * decisions with arguments attached, and a batch-specific copy would be a
+ * second place each of them is made.
+ */
+export function singleRequestFor(
+  request: ManyBarsRequest,
+  symbol: Ticker,
+): BarsRequest {
+  return {
+    symbol,
+    range: request.range,
+    timeframe: request.timeframe,
+    adjustment: request.adjustment,
+  };
 }
 
 /**
