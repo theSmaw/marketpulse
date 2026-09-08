@@ -1,6 +1,6 @@
 # Task 2.8.4 — The write path, and the ledger that answers "what do I have"
 
-**Status:** Not started
+**Status:** Complete (2026-09-08)
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
 **Depends on:** Task 2.8.3
 
@@ -165,3 +165,198 @@ baseline over it.
 
 Neither is detectable from the ledger alone. Both are detectable by comparing it against the
 bars, which is why the expensive query exists in the test suite and nowhere else.
+
+---
+
+## What shipped (2026-09-08)
+
+Four files: `apps/backend/migrations/0005_bar_coverage.sql`,
+`apps/backend/src/market-bars.ts`, `apps/backend/src/market-bars.test.ts` (the parse, in
+the fast suite), and ~28 new tests appended to `market-bars.database.test.ts`.
+`schema.ts` gained `BarCoverageTable`. **No dependency, no lockfile change, no new script and
+no new `verify` step**, and nothing in `packages/shared` or `apps/frontend` was touched.
+
+### The decisions this task owed, and what was taken
+
+- **`do update … where … is distinct from` rather than `do nothing`.** The brief flagged
+  this and it is the single most consequential line in the module. `do nothing` is cheaper,
+  it is literally what _"never `UPDATE` a bar in the ordinary case"_ sounds like, and it
+  **silently discards a changed bar** — which makes open decision 1's reversal trigger (the
+  first observed correction) unfireable forever. With the clause, an unchanged bar is not
+  written at all and a changed one is counted and reported.
+- **The ledger stores `covered`, and the resume point is not a column.** Both ends of the
+  range are already in the row, so a `resume_from` beside them would be a second copy of one
+  of them, free to disagree — §5's `deleted_at` shape.
+- **One row, one range — and the cost is ENFORCED rather than only written down.** The brief
+  asked for the recommendation plus a note that the walk must be monotonic. What shipped
+  also refuses a write whose gap from the stored range **contains a trading session**,
+  computed from the shipped calendar. That is exact rather than a threshold, and it had to
+  be: two adjacent sessions are disjoint as intervals — the overnight, the weekend, a
+  holiday — so no interval arithmetic can tell _"the next session back"_ from _"a month
+  back"_. The calendar can, and it is already in `packages/shared`.
+- **The ledger takes `securities`' `recorded_at` / `updated_at` pair and `market_bars`
+  deliberately does not**, using `0004`'s own argument in the other direction: a row
+  rewritten routinely needs both, a row rewritten only by a correction does not. `updated_at`
+  moves **only on a real change**, which is what makes a no-op re-run leave _both_ tables
+  byte-identical — so criterion 2's checksum covers the ledger as well as the bars.
+- **There is no "last attempted" column**, refused outright: it would be a date that always
+  says today, which `UNIVERSE.md` §11 and `BarSource.retrievedAt` both record as the trap
+  that makes a timestamp permanently silent about staleness — and it would make every re-run
+  rewrite every row, giving away the property above for nothing.
+
+### Two things the brief did not anticipate
+
+**An empty answer carries no window, and the consequence had to be decided rather than
+discovered.** `BarSeries` requires `coverage.covered` to be `null` exactly when there are no
+bars, so a session the vendor answered with nothing extends the ledger by nothing. Inferring
+the window from `requested` instead is precisely the bug Task 2.7.5 measured. The residual is
+bounded and is written into the code: an empty session at the **frontier** of the walk is
+re-fetched next run, and one in the **middle** is absorbed by the union the moment the session
+beyond it succeeds. One re-fetched session is the safe direction.
+
+**The `is distinct from` clause is derived from one column list rather than written out
+twice**, which closes a gap `load-universe.ts` records and could not close. There, the written
+columns and the compared columns are two hand-written lists placed one above the other, and a
+column added to the first and forgotten in the second silently stops moving `updated_at`. Here
+`sql.join(BAR_VALUE_COLUMNS.map(sql.ref))` builds both sides, so a sixth value column cannot
+be added without the comparison following it.
+
+### Five deliberate breaks, each seen to fail and reverted
+
+| Break                                                      | What went red                                                     |
+| ---------------------------------------------------------- | ----------------------------------------------------------------- |
+| Bars written outside the transaction that holds the ledger | `rolls the bars back when the LEDGER write is refused`            |
+| The resume point taken from `requested.end`                | `stores the covered window and not the requested one`             |
+| A chunk boundary that drops the last row of each chunk     | `writes past the bind-parameter chunk boundary without dropping…` |
+| The `is distinct from` clause replaced with `true`         | **two** — idempotence, and the part-new count                     |
+| The contiguity check reporting no missing sessions, ever   | `refuses a write that would leave it claiming a session…`         |
+
+The first was attempted twice. The obvious form — writing the **ledger** on a second
+connection from inside the transaction — **hung rather than failing**, because the outer
+handle waits for a connection the transaction is holding. That is a real finding about this
+shape (a second connection opened from inside a transaction is a self-deadlock, not a
+correctness bug you get to observe), and it is why the break that shipped in the table above
+moves the _bars_ out instead.
+
+The transaction is asserted in **both** directions, and the second needed producing rather
+than reasoning about: a temporary `check (bar_count < 0)` on `bar_coverage` makes the ledger
+write fail _after_ the bars are already inserted in the same transaction, and the assertion is
+that zero bars survive.
+
+### Figures
+
+- `pnpm verify` **exit 0 in 34.4 s with a database and 40.3 s with none** — the second is the
+  one that matters, and it is the check rather than a formality on the task that adds a table.
+- `pnpm test` is **754** (206 + **365** + 183); `pnpm test:process` 14.
+- `pnpm test:database` is **124 across 4 files** in 1.8 s, up from 96 — 28 new.
+- `pnpm migrate` applied `0005_bar_coverage` in one run and reported `Nothing pending.` on the
+  next; the table was read back off the live local server and matches the migration
+  column for column, constraint for constraint.
+- The chunk is **8,191 rows** at 8 written columns against Postgres's 65,535 bind parameters,
+  crossed once by a deliberate 8,300-bar series.
+- The frontend artefact is untouched, which is the check rather than a coincidence: this task
+  shipped no `apps/frontend` and no `packages/shared` source.
+
+### One operational note worth carrying
+
+A database-suite run killed mid-flight leaves connections that block the **next** run's
+`drop database` — `database "marketpulse_vitest" is being accessed by other users`, with every
+test reported as _skipped_. The suites self-heal by dropping at the start, and the drop itself
+is what fails. `pg_terminate_backend` over `pg_stat_activity where datname = 'marketpulse_vitest'`
+clears it. Pre-existing, not introduced here, and it reads like a broken suite.
+
+---
+
+## For the stakeholders — what this actually did, in plain English
+
+**Nothing on screen changed, and that is on purpose.** This is plumbing, and it is the
+plumbing everything visible in the next few weeks runs through.
+
+### The problem it solves
+
+MarketPulse's job is to spot unusual market behaviour and let you dig into the evidence
+behind it. To do that it needs history — what did this share price do, minute by minute,
+over the past year — because "unusual" only means something compared to "usual".
+
+We buy that history from a market-data provider, and we are storing it ourselves rather than
+asking them again every time. That decision was taken earlier in this story, for four
+reasons, of which the plainest two are: the provider will only answer us about two hundred
+times a minute, and when their service is down we want the product to say _"showing data
+through 10:42"_ rather than showing an error page.
+
+So we needed two things. **A way to write those price records into our database** — millions
+of them, correctly, repeatedly, without ever creating a duplicate or losing one. And **a way
+to answer the question "what have we actually got?"** without reading all of it.
+
+### The second one is less obvious and matters more
+
+Imagine a filing cabinet with fifty million pieces of paper in it. Asking "do we have
+Apple's prices for last March?" by looking through the cabinet takes minutes. Asking an index
+card at the front — _"Apple, minute prices, January through September, 97,000 records"_ —
+takes a fraction of a second.
+
+That index card is what we built, and it is a task of its own rather than a footnote because
+**it can lie in two directions and both of them look completely healthy.**
+
+- If the card **understates** what we hold, then every night the system re-downloads history
+  it already has. Nothing breaks. The download is just slower and more expensive, forever,
+  and nobody investigates a job that works.
+- If the card **overstates** what we hold, the system skips a window of history permanently.
+  Nothing breaks then either — until months later, when a calculation quietly runs over a gap
+  and produces a confident, wrong answer.
+
+Neither is detectable by looking at the card. Both are detectable by comparing the card
+against the cabinet. So the expensive comparison exists in our test suite, run against every
+symbol, as the control for the cheap answer — and nowhere else.
+
+### The decisions worth knowing about
+
+**We made re-running the download completely harmless.** Run it twice and the second run
+writes nothing at all — proved not by the program's own report of what it did, but by taking
+a fingerprint of the database before and after and checking they are identical. A program
+saying "I changed nothing" and a database that is byte-for-byte unchanged are two different
+claims, and only the second one is worth having.
+
+**We deliberately did the more expensive thing so that we can notice when a price gets
+corrected.** Exchanges occasionally restate a price after the fact. The cheap option is to
+tell the database "if you already have this record, ignore me" — which is one word shorter,
+and would mean a corrected price is silently thrown away and **we would never know it had
+happened**. Instead we compare the numbers and count the ones that moved. We have never seen
+a correction; the whole point is that when the first one arrives, something reports it rather
+than swallowing it. That matters because how we handle corrections is a known open question
+in the design, and a question you cannot see evidence for is a question nobody ever revisits.
+
+**We made it impossible to record history we do not have.** The index card holds one
+unbroken span — "January through September" — which is simple and fast, and which quietly
+becomes a lie if the download jumps around and skips a month. Rather than just writing a note
+telling future developers to be careful, the code checks: if a new batch of prices is
+separated from what we already hold by a gap that contains an actual trading day, it refuses
+the write and says which days are missing. It works this out from the trading calendar we
+built in the previous story, so there is no guessed threshold in it to be wrong. A rule
+enforced by a machine survives; a rule written in a document survives until somebody is in a
+hurry.
+
+**We were careful about a 16-minute trap.** Our data plan will not serve the most recent
+quarter of an hour of market data — it refuses the whole request rather than answering
+partially. So the system asks for slightly less than "up to now", and the bookmark it saves
+is **what it was actually given**, not what it asked for. Bookmarking what it asked for would
+leave a permanent 16-minute hole at the front of the data — renewed every single run, in
+exactly the most recent prices every chart opens on. That is a one-word difference in the
+code and it was worth a paragraph of argument and a test.
+
+**The price records and the index card are written together or not at all.** If either fails
+halfway, both roll back. We proved this in both directions by deliberately breaking each
+half and checking the other did not survive.
+
+### Where this leaves the product
+
+The store is built and it is empty. The next tasks fetch many securities in one request, run
+the actual download, work out which days are genuinely missing versus simply quiet, and then
+— the payoff — **put "how much history do we have for this security" on the Securities page
+that already exists**, which is the first thing a person outside the code will be able to see
+from all of this.
+
+After that the epic's second half opens up: real price charts, the anomaly scores that make
+this product what it is, and eventually the replay feature that lets you wind the clock back
+and ask what was knowable at 11:07 on a given morning. Every one of those reads the rows this
+task learned how to write.

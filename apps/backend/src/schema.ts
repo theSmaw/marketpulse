@@ -330,6 +330,83 @@ export interface MarketBarsTable {
 }
 
 /**
+ * `bar_coverage` — what we hold, per security and timeframe. See
+ * `../migrations/0005_bar_coverage.sql`, which is the source of truth this
+ * mirrors.
+ *
+ * **It is a statement about {@link MarketBarsTable} rather than more of it**,
+ * and it exists because acceptance criterion 5 asks the system to say what it
+ * holds without scanning fifty million rows. Read it as the ledger: one row per
+ * `(security_id, timeframe)`, one contiguous covered window, and a count.
+ *
+ * The two silent failures it can have are mirror images and both look like a
+ * healthy system — under-reporting re-fetches history already held, on a
+ * metered API, in a command slow enough that nobody investigates it;
+ * over-reporting skips a window forever and leaves a hole nothing downstream
+ * can see. Neither is detectable from this table. Both are detectable by
+ * comparing it against the bars, which is why the expensive query exists in
+ * `market-bars.database.test.ts` and nowhere else.
+ */
+export interface BarCoverageTable {
+  /** `bigint generated always as identity`. {@link SecuritiesTable.id}'s reasoning. */
+  id: GeneratedAlways<string>;
+
+  /** `securities.id`. `string` because it is a `bigint`. */
+  security_id: string;
+
+  /**
+   * The union rather than `string`, backed by `bar_coverage_timeframe_check`.
+   *
+   * Part of the key rather than a plain column: minute and daily history are
+   * backfilled to different depths by design, so one row per security would
+   * have to pick one of the two to be right about.
+   */
+  timeframe: Timeframe;
+
+  /**
+   * The window we have asked for and been answered for, half-open.
+   *
+   * **`SeriesCoverage.covered` and never `.requested`** — see the migration.
+   * Storing what was asked for rather than what was served is what leaves a
+   * permanent 16-minute hole at the head of the data on every catch-up.
+   *
+   * `Date` on all three parameters and no default anywhere, for
+   * {@link MarketBarsTable.observed_at}'s reason: a writer must supply it, and
+   * cannot have it filled in on their behalf.
+   */
+  covered_start: Date;
+  covered_end: Date;
+
+  /**
+   * Bars held inside that window. A **count**, so `bigint`, and `string` out
+   * for {@link MarketBarsTable.volume}'s reason.
+   *
+   * Insert and update accept a `number` as well, because the writer adds a
+   * per-batch row count to it and a batch is thousands rather than 2^53.
+   */
+  bar_count: ColumnType<string, string | number, string | number>;
+
+  /**
+   * When we first wrote this statement. Update is `never`, as it is on
+   * `securities` and unlike `market_bars` — this row is *extended* rather than
+   * corrected, so the instant it was created never stops being true.
+   */
+  recorded_at: ColumnType<Date, Date | undefined, never>;
+
+  /**
+   * When the statement last changed. Updatable, and that pair is the one
+   * `market_bars` deliberately does not have: a row rewritten routinely needs
+   * both, a row rewritten only by a correction does not.
+   *
+   * Maintained by the writer with no trigger, and it moves **only** when
+   * something actually changed — which is what makes a no-op re-run leave this
+   * table byte-identical, and therefore what lets criterion 2's checksum cover
+   * the ledger as well as the bars.
+   */
+  updated_at: Generated<Date>;
+}
+
+/**
  * Every table, by the name Postgres knows it by.
  *
  * `snake_case` keys because these are the database's identifiers rather than
@@ -339,4 +416,5 @@ export interface MarketBarsTable {
 export interface Database {
   securities: SecuritiesTable;
   market_bars: MarketBarsTable;
+  bar_coverage: BarCoverageTable;
 }
