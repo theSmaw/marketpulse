@@ -241,6 +241,56 @@ is listed here only so it is not forgotten alongside it.
    full backfill runs, or explicitly declined with the reason recorded in `UNIVERSE.md`
 9. `pnpm verify` passes; database-backed tests run under their own command
 
+## Tasks
+
+Tackled in order. The story is complete when all nine are done.
+
+**2.8.1 decides and ships nothing**, which is the shape Tasks 2.1.1, 2.2.1, 2.3.1, 2.5.1, 2.6.1
+and 2.7.1 set — and it carries more weight here than in any of them, because two of its
+decisions cannot be repaired from outside later: a storage engine and a request's window shape
+are both baked into ten million stored rows.
+
+**2.8.2 re-curates the universe, and it is deliberately second rather than fifth.** Open decision
+5 has to be settled before anything is filed against `security_id`, because after that a change
+to the list costs a re-backfill rather than a file edit. It is also **the only visible change in
+the story before 2.8.8**, since `/securities` renders the curated file — which is worth having
+early in a nine-task story that is otherwise invisible.
+
+**2.8.3 and 2.8.4 build the store, split because they fail differently.** A wrong key on
+`market_bars` is a migration and a re-backfill; a ledger that disagrees with the bars is a system
+that silently re-fetches history it holds, or silently skips history it does not. The second is
+the one nothing downstream can detect, which is why the ledger is a task rather than a table.
+
+**2.8.5, 2.8.6 and 2.8.7 are the backfill, split three ways for the same reason Story 2.7's
+client was split four.** 2.8.5's failure is silent — a walk that skips a window produces a
+well-formed, ascending, correctly provenanced store that is missing data, and neither the ledger
+nor a chart nor an anomaly calculation can tell. 2.8.6 is the instrument that catches it, and it
+is separate because "what is missing" needs a definition before "fetch what is missing" can be
+written. 2.8.7 is the run, and it is a task rather than a step because five of this story's nine
+criteria are measurements against the real row count.
+
+**2.8.8 is the payoff, and taking it here rather than in Story 2.14 is a delivery decision.**
+Nine tasks of ingestion with one visible change is a run of work nobody outside the code can see;
+one column and one sentence on a page that already exists is the cheapest honest demonstration of
+ten million rows available.
+
+**2.8.9 closes it, and its method differs from every previous close**: half of this story's
+criteria are properties of a populated database and cannot be re-taken from a clean clone. The
+code half is re-taken; the data half is re-read from the deployed store, and each criterion says
+which.
+
+| Task                                                                | What it does                                           | Visible?                |
+| ------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------- |
+| [2.8.1](TASK-01-the-storage-decisions-and-the-sizing-arithmetic.md) | Timescale, timeframes, where the backfill runs, sizing | No                      |
+| [2.8.2](TASK-02-the-universe-recurated.md)                          | The size, the taxonomy, the rename map                 | **Yes — `/securities`** |
+| [2.8.3](TASK-03-the-market-bars-table.md)                           | `market_bars`: the key, the columns, the indexes       | No                      |
+| [2.8.4](TASK-04-the-write-path-and-the-ingestion-ledger.md)         | The write path, and "what do I have"                   | No                      |
+| [2.8.5](TASK-05-the-backfill-command.md)                            | `pnpm backfill` — windows, pacing, resuming            | No                      |
+| [2.8.6](TASK-06-gaps-completeness-and-catch-up.md)                  | Four reasons a bar is missing; catch-up                | No                      |
+| [2.8.7](TASK-07-the-full-backfill-measured.md)                      | Run it; measure everything                             | No                      |
+| [2.8.8](TASK-08-what-we-hold-on-screen.md)                          | Coverage on `/securities`                              | **Yes — the payoff**    |
+| [2.8.9](TASK-09-verify-document-and-adr.md)                         | Verify, document, ADR 0020                             | No                      |
+
 ## What this story hands forward
 
 The data the rest of the epic renders, and the write path Epic 3 extends with live bars.
