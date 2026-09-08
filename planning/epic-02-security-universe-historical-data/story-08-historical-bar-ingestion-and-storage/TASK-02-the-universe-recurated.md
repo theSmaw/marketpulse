@@ -196,6 +196,29 @@ Sizing consequences: [`BARS.md` §4](BARS.md).
 
 ---
 
+## The honest gap: the deployed load has not run
+
+**Tasks 2.2.7 and 2.3.7's word for word, and for the same reason.** `pnpm universe` is a
+step in `deploy.yml`, and `deploy.yml` only runs on `main` — so the 518-security load has
+run against the **local** database and not the managed one, and `/securities` has been read
+in a browser against the **local** pair and not the deployed one. The first merge after this
+one is its first execution, and it will report `417 inserted, 101 updated, 0 unchanged`
+against the deployed table exactly as it did locally.
+
+What _is_ established rather than assumed:
+
+- **All three required checks pass on the runner** — `verify` (2m1s), `e2e` (1m56s,
+  including the axe gate at three viewports against 518 real rows) and `database` (51s).
+- **`pnpm universe:check` is clean against the vendor's live catalogue**, 0 flags across
+  all 518, which is the check this task promotes to blocking — and it is the check that
+  actually protects the deployed table, because it reads the file rather than a database.
+- **The local load is byte-identical in shape to what the deploy will produce**: 518 rows,
+  all `active`, 0 untracked, 11 sectors, 25 industry groups, and both provenance columns
+  carrying the new sources and dates. Fingerprint `a7a03020d1a90e5863136eaa30df0d3c`.
+- **The page was read in a browser** at 518 rows: all twelve sector bands present, their
+  counts summing to 518, the summary line reading `518 securities tracked · 11 sectors ·
+15 ETFs`, and the fifteen ETF rows correctly rendering an em dash for industry.
+
 ## Status report — for a non-technical reader
 
 ### What this task was
