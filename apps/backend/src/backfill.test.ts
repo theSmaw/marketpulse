@@ -492,6 +492,33 @@ describe("runBackfill", () => {
     expect(report.inserted).toBe(0);
   });
 
+  it("counts an empty answer in symbol-SESSIONS, not in symbols", async () => {
+    // Task 2.8.8's first full-depth daily run found the summary line and
+    // `bar_attempts` disagreeing — 127 against 2,537 — because a daily request
+    // covers twenty sessions and the counter was incremented once per symbol
+    // while the log wrote one row per session. The log was the half that was
+    // right, so the counter follows it. At `1m` the two are the same number,
+    // which is why a year of minute bars never surfaced this.
+    const { recorded, provider, bars, attempts } = harness({
+      answer: (symbol, request) => ({
+        outcome: "ok",
+        series: seriesFor(symbol, request.range, []),
+      }),
+    });
+
+    const report = await runBackfill(
+      dependencies({ provider, bars, attempts, timeframe: "1d" }),
+    );
+
+    // One request covering the whole week, because `1d` batches 20 sessions.
+    expect(recorded.requests).toHaveLength(1);
+    expect(report.emptyAnswers).toBe(WEEK.length);
+    expect(recorded.attempts).toHaveLength(WEEK.length);
+    expect(recorded.attempts.every((entry) => entry.outcome === "ok")).toBe(
+      true,
+    );
+  });
+
   it("re-throws an error that is not a coverage gap", async () => {
     const { provider, bars, attempts } = harness({
       onWrite: () => {

@@ -312,3 +312,66 @@ to report it.
 That is a reason to know the field exists, not a reason to put a date on every row. If freshness
 ever belongs on this page it belongs in the **summary line** — one statement about the store —
 rather than as a per-row column nobody scans.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.8 — the outliers have names and a count, and one of the two does not exist
+
+The full-depth local backfill ran. The two exceptional rows this file has been designing around
+since Task 2.8.6's amendment §3 are no longer hypothetical, and **they did not come out one
+each**.
+
+### 1. The benign outlier is real, is named, and there are exactly two of them
+
+| Symbol | Company                             | Sector      | Why it is short   |
+| ------ | ----------------------------------- | ----------- | ----------------- |
+| `HONA` | Honeywell Aerospace Inc.            | industrials | Spun out mid-2026 |
+| `FDXF` | FedEx Freight Holding Company, Inc. | industrials | Spun out mid-2026 |
+
+Both are 2026 spin-offs, and their existence is **guaranteed rather than unlucky**: Task 2.8.2
+curated the universe from the S&P 500 as it stands **today**, so a one-year backfill necessarily
+walks off the end of any constituent that listed inside the window. Any future re-curation does
+the same thing again.
+
+So the Storybook state this file asks for — _"a security with a later start"_ — has a real
+referent to build against rather than an invented fixture, and the aggregate line has a real
+number: **516 of 518 securities at identical depth, two shorter.**
+
+### 2. That is the measured argument against the coverage bar, and it is stronger than the guess
+
+The body says a coverage bar _"is probably wrong"_ because every row would be near-identical.
+Measured: **99.6% of rows are identical** and the entire information content of the column is two
+rows. A bar chart renders 516 full bars to communicate two exceptions.
+
+**The design target is therefore explicitly the exception**, and the quiet default is not a
+stylistic preference — it is what 516 identical values require. Weight and hierarchy, per Task
+2.6.7, and not a colour below the contrast floor.
+
+### 3. The OTHER outlier has no instance, and it must not be designed for
+
+Task 2.8.6's amendment §3 names a security **blocked by `CoverageGapError`** as _"the row the
+design should make findable"_.
+
+**Across 247 sessions and ~47M rows, zero symbols were blocked.** The state is reachable and it
+did not occur on a healthy full-depth run against the real vendor.
+
+This repository's own rule applies — `UNIVERSE.md` declined `delisted` because the mechanism
+would have had **no instance** — so: do not build a distinct treatment for the blocked row.
+Render depth honestly and let the two cases look identical, which is what Task 2.8.7's amendment
+already concluded for a different reason (_you could and should not_). This adds the third
+reason and it is the cheapest one: **there is nothing to look at.**
+
+The reversal trigger is a blocked symbol actually occurring — at which point `pnpm bars:check`
+reports it by name with its recorded reason, which is where an operator's question belongs.
+
+### 4. One rendering consequence of the empty-answer path, which is not obvious from the ledger
+
+`HONA` and `FDXF` do not merely start later — the vendor **answers successfully with no bars**
+for every session before their listing, and an empty answer extends no ledger. So their
+`covered.start` is their listing date and there is nothing in `bar_coverage` distinguishing
+_"we asked and there was nothing"_ from _"we never asked"_.
+
+That is correct and it is exactly why the page reads the ledger only. The distinction lives in
+`bar_attempts` as `ok` rows — **185 and counting for `HONA` alone** — and Task 2.8.7's amendment
+already forbids joining that table on this path. This is the concrete case that will tempt
+somebody to.

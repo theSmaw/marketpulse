@@ -359,3 +359,92 @@ What the gap lists **do** gain is the first-kind entry every migration adds:
 `0006_bar_attempts.sql` is a sixth `.sql` file that Prettier reports as
 `"inferredParser": null` and ESLint reports as `File ignored`. That count grows by one per
 migration for the rest of the project, which is the thing to notice rather than the number.
+
+---
+
+## Amended 2026-09-08 by Task 2.8.8 — one decision the ADR does not yet carry, and four claims already stale
+
+### The ADR gains a decision that no previous task could have taken: the unread index
+
+`0004_market_bars.sql` argues carefully about the indexes it **does not** create, and measures
+none of the ones it does. Taken over the local full-depth store:
+
+| Index                                                              |       Size | Scans          | Tuples read |
+| ------------------------------------------------------------------ | ---------: | -------------- | ----------: |
+| `market_bars_unique_bar` — `(security_id, timeframe, observed_at)` |     925 MB | **15,327,127** |      76,422 |
+| `market_bars_pkey` — the surrogate `id`                            | **326 MB** | **0**          |       **0** |
+
+Indexes are **78.9% of the heap**, and **326 MB of that serves nothing at all** — zero scans
+across the backfill, the daily run and every query since the table was created. At a full year
+that is **~1.0 GB of index nothing reads**, roughly **11% of the year's storage** on a disk with
+~22.5 GiB usable, plus write amplification on every one of ~47M inserts.
+
+**This is a convention with a price rather than a defect, and the ADR should say so in those
+words.** `migrations/README.md` §3 requires `id bigint generated always as identity primary key`
+on every table with the natural key as a `unique` constraint beside it;
+`market-bars.database.test.ts` **asserts** it, because Task 2.2.5 deliberately made it a checked
+convention. `0004`'s own comment gives the argument: a three-column natural primary key would
+propagate three columns into every future foreign key referencing a bar.
+
+That argument was made against no measurement and now there is one. **The decision is to keep it
+and record the price**, on this repository's standing rule that an index question is settled
+against a reader rather than in advance — and the reversal trigger is **the first thing that
+references a bar by `id`**, or disk pressure arriving before it does. Whoever takes the reversal
+should know it is a migration on a populated table plus an edit to a checked convention, which
+is why it is not a footnote.
+
+### The second list gains one entry, and it is about the pacer
+
+**A completed backfill certifies nothing about the rate limiter's behaviour under load, because
+it never approaches it.** Across 247 sessions and ~5,200 vendor requests the log contains **zero**
+`429`s, zero retries, zero timeouts — nothing but the banner and the tick lines. This file's own
+instruction reads _"Zero `429`s means the pacer is possibly too conservative; a steady trickle
+means it is calibrated"_, and the honest answer is the first with a reason attached:
+`BACKFILL_PACE_MS` is 350 ms against a measured ~310 ms token, so the sustained rate sits **just
+under** the refill by construction and a burst can never accumulate. The wall clock is therefore
+set by the write path and the pace floor, never by the limiter — which is why the ~26-minute
+rate-limit floor is a number the design guarantees will not be reached.
+
+### Four claims whose conditions have already fired
+
+- **`bar_attempts` is "sparse by construction ... and empty when everything is well"** — Task
+  2.8.7's amendment to Task 2.8.8, §6. **False.** A security that listed inside the backfill
+  window answers empty for every session before its listing, and each one writes an `ok` row that
+  is never cleared. Two such securities in the current universe left **hundreds** of rows on a
+  completely healthy run. The behaviour is right; the claim about the table's size is not.
+- **"Daily is ~13 requests and a couple of minutes"** — Task 2.8.7's amendment §2 and Task
+  2.8.6's §4. That figure is for **251** sessions; the daily bound is **2024-01-01**, which is
+  **672** sessions and therefore **34 requests**. Measured: 34 fetches, 345,519 bars, **135.6 s**.
+  The conclusion (run daily first, it is cheap) is unaffected and the arithmetic is not.
+- **The `emptyAnswers` counter.** The summary line called its number _symbol-sessions_ while
+  incrementing once per **symbol**; a daily request covers 20 sessions and `bar_attempts` wrote 20
+  rows, so the two disagreed **127 against 2,537** on the first full-depth daily run. Fixed in
+  `backfill.ts` with a test made to fail first. **The test counts move again**, which this file
+  already predicts will happen twice more before it runs.
+- **Anything describing the deployed backfill as a single run.** See below.
+
+### One operational fact the ADR should carry, because nothing in the repository says it
+
+**An operator-run backfill against the deployed database outlives its own credential.** An Entra
+access token from `az account get-access-token` is valid ~69 minutes; a full-year run is ~90. The
+pool opens connections continuously, so a single invocation cannot finish.
+
+What makes that survivable rather than fatal is the property this story was built on: **a re-run
+of a range already held fetches nothing**, so the run is re-issued with a fresh token and resumes
+from the ledger at zero vendor cost. It is the resume property being _used_ rather than described,
+and it is the first time anything has needed it in production.
+
+### One figure to re-derive, and one that is now confirmed three ways
+
+The row size stands at **196 B/row including indexes**, taken repeatedly across a run growing
+from 8M to 47M rows — Task 2.8.6's 197 B over 768,123 rows reproduced at sixty times the sample.
+**The headroom is ~2.4 years**, and this close owns checking that every document quoting a
+headroom figure quotes that one rather than the ~3.8 or ~19–20 that preceded it.
+
+And **`observed_at` is confirmed to be the market instant rather than the write instant, from the
+data**: bars written this morning carry timestamps six months old whose UTC offset **changes
+mid-series** across the 2026-03-08 DST transition — 14:30Z open before it, 13:30Z after, 390 bars
+both sides, no session on the transition day itself. That is `0004`'s _"the single most damaging
+line in this story"_ — a `default now()` on `observed_at` — proved absent by production data
+rather than by reading the migration, and it is worth the ADR carrying because it is the
+strongest available evidence that invariant 4's foundation is sound.
