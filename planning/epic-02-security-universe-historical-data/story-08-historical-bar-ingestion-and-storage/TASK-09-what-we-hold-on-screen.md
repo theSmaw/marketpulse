@@ -375,3 +375,30 @@ That is correct and it is exactly why the page reads the ledger only. The distin
 `bar_attempts` as `ok` rows — **185 and counting for `HONA` alone** — and Task 2.8.7's amendment
 already forbids joining that table on this path. This is the concrete case that will tempt
 somebody to.
+
+---
+
+## Amended 2026-09-09 by Task 2.8.8 — the staleness premise changed, and the conclusion holds anyway
+
+Task 2.8.7's amendment above reasons from a premise that is no longer true:
+
+> Task 2.8.7 then took the decision that **neither the backfill nor a catch-up
+> runs automatically in V1**, which makes staleness a real state rather than a
+> hypothetical one, and this field the only honest way to report it.
+
+**There is a nightly catch-up now** ([`BARS.md`](BARS.md) §8.12), so the store
+is not routinely stale.
+
+**The conclusion is unchanged and its argument is actually stronger.** A
+schedule fails in a way a manual process does not: **silently.** GitHub disables
+a `schedule:` on a repository with no pushes for 60 days, with no red run and no
+email — so "somebody forgot" is replaced by "nobody was told", and
+`bar_coverage.updated_at` goes from being the only honest way to report
+staleness to being the only way to **detect** it.
+
+**For this task that changes nothing about what to render**, and the body's
+instruction stands: freshness, if it ever appears, belongs in the summary line
+as one statement about the store rather than as a per-row column nobody scans.
+What it changes is how likely that line is to be worth building — a store that
+tops itself up nightly and might silently stop is a better candidate for one
+than a store somebody remembers to fill.
