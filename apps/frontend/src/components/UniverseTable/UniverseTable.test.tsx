@@ -9,6 +9,7 @@ import type {
   IndexEtfSecurity,
   SectorEtfSecurity,
   Security,
+  SecurityCoverage,
 } from "@marketpulse/shared";
 
 // The table's own tests. `SecurityExplorer.test.tsx` drives the same component
@@ -62,10 +63,30 @@ const ABBV = equity({
   industry: "Biotechnology",
 });
 
+function coverageFor(
+  symbol: string,
+  start = "2025-09-08T13:30:00.000Z",
+  barCount = 97_530,
+): SecurityCoverage {
+  return {
+    symbol,
+    timeframe: "1m",
+    start,
+    end: "2026-09-04T20:00:00.000Z",
+    barCount,
+  };
+}
+
 function loaded(
   securities: readonly [Security, ...Security[]],
+  coverage: readonly SecurityCoverage[] = [],
 ): SecuritiesView {
-  return { state: "loaded", securities, provenance: null };
+  return {
+    state: "loaded",
+    securities,
+    provenance: null,
+    coverage: new Map(coverage.map((record) => [record.symbol, record])),
+  };
 }
 
 describe("groupUniverse", () => {
@@ -175,6 +196,86 @@ describe("UniverseTable", () => {
     expect(screen.queryByText("no longer tracked")).toBeNull();
   });
 
+  it("says how much history it holds, as a depth and a start", () => {
+    render(<UniverseTable view={loaded([equity()], [coverageFor("NVDA")])} />);
+
+    // Asserted on the row's accessible name rather than on two elements,
+    // because that is the string a screen reader is handed and it is where a
+    // depth separated from its date would show up as wrong.
+    const row = screen.getByRole("row", { name: /^NVDA / });
+    expect(row.textContent).toContain("1y");
+    expect(row.textContent).toContain("from 2025-09-08");
+  });
+
+  // The timeframe appears once, in the heading, and never in a cell — the same
+  // argument that removed the Sector column. A version repeating "minute" down
+  // 518 rows would pass a looser assertion.
+  it("names the timeframe once, in the column heading", () => {
+    render(<UniverseTable view={loaded([equity()], [coverageFor("NVDA")])} />);
+
+    expect(
+      screen.getByRole("columnheader", { name: "Minute-bar history" }),
+    ).toBeTruthy();
+    // Not in the row. The summary line does say "minute bars" once, which is
+    // the other half of the same decision: the word is stated where it costs
+    // one occurrence rather than 518.
+    const row = screen.getByRole("row", { name: /^NVDA / });
+    expect(row.textContent).not.toContain("minute");
+  });
+
+  // The honest answer for a security nobody has backfilled: no zero, no bar
+  // count, and — the half that needs a test — a sentence rather than an em
+  // dash a screen reader reads as nothing.
+  it("renders a security with no bars as no history rather than as a zero", () => {
+    render(<UniverseTable view={loaded([equity()], [])} />);
+
+    const row = screen.getByRole("row", { name: /^NVDA / });
+    expect(row.textContent).toContain("No history yet");
+    expect(row.textContent).not.toContain("0");
+  });
+
+  it("reports the store's scale in the summary rather than in every row", () => {
+    render(
+      <UniverseTable
+        view={loaded(
+          [equity(), ABBV],
+          [coverageFor("NVDA"), coverageFor("ABBV")],
+        )}
+      />,
+    );
+
+    // Both rows are covered, so the clause is words rather than a figure that
+    // would repeat the count beside it.
+    expect(screen.getByText("all with history")).toBeTruthy();
+    // The total is a scale claim and appears exactly once, in the summary.
+    expect(screen.getByText("195k")).toBeTruthy();
+    expect(screen.getByText("minute bars")).toBeTruthy();
+    expect(screen.getByText("2026-09-04")).toBeTruthy();
+  });
+
+  // The figure comes back the moment it says something the count beside it does
+  // not — which is the only case where comparing the two is the point.
+  it("counts securities with history when some have none", () => {
+    render(
+      <UniverseTable view={loaded([equity(), ABBV], [coverageFor("NVDA")])} />,
+    );
+
+    expect(screen.getByText("with history")).toBeTruthy();
+    expect(screen.queryByText("all with history")).toBeNull();
+    const clause = screen.getByText("with history").parentElement;
+    expect(clause?.textContent).toContain("1");
+  });
+
+  // A migrated database nobody has backfilled. One sentence rather than three
+  // zeroes, because `0 with history · 0 minute bars` reads as a fault where
+  // this reads as a fact.
+  it("says the store is empty in words rather than in zeroes", () => {
+    render(<UniverseTable view={loaded([equity()], [])} />);
+
+    expect(screen.getByText("No market history stored yet")).toBeTruthy();
+    expect(screen.queryByText("with history")).toBeNull();
+  });
+
   it("marks an untracked security in words rather than by colour alone", () => {
     render(
       <UniverseTable
@@ -233,7 +334,12 @@ describe("UniverseTable", () => {
       { state: "loading" },
       { state: "empty" },
       { state: "failed", failure: "unreachable", requestId: null },
-      { state: "loaded", securities: [equity()], provenance: null },
+      {
+        state: "loaded",
+        securities: [equity()],
+        provenance: null,
+        coverage: new Map(),
+      },
     ] satisfies readonly SecuritiesView[]) {
       const { unmount } = render(<UniverseTable view={view} />);
 

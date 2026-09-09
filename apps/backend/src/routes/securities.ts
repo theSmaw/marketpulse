@@ -1,5 +1,7 @@
 // GET /securities — the third route this server has, and the first that
-// returns data (Task 2.4.2).
+// returns data (Task 2.4.2). Since Task 2.8.9 it also answers **how much market
+// history we hold for each of them**, which is the first thing this API has
+// ever said about the market rather than about its own configuration.
 //
 // Everything below is one of three things: the wire shape, the schema that
 // enforces it, and one decision about where this route is registered. The
@@ -69,16 +71,20 @@ import {
   SECTORS,
   SECURITY_KINDS,
   SECURITY_STATUSES,
+  TIMEFRAMES,
 } from "@marketpulse/shared";
 import type {
   FieldGroupProvenance,
   SecuritiesProvenance,
   SecuritiesResponse,
   Security,
+  SecurityCoverage,
+  Timeframe,
 } from "@marketpulse/shared";
 
 import { apiErrorSchema } from "../errors.js";
 import type { JsonSchemaProperty } from "../json-schema.js";
+import type { BarCoverage, MarketBarsRepository } from "../market-bars.js";
 import type { SecuritiesRepository } from "../securities.js";
 
 // One security on the wire.
@@ -140,8 +146,35 @@ const provenanceProperties = {
   classification: fieldGroupProvenanceSchema,
 } satisfies Record<keyof SecuritiesProvenance, JsonSchemaProperty>;
 
+// One coverage record on the wire.
+//
+// The **fourth** application of the `satisfies` guard on this route, and it is
+// needed for the reason the third was: the guard checks top-level keys and does
+// not reach into a nested object, so nothing about the envelope's guard makes a
+// field added to `SecurityCoverage` and forgotten here anything other than a
+// field that silently vanishes from the wire.
+//
+// `enum: TIMEFRAMES` for the reason the three vocabularies above carry one: the
+// wire's word and the type's members come from the same const array, so they
+// cannot disagree. Nothing here is nullable, so no `["string", "null"]` — the
+// absence this contract expresses is a **missing record**, not a null field.
+const coverageProperties = {
+  symbol: { type: "string" },
+  timeframe: { type: "string", enum: TIMEFRAMES },
+  start: { type: "string" },
+  end: { type: "string" },
+  barCount: { type: "number" },
+} satisfies Record<keyof SecurityCoverage, JsonSchemaProperty>;
+
+const coverageSchema: JsonSchemaProperty = {
+  type: "object",
+  properties: coverageProperties,
+  required: Object.keys(coverageProperties),
+};
+
 const securitiesProperties = {
   securities: { type: "array", items: securitySchema },
+  coverage: { type: "array", items: coverageSchema },
   provenance: {
     type: "object",
     properties: provenanceProperties,
@@ -161,7 +194,13 @@ const securitiesSchema = {
       // which is every response from an empty table, and every response at all
       // once Story 2.7 makes the rows disagree. `apiErrorSchema` has the same
       // shape for the same reason: `details` is optional there.
-      required: ["securities"],
+      //
+      // `coverage` **is** listed, which is the difference between the two: it
+      // is always sent, empty when the store holds nothing, and its contract
+      // says why (an absent field would give "we hold nothing yet" a second
+      // spelling). So the literal is now two of three keys rather than one, and
+      // the one it omits is the one whose absence carries meaning.
+      required: ["securities", "coverage"],
     },
 
     // Declared, and doing real work here rather than as ceremony. This handler
@@ -193,28 +232,77 @@ const securitiesSchema = {
 };
 
 /**
- * The route, as a factory over the repository rather than over a pool.
+ * The series this endpoint reports on, stated once.
  *
- * The interface is the narrower dependency: this file never learns there is a
+ * The ledger holds a row per `(security, timeframe)` and this route sends the
+ * minute half; `SecuritiesResponse.coverage` carries the argument. It is a
+ * constant rather than a query parameter because a parameter is a second
+ * decision — which series does a list of securities describe? — that nothing
+ * on the page can make, and Story 2.11's per-security route is where the daily
+ * depth belongs.
+ */
+const REPORTED_TIMEFRAME: Timeframe = "1m";
+
+/**
+ * The ledger's statement, as the wire says it.
+ *
+ * One function beside the query for `toSecurity`'s reason, and it is where the
+ * two representational decisions land: a `Date` becomes an ISO 8601 instant,
+ * and `covered` — a `TimeRange`, half-open — becomes the two fields the
+ * contract names. `barCount` is a `number` on both sides; `market-bars.ts`
+ * records why that is safe against a universe-wide ceiling of ~50.5M rows.
+ */
+function toWireCoverage(coverage: BarCoverage): SecurityCoverage {
+  return {
+    symbol: coverage.symbol,
+    timeframe: coverage.timeframe,
+    start: coverage.covered.start.toISOString(),
+    end: coverage.covered.end.toISOString(),
+    barCount: coverage.barCount,
+  };
+}
+
+/**
+ * The route, as a factory over two repositories rather than over a pool.
+ *
+ * The interfaces are the narrower dependency: this file never learns there is a
  * driver, a connection or a query builder, and a test drives every branch of it
- * over a stub with no database at all — which is what keeps `pnpm verify`
+ * over stubs with no database at all — which is what keeps `pnpm verify`
  * passing with nothing listening.
+ *
+ * **The second one is a `Pick` and not the whole repository**, which is the
+ * same instinct one level finer. `MarketBarsRepository` can write bars, upsert
+ * a ledger row and read fifty million rows back; this route may do exactly one
+ * of those things, and narrowing the parameter is what says so in a way the
+ * compiler holds. It also keeps the stub in the tests one function long.
  */
 export function createSecuritiesRoutes(
   securities: SecuritiesRepository,
+  bars: Pick<MarketBarsRepository, "listCoverage">,
 ): FastifyPluginCallback {
   return (app, _options, done) => {
     app.get(
       "/securities",
       { schema: securitiesSchema },
       async (request, reply) => {
-        // Two reads, concurrently. They are separate queries rather than one
+        // Three reads, concurrently. They are separate queries rather than one
         // widened select because `Security` carries no provenance and should not
         // start; `securities.ts` records the snapshot-skew that costs and why it
-        // is accepted.
-        const [list, provenances] = await Promise.all([
+        // is accepted. The third inherits that same skew and it matters even
+        // less: a security added between the first read and the third has no
+        // coverage record, which is exactly how a security with no bars is
+        // reported anyway.
+        //
+        // **The third is a read of the ledger and never of `market_bars`.**
+        // That is the property the whole column depends on — a few hundred rows
+        // regardless of how many bars exist — and it is why `bar_coverage`
+        // exists at all. A `count(*)` here would be a page load scanning fifty
+        // million rows, and it would arrive in Story 2.9's response-time work
+        // as a mystery.
+        const [list, provenances, coverage] = await Promise.all([
           securities.listSecurities(),
           securities.listSecuritiesProvenance(),
+          bars.listCoverage(),
         ]);
 
         // The envelope's `provenance` is a claim about **every** security in this
@@ -242,6 +330,14 @@ export function createSecuritiesRoutes(
         // unknown". The same branch `apiError()` takes for `details`.
         const body: SecuritiesResponse = {
           securities: list,
+          // Filtered here rather than in the repository, so `listCoverage`
+          // stays the general read its own contract describes and this route
+          // owns the one decision that is about *this page*. The cost is
+          // reading ~1,036 rows to send ~518, which is a rounding error against
+          // the 518 securities in the same response.
+          coverage: coverage
+            .filter((record) => record.timeframe === REPORTED_TIMEFRAME)
+            .map(toWireCoverage),
           ...(provenance !== undefined && rest.length === 0
             ? { provenance }
             : {}),

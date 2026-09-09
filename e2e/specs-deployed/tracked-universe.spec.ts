@@ -107,7 +107,7 @@ test("the deployed page renders the tracked universe from the deployed database"
   const region = page.getByRole("region", { name: "Tracked universe" });
   await expect(region).toBeVisible();
 
-  // The table by role with its four column headers in order, asserted as a list
+  // The table by role with its five column headers in order, asserted as a list
   // so a column silently disappearing is caught as well as one being renamed.
   const table = region.getByRole("table");
   await expect(table).toBeVisible();
@@ -116,6 +116,7 @@ test("the deployed page renders the tracked universe from the deployed database"
     "Name",
     "Industry",
     "Kind",
+    "Minute-bar history",
   ]);
 
   // **Rows, which is the assertion nothing deployed has ever made.** A count
@@ -146,6 +147,31 @@ test("the deployed page renders the tracked universe from the deployed database"
   await expect(
     region.getByRole("rowheader", {
       name: /^Market proxies Whole-market ETFs, which belong to no sector \d+ securities$/,
+    }),
+  ).toBeVisible();
+
+  // **What we hold, deployed** (Task 2.8.9), and it clears this suite's bar for
+  // a reason narrower than "the column exists".
+  //
+  // This is the newest field on the widest-read contract in the product, and it
+  // travels a path no other deployed instrument covers end to end: the deployed
+  // ledger, a new key on the envelope, a **stricter predicate** — `coverage` is
+  // required where `provenance` is optional — the deployed bundle's parse, and
+  // a render. A backend and a frontend that disagree about that field do not
+  // produce a missing column; they produce a page reading *something answered
+  // and it was not this service*, because `api-client.ts` maps a body its
+  // predicate refuses to `unreadable-body`. So this asserts the one thing that
+  // separates "the deployed halves agree" from "the deployed halves are the
+  // same age", and it costs production nothing: it rides the page load two
+  // assertions above it.
+  //
+  // **No number, and no claim that the store is full.** The deployed store's
+  // depth is a property of when the backfill last ran, and a red post-deploy
+  // result is a rollback decision — an emptier store than expected is not a
+  // rollback, it is a `pnpm bars:backfill`. Both honest renderings satisfy this.
+  await expect(
+    region.getByRole("row", {
+      name: /^AAPL .*(\d+(\.\d+)?(y|mo|d) from \d{4}-\d{2}-\d{2}|No history yet)$/,
     }),
   ).toBeVisible();
 

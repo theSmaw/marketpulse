@@ -2,6 +2,7 @@ import type {
   SecuritiesProvenance,
   SecuritiesResponse,
   Security,
+  SecurityCoverage,
 } from "@marketpulse/shared";
 import { useEffect, useState } from "react";
 
@@ -102,6 +103,22 @@ export type SecuritiesView =
       readonly state: "loaded";
       readonly securities: readonly [Security, ...Security[]];
       readonly provenance: SecuritiesProvenance | null;
+
+      /**
+       * How much market history the store holds, keyed by symbol.
+       *
+       * **A map rather than the array the wire sends**, built once here rather
+       * than in the component, because the alternative is a linear scan per row
+       * — 518 rows against 518 records is a quarter of a million comparisons to
+       * render a list, on every re-render.
+       *
+       * A symbol **absent from this map holds no bars**, which is the wire
+       * contract's own spelling carried through unchanged: `undefined` is the
+       * honest answer and a zero would be an invented one. Empty is a real and
+       * correct state — a migrated database nobody has backfilled — and it is
+       * why this is not optional.
+       */
+      readonly coverage: ReadonlyMap<string, SecurityCoverage>;
     }
   /** The service answered correctly and holds nothing. */
   | { readonly state: "empty" }
@@ -144,6 +161,9 @@ function toSecuritiesView(
         state: "loaded",
         securities: [first, ...rest],
         provenance: result.data.provenance ?? null,
+        coverage: new Map(
+          result.data.coverage.map((record) => [record.symbol, record]),
+        ),
       };
     }
 

@@ -541,3 +541,119 @@ marginal cost is £0.
 
 **And stop citing "roughly ten million rows."** It appears in `STORY.md`, this
 file and Task 2.8.9, and it predates Task 2.8.2 taking the universe from 101 to 518. The store is **48.03M rows**.
+
+---
+
+## Amended 2026-09-09 by Task 2.8.9 — one criterion is unmet and is handed here, and four sweep candidates are named
+
+### 1. "already deployed" is false, and the thing it describes is this task's to do
+
+The body says, under _What the user can see_:
+
+> Task 2.8.9's coverage column is the story's visible surface and it is **already
+> deployed**.
+
+It is not. `deploy.yml` only runs on `main`, so the column ships on the merge
+that closes 2.8.9 and **its deployed verification has never run** — that task's
+own _Done when_ criterion 1, _"the deployed `/securities` says how much history
+each security has, and the figures reconcile against the deployed database read
+directly"_, is explicitly handed forward. It is the same gap Tasks 2.2.7, 2.3.7
+and 2.6.7 each handed to their story's close, and it is not worth a task of its
+own: it is one page read and one query, which is what this close does for every
+other criterion.
+
+**The prediction is exact rather than approximate, which is what makes it worth
+checking.** §8.16 measured the deployed store as matching the local one _to the
+digit_ — 47,682,213 minute bars across 518 securities, 515 at the full year plus
+`Q`, `FDXF` and `HONA` — so the deployed summary line should read, character for
+character, what the local one reads:
+
+> **518** securities tracked · **11** sectors · **15** ETFs · all with history ·
+> **47.7M** minute bars · through **2026-09-04**
+
+and `AAPL`'s row should read `1y from 2025-09-08`. Anything else is a real
+finding rather than a rounding difference. Read it in a browser, then reconcile
+against `select count(*), sum(bar_count), min(covered_start), max(covered_end)
+from bar_coverage where timeframe = '1m'` on the deployed server — Task 2.4.6's
+method, which is the only one that can tell a page rendering the deployed store
+from a page rendering a plausible one.
+
+The second half of that read is the `check-deployed` job, which gains two
+assertions in 2.8.9 and has likewise never executed: the fifth column header,
+and a row-shape assertion riding the existing page load. **Both are on the
+critical path of the merge rather than of this task** — quote the run.
+
+### 2. The ADR gains one decision and one second-list entry
+
+- **Why there is no coverage bar**, which the body predicted was "probably
+  wrong" and which is now settled by a measurement: **515 of 518 securities
+  start on the same day**, so a bar chart draws 515 identical full bars to
+  communicate three exceptions and reads as a progress indicator for something
+  that is not in progress. The design target is the exception, and the mechanism
+  that makes it legible is **alignment** — right-aligned fixed-width dates — not
+  ink, not a chip and not a second vocabulary. That is Task 1.4.3's
+  `tabular-nums` measurement finally being spent on the thing it was bought for.
+- **Second list: what the coverage column certifies and what it cannot.** It
+  reports the _ledger's_ statement, so it certifies that we asked for a window
+  and were answered — and **nothing about density**, because a bar count below
+  `minuteBars` inside that window is liquidity rather than ingestion (364.3
+  against 390); **nothing about why** a history is short, because the ledger
+  cannot separate a spin-off from a blocked symbol and the page deliberately
+  does not join `bar_attempts` to try; and **nothing about freshness**, because
+  `updatedAt` is not on the wire. A reader who takes `1y from 2025-09-08` to
+  mean "complete" is reading more than the column says.
+
+### 3. The artefact figures to compare against, and the rebuild still stands
+
+The body already says to rebuild the previous close's commit rather than cite a
+figure. Task 2.8.9's own reading, so the close has something to reconcile
+against rather than derive from nothing:
+
+| File         | Before (2.7.9) |                     After |
+| ------------ | -------------: | ------------------------: |
+| JavaScript   |      371,406 B | **373,831 B** `b8149a71…` |
+| CSS          |       18,063 B |  **18,222 B** `8c092e1e…` |
+| `index.html` |        1,101 B |   **1,101 B** `11e71193…` |
+| Four files   |      390,870 B |             **393,454 B** |
+| Modules      |            300 |                   **301** |
+
+The one new module is `coverage.ts`. **`market-time.ts` was already in the
+bundle** from Task 2.5.5, so none of the +2.4 kB is the calendar arriving —
+which is the attribution a reader would otherwise reach for first, and it is
+wrong.
+
+### 4. Four sweep candidates, three of them created or sharpened by 2.8.9
+
+- **The `17,299 bytes` payload figure, which is stale in seven live places.**
+  `securities-response.ts` was re-measured at Task 2.8.9 and now reads
+  **150,660 B / 12,831 B gzipped at 518 securities with coverage**; the other
+  six were not. Two of them are **load-bearing arguments in other stories'
+  files** — Story 2.9's STORY.md calls it "a measured payload baseline" and
+  Story 2.11's rests a client-versus-server search decision on it — and two are
+  shipped source comments (`use-securities.ts`, `api-client.ts`, the second of
+  which already scopes itself honestly). Read each before replacing: some are
+  historical records correct in their own context, which is the distinction Task
+  1.10.8 established and a naive substitution destroys.
+- **A stated reversal trigger that half fired.** `securities-response.ts`'s
+  pagination argument read _"a universe past §6's 500"_, and Task 2.8.2 took the
+  universe to **518** — so the count crossed and the reason behind it did not,
+  because the argument was never about the count. It is restated as **a
+  compressed payload past roughly 100 kB**. The class is the one the last three
+  closes were best at finding, and §6's 500 is quoted as a threshold in more
+  places than this one.
+- **The test count is 895** (211 + 477 + 207), plus 14 process and 141 database.
+  It moved twice inside this story before 2.8.9 and once at it.
+- **One amendment in `TASK-09` was wrong when written, and `BARS.md` was right.**
+  Task 2.8.8's amendment §1 there says _"516 of 518 securities at identical
+  depth, two shorter"_ and tables only `HONA` and `FDXF`. There are **three** —
+  `Q`, Qnity Electronics, a 2025 DuPont spin-off — and §8.1 and §8.16 of
+  `BARS.md` name all three correctly. **Trust `BARS.md` over the task
+  amendments** when the two disagree about the store; the amendments were
+  written to instruct a task and the document was written to record a
+  measurement.
+
+### 5. What this does not change
+
+No task is added, deleted or re-ordered. Task 2.8.9 completed inside its brief:
+it produced no work that needs a task of its own, and the one obligation it
+could not discharge is a deployed read, which is this task's method already.

@@ -53,7 +53,9 @@ afterEach(() => {
 
 describe("useSecurities", () => {
   it("reports a populated universe as loaded, with its provenance", async () => {
-    stubFetch(() => json(200, { securities: [NVDA], provenance: PROVENANCE }));
+    stubFetch(() =>
+      json(200, { securities: [NVDA], provenance: PROVENANCE, coverage: [] }),
+    );
 
     const { result } = renderHook(() => useSecurities());
 
@@ -70,11 +72,43 @@ describe("useSecurities", () => {
     expect(result.current.provenance).toStrictEqual(PROVENANCE);
   });
 
+  it("indexes the coverage the response sends, by symbol", async () => {
+    // The array-to-map turn happens here rather than in the component, because
+    // a linear scan per row is a quarter of a million comparisons at 518 rows.
+    // What is asserted is the *absence* as much as the presence: a security
+    // with no bars is missing from the map, which is the wire contract's own
+    // spelling of "we hold nothing for this" carried through unchanged.
+    stubFetch(() =>
+      json(200, {
+        securities: [NVDA],
+        coverage: [
+          {
+            symbol: "NVDA",
+            timeframe: "1m",
+            start: "2025-09-08T13:30:00.000Z",
+            end: "2026-09-04T20:00:00.000Z",
+            barCount: 97530,
+          },
+        ],
+      }),
+    );
+
+    const { result } = renderHook(() => useSecurities());
+
+    await waitFor(() => {
+      expect(result.current.state).toBe("loaded");
+    });
+
+    if (result.current.state !== "loaded") expect.fail("not loaded");
+    expect(result.current.coverage.get("NVDA")?.barCount).toBe(97530);
+    expect(result.current.coverage.get("SPY")).toBeUndefined();
+  });
+
   // The state this hook exists to get right. A migrated database with no
   // universe loaded answers 200 with an empty list and no provenance, and it is
   // neither a failure nor a loaded table with nothing in it.
   it("reports an empty universe as empty rather than loaded or failed", async () => {
-    stubFetch(() => json(200, { securities: [] }));
+    stubFetch(() => json(200, { securities: [], coverage: [] }));
 
     const { result } = renderHook(() => useSecurities());
 
@@ -87,7 +121,7 @@ describe("useSecurities", () => {
   // makes no claim about the whole list. A populated response with no
   // provenance is still loaded.
   it("loads a populated universe that carries no provenance", async () => {
-    stubFetch(() => json(200, { securities: [NVDA] }));
+    stubFetch(() => json(200, { securities: [NVDA], coverage: [] }));
 
     const { result } = renderHook(() => useSecurities());
 
@@ -154,7 +188,9 @@ describe("useSecurities", () => {
   // read once and never polled. A regression here is standing billable traffic
   // per open tab against a fact that has not moved.
   it("asks once and does not poll", async () => {
-    stubFetch(() => json(200, { securities: [NVDA], provenance: PROVENANCE }));
+    stubFetch(() =>
+      json(200, { securities: [NVDA], provenance: PROVENANCE, coverage: [] }),
+    );
 
     const { result } = renderHook(() => useSecurities());
 

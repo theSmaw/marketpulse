@@ -110,15 +110,24 @@
 }
 
 .colName {
-  width: 38%;
+  width: 32%;
 }
 
 .colIndustry {
-  width: 38%;
+  width: 30%;
 }
 
 .colKind {
-  width: 15%;
+  width: 12%;
+}
+
+/*
+ * The history column (Task 2.8.9). Widened out of Name and Industry rather than
+ * added to the total, because both are prose that wraps gracefully and this one
+ * holds a fixed string — `1y from 2025-09-08` — that must not wrap at all.
+ */
+.colHistory {
+  width: 17%;
 }
 
 /*
@@ -295,6 +304,43 @@ tbody:last-of-type .row:last-child {
   composes: microLabel from "../../styles/type.module.css";
   color: var(--ink-secondary);
   white-space: nowrap;
+}
+
+/* --- What we hold: the first column in this product about the market --- */
+
+/*
+ * Right-aligned, and that is the whole visual mechanism rather than a
+ * preference.
+ *
+ * 515 of 518 rows carry the same start date, so the *only* information in this
+ * column is the handful that do not — and a right-aligned column of fixed-width
+ * `YYYY-MM-DD` figures makes a different one visible at a glance with no ink,
+ * no chip and no second vocabulary. `tabular-nums` is inherited from `body`
+ * (`base.css`), which is exactly what it was bought for.
+ *
+ * It is also the last column, which is where a magnitude belongs in a table
+ * whose other four columns are identity and description: the eye reads left to
+ * right through *what this is* and lands on *how much of it we have*.
+ */
+.history {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/*
+ * The depth, which is the figure, and the start, which is its qualifier.
+ *
+ * Two registers in one cell, the same shape a row already uses for a name and
+ * its chip: primary ink for the thing being claimed and secondary for the
+ * evidence behind it. Neither is strong — the ticker is this row's only strong
+ * word and it stays that way.
+ */
+.depth {
+  color: var(--ink-primary);
+}
+
+.from {
+  color: var(--ink-secondary);
 }
 
 /*
