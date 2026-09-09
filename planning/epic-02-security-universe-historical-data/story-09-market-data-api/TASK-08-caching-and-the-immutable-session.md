@@ -1,8 +1,8 @@
-# Task 2.9.7 — Caching, and the one immutable thing this product has
+# Task 2.9.8 — Caching, and the one immutable thing this product has
 
 **Status:** Not started
 **Story:** [2.9 Market Data API](STORY.md)
-**Depends on:** Task 2.9.5
+**Depends on:** Tasks 2.9.5, 2.9.6
 
 ## Objective
 
@@ -37,11 +37,22 @@ back to a window already looked at should not re-read 8,000 rows.
   red, put it back — a break that does not go red is equally evidence the break
   did not land.
 
-- **Measure what it buys before keeping it.** A conditional request that saves
-  8.4 MB is worth its complexity; one that saves 2 kB is not, and this repository's
-  rule is to measure rather than assume. If the measurement says the caching is not
-  worth having, **say so and remove it** — that is a result, and the story's
-  criterion is that the semantics were decided, not that a header shipped.
+- **Measure what it buys — but note that "drop it" is no longer freely
+  available.** A conditional request that saves ~~8.4 MB~~ **11.08 MB**
+  (re-measured 2026-09-09 by Task 2.9.1; `MARKET-DATA-API.md` §8) is worth its
+  complexity; one that saves 2 kB would not be. **Amended 2026-09-09 after 2.9.1
+  settled the stitch:** this task now carries a second job that the first draft did
+  not know about. Every window ending _now_ is a **metered vendor request** on a
+  cache miss (§5), so caching is what bounds the cost of Task 2.9.5 rather than
+  only what makes Story 2.12 feel quick. **Measure both** — bytes saved, and
+  vendor requests avoided.
+
+- **If the metered request cannot be bounded, that is a result to report rather
+  than absorb.** `MARKET-DATA-API.md` §5 names this as the condition for bringing
+  the stitch decision back to the user — the read-side join was chosen over
+  "serve only what is stored" on the understanding that caching would hold the
+  cost down. Say plainly whether it does. Do not quietly narrow the stitch
+  instead.
 
 ## Done when
 
@@ -49,8 +60,10 @@ back to a window already looked at should not re-read 8,000 rows.
   of a session close
 - A live-window response is asserted **not** to carry it, with the assertion made
   to fail once
-- What it saves is measured on a real window and recorded in `MARKET-DATA-API.md`,
-  including the decision to keep or drop it
+- What it saves is measured on a real window — **bytes and vendor requests
+  both** — and recorded in `MARKET-DATA-API.md`
+- Whether the stitch's metered cost is bounded is stated plainly, and if it is not,
+  §5's condition is reported rather than worked around
 - `pnpm verify` passes
 
 ## Notes

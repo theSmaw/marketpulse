@@ -1,8 +1,8 @@
-# Task 2.9.8 — Measured against the real store, locally and deployed
+# Task 2.9.9 — Measured against the real store, locally and deployed
 
 **Status:** Not started
 **Story:** [2.9 Market Data API](STORY.md)
-**Depends on:** Tasks 2.9.5, 2.9.6, 2.9.7
+**Depends on:** Tasks 2.9.6, 2.9.7, 2.9.8
 
 ## Objective
 
@@ -25,14 +25,29 @@ that decide whether Story 2.12 is possible as specified.
 - **Take the patterns Stories 2.12 and 2.13 will actually issue**, and say for
   each what it is: one symbol at `1d` over the daily depth; one symbol at `1m`
   over a five-session window; the same over a month; and the pathological case —
-  a year of minutes, **97,530 rows ≈ 8.4 MB of JSON** — with and without whatever
+  a year of minutes, **97,530 rows ≈ ~~8.4 MB~~ 11.08 MB of JSON** (re-measured
+  2026-09-09 by Task 2.9.1, which reproduced the row count exactly and found the
+  payload 24% larger; `MARKET-DATA-API.md` §8 has the method) — with and without whatever
   Task 2.9.1 decided about reduction. Record bytes, gzipped bytes and time, the
-  way Task 2.8.10 recorded the universe response.
+  way Task 2.8.10 recorded the universe response. **Note 2.9.1 decided there is no
+  reduction**, so the pathological case is the one the **cap refuses** — measure it
+  anyway, because it is what the cap is protecting against and the refusal has to
+  be shown to cost nothing (§4 puts the check before the query, on a calendar walk
+  rather than a scan).
 
-- **Check the reduction is honest as well as small.** If the server reduces, take a
-  window containing a known spike and assert the spike survives at every bucket
-  size offered. That is the one property a downsample can lose, and it is the
-  property this product exists for.
+- ~~**Check the reduction is honest as well as small.**~~ **No reduction ships**
+  (`MARKET-DATA-API.md` §3), so there is no spike-survival property to assert. What
+  replaces it: **validate the cap's number.** 10,000 bars was set on a measured
+  gzipped-transfer argument, and §4 records that the obvious candidate — §28's
+  50 ms parse budget — is **not** the binding constraint. Re-take both readings
+  against the endpoint rather than the array, and say whether 10,000 is still the
+  right line.
+
+- **Measure the stitch, which is new since this task was written.** A window ending
+  _now_ crosses the store's coverage and issues a provider request (Task 2.9.5).
+  Record what that costs — added latency, and how often it happens with 2.9.8's
+  caching in front of it — because it is the number that decides whether the
+  read-side join is affordable as chosen.
 
 - **Watch for the query nobody meant to write.** A serving path that touches
   `market_bars` where it should touch `bar_coverage`, or that runs at minute
@@ -60,7 +75,7 @@ that decide whether Story 2.12 is possible as specified.
 - The reduction (if any) is shown to preserve a real spike
 - Any figure that falsifies a claim in `BARS.md`, `PROVIDER.md`, an ADR,
   `PRODUCT_SPEC.md` or `CLAUDE.md` is **swept the same day**, upward, by grepping
-  for the claim and amending the live sites — not deferred to Task 2.9.9
+  for the claim and amending the live sites — not deferred to Task 2.9.10
 - `pnpm verify` passes
 
 ## Notes

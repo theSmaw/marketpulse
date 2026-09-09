@@ -17,7 +17,7 @@ because Epic 1 spent a whole story establishing how this codebase declares one.
 **A URL that returns real price history**, readable in a browser, and ~~nothing rendered in
 the application~~ — the chart is Story 2.12's.
 
-**Amended 2026-09-09 by the task breakdown below: one thing IS rendered.** Task 2.9.6 puts
+**Amended 2026-09-09 by the task breakdown below: one thing IS rendered.** Task 2.9.7 puts
 the **last stored close and its change on `/securities`**, the table Task 2.8.9 already
 built, riding on a response that page already fetches. It is the first real price this
 product has ever displayed, and taking it here is the delivery decision Task 2.8.9 took for
@@ -93,17 +93,17 @@ work to be proved end to end.
 - Streaming updates — Epic 3, which adds a second protocol beside this one (§31)
 - Anomaly, filing or investigation endpoints — Epics 5, 9, 7
 
-## Open decisions — settle with the user
+## Open decisions — ~~settle with the user~~ **all four settled 2026-09-09 by Task 2.9.1; see [`MARKET-DATA-API.md`](MARKET-DATA-API.md)**
 
-1. **Named windows or absolute ranges**, per above
-2. **Whether the server ever downsamples.** A three-year daily chart is ~750 points and
-   fine; a one-year minute chart is ~100,000 points and is not — something must reduce it,
-   and doing it on the server keeps the payload small while doing it on the client keeps
-   the server honest about what it holds. Note that downsampling price data has a correct
-   and an incorrect way to do it, and the incorrect way removes exactly the spikes this
-   product exists to notice
-3. **Pagination or a hard cap** on a series request, and what the API does when a request
-   exceeds it
+The document carries each one with its alternatives, its measurements and a reversal
+trigger stated as a condition. Struck here rather than repeated, the way Story 2.4's were —
+a decision recorded in two places is a decision that will disagree with itself.
+
+1. ~~**Named windows or absolute ranges**, per above~~ — **both**, absolute is the
+   primitive and the named form resolves to one server-side. §2
+2. ~~**Whether the server ever downsamples.**~~ — **it never does.** §3
+3. ~~**Pagination or a hard cap** on a series request~~ — **a hard cap of 10,000 bars,
+   refused with a 400 that names the limit.** No pagination. §4
 4. ~~**How much of the universe the list endpoint returns at once** — 100 is small enough to
    send whole today and the architecture is meant to reach 500~~ **Moved to Story 2.4 open
    decision 1, which builds that endpoint; struck 2026-09-06.** Whatever it answers, this
@@ -265,31 +265,53 @@ discovering it at the first chart:
 3. **Ask the provider for the whole window on demand** and store nothing extra.
    Simple, and it makes every chart a metered vendor request.
 
+**SETTLED 2026-09-09 with the user by Task 2.9.1: option 2 — stitch, and label the
+seam**, with four rules that make it buildable and bound the metered request.
+See [`MARKET-DATA-API.md`](MARKET-DATA-API.md) §5. The namespace and the path are
+settled there too: **`GET /market-data/bars`**.
+
 Two measurements this story should have before choosing:
 
 - **A mid-session fetch is possible and is always ~16 minutes stale.** Measured
   at a simulated 12:00 ET: a request for today's session clamps to `now − 16 min`
   and would return **134 of 390 minutes**. The clamp is mandatory rather than
   polite — the plan's recency cliff refuses the **whole** request otherwise.
-- **A year of minute bars for one symbol is 97,530 rows ≈ 8.4 MB of JSON.** That
+- **A year of minute bars for one symbol is 97,530 rows ≈ ~~8.4 MB~~ of JSON.** That
   is this story's open decision 2 on downsampling, with a number under it: the
   answer cannot be "send them all".
+  **Amended 2026-09-09 by Task 2.9.1: the row count reproduces exactly and the
+  payload does not — it is 11.08 MB, 24% larger.** Re-taken by serialising the
+  exact wire shape over the same symbol and window; `MARKET-DATA-API.md` §8
+  records the method so it can be re-taken rather than cited. The correction makes
+  the case for a cap stronger, not weaker.
 
 See [`BARS.md`](../story-08-historical-bar-ingestion-and-storage/BARS.md) §8.13
 and §8.6.
 
 ---
 
-## Task breakdown, added 2026-09-09
+## Task breakdown, added 2026-09-09; **ten tasks since 2026-09-09's re-sequence**
 
-Nine tasks. The shape follows Story 2.8's: **settle first, build the contract
+~~Nine~~ **Ten** tasks. The shape follows Story 2.8's: **settle first, build the contract
 before the route, and take the visible payoff inside this story rather than
 deferring it** — ten tasks of backend work with nothing on screen is a run of
 work nobody outside the code can see.
 
 **2.9.1 ships nothing on purpose.** Four open decisions and a namespace, two of
 which need the user, and all four of which three later tasks would otherwise
-answer differently. Task 2.6.1 is the precedent.
+answer differently. Task 2.6.1 is the precedent. **It ran on 2026-09-09 and its
+output is [`MARKET-DATA-API.md`](MARKET-DATA-API.md)**, which is what the rest of
+this breakdown now points at rather than re-deciding.
+
+**2.9.5 was added on 2026-09-09, after 2.9.1 settled open decision 4 as the
+stitch**, and the five tasks after it were renumbered in the same change — the
+sequence has to reflect the order or it is a trap for every later reader. It
+exists because the stitch was work **no task owned**: 2.9.4 reads stored rows,
+2.9.6 puts them on a wire, and fetching the uncovered tail, clamping it, merging
+the provenance and degrading when the provider fails sat between the two with
+nobody holding it. It is also the first time this application makes a vendor
+network call **while serving a user request**, which is a new property of the
+system rather than a new function in it.
 
 **2.9.2 and 2.9.3 are the two halves of the contract**, split because they fail
 differently: a request is validated and refused, a response is typed and
@@ -300,12 +322,12 @@ temporal seam does real work, and it inherits a problem `readBars`' own comment
 names and leaves open: the store deliberately holds **no** provenance, and a
 series cannot exist without it.
 
-**2.9.6 is the payoff, and it is the last close on `/securities` rather than a
+**2.9.7 is the payoff, and it is the last close on `/securities` rather than a
 chart.** It rides on a response the page already fetches, so it pre-empts neither
 Story 2.10's state decision nor Story 2.12's charting decision, and it is the
 first real price this product has ever displayed.
 
-**2.9.8 is a task rather than a step** because acceptance criterion 5 is a
+**2.9.9 is a task rather than a step** because acceptance criterion 5 is a
 measurement against 48 million rows, and because its result may change Story
 2.12's plan.
 
@@ -315,8 +337,9 @@ measurement against 48 million rows, and because its result may change Story
 | [2.9.2](TASK-02-the-request-contract-and-the-window.md)                 | Symbol, timeframe, window — parsed, validated, refused     | No                      |
 | [2.9.3](TASK-03-the-response-contract.md)                               | The wire shape, guarded at every nesting level             | No                      |
 | [2.9.4](TASK-04-the-read-and-the-provenance-the-store-does-not-hold.md) | Rows → `BarSeries`, and where provenance comes from        | No                      |
-| [2.9.5](TASK-05-the-route.md)                                           | The endpoint, and every way it can fail                    | **A URL, not a screen** |
-| [2.9.6](TASK-06-the-first-real-price-on-screen.md)                      | Last close on `/securities`                                | **Yes — the payoff**    |
-| [2.9.7](TASK-07-caching-and-the-immutable-session.md)                   | Closed sessions never change                               | No                      |
-| [2.9.8](TASK-08-measured-against-forty-eight-million-rows.md)           | Timings and payloads, local and deployed                   | No                      |
-| [2.9.9](TASK-09-verify-document-and-adr.md)                             | Verify, `MARKET-DATA-API.md`, the ADR, the upward sweep    | No                      |
+| [2.9.5](TASK-05-the-live-tail-and-the-stitch.md)                        | The uncovered tail, merged and labelled                    | No                      |
+| [2.9.6](TASK-06-the-route.md)                                           | The endpoint, and every way it can fail                    | **A URL, not a screen** |
+| [2.9.7](TASK-07-the-first-real-price-on-screen.md)                      | Last close on `/securities`                                | **Yes — the payoff**    |
+| [2.9.8](TASK-08-caching-and-the-immutable-session.md)                   | Closed sessions never change                               | No                      |
+| [2.9.9](TASK-09-measured-against-forty-eight-million-rows.md)           | Timings and payloads, local and deployed                   | No                      |
+| [2.9.10](TASK-10-verify-document-and-adr.md)                            | Verify, `MARKET-DATA-API.md`, the ADR, the upward sweep    | No                      |

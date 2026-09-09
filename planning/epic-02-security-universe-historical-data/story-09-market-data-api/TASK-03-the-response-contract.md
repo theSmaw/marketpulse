@@ -62,10 +62,12 @@ silently vanishes.
   validator ships with its first reader, and that reader is Story 2.10. Say so in
   the module header so the absence reads as a decision.
 
-- **Decide, and write down, whether a downsampled series says so on the wire.** If
-  Task 2.9.1 chose to reduce, a consumer that cannot tell a reduction from the raw
-  store is a consumer that will eventually publish a number as a minute bar which
-  is not one.
+- ~~**Decide, and write down, whether a downsampled series says so on the
+  wire.**~~ **Settled by Task 2.9.1: the server never reduces a series**
+  (`MARKET-DATA-API.md` §3), so there is no reduction to declare and **no field to
+  add**. Nothing to do here beyond not inventing one — and note the shape the
+  repair would take if the trigger in §3 ever fires: a `reduction` record naming
+  `from`, `bucket` and `method`, never a new member of `TIMEFRAMES`.
 
 ## Done when
 

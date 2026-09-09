@@ -752,6 +752,18 @@ optimistic for bounded windows.
 **97,530 rows ≈ 8.4 MB of JSON**. That is the number Story 2.9's open decision 2
 on downsampling needs, and it says the answer cannot be "send them all".
 
+> **Amended 2026-09-09 by Task 2.9.1, which re-took it: the row count is exact and
+> the payload figure is 24% low.** Same store, same symbol, same window, serialised
+> in the exact wire shape — `startsAt` through `Date.prototype.toISOString()`, five
+> values through `Number`, `JSON.stringify`, `Buffer.byteLength` — gives **97,530
+> bars and 11,081,764 bytes**, 113.6 B/bar against the 86.1 B/bar this sentence
+> implies. This paragraph's method was not recorded, so the two cannot be
+> reconciled by inspection; the method for the new figure is in
+> [`MARKET-DATA-API.md`](../story-09-market-data-api/MARKET-DATA-API.md) §8, and
+> the instruction there is to re-take rather than cite either. The sentence stands
+> as written because it is a record of what was measured on 2026-09-08; **quote
+> 11.08 MB.** The correction strengthens the conclusion rather than changing it.
+
 Note NVDA holds **97,530** bars for the year — exactly the calendar's figure for
 251 sessions with two early closes. The most liquid names run at **100%
 density** while the universe mean is 364.3/390; the discount is a property of

@@ -1,8 +1,8 @@
-# Task 2.9.6 — The first real price on screen
+# Task 2.9.7 — The first real price on screen
 
 **Status:** Not started
 **Story:** [2.9 Market Data API](STORY.md)
-**Depends on:** Task 2.9.5
+**Depends on:** Task 2.9.6
 
 ## Objective
 

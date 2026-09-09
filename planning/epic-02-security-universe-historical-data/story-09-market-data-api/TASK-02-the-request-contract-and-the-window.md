@@ -38,6 +38,13 @@ allowed to ask for.
   range the way `pnpm bars` already does. Prove it: the same request one day
   outside the range and one day inside is the control.
 
+- **The two window forms are mutually exclusive and a request naming both is a
+  400** (`MARKET-DATA-API.md` §2). Not "prefer the absolute one", not "prefer the
+  named one" — a caller that sent both does not agree with itself, and silently
+  picking one is how it stays wrong. The response always reports the **resolved
+  absolute** range in `coverage.requested`, so a named request and an absolute
+  request are the same answer.
+
 - **Absolute ranges become a `TimeRange`,** which is half-open and already refuses
   reversed and zero-width pairs. A malformed instant, a missing bound and a
   reversed pair are three different messages.
