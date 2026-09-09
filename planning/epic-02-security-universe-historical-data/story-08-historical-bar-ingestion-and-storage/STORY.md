@@ -655,3 +655,32 @@ threshold, and the more transferable half is that the report now **prints its ow
 That is Task 1.13.6's blind-renderer problem in a third place, after the axe gate and
 `backfill.database.test.ts`'s window assertion: **a check that cannot see something must say so**,
 because a reader who sees no findings will otherwise conclude there is nothing to find.
+
+---
+
+## Amended 2026-09-09 by Task 2.8.8 — the catch-up DOES run automatically
+
+This story records that **neither the backfill nor the catch-up runs
+automatically in V1**. That is reversed, and the reversal is argued in
+[`BARS.md`](BARS.md) §8.12 rather than asserted here.
+
+**The initial backfill is still a deliberate act** — `workflow_dispatch` only.
+What changed is the **nightly catch-up**: `.github/workflows/backfill.yml` runs
+`--sessions 10` at 08:00 UTC.
+
+Two things made the original decision worth re-taking:
+
+- **Part of its argument was that the backfill had nowhere good to run.** Task
+  2.8.8 measured a laptop as the wrong machine by a factor of ~35 — ~250 ms per
+  round trip to North Central US turns 97 minutes of work into 33 hours — and
+  gave it a home inside Azure. That premise is gone.
+- **Cost was never the objection and is now measured**: four vendor requests a
+  night, and **zero** on a night with nothing new, because the planner plans
+  none.
+
+**What the original decision was right about survives**: an unscheduled
+catch-up is what makes the store quietly stale, and `bar_coverage.updated_at` —
+_when what we hold last changed_ rather than _when the backfill last ran_ — is
+the only field that can report it honestly. It is now the **check on** the
+schedule rather than the substitute for one, which matters because GitHub
+disables a `schedule:` on a repository with no pushes for 60 days, silently.

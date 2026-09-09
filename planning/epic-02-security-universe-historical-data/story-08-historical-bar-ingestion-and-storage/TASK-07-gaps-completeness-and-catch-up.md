@@ -583,3 +583,26 @@ only as honest as the data underneath it, and the market replay in Epic 13 — r
 was knowable at 11:07 on a particular morning — is only meaningful if we can say with confidence
 that a gap in the record is a gap in the _market_ rather than a gap in our _downloading_. As of
 today, we can.
+
+---
+
+## Amended 2026-09-09 by Task 2.8.8 — this task's "nothing runs automatically" was reversed
+
+**The decision recorded above is left exactly as it was taken**, per this
+repository's rule that a decision is never rewritten. What follows is where it
+stopped describing the tree.
+
+Task 2.8.7 decided that **neither the backfill nor the catch-up runs
+automatically in V1**, and said the cost in its own words: an unscheduled
+catch-up is what makes the store quietly stale. Task 2.8.8 reversed the second
+half — there is a nightly `schedule:` on `.github/workflows/backfill.yml` —
+because **part of this task's argument was that the backfill had nowhere good to
+run**, and that premise did not survive measurement: a laptop is the wrong
+machine for it by a factor of ~35, and the job now lives inside Azure.
+
+The initial backfill is still `workflow_dispatch` only.
+
+**And the reasoning here about `bar_coverage.updated_at` is unchanged and is now
+load-bearing rather than consolatory.** A schedule that silently stops — which
+GitHub does to any repository with no pushes for 60 days — is exactly the state
+that field reports and nothing else can. See [`BARS.md`](BARS.md) §8.12.

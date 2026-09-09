@@ -524,6 +524,11 @@ downstream of here can be built without them.
   prices in our record are the prices as they were actually quoted at the time,
   not restated. That is the right choice for a record of what was observed, and
   it means a chart spanning a split will show a step in it. We label it.
-- **Nothing here runs automatically.** If nobody runs the top-up, the store
-  quietly ages. That was a deliberate decision, and the product can report how
-  stale it is.
+- ~~**Nothing here runs automatically.** If nobody runs the top-up, the store
+  quietly ages.~~ **Corrected 2026-09-09, later the same day: it does now.** The
+  store tops itself up every night. That was written before we had anywhere good
+  to run the job from; once we did, keeping it current for four requests a night
+  was obviously worth having, so the earlier decision was reversed deliberately
+  and the reasoning written down. What remains true is the caution behind it: a
+  scheduled job that stops running is silent, so the product still reports how
+  stale its data is rather than assuming the schedule worked.

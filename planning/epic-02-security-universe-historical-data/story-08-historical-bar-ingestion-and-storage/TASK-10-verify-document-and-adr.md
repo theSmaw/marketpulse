@@ -448,3 +448,96 @@ both sides, no session on the transition day itself. That is `0004`'s _"the sing
 line in this story"_ — a `default now()` on `observed_at` — proved absent by production data
 rather than by reading the migration, and it is worth the ADR carrying because it is the
 strongest available evidence that invariant 4's foundation is sound.
+
+---
+
+## Amended 2026-09-09 by Task 2.8.8 — what the run added, and five claims already stale
+
+Task 2.8.8 is complete. Both stores are full and identical; the ADR gains three
+decisions, the second list gains three entries, and five specific claims in this
+repository have already stopped being true.
+
+### The ADR's list is satisfied on one point and gains three
+
+**"TimescaleDB, decided against a measurement" is DONE** and the numbers are in
+[`BARS.md`](BARS.md) §8.16. Quote the reading rather than the conclusion: the
+plans are **identical to local**, warm performance is 4–28 ms at 47.7M rows, and
+the alarming cold figures (3.2 s and 5.4 s) are **entirely a 256 MB
+`shared_buffers` against an 8.95 GB table on a 120-IOPS disk**. A hypertable
+would not touch that. `PRODUCT_SPEC.md` §37's cheaper experiment — a narrower
+`(observed_at, …)` index — would, and is not needed yet.
+
+Three decisions to add:
+
+- **Why the backfill runs from a runner rather than a laptop**, which is open
+  decision 4 corrected by measurement rather than abandoned. ~250 ms per round
+  trip turns 97 minutes into 33 hours; the same code inside Azure is ~35× faster.
+  Say the general form, because it is the transferable part: **this repository
+  had recorded the same fact twice as a curiosity before it ever decided
+  anything** (the deployed browser check being faster on a runner; `pnpm universe`
+  at 0.428 s against ~3 s).
+- **Why the catch-up is scheduled and the backfill is not.** §8.12, and it
+  reverses Task 2.8.7 deliberately. The ADR should carry the reversal rather than
+  only the outcome, because part of 2.8.7's argument was a premise that stopped
+  being true.
+- **Why a small `--sessions N` is load-bearing for a catch-up**, which looks like
+  a tuning detail and is the difference between 4 requests and 193.
+
+### The second list gains three entries, and the first is the strongest in the story
+
+- **A completed backfill certifies nothing about COLD query performance.** Every
+  plan measured warm is single- or low-double-digit milliseconds; the same plans
+  cold are two orders of magnitude worse, on the same instance, minutes apart.
+  Story 2.9's response-time work will meet this and should not read §8.16's warm
+  column as a promise.
+- **It certifies nothing about a run that was INTERRUPTED.** §8.15: a session is
+  not atomic across the universe, so a cancelled run leaves it written for some
+  securities and not others — 468 and 50, measured — and the next run is then
+  refused for exactly those 50 by the ledger's contiguity check. Everything
+  behaved; the point is that "the backfill completed" and "the store is coherent"
+  are different claims and only the ledger can make the second.
+- **A green job certifies nothing about a job longer than an hour.** §8.17:
+  `azure/login`'s OIDC assertion is valid five minutes and the CLI token about an
+  hour, so a later step in a 103-minute job failed on `AADSTS700024` **after** the
+  backfill had stored all 859,476 rows and exited 0.
+
+### Five claims whose conditions have already fired
+
+- **"Neither the backfill nor the catch-up runs automatically in V1"** — reversed.
+  It stands in `STORY.md`, `TASK-07`, `TASK-09`, this file and Task 2.8.8's own
+  stakeholder summary. All five are amended; sweep for the phrasing rather than
+  the word, and **leave 2.8.7's own decision record standing** with its pointer.
+- **`cpu_credits_remaining` "sits at the 30 cap"** (Task 2.1.5) — it reads **286**
+  after hours of sustained write. Either the cap was misread or the accrual model
+  differs; 30 is not the ceiling.
+- **"Whether an open connection outlives its own token was NOT verified, because
+  the case is structurally unreachable"** (Task 2.1.6) — reachable on every
+  backfill over an hour, and **it does**: the pool's connection is never idle for
+  `POOL_IDLE_TIMEOUT_MS` under continuous writing, so it is never re-established,
+  and Postgres does not re-check credentials on a live connection.
+- **"`bar_attempts` is sparse by construction and empty when everything is well"**
+  (Task 2.8.7) — **2,953 rows on a completely healthy store**, because a security
+  that listed inside the window answers empty for every earlier session.
+- **The test counts** — `pnpm test` is **862** (206 + 473 + 183) after Task
+  2.8.8's `emptyAnswers` fix. `CLAUDE.md`'s ten convention blocks were last
+  amended at Task 2.7.9 to **750** and are stale by two stories.
+
+### The gap lists gain one of the fifth kind, and the action count moves
+
+`.github/workflows/backfill.yml` is a **fourth** workflow whose formatting
+Prettier checks and whose **schema nothing validates** — the fifth gap category,
+now six files. It reuses `actions/checkout`, `actions/setup-node`,
+`actions/cache/restore` and `azure/login`, so it adds **no new distinct action**;
+what it moves is the **use** count, and `azure/login` appears **twice in one
+job**, which is itself the §8.17 finding made permanent. Re-count out of the
+files rather than citing.
+
+### One figure to re-derive rather than cite, and one to stop citing
+
+**Storage is 42.89% of the disk with both timeframes at full depth**, so §8.4's
+~2.4-year horizon is confirmed from the other direction, and
+`backup_storage_used` is **874 MB against 32 GB included** — the backfill's
+marginal cost is £0.
+
+**And stop citing "roughly ten million rows."** It appears in `STORY.md`, this
+file and Task 2.8.9, and it predates Task 2.8.2 taking the universe from 101 to 518. The store is **48.03M rows**.
