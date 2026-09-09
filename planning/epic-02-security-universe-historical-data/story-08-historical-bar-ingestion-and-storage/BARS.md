@@ -1039,3 +1039,150 @@ pattern, wrong number, discovered only by running the failure branch.
 **eighth** time overnight (`122.11.246.132` → `58.182.90.91`), and the symptom
 from `psql` is `Connection refused` rather than the timeout the pool reports.
 The runner is immune, which is one more argument for where the backfill lives.
+
+### 8.16 The deployed store, and open decision 2 finally decided
+
+**The deployed store is complete and matches the local one to the digit.**
+
+| Timeframe |       Deployed |          Local | Sessions | Securities |
+| --------- | -------------: | -------------: | -------: | ---------: |
+| `1m`      | **47,682,213** | **47,682,213** |      251 |        518 |
+| `1d`      |    **345,559** |    **345,559** |      672 |        518 |
+
+Two backfills, two machines, two databases, one vendor — **identical counts**.
+That is a stronger statement than any range comparison: it says the walk is
+deterministic given the same window, and that neither run silently dropped or
+duplicated anything. `bar_attempts` holds **2,953 `ok` rows and zero
+`coverage-gap`** on both, so §8.15's fifty are fully recovered.
+
+Coverage: **515 securities at the full year**, plus `Q`, `FDXF` and `HONA` at
+their listing dates.
+
+**And the size figures reproduce almost exactly**, which is worth saying because
+the two servers are different hardware, different architectures and different
+Postgres builds:
+
+| Reading         |     Deployed |        Local |
+| --------------- | -----------: | -----------: |
+| Heap            | **5,001 MB** | **5,001 MB** |
+| Indexes         |     3,948 MB |     3,944 MB |
+| Total           |     8,951 MB |     8,947 MB |
+| Bytes a row     |      **195** |      **195** |
+| Index % of heap |    **79.0%** |    **78.9%** |
+
+`market_bars_pkey` reads **2 scans against `market_bars_unique_bar`'s
+56,031,818** — so §8.5's finding holds deployed, and the two scans are almost
+certainly this task's own `pg_stat` queries.
+
+#### Query performance, and the reason the deployed reading was demanded
+
+`EXPLAIN (ANALYZE, BUFFERS)`, against 47.7M rows on the B1MS:
+
+| Pattern                          |   Local | Deployed COLD | Deployed WARM |
+| -------------------------------- | ------: | ------------: | ------------: |
+| A. one symbol, one month         | 11.8 ms |       49.4 ms |   **26.7 ms** |
+| B. a calendar window, 5 sessions |  2.1 ms |       16.8 ms |    **7.6 ms** |
+| C. the universe at one instant   | 28.2 ms |  **3,213 ms** |    **4.2 ms** |
+| D. a year, one symbol            | 61.6 ms |  **5,373 ms** |   **28.3 ms** |
+
+**The plans are identical to local in every case.** The two-orders-of-magnitude
+cold figures are **entirely disk**: C reads 1,380 blocks and D reads 2,018 from a
+P4 at 120 IOPS, and `shared_buffers` is **256 MB against an 8.95 GB table** —
+2.9%. Warm, every buffer is a hit (`hit=2903, read=0`) and the breadth query is
+**faster deployed than locally**.
+
+**This is exactly why §1 refused to take this measurement on a laptop**, and the
+refusal was right for a reason slightly different from the one it gave: it
+expected CPU credits to be the constraint, and the constraint is the buffer
+cache.
+
+#### Open decision 2 — TimescaleDB: **DECLINED, now on a measurement**
+
+§1 declined it provisionally and named this reading as the trigger. Taken:
+
+- **The primary access pattern is served by the existing index at 7.6–26.7 ms
+  warm**, on a plan identical to the local one. Chunk exclusion would be
+  competing with a btree that already answers, not adding to it.
+- **The one genuinely slow cold query is C**, the cross-sectional breadth
+  scan — and `PRODUCT_SPEC.md` §37's rule applies exactly: _say whether a plain
+  index fixes it before reaching for a second data technology._ It would, and
+  dramatically. C currently reaches 493 rows through **587 index searches over
+  2,903 buffers** using Postgres 18's skip scan; an `(observed_at,
+security_id)`-leading index makes it one tight range scan over a handful of
+  pages. That is the cheaper experiment and it is not even needed yet, because
+  warm it is **4.2 ms**.
+- **A hypertable would not fix the cold case anyway.** The cost is reading 2,903
+  pages off a slow disk into a 256 MB cache; partitioning changes _which_ pages,
+  and the skip scan is already highly selective. What fixes it is a narrower
+  index or more memory, both of which are cheaper than a second data technology.
+
+**So: do not enable it.** The reversal triggers are re-stated at their new
+weight — **Epic 5 issuing the cross-sectional query in anger** (at which point
+build the plain index first and measure again), or the row count growing an
+order of magnitude, which at this universe size means a multi-year store rather
+than a one-year one.
+
+The reversal cost is unchanged and worth restating: `azure.extensions`, then
+`shared_preload_libraries` (**a server restart**), then `CREATE EXTENSION` — and
+**locally a different image entirely**, which reaches `LOCAL_DATABASE_VERSION`
+and `pnpm test:database`.
+
+#### The platform meters, re-read
+
+| Metric                  |      Reading | Alert threshold |
+| ----------------------- | -----------: | --------------: |
+| `storage_percent`       |   **42.89%** |             80% |
+| `storage_used`          | **14.37 GB** |               — |
+| `backup_storage_used`   |   **874 MB** |  32 GB included |
+| `cpu_credits_remaining` |      **286** |               5 |
+| `cpu_percent`           |        21.5% |               — |
+
+**A full year of both timeframes for 518 securities uses under half the disk**,
+so `psql-storage-80pct` has real headroom rather than nominal, and §8.4's
+~2.4-year horizon is confirmed from the other direction.
+
+**Backup storage is 874 MB against 32 GB included**, which closes a question
+this task raised and could not answer earlier: the backfill's marginal cost is
+**£0**, and backup overage — the one meter that could plausibly have moved — is
+nowhere near.
+
+**And one recorded figure is corrected.** Task 2.1.5 recorded that _"an idle
+Burstable server banks almost nothing — `cpu_credits_remaining` sits at the 30
+cap"_. It reads **286** after hours of sustained write. Whether the cap was
+misread then or the accrual model differs from what was assumed, **30 is not the
+ceiling** and a design that budgeted against it was budgeting against the wrong
+number. Re-read rather than cited.
+
+### 8.17 Three credential lifetimes in one job, and only one of them mattered
+
+The recovery run stored all 859,476 missing bars and exited **0** — and the job
+still went **red**, on the reporting step, one second after the backfill
+finished:
+
+```
+AADSTS700024: Client assertion is not within its valid time range.
+Current time: 02:19:52, assertion valid from 00:36:29, expiry 00:41:29
+```
+
+**`azure/login` does not survive a long job.** GitHub's OIDC client assertion is
+valid for **five minutes**; the Azure CLI exchanges it for an access token good
+for about an hour, and when that expires it attempts a refresh using the
+long-dead assertion. At 103 minutes in, the first `az` call in a later step
+failed.
+
+**The write path was unaffected, and the mechanism is worth knowing.** The
+database token was minted once at the start and is valid ~69 minutes; the run
+lasted 103. It survived because under continuous writing the pool's connection
+is **never idle for `POOL_IDLE_TIMEOUT_MS`**, so it is never re-established, and
+Postgres does not re-check credentials on a live connection.
+
+So a long backfill has **three** credential lifetimes in it — an OIDC assertion
+at 5 minutes, a CLI token at ~1 hour, a database token at ~69 minutes — and the
+only thing that kept the important one alive was connection reuse rather than
+any design for it. **Task 2.1.6's "whether an open connection outlives its own
+token was NOT verified, because the case is structurally unreachable" is no
+longer unreachable**: a backfill reaches it on every run over an hour, and the
+answer is that it does outlive it.
+
+The fix is to re-authenticate before any step that runs after the backfill,
+which is one `azure/login` with `if: always()`.
