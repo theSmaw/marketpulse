@@ -13,7 +13,16 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
 
 - **Re-take the seven criteria, each against the thing it is about**, and say
   which instrument answered each. Criterion 1 is a compile error **produced**, not
-  described — add a field, see `TS1360`, remove it. Criterion 3 is four responses
+  described — add a field, see `TS1360`, remove it.
+  **Two things about criterion 1, added 2026-09-09 by Task 2.9.3.** There are
+  **eleven** guard applications across the application by then — four in
+  `routes/securities.ts`, one in `/health`, one in `/market-data` and seven on the
+  series response — and "add a field" at the envelope demonstrates nothing about
+  the ten inside it, which is the whole property the criterion is about; pick a
+  **nested** shape. And `packages/shared` is consumed as **built output**, so the
+  edit proves nothing until that package is rebuilt: skip the rebuild and
+  `typecheck` is green against the old `.d.ts`, which looks identical to the guard
+  not firing. Criterion 3 is four responses
   quoted with their request ids. Criterion 5 is Task 2.9.9's table. Criterion 6 is
   the route-table walk plus the `app.inject()` suite. Criterion 7 is `pnpm verify`
   at exit 0 **with no database running**.
@@ -63,6 +72,17 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   exist"_ — this story fires, and whose decision Task 2.9.6 takes; amend that
   comment with what was decided rather than leaving a trigger that has already
   fired reading as though it has not.
+  **Added 2026-09-09 by Task 2.9.3 and certain rather than conditional:**
+  `MARKET-DATA-API.md` §9's first bullet, which says the response types are Task
+  2.9.3's and names _"bars, provenance, sources and coverage"_ as the nested
+  shapes — a forward-looking list that is now answered and undercounts, since
+  there are **seven** shapes and the seventh (`TimeWindowPayload`) is the one the
+  nullable field hangs off; and that same bullet's _"live in `packages/shared`"_,
+  which is true of the types and **false of the schemas**, which sit in
+  `apps/backend/src/routes/market-data.ts` beside the route. `STORY.md`'s scope
+  list carries the same correction already. Neither is a figure — both are live
+  claims about where the contract is, and a reader sent to the wrong package is
+  the cost.
 
 - **Write the stakeholder section** in the shape Task 2.4.2 and 2.8.9 established:
   what this actually did in plain terms, why the small decisions went the way they

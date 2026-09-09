@@ -59,6 +59,19 @@ that decide whether Story 2.12 is possible as specified.
   a reading rather than an expectation, and note it grows with the window's
   session count rather than with the number of bars.
 
+- **§8's per-bar figure excludes the envelope, and the shipped wire shape has one
+  — added 2026-09-09 by Task 2.9.3.** That method serialises _an array of bars_;
+  what a browser receives is `{ series: { symbol, timeframe, bars, provenance,
+coverage }, securityStatus }`. Measured on the shipped shape rather than
+  estimated: the fixed cost is **391 bytes** for a populated single-source
+  response, 480 with a second source, and 326 for an empty series with a null
+  `covered`. Against a session at `1m` (390 bars, 44.3 kB) that is **0.9%** and
+  below the noise; against a two-bar answer it is most of the payload. So the
+  per-bar figure stays the right instrument for the cap and is the **wrong** one
+  for a small window — quote the whole body for each access pattern rather than
+  multiplying, and note that a stitched response carries one envelope and two
+  sources rather than two envelopes.
+
 - **Watch for the query nobody meant to write.** A serving path that touches
   `market_bars` where it should touch `bar_coverage`, or that runs at minute
   resolution where daily would answer, is invisible in a unit test and obvious in

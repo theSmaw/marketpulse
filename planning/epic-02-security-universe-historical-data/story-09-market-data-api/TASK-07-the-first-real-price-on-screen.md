@@ -55,6 +55,16 @@ as current is precisely the dishonesty invariant 6 exists to prevent.
 - **Extend the contract with the guard, not around it.** The field is added to the
   interface **and** the schema, at every nesting level the `satisfies` guard does
   not reach, and the raw-body assertion is what proves the nullable case survives.
+  `routes/securities.ts` applies the guard **four** times today; a field added to
+  a nested shape is covered only by that shape's own application.
+
+  **And there is a trap in checking that you did it, found 2026-09-09 by Task
+  2.9.3.** `packages/shared` is consumed as **built output**, so adding a field to
+  a shared interface and running `pnpm --filter @marketpulse/backend typecheck`
+  proves nothing until the shared package is rebuilt — it typechecks against the
+  previous `.d.ts`, comes back green, and reads exactly like a guard that is not
+  firing. `pnpm --filter @marketpulse/shared build` first, every time, or the
+  verification is of the old contract.
 
 - **Re-measure the payload rather than predicting it.** The current response is
   **150,660 bytes, 12,831 gzipped** at 518 securities with coverage (Task 2.8.10),

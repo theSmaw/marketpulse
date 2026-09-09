@@ -78,6 +78,19 @@ a task rather than a bullet, and it is what its tests are mostly about.
   **mechanism** — two sources, counts summing, both feeds preserved — with a stub
   provider declaring a different feed.
 
+  **The wire half of that is already built and asserted, so this task does not
+  touch the contract (added 2026-09-09 by Task 2.9.3).**
+  `SeriesProvenancePayload.sources` is an array in both the type and the schema,
+  and a test already sends a two-source series with disagreeing feeds through the
+  real serialiser and reads `["sip", "iex"]` and `[1, 1]` back out. So a stitch
+  that reaches the wire correctly is a question about _this_ task's join, not
+  about whether the payload can express it. One asymmetry to know rather than
+  discover: the domain types `sources` as a **non-empty tuple** and the wire types
+  it as a plain array, because a tuple has no JSON Schema `fast-json-stringify`
+  would enforce — the non-emptiness survives inside the process, through
+  `toSeriesProvenance` and `mergeSeriesProvenance`, and is re-established on the
+  way in by Story 2.10's predicate.
+
 - **Test with a stub provider and no network.** `fixture-provider.ts` is the
   precedent and `retry-provider.ts` shows the wrapper shape. `pnpm verify` must
   stay runnable with no server, no database, no network and no credentials; the

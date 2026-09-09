@@ -66,9 +66,17 @@ work to be proved end to end.
   `BAD_REQUEST` and a message naming the range, not a stack trace.
   **`packages/shared` may not read the wall clock**, which is enforced by lint, so "the last
   5 sessions from today" resolves `today` in the route handler and passes it in
-- The response contract, in `packages/shared`, with the `satisfies` guard idiom Task 1.7.3
-  established so a field added to the interface and forgotten in the schema is a compile
-  error rather than a field that silently vanishes from the wire
+- The response contract, ~~in `packages/shared`~~, with the `satisfies` guard idiom Task
+  1.7.3 established so a field added to the interface and forgotten in the schema is a
+  compile error rather than a field that silently vanishes from the wire.
+  **Amended 2026-09-09 by Task 2.9.3, which built it: the contract has two halves and they
+  live in two places.** The **types** are in `packages/shared/src/bar-series-response.ts`;
+  the **schemas** are in `apps/backend/src/routes/market-data.ts`, beside the route that
+  will serve them, because `json-schema.ts` records in terms that `JsonSchemaProperty` is
+  deliberately **not** in `packages/shared` — nothing outside the backend declares a
+  response schema, and that package is inlined into the frontend bundle. `/health`,
+  `/securities` and `/market-data` all follow that split; this bullet's original wording
+  described only the first half
 - **Provenance in the payload**, per Story 2.6 — the response says which feed it came from
   and whether it is adjusted, so the UI cannot render market data without knowing
 - Partial answers as first-class results (§36): "we have data through 15:42" and "we have
