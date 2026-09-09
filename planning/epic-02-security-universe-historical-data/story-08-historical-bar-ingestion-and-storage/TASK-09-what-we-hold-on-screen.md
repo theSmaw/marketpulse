@@ -1,6 +1,6 @@
 # Task 2.8.9 — What we hold, on screen
 
-**Status:** Not started
+**Status:** Complete — 2026-09-09. See _Completed_ at the foot of this file.
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
 **Depends on:** Task 2.8.8
 

@@ -1186,3 +1186,71 @@ answer is that it does outlive it.
 
 The fix is to re-authenticate before any step that runs after the backfill,
 which is one `azure/login` with `if: always()`.
+
+---
+
+## 9. The store on screen — Task 2.8.9
+
+The one section of this document that is about a **page**, and it is here rather
+than only in the task file because the store becoming readable from a public URL
+is a property of the store's observability rather than of the frontend.
+
+### 9.1 What the page reads, and what it must never read
+
+`/securities` carries a `coverage` record per security: the covered window as
+two ISO instants, the timeframe, and the bar count. It comes from
+**`listCoverage()` against `bar_coverage`** — a few hundred rows however many
+bars exist — and **never from `market_bars`**. That is the property §8.6's query
+work depends on staying true: a page load that scanned 48 million rows would
+arrive in Story 2.9's response-time measurements as a mystery with no obvious
+author.
+
+**Minute bars only.** The ledger holds 1,036 rows for 518 securities and the
+page sends the `1m` half, stated in the contract rather than implied. The daily
+depth is a different and deeper window (2024-01-01) and belongs beside the chart
+that reads it, which is Story 2.11's per-security route.
+
+### 9.2 The endpoint reconciles against the ledger exactly
+
+Read from the local store on 2026-09-09, against `psql` on the same database:
+
+| Reading              |        Endpoint |         `bar_coverage` |
+| -------------------- | --------------: | ---------------------: |
+| Coverage records     |         **518** |                **518** |
+| Bars                 |  **47,682,213** |         **47,682,213** |
+| Distinct start dates | 515 / 1 / 1 / 1 |        515 / 1 / 1 / 1 |
+| Timeframes sent      |       `1m` only | `1m` and `1d` in table |
+
+Three securities short of the full year, which is §8.1's `Q`, `FDXF` and `HONA`
+arriving on a screen. **The wire is 150,660 B and 12,831 B gzipped** at 518
+securities with coverage — the compression ratio _improves_ with the coverage
+array, 6.7:1 to 11.7:1, because 515 records carry the same two instants.
+
+### 9.3 Two facts per row, and the three the ledger holds that stay off it
+
+Rendered: a **duration** and a **start date** — `1y from 2025-09-08`. Withheld:
+the **bar count**, which is a scale claim and appears once in the summary line;
+`updated_at`, which is not on the wire at all; and **any density figure**, for
+§7.3's reason — 364.3 bars per security-session against a nominal 390 makes a
+percentage read ~93% for a completely healthy store, and that number is
+liquidity rather than completeness in the one place a reader would take it for
+the latter.
+
+**And no join to `bar_attempts`.** §7 can separate a blocked symbol from a
+spin-off and the page deliberately does not: the engineering word for one of
+them is `coverage-gap`, `pnpm bars:check` is where an operator's question
+belongs, and to a user the true statement in both cases is the same one.
+
+### 9.4 The measured argument against a coverage bar
+
+**515 of 518 securities start on the same day.** The entire information content
+of the column is the three that do not, so a bar chart draws 515 identical full
+bars and reads as a progress indicator for something that is not in progress.
+What makes the exception legible instead is **alignment** — right-aligned
+fixed-width `YYYY-MM-DD` in a column of `tabular-nums` — which costs no ink, no
+chip and no second vocabulary, and which is what Task 1.4.3's 14.3px measurement
+was bought for.
+
+The deployed store matches the local one to the digit (§8.16), so the deployed
+page is predicted to read the same summary line character for character. **Task
+2.8.10 owns confirming that**; it has not been read.
