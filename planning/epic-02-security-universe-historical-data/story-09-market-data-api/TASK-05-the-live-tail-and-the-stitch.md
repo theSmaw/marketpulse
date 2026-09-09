@@ -1,6 +1,6 @@
 # Task 2.9.5 — The live tail, and the seam it has to label
 
-**Status:** Not started
+**Status:** Complete — 2026-09-09
 **Story:** [2.9 Market Data API](STORY.md)
 **Depends on:** Task 2.9.4
 
@@ -45,13 +45,40 @@ a task rather than a bullet, and it is what its tests are mostly about.
   that becomes "fetch the whole window", which is the option nobody chose. The
   session bound below is what keeps that honest whichever way it is answered.
 
-- **Clamp the tail to what the plan will actually serve.** `ALPACA.md` §10's
+- ~~**Clamp the tail to what the plan will actually serve.** `ALPACA.md` §10's
   recency cliff keys on `end` **alone** and refuses the **whole** request rather
   than trimming it, so an unclamped mid-session fetch returns nothing at all.
   `alpacaServableEnd` already exists and is what the backfill uses; reuse it
-  rather than writing a second definition of "16 minutes". Quoted with its source
-  and date: at a simulated 12:00 ET, a request for today's session clamps to
-  `now − 16 min` and yields **134 of 390 minutes** (`BARS.md` §8.13, 2026-09-08).
+  rather than writing a second definition of "16 minutes".~~ **This bullet's
+  premise was false when it was written, and it had been false since Task 2.7.5.
+  Read against the tree rather than against `ALPACA.md`, 2026-09-09.**
+
+  An unclamped mid-session fetch does **not** return nothing, because nothing
+  reaches the vendor unclamped: `alpaca-provider.ts` calls `alpacaServableEnd`
+  itself before building its first request, reports the clamp as
+  `coverage.covered`, and makes **no request at all** for a window lying
+  entirely inside the withheld minutes. And `alpacaServableEnd` is not "what the
+  backfill uses" — `grep` finds it in `alpaca-mapping.ts`, `alpaca-provider.ts`
+  and their tests, and in no command. `pnpm backfill` and `pnpm bars` both get
+  it transitively, through the seam.
+
+  So the strongest form of _"reuse it rather than writing a second definition"_
+  turned out to be **not calling it here at all**, and that is what shipped. Two
+  things a second call site would have cost: `ALPACA_SIP_WITHHOLDING_MS` is a
+  fact about one vendor's free plan, and importing it into a module read through
+  the `MarketDataProvider` seam is invariant 7 going the wrong way for no gain;
+  and §5's own reversal trigger says the clamp stops being necessary when Epic 3
+  arrives — a clamp inside the provider disappears with the provider, where one
+  here is something Epic 3 has to find and remove.
+
+  What the read path owes instead is that the clamp be **visible in the answer**,
+  and that is asserted either side of the boundary against a stub reporting a
+  short window the way the real client does. The figure is unchanged and is
+  quoted with its source and date: at a simulated 12:00 ET, a request for today's
+  session clamps to `now − 16 min` and yields **134 of 390 minutes**
+  (`BARS.md` §8.13, 2026-09-08). `MARKET-DATA-API.md` §5 rule 2 carries the same
+  amendment, dated, because that is the live claim; this one is the record of a
+  brief and is struck rather than rewritten.
 
 - **Bound the tail to the current session, and this is the rule that keeps the
   cost from growing while nobody is looking.** If the store is days behind — as
@@ -163,3 +190,166 @@ decision back to the user — not a reason to quietly narrow it here.
 Epic 3 replaces **what is being stitched**, not the stitching: a live tail is not
 16 minutes stale and is not metered, so the clamp and the session bound both stop
 being necessary. The join, the merge and the two-feed reporting all stay.
+
+---
+
+## What was built, 2026-09-09
+
+`apps/backend/src/serve-series.ts` — `serveSeries()`, plus `tailWindow()`
+exported beside it so the decision _"which window, or why none"_ can be read and
+tested without a provider at all. `apps/backend/src/serve-series.test.ts` is 24
+tests against a stub provider, no socket, no database, no credential.
+
+Two things were **exported** from `market-bars.ts` rather than copied:
+`STORED_BAR_ADJUSTMENT`, because a literal `"raw"` at the fetch call site would
+be a second statement about what that table holds, and `sessionsInGap`, because
+the read side asks the write side's question and a second copy would be a
+threshold that disagreed about a half day.
+
+### The four decisions this task had to take, and what each answered
+
+**1. The absent `held`.** A symbol the ledger has no row for **fetches the
+current session's tail and nothing earlier** — the same bound, from the same
+session start, with no gap test because there is nothing to be contiguous with.
+The tail is then the only source in the record. The alternative, serving
+nothing, is cheaper by one request and answers a legitimate question with
+silence; a security added to the universe before its first backfill now charts
+today rather than charting nothing.
+
+**2. The session bound has two independent arguments and they agree**, which is
+why it shipped as one rule rather than as a budget. The cost argument is §5's.
+The one that makes it structural is that `SeriesCoverage.covered` is **one**
+half-open range: a stored half ending Friday and a tail starting Wednesday
+cannot be described by one range without claiming Tuesday. So the contract
+cannot express a discontiguous stitch, and the bound that keeps the cost down is
+the same bound that keeps the claim honest. The test is `sessionsInGap` — the
+calendar, not a threshold — so the overnight, a weekend and Labor Day are all
+_no_ gap and a single skipped session is one.
+
+**3. A half that contributed no bars contributes no source**, applied in **both**
+directions. The brief named the empty stored half; the tail has the identical
+problem, because a tail refused for its whole window comes back `ok` with zero
+bars and putting it on the wire as a second feed is the same fiction wearing the
+other hat. Neither half having bars returns the stored series unchanged, since
+the domain type requires exactly one source and the store's is the one with a
+ledger row behind it.
+
+**4. `DEFAULT_BARS_DEADLINE_MS` is taken rather than replaced.**
+`market-data-provider.ts` records _"Owner: Story 2.9, which is the story that
+first puts a provider behind a route"_ against that constant — and its 3,000 ms
+was derived for exactly this shape (a 5,000 ms browser budget less a 250–768 ms
+deployed round trip). Taking the default deliberately is the answer to that
+handover; inventing a second number here would have been the fork it warns
+about. Its reversal trigger, a measured p99 near the number, belongs to Task
+2.9.9.
+
+### Three breaks made, and each went red
+
+Per `CLAUDE.md` — a break that does not go red is equally evidence the break did
+not land.
+
+| Substitution                                    | What went red                                 |
+| ----------------------------------------------- | --------------------------------------------- |
+| `sessionsInGap(...) > 0` → `false`              | the two-session-gap test (1 failed)           |
+| merge the empty stored half's provenance anyway | the "tail is the only source" test (1 failed) |
+| drop the session bound from the tail's start    | four tests (1 failed → 4 failed)              |
+
+The bound's negative assertion is paired with its positive: _"DOES fetch across
+the overnight"_ is the same code path with one session less staleness, because a
+negative that would hold however the bound were written is not evidence.
+
+### What was NOT done, and who owns it
+
+- **The route.** Task 2.9.6. This is a function; nothing is registered and no
+  URL changed.
+- **Storing the tail.** Refused by `recordSeries`, correctly — Epic 3's per-bar
+  `feed` column is the story that can change it.
+- **Bounding the metered request.** Task 2.9.8. Every chart window ending _now_
+  is one vendor request on a cache miss, and the session bound caps its **size**
+  rather than its **frequency**.
+
+### Verification
+
+`pnpm verify` passes with no database and no network (543 backend tests, 24 of
+them new). `pnpm test:database` passes against a real server, 154 tests — run
+because `market-bars.ts` changed and `database` is a required check.
+
+---
+
+## For the stakeholders — what this actually did, in plain terms
+
+**Short version: charts can now reach today.**
+
+Until this task, MarketPulse could only serve you prices it had already
+collected overnight. That collection deliberately stops at the end of a
+completed trading day, so a chart asking for "the last five days including now"
+would have quietly ended at yesterday's closing bell — technically honest,
+visibly wrong to anyone who expected to see this morning. This task closes that
+last few hours.
+
+**How it works, without the machinery.** When you ask for a window, we first
+take everything we already hold from our own database — which is instant, free,
+and where 99% of the data is. Then we look at whether your window runs past
+where our records stop. If it does, and only if it does, we go and buy the
+missing piece from our data supplier, and we join the two together into a single
+chart. If your window is entirely in the past, we buy nothing at all.
+
+**Three decisions worth explaining, because they all cost money or trust.**
+
+_We only ever buy the missing piece, never the whole thing._ Our data supplier
+charges per request. The lazy version of this feature asks the supplier for the
+entire window every time somebody opens a chart, which works perfectly and is
+enormously more expensive. Most of the tests written for this task exist to
+prove we are asking for the small piece, because a chart drawn from the
+expensive version looks identical to a chart drawn from the cheap one — the
+difference is only visible in the bill.
+
+_We buy at most today, never a backlog._ If our overnight collection has fallen
+behind — say it missed a night — the naive version turns one page load into a
+multi-day purchase. Worse, the cost then depends on how far behind we are rather
+than on what you asked for, which is the kind of bill that grows quietly for
+months before anybody notices. So the rule is: today's missing hours we will buy
+on demand; anything older is the overnight job's problem, and the chart tells
+you honestly how far its data actually reaches rather than pretending. There is
+a second reason this rule is right, and it is about honesty rather than money:
+if we filled in today but skipped a missed day in the middle, the chart would
+have a hole in it that it had no way to describe. Better to say "our data runs
+to here" than to draw a line across a gap.
+
+_Every chart says where each half of it came from._ This is the product
+requirement we keep coming back to. The historical data we store comes from the
+full US consolidated tape — every exchange. The live feed we will add in the
+next phase comes from a single exchange, IEX, which is a much narrower view. A
+chart stitched from both is genuinely part one and part the other, and it would
+be misleading to put a single label under it. So a series now carries a _list_
+of sources rather than one, the joining code physically cannot produce a chart
+that forgets half its own history, and the display layer will be able to say
+"part consolidated tape, part IEX". Today both halves happen to say the same
+thing, and that is correct rather than a bug — the machinery is built and proven
+before the second feed exists, so adding it next phase is a data change and not
+a code change.
+
+**And one thing that will happen and is not a failure.** Data suppliers go down,
+rate-limit you, and reject your credentials at inconvenient moments. When that
+happens while somebody has a chart open, the chart does **not** turn into an
+error page. It shows everything we already had, and says how far it reaches —
+"displaying data through 15:42". That is a deliberate product stance we have
+written down since the beginning: in a system that talks to the outside world,
+partial answers are normal states, not exceptions, and collapsing the whole
+screen because one supplier hiccuped is the worst possible response.
+
+**Where this leaves us.** Nothing on screen changed today; this is plumbing, and
+it is the second-to-last piece before something visible. The next task turns
+this into an actual web address you can open in a browser and see real prices
+come back. Two tasks after that, the first real price appears on the securities
+page — the first number this product has ever shown that came from an actual
+market. The charts themselves follow in the same epic.
+
+**The one cost we have created on purpose, stated plainly.** Every chart that
+runs up to _now_ is a paid request to our supplier unless we have already
+answered that question recently. Task 2.9.8 is where we make sure we do not pay
+twice for the same thing — and because a trading day, once it has closed, can
+never change again, that is one of the easiest and most complete caching
+opportunities this product will ever have. If that task somehow cannot bound the
+cost, the decision to stitch comes back to you rather than being quietly
+narrowed by us.

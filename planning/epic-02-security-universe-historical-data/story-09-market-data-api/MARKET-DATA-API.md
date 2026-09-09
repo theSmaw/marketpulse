@@ -350,6 +350,19 @@ accident:
 2. **The tail is clamped to what the plan will serve** — `now − 16 min` — because
    the recency cliff keys on `end` alone and refuses the **whole** request
    otherwise. The clamp is mandatory rather than polite (`ALPACA.md` §10).
+   **Amended 2026-09-09 by Task 2.9.5, which built the read path: the clamp is
+   already applied and it is applied one layer DOWN.** `alpaca-provider.ts` has
+   called `alpacaServableEnd` before building its first request since Task
+   2.7.5, reports the clamp as `coverage.covered`, and costs **no request at
+   all** for a window lying entirely inside the withheld minutes. Neither
+   `pnpm backfill` nor `pnpm bars` clamps; both get it through the seam. So the
+   read path calls it **not at all** — a second call site would put a fact about
+   one vendor's free plan inside a provider-agnostic module, and would save a
+   request the provider already declines to make. What the read path owes is
+   that the clamp be visible in the answer, which it is: the merged
+   `coverage.covered` ends where the tail's does. This rule is unchanged as a
+   requirement on the system and is no longer a requirement on this story's
+   code.
 3. **The read path fetches at most the current session's tail.** If the store is
    days behind — as it is locally, by two sessions — a "last 5 sessions" request
    must **not** turn into a multi-day vendor fetch on a page load. Older missing
