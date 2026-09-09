@@ -48,23 +48,27 @@
  * thing that could have made this argument wrong:
  *
  *   - 101 securities were **17,299 B**, gzipped **2,591 B**;
- *   - 518 securities, with coverage, are **150,660 B**, gzipped **12,831 B**
- *     (`gzip -9`; the 2,591 above is Task 2.4.2's reading and the two were not
- *     taken with the same tool, so compare the ratios rather than subtracting).
+ *   - 518 securities, with coverage, were **150,660 B**, gzipped **12,831 B**;
+ *   - 518 securities, with coverage **and** last closes, are **190,736 B**,
+ *     gzipped **19,526 B** (Task 2.9.7, `gzip -9`; the 2,591 above is Task
+ *     2.4.2's reading and the two were not taken with the same tool, so compare
+ *     the ratios rather than subtracting).
  *
- * So the universe grew five-fold and the envelope gained a third key, and
+ * So the universe grew five-fold and the envelope gained two more keys, and
  * the thing that
- * actually crosses the wire is **12.8 kB** — against a frontend bundle of
+ * actually crosses the wire is **19.5 kB** — against a frontend bundle of
  * 373 kB that the browser downloads before it can render any of it. The
  * uncompressed figure is the one that looks alarming and is not the one being
  * transferred; quote the gzipped one.
  *
- * The compression ratio is the interesting half and it got **better** — 6.7:1
- * at 101 securities against **11.7:1** now — because 515 of 518 coverage records carry the same two
- * instants and gzip is very good at that. A per-row provenance record, when
- * Story 2.7's consequence finally lands, should behave the same way for the
- * same reason — so the thing to measure before panicking about a new key is the
- * *compressed* payload, not the array length.
+ * The compression ratio is the interesting half, and Task 2.9.7 is the first
+ * key to make it **worse**: 6.7:1 at 101 securities, **11.7:1** with coverage,
+ * **9.8:1** now. The reason was predicted before the key was added and the
+ * measurement confirmed it — 515 of 518 coverage records carry the same two
+ * instants and gzip is very good at that, where 518 distinct prices are 518
+ * distinct strings. So the rule survives the exception: measure the
+ * *compressed* payload rather than the array length, and expect a key of
+ * genuinely per-row values to cost what it looks like.
  *
  * **The stated reversal trigger has half fired and is restated rather than
  * quietly ignored.** It read "a universe past §6's 500", and Task 2.8.2's
@@ -78,6 +82,8 @@
 
 import { TIMEFRAMES } from "./bar.js";
 import type { Timeframe } from "./bar.js";
+import { isMarketDate } from "./market-time.js";
+import type { MarketDate } from "./market-time.js";
 import { isSecurity } from "./security.js";
 import type { Security, SecurityFieldGroup } from "./security.js";
 
@@ -184,6 +190,104 @@ export interface SecurityCoverage {
 }
 
 /**
+ * The last close we hold for one security, and the one before it.
+ *
+ * **The first price this product puts in front of anybody** (Task 2.9.7), and
+ * the whole shape follows from what that sentence has to survive: a number on a
+ * screen with no chart around it and no live feed behind it has to say *which
+ * moment it is about*, or it reads as "now" and is a lie by default.
+ *
+ * ## Two prices and no percentage, which is the same line `PriceChange` draws
+ *
+ * The wire carries `close` and `previousClose`; it does not carry the change,
+ * the percentage, or a direction. `PriceChange`'s own header states the rule
+ * and it is invariant 1 read the right way round: **a band name is a decision
+ * the backend reports, the direction of a move is arithmetic on a number both
+ * sides already have.** A percentage computed here would be a third
+ * representation of two numbers that are already on the wire — one more thing
+ * to disagree with itself, and one the client would still have to format.
+ *
+ * That is *not* a licence to let a model or a view invent figures: the two
+ * prices are read from stored bars and nothing derives them. Invariant 1 is
+ * about where a number comes from, and a subtraction whose inputs are both on
+ * screen is not a number this product had to look up.
+ *
+ * ## `session` is a market DATE and not an instant, unlike {@link
+ * SecurityCoverage}
+ *
+ * `SecurityCoverage` sends instants and argues that the conversion to a trading
+ * day belongs in `market-time.ts` on whichever side is displaying it. That
+ * argument does not transfer, because a close is not an observation at an
+ * instant — it is **the last print of a session**, and a session is a date. So
+ * this follows the second of Story 2.5's two wire rules rather than the first
+ * (ADR 0017): an instant is a UTC ISO 8601 string, and a market date is a
+ * `YYYY-MM-DD` string, because sending a date as an instant is how "which
+ * session is this?" becomes a timezone question at every call site.
+ *
+ * The conversion still happens exactly once and still in `market-time.ts` —
+ * `marketDateAt`, called by the route's mapper — which is the module a lint
+ * rule reserves for it. What it converts is a daily bar's `observed_at`, which
+ * the vendor labels at market midnight; the branded {@link MarketDate} is what
+ * carries the fact that the conversion happened.
+ *
+ * ## `previousClose` is nullable and the null is not an error
+ *
+ * A security we hold exactly one daily bar for has a close and no comparison,
+ * which is §36's "partial answer" one field wide: a real, correct state that
+ * must not be spelled as a zero. A zero previous close would render as a
+ * `+∞%` move, which is the single most alarming wrong number this page could
+ * produce.
+ *
+ * A security we hold **no** daily bars for is absent from the array entirely,
+ * which is {@link SecuritiesResponse.coverage}'s spelling of the same idea and
+ * for the same reason: absent is *we hold nothing for this*, and a record with
+ * a null price would be *we hold a bar whose close is unknown*, which cannot
+ * happen — `market_bars.close` is `not null`.
+ *
+ * ## What it deliberately does not carry
+ *
+ * **The previous session's date.** Nothing renders it: the change is a
+ * comparison against "the session before", and naming that session on a list
+ * row is a second date in a cell that already has one. The reader, if one
+ * comes, is a per-security page — Story 2.11's — where there is room for it.
+ *
+ * **A feed or a provider.** The close is a price, not a provenance record, and
+ * Task 2.6.7's rule is that no second endpoint may answer *which feed*.
+ * `/market-data` answers it for the deployment and `SeriesProvenance` answers
+ * it per series; a per-security feed here would be a third answer to one
+ * question, and the trigger for one — a deployment whose securities genuinely
+ * disagree about their feed — has not fired.
+ */
+export interface SecurityLastClose {
+  /** The security this is about — a {@link Security.symbol}. */
+  readonly symbol: string;
+
+  /**
+   * The trading session the close belongs to, as `YYYY-MM-DD` market-local.
+   *
+   * **The last session we hold a daily bar for, which is not necessarily the
+   * last session that traded.** The store holds complete sessions only and the
+   * nightly catch-up runs before the open, so this date is behind the calendar
+   * during a live session and stays behind it until the next catch-up. That is
+   * exactly why it is on the wire: a stale price presented as current is what
+   * invariant 6 exists to prevent, and the date is what stops it being one.
+   */
+  readonly session: MarketDate;
+
+  /** The session's closing price. */
+  readonly close: number;
+
+  /**
+   * The close of the session before it, or `null` when we hold only one.
+   *
+   * Read from the store rather than computed: it is the second row of the same
+   * two-row read, so it is the *stored* previous session and never "the day
+   * before" by arithmetic on a calendar.
+   */
+  readonly previousClose: number | null;
+}
+
+/**
  * The body of `GET /securities`.
  */
 export interface SecuritiesResponse {
@@ -261,6 +365,58 @@ export interface SecuritiesResponse {
    * without it. That ordering was read rather than assumed.
    */
   readonly coverage: readonly SecurityCoverage[];
+
+  /**
+   * The last stored close for each security that has one, and the close before
+   * it (Task 2.9.7).
+   *
+   * **A fourth key rather than a fourth endpoint, and rather than a field on
+   * `Security`.** Task 2.6.7 found the rule this follows: a fact a page needs
+   * has to ride on something that page actually requests. `useSecurities`
+   * fetches this route and nothing else on `/securities`, so a `/prices`
+   * endpoint would be new client plumbing built to answer a question this
+   * response is already being sent to answer — and it would pre-empt Story
+   * 2.10's decision about how this application holds domain state, which is
+   * exactly the decision a second fetch would be evidence for.
+   *
+   * It is not a field on {@link Security} for {@link SecurityCoverage}'s
+   * reason: a security is a thing the universe file describes, and a price is
+   * something the market did. Epics 4 to 9 read `Security` without wanting
+   * either.
+   *
+   * ## Read at the DAILY timeframe, and that is a cost decision with a number
+   *
+   * `market_bars` holds 47,682,213 minute bars and 345,559 daily ones, and the
+   * two closes per security come off the daily half through the existing
+   * `(security_id, timeframe, observed_at)` index — a lateral scan per
+   * security, two rows each. Measured local, 2026-09-09: **1,036 rows in
+   * 4.8–8.2 ms** warm from Node, 21.4 ms cold, against **182–279 ms** warm for
+   * the obvious `row_number()` window over the same daily rows. A page that
+   * reaches minute resolution to draw a list is the thing `bar_coverage` exists
+   * to prevent, and this is the same rule applied to a different question;
+   * `apps/backend/src/market-bars.ts`'s `readLastCloses` carries the plan.
+   *
+   * ## Minute coverage and a daily close, in one response, deliberately
+   *
+   * {@link coverage} reports the **minute** series and this reports the
+   * **daily** one, which looks like an inconsistency and is the honest answer
+   * to two different questions. "How much history do we hold?" is about the
+   * series every chart in Epics 4, 5 and 12 reads, which is the minute one.
+   * "What did this last trade at?" is a session's official close, which only
+   * the daily series carries — a close derived from single-venue minute bars
+   * may simply not contain the auction print (see `Timeframe` in `bar.js`), so
+   * it would be a different and worse number rather than the same one computed
+   * twice.
+   *
+   * ## Required, empty-when-nothing, for {@link coverage}'s reasons
+   *
+   * An empty array is *we hold no daily bars yet*, which is what a migrated
+   * database with no backfill should say; an optional field would give that
+   * state two spellings. `deploy.yml` ships both halves from one commit and
+   * deploys the backend first, so a frontend strict about this never meets a
+   * backend without it.
+   */
+  readonly lastCloses: readonly SecurityLastClose[];
 }
 
 /**
@@ -316,8 +472,9 @@ function isFieldGroupProvenance(value: unknown): value is FieldGroupProvenance {
  * that refuses a field it has not been taught cannot be deployed before the
  * backend that adds one. What it refuses is a missing `securities`, a
  * `securities` that is not an array, any element that is not a security, a
- * missing or malformed `coverage` (see that field for why it is required where
- * `provenance` is not), and a `provenance` that is present and malformed.
+ * missing or malformed `coverage` or `lastCloses` (see those fields for why
+ * they are required where `provenance` is not), and a `provenance` that is
+ * present and malformed.
  */
 export function isSecuritiesResponse(
   value: unknown,
@@ -330,6 +487,9 @@ export function isSecuritiesResponse(
 
   if (!Array.isArray(candidate.coverage)) return false;
   if (!candidate.coverage.every(isSecurityCoverage)) return false;
+
+  if (!Array.isArray(candidate.lastCloses)) return false;
+  if (!candidate.lastCloses.every(isSecurityLastClose)) return false;
 
   // Absent is valid; present-and-wrong is not. A JSON body cannot carry an
   // explicit `undefined`, so the `undefined` check is precisely "the key is
@@ -363,6 +523,38 @@ function isSecurityCoverage(value: unknown): value is SecurityCoverage {
     typeof candidate.end === "string" &&
     typeof candidate.barCount === "number" &&
     TIMEFRAMES.some((timeframe) => timeframe === candidate.timeframe)
+  );
+}
+
+/**
+ * Is `value` a {@link SecurityLastClose}?
+ *
+ * Not exported, for {@link isSecurityCoverage}'s reason: nothing outside this
+ * module holds a bare close record to check.
+ *
+ * **`session` is checked against `isMarketDate` where `symbol` is only checked
+ * for being a string**, and the asymmetry is the same one `isSecurityCoverage`
+ * makes about `timeframe`. `MarketDate` is a *branded* type: the brand asserts
+ * that a check happened, so a cast here would be this module claiming a
+ * judgement it never made, and every consumer downstream would inherit the
+ * claim. A malformed date also has a real consequence — it is rendered as the
+ * session a price belongs to, which is the one thing on the wire stopping a
+ * stale number from reading as a live one.
+ *
+ * `previousClose` accepts `null` and refuses `undefined`, because the null
+ * carries meaning (we hold one session) and an absent key would be a body from
+ * a server that does not know about this field at all.
+ */
+function isSecurityLastClose(value: unknown): value is SecurityLastClose {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.symbol === "string" &&
+    typeof candidate.session === "string" &&
+    isMarketDate(candidate.session) &&
+    typeof candidate.close === "number" &&
+    (candidate.previousClose === null ||
+      typeof candidate.previousClose === "number")
   );
 }
 
