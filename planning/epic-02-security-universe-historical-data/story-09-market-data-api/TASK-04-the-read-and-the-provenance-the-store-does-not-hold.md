@@ -244,9 +244,9 @@ The awkward part: when we designed the price table we deliberately **did not**
 store that information on each individual price. Writing "this came from the
 consolidated tape, fetched on Tuesday" onto forty-eight million rows means
 storing the same short sentence forty-eight million times — gigabytes of disk
-and money spent to repeat one constant. So the storage was cheap, and the bill
-came due today: the thing that serves a chart has to state a fact the database
-does not hold.
+spent repeating one constant. So the storage was cheap, and the debt came due
+today: the thing that serves a chart has to state a fact the database does not
+hold.
 
 ### What we did, and why
 

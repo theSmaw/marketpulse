@@ -222,14 +222,18 @@ together and clearly mark the join** — stored history plus a live tail — rat
 than letting charts end in the past.
 
 That is the more ambitious answer and it is the right one for the product, so the
-job today was to make it safe rather than to argue with it. The risk is cost: our
-market-data plan charges per request, and a naive version would fetch fresh data
-on every single chart load, proportional to how far behind our stored history had
-fallen. So the rule we wrote down is that we fetch **only the missing tail, and at
-most today's** — anything older is a gap our overnight process should fill, and
-the chart says honestly how far its data reaches. We also recorded that the
-caching work later in this story stops being a nice-to-have and becomes the thing
-that keeps this affordable.
+job today was to make it safe rather than to argue with it. The risk is our
+supplier's **request allowance** — the free plan we are on permits about 200
+requests a minute across the whole account and refuses the rest — and a naive
+version would fetch fresh data on every single chart load, proportional to how far
+behind our stored history had fallen. So the rule we wrote down is that we fetch
+**only the missing tail, and at most today's** — anything older is a gap our
+overnight process should fill, and the chart says honestly how far its data
+reaches. We also recorded that the caching work later in this story stops being a
+nice-to-have and becomes the thing that keeps this within the allowance.
+(**Wording corrected 2026-09-09**: this paragraph said the plan "charges per
+request". It does not — the plan is free and the limit is a rate limit, not a
+price. See Task 2.9.5's stakeholder correction.)
 
 There is one detail here that matters to the product's honesty. The two halves of
 a joined chart come from **different sources**: our stored history covers every US
