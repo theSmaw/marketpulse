@@ -132,6 +132,37 @@ rather than on the seven outcomes `api-client.ts` distinguishes. And **`answered
 carries the `requestId`** when the body was a well-formed `ApiError`, which is the only
 internal identifier this product puts on screen, per the rule recorded in `api-client.ts`.
 
+> **Amended 2026-09-09 by Task 2.9.6 — there is now a SECOND distinction a reader can act
+> on, and this story owns what to do about it.** That task added `SERVICE_UNAVAILABLE` to
+> `API_ERROR_CODES` and gave both `/securities` and `GET /market-data/bars` a **503** when
+> the database is unreachable, distinct from the 500 that means this server failed. The
+> backend's whole reason for the split is that the two carry **different instructions**: a
+> 503 says _temporary, retry_ and a 500 says _this will fail again_.
+>
+> The frontend currently throws that away at the first hop. `useSecurities` maps
+> `api-error`, `http-error` and `unreadable-body` alike to `answered-badly`, and
+> `UniverseTable` renders it as **"unexpected response"** — a sentence that is now false for
+> the commonest failure the page has, and false in the direction that matters, because it
+> tells a user nothing will help when in fact waiting will.
+>
+> **This is not automatically a third state.** The rule above is still right that a state
+> exists when a reader can act on it, and the honest reading is that there are now two
+> actions — _check what is answering at that address_ and _wait and retry_ — not that there
+> are three states. Whether that means a third member, a `retryable` flag off the
+> `ApiError`'s `code`, or different copy under the same state is **this story's decision to
+> take**, and it should be taken against the code rather than the status: `code` is the
+> closed union a client is meant to branch on, and branching on the number would be reading
+> the status line where the contract put a value.
+>
+> Two things it must not do. It must not put the raw `code` on screen — that is an internal
+> discriminator, and `requestId` remains the only internal identifier this product shows.
+> And it must not add a state per `API_ERROR_CODES` member; the union grows for the
+> server's reasons, and a page that mirrors it is a page that changes every time the API
+> learns a new failure.
+>
+> Task 2.9.7's file carries a pointer here, because it is the next task to touch this page
+> and must not widen its scope to fix this in passing.
+
 Note the shape it takes as a prop: `UniverseTable` takes `view: SecuritiesView` **whole**,
 which is the _opposite_ of `BackendIndicator` taking four separate props — and both are
 right. A union exists so the impossible combinations cannot be built, and spreading it back

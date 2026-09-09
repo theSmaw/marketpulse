@@ -32,6 +32,32 @@ back to a window already looked at should not re-read 8,000 rows.
   rather than a formality: if it fires, say so rather than narrowing the stitch
   here.
 
+- **The response carries a fact that is NOT about bars at all, and the calendar
+  rule says nothing about it — added 2026-09-09 by Task 2.9.6.** The envelope is
+  `{ series, securityStatus }`, and `securityStatus` comes from the `securities`
+  table rather than from `market_bars`. `pnpm universe` can flip a security from
+  `active` to `untracked` at any moment, including against a window of sessions
+  that closed years ago — so **a response about a closed session is immutable in
+  its bars and mutable in its envelope**, and a `max-age` derived purely from the
+  calendar would serve a stale status under a correct-looking body. This is the
+  second thing already found to be true of the "immutable" response and the two
+  have different shapes: 2.9.4's correction moves a **price** and is rare, this
+  moves a **label** and is one command away. A validator recomputed from the whole
+  body survives both, which is the argument the bullet below is already making;
+  what this adds is that the argument no longer rests on corrections alone. Say
+  which way it was taken.
+
+- **Where the cache sits decides whether the 404 still happens — added 2026-09-09
+  by Task 2.9.6.** The handler is three steps in one order: parse, then
+  `findSecurity` (the 404 and the `securityStatus`), then `serveSeries`. A cache
+  **in front of `serveSeries`** keeps the universe lookup on every request, which
+  is one point read and the thing that keeps an unknown symbol a 404. A cache in
+  front of the **whole response** skips it — and then a symbol removed from the
+  universe goes on being served from cache with its old status, and the 404 that
+  `MARKET-DATA-API.md` §6 makes a statement about the _security_ becomes a
+  statement about what was recently asked for. Pick deliberately and say which;
+  the cheaper one is not obviously the right one.
+
 - **Draw the line where the calendar draws it, not where a clock does.** A window
   entirely inside sessions that have closed is immutable and can say so; a window
   whose end is in the current or a future session is not, because the store's own

@@ -90,6 +90,21 @@ as current is precisely the dishonesty invariant 6 exists to prevent.
   disagree about their feed — has not fired. The last close is a price, not a
   provenance record.
 
+- **Know, and do NOT fix here: `/securities` can now answer 503 and this page
+  renders it as _"unexpected response"_ — found 2026-09-09 by Task 2.9.6.** That
+  task added `SERVICE_UNAVAILABLE` and gave `/securities` the 503 as well, so a
+  database outage now arrives at the browser as a well-formed `ApiError` saying
+  _this is temporary, retry_. `useSecurities` collapses `api-error` and
+  `http-error` into one `answered-badly` state and `UniverseTable` renders that as
+  **"unexpected response"** — which is now a false sentence for the commonest
+  failure this page has. The backend is right and the frontend is one hop behind
+  it.
+  **It is Story 2.10's**, whose file records the decision this fires, and it is
+  named here because this task is the next one to touch this page and would
+  otherwise either trip over it or quietly widen its own scope to fix it. Do
+  neither: the price column is this task, and a failure-taxonomy change is a
+  contract decision with its own tests, its own copy and its own browser spec.
+
 - **Do not build a sparkline, a chart, or a time-window control.** Story 2.12 owns
   the charting decision for the whole product and this task must not settle it by
   accident. If a row wants to be a link to a security's page, that is Story 2.11's.
