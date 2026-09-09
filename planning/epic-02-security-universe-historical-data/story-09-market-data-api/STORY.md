@@ -14,8 +14,16 @@ because Epic 1 spent a whole story establishing how this codebase declares one.
 
 ## What the user can see when this story lands
 
-**A URL that returns real price history**, readable in a browser, and nothing rendered in
-the application — the chart is Story 2.12's.
+**A URL that returns real price history**, readable in a browser, and ~~nothing rendered in
+the application~~ — the chart is Story 2.12's.
+
+**Amended 2026-09-09 by the task breakdown below: one thing IS rendered.** Task 2.9.6 puts
+the **last stored close and its change on `/securities`**, the table Task 2.8.9 already
+built, riding on a response that page already fetches. It is the first real price this
+product has ever displayed, and taking it here is the delivery decision Task 2.8.9 took for
+the same reason — nine backend tasks with nothing on screen is a run of work nobody outside
+the code can see. It is **not** a chart, not a window control and not a live price, and it
+settles none of Story 2.10's, 2.11's or 2.12's decisions.
 
 **Scope note added 2026-09-05: Story 2.4 took the universe endpoints from this story**, and
 with them the response-contract idiom and the first `selectFrom`. What remains here is the
@@ -269,3 +277,46 @@ Two measurements this story should have before choosing:
 
 See [`BARS.md`](../story-08-historical-bar-ingestion-and-storage/BARS.md) §8.13
 and §8.6.
+
+---
+
+## Task breakdown, added 2026-09-09
+
+Nine tasks. The shape follows Story 2.8's: **settle first, build the contract
+before the route, and take the visible payoff inside this story rather than
+deferring it** — ten tasks of backend work with nothing on screen is a run of
+work nobody outside the code can see.
+
+**2.9.1 ships nothing on purpose.** Four open decisions and a namespace, two of
+which need the user, and all four of which three later tasks would otherwise
+answer differently. Task 2.6.1 is the precedent.
+
+**2.9.2 and 2.9.3 are the two halves of the contract**, split because they fail
+differently: a request is validated and refused, a response is typed and
+stripped. They can be built in either order and neither needs a database.
+
+**2.9.4 is the hard one.** It is the first query in this repository where the
+temporal seam does real work, and it inherits a problem `readBars`' own comment
+names and leaves open: the store deliberately holds **no** provenance, and a
+series cannot exist without it.
+
+**2.9.6 is the payoff, and it is the last close on `/securities` rather than a
+chart.** It rides on a response the page already fetches, so it pre-empts neither
+Story 2.10's state decision nor Story 2.12's charting decision, and it is the
+first real price this product has ever displayed.
+
+**2.9.8 is a task rather than a step** because acceptance criterion 5 is a
+measurement against 48 million rows, and because its result may change Story
+2.12's plan.
+
+| Task                                                                    | What it does                                               | Visible?                |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------- |
+| [2.9.1](TASK-01-settle-the-contract-decisions.md)                       | Namespace, windows, downsampling, caps, the read-side join | No                      |
+| [2.9.2](TASK-02-the-request-contract-and-the-window.md)                 | Symbol, timeframe, window — parsed, validated, refused     | No                      |
+| [2.9.3](TASK-03-the-response-contract.md)                               | The wire shape, guarded at every nesting level             | No                      |
+| [2.9.4](TASK-04-the-read-and-the-provenance-the-store-does-not-hold.md) | Rows → `BarSeries`, and where provenance comes from        | No                      |
+| [2.9.5](TASK-05-the-route.md)                                           | The endpoint, and every way it can fail                    | **A URL, not a screen** |
+| [2.9.6](TASK-06-the-first-real-price-on-screen.md)                      | Last close on `/securities`                                | **Yes — the payoff**    |
+| [2.9.7](TASK-07-caching-and-the-immutable-session.md)                   | Closed sessions never change                               | No                      |
+| [2.9.8](TASK-08-measured-against-forty-eight-million-rows.md)           | Timings and payloads, local and deployed                   | No                      |
+| [2.9.9](TASK-09-verify-document-and-adr.md)                             | Verify, `MARKET-DATA-API.md`, the ADR, the upward sweep    | No                      |
