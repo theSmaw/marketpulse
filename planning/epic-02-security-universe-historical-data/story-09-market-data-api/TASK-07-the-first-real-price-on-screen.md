@@ -78,6 +78,18 @@ as current is precisely the dishonesty invariant 6 exists to prevent.
   column earning its place in a table that is already dense rather than being
   wedged into it.
 
+- **`BarCoverage` gained a `source` and this page must not render it — added
+  2026-09-09 by Task 2.9.4.** That task put `provider` and `feed` on the ledger
+  (`0007_bar_coverage_provenance.sql`), so the coverage record this page already
+  reads now carries which feed each security's history came from. It is **not**
+  on the `/securities` wire and must not be put there by this task: Task 2.6.7's
+  rule is that **no second endpoint may answer "which feed"**, `/market-data`
+  answers it for the deployment, and `SeriesProvenance` answers it per series. A
+  per-security feed column on the universe table would be a third answer to one
+  question, and the trigger for one — a deployment whose securities genuinely
+  disagree about their feed — has not fired. The last close is a price, not a
+  provenance record.
+
 - **Do not build a sparkline, a chart, or a time-window control.** Story 2.12 owns
   the charting decision for the whole product and this task must not settle it by
   accident. If a row wants to be a link to a security's page, that is Story 2.11's.

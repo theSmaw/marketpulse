@@ -72,6 +72,23 @@ coverage }, securityStatus }`. Measured on the shipped shape rather than
   multiplying, and note that a stitched response carries one envelope and two
   sources rather than two envelopes.
 
+- **The served read is TWO queries and one extra column per row — added
+  2026-09-09 by Task 2.9.4, with a first reading to beat rather than to cite.**
+  `readSeries` issues the bar query **and** a `bar_coverage` lookup, deliberately
+  in that order (bars first, so a concurrent write cannot leave the ledger
+  narrower than the bars in hand). And the bar query selects `recorded_at` beside
+  the five values, because the series' `retrievedAt` is `min(recorded_at)` over
+  the rows returned — a per-row cost paid on every response, invisible at 390
+  bars and worth a number at the 10,000-bar cap. Measure the ledger lookup
+  separately; it is a point read of a ~1,036-row table and should be
+  microseconds, and if it is not, that is the query nobody meant to write.
+
+  First readings, local, single-request, warm, so a later divergence is
+  attributable: one full `NVDA` session at `1m` is **390 bars in 42 ms cold and
+  6 ms warm**, provenance `alpaca`/`sip`. Re-take rather than quote — they were
+  taken from a script against the repository handle, not through HTTP, which is
+  precisely the gap this task exists to close.
+
 - **Watch for the query nobody meant to write.** A serving path that touches
   `market_bars` where it should touch `bar_coverage`, or that runs at minute
   resolution where daily would answer, is invisible in a unit test and obvious in
@@ -95,7 +112,13 @@ coverage }, securityStatus }`. Measured on the shipped shape rather than
 
 - Local and deployed timings and payload sizes for each named access pattern are
   recorded in `MARKET-DATA-API.md`, dated, with the row counts they were taken at
-- The reduction (if any) is shown to preserve a real spike
+- ~~The reduction (if any) is shown to preserve a real spike~~ **Struck
+  2026-09-09: no reduction ships** (`MARKET-DATA-API.md` §3), which the third
+  bullet above already says — this line contradicted it. What replaces it is that
+  bullet's actual job: **the cap's 10,000 is re-validated against the endpoint**
+  rather than against an array, and said to be right or not
+- The ledger lookup and the per-row `recorded_at` cost are measured separately
+  from the bar scan, so a surprise has an author
 - Any figure that falsifies a claim in `BARS.md`, `PROVIDER.md`, an ADR,
   `PRODUCT_SPEC.md` or `CLAUDE.md` is **swept the same day**, upward, by grepping
   for the claim and amending the live sites — not deferred to Task 2.9.10

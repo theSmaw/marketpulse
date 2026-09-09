@@ -71,6 +71,17 @@ the chart is Story 2.12's.
   **never null**: the unknown case is the 404, and §6's sentence is that a 404 is
   about the security, never about the data.
 
+- **Pass the request's own instant to the read — added 2026-09-09 by Task
+  2.9.4.** `readSeries(symbol, timeframe, range, now)` takes a clock for exactly
+  one purpose: an answer holding **no bars** still owes a `SeriesProvenance` with
+  one source, and that source's `retrievedAt` is the only value in the whole read
+  that is not taken from a stored row. Everything else comes from
+  `min(market_bars.recorded_at)`, deliberately, because a read path that stamps
+  `retrievedAt` when it serves stored bars turns "fetched three weeks ago" into
+  "current". This handler already resolves `now` for `parseSeriesRequest`'s named
+  window — **pass the same instant**, rather than reading the clock twice, so one
+  request cannot be answered as of two different moments.
+
 - **Register it where its dependency is constructed**, following the one rule this
   repository settled rather than re-deciding it: `/health` needs nothing and lives
   in `buildServer()`; a route with a dependency is registered where its dependency
@@ -126,7 +137,13 @@ the chart is Story 2.12's.
   - a request over Task 2.9.1's cap → **400**, naming the limit;
   - a symbol that is not in the universe → **404**;
   - a symbol we hold nothing for, and a window nothing traded in → **200 with an
-    empty series**, which is §36's whole point;
+    empty series**, which is §36's whole point. **Task 2.9.4 built the way to tell
+    those two apart and it is not on the series (added 2026-09-09):** `readSeries`
+    returns `{ series, held }`, and `held` — the ledger row — is `undefined`
+    exactly when we hold nothing for that `(symbol, timeframe)` and present when
+    the window simply had no prints in it. Both are the same 200 body today, which
+    is deliberate; what the distinction is **for** is this route's own logging and
+    Story 2.14's wording, and it is available without a second query;
   - the database being unavailable → **503** and a **new `SERVICE_UNAVAILABLE`
     member of `API_ERROR_CODES`**, with `errors.ts`'s status-to-code mapping
     extended **in the same change** — a 503 raised without it answers
@@ -142,6 +159,17 @@ the chart is Story 2.12's.
     product state, not an error;
   - anything uncaught → **500**, and **the thrown message never reaches the
     client** (Task 1.7.4's rule) — it goes to the log under the request's `reqId`.
+
+  **One named 500 arrived with Task 2.9.4 and is worth knowing rather than
+  discovering (added 2026-09-09).** `toStoredSeries` throws `MissingCoverageError`
+  when the store holds bars for a window the ledger makes no statement about — the
+  read refuses to fabricate a coverage claim rather than deriving one from the
+  bars, because both available derivations are false statements about what we
+  hold. It is unreachable through `recordSeries`, which writes bars and ledger in
+  one transaction, and reachable by anything that deletes from `bar_coverage`
+  alone. So it is an **inconsistent store** rather than a bad request: a 500 is
+  the right answer, its message is a developer's and must not reach the client,
+  and it belongs in the status table above with the rest.
 
 - **`fast-json-stringify` strips every property the schema does not declare**, so
   assert the stripping property **on the real route** with a `preSerialization`
