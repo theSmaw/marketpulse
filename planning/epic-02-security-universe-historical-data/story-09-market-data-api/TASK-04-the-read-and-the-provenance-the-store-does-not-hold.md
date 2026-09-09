@@ -79,12 +79,33 @@ deliberately does not store has to be produced honestly.
   404 there would be a lie about data we hold. Assert it against a real untracked
   row — Story 2.4 already produced that situation.
 
+  **Amended 2026-09-09 by Task 2.9.3 — the field exists, and it is not on the
+  thing this task returns.** _"Says it is untracked"_ is now
+  `BarSeriesResponse.securityStatus`, on the **envelope**, deliberately not on the
+  series: a security's status is a fact about the security rather than about a run
+  of bars, and `BarSeries` carries no such field. So this task's read **cannot**
+  answer it and must not grow a field to try — a `BarSeries` is obtained only
+  through `toBarSeries`, whose input has five members and no status among them.
+  The value comes from the securities lookup that produces the 404, which is Task
+  2.9.6's. What this task still owes is the half below: telling the answers apart
+  so that lookup has something to be beside.
+
 - **Tell the three empty answers apart, because the route needs all three.** A
   symbol not in the universe at all; a symbol we track for which we hold nothing
   at this timeframe; and a window inside which nothing traded. The first is a 404,
   the other two are **200 with an empty series** — and `coverage.requested`
   beside a `null` `covered` is what lets a consumer tell "we never asked" from
   "nothing was there".
+
+  **Amended 2026-09-09 by Task 2.9.3: the wire spelling of the second and third
+  is now fixed and asserted, so build to it rather than re-choosing it.** An empty
+  answer is `bars: []` with `coverage.covered` **null and not `""`** — measured in
+  this exact shape and asserted on the raw body, because the serialiser turns a
+  carelessly declared nullable into an empty value that reads as a covered window.
+  `toBarSeries` already enforces the domain half: `covered` is null **exactly**
+  when the series is empty, in both directions. The consequence for this read is
+  that it must produce `covered: null` rather than a zero-width range, which
+  `toTimeRange` would refuse to construct anyway.
 
 - **Added 2026-09-09 by Task 2.9.2 — check the assumption its cap rests on.**
   `series-request.ts` refuses an over-cap request by counting **session minutes**

@@ -21,10 +21,55 @@ the chart is Story 2.12's.
 
 ## Work
 
-- **Declare `500: apiErrorSchema`**, and note that `server.test.ts`'s route-table
-  walk now covers **every route the application serves**, including the ones
-  registered from `index.ts` (Task 2.4.2 closed that gap). So forgetting it is a
-  red test rather than a discovery in production.
+- ~~**Declare `500: apiErrorSchema`**~~ **— the response schema is already
+  written. Import it; do not write a second one (amended 2026-09-09 by Task
+  2.9.3).** `barSeriesResponseSchema` is exported from
+  `apps/backend/src/routes/market-data.ts` — the same file, because `/market-data`
+  is the namespace as well as a resource — and it already declares **400, 404,
+  503 and 500**, all sharing `apiErrorSchema`, which is `MARKET-DATA-API.md` §6's
+  table as a declaration. A second schema written here would be the two-copies
+  failure the guard exists to prevent, one layer up.
+
+  The route-table walk still applies and still covers **every route the
+  application serves**, including the ones registered from `index.ts` (Task 2.4.2
+  closed that gap), so a route registered without the schema is a red test rather
+  than a discovery in production.
+
+  **One live trap the declaration creates and this task closes.** The schema
+  declares `503: apiErrorSchema` and `SERVICE_UNAVAILABLE` **does not exist yet**
+  — so a 503 raised before this task extends `API_ERROR_CODES` and `errors.ts`'s
+  status-to-code mapping serialises cleanly through the right _shape_ while
+  carrying `INTERNAL_ERROR`, which names the wrong thing. It is a well-formed
+  answer that is wrong, which is the failure mode this repository keeps finding.
+  Nothing can currently raise it, and this task is where it becomes reachable, so
+  the member and the mapping land in the same change as the first `503`.
+
+- **Map the domain object onto the wire, and that mapper is yours — added
+  2026-09-09 by Task 2.9.3.** Nothing turns a `BarSeries` into a
+  `BarSeriesResponse` today: 2.9.3 shipped the types and the schema and
+  deliberately shipped no mapper, under Task 1.7.3's rule that a thing arrives
+  with its first reader, and **this task is that reader**. It is the `toBar`
+  pattern going outward — one function, never a generic mapper — and it does
+  exactly three things worth naming: every `Date` becomes an ISO 8601 UTC string
+  with the `Z` (`startsAt`, and both ends of both windows); `coverage.covered`
+  becomes `null` rather than an object when the series is empty; and the branded
+  `SeriesProvenance` becomes the plain `SeriesProvenancePayload`, losing a
+  guarantee the wire cannot keep. Test it against a series built through
+  `toBarSeries` rather than a literal, which is the arrangement 2.9.3's own tests
+  already use.
+
+- **Populate `securityStatus`, and it comes from the lookup that produces the
+  404 — added 2026-09-09 by Task 2.9.3.** The envelope is
+  `{ series, securityStatus }`, and the second field is `MARKET-DATA-API.md` §7's
+  requirement made concrete: `status` is not filtered on this path, so an
+  `untracked` symbol gets its stored history **and is told so**. It is on the
+  envelope rather than on the series because it is a fact about the _security_,
+  and Task 2.9.4's read cannot supply it — `BarSeries` has no such field and
+  `toBarSeries` would not accept one. This route already has to ask whether the
+  symbol is in the universe in order to answer the 404 at all, so the status is a
+  second field off a lookup it is making anyway rather than a new query. It is
+  **never null**: the unknown case is the 404, and §6's sentence is that a 404 is
+  about the security, never about the data.
 
 - **Register it where its dependency is constructed**, following the one rule this
   repository settled rather than re-deciding it: `/health` needs nothing and lives
@@ -109,6 +154,19 @@ the chart is Story 2.12's.
   what keeps `pnpm verify` runnable with no server, no network and no credentials,
   and it is worth protecting deliberately rather than by luck.
 
+  **Re-point the six tests you inherit rather than writing a second set — added
+  2026-09-09 by Task 2.9.3.** That task's schema tests live in
+  `routes/market-data.test.ts` and drive a **throwaway route** registered inside
+  the test, because the real one did not exist yet. They cover the round-trip, the
+  null `covered` on the raw body, the empty series' surviving facts, a two-source
+  stitch, an `untracked` security, and the silent stripping of an undeclared
+  field. Once this route exists they should be asserting against **it** — a suite
+  that goes on testing a stub path beside a real one is a suite whose green tells
+  you about the stub. Two of them cannot simply move and want a decision: the
+  stripping test needs the `preSerialization` hook this task's own bullet
+  describes, and the two-source stitch needs Task 2.9.5's stub provider rather
+  than a hand-built series.
+
 - **Once `SERVICE_UNAVAILABLE` exists, `/securities` should answer it too.** That
   route has been able to produce this failure since Story 2.4 and returns a 500
   today only because the code did not exist — its own comment says so. Taking it
@@ -128,6 +186,11 @@ the chart is Story 2.12's.
 - The querystring-schema question is answered with a produced result, and every
   one of Task 2.9.2's five reasons is shown to reach the client as a 400 rather
   than being intercepted upstream
+- The route serves `barSeriesResponseSchema` rather than a schema of its own, and
+  `securityStatus` is asserted `untracked` against a real untracked security
+- `SERVICE_UNAVAILABLE` and `errors.ts`'s mapping land in the same change as the
+  first 503, asserted to carry that code rather than `INTERNAL_ERROR`
+- Task 2.9.3's six schema tests drive the real route rather than a throwaway one
 - The route-table walk sees the route and its `500: apiErrorSchema`
 - `pnpm verify` passes with no database running
 
