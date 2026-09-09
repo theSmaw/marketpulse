@@ -153,9 +153,13 @@ is the one to work from.
 
 - **Whether search is server-side or client-side, and the measurement that decides it.**
   Task 2.4.2 shipped **no search parameter** on `GET /securities`, leaving the choice open.
-  The relevant figure: 101 securities are **17,299 bytes**, ~2,591 gzipped — so the whole
-  universe is already in the browser and client-side filtering is free at this size. At §6's
-  500 it is ~13 kB uncompressed, still small. Decide it on the ceiling rather than on today.
+  The relevant figure, ~~101 securities at **17,299 bytes** / ~2,591 gzipped~~ **re-measured
+  2026-09-09 by Task 2.8.10: 518 securities with coverage are 150,660 bytes and 12,831
+  gzipped** — so the whole universe is still in the browser and client-side filtering is
+  still free at this size, but the uncompressed figure is now ~8.7x what this argument was
+  written against. Note the universe crossed §6's 500 at Task 2.8.2 and the coverage array
+  Task 2.8.9 added is most of the growth. Decide it on the ceiling rather than on today, and
+  take the ceiling from a measurement rather than from this line.
 - **Grouping past 500.** Task 2.4.4 recorded the reversal trigger for the sector grouping:
   at §6's 500-security ceiling a single group is longer than a screen, and groups need to
   become jumpable or collapsible — **which is a control**, and controls were out of scope for

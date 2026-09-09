@@ -1,6 +1,6 @@
 # Story 2.8 — Historical Bar Ingestion, Storage & Backfill
 
-**Status:** Not started
+**Status:** Complete (2026-09-09)
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Stories 2.2, 2.3, 2.5, 2.7
 **Epic scope covered:** Historical market-data persistence — **a record of what was observed, not a cache** (settled 2026-09-05, see open decision 1)
@@ -617,8 +617,10 @@ rather than about its shape.
   _what to do_. The signal itself is real and cheap: bars stopping, at 100% correlation against
   the vendor's flag at 92%.
 - **Open decision 4's second half** — _"the incremental catch-up's home is decided separately when
-  it exists"_ — is decided. It exists (Task 2.8.6's forward walk), and **neither it nor the
-  backfill runs automatically in V1**: a person runs `pnpm backfill` before a demonstration and
+  it exists"_ — is decided. It exists (Task 2.8.6's forward walk), and ~~**neither it nor the
+  backfill runs automatically in V1**~~ **— reversed by Task 2.8.8, see the amendment at the
+  foot of this file and `BARS.md` §8.12: the catch-up IS scheduled and only the initial
+  backfill stayed a deliberate act. What follows is the argument as it stood** — a person runs `pnpm backfill` before a demonstration and
   `pnpm bars:check` is how they find out whether they needed to. The cost is stated rather than
   implied — an unscheduled catch-up is what makes the store quietly stale, and
   `bar_coverage.updated_at` is the only field that can report it honestly. `BARS.md` §7.6.

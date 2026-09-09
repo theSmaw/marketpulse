@@ -37,7 +37,8 @@ import type { ApiResult } from "./api-client.js";
 // and a deploy runs `pnpm universe`. A poll would be standing billable traffic
 // against the Consumption plan's under-1,000-bytes-per-second idle condition,
 // per open tab, to re-learn a fact that has not moved — and this payload is
-// 17,299 bytes against `/health`'s 61, so it is not the cheap request the
+// 150,660 bytes against `/health`'s 61 (17,299 at the 101 securities and no
+// coverage array this was first written against), so it is not the cheap request the
 // health poll is either. A page reload is the refresh.
 
 /**

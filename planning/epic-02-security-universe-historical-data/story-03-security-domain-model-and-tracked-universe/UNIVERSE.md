@@ -1902,10 +1902,16 @@ new environment variable, no dependency, and no new writer of any column.**
 §3's `SECURITY_STATUSES` table is **unchanged at two members**, and its "its producer is
 named: Story 2.7" paragraph is superseded by this section rather than deleted — the producer
 was named, the producer looked, and the answer is that this vendor cannot produce the member
-honestly. **The owner of a future `delisted` is Story 2.8's ingestion**, which is the first
+honestly. ~~**The owner of a future `delisted` is Story 2.8's ingestion**, which is the first
 thing that will notice bars stopping — a signal that is better correlated with reality than
 the vendor's flag (100% against 92%), costs no request, and arrives as a consequence of work
-that story is doing anyway.
+that story is doing anyway.~~ **Answered 2026-09-09 by Story 2.8 (Task 2.8.7, closed at Task
+2.8.10): the signal was built and `delisted` still does NOT ship as a member.** `pnpm bars:check`
+reports a security whose bars have stopped and writes nothing, because §15.3 already produced
+the overwrite that makes writing it two decisions rather than one — a `status` written by
+anything but the loader is silently reverted by the next deploy's `pnpm universe`, reported as
+an ordinary `1 updated`. The signal is real, better correlated than the vendor's flag, and it
+is **reported and never written**. See `BARS.md` §7.5 and ADR 0020.
 
 §12.6's gap is **closed as a decision rather than as a mechanism**: a rename orphans the old
 bars, the reason is §15.5, and the reversal trigger is a rename in the list.

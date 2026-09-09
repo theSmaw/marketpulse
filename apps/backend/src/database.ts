@@ -1,9 +1,17 @@
 // The connection pool: one per process, and the only place *shipped* code
-// constructs one or names `pg` (Task 2.1.4). Scoped that way deliberately since
-// Story 2.2 closed: `migrate.ts` wraps this same pool in a `PostgresDialect`,
-// and `migrate.database.test.ts` opens a `pg` client of its own to create and
-// drop a scratch database — neither of which ships in the image's serving path,
-// and both of which would falsify a flatter claim.
+// **constructs** one (Task 2.1.4). Scoped that way deliberately since Story 2.2
+// closed: `migrate.ts` wraps this same pool in a `PostgresDialect`, and
+// `migrate.database.test.ts` opens a `pg` client of its own to create and drop a
+// scratch database — neither of which ships in the image's serving path, and
+// both of which would falsify a flatter claim.
+//
+// **Narrowed again 2026-09-09 (Task 2.8.10): it used to read "constructs one or
+// names `pg`", and the second half stopped being true at Story 2.8.**
+// `securities.ts`, `market-bars.ts` and `bar-attempts.ts` each carry
+// `import type pg from "pg"` so their functions can take a `pg.Pool` they never
+// build. That is a type position, erased at compile time, and it is the shape
+// the repository seam is supposed to have — a module that queries takes a pool
+// and does not know how to make one. Construction is the claim worth holding.
 //
 // **What this file is not.** It is not a query layer, a repository, an ORM or a
 // typed access seam. Story 2.2 chose the query layer — Kysely — and deliberately
@@ -110,7 +118,11 @@ export const CONNECT_TIMEOUT_MS = 5000;
 // It is the number behind the most surprising fact Task 2.1.6 measured. The
 // connection the startup probe makes is visible in `pg_stat_activity` for
 // **exactly ten seconds** and then gone, and nothing queries the database
-// afterwards — so **the deployed backend holds zero connections at rest**. Any
+// afterwards — so **the deployed backend holds zero connections at rest**.
+// (Still true after Story 2.8, and worth saying because it looks false: a
+// backfill or a catch-up opens connections as `marketpulse-github-deploy` from
+// its own process, so a `pg_stat_activity` snapshot taken during one shows work
+// this pool is not doing. Read `usename`.) Any
 // check asked for less often than this pays the *cold* path every time, which
 // deployed is ~1,023 ms of which the Entra token mint is 866 ms.
 //

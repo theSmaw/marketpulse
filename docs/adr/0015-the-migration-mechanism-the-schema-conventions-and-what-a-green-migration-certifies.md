@@ -614,6 +614,19 @@ comment and a third copy of a version number are not.
    because honouring a convention is not enforcing one. It is still the same class as
    `e2e/package.json`'s missing `test` script, and it is now load-bearing on a module that
    ships rather than on one nobody had written.
+
+   **Restated at its new weight 2026-09-09 by Task 2.8.10 (ADR 0020).** This gap has been
+   carried for three stories against progressively more: first against a module nobody had
+   written, then against `securities.ts`, whose table has **no `observed_at` at all** — so
+   the plugin would have had nothing to filter and honouring the seam cost nothing. Story 2.8
+   ends that. `market-bars.ts` reads `observed_at` on every query, against **48.03 million
+   timestamped rows**, and it is the module Epic 13's replay clock exists to constrain. Three
+   more modules now build their own `Kysely` handle and none of them exports it —
+   `market-bars.ts`, `bar-attempts.ts` and `load-universe.ts` — so the convention is held in
+   **five** places by discipline and in zero by a compiler. The plugin `DATA-LAYER.md`
+   describes is still **unwritten**, and until it is, invariant 4 is intentional rather than
+   structural on the one table where the distinction can cost something.
+
 5. **Expand-then-contract.** Whether a column is still read is a fact about code rather
    than about a schema, so no instrument here can hold it. `migrations/README.md` §8.
 

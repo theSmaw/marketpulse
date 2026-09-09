@@ -323,8 +323,9 @@ export function getHealth(
  * as a host that is not this API.
  *
  * No pagination parameter, because there is none — the whole universe is one
- * response, **measured at 88,901 bytes and 8,725 gzipped for the 518 securities
- * that ship today** (17,299 bytes at the 101 this was first written against).
+ * response, **measured at 150,660 bytes and 12,831 gzipped for the 518
+ * securities that ship today** (88,901 / 8,725 before Task 2.8.9 added the
+ * coverage array; 17,299 at the 101 this was first written against).
  * Note the second figure is smaller than the ~13 kB predicted for §6's 500,
  * because Task 2.8.2's coarser industry taxonomy repeats 25 labels across 503
  * rows where the old one had 45 near-unique ones, and repetition is what gzip
