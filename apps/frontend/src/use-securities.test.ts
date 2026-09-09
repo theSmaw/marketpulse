@@ -54,7 +54,12 @@ afterEach(() => {
 describe("useSecurities", () => {
   it("reports a populated universe as loaded, with its provenance", async () => {
     stubFetch(() =>
-      json(200, { securities: [NVDA], provenance: PROVENANCE, coverage: [] }),
+      json(200, {
+        securities: [NVDA],
+        provenance: PROVENANCE,
+        coverage: [],
+        lastCloses: [],
+      }),
     );
 
     const { result } = renderHook(() => useSecurities());
@@ -90,6 +95,7 @@ describe("useSecurities", () => {
             barCount: 97530,
           },
         ],
+        lastCloses: [],
       }),
     );
 
@@ -104,11 +110,70 @@ describe("useSecurities", () => {
     expect(result.current.coverage.get("SPY")).toBeUndefined();
   });
 
+  it("indexes the closes the response sends, by symbol", async () => {
+    // The same array-to-map turn for the same reason, and the same absence:
+    // a security with no daily bar is missing from the map rather than present
+    // with a zero, which is the wire contract's spelling carried through.
+    stubFetch(() =>
+      json(200, {
+        securities: [NVDA],
+        coverage: [],
+        lastCloses: [
+          {
+            symbol: "NVDA",
+            session: "2026-09-04",
+            close: 230.36,
+            previousClose: 228.45,
+          },
+        ],
+      }),
+    );
+
+    const { result } = renderHook(() => useSecurities());
+
+    await waitFor(() => {
+      expect(result.current.state).toBe("loaded");
+    });
+
+    if (result.current.state !== "loaded") expect.fail("not loaded");
+    expect(result.current.lastCloses.get("NVDA")?.close).toBe(230.36);
+    expect(result.current.lastCloses.get("SPY")).toBeUndefined();
+  });
+
+  it("refuses a body whose session is an instant rather than a market date", async () => {
+    // The branded field doing its job. `MarketDate` asserts that a check
+    // happened, and the check is `isSecuritiesResponse`'s — so a server sending
+    // the shape `coverage` uses one field along is `answered-badly` rather than
+    // a value carried into `marketDateAt`'s callers with a claim nobody made.
+    stubFetch(() =>
+      json(200, {
+        securities: [NVDA],
+        coverage: [],
+        lastCloses: [
+          {
+            symbol: "NVDA",
+            session: "2026-09-04T20:00:00.000Z",
+            close: 230.36,
+            previousClose: 228.45,
+          },
+        ],
+      }),
+    );
+
+    const { result } = renderHook(() => useSecurities());
+
+    await waitFor(() => {
+      expect(result.current.state).toBe("failed");
+    });
+  });
+
   // The state this hook exists to get right. A migrated database with no
   // universe loaded answers 200 with an empty list and no provenance, and it is
   // neither a failure nor a loaded table with nothing in it.
   it("reports an empty universe as empty rather than loaded or failed", async () => {
-    stubFetch(() => json(200, { securities: [], coverage: [] }));
+    stubFetch(() =>
+      json(200, { securities: [], coverage: [], lastCloses: [] }),
+    );
 
     const { result } = renderHook(() => useSecurities());
 
@@ -121,7 +186,9 @@ describe("useSecurities", () => {
   // makes no claim about the whole list. A populated response with no
   // provenance is still loaded.
   it("loads a populated universe that carries no provenance", async () => {
-    stubFetch(() => json(200, { securities: [NVDA], coverage: [] }));
+    stubFetch(() =>
+      json(200, { securities: [NVDA], coverage: [], lastCloses: [] }),
+    );
 
     const { result } = renderHook(() => useSecurities());
 
@@ -189,7 +256,12 @@ describe("useSecurities", () => {
   // per open tab against a fact that has not moved.
   it("asks once and does not poll", async () => {
     stubFetch(() =>
-      json(200, { securities: [NVDA], provenance: PROVENANCE, coverage: [] }),
+      json(200, {
+        securities: [NVDA],
+        provenance: PROVENANCE,
+        coverage: [],
+        lastCloses: [],
+      }),
     );
 
     const { result } = renderHook(() => useSecurities());

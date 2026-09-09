@@ -58,7 +58,9 @@ afterEach(() => {
 
 describe("SecurityExplorer", () => {
   it("renders the universe as a table of symbol, name, industry and kind", async () => {
-    stubFetch(() => json(200, { securities: [NVDA, SPY], coverage: [] }));
+    stubFetch(() =>
+      json(200, { securities: [NVDA, SPY], coverage: [], lastCloses: [] }),
+    );
     render();
 
     await waitFor(() => {
@@ -99,7 +101,13 @@ describe("SecurityExplorer", () => {
   // and it has to say *which* number it is reporting: rows held and securities
   // tracked stop being the same figure at the first removal.
   it("summarises the universe from the response rather than from a constant", async () => {
-    stubFetch(() => json(200, { securities: [NVDA, SPY, GILD], coverage: [] }));
+    stubFetch(() =>
+      json(200, {
+        securities: [NVDA, SPY, GILD],
+        coverage: [],
+        lastCloses: [],
+      }),
+    );
     render();
 
     await waitFor(() => {
@@ -115,7 +123,9 @@ describe("SecurityExplorer", () => {
   // this reader on the *do not filter* side, so a security we no longer track is
   // a row rather than an absence. Marking it visibly is Task 2.4.4's.
   it("renders an untracked security rather than dropping it", async () => {
-    stubFetch(() => json(200, { securities: [GILD, NVDA], coverage: [] }));
+    stubFetch(() =>
+      json(200, { securities: [GILD, NVDA], coverage: [], lastCloses: [] }),
+    );
     render();
 
     await waitFor(() => {
@@ -130,7 +140,9 @@ describe("SecurityExplorer", () => {
   });
 
   it("says there are no prices yet rather than looking broken", async () => {
-    stubFetch(() => json(200, { securities: [NVDA], coverage: [] }));
+    stubFetch(() =>
+      json(200, { securities: [NVDA], coverage: [], lastCloses: [] }),
+    );
     render();
 
     await waitFor(() => {
@@ -152,7 +164,9 @@ describe("SecurityExplorer", () => {
   // A migrated-but-unseeded database. Not a failure and not a table with a
   // header and nothing under it.
   it("distinguishes an empty universe from a failure", async () => {
-    stubFetch(() => json(200, { securities: [], coverage: [] }));
+    stubFetch(() =>
+      json(200, { securities: [], coverage: [], lastCloses: [] }),
+    );
     render();
 
     // `getAllByText`, because there are two channels saying it: the visible

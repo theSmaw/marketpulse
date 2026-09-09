@@ -3,6 +3,7 @@ import type {
   SecuritiesResponse,
   Security,
   SecurityCoverage,
+  SecurityLastClose,
 } from "@marketpulse/shared";
 import { useEffect, useState } from "react";
 
@@ -37,9 +38,9 @@ import type { ApiResult } from "./api-client.js";
 // and a deploy runs `pnpm universe`. A poll would be standing billable traffic
 // against the Consumption plan's under-1,000-bytes-per-second idle condition,
 // per open tab, to re-learn a fact that has not moved — and this payload is
-// 150,660 bytes against `/health`'s 61 (17,299 at the 101 securities and no
-// coverage array this was first written against), so it is not the cheap request the
-// health poll is either. A page reload is the refresh.
+// 190,736 bytes against `/health`'s 61 (17,299 at the 101 securities, no
+// coverage array and no closes this was first written against), so it is not
+// the cheap request the health poll is either. A page reload is the refresh.
 
 /**
  * Why the universe could not be read.
@@ -120,6 +121,23 @@ export type SecuritiesView =
        * why this is not optional.
        */
       readonly coverage: ReadonlyMap<string, SecurityCoverage>;
+
+      /**
+       * The last stored close for each security that has one, keyed by symbol.
+       *
+       * **A map for `coverage`'s reason and no other**: 518 rows scanning a
+       * 518-record array is a quarter of a million comparisons per render, and
+       * this page now has two such arrays. A symbol **absent from this map has
+       * no stored daily bar**, which is the wire contract's spelling carried
+       * through unchanged — `undefined` is the honest answer and a zero would
+       * be an invented price.
+       *
+       * The map holds the wire record as it arrived, prices and a session date.
+       * Nothing here computes the change: that is arithmetic on two numbers,
+       * done where the claim is made, which is `last-close.ts` beside the table
+       * that renders it.
+       */
+      readonly lastCloses: ReadonlyMap<string, SecurityLastClose>;
     }
   /** The service answered correctly and holds nothing. */
   | { readonly state: "empty" }
@@ -164,6 +182,9 @@ function toSecuritiesView(
         provenance: result.data.provenance ?? null,
         coverage: new Map(
           result.data.coverage.map((record) => [record.symbol, record]),
+        ),
+        lastCloses: new Map(
+          result.data.lastCloses.map((record) => [record.symbol, record]),
         ),
       };
     }

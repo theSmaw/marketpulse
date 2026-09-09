@@ -1,9 +1,11 @@
 import { SECTOR_ETFS, SECTOR_LABELS, SECTORS } from "@marketpulse/shared";
 import type {
+  MarketDate,
   Sector,
   Security,
   SecurityCoverage,
   SecurityKind,
+  SecurityLastClose,
 } from "@marketpulse/shared";
 
 import { cx } from "../../cx.js";
@@ -11,12 +13,20 @@ import type {
   SecuritiesFailure,
   SecuritiesView,
 } from "../../use-securities.js";
+import { PriceChange } from "../PriceChange/PriceChange.js";
 import {
   coverageStartDate,
   formatBarCount,
   formatDepth,
   summariseCoverage,
 } from "./coverage.js";
+import {
+  changePercent,
+  commonSession,
+  directionOf,
+  formatChangePercent,
+  formatPrice,
+} from "./last-close.js";
 import styles from "./UniverseTable.module.css";
 
 // The tracked universe, in all four of the states it can be in (Task 2.4.4).
@@ -331,9 +341,17 @@ function Figure({
 function SecurityTableRow({
   security,
   coverage,
+  lastClose,
+  session,
 }: {
   readonly security: Security;
   readonly coverage: SecurityCoverage | undefined;
+  readonly lastClose: SecurityLastClose | undefined;
+  /**
+   * The session every close on this page shares, or `null` when they disagree.
+   * A row whose own session differs from it says so; see {@link LastCloseCell}.
+   */
+  readonly session: MarketDate | null;
 }) {
   const untracked = security.status === "untracked";
 
@@ -372,8 +390,141 @@ function SecurityTableRow({
       <td className={cx(styles.cell, styles.kind)}>
         {KIND_LABELS[security.kind]}
       </td>
+      <LastCloseCell lastClose={lastClose} session={session} />
+      <ChangeCell lastClose={lastClose} />
       <HistoryCell coverage={coverage} />
     </tr>
+  );
+}
+
+/**
+ * The last price this security closed at — **the first real price MarketPulse
+ * has ever shown anybody** (Task 2.9.7).
+ *
+ * ## What it is, and why saying so is the hard part
+ *
+ * It is the close of the last session we hold a daily bar for. It is **not** a
+ * live price and it is not necessarily the last session that traded: the store
+ * holds complete sessions only and the nightly catch-up runs before the open,
+ * so during a live session this number is at least a day behind the market.
+ *
+ * A stale number presented as current is precisely what invariant 6 exists to
+ * prevent, so the session date is on the wire and on the page. It is stated
+ * **once, in the column heading**, because 518 identical dates under a heading
+ * that could carry one is furniture — the same argument that took the sector
+ * out of this table and put the timeframe into the history heading. Measured on
+ * the local store at full depth: **518 of 518** securities last closed on the
+ * same session.
+ *
+ * The moment that stops being true the heading stops claiming it and **each row
+ * carries its own date**, which is what {@link commonSession} returning `null`
+ * means and what the `session` prop threads down. That asymmetry is
+ * `coverage.ts`'s and the summary line's already: a shared claim is made only
+ * while it is true of everything, and is then withdrawn rather than
+ * approximated.
+ *
+ * ## The empty case
+ *
+ * A security we hold no daily bars for gets the em dash and a spoken sentence,
+ * not a zero. §36's rule and `HistoryCell`'s treatment: it is not a failure,
+ * it is a security nobody has backfilled at the daily timeframe. A `0.00` here
+ * would be a price, and an invented one.
+ */
+function LastCloseCell({
+  lastClose,
+  session,
+}: {
+  readonly lastClose: SecurityLastClose | undefined;
+  readonly session: MarketDate | null;
+}) {
+  if (lastClose === undefined) {
+    return (
+      <td className={cx(styles.cell, styles.numeric)}>
+        <span aria-hidden="true">{NOT_APPLICABLE}</span>
+        {/*
+         * The em dash reads as nothing to a screen reader, which is right for
+         * a structurally inapplicable field and wrong here: "we hold no close
+         * for this" is a fact. `HistoryCell` makes the same trade one column
+         * along.
+         */}
+        <span className={styles.visuallyHidden}>No close yet</span>
+      </td>
+    );
+  }
+
+  return (
+    <td className={cx(styles.cell, styles.numeric)}>
+      <span className={styles.price}>{formatPrice(lastClose.close)}</span>
+      {lastClose.session !== session && (
+        /*
+         * The exception, and it only renders when the heading's claim does not
+         * cover this row. A second line rather than a second column: three of
+         * 518 rows growing a line is a legible exception, where a column of 515
+         * blanks is a column of blanks.
+         */
+        <span className={styles.session}>{lastClose.session}</span>
+      )}
+    </td>
+  );
+}
+
+/**
+ * How far the last close moved from the session before it.
+ *
+ * **A percentage rather than an absolute change**, because this is a
+ * cross-sectional column: a $2 move means one thing on a $3 security and
+ * another on a $700 one, and the whole value of a column is that a reader can
+ * compare down it. The absolute figure belongs on a security's own page, which
+ * is Story 2.11's.
+ *
+ * ## `PriceChange` renders it, and this is the first real number it has held
+ *
+ * That component has existed since Task 1.4.4 and has never rendered anything
+ * but a Storybook figure. It exists because Task 1.4.4 measured this palette's
+ * positive green and negative red at **1.05:1 under `grayscale(1)`** — no
+ * difference at all — so hue cannot be the signal. What carries direction here
+ * is the arrow glyph, the sign on the figure and a spoken word; the colour is
+ * the fourth channel, not the first.
+ *
+ * The direction is computed from the **rounded** percentage rather than the raw
+ * one (`directionOf`), so a +0.001% move cannot render as an up arrow beside a
+ * figure reading `0.00%`.
+ *
+ * ## Two absences, told apart
+ *
+ * No close at all is the em dash — the same absence the column beside it shows,
+ * and it must not read as a security that did not move. One stored session and
+ * no comparison is the *other* absence: there is a price, and there is nothing
+ * to measure it against. Both render quietly and both say which they are to a
+ * screen reader, because they send a reader to different conclusions.
+ */
+function ChangeCell({
+  lastClose,
+}: {
+  readonly lastClose: SecurityLastClose | undefined;
+}) {
+  const percent = lastClose === undefined ? null : changePercent(lastClose);
+
+  if (percent === null) {
+    return (
+      <td className={cx(styles.cell, styles.numeric)}>
+        <span aria-hidden="true">{NOT_APPLICABLE}</span>
+        <span className={styles.visuallyHidden}>
+          {lastClose === undefined
+            ? "No close yet"
+            : "No previous session to compare against"}
+        </span>
+      </td>
+    );
+  }
+
+  return (
+    <td className={cx(styles.cell, styles.numeric)}>
+      <PriceChange
+        change={formatChangePercent(percent)}
+        direction={directionOf(percent)}
+      />
+    </td>
   );
 }
 
@@ -481,11 +632,17 @@ function HistoryCell({
 function UniverseRows({
   securities,
   coverage,
+  lastCloses,
 }: {
   readonly securities: readonly Security[];
   readonly coverage: ReadonlyMap<string, SecurityCoverage>;
+  readonly lastCloses: ReadonlyMap<string, SecurityLastClose>;
 }) {
   const groups = groupUniverse(securities);
+
+  // Computed once for the whole table rather than per row: it is a fact about
+  // the response, and the heading and every cell have to agree about it.
+  const session = commonSession(lastCloses);
 
   return (
     <>
@@ -519,6 +676,8 @@ function UniverseRows({
             <col className={styles.colName} />
             <col className={styles.colIndustry} />
             <col className={styles.colKind} />
+            <col className={styles.colClose} />
+            <col className={styles.colChange} />
             <col className={styles.colHistory} />
           </colgroup>
           <thead>
@@ -534,6 +693,43 @@ function UniverseRows({
               </th>
               <th scope="col" className={cx(styles.heading, styles.kind)}>
                 Kind
+              </th>
+              {/*
+               * **The session date is in the heading and not in every cell**,
+               * for the same reason the timeframe is one column along: 518
+               * identical dates under a heading that could carry one is
+               * furniture. It renders only while every close on the page shares
+               * a session; when they disagree the claim is withdrawn and each
+               * cell carries its own. See `LastCloseCell`.
+               */}
+              <th
+                scope="col"
+                className={cx(styles.heading, styles.numeric)}
+                // The date is inside the heading rather than beside it, so a
+                // screen reader announcing a cell's column header says which
+                // session the price belongs to. Splitting it into a sibling
+                // element outside the `<th>` would leave the announcement as a
+                // bare "Last close".
+              >
+                Last close
+                {session !== null && (
+                  <>
+                    {/*
+                     * An explicit space, and it is load-bearing rather than
+                     * formatting. The date is a `display: block` sibling, so
+                     * without it the heading's *accessible name* is
+                     * `Last close2026-09-04` — `e2e/README.md`'s
+                     * `Backend servicehealthy` trap, arriving somewhere it
+                     * would be heard rather than merely mis-asserted on. The
+                     * space is invisible at the end of the first line and is
+                     * the whole difference to a listener.
+                     */}{" "}
+                    <span className={styles.headingDetail}>{session}</span>
+                  </>
+                )}
+              </th>
+              <th scope="col" className={cx(styles.heading, styles.numeric)}>
+                Change
               </th>
               {/*
                * **The timeframe is in the heading and not in every cell**,
@@ -560,7 +756,7 @@ function UniverseRows({
                  * — it could not find data cells for a column header that
                  * heads no columns.
                  */}
-                <th scope="rowgroup" colSpan={5} className={styles.group}>
+                <th scope="rowgroup" colSpan={7} className={styles.group}>
                   {/* An inner flex box rather than a flex `<th>`: a table cell
                       given `display: flex` stops being a table cell, and a
                       `colspan` that no longer spans is the kind of breakage
@@ -595,6 +791,8 @@ function UniverseRows({
                   key={security.symbol}
                   security={security}
                   coverage={coverage.get(security.symbol)}
+                  lastClose={lastCloses.get(security.symbol)}
+                  session={session}
                 />
               ))}
             </tbody>
@@ -853,7 +1051,7 @@ function announce(view: SecuritiesView): string {
       // reads, and a magnitude spoken as "forty-seven point seven M" is worse
       // than not saying it. So the count of securities with history is heard
       // and the total is seen.
-      return `The tracked universe loaded. ${String(tracked)} securities in ${String(sectors)} sectors. ${describeHistory(view.coverage.size, view.securities.length)}`;
+      return `The tracked universe loaded. ${String(tracked)} securities in ${String(sectors)} sectors. ${describeHistory(view.coverage.size, view.securities.length)} ${describeCloses(view.lastCloses)}`;
     }
 
     case "empty":
@@ -864,6 +1062,32 @@ function announce(view: SecuritiesView): string {
         ? "The tracked universe is not available. Nothing answered at the service’s address."
         : "The tracked universe could not be read. Something answered at the service’s address and it was not this service.";
   }
+}
+
+/**
+ * What the live region says about the prices on the page.
+ *
+ * **The session date and nothing else.** The column heading carries it for a
+ * reader; a listener meeting a table of prices needs the same fact and cannot
+ * get it from a column header until they land on a cell. It is the one sentence
+ * here that keeps a stale number from being heard as a live one, which is why
+ * it is in the announcement rather than left to the heading alone.
+ *
+ * When the closes disagree about their session there is no single date to
+ * speak, so this says how many rows carry a price and stops — each cell states
+ * its own session, and a listener reaching one is told.
+ */
+function describeCloses(
+  closes: ReadonlyMap<string, SecurityLastClose>,
+): string {
+  if (closes.size === 0) return "No closing prices are stored yet.";
+
+  const session = commonSession(closes);
+  if (session === null) {
+    return `Closing prices are stored for ${String(closes.size)} of them, from more than one session.`;
+  }
+
+  return `Closing prices are from the ${session} session.`;
 }
 
 /**
@@ -906,7 +1130,11 @@ function StateBody({ view }: { readonly view: SecuritiesView }) {
 
     case "loaded":
       return (
-        <UniverseRows securities={view.securities} coverage={view.coverage} />
+        <UniverseRows
+          securities={view.securities}
+          coverage={view.coverage}
+          lastCloses={view.lastCloses}
+        />
       );
 
     case "empty":
