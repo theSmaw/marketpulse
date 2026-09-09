@@ -82,6 +82,7 @@ import type {
   Timeframe,
 } from "@marketpulse/shared";
 
+import { throughDatabase } from "../database.js";
 import { apiErrorSchema } from "../errors.js";
 import type { JsonSchemaProperty } from "../json-schema.js";
 import type { BarCoverage, MarketBarsRepository } from "../market-bars.js";
@@ -214,12 +215,15 @@ const securitiesSchema = {
     // Nothing catches it here, deliberately. Task 1.7.4's error handler maps an
     // uncaught throw to a **500 and `INTERNAL_ERROR`**, which is the right
     // answer: a malformed row is this server having failed rather than the
-    // client having asked wrongly. A 503 would be the shape `database.ts`
-    // reserves for a database that is *unavailable*, which is a different
-    // failure with a different instruction to the client — and its
-    // `SERVICE_UNAVAILABLE` code does not exist yet, under `API_ERROR_CODES`'
-    // own rule that a member is added by the task that can produce the failure.
-    // A connection that fails is that other case and is still Story 2.9's.
+    // client having asked wrongly. A 503 is the shape `database.ts` reserves for
+    // a database that is *unavailable*, which is a different failure with a
+    // different instruction to the client.
+    //
+    // **Amended 2026-09-09 by Task 2.9.6.** This paragraph used to end "and its
+    // `SERVICE_UNAVAILABLE` code does not exist yet … a connection that fails is
+    // that other case and is still Story 2.9's". The code exists now and this
+    // route answers it — see the `throughDatabase` call in the handler. A
+    // malformed row is unchanged and still a 500.
     //
     // The two properties worth stating: the thrown message names the offending
     // symbol and **must not reach the client**, which is Task 1.7.4's rule that
@@ -227,6 +231,12 @@ const securitiesSchema = {
     // `ApiError` shape, which is what this line buys, because a route-level
     // response schema is the only place Fastify applies the serialiser to what
     // an error handler sends. Both are asserted rather than assumed.
+    // Added by Task 2.9.6 with `SERVICE_UNAVAILABLE` itself: the database being
+    // unreachable is a dependency that is down rather than this server having
+    // failed, and this route reads three queries out of that database. The
+    // paragraph above is amended by it rather than rewritten — the reasoning
+    // that a malformed row is a 500 is unchanged and still the common case.
+    503: apiErrorSchema,
     500: apiErrorSchema,
   },
 };
@@ -299,11 +309,25 @@ export function createSecuritiesRoutes(
         // exists at all. A `count(*)` here would be a page load scanning fifty
         // million rows, and it would arrive in Story 2.9's response-time work
         // as a mystery.
-        const [list, provenances, coverage] = await Promise.all([
-          securities.listSecurities(),
-          securities.listSecuritiesProvenance(),
-          bars.listCoverage(),
-        ]);
+        //
+        // **Wrapped for the 503 since Task 2.9.6**, which added
+        // `SERVICE_UNAVAILABLE` and its status-to-code mapping. This route has
+        // been able to produce this failure since Story 2.4 and answered a 500
+        // only because the code did not exist — the comment on the schema above
+        // says so in terms. Taken here rather than deferred, because a member
+        // that exists and is used by one of two routes that can produce the same
+        // failure is two answers to one question. A malformed row is still a
+        // 500: that is this server having failed, and `isDatabaseUnavailable`
+        // rethrows it untouched.
+        const [list, provenances, coverage] = await throughDatabase(
+          "The securities store",
+          () =>
+            Promise.all([
+              securities.listSecurities(),
+              securities.listSecuritiesProvenance(),
+              bars.listCoverage(),
+            ]),
+        );
 
         // The envelope's `provenance` is a claim about **every** security in this
         // response, so it is made exactly when the table agrees. `distinct`

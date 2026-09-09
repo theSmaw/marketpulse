@@ -26,7 +26,7 @@
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { SECTORS, type Security } from "@marketpulse/shared";
+import { SECTORS, toTicker, type Security } from "@marketpulse/shared";
 
 import { loadConfig, loadEnvFile } from "./config.js";
 import { loadUniverse } from "./load-universe.js";
@@ -207,6 +207,43 @@ describe("status, the invisible predicate", () => {
       expect(
         list.filter((security) => security.status === "active"),
       ).toHaveLength(UNIVERSE.length - 1);
+    } finally {
+      await db().query(
+        "update securities set status = 'active' where symbol = 'GILD'",
+      );
+    }
+  });
+});
+
+describe("findSecurity, the lookup behind the bars route's 404", () => {
+  it("returns the security a symbol names", async () => {
+    const security = await repository().findSecurity(toTicker("NVDA"));
+
+    expect(security).toMatchObject({ symbol: "NVDA", status: "active" });
+  });
+
+  it("returns nothing for a symbol the universe does not hold", async () => {
+    // A well-formed ticker that is not in the tracked universe, which is the
+    // input the route turns into a 404. `isTicker` accepts it, so this is the
+    // lookup answering rather than the parser.
+    await expect(
+      repository().findSecurity(toTicker("ZZZZ")),
+    ).resolves.toBeUndefined();
+  });
+
+  // The rule that makes the whole `/market-data/bars` path work: we serve the
+  // stored history of a security we have stopped tracking, and the response
+  // says it is untracked. Filtering here would turn that into a 404, which
+  // `MARKET-DATA-API.md` §6 calls a lie about data we hold.
+  it("returns an untracked security rather than hiding it", async () => {
+    await db().query(
+      "update securities set status = 'untracked' where symbol = 'GILD'",
+    );
+
+    try {
+      const security = await repository().findSecurity(toTicker("GILD"));
+
+      expect(security?.status).toBe("untracked");
     } finally {
       await db().query(
         "update securities set status = 'active' where symbol = 'GILD'",

@@ -133,8 +133,21 @@ app.register(
 // `resolveMarketData` is called once, here, rather than per request. Under the
 // default `MARKET_DATA_PROVIDER=none` it returns no provider at all — absence
 // rather than a null object, argued in `market-data.ts` — and the route reports
-// that as a `null` feed.
-app.register(createMarketDataRoutes(resolveMarketData(config)));
+// that as a `null` feed. `GET /market-data/bars` still serves stored history in
+// that deployment: no provider means no live tail, not no data.
+//
+// **Since Task 2.9.6 this plugin carries `GET /market-data/bars` too, and that
+// route does need the pool** — so the choice the note above describes is closed
+// by the second route rather than by preference, and the registration stays
+// here for the same reason `/securities` does. The repositories are built over
+// the same pool as every other reader and neither exports its handle.
+app.register(
+  createMarketDataRoutes({
+    marketData: resolveMarketData(config),
+    bars: createMarketBarsRepository(database),
+    securities: createSecuritiesRepository(database),
+  }),
+);
 
 // Signal handling lives here rather than in buildServer(), because it is a
 // property of this process, not of the application. A factory that installs

@@ -243,10 +243,10 @@ thirteen lines in under a second and a half, the last of them the server's
 varies between runs, so where Vite's address lands is not a signal. There is no
 silent stretch to wait out and no `.env` file to write first.
 
-| Address                 | What it is                                                          |
-| ----------------------- | ------------------------------------------------------------------- |
-| `http://localhost:5173` | the application                                                     |
-| `http://127.0.0.1:3000` | the API — two routes: `GET /health` and `GET /diagnostics/database` |
+| Address                 | What it is                                                                                                              |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `http://localhost:5173` | the application                                                                                                         |
+| `http://127.0.0.1:3000` | the API — `GET /health`, `GET /diagnostics/database`, `GET /securities`, `GET /market-data` and `GET /market-data/bars` |
 
 **`GET /diagnostics/database` is a diagnostic and not a probe** (Task 2.1.7). It
 answers `{"reachable":…,"ms":…,"ageMs":…,"checkedAt":…}` with a **200 either
@@ -458,10 +458,12 @@ has to open a connection; an unreachable host costs the full 5-second connection
 deadline.
 
 It is a **development environment and it is public** — no authentication, no
-user data, and a backend whose entire surface is `GET /health` and
-`GET /diagnostics/database`. That is acceptable only for as long as nothing
-deployed holds a credential — and the second route is why the diagnostic's body
-carries whether the database answered and never why.
+user data, and a backend that serves the tracked universe and stored price
+history and nothing that belongs to anybody. That is acceptable only for as long
+as nothing deployed holds a credential — and it is why the diagnostic's body
+carries whether the database answered and never why, and why
+`GET /market-data/bars` answers a database outage with a constant sentence
+rather than the driver's.
 
 Five things worth knowing before relying on it:
 
@@ -2054,12 +2056,14 @@ is why `pnpm ready`'s third check still reports rather than gates. A process
 that exited because Postgres was down would be a restart loop on the deployed
 platform, whose liveness probe restarts a replica that dies.
 
-**Nothing serves data yet**, so a wrong value here is caught at startup by the
-configuration boundary and by the probe, and by nothing else. When a route does
-need data and cannot get it, the answer is a **503** carrying a
-`SERVICE_UNAVAILABLE` code — decided in Task 2.1.4, implemented by Story 2.9,
-and deliberately not a 500: "this dependency is unavailable, retry" is a
-different instruction from "this server failed".
+A wrong value here is caught at startup by the configuration boundary and by the
+probe. Since Task 2.9.6 it is also caught by the routes that need data: a
+request to `GET /securities` or `GET /market-data/bars` against an unreachable
+database answers a **503** carrying a `SERVICE_UNAVAILABLE` code — decided in
+Task 2.1.4, implemented by Task 2.9.6, and deliberately not a 500: "this
+dependency is unavailable, retry" is a different instruction from "this server
+failed". The message is a constant; the driver's own error, with the host and
+the port in it, goes to the log under the same correlation id.
 
 ### Logging
 
@@ -2319,7 +2323,7 @@ Every failed request answers with the same JSON body, declared once in
 }
 ```
 
-The three failures the server produces today, verbatim from a running instance:
+The failures the server produces today, verbatim from a running instance:
 
 ```
 GET /nope                                            -> 404
@@ -2329,10 +2333,27 @@ POST /health  content-type: application/json  body: {oops   -> 400
 {"code":"BAD_REQUEST","message":"Body is not valid JSON but content-type is set
 to 'application/json'","requestId":"f35067d1-..."}
 
+GET /market-data/bars?symbol=NVDA&timeframe=5m&sessions=1   -> 400
+{"code":"BAD_REQUEST","message":"\"5m\" is not a timeframe. Expected 1m or 1d.",
+ "requestId":"75887b31-..."}
+
+GET /market-data/bars?symbol=ZZZZ&timeframe=1m&sessions=1   -> 404
+{"code":"NOT_FOUND","message":"ZZZZ is not a security this system tracks. The
+tracked universe is listed at /securities.","requestId":"3c1495ba-..."}
+
+GET /market-data/bars, database unreachable          -> 503
+{"code":"SERVICE_UNAVAILABLE","message":"Market data is temporarily
+unavailable. Try again shortly.","requestId":"335175e6-..."}
+
 a route that throws                                  -> 500
 {"code":"INTERNAL_ERROR","message":"An unexpected error occurred.",
  "requestId":"bc58ce02-..."}
 ```
+
+The two 4xx messages above name the caller's own input, which is a decision
+rather than a default (Task 2.9.6): a 4xx message may reflect **what the client
+sent** and may never name a host, a query, a row or a thrown error. The 404
+deliberately does not name the route, for the same reason.
 
 `requestId` is always the same value as the response's `x-request-id` header,
 and the same value the log records for that request carry as `reqId`. Quoting
@@ -2346,10 +2367,14 @@ two levels for four fields. The HTTP status already says that this is an error,
 and there is deliberately no `statusCode` in the body repeating it.
 
 `code` is a union rather than a free string, so a client can branch on it
-without matching prose that may be improved later. It has three members —
-`NOT_FOUND`, `BAD_REQUEST` and `INTERNAL_ERROR` — and every one of them names a
-failure the server can actually be made to produce, rather than one somebody
-imagined. `BAD_REQUEST` covers every 4xx that is not a 404, including a 413:
+without matching prose that may be improved later. It has four members —
+`NOT_FOUND`, `BAD_REQUEST`, `INTERNAL_ERROR` and, since Task 2.9.6,
+`SERVICE_UNAVAILABLE` — and every one of them names a failure the server can
+actually be made to produce, rather than one somebody imagined.
+`SERVICE_UNAVAILABLE` is a **dependency** being down rather than this server
+having failed, which is a different instruction to the client, and it arrived
+with the first route that could produce it. `BAD_REQUEST` covers every 4xx that
+is not a 404, including a 413:
 both mean "your request was not acceptable, fix it and retry", and the HTTP
 status line still carries the specific difference. The union is meant to grow;
 a new member is a non-breaking addition.

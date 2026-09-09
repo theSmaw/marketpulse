@@ -44,7 +44,12 @@ describe("API_ERROR_CODES", () => {
   it("is the closed set the union is built from", () => {
     const codes: readonly ApiErrorCode[] = API_ERROR_CODES;
 
-    expect(codes).toStrictEqual(["NOT_FOUND", "BAD_REQUEST", "INTERNAL_ERROR"]);
+    expect(codes).toStrictEqual([
+      "NOT_FOUND",
+      "BAD_REQUEST",
+      "INTERNAL_ERROR",
+      "SERVICE_UNAVAILABLE",
+    ]);
   });
 
   it("has no duplicates", () => {

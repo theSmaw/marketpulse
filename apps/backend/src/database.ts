@@ -64,6 +64,7 @@ import type { PoolConfig } from "pg";
 
 import type { DatabaseConfig } from "./config.js";
 import { acquireEntraAccessToken } from "./entra-token.js";
+import { ServiceUnavailableError } from "./errors.js";
 
 // How many connections this process may hold.
 //
@@ -525,7 +526,10 @@ export async function closeDatabasePool(pool: pg.Pool): Promise<void> {
 // Nothing in this application serves data yet, so there is no route to give an
 // answer to and no way to produce the failure through the API — which is
 // exactly the condition under which `API_ERROR_CODES`' own rule says not to add
-// a member. Task 1.7.3 shipped that union with "a member per failure that can
+// a member. **That sentence stopped being true on 2026-09-09: `/securities` and
+// `/market-data/bars` both serve data out of this pool and both answer the 503
+// below.** It is left standing because it is what made the decision, and the
+// implementation note after this block is where the tree is described. Task 1.7.3 shipped that union with "a member per failure that can
 // be produced, not per failure that can be imagined", and `BAD_REQUEST` was
 // added a task later by the task that could produce it.
 //
@@ -550,3 +554,159 @@ export async function closeDatabasePool(pool: pg.Pool): Promise<void> {
 //     is down turns a recoverable outage into a restart loop. Database
 //     reachability is reported by `GET /diagnostics/database`, which no probe
 //     uses, and Story 2.9's data routes still owe their own 503.
+
+// **Implemented 2026-09-09 by Task 2.9.6**, which registered the first route
+// that serves data from this pool. The decision above is unchanged; what
+// follows is the part it deferred — telling *this* failure apart from every
+// other way a query can fail, which is the question a route has to answer
+// before it can choose between 503 and 500.
+
+/**
+ * Node's own network failures, as `pg` re-throws them.
+ *
+ * A connection that never opened arrives as a `NodeJS.ErrnoException` with one
+ * of these on `code` — the driver does not wrap it, so the system error is what
+ * a caller catches. `ECONNREFUSED` is a database that is down, `ENOTFOUND` and
+ * `EAI_AGAIN` are DNS, `ETIMEDOUT` and `EHOSTUNREACH` are the network between
+ * here and Azure, and `ECONNRESET` and `EPIPE` are a connection that opened and
+ * then went away mid-query.
+ *
+ * `ECONNRESET` is the debatable one and it is included deliberately: a reset
+ * mid-query is indistinguishable from a server restart or a failover, both of
+ * which are dependencies being unavailable and both of which succeed on retry.
+ */
+const UNAVAILABLE_SYSTEM_ERRORS = new Set([
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "EPIPE",
+  "ETIMEDOUT",
+]);
+
+/**
+ * The SQLSTATEs that mean *the server is there and cannot serve you*, rather
+ * than *your statement was wrong*.
+ *
+ * Class `08` is connection exception, whole. The rest are named individually
+ * because their classes are not wholly ours: `57P01`/`57P02`/`57P03` are the
+ * server shutting down, crashing and starting up; `53300` is the connection
+ * limit and `53400` the configuration limit, which on a managed instance is the
+ * commonest real outage of the set.
+ *
+ * Deliberately **not** here: `42*` (a bad statement), `23*` (a constraint), and
+ * `57014` (a cancelled statement). Those are this server's fault or this
+ * server's doing, and calling them 503 would tell a client to retry something
+ * that cannot succeed.
+ */
+const UNAVAILABLE_SQLSTATES = new Set([
+  "57P01",
+  "57P02",
+  "57P03",
+  "53300",
+  "53400",
+]);
+
+/**
+ * The message `pg` produces when {@link CONNECT_TIMEOUT_MS} elapses.
+ *
+ * Matched on the message because it is the one case with **no code at all** —
+ * `pg-pool` constructs a bare `Error` when `connectionTimeoutMillis` elapses,
+ * so there is nothing else to key on.
+ *
+ * **Copied from `pg-pool@3.14.0`'s source and verified there on 2026-09-09, and
+ * nothing re-checks it.** That is stated rather than hidden: producing this
+ * string honestly needs a pool that fails to connect, which needs a network
+ * `pnpm verify` deliberately does not have. So an upgrade that rewords the
+ * message downgrades a timed-out pool from 503 to 500 **silently** — the answer
+ * stays well-formed and names the wrong thing. It is on the same list as the
+ * other invariants nothing checks (CLAUDE.md, *What `pnpm verify` does not
+ * cover* §3); the cheap re-measurement is
+ * `grep -rn "timeout exceeded when trying to connect" node_modules/.pnpm/pg-pool*`.
+ */
+export const CONNECT_TIMEOUT_MESSAGE =
+  "timeout exceeded when trying to connect";
+
+/**
+ * Is this error the database being unavailable, rather than a query being
+ * wrong?
+ *
+ * The classifier behind `MARKET-DATA-API.md` §6's 503 row. A route catches what
+ * a read threw, asks this, and either raises `ServiceUnavailableError` or lets
+ * the throw continue to the 500 it was always going to be.
+ *
+ * **It lives here rather than in the route**, for the reason the whole comment
+ * above it exists: the question is about this module's dependency, the answer
+ * has to be the same for every route that asks, and a second route classifying
+ * `ECONNREFUSED` for itself is how two routes end up disagreeing about what a
+ * database outage is.
+ *
+ * **It errs towards 500, and that direction is the decision.** An unlisted
+ * failure is treated as ours. Mistaking our own bug for an outage tells a
+ * client to retry something that will never succeed and hides the bug behind a
+ * reassuring status; mistaking an outage for our bug costs a client one
+ * unhelpful retry instruction and still logs the real cause. The first is worse,
+ * so the list is a closed allowlist rather than a denylist of known-ours codes.
+ */
+export function isDatabaseUnavailable(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+
+  // Kysely rethrows the driver's error untouched, but a wrapper is exactly the
+  // kind of thing a dependency upgrade introduces, and `cause` is where it would
+  // put the original. Walking it costs nothing and closes that gap.
+  for (
+    let current: unknown = error, depth = 0;
+    current instanceof Error && depth < 5;
+    current = current.cause, depth += 1
+  ) {
+    // `code` is a `string` on a `pg` `DatabaseError` (a SQLSTATE) and on a Node
+    // system error (an `E*` name), and the two vocabularies do not overlap, so
+    // one property answers both questions.
+    const code: unknown = (current as { code?: unknown }).code;
+
+    if (typeof code === "string") {
+      if (UNAVAILABLE_SYSTEM_ERRORS.has(code)) return true;
+      if (UNAVAILABLE_SQLSTATES.has(code)) return true;
+      if (code.startsWith("08")) return true;
+    }
+
+    if (current.message.includes(CONNECT_TIMEOUT_MESSAGE)) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Run a read, and turn *this database is unavailable* into the 503 the contract
+ * owes — leaving every other failure exactly as it was.
+ *
+ * The pairing of {@link isDatabaseUnavailable} with `ServiceUnavailableError`,
+ * in one function, so the routes that serve data cannot answer the same failure
+ * differently. `routes/market-data.ts` and `routes/securities.ts` are both
+ * callers as of Task 2.9.6, which is precisely the condition that made this a
+ * function rather than four lines in a handler.
+ *
+ * Anything the classifier does not recognise is rethrown **untouched**, so it
+ * reaches Task 1.7.4's handler as the 500 it always was and carries its own
+ * stack. `MissingCoverageError` — a store whose ledger disagrees with its bars —
+ * is the named example, and 500 is the right answer for it: no amount of
+ * retrying repairs an inconsistent store.
+ *
+ * `dependency` is a phrase for the **log** and never for the client; the 503
+ * body is a constant written in `errors.ts`.
+ */
+export async function throughDatabase<T>(
+  dependency: string,
+  read: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await read();
+  } catch (error) {
+    if (isDatabaseUnavailable(error)) {
+      throw new ServiceUnavailableError(dependency, error);
+    }
+    throw error;
+  }
+}

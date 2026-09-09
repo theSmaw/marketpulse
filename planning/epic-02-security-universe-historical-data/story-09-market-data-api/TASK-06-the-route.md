@@ -1,6 +1,6 @@
 # Task 2.9.6 — The route, and its failures
 
-**Status:** Not started
+**Status:** Complete — 2026-09-09
 **Story:** [2.9 Market Data API](STORY.md)
 **Depends on:** Task 2.9.5
 
@@ -254,3 +254,231 @@ the chart is Story 2.12's.
 Quote a real response in the task's write-up — a symbol, a window, the byte count
 and the timing — rather than describing one. Task 2.9.9 takes the measurements
 properly; this one just proves the thing answers.
+
+---
+
+## What was done — 2026-09-09
+
+`GET /market-data/bars` serves a real series out of the 48-million-row store,
+and every row of §6's status table has a test and a produced example.
+
+### The response, quoted rather than described
+
+`GET /market-data/bars?symbol=NVDA&timeframe=1m&start=2026-09-04T13:30:00Z&end=2026-09-04T20:00:00Z`
+against the local store, backend built and run from `dist/`:
+
+```
+status=200  bytes=44,701  total=0.036s
+x-request-id: 43d3e1bc-b44d-4c5f-af61-e7bcdff52a43
+content-type: application/json; charset=utf-8
+
+bars      390
+first     {"startsAt":"2026-09-04T13:30:00.000Z","open":231.14,"high":231.2,
+           "low":229.82,"close":230.1875,"volume":2688585}
+last      {"startsAt":"2026-09-04T19:59:00.000Z","open":230.28,"high":230.4,
+           "low":230.15,"close":230.345,"volume":2151390}
+prov      {"adjustment":"raw","sources":[{"provider":"alpaca","feed":"sip",
+           "retrievedAt":"2026-09-08T07:28:40.261Z","barCount":390}]}
+cov       requested 13:30→20:00, covered 13:30→20:00
+status    active
+```
+
+A whole session, 390 bars, 44.7 kB, 36 ms end to end including the curl. Task
+2.9.9 takes the measurements properly; this one proves the thing answers.
+
+Every failure, from the same running instance:
+
+```
+?symbol=NVDA&timeframe=5m&sessions=1        400 {"code":"BAD_REQUEST","message":"\"5m\" is not a timeframe. Expected 1m or 1d."…}
+?symbol=nvda&timeframe=1m&sessions=1        400 …"\"nvda\" is not a well-formed US equity ticker…"
+?symbol=NVDA&timeframe=1m                   400 …"No window given. Pass ?sessions=5 …"
+?symbol=NVDA&symbol=AMD&…                   400 …"The symbol was given more than once. A series is for one symbol."
+?…start=2019-01-02…                         400 …"That window reaches 2019-01-02, outside the trading calendar this system covers — 2024-01-01 to 2028-12-31."
+?…start=2026-01-02…&end=2026-09-04…         400 …"That window is 66,300 bars and one response carries at most 10,000."
+?symbol=ZZZZ&timeframe=1m&sessions=1        404 {"code":"NOT_FOUND","message":"ZZZZ is not a security this system tracks…"}
+database unreachable                        503 {"code":"SERVICE_UNAVAILABLE","message":"Market data is temporarily unavailable. Try again shortly."}
+```
+
+All five of Task 2.9.2's refusal reasons reach the client in the parser's own
+words, which is the property the querystring decision below is about.
+
+### The querystring-schema question, answered with a produced result
+
+**No `querystring` schema.** Both traps were produced against Fastify 5 with its
+default ajv, on a throwaway route, before the choice was made:
+
+```
+schema'd  ?symbol=NVDA&symbol=AMD&timeframe=1m
+          → 400 {"code":"FST_ERR_VALIDATION","message":"querystring/symbol must be string"}
+schema'd  ?symbol=NVDA&timeframe=5m
+          → 400 {"code":"FST_ERR_VALIDATION","message":"querystring/timeframe must be equal to one of the allowed values"}
+bare      ?symbol=NVDA&symbol=AMD&timeframe=5m
+          → the handler sees symbol as an ARRAY and timeframe as the string "5m"
+coercion  sessions declared `integer`, ?sessions=5 → the handler sees the NUMBER 5
+coercion  symbol declared `array`,     ?symbol=NVDA → the handler sees ["NVDA"]
+```
+
+The deciding one is the first pair: a schema answers **before the handler**, in
+Fastify's vocabulary, and _"must be equal to one of the allowed values"_ does not
+say what they are. That would leave five carefully written refusal reasons dead
+for exactly the inputs they exist for, and give one request two error
+vocabularies. The coercion pair is the second argument: `series-request.ts` types
+every query value `unknown` so a repeated key is refused, and a schema would
+rewrite the input on its way to the parser that exists to judge it. The reversal
+trigger is a query parameter whose validation `parseSeriesRequest` cannot
+express.
+
+**Verified by substitution rather than by reasoning**: declaring the obvious
+querystring schema on the real route turns two tests red — the bad timeframe and
+the repeated key — and nothing else.
+
+### `SERVICE_UNAVAILABLE`, and the classifier that decides who gets it
+
+The member, `errors.ts`' status-to-code mapping and its own constant message
+landed in one change, as §6 requires. Substituted to check it: removing the 503
+branch from `codeFor` fails on `expected 'INTERNAL_ERROR' to be
+'SERVICE_UNAVAILABLE'` — the **code**, not the status, which is the failure that
+would otherwise look like success.
+
+The question the task did not settle — _which thrown errors are "the database is
+unavailable"_ — is answered by `isDatabaseUnavailable` in `database.ts`, beside
+the decision it implements. An allowlist: Node's connection errors, SQLSTATE
+class `08`, `57P01`–`57P03`, `53300`/`53400`, and `pg-pool`'s
+connection-timeout message. **It errs towards 500** — anything unrecognised stays
+ours, because telling a client to retry something that cannot succeed is worse
+than the reverse. `MissingCoverageError` reaches its 500 by exactly that route.
+
+One honest gap, recorded rather than hidden: the connection-timeout message is
+matched as a **string copied from `pg-pool@3.14.0`**, and nothing re-checks it,
+because producing it needs a pool that fails to connect and `pnpm verify` has no
+network. An upgrade that rewords it silently downgrades a timed-out pool from 503
+to 500. It belongs on CLAUDE.md's _stated invariants nothing checks_ list; the
+re-measurement is one `grep` and it is written beside the constant.
+
+**`/securities` took the member too**, rather than leaving it to Task 2.9.10. It
+has been able to produce this failure since Story 2.4 and answered a 500 only
+because the code did not exist. Both routes now share one wrapper,
+`throughDatabase`, so the same outage cannot get two answers. Produced: a backend
+pointed at a closed port answers `503 SERVICE_UNAVAILABLE` on both, logs
+`connect ECONNREFUSED 127.0.0.1:59999` at `warn` under the request's `reqId`, and
+puts none of it in the body.
+
+### The reflection decision `errors.ts` asked for
+
+Taken and recorded beside the 4xx branch: **a 4xx message may reflect what the
+client sent, and may never name server state.** The 404 already declines to name
+the route, and the two now agree by decision rather than by accident. The
+alternative — a generic message with the specifics in the log — was refused
+because the caller is the only party who cannot read the log, and it fails at
+exactly the moment somebody is holding the API wrongly.
+
+### Decisions the task left to this reader
+
+- **`tail` is not on the payload.** Every non-`ok` outcome is already logged
+  under the request's `reqId`, the provider's eight-member taxonomy is internal,
+  and what a client needs for _"displaying data through 15:42"_ is
+  `coverage.covered` — which ends where the answer ends whether the tail
+  succeeded, was declined or failed. One field that is always true beats two that
+  can disagree. Asserted: a failing tail leaves no `upstream-unavailable` and no
+  vendor message anywhere in the body.
+- **`held` is logged, not served.** The two empty answers — _we hold nothing for
+  this security_ and _the window had no prints_ — are the same 200 body by §6, and
+  the distinction goes to a `debug` record with the ledger's presence on it.
+- **Both routes live in one plugin**, because `/market-data` is the namespace as
+  well as a resource. `createMarketDataRoutes` now takes a named dependency
+  object rather than three positional arguments.
+- **`findSecurity` is a new repository function**, not a filter over
+  `listSecurities`: the route asks about one symbol, and it returns the whole
+  `Security` so `securityStatus` is a second field off a lookup it was making
+  anyway. It does not filter on `status`, which is what lets an untracked
+  security be served its stored history and be told it is untracked.
+
+### Tests
+
+Task 2.9.3's six schema tests now drive the **real route**; the throwaway path is
+gone. Two of them are strictly stronger than before: the stitch is produced by
+`serveSeries` against a stub provider declaring `iex` over a store holding `sip`,
+rather than assembled by hand, and the stripping test runs on the real payload
+through a `preSerialization` hook — with a _declared_ field also changed by the
+hook, so a hook that never ran cannot pass it vacuously.
+
+`pnpm verify` passes with no database, no network and no credentials;
+`pnpm test:database` passes with 157 tests, three of them new for `findSecurity`.
+The route-table walk sees `/market-data/bars` and its `500: apiErrorSchema`.
+
+### Swept upward the same day
+
+- `README.md`: _"Nothing serves data yet"_, the two-route address table, the
+  "entire surface" sentence in the security-posture section, _"It has three
+  members"_, and the quoted set of failures the server produces.
+- ADR 0018: a dated amendment — _"the defined behaviour for a caller with no
+  provider is a 503"_ is **narrower than it reads**, and does not cover this
+  route, which serves stored history with no provider configured and answers 200.
+- ADR 0014: a dated amendment — the code it says does not exist now does;
+  `/diagnostics/database` is unchanged and still answers 200 either way.
+- `database.ts` and `routes/securities.ts`: the sentences that said the member
+  did not exist are marked superseded rather than deleted.
+- `MARKET-DATA-API.md` §6 and this story's task table.
+
+---
+
+## For the stakeholders — what this actually did
+
+**In one line: MarketPulse can now be asked for a stock's price history over the
+internet, and it answers with real market data.**
+
+Until today the two and a half years of minute-by-minute prices we have been
+collecting — about 48 million of them — sat in a database that only our own
+maintenance scripts could reach. There was no way for the application, or for
+anything else, to ask for them. This task built the door.
+
+You can now type a web address like _"NVDA, one-minute bars, last Friday's
+trading session"_ into a browser and get back that day's 390 price bars in about
+a thirtieth of a second. That is the first market data this system has ever
+served to the outside world. **The screen has not changed** — there is still no
+chart, and building one is a later task — but every chart we ever draw will be
+fed by what was built today.
+
+Three choices are worth explaining, because they are the difference between a
+product and a demo.
+
+**When we only have part of what you asked for, we say so.** Ask for a whole
+day and we will tell you not just what we have, but the exact window we were
+able to cover. That sounds like a small thing. It is the foundation of the
+promise this product makes: a user is never shown a chart that quietly stops
+early and looks complete. The alternative — returning what we have and staying
+quiet about the gap — is how a market tool misleads somebody who is making a
+decision.
+
+**When something goes wrong, we say which kind of wrong it is, in plain
+English.** Ask for a timeframe we do not support and you are told _"5m is not a
+timeframe. Expected 1m or 1d."_ Ask for a stock we do not follow and you are told
+so, with a pointer to the list of ones we do. If our database is unreachable, you
+get a distinct answer that means _"this is temporary, try again"_ — which is
+genuinely different information from _"this system is broken"_, and worth the
+extra care it took to tell them apart correctly. Every one of these answers also
+carries a reference code that appears in our logs, so any complaint can be traced
+to the exact request that caused it.
+
+**What we tell a user and what we tell ourselves are deliberately different.**
+When the database was unreachable, the internal log recorded the server address
+and the exact network failure — and the public response said only that market
+data was temporarily unavailable. That separation is not politeness; a public
+endpoint that reports its own internal plumbing is a public endpoint that helps
+somebody attack it. We checked this by actually breaking it and reading what came
+out, rather than by assuming.
+
+One more thing worth reporting because it reflects how we work: we deliberately
+declined a shortcut. There is a standard, easy way to make a web framework check
+incoming requests automatically. We tried it, measured what it did, and found it
+would have thrown away the careful, human-readable error messages we wrote last
+week and replaced them with generic framework jargon. So we kept our own
+checking. The evidence is written down, so nobody has to re-litigate it.
+
+**Where this leaves the product.** The historical data layer is now reachable.
+The next task puts the first real price on the screen — the last closing price
+beside each of the 518 securities we track — which is the moment this stops being
+plumbing and starts being visible. The chart itself follows shortly after. In
+terms of the overall plan, this is the last big piece of _"select a security and
+explore its historical data"_, which is the base everything else in MarketPulse —
+the anomaly detection, the investigations, the replay — is built on top of.

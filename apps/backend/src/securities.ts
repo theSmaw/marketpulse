@@ -51,6 +51,7 @@ import {
   isSecurity,
   type SecuritiesProvenance,
   type Security,
+  type Ticker,
 } from "@marketpulse/shared";
 
 import type { Database, SecuritiesTable } from "./schema.js";
@@ -248,6 +249,32 @@ export interface SecuritiesRepository {
    * `REPEATABLE READ` around a page's footnote. Recorded, accepted.
    */
   listSecuritiesProvenance(): Promise<readonly SecuritiesProvenance[]>;
+
+  /**
+   * One security by symbol, or `undefined` when this system has never heard of
+   * it — **the lookup `GET /market-data/bars` answers its 404 from** (Task
+   * 2.9.6).
+   *
+   * A function rather than a filter over {@link listSecurities}, under this
+   * file's own rule that a new read is a new function: the route asks about one
+   * symbol, and answering it by fetching 518 rows and scanning them is a query
+   * that gets slower as the universe grows for an answer a unique index gives
+   * in constant time.
+   *
+   * **It returns the whole {@link Security} rather than a boolean**, and that is
+   * what makes `BarSeriesResponse.securityStatus` free. The route needs two
+   * facts — does this security exist, and is it still tracked — and they are two
+   * columns of one row; a `securityExists()` returning a boolean would have
+   * forced a second query for the second fact, or forced the status onto the
+   * series where `MARKET-DATA-API.md` §7 says it does not belong.
+   *
+   * **It does not filter on `status`**, which is the same decision
+   * {@link listSecurities} takes and for the sharper reason: filtering here
+   * would turn "we stopped tracking this symbol" into "no such symbol", which is
+   * §6's sentence exactly — a 404 is about the security, never about the data —
+   * inverted. An untracked security has stored history and this route serves it.
+   */
+  findSecurity(symbol: Ticker): Promise<Security | undefined>;
 }
 
 /**
@@ -294,6 +321,25 @@ export function createSecuritiesRepository(
         .execute();
 
       return rows.map(toSecurity);
+    },
+
+    async findSecurity(symbol) {
+      const row = await db
+        .selectFrom("securities")
+        .select(SECURITY_COLUMNS)
+        // `symbol` is unique, so this is an index lookup and `executeTakeFirst`
+        // is the honest verb: there is at most one row and the caller wants it
+        // or nothing. `executeTakeFirstOrThrow` would turn "unknown symbol" —
+        // an ordinary answer this route renders as a 404 — into an exception,
+        // which is the 500-for-a-client-mistake shape.
+        .where("symbol", "=", symbol)
+        .executeTakeFirst();
+
+      // `toSecurity` throws `SecurityMappingError` on a row the check
+      // constraints should have refused, exactly as `listSecurities` does. That
+      // is a 500 and it is the right one: a malformed row is this server
+      // having failed. Not caught here, deliberately.
+      return row === undefined ? undefined : toSecurity(row);
     },
 
     async listSecuritiesProvenance() {
