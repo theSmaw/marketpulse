@@ -44,7 +44,16 @@ deliberately does not store has to be produced honestly.
      series' most recent fetch and **overstates the freshness of its older half**,
      since a catch-up that appends today's bars moves it for the whole range.
   3. **A migration adding provenance to the ledger**, which is real work and is
-     the answer if 1 and 2 are both dishonest.
+     the answer if the others are all dishonest.
+  4. **`market_bars.recorded_at`**, which was missed when this list was written
+     and may be the best of the four. `migrations/README.md` §4 makes it mandatory
+     on every table and `market-bars.ts` deliberately lets it default to `now()` —
+     transaction start, so **every bar in one batch shares one value and the batch
+     _is_ the retrieval**, which is exactly what invariant 5 wants. Unlike
+     candidate 2 it is scoped to **the window being served** rather than to the
+     whole series, so `max(recorded_at)` over the returned rows does not inherit a
+     catch-up's freshness for bars fetched a year earlier. Weigh it properly
+     rather than inheriting this list's omission.
 
   **Whatever is chosen, do not re-stamp `retrievedAt` at read time.**
   `market-provenance.ts` names that trap in its own words — Task 2.3.5 already
@@ -52,6 +61,12 @@ deliberately does not store has to be produced honestly.
   unable to report the one thing it exists to report — and a read path that
   stamps this when it serves stored bars turns "fetched three weeks ago" into
   "current".
+
+- **Produce a single-source record here, and leave the join to Task 2.9.5.** This
+  task reads the store; the stitched case has its own task and its own tests
+  (`MARKET-DATA-API.md` §5). What this one owes the next is a `SeriesProvenance`
+  that `mergeSeriesProvenance` can accept — which it will, because the merge takes
+  records rather than building them.
 
 - **Construct through `toBarSeries` and never a literal.** The constructor is the
   only way to obtain a `BarSeries`, and its checks are the interesting half:
@@ -73,15 +88,15 @@ deliberately does not store has to be produced honestly.
 
 - **Read coverage from `bar_coverage`, never by counting `market_bars`.**
   `BARS.md` §9.1 makes that a property the store's observability depends on: a
-  page load that scanned 48 million rows would arrive in Task 2.9.8's timings as a
+  page load that scanned 48 million rows would arrive in Task 2.9.9's timings as a
   mystery with no obvious author.
 
-- **If Task 2.9.1 chose to reduce a series, the reduction happens in SQL over
-  `numeric`** — `first(open), max(high), min(low), last(close), sum(volume)` per
-  bucket — for `bar.ts`'s stated guard: an aggregate over prices is computed in
-  the database, never in JavaScript over a `number`. Assert that the reduced
-  series' high is the maximum of the raw highs across the bucket, which is the
-  assertion that fails if anybody ever replaces it with sampling.
+- ~~**If Task 2.9.1 chose to reduce a series, the reduction happens in SQL**~~
+  **Settled by Task 2.9.1: it does not reduce** (`MARKET-DATA-API.md` §3). This
+  read returns exactly the stored bars in the window at the timeframe asked for.
+  `bar.ts`'s guard still governs anything that _does_ aggregate — in SQL over
+  `numeric`, never in JavaScript over a `number` — and Task 2.9.7's last close is
+  where that next applies.
 
 - **Test it at the database level** (`*.database.test.ts`, which is **not** in
   `pnpm test` or `pnpm verify`) and unit-test the mapping half without a server.

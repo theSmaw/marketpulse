@@ -2,7 +2,7 @@
 
 The subject document for [Story 2.9](STORY.md), produced by Task 2.9.1, which
 **ships no route, no type and no page**. Its whole output is that Tasks 2.9.2 to
-2.9.5 do not each answer the same question differently — Task 2.6.1's precedent,
+2.9.6 do not each answer the same question differently — Task 2.6.1's precedent,
 which settled the provider seam's shape a task before anything implemented it.
 
 Every figure below was taken **on 2026-09-09 against the local 48,027,772-row
@@ -340,7 +340,7 @@ record, and `toBarSeries` asserts the per-source bar counts sum to the bars it
 holds — so a stitch that concatenated two arrays and kept one provenance record
 throws rather than lying.
 
-Four rules, and the third is the one that keeps this from being a vendor-budget
+Five rules, and the third is the one that keeps this from being a vendor-budget
 accident:
 
 1. **Only the uncovered tail is fetched.** The stored part is read from
@@ -356,7 +356,12 @@ accident:
    data is a gap the backfill owns, and `coverage.covered` reports it honestly.
    Without this bound the stitch is a metered vendor request proportional to how
    stale the store is, which is a cost that grows while nobody is looking.
-4. **Both parts are fetched at the same `adjustment` or there is no series.**
+4. **A failing tail does not fail the request.** §36's rule, and this is its
+   first real instance in the epic: a provider that is down, rate-limited or
+   refused leaves the stored part served, with `coverage.covered` ending where the
+   store ends. It is not a 5xx, and the provider's eight-member error taxonomy
+   does not reach the client.
+5. **Both parts are fetched at the same `adjustment` or there is no series.**
    `mergeSeriesProvenance` refuses a raw/split-adjusted join, because the two are
    on different price scales and every percentage change across the seam would be
    wrong. The store holds `raw`, so the tail is requested `raw`.
@@ -369,17 +374,17 @@ each part rather than to the response: `MARKET_FEED_DESCRIPTIONS` already refuse
 to let `iex` be shown without the sentence saying it is one venue.
 
 **What this costs, stated rather than discovered:** a chart window ending _now_
-becomes a metered vendor request on a cache miss. Task 2.9.7's caching is
+becomes a metered vendor request on a cache miss. Task 2.9.8's caching is
 therefore load-bearing rather than an optimisation — a closed session is
 immutable and must be served from cache, so the metered request is bounded to the
-open session. If 2.9.7 finds it cannot bound it, that is the condition to bring
+open session. If 2.9.8 finds it cannot bound it, that is the condition to bring
 this decision back rather than to absorb the cost.
 
 **Reversal trigger, as a condition:** the tail's **source** changes when Epic 3
 has a live stream worth joining — at that point rule 2's clamp and rule 3's bound
 both stop being necessary, because a stream is not a metered request and is not
 16 minutes stale. The decision to stitch does not change; the thing being
-stitched does. The trigger to reconsider the **decision** is Task 2.9.7 failing to
+stitched does. The trigger to reconsider the **decision** is Task 2.9.8 failing to
 bound the metered request.
 
 ---
@@ -399,7 +404,9 @@ each is, and that is settled here so three later tasks cannot each answer it.
 | Symbol is not a security this system knows                       | **404** | `NOT_FOUND`                                                     |
 | Malformed timeframe, reversed range, both window forms, over cap | **400** | `BAD_REQUEST`                                                   |
 | Window outside the calendar's 2024–2028 range                    | **400** | `BAD_REQUEST`, naming the range                                 |
-| Database or provider unavailable                                 | **500** | `INTERNAL_ERROR`, with the correlation id                       |
+| **The database is unavailable**                                  | **503** | **`SERVICE_UNAVAILABLE`** — a new member, see below             |
+| The provider fails while fetching the stitch's tail              | **200** | The stored part, with `covered` ending where the store ends     |
+| Anything else uncaught                                           | **500** | `INTERNAL_ERROR`, the correlation id, never the thrown message  |
 
 **The sentence that settles the temptation: a 404 is about the _security_, never
 about the _data_.** An empty series is an **answer** — it says we asked, we hold
@@ -412,10 +419,43 @@ case informative, and a 404 carries no body of ours at all.
 body _is_ the answer here: provenance and the requested window are the two facts
 an empty series still carries.
 
-**No new `ApiErrorCode` is needed.** `NOT_FOUND`, `BAD_REQUEST` and
-`INTERNAL_ERROR` cover every row above, which is `API_ERROR_CODES`' own test — a
-member is added when the server can be made to produce a failure the existing set
-cannot express, and none of these is one.
+### `API_ERROR_CODES` gains its fourth member here, and that was already decided
+
+**Corrected 2026-09-09, the same day, before any of it was built.** This section
+first said no new error code was needed and that an unavailable database was a 500. **Both were wrong, and the decision had already been taken elsewhere** —
+`database.ts` records it in terms, for this story to _implement rather than
+re-take_:
+
+> The status is **503**, not 500. A 500 says this server failed; a database that
+> is down is a dependency that is unavailable and a client may usefully retry,
+> which is a different instruction. The code is a new `SERVICE_UNAVAILABLE`
+> member of `API_ERROR_CODES`, added by the story that can produce it, with
+> `errors.ts`'s status-to-code mapping extended in the same change — today any
+> non-404 4xx is `BAD_REQUEST` and every 5xx is `INTERNAL_ERROR`, so a 503 raised
+> now would answer with a code that names the wrong thing.
+
+`routes/securities.ts` says the same from the other side: a malformed row is a
+500 because the _server_ failed, and _"a connection that fails is that other case
+and is **still Story 2.9's**"_. So the member is owed here, and it is owed **with**
+the mapping — a 503 raised without extending `errors.ts` answers `INTERNAL_ERROR`,
+which names the wrong thing and is the failure that looks like success.
+
+**`/diagnostics/database` is not the precedent, and reading it as one is what
+produced the original error.** That route answers **200 whatever the answer is**,
+deliberately: _"is the database reachable"_ is a question it answers _correctly_
+when the answer is no. A data route is the opposite — it could not answer at all.
+
+**Two consequences worth naming rather than discovering.** The member is added by
+the first task that serves data from the database and can produce the failure,
+which is Task 2.9.6; and once it exists, **`/securities` should get it too** —
+that route has been able to produce this failure since Story 2.4 and answers a 500
+today only because the code did not exist. That is a live falsification of
+`database.ts`'s _"nothing in this application serves data yet"_, and it is on Task
+2.9.10's sweep list.
+
+`NOT_FOUND` and `BAD_REQUEST` cover every other row, which is `API_ERROR_CODES`'
+own test — a member is added when the server can be made to produce a failure the
+existing set cannot express.
 
 ---
 
@@ -494,7 +534,7 @@ amend live claims, leave historical records standing.
   is the batch's write time — and `market-provenance.ts` warns in terms about the
   failure mode: a read path that stamps `retrievedAt` at serve time turns "these
   bars were fetched three weeks ago" into "these bars are current".
-- **Caching.** Task 2.9.7 — and §5 makes it load-bearing rather than optional.
-- **Response times against the real row count.** Task 2.9.8. §3 and §4's timings
+- **Caching.** Task 2.9.8 — and §5 makes it load-bearing rather than optional.
+- **Response times against the real row count.** Task 2.9.9. §3 and §4's timings
   are local and single-request; that task takes them properly and deployed.
-- **The ADR.** Task 2.9.9.
+- **The ADR.** Task 2.9.10.

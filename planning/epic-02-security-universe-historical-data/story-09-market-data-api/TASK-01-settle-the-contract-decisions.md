@@ -14,13 +14,13 @@ before any contract is typed. Task 2.6.1's precedent: settle the shape, ship not
 ## What the user can see when this lands
 
 **Nothing.** No route, no type, no page. The payoff is Story 2.12's chart, and the
-thing this task buys is that Tasks 2.9.2 to 2.9.5 do not each answer the same
+thing this task buys is that Tasks 2.9.2 to 2.9.6 do not each answer the same
 question differently. Say so plainly when reporting it.
 
 ## Work
 
 Produce `MARKET-DATA-API.md` in this directory — the subject document for this
-story, listed in `CLAUDE.md`'s _Where the record lives_ table by Task 2.9.9 — and
+story, listed in `CLAUDE.md`'s _Where the record lives_ table by Task 2.9.10 — and
 settle each of the following in it, with the alternatives and a **reversal trigger
 that is a condition rather than a story number**.
 
@@ -140,7 +140,7 @@ the method for each.
 rows ≈ 8.4 MB of JSON"_ reproduces its row count exactly and is **24% low on the
 payload** — it is 11.08 MB. Corrected at every live site (`BARS.md` §8.6 by dated
 amendment beside the original rather than a rewrite, `STORY.md`'s 2026-09-08
-amendment, Tasks 2.9.7 and 2.9.8, and this file), with the method recorded so the
+amendment, Tasks 2.9.8 and 2.9.9, and this file), with the method recorded so the
 next reader re-takes it rather than citing it.
 
 ---
@@ -253,7 +253,7 @@ is to re-measure rather than to pass figures along.
 Epic 2 is the foundation: get real market data in, and get it onto a screen. The
 data is in — 48 million records. The next four pieces of work build the request
 format, the response format, the database read, and the endpoint itself. Then, in
-**Task 2.9.6, the first real share price this product has ever displayed** appears
+**Task 2.9.7, the first real share price this product has ever displayed** appears
 on the securities page. The charts follow in Stories 2.12 and 2.13.
 
 None of that could start honestly until today's five questions had one answer
