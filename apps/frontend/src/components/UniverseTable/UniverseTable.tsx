@@ -1,11 +1,22 @@
 import { SECTOR_ETFS, SECTOR_LABELS, SECTORS } from "@marketpulse/shared";
-import type { Sector, Security, SecurityKind } from "@marketpulse/shared";
+import type {
+  Sector,
+  Security,
+  SecurityCoverage,
+  SecurityKind,
+} from "@marketpulse/shared";
 
 import { cx } from "../../cx.js";
 import type {
   SecuritiesFailure,
   SecuritiesView,
 } from "../../use-securities.js";
+import {
+  coverageStartDate,
+  formatBarCount,
+  formatDepth,
+  summariseCoverage,
+} from "./coverage.js";
 import styles from "./UniverseTable.module.css";
 
 // The tracked universe, in all four of the states it can be in (Task 2.4.4).
@@ -217,11 +228,14 @@ export function summarise(securities: readonly Security[]) {
 function SummaryLine({
   securities,
   groups,
+  coverage,
 }: {
   readonly securities: readonly Security[];
   readonly groups: readonly UniverseGroup[];
+  readonly coverage: ReadonlyMap<string, SecurityCoverage>;
 }) {
   const { tracked, noLongerTracked, etfs } = summarise(securities);
+  const held = summariseCoverage(coverage);
 
   // Sectors are counted off the rendered groups rather than off `SECTORS`, so
   // the figure is a statement about what is on this screen rather than about
@@ -236,6 +250,52 @@ function SummaryLine({
       <Figure value={etfs} label="ETFs" />
       {noLongerTracked > 0 && (
         <Figure value={noLongerTracked} label="no longer tracked" />
+      )}
+
+      {/*
+       * What we hold, as a scale claim — **the first sentence in this product
+       * that is about the market rather than about our own configuration.**
+       *
+       * Three facts and no more: how many securities have any history, how much
+       * of it there is, and how far forward it reaches. The total is here and
+       * nowhere else, because a bar count is a statement about the *store* and
+       * a per-row one would invite arithmetic; `coverage.ts` carries the whole
+       * argument, including the percentage that must never appear.
+       *
+       * When the store holds nothing the clauses collapse to one sentence
+       * rather than reading `0 with history · 0 bars`. That is not decoration:
+       * a fresh clone with a migrated database and no backfill is a real and
+       * correct state, and three zeroes read as a fault where one sentence
+       * reads as a fact.
+       */}
+      {held.securities === 0 ? (
+        <span className={styles.figure}>No market history stored yet</span>
+      ) : (
+        <>
+          {/*
+           * **Words when every row is covered, a figure when they are not.**
+           * With the store at full depth this clause would otherwise repeat the
+           * count beside it — `518 securities tracked · 518 with history` — and
+           * two identical figures a centimetre apart read as a mistake rather
+           * than as the good news they are. What a reader wants from a complete
+           * store is *no gaps*, which is a shorter and stronger claim than a
+           * number they have to compare by eye.
+           *
+           * The figure comes back the moment it means something, which is the
+           * same asymmetry the `no longer tracked` clause above already has.
+           */}
+          {held.securities === securities.length ? (
+            <span className={styles.figure}>all with history</span>
+          ) : (
+            <Figure value={held.securities} label="with history" />
+          )}
+          <Figure value={formatBarCount(held.bars)} label="minute bars" />
+          {held.through !== null && (
+            <span className={styles.figure}>
+              through <span className={styles.figureValue}>{held.through}</span>
+            </span>
+          )}
+        </>
       )}
     </p>
   );
@@ -253,7 +313,12 @@ function Figure({
   value,
   label,
 }: {
-  readonly value: number;
+  /**
+   * `string` as well as `number` since Task 2.8.9, because `47.7M` is a figure
+   * in every sense this component means the word — a magnitude somebody reads —
+   * and the alternative is nine digits nobody can compare by eye.
+   */
+  readonly value: number | string;
   readonly label: string;
 }) {
   return (
@@ -263,7 +328,13 @@ function Figure({
   );
 }
 
-function SecurityTableRow({ security }: { readonly security: Security }) {
+function SecurityTableRow({
+  security,
+  coverage,
+}: {
+  readonly security: Security;
+  readonly coverage: SecurityCoverage | undefined;
+}) {
   const untracked = security.status === "untracked";
 
   return (
@@ -301,7 +372,73 @@ function SecurityTableRow({ security }: { readonly security: Security }) {
       <td className={cx(styles.cell, styles.kind)}>
         {KIND_LABELS[security.kind]}
       </td>
+      <HistoryCell coverage={coverage} />
     </tr>
+  );
+}
+
+/**
+ * How much history we hold for one security — two facts, and no more.
+ *
+ * **The depth and where it starts.** Everything else the ledger knows is
+ * diagnostic: the bar count is a scale claim that belongs in the summary line,
+ * `updated_at` is not even sent, and *why* a history is short is an operator's
+ * question with an operator's command. `coverage.ts` carries the arguments.
+ *
+ * ## Why the design target is the exception, and why it needs no encoding
+ *
+ * Measured against the local store at full depth: **515 of 518 securities start
+ * on the same day**, and the entire information content of this column is the
+ * three that do not. A coverage bar — the obvious idea — would draw 515
+ * identical full bars to communicate three exceptions, and would read as a
+ * progress indicator for something that is not in progress.
+ *
+ * So the default row is quiet and **the alignment does the work**. The dates
+ * are `YYYY-MM-DD`, fixed-width and tabular, right-aligned in a column: 515
+ * identical strings and three different ones is not a subtle difference to a
+ * reader scanning down, and it costs no ink, no chip and no second vocabulary.
+ * That is the same argument Task 1.4.3 made when it measured a 14.3px spread
+ * riding on `tabular-nums` — this is what those figures were bought for.
+ *
+ * Anything louder would also have to be wrong: the two causes of a short
+ * history look identical from the ledger, and standing out is a job for weight
+ * and hierarchy rather than for `--palette-amber`, which measures **1.73:1** on
+ * this ground and is worse than the `--ink-disabled` that Task 1.12.4 was
+ * caught by.
+ *
+ * ## The empty case
+ *
+ * A security we hold nothing for gets the em dash and a hidden sentence, not a
+ * zero and not `0 bars`. §36's rule: it is not a failure, it is a security
+ * nobody has backfilled — the same treatment `checking` gets in the chrome
+ * rather than an alarm. It is the sentence a first-time viewer is most likely
+ * to meet if anything went wrong, so it says what it knows and stops.
+ */
+function HistoryCell({
+  coverage,
+}: {
+  readonly coverage: SecurityCoverage | undefined;
+}) {
+  if (coverage === undefined) {
+    return (
+      <td className={cx(styles.cell, styles.history)}>
+        <span aria-hidden="true">{NOT_APPLICABLE}</span>
+        {/*
+         * The em dash reads as nothing to a screen reader, which is right for
+         * the two structurally-absent columns above and wrong here: "we hold no
+         * bars for this" is a fact rather than an inapplicable field. So the
+         * glyph is hidden and the sentence is what is announced.
+         */}
+        <span className={styles.visuallyHidden}>No history yet</span>
+      </td>
+    );
+  }
+
+  return (
+    <td className={cx(styles.cell, styles.history)}>
+      <span className={styles.depth}>{formatDepth(coverage)}</span>{" "}
+      <span className={styles.from}>from {coverageStartDate(coverage)}</span>
+    </td>
   );
 }
 
@@ -343,14 +480,20 @@ function SecurityTableRow({ security }: { readonly security: Security }) {
  */
 function UniverseRows({
   securities,
+  coverage,
 }: {
   readonly securities: readonly Security[];
+  readonly coverage: ReadonlyMap<string, SecurityCoverage>;
 }) {
   const groups = groupUniverse(securities);
 
   return (
     <>
-      <SummaryLine securities={securities} groups={groups} />
+      <SummaryLine
+        securities={securities}
+        groups={groups}
+        coverage={coverage}
+      />
 
       {/*
        * The entrance, and it is the one place motion lands on this page.
@@ -376,6 +519,7 @@ function UniverseRows({
             <col className={styles.colName} />
             <col className={styles.colIndustry} />
             <col className={styles.colKind} />
+            <col className={styles.colHistory} />
           </colgroup>
           <thead>
             <tr>
@@ -390,6 +534,16 @@ function UniverseRows({
               </th>
               <th scope="col" className={cx(styles.heading, styles.kind)}>
                 Kind
+              </th>
+              {/*
+               * **The timeframe is in the heading and not in every cell**,
+               * which is the same argument that removed the Sector column: a
+               * word repeated down 518 rows directly under a heading that
+               * already says it is furniture. So a cell reads `1y from
+               * 2025-09-08` and the column says what a year of what.
+               */}
+              <th scope="col" className={cx(styles.heading, styles.history)}>
+                Minute-bar history
               </th>
             </tr>
           </thead>
@@ -406,7 +560,7 @@ function UniverseRows({
                  * — it could not find data cells for a column header that
                  * heads no columns.
                  */}
-                <th scope="rowgroup" colSpan={4} className={styles.group}>
+                <th scope="rowgroup" colSpan={5} className={styles.group}>
                   {/* An inner flex box rather than a flex `<th>`: a table cell
                       given `display: flex` stops being a table cell, and a
                       `colspan` that no longer spans is the kind of breakage
@@ -437,7 +591,11 @@ function UniverseRows({
                 </th>
               </tr>
               {group.securities.map((security) => (
-                <SecurityTableRow key={security.symbol} security={security} />
+                <SecurityTableRow
+                  key={security.symbol}
+                  security={security}
+                  coverage={coverage.get(security.symbol)}
+                />
               ))}
             </tbody>
           ))}
@@ -689,7 +847,13 @@ function announce(view: SecuritiesView): string {
         (group) => group.benchmark !== null,
       ).length;
 
-      return `The tracked universe loaded. ${String(tracked)} securities in ${String(sectors)} sectors.`;
+      // The third sentence is the one this task adds, and it is deliberately
+      // **not** the summary line's third figure. A listener can act on "is
+      // there anything to look at"; `47.7M bars` is a scale claim somebody
+      // reads, and a magnitude spoken as "forty-seven point seven M" is worse
+      // than not saying it. So the count of securities with history is heard
+      // and the total is seen.
+      return `The tracked universe loaded. ${String(tracked)} securities in ${String(sectors)} sectors. ${describeHistory(view.coverage.size, view.securities.length)}`;
     }
 
     case "empty":
@@ -700,6 +864,19 @@ function announce(view: SecuritiesView): string {
         ? "The tracked universe is not available. Nothing answered at the service’s address."
         : "The tracked universe could not be read. Something answered at the service’s address and it was not this service.";
   }
+}
+
+/**
+ * What the live region says about how much history we hold.
+ *
+ * Three sentences rather than one with a conditional clause, because "none of
+ * them" and "all of them" are genuinely different things to be told and the
+ * middle case is the only one where a ratio helps.
+ */
+function describeHistory(withHistory: number, rows: number): string {
+  if (withHistory === 0) return "No market history is stored yet.";
+  if (withHistory === rows) return "Market history is stored for all of them.";
+  return `Market history is stored for ${String(withHistory)} of them.`;
 }
 
 /**
@@ -728,7 +905,9 @@ function StateBody({ view }: { readonly view: SecuritiesView }) {
       return <LoadingState />;
 
     case "loaded":
-      return <UniverseRows securities={view.securities} />;
+      return (
+        <UniverseRows securities={view.securities} coverage={view.coverage} />
+      );
 
     case "empty":
       return <EmptyState />;

@@ -20,6 +20,7 @@ import {
   pingDatabase,
 } from "./database.js";
 import { resolveMarketData } from "./market-data.js";
+import { createMarketBarsRepository } from "./market-bars.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
 import { createMarketDataRoutes } from "./routes/market-data.js";
 import { createSecuritiesRoutes } from "./routes/securities.js";
@@ -105,7 +106,17 @@ app.register(createDiagnosticsRoutes(createCachedDatabaseCheck(database)));
 // nothing yet, and a TTL invented before Story 2.10 has decided how the client
 // caches would be a second cache nobody asked for. Story 2.10's is the layer
 // that gets to want one.
-app.register(createSecuritiesRoutes(createSecuritiesRepository(database)));
+//
+// Two repositories since Task 2.8.9, because the response now carries what the
+// bar ledger says about each security. Both are built over the same pool and
+// neither exports its `Kysely` handle — see `securities.ts`'s header for why
+// that arrangement is the one thing here that cannot be repaired later.
+app.register(
+  createSecuritiesRoutes(
+    createSecuritiesRepository(database),
+    createMarketBarsRepository(database),
+  ),
+);
 
 // Which market feed this deployment reads (Task 2.6.7), and the route that
 // ends the chrome's hard-coded `DISCONNECTED`.

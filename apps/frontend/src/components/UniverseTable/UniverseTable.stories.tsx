@@ -1,5 +1,5 @@
 import { toTicker } from "@marketpulse/shared";
-import type { Security } from "@marketpulse/shared";
+import type { Security, SecurityCoverage } from "@marketpulse/shared";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import type { SecuritiesView } from "../../use-securities.js";
@@ -104,14 +104,66 @@ const WITH_UNTRACKED: readonly Security[] = [
   ...UNIVERSE.slice(2),
 ];
 
-function loaded(securities: readonly Security[]): SecuritiesView {
+/**
+ * The frontier the local store actually reaches, and the depth every backfilled
+ * security shares.
+ *
+ * Real values rather than round ones, because the column's whole design rests
+ * on 515 identical dates and a handful of different ones — a fixture of tidy
+ * `2026-01-01`s would look right and would not be the thing being reviewed.
+ */
+const FRONTIER = "2026-09-04T20:00:00.000Z";
+const FULL_DEPTH_START = "2025-09-08T13:30:00.000Z";
+
+function coverageFor(
+  symbol: string,
+  start: string = FULL_DEPTH_START,
+  barCount = 97_530,
+): SecurityCoverage {
+  return { symbol, timeframe: "1m", start, end: FRONTIER, barCount };
+}
+
+/**
+ * What the store holds for the fixture universe — **deliberately not all of
+ * it.**
+ *
+ * Three of the six rows are exceptions, which is a far higher proportion than
+ * the real store's three in 518 and is the point: a specimen small enough to
+ * review has to contain one of each thing worth looking at.
+ *
+ *   - `HONA` stands for the real benign outlier — a 2026 spin-off that listed
+ *     inside the backfill window, so its history genuinely starts later. Task
+ *     2.8.8 measured two of these and the local store now holds three; they are
+ *     guaranteed rather than unlucky, because the universe is curated from the
+ *     index as it stands today.
+ *   - `SPY` has no record at all, which is a security nobody has backfilled.
+ *   - Everything else sits at full depth, which is what the column looks like
+ *     515 times over.
+ */
+const COVERAGE: readonly SecurityCoverage[] = [
+  coverageFor("XLK"),
+  coverageFor("AAPL"),
+  coverageFor("NVDA"),
+  coverageFor("XLV"),
+  coverageFor("ABBV", "2026-06-15T13:30:00.000Z", 19_541),
+];
+
+function loaded(
+  securities: readonly Security[],
+  coverage: readonly SecurityCoverage[] = COVERAGE,
+): SecuritiesView {
   // The `loaded` state carries a non-empty tuple, so "loaded with zero rows"
   // cannot be constructed at all. The head is asserted rather than checked,
   // because these fixtures are literals in this file.
   const [first, ...rest] = securities;
   if (first === undefined) throw new Error("fixture is empty");
 
-  return { state: "loaded", securities: [first, ...rest], provenance: null };
+  return {
+    state: "loaded",
+    securities: [first, ...rest],
+    provenance: null,
+    coverage: new Map(coverage.map((record) => [record.symbol, record])),
+  };
 }
 
 const meta = {
@@ -131,6 +183,19 @@ export const Loaded: Story = {};
  *  table is 518 rows and every one of them is active. */
 export const WithUntrackedSecurity: Story = {
   args: { view: loaded(WITH_UNTRACKED) },
+};
+
+/**
+ * The universe with no bars behind it at all — a migrated database nobody has
+ * backfilled, which is what a clean clone gets and what the deployed store
+ * looked like until Task 2.8.8 filled it.
+ *
+ * Worth its own story because it is the one coverage state a browser cannot be
+ * put into without emptying a table, and because the summary line collapses to
+ * a sentence here rather than reporting three zeroes.
+ */
+export const NoHistoryStored: Story = {
+  args: { view: loaded(UNIVERSE, []) },
 };
 
 export const Loading: Story = { args: { view: { state: "loading" } } };
@@ -185,6 +250,7 @@ export const AllPermutations: Story = {
 const PERMUTATIONS: readonly (readonly [string, SecuritiesView])[] = [
   ["Loaded", loaded(UNIVERSE)],
   ["Loaded — one no longer tracked", loaded(WITH_UNTRACKED)],
+  ["Loaded — no history stored", loaded(UNIVERSE, [])],
   ["Loading", { state: "loading" }],
   ["Empty", { state: "empty" }],
   [

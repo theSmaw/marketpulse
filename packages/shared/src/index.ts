@@ -59,6 +59,7 @@ export type {
   FieldGroupProvenance,
   SecuritiesProvenance,
   SecuritiesResponse,
+  SecurityCoverage,
 } from "./securities-response.js";
 
 // The wire contract with the API: the shape every error response takes, and the

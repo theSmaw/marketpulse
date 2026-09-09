@@ -448,10 +448,13 @@ describe("the response-schema declaration", () => {
         ),
       );
       app.register(
-        createSecuritiesRoutes({
-          listSecurities: () => Promise.resolve([]),
-          listSecuritiesProvenance: () => Promise.resolve([]),
-        }),
+        createSecuritiesRoutes(
+          {
+            listSecurities: () => Promise.resolve([]),
+            listSecuritiesProvenance: () => Promise.resolve([]),
+          },
+          { listCoverage: () => Promise.resolve([]) },
+        ),
       );
       // The one route registered in `index.ts` that could have gone in the
       // factory — see routes/market-data.ts. `undefined` is the default

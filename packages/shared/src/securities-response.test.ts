@@ -35,7 +35,19 @@ const PROVENANCE = {
   },
 } as const;
 
-const FULL: SecuritiesResponse = { securities: [NVDA], provenance: PROVENANCE };
+const COVERAGE = {
+  symbol: "NVDA",
+  timeframe: "1m",
+  start: "2025-09-08T13:30:00.000Z",
+  end: "2026-09-04T20:00:00.000Z",
+  barCount: 97530,
+} as const;
+
+const FULL: SecuritiesResponse = {
+  securities: [NVDA],
+  provenance: PROVENANCE,
+  coverage: [COVERAGE],
+};
 
 describe("isSecuritiesResponse", () => {
   it("accepts the ordinary response", () => {
@@ -47,7 +59,7 @@ describe("isSecuritiesResponse", () => {
   // would make a migrated-but-unseeded database indistinguishable from a host
   // that is not this API.
   it("accepts an empty list with no provenance", () => {
-    expect(isSecuritiesResponse({ securities: [] })).toBe(true);
+    expect(isSecuritiesResponse({ securities: [], coverage: [] })).toBe(true);
   });
 
   // The other producer of an absent `provenance`, and it arrives in Story 2.7:
@@ -55,7 +67,9 @@ describe("isSecuritiesResponse", () => {
   // server stops making a claim about the whole list. A client that refused
   // that body would go dark on the day the data got better.
   it("accepts a populated list with no provenance", () => {
-    expect(isSecuritiesResponse({ securities: [NVDA] })).toBe(true);
+    expect(
+      isSecuritiesResponse({ securities: [NVDA], coverage: [COVERAGE] }),
+    ).toBe(true);
   });
 
   it("accepts unknown extra keys, because a newer server is a version skew", () => {
@@ -65,9 +79,32 @@ describe("isSecuritiesResponse", () => {
   it.each([
     ["a non-object", "securities"],
     ["null", null],
-    ["a missing list", { provenance: PROVENANCE }],
-    ["a list that is not an array", { securities: NVDA }],
-    ["an element that is not a security", { securities: [NVDA, { a: 1 }] }],
+    ["a missing list", { provenance: PROVENANCE, coverage: [] }],
+    ["a list that is not an array", { securities: NVDA, coverage: [] }],
+    [
+      "an element that is not a security",
+      { securities: [NVDA, { a: 1 }], coverage: [] },
+    ],
+    // Required rather than optional, unlike `provenance`, and this is the
+    // assertion that says so: the ledger either has rows or it does not, and an
+    // absent field would give "we hold nothing" a second spelling.
+    ["a missing coverage array", { securities: [NVDA] }],
+    ["a coverage that is not an array", { securities: [NVDA], coverage: {} }],
+    [
+      "a coverage record missing its window",
+      { securities: [NVDA], coverage: [{ ...COVERAGE, end: undefined }] },
+    ],
+    [
+      "a coverage record whose bar count is a string",
+      { securities: [NVDA], coverage: [{ ...COVERAGE, barCount: "97530" }] },
+    ],
+    // The one field checked against its vocabulary rather than its type, for
+    // `isApiError`'s reason: a discriminator a caller switches on is not the
+    // same kind of thing as a value it renders.
+    [
+      "a coverage record at a timeframe this bundle has no word for",
+      { securities: [NVDA], coverage: [{ ...COVERAGE, timeframe: "5m" }] },
+    ],
   ])("rejects %s", (_label, value) => {
     expect(isSecuritiesResponse(value)).toBe(false);
   });
@@ -83,9 +120,9 @@ describe("isSecuritiesResponse", () => {
       { ...PROVENANCE, classification: { source: "curated" } },
     ],
   ])("rejects %s", (_label, provenance) => {
-    expect(isSecuritiesResponse({ securities: [NVDA], provenance })).toBe(
-      false,
-    );
+    expect(
+      isSecuritiesResponse({ securities: [NVDA], coverage: [], provenance }),
+    ).toBe(false);
   });
 
   // The whole point of the array check, and the case a `length > 0` shortcut
@@ -93,6 +130,6 @@ describe("isSecuritiesResponse", () => {
   // cannot trust.
   it("rejects a single bad row among good ones", () => {
     const securities = [NVDA, { ...NVDA, kind: "commodity" }, NVDA];
-    expect(isSecuritiesResponse({ securities })).toBe(false);
+    expect(isSecuritiesResponse({ securities, coverage: [] })).toBe(false);
   });
 });

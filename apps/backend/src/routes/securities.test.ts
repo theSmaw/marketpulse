@@ -22,6 +22,9 @@ import type {
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { toTimeRange } from "@marketpulse/shared";
+
+import type { BarCoverage, MarketBarsRepository } from "../market-bars.js";
 import { SecurityMappingError } from "../securities.js";
 import type { SecuritiesRepository } from "../securities.js";
 import { buildServer } from "../server.js";
@@ -83,10 +86,44 @@ function stubRepository(
   };
 }
 
+/**
+ * A minute-bar ledger row for one symbol — a year of it, ending at the frontier
+ * the local store actually holds.
+ */
+function coverageFor(
+  symbol: string,
+  timeframe: BarCoverage["timeframe"] = "1m",
+): BarCoverage {
+  return {
+    symbol: toTicker(symbol),
+    timeframe,
+    covered: toTimeRange(
+      new Date("2025-09-08T13:30:00.000Z"),
+      new Date("2026-09-04T20:00:00.000Z"),
+    ),
+    barCount: 97530,
+    updatedAt: new Date("2026-09-05T04:00:00.000Z"),
+  };
+}
+
+/**
+ * The half of `MarketBarsRepository` this route is allowed to use.
+ *
+ * One function, because the parameter is a `Pick` — which is the narrowing
+ * paying for itself: a stub of the whole interface would be eight methods of
+ * `throw new Error("not called")` to prove a route reads one of them.
+ */
+function stubBars(
+  coverage: readonly BarCoverage[] = [],
+): Pick<MarketBarsRepository, "listCoverage"> {
+  return { listCoverage: () => Promise.resolve(coverage) };
+}
+
 let open: FastifyInstance | undefined;
 
 async function server(
   repository: SecuritiesRepository,
+  bars: Pick<MarketBarsRepository, "listCoverage"> = stubBars(),
   configure?: (app: FastifyInstance) => void,
 ): Promise<FastifyInstance> {
   const app = buildServer({
@@ -96,7 +133,7 @@ async function server(
   });
 
   configure?.(app);
-  app.register(createSecuritiesRoutes(repository));
+  app.register(createSecuritiesRoutes(repository, bars));
 
   await app.ready();
   open = app;
@@ -119,6 +156,7 @@ describe("GET /securities", () => {
     expect(response.json()).toEqual({
       securities: [NVDA, SPY],
       provenance: PROVENANCE,
+      coverage: [],
     });
   });
 
@@ -163,7 +201,11 @@ describe("GET /securities", () => {
       await app
         .inject({ method: "GET", url: "/securities" })
         .then((response) => response.json<{ securities: Security[] }>()),
-    ).toEqual({ securities: [untracked], provenance: PROVENANCE });
+    ).toEqual({
+      securities: [untracked],
+      provenance: PROVENANCE,
+      coverage: [],
+    });
   });
 
   it("answers an empty universe with an empty array and no provenance", async () => {
@@ -175,7 +217,7 @@ describe("GET /securities", () => {
     const response = await app.inject({ method: "GET", url: "/securities" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ securities: [] });
+    expect(response.json()).toEqual({ securities: [], coverage: [] });
   });
 
   it("omits provenance when the rows no longer agree", async () => {
@@ -203,7 +245,86 @@ describe("GET /securities", () => {
       await app
         .inject({ method: "GET", url: "/securities" })
         .then((response) => response.json<unknown>()),
-    ).toEqual({ securities: [NVDA, SPY] });
+    ).toEqual({ securities: [NVDA, SPY], coverage: [] });
+  });
+
+  it("reports what the ledger holds, as a window and a size", async () => {
+    const app = await server(
+      stubRepository([NVDA, SPY]),
+      stubBars([coverageFor("NVDA")]),
+    );
+
+    expect(
+      await app
+        .inject({ method: "GET", url: "/securities" })
+        .then((response) => response.json<{ coverage: unknown }>()),
+    ).toMatchObject({
+      coverage: [
+        {
+          symbol: "NVDA",
+          timeframe: "1m",
+          start: "2025-09-08T13:30:00.000Z",
+          end: "2026-09-04T20:00:00.000Z",
+          barCount: 97530,
+        },
+      ],
+    });
+  });
+
+  it("says nothing at all about a security with no bars", async () => {
+    // The honest spelling of "we hold nothing for this", and the assertion that
+    // says a zero is never invented: SPY is in the universe and absent from the
+    // ledger, so it is absent here. A record carrying `barCount: 0` would also
+    // need a window, and a zero-width `TimeRange` is a value the domain type
+    // refuses to construct.
+    const app = await server(
+      stubRepository([NVDA, SPY]),
+      stubBars([coverageFor("NVDA")]),
+    );
+
+    const body = await app
+      .inject({ method: "GET", url: "/securities" })
+      .then((response) => response.json<{ coverage: { symbol: string }[] }>());
+
+    expect(body.coverage.map((record) => record.symbol)).toEqual(["NVDA"]);
+  });
+
+  it("sends the minute series and not the daily one", async () => {
+    // The ledger holds a row per (security, timeframe) and this route picks
+    // one. Made to fail by dropping the filter, at which point a security
+    // reports twice and the page has to choose — which is exactly the choice
+    // `SecuritiesResponse.coverage` says belongs here.
+    const app = await server(
+      stubRepository([NVDA]),
+      stubBars([coverageFor("NVDA", "1d"), coverageFor("NVDA", "1m")]),
+    );
+
+    const body = await app
+      .inject({ method: "GET", url: "/securities" })
+      .then((response) =>
+        response.json<{ coverage: { timeframe: string }[] }>(),
+      );
+
+    expect(body.coverage.map((record) => record.timeframe)).toEqual(["1m"]);
+  });
+
+  it("strips a ledger field the contract does not name", async () => {
+    // `updatedAt` is on `BarCoverage` and deliberately not on the wire, and
+    // this is the assertion that keeps it that way. It is the serialiser doing
+    // it rather than the mapper — Task 2.1.7 found that a leak check on a
+    // handler is really a check on the schema — so it holds even if somebody
+    // widens `toWireCoverage`.
+    const app = await server(
+      stubRepository([NVDA]),
+      stubBars([coverageFor("NVDA")]),
+    );
+
+    const raw = await app
+      .inject({ method: "GET", url: "/securities" })
+      .then((response) => response.body);
+
+    expect(raw).not.toContain("updatedAt");
+    expect(raw).toContain('"barCount":97530');
   });
 
   it("carries the correlation id like every other response", async () => {
@@ -252,7 +373,7 @@ describe("what the schema strips", () => {
     // the trap the `satisfies` guard exists for — a field added to
     // `SecuritiesResponse` and forgotten in the schema disappears exactly like
     // this, with a green build.
-    const app = await server(stubRepository([NVDA]), (instance) => {
+    const app = await server(stubRepository([NVDA]), stubBars(), (instance) => {
       instance.addHook(
         "preSerialization",
         (_request, _reply, payload, done) => {

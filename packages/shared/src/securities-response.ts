@@ -43,18 +43,41 @@
  * hard-coded 100 could hide in "an API default page size", and the answer that
  * reaches §6's 500 without an edit is not a bigger page size — it is **no page
  * size at all**, because there is then no number to change. Measured on the
- * shipped universe rather than estimated: 101 securities serialise to **17,299
- * bytes**, and **2,591 bytes gzipped** — so §6's 500 is ~86 kB on the wire
- * uncompressed and ~13 kB compressed, against a frontend bundle of 348 kB. The
- * whole universe is 4% of the JavaScript the browser already downloads to
- * render it.
+ * shipped universe rather than estimated, and **re-measured at Task 2.8.9
+ * rather than cited**, because that task both grew the payload and is the first
+ * thing that could have made this argument wrong:
  *
- * The reversal trigger is a payload big enough to matter — a universe past §6's
- * 500, or a response this endpoint cannot serve in one piece — at which point
- * the envelope gains the keys a bare array had nowhere to put, which is the
- * whole argument for the envelope above.
+ *   - 101 securities were **17,299 B**, gzipped **2,591 B**;
+ *   - 518 securities, with coverage, are **150,660 B**, gzipped **12,831 B**
+ *     (`gzip -9`; the 2,591 above is Task 2.4.2's reading and the two were not
+ *     taken with the same tool, so compare the ratios rather than subtracting).
+ *
+ * So the universe grew five-fold and the envelope gained a third key, and
+ * the thing that
+ * actually crosses the wire is **12.8 kB** — against a frontend bundle of
+ * 373 kB that the browser downloads before it can render any of it. The
+ * uncompressed figure is the one that looks alarming and is not the one being
+ * transferred; quote the gzipped one.
+ *
+ * The compression ratio is the interesting half and it got **better** — 6.7:1
+ * at 101 securities against **11.7:1** now — because 515 of 518 coverage records carry the same two
+ * instants and gzip is very good at that. A per-row provenance record, when
+ * Story 2.7's consequence finally lands, should behave the same way for the
+ * same reason — so the thing to measure before panicking about a new key is the
+ * *compressed* payload, not the array length.
+ *
+ * **The stated reversal trigger has half fired and is restated rather than
+ * quietly ignored.** It read "a universe past §6's 500", and Task 2.8.2's
+ * re-curation took the universe to **518** — so the count crossed and the
+ * reason behind it did not, because the argument was never really about the
+ * count. It is restated as the thing that would actually hurt: **a compressed
+ * payload past roughly 100 kB, or a response this endpoint cannot serve in one
+ * piece.** At that point the envelope gains the keys a bare array had nowhere
+ * to put, which is the whole argument for the envelope above.
  */
 
+import { TIMEFRAMES } from "./bar.js";
+import type { Timeframe } from "./bar.js";
 import { isSecurity } from "./security.js";
 import type { Security, SecurityFieldGroup } from "./security.js";
 
@@ -96,6 +119,71 @@ export type SecuritiesProvenance = Readonly<
 >;
 
 /**
+ * How much market history we hold for one security, at one timeframe.
+ *
+ * **The ledger's statement rather than a count of bars** (Task 2.8.9). The
+ * backend reads `bar_coverage`, which is a few hundred rows however many bars
+ * exist; a page that `count(*)`s fifty million rows to draw a list is the thing
+ * that table was built to prevent.
+ *
+ * ## What it carries, and the one thing it deliberately does not
+ *
+ * The window and the size, and **not** `bar_coverage.updated_at`. That column
+ * means *when what we hold last changed* rather than when a backfill last ran —
+ * Task 2.8.4 refused a last-attempt column precisely so it could mean that —
+ * and it is a real signal about staleness now that Task 2.8.8 shipped a nightly
+ * catch-up that GitHub will silently disable after 60 quiet days. It is
+ * withheld here because nothing renders it, under the rule
+ * {@link SecuritiesResponse} already follows and `API_ERROR_CODES` states: a
+ * field arrives with its reader. The reader, if one comes, is a single
+ * statement about the whole store rather than a column nobody scans.
+ *
+ * ## Why the instants are half-open and stated as such
+ *
+ * `start` is the first instant we are answered for and `end` is the first
+ * instant we are **not**, which is `TimeRange`'s convention one layer down and
+ * is what lets adjacent windows tile without a bar at the seam belonging to
+ * both. A consumer rendering "through when" therefore reports the session
+ * containing `end − 1ms`, not `end`.
+ *
+ * They are ISO 8601 instants for {@link FieldGroupProvenance.retrievedAt}'s
+ * reason — JSON has no date type, and epoch milliseconds is a number nobody can
+ * read in a response body. **They are instants and not market dates**, so the
+ * conversion to a trading day happens in `market-time.ts`, which is the one
+ * module in this workspace permitted to do it. A `YYYY-MM-DD` on the wire would
+ * be that conversion performed by the server and asserted by the client, with
+ * no way for either to check the other.
+ */
+export interface SecurityCoverage {
+  /** The security this is about — a {@link Security.symbol}. */
+  readonly symbol: string;
+
+  /**
+   * Which series. `1m` today and `1d` is real too; see
+   * {@link SecuritiesResponse.coverage} for why only one is sent.
+   */
+  readonly timeframe: Timeframe;
+
+  /** The first instant covered, inclusive, as an ISO 8601 instant. */
+  readonly start: string;
+
+  /** The first instant **not** covered, as an ISO 8601 instant. */
+  readonly end: string;
+
+  /**
+   * How many bars lie inside the window.
+   *
+   * **A scale claim rather than a per-row fact**, and it is sent for exactly
+   * one reader: the summary line's total. Task 2.8.5 measured a mean of 364.3
+   * bars per security-session against a nominal 390, so a per-row percentage
+   * against a session's bar count reads ~93% for a completely healthy store —
+   * that figure is *liquidity* and not completeness, and rendering it beside a
+   * security would be a wrong number wearing the shape of a right one.
+   */
+  readonly barCount: number;
+}
+
+/**
  * The body of `GET /securities`.
  */
 export interface SecuritiesResponse {
@@ -135,6 +223,44 @@ export interface SecuritiesResponse {
    * — which is exactly what `SECURITY_FIELD_GROUP` exists to make expressible.
    */
   readonly provenance?: SecuritiesProvenance;
+
+  /**
+   * How much market history we hold, one record per security that has any.
+   *
+   * **A security with no bars is absent from this array rather than present
+   * with a zero**, which is the honest spelling of the difference between *we
+   * hold nothing for this* and *we hold none of this*. A zero-length window
+   * would also be a `TimeRange` the domain type refuses to construct.
+   *
+   * ## Minute bars only, and that is a choice rather than an omission
+   *
+   * The ledger holds one row per `(security, timeframe)` — **1,036 rows for 518
+   * securities** once both series are filled — and this endpoint sends the `1m`
+   * half. The minute series is what every chart in Epics 4, 5 and 12 reads; the
+   * daily series is a different and deeper window (2024-01-01), and putting both
+   * on one row of a list makes a row nobody can scan. Task 2.8.9 states the
+   * choice rather than leaving it implied, which is why {@link
+   * SecurityCoverage.timeframe} is on the wire at all: a field whose value is
+   * always the same is worth sending when the alternative is a client assuming
+   * it. The daily depth belongs beside the chart that uses it, which is Story
+   * 2.11's per-security route.
+   *
+   * ## Required, unlike `provenance`, and the reason is that it cannot be
+   * unknown
+   *
+   * `provenance` is optional because its absence *means* something — the rows
+   * no longer share one source, so the claim is not made. There is no
+   * equivalent here: the ledger either has rows or it does not, and an empty
+   * array says *we hold nothing yet*, which is exactly what a migrated database
+   * with no backfill should say. An optional field would give that state two
+   * spellings and force every reader to decide they are the same thing.
+   *
+   * The version-skew risk that usually argues for optionality does not apply:
+   * `deploy.yml` ships both halves from one commit and deploys the **backend
+   * first**, so a frontend strict about this field never meets a backend
+   * without it. That ordering was read rather than assumed.
+   */
+  readonly coverage: readonly SecurityCoverage[];
 }
 
 /**
@@ -189,8 +315,9 @@ function isFieldGroupProvenance(value: unknown): value is FieldGroupProvenance {
  * them: a newer server is a version skew rather than a broken one, and a client
  * that refuses a field it has not been taught cannot be deployed before the
  * backend that adds one. What it refuses is a missing `securities`, a
- * `securities` that is not an array, any element that is not a security, and a
- * `provenance` that is present and malformed.
+ * `securities` that is not an array, any element that is not a security, a
+ * missing or malformed `coverage` (see that field for why it is required where
+ * `provenance` is not), and a `provenance` that is present and malformed.
  */
 export function isSecuritiesResponse(
   value: unknown,
@@ -201,6 +328,9 @@ export function isSecuritiesResponse(
   if (!Array.isArray(candidate.securities)) return false;
   if (!candidate.securities.every(isSecurity)) return false;
 
+  if (!Array.isArray(candidate.coverage)) return false;
+  if (!candidate.coverage.every(isSecurityCoverage)) return false;
+
   // Absent is valid; present-and-wrong is not. A JSON body cannot carry an
   // explicit `undefined`, so the `undefined` check is precisely "the key is
   // missing" — which is also the shape `exactOptionalPropertyTypes` gives the
@@ -208,6 +338,31 @@ export function isSecuritiesResponse(
   return (
     candidate.provenance === undefined ||
     isSecuritiesProvenance(candidate.provenance)
+  );
+}
+
+/**
+ * Is `value` a {@link SecurityCoverage}?
+ *
+ * Not exported, for {@link isFieldGroupProvenance}'s reason: nothing outside
+ * this module holds a bare coverage record to check.
+ *
+ * `timeframe` is checked against `TIMEFRAMES` where `symbol`, `start` and `end`
+ * are checked only for being strings, and the asymmetry is `isApiError`'s
+ * rather than an oversight — a **discriminator a caller switches on** is not
+ * the same kind of thing as a value it renders. A timeframe this bundle has no
+ * word for cannot be rendered honestly; an instant it cannot parse renders as
+ * nothing, locally, which is `Invalid Date`'s one virtue.
+ */
+function isSecurityCoverage(value: unknown): value is SecurityCoverage {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.symbol === "string" &&
+    typeof candidate.start === "string" &&
+    typeof candidate.end === "string" &&
+    typeof candidate.barCount === "number" &&
+    TIMEFRAMES.some((timeframe) => timeframe === candidate.timeframe)
   );
 }
 

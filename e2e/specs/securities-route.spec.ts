@@ -51,7 +51,7 @@ import { SECURITIES_ROUTE_PATTERN } from "../support/pair.js";
 
 const SECURITIES = "/securities";
 
-/** The four figures a person can see, by role and accessible name. */
+/** The frame a person can see, by role and accessible name. */
 async function expectTheUniverseRendered(page: Page): Promise<void> {
   await expect(
     page.getByRole("heading", { level: 1, name: "Security Explorer" }),
@@ -60,9 +60,10 @@ async function expectTheUniverseRendered(page: Page): Promise<void> {
   const region = page.getByRole("region", { name: "Tracked universe" });
   await expect(region).toBeVisible();
 
-  // The table, by role, with its four column headers in order. Asserted as a
+  // The table, by role, with its five column headers in order. Asserted as a
   // list rather than one at a time, so a column silently disappearing is caught
-  // as well as a column being renamed.
+  // as well as a column being renamed — which is how the fifth one arriving in
+  // Task 2.8.9 showed up here rather than being noticed later.
   const table = region.getByRole("table");
   await expect(table).toBeVisible();
   await expect(table.getByRole("columnheader")).toHaveText([
@@ -70,6 +71,7 @@ async function expectTheUniverseRendered(page: Page): Promise<void> {
     "Name",
     "Industry",
     "Kind",
+    "Minute-bar history",
   ]);
 }
 
@@ -108,6 +110,46 @@ test("the tracked universe renders from the real pair", async ({ page }) => {
 
   await expectNothingFailedToRender(page);
   await expectNoAxeViolations(page, "the securities route, loaded");
+});
+
+// What we hold, on screen (Task 2.8.9) — the first thing this page says that is
+// about the market rather than about our own configuration.
+//
+// **Driven against the real pair and asserting no number.** The store's depth
+// is a property of when somebody last ran `pnpm bars:backfill`, and a literal
+// here would go red on a healthy laptop whose store is a week older than the
+// one this was written on — a gate reporting a decision as a defect, which is
+// the mistake `specs-deployed/tracked-universe.spec.ts` already records about
+// counting securities. What is asserted is the *shape* of the sentence, which
+// is what the code produces and the data does not.
+test("each security says how much history we hold for it", async ({ page }) => {
+  await page.goto(SECURITIES);
+  await expectTheUniverseRendered(page);
+
+  const region = page.getByRole("region", { name: "Tracked universe" });
+
+  // Asserted on the row's accessible name rather than on the cell, because
+  // that is the string a screen reader is handed — and because a depth
+  // rendered apart from its date would satisfy two separate cell assertions
+  // and read as nonsense.
+  //
+  // The alternation is the honest part: a security nobody has backfilled says
+  // so in words rather than showing a zero, and both are correct answers on a
+  // laptop. Which one AAPL gives depends on whether this machine has run a
+  // backfill, and the gate must not have an opinion about that.
+  await expect(
+    region.getByRole("row", {
+      name: /^AAPL .*(\d+(\.\d+)?(y|mo|d) from \d{4}-\d{2}-\d{2}|No history yet)$/,
+    }),
+  ).toBeVisible();
+
+  // The summary line's own claim about the store, which is where the scale
+  // figure lives — the per-row cell deliberately never carries a bar count.
+  await expect(
+    region.getByText(
+      /(all with history|\d+ with history|No market history stored yet)/,
+    ),
+  ).toBeVisible();
 });
 
 // Three viewports, because **every axe figure this repository holds was taken at
@@ -166,8 +208,11 @@ test("the arrival is announced, by a live region that survives it", async ({
   // The sentence changed in place. It names what a listener needs and not the
   // table — the failure this replaces would have been a region reading 101 rows
   // aloud, which is noise a user cannot turn off.
+  // Three sentences since Task 2.8.9 — the third says whether there is
+  // anything to look at, which is the fact a listener can act on. The scale
+  // figure is deliberately not in it: `47.7M` spoken is worse than not said.
   await expect(status).toHaveText(
-    /^The tracked universe loaded\. \d+ securities in \d+ sectors\.$/,
+    /^The tracked universe loaded\. \d+ securities in \d+ sectors\. (No market history is stored yet\.|Market history is stored for (all of them|\d+ of them)\.)$/,
   );
 
   // **The same node**, which is what makes it an announcement rather than a
@@ -378,7 +423,7 @@ test("an empty universe names the command that fills it", async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ securities: [] }),
+      body: JSON.stringify({ securities: [], coverage: [] }),
     });
   });
   await page.goto(SECURITIES);
