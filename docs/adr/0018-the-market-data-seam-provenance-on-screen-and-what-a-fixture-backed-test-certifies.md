@@ -11,6 +11,16 @@ naming one: Alpaca's free tier serves **IEX**, not the US consolidated tape, so 
 
 > **must not imply that IEX represents every US exchange.**
 
+> **Amended 2026-09-09.** That premise is the spec's as it stood, and Story 2.7 measured it
+> to be **half right**: this plan's free tier serves **SIP — the full consolidated tape —
+> for historical bars**, and IEX only for the live stream (`ALPACA.md` §2, ADR 0019 §2).
+> §7.1 has been corrected. **Nothing in this ADR's decision changes, and the asymmetry is
+> the strongest vindication of it available**: §2 models provenance **per series** naming a
+> **list** of sources, and makes a **feed** disagreement truthful and reportable while only
+> an **adjustment** disagreement is refused — which is exactly the shape a series stitched
+> from stored SIP bars and a live IEX stream needs. That case was anticipated here before
+> anyone knew it would arise.
+
 Invariant 7 turns that into a structural requirement — _"market data sits behind a provider
 interface; no vendor SDK types leak into the domain model"_ — and invariant 6 turns it into
 a user-facing one: _"market-data provenance is displayed, never implied."_

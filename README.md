@@ -345,9 +345,11 @@ a fault.
   data. Set `MARKET_DATA_PROVIDER=fixture` in `apps/backend/.env` and the same
   region reads `SIMULATED` / `Generated test data. Not a market feed.` — with
   no frontend edit, which is the check that this renders data rather than a
-  caption. From Story 2.7 it reads `IEX` and says what IEX does and does not
-  cover, which is `PRODUCT_SPEC.md` §7.1's actual requirement rather than the
-  acronym
+  caption. From Story 2.7 it reads `ALL US EXCHANGES`, because this
+  plan's _historical_ bars are the consolidated tape and not IEX — which is
+  `PRODUCT_SPEC.md` §7.1's actual requirement (do not mislead a reader about
+  coverage) rather than printing an acronym. Epic 3's live stream is IEX and
+  will say so, with a sentence, because three letters teach nobody anything
 - **`BACKEND SERVICE` says `HEALTHY` beside a market feed that is not
   configured.** Read the label before the word: these are **two** indicators
   reporting two facts that fail independently, and on a correct first run they

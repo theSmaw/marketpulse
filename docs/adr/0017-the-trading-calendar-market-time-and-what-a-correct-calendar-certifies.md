@@ -126,6 +126,20 @@ enough that an Epic 5 volume baseline built on it measures the venue rather than
 which is the anomaly detector reporting on our data source. §21's own replay sketch already
 runs 09:30–16:00.
 
+> **Amended 2026-09-09. The decision stands; the argument above does not.** Story 2.7
+> measured the plan and it is **asymmetric**: historical bars come from **SIP, the full
+> consolidated tape**, on the free tier, and only the live stream is IEX (`ALPACA.md` §2).
+> So "IEX — a single venue" is true of Epic 3's stream and false of every bar this epic
+> stores, and the thin-extended-hours objection does not apply to stored data — SIP serves
+> pre- and post-market prints, and they are a majority of a night-spanning window's bars.
+>
+> **What keeps the conclusion is §2 of `CALENDAR.md`, which never rested on this**: a
+> baseline denominator wants a session's minutes, comparably, every day, and a thin
+> pre-market hour makes a percentile worse whether or not the bytes are free. The reversal
+> trigger is therefore **Epic 5's measurement alone** — opening-gap anomalies turning out
+> to be systematically unexplainable without extended hours. `CALENDAR.md` §2.4 carries the
+> re-stated trigger; this note exists so a reader of the ADR is not left with the premise.
+
 **`minuteBars` is derived from the session's own bounds** rather than stored beside them, so
 the count and the times cannot disagree and Story 2.8 never re-derives it.
 
