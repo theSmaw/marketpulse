@@ -167,9 +167,14 @@ jobs:
   backfill:
     name: backfill
     runs-on: ubuntu-latest
-    # GitHub caps a job at 6 hours and kills it with no summary. This stops
-    # first, so a run that runs out of time ends with a readable ledger state
-    # and an explicit next range rather than a red X and nothing.
+    # A BACKSTOP rather than the mechanism, and the distinction was measured
+    # rather than assumed. The first full-depth deployed run hit this and the
+    # claim that used to be here — that stopping on it "ends with a readable
+    # ledger state" — is **false**: `timeout-minutes` expiry CANCELS the job,
+    # and a cancelled job does not let `if: always()` steps finish. Both summary
+    # steps ran for **one second** and were killed (run 34221459805, 17:05:32Z).
+    #
+    # What actually produces a clean stop is a SIGNAL to the command, below.
     timeout-minutes: 330
     steps:
       - name: Check out
@@ -264,12 +269,44 @@ jobs:
           echo "pnpm backfill $BACKFILL_ARGS"
           started=$(date -u +%s)
           status=0
+
+          # ITS OWN DEADLINE, and `-s INT` is the whole point of it.
+          #
+          # `run-backfill.mjs` handles SIGINT as a graceful stop: it finishes the
+          # request already in flight — which has been paid for against a metered
+          # budget — writes its ledger row, prints the full summary and exits
+          # **0**, because an interrupted run did exactly what it was asked to do
+          # and simply did less of it. So a deadline reached this way ends with a
+          # readable report and a green job, and the ledger step below runs.
+          #
+          # The alternative, letting `timeout-minutes` fire, was measured on run
+          # 34221459805 and is strictly worse: it cancels the job and the
+          # `always()` steps are killed after one second. Same amount of work
+          # done, no report, and a red X that says nothing about where to resume.
+          #
+          # 4h50m against the job's 5h30m backstop leaves forty minutes for the
+          # in-flight request to land and the summary to be written.
+          # `--kill-after` is the second backstop: 300 s comfortably exceeds
+          # `BACKFILL_REQUEST_DEADLINE_MS` (180 s), so a graceful stop always has
+          # room to finish before anything is killed.
+          #
           # `$BACKFILL_ARGS` is deliberately unquoted: it is a list of arguments
           # rather than one argument. It comes from a `workflow_dispatch` input,
           # which only somebody with write access to this repository can supply.
           # shellcheck disable=SC2086
-          pnpm backfill $BACKFILL_ARGS || status=$?
-          echo "backfill exit $status after $(( $(date -u +%s) - started ))s"
+          timeout --signal=INT --kill-after=300 17400 \
+            pnpm backfill $BACKFILL_ARGS || status=$?
+
+          elapsed=$(( $(date -u +%s) - started ))
+          echo "backfill exit $status after ${elapsed}s"
+
+          # 124 is `timeout` reporting that even the graceful stop did not land,
+          # so the command was killed. Distinguished from an ordinary failure
+          # because the operator's next move is the same either way — resume from
+          # the ledger — but the cause is not.
+          if [ "$status" = "124" ] || [ "$status" = "137" ]; then
+            echo "::warning::the backfill did not stop gracefully within its deadline and was killed. Every session it stored is stored. Resume from the ledger below."
+          fi
           echo "BACKFILL_STATUS=$status" >> "$GITHUB_ENV"
 
       # ALWAYS, including after a failure — a partial walk is the case where the
