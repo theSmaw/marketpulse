@@ -177,6 +177,45 @@ export interface BarCoverage {
 }
 
 /**
+ * The last close we hold for one security, and the close before it (Task
+ * 2.9.7).
+ *
+ * The domain answer behind `SecurityLastClose` on the `/securities` wire, and
+ * it stops one field short of it: this carries the **instant** the daily bar is
+ * observed at, and the route converts that to a market date through
+ * `marketDateAt`. That split is `toWireCoverage`'s and it is the same rule —
+ * `market-time.ts` is the one module permitted to convert, and putting the
+ * conversion in the mapper beside the query means it happens once rather than
+ * at every reader.
+ *
+ * **`previous` is nullable and the null is a real answer**, not a missing one:
+ * a security we hold exactly one daily bar for has a close and nothing to
+ * compare it against. A security we hold *no* daily bars for is absent from
+ * {@link MarketBarsRepository.readLastCloses}' map entirely, which is
+ * `listCoverage`'s spelling of the same distinction.
+ *
+ * **No provenance.** The ledger holds a source per `(security, timeframe)` and
+ * this read deliberately does not join it: a close is a price, and Task 2.6.7's
+ * rule is that no second thing may answer *which feed*. The reader that wants
+ * that answer asks the market-data route for a series.
+ */
+export interface LastClose {
+  readonly symbol: Ticker;
+
+  /**
+   * The instant the closing bar is observed at — for a `1d` bar, the session's
+   * own label rather than its close time.
+   */
+  readonly observedAt: Date;
+
+  /** The session's closing price. */
+  readonly close: number;
+
+  /** The close of the session before it, or `null` when we hold only one. */
+  readonly previousClose: number | null;
+}
+
+/**
  * What one write did, in the three categories that are worth telling apart.
  */
 export interface BarWriteResult {
@@ -337,6 +376,26 @@ export type BarRow = {
  * a row and needs no socket, which keeps the expensive database suite for
  * claims only a database can settle. `toSecurity`'s precedent.
  */
+/**
+ * One `numeric(18, 6)` column → one price, refusing anything that is not one.
+ *
+ * {@link toBar}'s parse, factored out because {@link
+ * MarketBarsRepository.readLastCloses} needs the same judgement over a row that
+ * is not a whole bar. `migrations/README.md` §6's rule survives that: this is
+ * still a parse written beside the query rather than a generic row mapper, and
+ * there is still one function per domain type above it.
+ *
+ * The blank check is not redundant with `isFinite`: `Number("")` is **0**, and
+ * a zero price is the one wrong answer here that looks entirely plausible.
+ */
+function toPrice(observedAt: Date, raw: string): number {
+  const value = Number(raw);
+  if (raw.trim() === "" || !Number.isFinite(value)) {
+    throw new BarMappingError(observedAt, "close", raw);
+  }
+  return value;
+}
+
 export function toBar(row: BarRow): Bar {
   const parse = (field: (typeof BAR_VALUE_COLUMNS)[number]): number => {
     const raw = row[field];
@@ -869,6 +928,59 @@ export interface MarketBarsRepository {
    * present with a null.
    */
   readLastBarDates(timeframe: Timeframe): Promise<ReadonlyMap<Ticker, Date>>;
+
+  /**
+   * The last two closes we hold for each security at one timeframe (Task
+   * 2.9.7).
+   *
+   * **Two rows and not one, because the second is what makes the first mean
+   * anything.** A price with no comparison is a number; a price beside the
+   * session before it is a move, which is what `/securities` renders. The
+   * previous close is *read* rather than derived — it is the stored preceding
+   * session, never "the day before" by arithmetic on a calendar, so a security
+   * that did not trade on a session compares against the session it actually
+   * traded on.
+   *
+   * ## Read at `1d`, and the cost is the whole argument
+   *
+   * `readLastBarDates` above makes the same choice for the same reason and
+   * states it: the daily half of `market_bars` is ~345k rows against ~47.7M
+   * minute ones. This read goes further — it takes the two newest rows **per
+   * security** through the existing `(security_id, timeframe, observed_at)`
+   * index, one bounded backwards index scan each, so it never touches the
+   * minute half of the index at all.
+   *
+   * Measured 2026-09-09 against the local store at full depth — 47,682,213
+   * minute bars and 345,559 daily ones — with `explain (analyze, buffers)` over
+   * the SQL this builder actually compiles:
+   *
+   * | Shape                                                   |   Rows |             Time |
+   * | ------------------------------------------------------- | -----: | ---------------: |
+   * | This query, cold                                        |  1,036 |        21.4 ms   |
+   * | This query, warm, whole round trip from Node            |  1,036 | 4.8–8.2 ms       |
+   * | `row_number() over (partition by …)`, cold              |  1,036 |       830.1 ms   |
+   * | the same, warm                                          |  1,036 | 182–279 ms       |
+   *
+   * The window-function form is the one everybody writes first and it is 30–40×
+   * worse warm, because it reads all 345,559 daily rows and sorts them to
+   * return 1,036. This one reads **2,597 buffers** — 518 index searches of two
+   * rows each — and its `Index Cond` pins `timeframe = '1d'`, which is what
+   * makes "the minute half is not scanned" a property of the plan rather than a
+   * hope. Re-measure rather than cite these; `BARS.md` §8.6 carries the method.
+   *
+   * ## What it does not do
+   *
+   * **No filter on `securities.status`.** `UNIVERSE.md` §12.2's rule: filter
+   * when computing over the market we track *now*, never when showing something
+   * we *stored*. A security we have stopped tracking still closed at a price on
+   * the last session we hold, and the page renders the row.
+   *
+   * Keyed by symbol, and a security holding no bars at this timeframe is simply
+   * **absent** rather than present with a zero — {@link listCoverage}'s
+   * spelling, and the one that keeps "we hold nothing for this" and "it closed
+   * at nothing" from becoming the same value.
+   */
+  readLastCloses(timeframe: Timeframe): Promise<ReadonlyMap<Ticker, LastClose>>;
 }
 
 interface CoverageRow {
@@ -1182,6 +1294,65 @@ export function createMarketBarsRepository(
           (row) => [toTicker(row.symbol), row.last_observed_at] as const,
         ),
       );
+    },
+
+    async readLastCloses(timeframe) {
+      // **A lateral scan per security, not a window function over the
+      // timeframe.** See the interface for the two timings; the shape here is
+      // what produces the fast one. `limit 2` inside the lateral is what makes
+      // the planner take a bounded backwards walk of
+      // `(security_id, timeframe, observed_at)` — 518 index searches returning
+      // two rows each — instead of reading every daily bar to rank it.
+      //
+      // `crossJoin` and not `leftJoin`: a security with no bars at this
+      // timeframe contributes no rows and is therefore absent from the map,
+      // which is the contract. A left join would give it one row of nulls, and
+      // a null close is a value somebody would eventually render.
+      const rows = await db
+        .selectFrom("securities")
+        .crossJoinLateral((eb) =>
+          eb
+            .selectFrom("market_bars")
+            .select(["market_bars.observed_at", "market_bars.close"])
+            .whereRef("market_bars.security_id", "=", "securities.id")
+            .where("market_bars.timeframe", "=", timeframe)
+            .orderBy("market_bars.observed_at", "desc")
+            .limit(2)
+            .as("recent"),
+        )
+        .select(["securities.symbol", "recent.observed_at", "recent.close"])
+        // No filter on `securities.status`. See the interface.
+        .orderBy("securities.symbol")
+        // Newest first *within* a symbol, so the pair below is (last,
+        // previous) by position rather than by comparing two instants. The
+        // ordering is asserted rather than assumed: reversing it is what the
+        // database suite's "compares against the session before" test fails on.
+        .orderBy("recent.observed_at", "desc")
+        .execute();
+
+      const closes = new Map<Ticker, LastClose>();
+
+      for (const row of rows) {
+        const symbol = toTicker(row.symbol);
+        const close = toPrice(row.observed_at, row.close);
+        const held = closes.get(symbol);
+
+        if (held === undefined) {
+          closes.set(symbol, {
+            symbol,
+            observedAt: row.observed_at,
+            close,
+            previousClose: null,
+          });
+          continue;
+        }
+
+        // The second row of the pair. `limit 2` means there is never a third,
+        // so this is an assignment rather than an accumulation.
+        closes.set(symbol, { ...held, previousClose: close });
+      }
+
+      return closes;
     },
 
     async listCoverage() {

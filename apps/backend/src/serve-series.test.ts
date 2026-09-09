@@ -129,6 +129,7 @@ function stubRepository(
     readCoverage: unused("readCoverage"),
     listCoverage: unused("listCoverage"),
     readLastBarDates: unused("readLastBarDates"),
+    readLastCloses: unused("readLastCloses"),
   };
 }
 
