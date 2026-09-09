@@ -1,6 +1,6 @@
 # Task 2.9.4 — The read, and the provenance the store does not hold
 
-**Status:** Not started
+**Status:** Complete — 2026-09-09
 **Story:** [2.9 Market Data API](STORY.md)
 **Depends on:** Tasks 2.9.2, 2.9.3
 
@@ -155,3 +155,169 @@ deliberately does not store has to be produced honestly.
 `readBars`' own comment says a `BarSeries` out of stored rows "needs a `feed` this
 schema does not have". That sentence is this task. Resolving it with a shrug is
 how invariant 6 stops being true without anything going red.
+
+---
+
+## What was done
+
+`readSeries` on `MarketBarsRepository` — one exported read returning a
+`BarSeries` and the ledger's own statement beside it, over the handle
+`market-bars.ts` already builds and does not export. The mapping half,
+`toStoredSeries`, is a pure exported function unit-tested without a socket, for
+`toBar`'s reason: the interesting part of it is a set of decisions about what a
+served series _claims_, and a decision only exercisable through a database is a
+decision nobody exercises.
+
+Measured end to end against the local 48,027,772-row store: a full session of
+`NVDA` minute bars is 390 bars in 42 ms cold and 6 ms warm, with provenance
+reading `alpaca`/`sip` retrieved `2026-09-08T07:28:40.261Z` — the batch's write
+time, not the read's.
+
+### The provenance decision went the other way, and a measurement is why
+
+The task recommended a constant asserted at the read boundary, "written where a
+second writer would break it loudly rather than quietly". **It was built that
+way first — as a guard on `recordSeries` — and the guard immediately turned four
+existing tests red.** `backfill.database.test.ts` drives the **shipped**
+backfill with the **fixture** provider into a real PostgreSQL database, so a
+store holding `fixture`/`synthetic` bars is not a hypothetical waiting for Epic
+3: it is something this repository creates on purpose, in CI, and `pnpm backfill`
+under `MARKET_DATA_PROVIDER=fixture` is one command from doing it to a store
+something serves. A constant would have labelled invented prices as the full US
+consolidated tape.
+
+So candidate 3 was taken for `provider` and `feed`
+(`0007_bar_coverage_provenance.sql`, ~1,036 rows) and candidate 4 for
+`retrievedAt` (`min(market_bars.recorded_at)` over the rows actually returned).
+They turned out to be complementary rather than competing, which the original
+list did not make obvious: provenance has three fields and the schema could
+answer none of them. `MARKET-DATA-API.md` §10 records all four candidates, the
+`min`-versus-`max` choice, the one case the ledger cannot answer, and the
+reversal trigger.
+
+**The guard survives, and is now true rather than asserted.** `recordSeries`
+refuses a series whose source disagrees with the ledger row it would extend, and
+refuses a stitched series naming two sources for one window — so
+`0004_market_bars.sql`'s trigger for a per-bar `feed` column fires **per series,
+at the write, at the moment it happens**.
+
+### Task 2.9.2's cap assumption, checked
+
+Of **47,682,213** stored minute bars, **zero** fall outside the regular session —
+earliest 09:30, latest 15:59 America/New_York. `series-request.ts`'s session-minute
+count is therefore an upper bound rather than an under-estimate. Recorded in that
+file beside the assumption and in `MARKET-DATA-API.md` §10.
+
+### Checks
+
+`pnpm verify` passes with no database running (exit 0). `pnpm test:database`
+passes against a real server — 154 tests, six files, including the backfill's
+fixture-provider run, which now records `fixture`/`synthetic` in the ledger
+honestly instead of being refused or mislabelled. `pnpm migrate` applied `0007`
+to the local 48M-row store in under half a second; all 1,036 ledger rows read
+back `alpaca`/`sip` with `sum(bar_count)` = 48,027,772.
+
+---
+
+## For the stakeholders — what this means, in plain terms
+
+**Short version: the system can now hand over a stretch of price history and, in
+the same breath, say where every number in it came from and how far it reaches.
+It could not do either before today.**
+
+### What was actually missing
+
+We already had the prices — forty-eight million of them, one per minute per
+company, sitting in the database since last week. What we did not have was a way
+to _serve_ them. That sounds like plumbing, and mostly it is, except for one
+genuinely awkward problem that this task existed to solve.
+
+MarketPulse has a rule it will not bend: **no chart may show a number without
+being able to say where the number came from.** That is not a nicety. Our data
+supplier sells us two different things on the free plan — a complete record of
+every US exchange for historical prices, and a single small exchange's view for
+live prices — and a chart that mixes them without saying so is a chart that
+quietly misleads a professional analyst about how much of the market they are
+looking at.
+
+The awkward part: when we designed the price table we deliberately **did not**
+store that information on each individual price. Writing "this came from the
+consolidated tape, fetched on Tuesday" onto forty-eight million rows means
+storing the same short sentence forty-eight million times — gigabytes of disk
+and money spent to repeat one constant. So the storage was cheap, and the bill
+came due today: the thing that serves a chart has to state a fact the database
+does not hold.
+
+### What we did, and why
+
+The instinct — and the plan we started from — was simply to **assert** it in the
+serving code: _everything in this table came from the consolidated tape._ Free,
+one line, and true as far as anyone knew.
+
+Before relying on that, we wrote a check that would refuse to store anything
+contradicting it. **The check immediately failed**, and it failed against our own
+test suite: we have a "pretend data" mode, used so developers and our automated
+tests can work without spending money on real market data, and it writes
+_invented_ prices into a real database on purpose. Under the assertion we were
+about to ship, those invented prices would have been served to a chart labelled
+_"All US exchanges."_
+
+That is the exact failure the product's rules are written to prevent, and it
+would have shipped silently, because invented prices look exactly like real ones
+on a screen.
+
+So we spent the extra effort and **stored the fact properly** — but on the
+summary row rather than on every price. Each company-and-interval has one
+bookkeeping row saying "we hold January to September for this company"; adding
+two small columns there costs about a thousand copies instead of forty-eight
+million. Same honesty, roughly 0.002% of the cost. A chart drawn from pretend
+data now says _"Generated test data. Not a market feed."_ by itself, with nobody
+having to remember to add a warning label.
+
+We also made the writing side refuse to mix two sources into one record. The day
+we add the live feed — the very next epic — the system will stop and say so,
+rather than quietly blending two different views of the market under one label.
+
+### The second decision: "when did we get this?"
+
+Every series also has to say when the data was fetched, so a user can tell
+yesterday's prices from last month's. There is a trap here the project has
+already fallen into once: if the serving code fills in _"just now"_, the answer
+is always "fresh" and the field becomes permanently useless — it can never report
+the one thing it exists to report.
+
+We take the timestamp from when the data was actually written, and where a
+request spans several fetches we report the **oldest** one. That errs towards
+saying data is older than it might be, never fresher. For anything financial,
+that is the right direction to be wrong in.
+
+### What a user can see today
+
+**Nothing new on screen — and that is the honest answer.** There are still no
+charts. What exists now is the part that a chart cannot be built without: ask for
+a company, an interval and a window, and get back the prices, their provenance,
+and an explicit statement of how much of the window we actually cover.
+
+That last part is worth a sentence, because it is a small piece of the product's
+character. If you ask for prices through today and our store only reaches last
+Friday, you do not get an error and you do not get a chart that silently stops
+early. You get the data we have, plus a plain statement that the answer reaches
+Friday and you asked for today. The screen will be able to say _"we have data
+through 15:42"_ rather than leaving someone to guess whether the flat line at the
+right-hand edge is a quiet market or a gap in our data.
+
+### What this unlocks
+
+This was the hard middle of Story 2.9. Directly downstream:
+
+- **The next task** joins live data onto the end of stored data — and can only do
+  that honestly because a series can now carry two sources and say which is
+  which.
+- **The task after that** puts this behind a web address.
+- **Two tasks later, the first real price appears on a screen** — the first time
+  MarketPulse shows a user something that actually happened in the market.
+
+Further out, this is load-bearing for the feature the whole product is built
+towards: the replay mode that reconstructs what was knowable at 11:07 on a
+particular morning. That only means anything if every number can say where it
+came from and when we learned it. As of today, they can.

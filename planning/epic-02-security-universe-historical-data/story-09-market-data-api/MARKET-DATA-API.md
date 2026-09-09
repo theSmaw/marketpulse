@@ -527,14 +527,159 @@ amend live claims, leave historical records standing.
   nesting level — `securities-response.ts` applies it three times because it
   checks top-level keys and does not reach into a nested object, and a series
   response has bars, provenance, sources and coverage nested inside it.
-- **Where a stored series' `retrievedAt` comes from.** Task 2.9.4's, and it is
-  the hard part: `0004_market_bars.sql` stores no per-bar provenance, so the
-  read path has to produce a `BarSource` for rows that carry none. The one honest
-  candidate in the schema is `recorded_at`, which is mandatory on every table and
-  is the batch's write time — and `market-provenance.ts` warns in terms about the
-  failure mode: a read path that stamps `retrievedAt` at serve time turns "these
-  bars were fetched three weeks ago" into "these bars are current".
+- ~~**Where a stored series' `retrievedAt` comes from.**~~ **Settled by Task
+  2.9.4 — see §10**, which took `min(market_bars.recorded_at)` over the rows
+  actually returned, and found that the `provider`/`feed` half could not be
+  answered by an assertion at all. `0004_market_bars.sql` stores no per-bar
+  provenance, so the read path has to produce a `BarSource` for rows that carry
+  none, and `market-provenance.ts` warns in terms about the failure mode: a read
+  path that stamps `retrievedAt` at serve time turns "these bars were fetched
+  three weeks ago" into "these bars are current".
 - **Caching.** Task 2.9.8 — and §5 makes it load-bearing rather than optional.
 - **Response times against the real row count.** Task 2.9.9. §3 and §4's timings
   are local and single-request; that task takes them properly and deployed.
 - **The ADR.** Task 2.9.10.
+
+---
+
+## 10. Where a stored series' provenance comes from — Task 2.9.4
+
+**Decided: `provider` and `feed` are stored on `bar_coverage`
+(`0007_bar_coverage_provenance.sql`); `retrievedAt` is
+`min(market_bars.recorded_at)` over the rows actually returned; nothing is
+stamped at read time.**
+
+A `BarSeries` cannot exist without provenance — `bar-series.ts` brands it and
+`toBarSeries` is the only way to obtain one — and `0004_market_bars.sql`
+deliberately stores none, because four provenance columns on forty-eight million
+rows are forty-eight million copies of two constants. That decision is unchanged.
+So the read had to produce a fact the schema does not hold, and the task file
+listed four candidates.
+
+### The measurement that chose between them
+
+The recommended answer was the free one: **assert a constant at the read
+boundary**, everything stored is `alpaca`/`sip`, with the assertion written where
+a second writer would break it loudly. It was implemented that way first, as a
+guard on `recordSeries` — and **the guard immediately turned four existing tests
+red**, which is the whole value of writing it as a mechanism rather than a
+comment:
+
+> `backfill.database.test.ts` drives the **shipped** `runBackfill` with the
+> **fixture** provider into a real PostgreSQL database. A store holding
+> `fixture`/`synthetic` bars is not a hypothetical for Epic 3. It is something
+> this repository creates on purpose, today, in CI, and `pnpm backfill` under
+> `MARKET_DATA_PROVIDER=fixture` is one command away from doing it to a store
+> something serves.
+
+A constant would therefore label **invented prices as the full US consolidated
+tape** on a chart. That is invariant 6 failing with nothing going red, and §5.4's
+structural guarantee — a fixture-backed screen advertises itself in the chrome
+because the series carries `feed: "synthetic"` — defeated by the store in the
+middle. The task file's own words apply: candidate 3 "is the answer if the others
+are all dishonest", and this is the measurement that says they are.
+
+### The four candidates, and what each is now
+
+| Candidate                                      | Verdict                                                                                                                                                                                |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. A constant asserted at the read boundary    | **Refused.** Measured false today, not merely fragile later — see above.                                                                                                               |
+| 2. `bar_coverage.updated_at` as `retrievedAt`  | **Refused.** Scoped to the whole series, so a catch-up appending today's bars overstates the freshness of a window fetched a year earlier.                                             |
+| 3. A migration adding provenance to the ledger | **Taken, for `provider` and `feed`.** ~1,036 rows at 518 securities × 2 timeframes, so the objection that killed per-bar provenance does not reach the ledger.                         |
+| 4. `market_bars.recorded_at` as `retrievedAt`  | **Taken, for the timestamp.** Scoped to the window being served, and already per-**batch**: the column defaults to `now()`, which is transaction start, so the batch is the retrieval. |
+
+3 and 4 are complementary rather than competing, which the original list did not
+make obvious: provenance has three fields and the schema could answer none of
+them.
+
+### `min` rather than `max`, and the alternative that was refused
+
+A window can span several batches — measured on 2026-09-09, five sessions of
+`NVDA` minute bars are **six** batches spanning 13 seconds — and a single-source
+record carries one timestamp for all of them. `max` reports the freshest and
+understates the staleness of the rest, which is candidate 2's failure in
+miniature. `min` cannot overstate freshness.
+
+The alternative that reports every batch truly is **one `BarSource` per batch**,
+and it is refused: a year of daily backfill would put ~250 sources on the wire,
+and `sources` is the field Story 2.14 renders to say _part IEX, part consolidated
+tape_. A list that long stops being a provenance record and becomes a log.
+
+### What the ledger's one row can and cannot say, and why that is the mechanism
+
+One `bar_coverage` row is one `(security_id, timeframe)` and one contiguous
+window, so it holds exactly one source for that window. That limit is also the
+enforcement: **`recordSeries` refuses a series whose source disagrees with the
+row it would extend**, and refuses a stitched series that names two sources for
+one window. So the day a second feed writes into one series is the day the write
+throws naming both — which is `0004_market_bars.sql`'s trigger for a per-bar
+`feed` column firing **per series, at the moment it happens**, rather than being
+noticed later by a person reading a chart.
+
+**The columns carry a database default (`'alpaca'`, `'sip'`) where
+`0002_securities.sql` refused one for `profile_source`.** The argument there was
+that a default silently attributes one source's data to another and it is right;
+this one exists for the **deploy** rather than for the data. `deploy.yml` migrates
+before either half of the code rolls, so for the length of that window the
+previous backfill is still the writer and does not know the columns exist — a
+`not null` with no default would fail its next insert. What stops it becoming
+`0002`'s failure is in the type system: `schema.ts` declares both columns
+**required on insert**, so a writer that omits one is a compile error and the
+database's default is unreachable from any shipped writer. Both halves are
+asserted — `market-bars.database.test.ts` reads the defaults out of
+`information_schema` and the vocabularies out of `pg_constraint`, comparing the
+latter against `PROVIDER_IDS` and `MARKET_FEEDS`.
+
+**Reversal trigger, as a condition:** a second feed writing into one
+`(security, timeframe)` series — at which point `0004`'s per-bar `feed` column is
+what is owed, and the write path is already throwing to say so.
+
+### The one case the ledger cannot answer
+
+An answer holding **no bars** for a pair the ledger has never had a row for.
+`SeriesProvenance.sources` is a non-empty tuple, so such an answer still owes one
+source, and its `barCount` is `0` — so what the fields describe is nothing. The
+read uses a module constant there and says so. The alternative was making the
+field nullable throughout `packages/shared`, which is a change to the domain model
+of every series in the product to express a case the wire already distinguishes
+with `bars: []` and `coverage.covered: null`.
+
+### What `covered` is, and what it is not
+
+The **intersection of the requested window with the ledger's**, and never the
+extent of the bars themselves. `BARS.md` §9.1 requires coverage to be read from
+`bar_coverage` rather than counted from `market_bars`; the reason it also has to
+be the ledger's _range_ is Task 2.8.5's measurement that only 8 of 28 S&P 500
+constituents print a full 390 minutes in a session. A covered range derived from
+the bars would report a thinly traded name's quiet hour as a partial answer,
+which is exactly the conflation `SeriesCoverage` exists to prevent.
+
+An **empty** answer covers `null` in both directions, which `toBarSeries` already
+enforces. The information that would otherwise be lost — _we do cover this window
+and nothing traded in it_ — travels beside the series as the ledger row itself,
+which is what lets Task 2.9.6 tell the empty answers apart and what Task 2.9.5
+stitches against.
+
+### Measured end to end, 2026-09-09, against the local 48,027,772-row store
+
+| Reading                                     | Value                                                           |
+| ------------------------------------------- | --------------------------------------------------------------- |
+| `NVDA` `1m`, one full session (2026-09-04)  | **390 bars**, `covered` = `requested`, 42 ms cold / 6 ms warm   |
+| Its provenance                              | `alpaca` / `sip`, `retrievedAt` **2026-09-08T07:28:40.261Z**    |
+| The same window requested through **today** | 390 bars, `requested` ends 09-09T20:00Z, `covered` 09-04T20:00Z |
+| `bar_coverage` after the migration          | 1,036 rows, all `alpaca`/`sip`, `sum(bar_count)` **48,027,772** |
+
+The third row is §6's partial answer and §5's seam in one reading: a 200, with the
+two windows saying between them exactly what is missing and nothing implied about
+it.
+
+### One assumption checked in passing, for Task 2.9.2
+
+`series-request.ts` counts **session minutes** from the calendar to enforce the
+cap, which is an upper bound only if the store holds regular-session bars and
+nothing else. This is the first task that could look at the rows: **of 47,682,213
+stored minute bars, zero fall outside the regular session** — earliest 09:30,
+latest 15:59 America/New_York. The assumption holds and the cap is an upper bound
+rather than an under-estimate. The method, so it is re-taken rather than cited: a
+`count(*) filter` on `(observed_at at time zone 'America/New_York')::time`
+against `'09:30'` and `'16:00'`.
