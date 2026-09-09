@@ -58,6 +58,30 @@ back to a window already looked at should not re-read 8,000 rows.
   statement about what was recently asked for. Pick deliberately and say which;
   the cheaper one is not obviously the right one.
 
+- **There is a SECOND response with this shape now, and this task has to say
+  whether it is in scope — added 2026-09-09 by Task 2.9.7.** That task put
+  `lastCloses` on `/securities`: the close of a session that has closed, for 518
+  securities, which is _precisely_ the immutable thing this task's objective
+  names, changing once a day when the nightly catch-up runs. It is also the
+  bigger payload of the two — **190,736 bytes, 19,526 gzipped**, fetched once per
+  page load by `useSecurities`.
+
+  And it carries the same envelope trap the bullet above describes, from a
+  different direction: the `securities` array holds `status`, which `pnpm
+universe` can flip at any moment, so `/securities` is **immutable in its closes
+  and mutable in its rows** exactly as the series response is immutable in its
+  bars and mutable in its `securityStatus`. One rule that survives both is the
+  argument for a validator; two routes with two rules is how they diverge.
+
+  **Decide it explicitly rather than discovering it.** The case for out: this
+  story is the market-data API and `/securities` is Story 2.4's resource, fetched
+  once per page load rather than once per chart interaction, so the saving is
+  small and the scope creep is real. The case for in: it is the same fact, the
+  same calendar rule and the same validator, and leaving it means the first thing
+  a reader tries — _is my price fresh?_ — has a different answer from the second.
+  Whichever way it goes, say so, because a later reader finding one route cached
+  and the other not will assume it was an oversight.
+
 - **Draw the line where the calendar draws it, not where a clock does.** A window
   entirely inside sessions that have closed is immutable and can say so; a window
   whose end is in the current or a future session is not, because the store's own
@@ -134,6 +158,8 @@ back to a window already looked at should not re-read 8,000 rows.
 - The immutability rule is expressed through the calendar and tested either side
   of a session close, and what a **correction** to a closed session does to a
   cached answer is stated
+- Whether `/securities`' `lastCloses` is inside this task's rule is **stated
+  either way**, with the reason
 - A live-window response is asserted **not** to carry it, with the assertion made
   to fail once
 - A named window is asserted never to carry a long `max-age`, whatever it resolved
