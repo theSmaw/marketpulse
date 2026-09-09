@@ -23,6 +23,25 @@ back to a window already looked at should not re-read 8,000 rows.
   catch-up will change it. Story 2.5's calendar is what tells the two apart, and
   reusing it here is what keeps one definition of a session.
 
+- **A named window is a STABLE URL naming a MOVING target, and every HTTP cache
+  keys on the URL — added 2026-09-09 by Task 2.9.2.** This is the trap this task
+  is most likely to ship silently. `?sessions=5` resolves through the calendar
+  against **today's** market date, so the same URL means a different window
+  tomorrow, and it changes meaning again at every session close. A browser or
+  proxy holding a `max-age` answer for it serves yesterday's window under today's
+  address, and the response looks entirely well-formed — the resolved range is
+  reported honestly in `coverage.requested`, it is simply the wrong range.
+  So the immutability rule cannot be applied to the raw request: it is a property
+  of the **resolved** range (`SeriesRequest.range`, always absolute), while the
+  cache key is the URL the client sent. The consequence, which should be stated
+  and tested rather than inferred: **the named form can carry a validator and must
+  never carry a long `max-age`, even when the window it resolved to is entirely
+  closed sessions.** The absolute form is the one that can be immutable, because
+  its URL and its meaning are the same thing.
+  Assert it: the same window requested both ways gets the same **body** and
+  deliberately **different** cache headers, and make the break — mark the named
+  form immutable and watch a test go red.
+
 - **Prefer the mechanism with the smallest failure mode.** A validator (`ETag` and
   a conditional request) is cheap and correct when in doubt; a long
   `Cache-Control: max-age` on the wrong response is a wrong number a user cannot
@@ -60,6 +79,8 @@ back to a window already looked at should not re-read 8,000 rows.
   of a session close
 - A live-window response is asserted **not** to carry it, with the assertion made
   to fail once
+- A named window is asserted never to carry a long `max-age`, whatever it resolved
+  to, and the same window asked both ways is shown to return the same body
 - What it saves is measured on a real window — **bytes and vendor requests
   both** — and recorded in `MARKET-DATA-API.md`
 - Whether the stitch's metered cost is bounded is stated plainly, and if it is not,
