@@ -161,8 +161,11 @@ _honoured_, not _enforced_ — nothing stops a future module exporting an unplug
   the diagnostics one included (Task 2.4.2). That was a cost Task 2.1.7 stated and left
   open; you inherit it closed, so a route you add that can fail and does not declare
   `500: apiErrorSchema` is a red test rather than a discovery in production.
-- **A measured payload baseline.** 101 securities are **17,299 bytes**, ~2,591 gzipped. §6's
-  500-security ceiling is therefore ~13 kB on the wire uncompressed. That is why Task 2.4.2
+- **A measured payload baseline.** ~~101 securities are **17,299 bytes**, ~2,591 gzipped. §6's
+  500-security ceiling is therefore ~13 kB on the wire uncompressed.~~ **Re-measured 2026-09-09
+  by Task 2.8.10: what ships is 518 securities WITH Task 2.8.9's coverage array, at 150,660
+  bytes and 12,831 gzipped.** The ~13 kB prediction was for 500 securities and no coverage; it
+  is not what ships, so quote the measurement. That is why Task 2.4.2
   took **no pagination and no page size** — and note what the decision actually was: the
   thing that reaches 500 without an edit is **no number rather than a bigger one**.
 

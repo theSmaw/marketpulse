@@ -335,6 +335,45 @@ disconnected — displaying data through 10:42:17"_ — is only writable if the 
 Three consequences are now decided rather than open: bars are stored **unadjusted** and
 adjusted on read, **nothing is evicted**, and "we do not have that" is an **answer**.
 
+## What Story 2.8 changed for the stories after it (2026-09-09)
+
+**Story 2.8 is closed (ten tasks), and it is the largest engineering story in the epic.**
+The record is [ADR 0020](../../docs/adr/0020-the-bar-store-the-backfill-and-what-a-completed-backfill-certifies.md)
+and [`BARS.md`](story-08-historical-bar-ingestion-and-storage/BARS.md).
+
+**The database holds 48.03 million rows of real US equity market history** — 47,682,213
+minute bars across a year and 345,559 daily bars across two and a half, for all 518 tracked
+securities, locally and on the managed server, identical to the digit. That is the thing
+Stories 2.9 to 2.14 read.
+
+Six things they inherit that are not obvious from the row count:
+
+- **Bars are stored RAW and unadjusted, and an adjusted series is _requested_ rather than
+  computed.** Story 2.12's chart must render the provenance label beside the prices, because
+  a split inside the stored window charts with a real step in it. `PROVIDER.md` §3.6.
+- **The write path filters on `status = 'active'` and the READ path must not.** Bars stored
+  for a security we have since stopped tracking are still what happened, and a replay that
+  filtered on today's status would silently rewrite history. `UNIVERSE.md` §12.2 names all
+  seven readers; Stories 2.9 and 2.14 and Epic 13 are the ones that must not filter.
+- **Query performance is measured, and the cold and warm columns differ by two orders of
+  magnitude** on the same instance minutes apart — 4.2–28.3 ms warm against 3,213 ms and
+  5,373 ms cold, entirely a 256 MB `shared_buffers` against an 8.95 GB table. Story 2.9's
+  response-time work meets this and must not read the warm column as a promise.
+- **Density is 364.3 bars a security-session against a nominal 390**, universe-wide. Epic 5's
+  volume baseline must not treat a thin minute as an outage: most securities do not trade in
+  every minute and that is a fact about the market rather than about our ingestion.
+- **`market_bars` will hold two tapes.** Everything stored is SIP; Epic 3's live bars are
+  IEX, and the row does not say which. Story 2.14 owns what the product says about that.
+- **The temporal seam is now load-bearing on data and is still held by discipline alone.**
+  `market-bars.ts` reads `observed_at` on every query and Epic 13's plugin is unwritten.
+  See ADR 0015's gap 4, restated at its new weight.
+
+**And the store is on screen.** `/securities` says how much history each security has —
+_"518 securities tracked · 11 sectors · 15 ETFs · all with history · 47.7M minute bars ·
+through 2026-09-04"_ — read on the deployed site on 2026-09-09. It is the cheapest honest
+demonstration of ten tasks of ingestion available, and it is the second visible change in a
+story that was otherwise invisible.
+
 ## The decisions this epic must settle with a person
 
 Recorded here so they are visible without opening thirteen files. Each is stated in full,

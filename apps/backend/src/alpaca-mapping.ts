@@ -536,7 +536,8 @@ function describeType(value: unknown): string {
  *
  * `n` (trade count) and `vw` (volume-weighted price). `PROVIDER.md` §9.1
  * declined both **with triggers**, and the rule is that adding one costs a
- * column in a table with roughly ten million rows a year plus a value in every
+ * column in a table with ~47.7M rows a year at the 518-security universe
+ * (~10M at the ~100 this was written against) plus a value in every
  * response. Do not widen `Bar` here: that is a decision with an owner, not a
  * convenience taken while writing a mapping.
  */

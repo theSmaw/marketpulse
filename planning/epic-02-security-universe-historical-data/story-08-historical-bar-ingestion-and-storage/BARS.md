@@ -156,6 +156,12 @@ a short answer shaped like a right one is precisely what ADR 0017 decision 9 rej
 **SETTLED 2026-09-08 with the user: the initial backfill runs as a local command against the
 deployed database, and the incremental catch-up's home is decided separately when it exists.**
 
+> **Both halves moved afterwards and this paragraph is kept as the record rather than
+> rewritten.** §8.8 corrected the first — the backfill runs from a **runner** rather than a
+> laptop, because ~250 ms per round trip turns 97 minutes into 33 hours. §8.12 decided the
+> second — the catch-up is **scheduled**, `.github/workflows/backfill.yml` at 08:00 UTC.
+> Read those two sections before quoting this one. (Noted 2026-09-09, Task 2.8.10.)
+
 The two are different programs with different shapes — the first is a one-off long enough to
 want watching, the second is minutes and wants to run repeatedly — and
 deciding them together is how the one-off ends up in the pipeline. **They are still one walk with

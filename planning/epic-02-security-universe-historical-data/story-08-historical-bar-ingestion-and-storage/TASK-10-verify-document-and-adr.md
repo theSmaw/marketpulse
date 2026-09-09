@@ -1,6 +1,6 @@
 # Task 2.8.10 — Verify, document, and ADR 0020
 
-**Status:** Not started
+**Status:** Complete (2026-09-09)
 **Story:** [2.8 Historical Bar Ingestion, Storage & Backfill](STORY.md)
 **Depends on:** Task 2.8.9
 
@@ -657,3 +657,261 @@ wrong.
 No task is added, deleted or re-ordered. Task 2.8.9 completed inside its brief:
 it produced no work that needs a task of its own, and the one obligation it
 could not discharge is a deployed read, which is this task's method already.
+
+---
+
+## Completed — 2026-09-09
+
+`docs/adr/0020-the-bar-store-the-backfill-and-what-a-completed-backfill-certifies.md` is
+written. Story 2.8 is closed. Nothing was added, deleted or re-ordered.
+
+### The method, stated because it is unlike every previous close
+
+Half of this story's criteria are properties of a **populated database**. A clean clone has
+none, and re-running the backfill to prove them would take hours and spend a metered budget
+for a result Task 2.8.8 already recorded. So each criterion below says whether it was
+**re-taken from a clean clone** or **re-read from the deployed store**.
+
+| #   | Criterion                                                                      | How                                 | Result                                                                                                                                                                                                                               |
+| --- | ------------------------------------------------------------------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Full backfill completes; runtime, rows, size recorded                          | **Re-read (deployed)**              | 47,682,213 `1m` + 345,559 `1d` across 518 securities; 8,951 MB total (5,001 heap / 3,948 index); ~196 B a row. §8.2's runtime stands: 81m 36s + 15m 45s minute, 135.6 s daily                                                        |
+| 2   | Re-running changes nothing                                                     | **Re-read (deployed)**              | `bar_coverage`'s `sum(bar_count)` is **exactly** the two `market_bars` counts, from a table that never scans the bars. §8.10's fingerprint proof over every column including `recorded_at` stands                                    |
+| 3   | Interrupted backfill resumes without duplicating or skipping                   | **Re-read**                         | §8.9 and §8.15 — a real unplanned interruption, and a cancelled run correctly refused for exactly the 50 securities left short by the ledger's contiguity check                                                                      |
+| 4   | Holiday, half day and untraded minute each distinguishable from a failed fetch | **Re-run (local, identical store)** | `pnpm bars:check` in **1.79 s**: 515/518 series hold every session; **94.7% density** printed under a paragraph saying density is liquidity; 416 sessions attempted that left no bars, **all `ok`**; _"Nothing here needs a person"_ |
+| 5   | The system can state what it holds, correctly after a partial failure          | **Re-read (deployed)**              | `bar_attempts` holds **2,953 rows and every one is `ok`** — no `coverage-gap` on either store, so §8.15's fifty are fully recovered                                                                                                  |
+| 6   | Query performance measured against the real row count                          | **Re-read**                         | §8.16 — plans identical to local, warm **4.2–28.3 ms**, cold 3,213 / 5,373 ms and the cause named (256 MB `shared_buffers` against 8.95 GB on a 120-IOPS disk)                                                                       |
+| 7   | Storage checked against the offer, headroom stated                             | **Re-read (deployed)**              | `storage_used` **14.45 GiB / 46.30%**, `backup_storage_used` **0.82 GiB against 32 GB included**; **~2.4 years** against ~22.5 GiB usable; `psql-storage-80pct` enabled, severity 2, re-read                                         |
+| 8   | Universe re-curation settled and applied before the backfill                   | **Re-read**                         | Task 2.8.2, 518 securities, 25 GICS industry groups, zero singletons — applied before a single bar was filed                                                                                                                         |
+| 9   | `pnpm verify` passes; database tests under their own command                   | **Re-taken (clean clone)**          | exit 0 in **49.53 s cold from a clone**, **44.39 s warm with NO database**, **39.90 s with one**; `test:database` **141 across 6 files**                                                                                             |
+
+### The deployed read Task 2.8.9 handed forward — closed
+
+PR #240 merged, `verify` ran on `main`, `deploy` succeeded in 4m 03s, and the live page was
+read in a browser. It says, character for character, what §8.16 predicted:
+
+> **518** securities tracked · **11** sectors · **15** ETFs · all with history · **47.7M**
+> minute bars · through **2026-09-04**
+
+`AAPL` reads `1y from 2025-09-08`; the three later listings read `Q` **10mo from
+2025-11-03**, `FDXF` **3mo from 2026-06-01**, `HONA` **3mo from 2026-06-15**. The API's
+`sum(barCount)` is **47,682,213** and reconciles against the deployed `bar_coverage` by
+query — Task 2.4.6's method, the only one that can tell a page rendering the deployed store
+from a page rendering a plausible one.
+
+The `check-deployed` job, whose two new assertions had likewise never executed, is green:
+**15 passed in 20.3 s**, with the deployed accessibility reading matching the pre-merge
+gate.
+
+### The cost question is ANSWERED, for the first time in five closes
+
+Three closes recorded it refused in three shapes. It is now answered by a **fourth
+instrument**: the budget's `currentSpend` reads **$0.9611 against $20**, where Task 2.1.1
+and every close since read `0.0`.
+
+`az consumption usage list` has changed shape again — **29 records** now, naming every
+resource including the database, with every cost field still the string `'None'`. So the two
+instruments still disagree; the difference is that one of them finally answers.
+
+The estimate re-derives **to the cent** from the Retail Prices API for the fifth story
+running — **$0.017/hr compute, $0.115/GB storage, $0.095/GB backup**, North Central US. The
+budget stays at **$20** on Task 2.1.1's argument, restated: while the offer holds, a
+database-attributable alert **is** the signal that an offer condition broke. Storage is
+inside the offer at 15.5 GB of 32 and backup at 0.82 GB of 32, so **the backfill's marginal
+bill is £0**.
+
+### The sweeps — four found something, none came back clean
+
+- **The ten convention blocks were stale by two stories** (750 → **895**). All ten amended
+  together and verified to land on one md5; Stories 1.2 and 1.3's two historical variants
+  left at 103; **three** further sites in Epic 1's `EPIC.md`, including the trailing clause
+  that two previous sweeps have now edited around.
+- **`README.md` said 861 fast tests in five places**, and its per-package breakdown was
+  wrong in a sixth.
+- **`docs/adr/README.md`'s own index stopped at 0015, and its 0014 row still read _"Reserved
+  — not yet written"_ when 0014 exists and five more after it do.** Stale across three story
+  closes, and **the first time that file has been swept at all** — which is the finding
+  rather than the fix: the sweep list is a list of the places somebody remembered.
+- **The `17,299 B` payload figure was stale in five live places.** Re-measured at **150,660 B
+  / 12,831 gzipped** for 518 securities with coverage. Two of the five are load-bearing
+  arguments in _other stories'_ files (Story 2.9's "measured payload baseline", Story 2.11's
+  client-versus-server search decision) and two are shipped source comments. The historical
+  records in Task 2.4.2's own files were **left standing**, per Task 1.10.8's distinction.
+- **`pnpm links` is green by construction now**, so the counts are the thing to read:
+  **232 documents, 558 cross-file links, 34 anchor links, 0 broken** — against the 209 / 482
+  / 32 `README.md` published at Task 2.6.8. The double-hyphen trap is unchanged and the
+  slugger is still written the long way.
+- **The vendor grep passes its amended check.** Code-only over `packages/shared/src` is
+  **2**, both `PROVIDER_IDS` gaining `"alpaca"` and the test that locks the vocabulary — so
+  every hit is a member of the permitted set. Naive counts are 15 across 7 files in
+  `packages/shared/src` and 464 across 28 in `apps/backend/src`; the second is not a
+  regression, because those files **are** the vendor client.
+- **The install-script sweep**, run against the clone's own store, returns
+  **`esbuild@0.28.2` and nothing else**. Task 1.4.5 is still the only time `allowBuilds` has
+  fired.
+
+### Two live claims whose conditions had already fired
+
+- **`UNIVERSE.md` §15.8's _"the owner of a future `delisted` is Story 2.8's ingestion"_.**
+  Answered: the signal was built and `delisted` still does not ship, because §15.3 already
+  produced the overwrite that makes writing it two decisions rather than one.
+- **`database.ts`'s _"the only place shipped code constructs one or names `pg`"_.** The
+  second half stopped being true at Story 2.8: `securities.ts`, `market-bars.ts` and
+  `bar-attempts.ts` each carry `import type pg from "pg"` so their functions can take a pool
+  they never build. That is a type position, erased at compile time, and it is the shape the
+  repository seam is _supposed_ to have. Narrowed to **constructs**.
+
+### The leak check, on all six producers
+
+Log Analytics is **zero** for `eyJ`, `APCA-`, `Bearer`, the key id, `DATABASE_PASSWORD` and
+`access_token` across a **non-vacuous 23,999-record** 24-hour window that includes the
+revision rollover.
+
+The sixth producer is new: **a backfill's own output**. The last backfill workflow run's
+581-line log holds **three** credential-shaped strings, and all three are read rather than
+counted — two are `--resource https://ossrdbms-aad.database.windows.net` in echoed script
+source, which is a token _audience_, and one is `alpaca key id: PK…`, which Task 2.7.2
+established is an **identifier and not a secret** and which is printed deliberately so an
+operator can tell which key is configured. Note the swept run is the one that **failed** on
+`AADSTS700024`, which is the right window precisely because it is the one that hit a
+credential error.
+
+### The figures
+
+**Clean clone (the twelfth):** 417 packages cold in **9.6 s**, **419 store entries /
+285,008 KB / 4,766 lockfile lines**, `pnpm-workspace.yaml` md5 unchanged — Story 2.7's
+baseline **exactly**, which is the check rather than a coincidence, because this story added
+**no dependency at all**.
+
+**`pnpm verify`:** exit 0 in **49.53 s** cold from the clone, **36.05 s** warm with **no
+database** and **36.12 s** with one on the final tree (an earlier reading mid-task was
+44.39 / 39.90 on the same steps, which is the run-to-run spread this repository already
+records rather than a change). Warm per-step: build 2.76 / lint 7.19 / `format:check`
+9.07 / `stories` 0.25 / `env:check` 0.25 / `links` 0.31 / `test` 5.85 / `test:process`
+10.90.
+
+**Tests:** `pnpm test` **895 across 60 files** (211 + 477 + 207), `test:process` **14**,
+`test:database` **141 across 6 files in 3.80 s**.
+
+**The artefact reproduces Task 2.8.9's figures to the byte** from a clean build —
+373,831 B `b8149a71…`, 18,222 B `8c092e1e…`, `index.html` 1,101 B `11e71193…`, 300 B, for
+**393,454 B over four files at 301 modules**. No rebuild of the previous close's commit was
+needed: 2.8.9 measured both columns against the actual previous state one day ago and its
+"after" column is what HEAD produces. Storybook is **77 files / 9.4 MB**, up from the
+recorded 76.
+
+**And the `developer-laptop` firewall rule had moved again** — `122.11.246.6` →
+`58.182.90.91`, the recorded hazard's **sixth** sighting, which is why `HOSTING.md` names
+the hazard rather than an address.
+
+### The honest gap this close hands forward
+
+**The temporal seam is now load-bearing on data, and it is still held by discipline alone.**
+`market-bars.ts` reads `observed_at` on every query against 48.03 million timestamped rows;
+five modules now build their own `Kysely` handle and none of them exports it; Epic 13's
+plugin is unwritten. ADR 0015's gap 4 is restated at that weight rather than left where it
+was.
+
+---
+
+## For the stakeholders — what this task did, in plain English
+
+**The short version: MarketPulse now has a memory, and this task was the audit of it.**
+
+### What was already true before this task
+
+Over the previous nine tasks the team built the part of the product that remembers. Until
+now MarketPulse could _ask_ a market-data vendor for prices and print them; it could not
+_keep_ them. As of this story the database holds **48 million real price records** — every
+minute of every trading day for the past year, for all 518 companies we track, plus two and
+a half years of daily prices. That is the raw material every chart, every "is this move
+unusual?" calculation and every historical replay in the product will read.
+
+### What this particular task did
+
+Nothing new was built. This task is the **close**: it re-ran every promise the story made,
+wrote the permanent decision record, and went looking for things the documentation now says
+that are no longer true.
+
+Three things are worth a stakeholder's attention.
+
+**1. We checked the work against the live system rather than against our own notes.** The
+temptation at the end of a big piece of work is to quote the measurements taken while doing
+it. We instead reconnected to the production database and re-read it: the row counts, the
+sizes, the storage headroom, the query speeds. Everything matched. We also opened the live
+website in a browser and read the new "how much history do we have" column with our own
+eyes, then checked those numbers against the database directly — because a page showing
+_plausible_ numbers and a page showing _the real_ numbers look identical from the outside.
+
+**2. We were deliberately pragmatic about what to re-measure.** Proving some of these
+promises from scratch would have meant re-downloading a year of market data — hours of work
+and real money in vendor fees — to confirm something we measured yesterday. So the close was
+split in two: anything about the _code_ was rebuilt from a fresh copy of the repository and
+re-tested; anything about the _data_ was read back from the live database. Every item in the
+record says which, so nobody later mistakes a citation for a measurement.
+
+**3. We wrote down what a full history does NOT guarantee, and that list is longer than what
+it does.** This is deliberate and it is the most useful part of the document. It is easy to
+look at "48 million rows, all green" and conclude the data is perfect. It is not, and the
+ways it is not are all knowable:
+
+- Most companies genuinely do not trade in every single minute — the average is 364 minutes
+  out of 390. If a later feature treats a quiet minute as a _missing_ minute, it will report
+  the system as permanently broken. So we report "how much we hold" and "how densely it
+  trades" as two separate numbers with two separate names.
+- Three of the 518 companies have shorter histories, because they only started trading
+  recently. Our own report cannot tell that apart from a failed download, and it says so
+  rather than guessing.
+- Prices are stored exactly as the market published them, without adjusting for stock
+  splits. That is the right choice for a system whose job is to be an honest record, and it
+  means a chart spanning a split will show a genuine step. We label it rather than hide it.
+- The prices we have stored come from the full US market. The _live_ prices arriving in the
+  next phase come from a single exchange. Those two will sit in the same table, and the
+  product will have to say so.
+
+### Two decisions worth explaining
+
+**Why we did not adopt a specialist time-series database.** There is a well-known Postgres
+extension for exactly this kind of data, and adopting it looked obvious. We measured instead
+of assuming: at 48 million rows the queries the product actually needs run in **4 to 28
+milliseconds**. The slow cases we found turned out to be a memory-cache setting, not a
+database-design problem — and the extension would not have fixed them. Adopting it would
+have meant changing four things including every developer's local setup. So we declined it
+and wrote down the exact measurement that would reverse the decision.
+
+**Why we are keeping an index nobody reads.** The database maintains a 1 GB internal lookup
+structure that has been used **twice** — essentially never. Deleting it would free about 11%
+of the table. We kept it, because it is required by a house rule that keeps future
+data-linking simple, and removing it now would be a risky change to a live 48-million-row
+table for a saving we do not currently need. The important part is that we **wrote the price
+down**, along with the specific trigger that would make us reverse it. A cost you have
+measured and accepted is a decision; the same cost undiscovered is a surprise.
+
+### What this unlocks
+
+This story is the last of the "invisible" ones. Everything from here is something a person
+can see:
+
+- **Next (Story 2.9)** the backend starts serving this history over an API.
+- **Then (Stories 2.10–2.11)** the front end learns to ask for it, and you can search for a
+  company and select it.
+- **Then (Stories 2.12–2.13)** the price and volume charts appear — the first time a user
+  sees actual market data drawn on screen, and the moment this story's 48 million rows stop
+  being a claim in a document.
+
+There is already one visible payoff, live now: the Security Explorer page says how much
+history we hold for every company it lists. Nine tasks of pipework, one honest sentence on a
+page — and it is the cheapest way for somebody who is not reading a database to see that the
+pipework works.
+
+### The one thing we are carrying forward
+
+MarketPulse's signature feature — replaying a past trading day and seeing only what was
+knowable at that moment — depends on a guarantee that no part of the system can ever read
+data from _after_ the replay clock. Today that guarantee is honoured by every module, by
+careful convention, and **enforced by nothing automatic**. Until this story that cost
+nothing, because the data involved had no timestamps to leak. It now has 48 million of them.
+
+We have not fixed it here, because the enforcement mechanism belongs to the replay work
+itself. What we have done is restate it as the largest open risk in the project, at its new
+size, in the permanent record — so that it is a scheduled piece of work rather than
+something discovered late.

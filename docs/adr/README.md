@@ -32,5 +32,10 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0011](0011-deploying-both-halves-and-what-a-green-deploy-certifies.md)                             | Deploying both halves: two artefacts, two hosts, and what a green deploy certifies       | Accepted |
 | [0012](0012-client-side-status-what-a-green-indicator-certifies.md)                                 | Client-side status: two vocabularies, three states, and what a green indicator certifies | Accepted |
 | [0013](0013-browser-testing-two-suites-and-what-a-green-run-certifies.md)                           | Browser testing: one tool, two suites, and what a green run certifies                    | Accepted |
-| 0014                                                                                                | _Reserved for Epic 2, Story 2.1 (Task 2.1.8) — not yet written_                          | Pending  |
+| [0014](0014-managed-postgres-the-credential-path-and-what-a-reachable-database-certifies.md)        | Managed Postgres, the credential path, and what a reachable database certifies           | Accepted |
 | [0015](0015-the-migration-mechanism-the-schema-conventions-and-what-a-green-migration-certifies.md) | The migration mechanism, the schema conventions, and what a green migration certifies    | Accepted |
+| [0016](0016-the-tracked-universe-what-a-green-load-certifies.md)                                    | The security domain model, the tracked universe, and what a green load certifies         | Accepted |
+| [0017](0017-the-trading-calendar-market-time-and-what-a-correct-calendar-certifies.md)              | The trading calendar, market time, the clock seam, and what a correct calendar certifies | Accepted |
+| [0018](0018-the-market-data-seam-provenance-on-screen-and-what-a-fixture-backed-test-certifies.md)  | The market-data seam, provenance on screen, and what a fixture-backed test certifies     | Accepted |
+| [0019](0019-the-alpaca-client-a-measured-vendor-and-what-a-recorded-fixture-certifies.md)           | The Alpaca client, a measured vendor, and what a recorded fixture certifies              | Accepted |
+| [0020](0020-the-bar-store-the-backfill-and-what-a-completed-backfill-certifies.md)                  | The bar store, the backfill, and what a completed backfill certifies                     | Accepted |

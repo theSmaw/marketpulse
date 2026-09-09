@@ -5,7 +5,7 @@
 **Green means [`pnpm verify`](#commands) passed on a clean Ubuntu runner from a
 cold install** — `tsc -b` and both bundlers built, ESLint and Prettier passed
 over the whole tree, every component has a stories file, both `.env.example`
-files still agree with the configuration table, all **861** fast tests passed, and
+files still agree with the configuration table, all **895** fast tests passed, and
 the 14-test process suite spawned a real server on a real port, drained it on
 `SIGTERM` and watched it exit 0. It is the same command and the same seven steps
 this README documents, run by name — CI does not keep its own list of what
@@ -58,7 +58,7 @@ recommends trades, or produces target prices.
 backend, a frontend, a design-token layer, a component workshop, navigation and
 the application layout, a configuration boundary, structured logging with an
 error contract, a development loop that takes a clean clone to a running pair,
-and a test suite of **861** fast tests plus a 14-test process suite, with
+and a test suite of **895** fast tests plus a 14-test process suite, with
 coverage available on demand.**
 
 One command starts both halves:
@@ -564,7 +564,7 @@ Run from the repository root:
 | `pnpm stories`        | Fails if a component has no stories file                                  |
 | `pnpm env:check`      | Fails if `.env.example` and the configuration module disagree             |
 | `pnpm links`          | Fails if a relative Markdown link points at nothing — see below           |
-| `pnpm test`           | Every package's tests — 861 across the workspace — see below              |
+| `pnpm test`           | Every package's tests — 895 across the workspace — see below              |
 | `pnpm test:process`   | The backend's process half — 14 tests that spawn a real server            |
 | `pnpm coverage`       | The same tests with coverage — three reports, on demand — see below       |
 | `pnpm dev`            | Every package's `dev`, in parallel — see below                            |
@@ -667,8 +667,8 @@ the same second half for the same reason.
 ### What `pnpm test` covers
 
 Every package has real tests, and there is no `echo` placeholder left anywhere
-in this workspace. `packages/shared` runs 206 tests across 14 files,
-`apps/backend` 472 across 25, and `apps/frontend` 183 across 20 — **861 in
+in this workspace. `packages/shared` runs 211 tests across 14 files,
+`apps/backend` 477 across 25, and `apps/frontend` 207 across 21 — **895 in
 total**, and a failure in any package makes the root command exit 1.
 
 They are three different kinds of test:
@@ -731,7 +731,7 @@ answer.
 
 Three things about it worth knowing before changing it.
 
-**It is a separate command because it is a separate cost.** `pnpm test` is 861
+**It is a separate command because it is a separate cost.** `pnpm test` is 895
 tests in a few seconds, needs no build and no socket, and is the one you run all
 day; this suite takes about 9.2 s, of which 5 s is the shutdown ceiling being
 what it says it is. Both are steps in `pnpm verify`, so both gate.
@@ -801,7 +801,7 @@ pnpm coverage                                   # all three packages
 pnpm --filter @marketpulse/backend coverage     # one of them
 ```
 
-It is the same 861 tests with `--coverage` added, fanning out through
+It is the same 895 tests with `--coverage` added, fanning out through
 `pnpm -r` exactly as `pnpm test` does, so there are **three reports and no
 merged one** — each package answers for its own sources. It is deliberately
 not part of `pnpm test` and not a `pnpm verify` step of its own: nothing gates
@@ -2299,7 +2299,7 @@ are not collapsed. A slugger that collapses whitespace runs reports those
 anchors as broken: measured seven times across this repository's history, most
 recently at **14 false positives**. Do not "simplify" it.
 
-Current reading: **209 documents, 482 cross-file links, 32 anchor links, 0
+Current reading: **232 documents, 558 cross-file links, 34 anchor links, 0
 broken.** It was made to fail three ways before being believed, including
 against both of the exact breaks the renumber produced.
 
@@ -3073,12 +3073,26 @@ the CLI uses. VS Code users want the Prettier extension and nothing else.
 ## Documentation
 
 - [`docs/adr/`](docs/adr/) — architecture decision records, newest last.
-  **There are nineteen files, 0001 to 0019.** This list said "0010 is the most
-  recent" for four ADRs and then "fourteen" for two more, which is the prose-rot
-  this README's own gap list warns about, so **read the directory rather than
-  this sentence** — `ls docs/adr/` is the check and it takes a second.
+  **There are twenty files, 0001 to 0020.** This list said "0010 is the most
+  recent" for four ADRs, then "fourteen" for two more, then "nineteen" for one,
+  which is the prose-rot this README's own gap list warns about, so **read the
+  directory rather than this sentence** — `ls docs/adr/` is the check and it
+  takes a second.
+  [0020](docs/adr/0020-the-bar-store-the-backfill-and-what-a-completed-backfill-certifies.md)
+  is the most recent: the bar store and the backfill — why the store is a
+  **record** of what was observed rather than a cache (and why `PRODUCT_SPEC.md`
+  §30's ten tables settle that question before it is asked), why bars are stored
+  unadjusted and the "adjusted on read" half was not achievable, why nothing is
+  deleted and the trigger is disk pressure rather than age, why "we do not have
+  that" is an **answer** rather than a bug and the three mechanisms it took, why
+  the backfill asks **per session** — a 2.35x storage decision dressed as a
+  request detail — why pacing lives in the backfill and retry in a wrapper, why
+  the resume point is the ledger rather than the newest bar, why TimescaleDB was
+  declined against a measurement rather than in advance, why a **1,029 MB index
+  nobody reads** is kept and its price recorded, and what a completed backfill
+  certifies — a shorter list than what it cannot.
   [0019](docs/adr/0019-the-alpaca-client-a-measured-vendor-and-what-a-recorded-fixture-certifies.md)
-  is the most recent: the Alpaca client and a vendor measured rather than cited —
+  covers the Alpaca client and a vendor measured rather than cited —
   why every plan limit is a dated measurement and where the vendor's own pages
   contradict each other, why this plan is **asymmetric** so stored bars are the
   consolidated tape while the live stream is one venue, why a feed gets a
