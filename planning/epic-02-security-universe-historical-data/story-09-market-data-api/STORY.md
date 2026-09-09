@@ -93,17 +93,17 @@ work to be proved end to end.
 - Streaming updates — Epic 3, which adds a second protocol beside this one (§31)
 - Anomaly, filing or investigation endpoints — Epics 5, 9, 7
 
-## Open decisions — settle with the user
+## Open decisions — ~~settle with the user~~ **all four settled 2026-09-09 by Task 2.9.1; see [`MARKET-DATA-API.md`](MARKET-DATA-API.md)**
 
-1. **Named windows or absolute ranges**, per above
-2. **Whether the server ever downsamples.** A three-year daily chart is ~750 points and
-   fine; a one-year minute chart is ~100,000 points and is not — something must reduce it,
-   and doing it on the server keeps the payload small while doing it on the client keeps
-   the server honest about what it holds. Note that downsampling price data has a correct
-   and an incorrect way to do it, and the incorrect way removes exactly the spikes this
-   product exists to notice
-3. **Pagination or a hard cap** on a series request, and what the API does when a request
-   exceeds it
+The document carries each one with its alternatives, its measurements and a reversal
+trigger stated as a condition. Struck here rather than repeated, the way Story 2.4's were —
+a decision recorded in two places is a decision that will disagree with itself.
+
+1. ~~**Named windows or absolute ranges**, per above~~ — **both**, absolute is the
+   primitive and the named form resolves to one server-side. §2
+2. ~~**Whether the server ever downsamples.**~~ — **it never does.** §3
+3. ~~**Pagination or a hard cap** on a series request~~ — **a hard cap of 10,000 bars,
+   refused with a 400 that names the limit.** No pagination. §4
 4. ~~**How much of the universe the list endpoint returns at once** — 100 is small enough to
    send whole today and the architecture is meant to reach 500~~ **Moved to Story 2.4 open
    decision 1, which builds that endpoint; struck 2026-09-06.** Whatever it answers, this
@@ -265,15 +265,25 @@ discovering it at the first chart:
 3. **Ask the provider for the whole window on demand** and store nothing extra.
    Simple, and it makes every chart a metered vendor request.
 
+**SETTLED 2026-09-09 with the user by Task 2.9.1: option 2 — stitch, and label the
+seam**, with four rules that make it buildable and bound the metered request.
+See [`MARKET-DATA-API.md`](MARKET-DATA-API.md) §5. The namespace and the path are
+settled there too: **`GET /market-data/bars`**.
+
 Two measurements this story should have before choosing:
 
 - **A mid-session fetch is possible and is always ~16 minutes stale.** Measured
   at a simulated 12:00 ET: a request for today's session clamps to `now − 16 min`
   and would return **134 of 390 minutes**. The clamp is mandatory rather than
   polite — the plan's recency cliff refuses the **whole** request otherwise.
-- **A year of minute bars for one symbol is 97,530 rows ≈ 8.4 MB of JSON.** That
+- **A year of minute bars for one symbol is 97,530 rows ≈ ~~8.4 MB~~ of JSON.** That
   is this story's open decision 2 on downsampling, with a number under it: the
   answer cannot be "send them all".
+  **Amended 2026-09-09 by Task 2.9.1: the row count reproduces exactly and the
+  payload does not — it is 11.08 MB, 24% larger.** Re-taken by serialising the
+  exact wire shape over the same symbol and window; `MARKET-DATA-API.md` §8
+  records the method so it can be re-taken rather than cited. The correction makes
+  the case for a cap stronger, not weaker.
 
 See [`BARS.md`](../story-08-historical-bar-ingestion-and-storage/BARS.md) §8.13
 and §8.6.

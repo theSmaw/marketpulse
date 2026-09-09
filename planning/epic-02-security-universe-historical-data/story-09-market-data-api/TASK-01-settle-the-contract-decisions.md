@@ -1,6 +1,6 @@
 # Task 2.9.1 — Settle the four open decisions and the namespace, shipping no route
 
-**Status:** Not started
+**Status:** Complete — 2026-09-09
 **Story:** [2.9 Market Data API](STORY.md)
 **Depends on:** Story 2.8 (complete)
 
@@ -42,7 +42,9 @@ that is a condition rather than a story number**.
   is resolved in the handler and passed in.
 
 - **Open decision 2 — downsampling, and it now has a number under it.** A year of
-  minute bars for one symbol is **97,530 rows ≈ 8.4 MB of JSON** (`BARS.md` §8.6),
+  minute bars for one symbol is **97,530 rows ≈ ~~8.4 MB~~ 11.08 MB of JSON**
+  (`BARS.md` §8.6, whose row count reproduced exactly and whose payload figure was
+  found 24% low when this task re-took it — see `MARKET-DATA-API.md` §8),
   so "send them all" is not an answer. Decide whether the server ever reduces a
   series, and if it does, **decide it as an aggregation rather than as a
   sampling**: taking every _n_ th bar deletes exactly the spikes this product
@@ -103,3 +105,156 @@ last(close), sum(volume)` is the same operation that made `1d` out of `1m` and
 The user owns open decisions 2 and 4. Bring the numbers and a recommendation
 rather than the question — `BARS.md` §2's three-option table is the format that
 worked.
+
+---
+
+## What was produced, 2026-09-09
+
+[`MARKET-DATA-API.md`](MARKET-DATA-API.md) — nine sections, the namespace and all
+four open decisions, each with its alternatives and a reversal trigger stated as a
+condition. No route, no type, no page, as intended.
+
+| Question                | Settled as                                                                             | Owner        |
+| ----------------------- | -------------------------------------------------------------------------------------- | ------------ |
+| The namespace and path  | `GET /market-data/bars`, symbol as a query parameter                                   | This task    |
+| 1 — the window          | **Both**; absolute is the primitive, a named session count resolves to one server-side | This task    |
+| 2 — downsampling        | **The server never reduces a series**                                                  | **The user** |
+| 3 — a cap or pagination | **10,000 bars, refused with a 400 naming the limit.** No pagination                    | This task    |
+| 4 — the read-side join  | **Stitch the store to a live tail and label the seam**, with four bounding rules       | **The user** |
+
+Decision 4 went to the user with the numbers and a recommendation of "serve only
+what is stored"; **the user chose the stitch**, so §5 records the stitch as the
+decision and adds the bound the recommendation existed to protect — the read path
+fetches only the uncovered tail, and at most the current session's, so a stale
+store cannot turn a page load into a multi-day metered vendor request. Decision 2
+came back delegated — _"what would you recommend based on the product spec"_ — so
+§3 argues it from §5.1, §11, §22 and §35 rather than from the payload alone.
+
+**Measurements taken in this task**, all against the local 48,027,772-row store:
+payload and timing for five windows at both timeframes; server-side OHLCV
+bucketing at 5m/15m/60m; `stringify`/`parse` cost at seven series sizes; per-bar
+byte cost across eight securities; and the store's coverage frontier. §8 records
+the method for each.
+
+**One figure was falsified and swept the same day.** `BARS.md` §8.6's _"97,530
+rows ≈ 8.4 MB of JSON"_ reproduces its row count exactly and is **24% low on the
+payload** — it is 11.08 MB. Corrected at every live site (`BARS.md` §8.6 by dated
+amendment beside the original rather than a rewrite, `STORY.md`'s 2026-09-08
+amendment, Tasks 2.9.7 and 2.9.8, and this file), with the method recorded so the
+next reader re-takes it rather than citing it.
+
+---
+
+## For the stakeholder — what this was, in plain terms
+
+**Nothing appeared on screen today, and that was the point.** This task is the
+one where we decide the rules before anyone writes the code that has to follow
+them. The alternative — letting the next four pieces of work each answer the same
+question in their own way — is how a product ends up with three slightly different
+ideas of what "the last five days" means.
+
+Here is what MarketPulse now holds: **48 million real minute-by-minute price
+records** for 518 US companies, roughly a year deep. What it does not yet have is
+a way for the screen to ask for them. That request-and-answer format is what this
+story builds, and today we settled its five ground rules.
+
+### The five decisions, and why
+
+**1. Where the price history lives, as a web address.** We chose to group it with
+everything else about _the market_ rather than filing it under each individual
+company. The deciding reason is a feature already in the product plan: the AI is
+supposed to be able to say "compare NVIDIA, AMD, Broadcom and the S&P 500 on one
+chart". Filing prices under a single company makes that four separate requests
+forever; grouping them under the market makes it one, later, when we need it. We
+built nothing extra today — we just avoided a door that would have been bricked
+up.
+
+**2. How you ask for a stretch of time.** You can either give exact start and end
+times, or say "the last five trading days" and let our server work out what that
+means. We support both, and the second one exists for a genuinely awkward reason:
+**your computer's calendar is not the stock market's calendar.** Someone opening
+the app in Singapore in the morning is, from New York's point of view, still on
+yesterday. If the browser worked out "the last five days" itself, that user would
+silently get the wrong five days — a chart that looks completely normal and is
+shifted by one day. The market's calendar lives on our server, so the server
+answers that question.
+
+**3. Do we ever shrink the data before sending it?** A year of minute-by-minute
+prices for one company is **97,530 data points and 11 megabytes** — far too much
+to send to a browser for a chart. The obvious fix is to squash them into
+five-minute or hourly chunks before sending. **We decided not to**, and there are
+two reasons worth understanding.
+
+The first is that we already have a better version of that. We separately store
+one summary record per trading day, straight from the market — and those official
+daily figures include the opening and closing auctions, which the minute-by-minute
+data can miss. So a daily record we _received_ is more accurate than a daily
+record we would _calculate_. For a long chart, a year of daily prices is 251
+points and 29 kilobytes: 0.26% of the data, and better.
+
+The second reason is about trust, which is the product's whole proposition.
+MarketPulse's promise is that every number a user sees is something that was
+actually observed, traceable back to its source, with its origin displayed. The
+moment we start manufacturing summary figures and sending them in the same shape
+as observed ones, a user can no longer tell which is which — and the specification
+explicitly forbids "manufacturing missing observations". It would also break the
+replay feature, which has to reconstruct exactly what was knowable at a past
+moment from what was actually recorded.
+
+**4. What happens when someone asks for too much.** We set a ceiling of **10,000
+price points per request**, and a request over it is politely refused with a
+message saying what the limit is, how much was asked for, and the two ways to fit
+inside it. We deliberately did _not_ choose the alternative — quietly sending less
+than was asked for — because a chart drawn from silently truncated data is wrong
+and looks completely fine.
+
+The number 10,000 was measured rather than picked. Interestingly, the thing we
+expected to be the constraint wasn't: even the full 97,530 points are processed by
+a browser in 25 milliseconds. What actually hurts is **the download** — 1.8 MB
+compressed is well over a second on an ordinary connection. At 10,000 points the
+download is 184 kB, about a sixth of a second. That covers a full month of
+minute-by-minute data and every daily chart we can currently draw.
+
+**5. What to show for "today", when we don't have today yet.** Our stored history
+is deliberately assembled from _completed_ trading days, so a chart running up to
+"now" would otherwise stop at the last closing bell. **You chose to join the two
+together and clearly mark the join** — stored history plus a live tail — rather
+than letting charts end in the past.
+
+That is the more ambitious answer and it is the right one for the product, so the
+job today was to make it safe rather than to argue with it. The risk is cost: our
+market-data plan charges per request, and a naive version would fetch fresh data
+on every single chart load, proportional to how far behind our stored history had
+fallen. So the rule we wrote down is that we fetch **only the missing tail, and at
+most today's** — anything older is a gap our overnight process should fill, and
+the chart says honestly how far its data reaches. We also recorded that the
+caching work later in this story stops being a nice-to-have and becomes the thing
+that keeps this affordable.
+
+There is one detail here that matters to the product's honesty. The two halves of
+a joined chart come from **different sources**: our stored history covers every US
+exchange, while the live feed our plan gives us covers only one exchange. We are
+not allowed to blur that. The data format we built earlier already carries a _list_
+of sources rather than a single one precisely so a joined chart can say "this part
+came from here, that part from there" — and today's decision is the first thing
+that actually uses it.
+
+### One thing we found and fixed
+
+A figure we were handed to work from — the size of a year of price data — turned
+out to be **24% too low**. We re-measured it properly and corrected it everywhere
+it was quoted, including in two pieces of work that haven't started yet and would
+have been planned against the wrong number. The conclusion it supported was
+unchanged; the number simply had to be right, and this repository's standing rule
+is to re-measure rather than to pass figures along.
+
+### Where this leaves the product
+
+Epic 2 is the foundation: get real market data in, and get it onto a screen. The
+data is in — 48 million records. The next four pieces of work build the request
+format, the response format, the database read, and the endpoint itself. Then, in
+**Task 2.9.6, the first real share price this product has ever displayed** appears
+on the securities page. The charts follow in Stories 2.12 and 2.13.
+
+None of that could start honestly until today's five questions had one answer
+each.

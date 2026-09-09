@@ -25,7 +25,9 @@ that decide whether Story 2.12 is possible as specified.
 - **Take the patterns Stories 2.12 and 2.13 will actually issue**, and say for
   each what it is: one symbol at `1d` over the daily depth; one symbol at `1m`
   over a five-session window; the same over a month; and the pathological case —
-  a year of minutes, **97,530 rows ≈ 8.4 MB of JSON** — with and without whatever
+  a year of minutes, **97,530 rows ≈ ~~8.4 MB~~ 11.08 MB of JSON** (re-measured
+  2026-09-09 by Task 2.9.1, which reproduced the row count exactly and found the
+  payload 24% larger; `MARKET-DATA-API.md` §8 has the method) — with and without whatever
   Task 2.9.1 decided about reduction. Record bytes, gzipped bytes and time, the
   way Task 2.8.10 recorded the universe response.
 

@@ -38,7 +38,8 @@ back to a window already looked at should not re-read 8,000 rows.
   did not land.
 
 - **Measure what it buys before keeping it.** A conditional request that saves
-  8.4 MB is worth its complexity; one that saves 2 kB is not, and this repository's
+  ~~8.4 MB~~ **11.08 MB** (re-measured 2026-09-09 by Task 2.9.1; `MARKET-DATA-API.md`
+  §8) is worth its complexity; one that saves 2 kB is not, and this repository's
   rule is to measure rather than assume. If the measurement says the caching is not
   worth having, **say so and remove it** — that is a result, and the story's
   criterion is that the semantics were decided, not that a header shipped.
