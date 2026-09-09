@@ -432,12 +432,23 @@ collecting — about 48 million of them — sat in a database that only our own
 maintenance scripts could reach. There was no way for the application, or for
 anything else, to ask for them. This task built the door.
 
-You can now type a web address like _"NVDA, one-minute bars, last Friday's
-trading session"_ into a browser and get back that day's 390 price bars in about
-a thirtieth of a second. That is the first market data this system has ever
-served to the outside world. **The screen has not changed** — there is still no
-chart, and building one is a later task — but every chart we ever draw will be
-fed by what was built today.
+You can now paste a web address into a browser and get real prices back. This is
+the actual one, run against our own machine today:
+
+```
+http://127.0.0.1:3000/market-data/bars
+    ?symbol=NVDA&timeframe=1m
+    &start=2026-09-04T13:30:00Z&end=2026-09-04T20:00:00Z
+```
+
+Read left to right, it says: _NVDA, one-minute bars, from the opening bell to the
+closing bell on Friday 4 September_. It came back with that day's 390 price bars
+in about a thirtieth of a second. It is not pretty and it is not meant to be —
+this is the plumbing a chart will sit on top of, and the people who type it are
+us. That is the first market data this system has ever served to the outside
+world. **The screen has not changed** — there is still no chart, and building one
+is a later task — but every chart we ever draw will be fed by what was built
+today.
 
 Three choices are worth explaining, because they are the difference between a
 product and a demo.
