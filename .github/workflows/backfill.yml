@@ -309,6 +309,32 @@ jobs:
           fi
           echo "BACKFILL_STATUS=$status" >> "$GITHUB_ENV"
 
+      # RE-AUTHENTICATE, and it is not belt and braces — measured on run
+      # 34295698425, where the backfill stored all 859,476 rows it was asked for,
+      # exited 0, and the job still went red one second later:
+      #
+      #   AADSTS700024: Client assertion is not within its valid time range.
+      #   Current time: 02:19:52, assertion valid from 00:36:29, expiry 00:41:29
+      #
+      # **An `azure/login` session does not survive a long job.** GitHub's OIDC
+      # client assertion is valid for FIVE MINUTES; the CLI exchanges it for an
+      # access token good for about an hour, and when that expires it tries to
+      # refresh with the long-dead assertion. At 103 minutes in, the first `az`
+      # call in the step below failed.
+      #
+      # Note what was NOT affected: the database token, minted once at the start
+      # and valid ~69 minutes against a 103-minute run. It survived because under
+      # continuous writing the pool's connection is never idle for
+      # `POOL_IDLE_TIMEOUT_MS`, so it is never re-established — and Postgres does
+      # not re-check credentials on a live connection.
+      - name: Sign in to Azure again
+        if: always()
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
       # ALWAYS, including after a failure — a partial walk is the case where the
       # ledger's own statement matters most, because it is what the next
       # dispatch's `--from`/`--to` is read off.
