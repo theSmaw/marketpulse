@@ -35,6 +35,44 @@ the chart is Story 2.12's.
   names a **condition** (the repository becoming constructible without the
   application's logger) rather than this story.
 
+- **Decide whether to declare a Fastify `querystring` schema at all, and produce
+  the answer rather than assuming it — added 2026-09-09 by Task 2.9.2.** This is
+  the first route in this application with a query string: every `schema:` in
+  `src/routes/` today is a **response** schema, and `json-schema.ts` says in terms
+  that `JsonSchemaProperty` models _"exactly the property shapes this
+  application's responses actually use"_, so using it for a request is a widening
+  somebody takes on purpose. Two traps, both of which make a green suite:
+  a schema that validates the query **runs before the handler**, so a malformed
+  timeframe answers with Fastify's message and never reaches `parseSeriesRequest`
+  — leaving the five refusal reasons dead code for exactly the cases they were
+  written for, and giving one request two error vocabularies. And Fastify's ajv
+  **coerces by default**: `series-request.ts` types every query value `unknown`
+  precisely so a repeated key (`?symbol=NVDA&symbol=AMD`, which arrives as an
+  **array**) is refused, and coercion would quietly collapse that back into a
+  string. Produce both before choosing — send the repeated key and the bad
+  timeframe at a schema'd route and read what comes back.
+
+- **`errors.ts` records a reversal trigger that this story FIRES, and it is a
+  decision rather than a discovery — added 2026-09-09 by Task 2.9.2.** Its 4xx
+  branch says: _"The day a 4xx message interpolates request content (a validation
+  error naming a value, once request schemas exist), this is the line to revisit:
+  it would be the client's own content coming back, which is not a leak, but it is
+  reflection and should be a decision."_ That day is this task.
+  `parseSeriesRequest` already interpolates the caller's own value into its
+  messages — `` `${JSON.stringify(raw)} is not a well-formed US equity ticker` ``
+  — and those messages become 400 bodies here. Take the decision, record it beside
+  that comment, and note it is **reflection of the client's own input** and never
+  server state: the 404 message deliberately does not name the route for the same
+  reason, so the two should agree. Put it on Task 2.9.10's sweep list either way.
+
+- **The five refusal reasons already exist; do not invent a second taxonomy.**
+  `SERIES_REFUSAL_REASONS` is `symbol`, `timeframe`, `window`, `calendar-range`,
+  `too-large` (Task 2.9.2), and **all five are 400s** — so the table below is not
+  a mapping from those five, it is the mapping from _this route's_ whole failure
+  surface, of which they are one row. The refusal carries its own `message`,
+  already written for a person and already stripped of the calendar's
+  internal "edit this file" instruction; pass it through rather than rewriting it.
+
 - **Map each refusal to its status, and keep the mapping in one table** rather
   than scattered through the handler:
   - a malformed symbol, timeframe, window or a window outside the calendar's
@@ -87,6 +125,9 @@ the chart is Story 2.12's.
   `x-request-id`
 - Every row of the status table above has a test, and the 5xx path is asserted to
   carry the `ApiError` shape and **not** the thrown message
+- The querystring-schema question is answered with a produced result, and every
+  one of Task 2.9.2's five reasons is shown to reach the client as a 400 rather
+  than being intercepted upstream
 - The route-table walk sees the route and its `500: apiErrorSchema`
 - `pnpm verify` passes with no database running
 

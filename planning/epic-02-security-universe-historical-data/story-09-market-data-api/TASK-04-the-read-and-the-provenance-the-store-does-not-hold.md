@@ -86,6 +86,17 @@ deliberately does not store has to be produced honestly.
   beside a `null` `covered` is what lets a consumer tell "we never asked" from
   "nothing was there".
 
+- **Added 2026-09-09 by Task 2.9.2 — check the assumption its cap rests on.**
+  `series-request.ts` refuses an over-cap request by counting **session minutes**
+  from the calendar, which is only an upper bound on what this read returns if the
+  store holds regular-session bars and nothing else. That is what the backfill
+  writes, and this is the first task that can look at the rows and say so. If the
+  store turns out to hold extended-hours prints, the cap **under-counts** and
+  admits a response larger than it means to — state which it is rather than
+  leaving it as an assumption in a comment. This read consumes
+  `SeriesRequest`'s `symbol`, `timeframe` and already-absolute `range`; it does
+  not re-derive a window.
+
 - **Read coverage from `bar_coverage`, never by counting `market_bars`.**
   `BARS.md` §9.1 makes that a property the store's observability depends on: a
   page load that scanned 48 million rows would arrive in Task 2.9.9's timings as a

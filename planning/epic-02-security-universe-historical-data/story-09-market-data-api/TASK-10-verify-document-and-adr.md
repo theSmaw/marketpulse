@@ -26,8 +26,11 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
 
 - **Finish `MARKET-DATA-API.md`** as the subject document for this story: the
   namespace, the four decisions with their alternatives and condition-shaped
-  reversal triggers, the provenance decision from Task 2.9.4, the caching result
-  from 2.9.8, and 2.9.9's measurements with their dates. Add it to `CLAUDE.md`'s
+  reversal triggers, **the request contract's refusal taxonomy and the two window
+  forms as built** (added 2026-09-09 — §2 settles the _decision_ and does not
+  record the five reasons Task 2.9.2 shipped, and a reader coming to add a sixth
+  needs the test that governs one), the provenance decision from Task 2.9.4, the
+  caching result from 2.9.8, and 2.9.9's measurements with their dates. Add it to `CLAUDE.md`'s
   _Where the record lives_ table, and add nothing else to `CLAUDE.md` — that file
   holds rules and traps, not figures.
 
@@ -55,6 +58,11 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   Story 2.4 and doubly so now; `market-provenance.ts`'s module comment
   anticipating the first stitch, which has happened; and `CLAUDE.md`'s
   "no state library yet / four hooks" line if Task 2.9.7 moved it.
+  **Added 2026-09-09 by Task 2.9.2 and certain rather than conditional:**
+  `errors.ts`'s 4xx branch, whose recorded trigger — _"once request schemas
+  exist"_ — this story fires, and whose decision Task 2.9.6 takes; amend that
+  comment with what was decided rather than leaving a trigger that has already
+  fired reading as though it has not.
 
 - **Write the stakeholder section** in the shape Task 2.4.2 and 2.8.9 established:
   what this actually did in plain terms, why the small decisions went the way they

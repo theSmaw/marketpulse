@@ -49,6 +49,16 @@ that decide whether Story 2.12 is possible as specified.
   caching in front of it — because it is the number that decides whether the
   read-side join is affordable as chosen.
 
+- **Measure the cap check on the ACCEPTED path, not only the refused one — added
+  2026-09-09 by Task 2.9.2.** `MARKET-DATA-API.md` §4's claim is that an over-cap
+  request costs a calendar walk rather than a scan, and the bullet above already
+  says to show the refusal costs nothing. The half that is easy to miss: the same
+  walk runs on **every** request, because that is how the count is obtained at
+  all — `marketSessionsBetween` over the window plus a per-session minute count.
+  It should be microseconds against a query measured in milliseconds; say so with
+  a reading rather than an expectation, and note it grows with the window's
+  session count rather than with the number of bars.
+
 - **Watch for the query nobody meant to write.** A serving path that touches
   `market_bars` where it should touch `bar_coverage`, or that runs at minute
   resolution where daily would answer, is invisible in a unit test and obvious in
