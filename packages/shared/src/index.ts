@@ -295,3 +295,32 @@ export type {
   BarSeriesInput,
   SeriesCoverage,
 } from "./bar-series.js";
+
+// The wire contract for GET /market-data/bars (Task 2.9.3). A separate file
+// from bar.ts, bar-series.ts and market-provenance.ts for securities-response.ts's
+// reason: those say what a bar, a series and its provenance ARE and three later
+// epics read them, this one says what one RESPONSE looks like and only the two
+// ends of this API do.
+//
+// The types are wire TWINS of the domain types rather than the domain types
+// themselves, and that is structural rather than stylistic: `BarSeries`,
+// `SeriesProvenance` and `TimeRange` are branded, so nothing parsed out of JSON
+// is one of them, and a brand is a `unique symbol` key that no response schema
+// can carry. `Date` is not a wire type either — every instant here is an ISO
+// 8601 UTC string with the `Z`, and there is no timezone in the payload.
+// `BarSource` is deliberately NOT twinned: all four of its fields are already
+// JSON-native, so a copy would agree with the original only until one is edited.
+//
+// An envelope rather than a bare series, because MARKET-DATA-API.md §7 requires
+// the response to be able to say the security is UNTRACKED — `status` is not
+// filtered on this path, and a 404 for a symbol whose bars we hold would be a
+// lie about our own data. `isBarSeriesResponse` is deliberately absent until
+// Story 2.10 reads one, which is Task 1.7.3's rule.
+export type {
+  BarPayload,
+  BarSeriesPayload,
+  BarSeriesResponse,
+  SeriesCoveragePayload,
+  SeriesProvenancePayload,
+  TimeWindowPayload,
+} from "./bar-series-response.js";
