@@ -272,13 +272,26 @@ A separate synthetic load-testing mode can simulate thousands of securities and 
 
 Initial provider: **Alpaca Market Data API**.
 
-Alpaca provides HTTP historical-market-data APIs as well as WebSocket streams for equities and other instruments. Its free stock-data offering currently includes live IEX data; consolidated SIP data requires a different level of access.
+Alpaca provides HTTP historical-market-data APIs as well as WebSocket streams for equities and other instruments.
 
-MarketPulse should therefore display provenance explicitly:
+**The free plan is asymmetric, and that was measured rather than read off a pricing page** (2026-09-07 — the record is `planning/epic-02-security-universe-historical-data/story-07-alpaca-historical-data-integration/ALPACA.md`, and a vendor's plan is a dated observation, so re-measure rather than cite this table):
 
-> **Market feed: IEX**
+|                     | Feed                                    | Caveat                                                           |
+| ------------------- | --------------------------------------- | ---------------------------------------------------------------- |
+| **Historical bars** | **SIP** — the full US consolidated tape | Not the most recent ~15 minutes, which the plan refuses outright |
+| **Live stream**     | **IEX only**                            | A SIP stream is refused, `409 insufficient subscription`         |
 
-We must not imply that IEX represents every US exchange.
+MarketPulse must therefore display provenance explicitly, and **per series rather than once for the product**: there is no single true answer to "which feed is this?", and a chart stitched from stored bars and a live stream carries two.
+
+The requirement is that a reader is not misled about coverage — which is a stronger thing than printing an acronym, and is not satisfied by printing one:
+
+> **Market feed: All US exchanges**
+
+for the consolidated tape, and for the live stream a label that says what a single venue is, because **we must not imply that IEX represents every US exchange** and three letters teach a non-specialist nothing:
+
+> **Market feed: IEX** — trades reported by the IEX exchange only, not the full US consolidated tape.
+
+The shipped vocabulary and the rule for when a label needs a sentence beside it live in `packages/shared/src/market-provenance.ts`.
 
 Initial data:
 
