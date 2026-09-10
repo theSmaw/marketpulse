@@ -164,3 +164,52 @@ absorb it.
 to a freshly fetched tail, the response carries both sources with their own
 `retrievedAt`, and the join costs **under 20 ms** (§12.6). Story 2.14 renders the
 seam; you can rely on it being there and being cheap.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.9, after Story 2.10 closed — the layer you draw from
+
+The subject document is
+[`FRONTEND-STATE.md`](../story-10-frontend-market-data-layer/FRONTEND-STATE.md)
+and the decisions are ADR 0023.
+
+**The data layer is done and the fence was held for you.**
+`components/BarSeriesPanel` renders a real series as **stated facts and no
+drawing** — no axis, no line, no candle, no sparkline, and a browser spec
+asserting the region contains no `<canvas>` and no `<svg>`. That fence exists so
+this story takes the charting decision against a data layer already known to be
+right, rather than debugging both at once. **Removing it is your call to make
+deliberately**, and the spec that asserts it is the thing to change first, in the
+same commit, with a reason.
+
+**What you get.** `useBarSeries(request)` returns `{ view, retry }`. `view` is a
+six-member discriminated union taken **whole** — never spread into props — and
+three of its members are answers rather than failures. The one that will surprise
+a charting library is **`partial`**: bars covering less than the window asked for
+is the _normal_ case here, not an error, so a chart must be able to draw a series
+that stops before its own x-axis does and say so.
+
+**Three rules you inherit rather than re-take.**
+
+- **Never resolve a window from the browser's clock.** Send `sessions=N`; the
+  server resolves it and reports back what it meant in `coverage.requested`. A
+  client that computes "the last five sessions" is off by one session for roughly
+  half the world for several hours of every day, and it produces a chart that is
+  plausible and shifted rather than an error anybody sees.
+- **A held answer stays on screen, marked, while the next one loads**
+  (`FRONTEND-STATE.md` §2's amendment). The mark must never touch a number:
+  motion must never make a value harder to read, so no dim, no blur, no fade and
+  no skeleton over a price. A chart that redraws a held series in a second style
+  is the first thing that would turn `stale` from a flag into a seventh union
+  member — that is §2's stated reversal trigger, so if you need it, take it there
+  rather than locally.
+- **Eleven recorded response bodies exist** in `apps/frontend/src/fixtures/`, with
+  `barSeriesFixtureView(name)` returning the state built through the real
+  transition. **Do not construct a state by hand**: a hand-built `partial` whose
+  coverage disagrees with its bars is unreachable in the real layer, and a chart
+  tuned against one draws the real thing wrongly.
+
+**And the constraint on measurement, so it is not discovered late.** A cap-sized
+series is 10,000 bars, 2.43 MB of parsed heap, and 4.6–8.7 ms to parse against
+§28's 50 ms main-thread budget. The parse is not the problem; whatever you draw
+with is where that budget will actually go.

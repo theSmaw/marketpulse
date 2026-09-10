@@ -1,6 +1,6 @@
 # Task 2.10.9 — Verify, document, ADR, deploy
 
-**Status:** Not started
+**Status:** Complete — 2026-09-10
 **Story:** [2.10 Frontend Market-Data Layer & Application State](STORY.md)
 **Depends on:** Task 2.10.8
 
@@ -491,3 +491,270 @@ and it now has one more entry:
    both true when written and now eleven and 385. They are a historical record of
    that task's measurement and are left standing; criterion 4 is re-taken at the
    close against the tree rather than read off them.
+
+---
+
+# What was done — 2026-09-10
+
+**Status: complete.** `pnpm verify`, `pnpm test:database` (165 tests), `pnpm e2e`
+(42) and `pnpm e2e:deployed` (15) all pass. Story 2.10 is closed. The decisions
+are **ADR 0023**; the subject document is `FRONTEND-STATE.md`.
+
+## The six criteria, re-taken, each with its instrument
+
+| #   | Criterion                                                                                      | Instrument                                                            | Result                                                                    |
+| --- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1   | `api-client.ts` is the only file calling `fetch`                                               | grep, **plus a produced break**                                       | **One** file. Adding a `fetch` to `NotFound.tsx` took it to two; reverted |
+| 2   | A component cannot render `loaded` without data                                                | a produced compile error, **nested**                                  | `TS2322` two levels in — on `bars` inside `series`                        |
+| 3   | A navigation away from a pending request cancels it, and the cancelled result is not a failure | split across jsdom and the browser, **and one half is not available** | See below                                                                 |
+| 4   | The layer works against a fixture backend with no network                                      | the suite, reading **counts** not the exit code                       | 33 files, **385 tests, 5.62 s**, no socket, no database, no network       |
+| 5   | The decision and its reversal trigger are recorded                                             | `FRONTEND-STATE.md` §§1–4, §7; ADR 0023                               | Every decision carries a trigger stated as a **condition**                |
+| 6   | `pnpm verify` passes, including the React Compiler rules                                       | `pnpm lint` at `--max-warnings 0`                                     | Passes. **None of the 17 fired**                                          |
+
+**Criterion 1's break is the part worth keeping.** A property verified by a check
+that cannot fail is not verified: the grep was made to report two files before it
+was trusted to report one.
+
+**Criterion 2's error, verbatim**, and it is nested rather than at the envelope:
+
+```
+error TS2322: Type 'BarSeries' is not assignable to type 'PopulatedBarSeries'.
+  Types of property 'bars' are incompatible.
+    Type 'readonly Bar[]' is not assignable to type 'readonly [Bar, ...Bar[]]'.
+      Source provides no match for required element at position 0 in target.
+```
+
+**Criterion 3 is answered in three parts, and one of them is a "cannot".**
+
+- **jsdom** answers the `AbortSignal` reporting `aborted`, that the cache holds
+  nothing from an answer landing after an unmount, and that a superseded answer
+  never reaches the state — by **request identity**, which is the guard that
+  matters, since a request that had already resolved cannot be un-resolved.
+- **The browser** answers the unmount half: leaving `/securities` by the header
+  navigation and returning is a real client-side route change, and it is what
+  `security-series-states.spec.ts` drives.
+- **What no level answers is _"the panel never shows one symbol's bars under
+  another's name"_ in a browser**, and this file's own amendment above records
+  why: there is no in-application link from one security to another, so the only
+  route to a second symbol is `page.goto`, which is a document navigation and
+  exercises no client-side transition. That property stays in jsdom until Story
+  2.11's click-through exists, and that story's file now says so.
+
+**Criterion 4's second, sharper trap was also checked.** `fixtures/bar-series.ts`
+holds every fixture to its declared outcome as it loads, by throwing — but only
+in a run that reaches it. Verified by mislabelling `empty` as `api-error`: the
+run reports `TypeError: The empty fixture is labelled api-error and reads as ok`
+and **`Tests no tests`**, so it fails loudly rather than skipping. Seven files
+import the module, so the guard is reached.
+
+## The field sweep — and it found a second instance of the class
+
+TASK-07's amendment asked for a sweep of **fields on members**, not only members,
+because `untracked` shipped unseen. Done. Every value of every field on
+`BarSeriesView` is produced by something, with two exceptions:
+
+- **`retrying` has never been observed mid-flight in a browser.** It is produced
+  by a real retry now — `security-series-states.spec.ts` clicks the control
+  against a real 503 and the page recovers — but the answer arrives too quickly
+  to observe _"Trying again…"_ without holding the response. Story 2.13's window
+  control is the natural place to fix that.
+- **`feed: "synthetic"` is a branch in `BarSeriesPanel` that no recorded body
+  exercises.** All seven valid fixtures are `sip`. **This is the second instance
+  of the `untracked` class and it is not closed**, deliberately: a synthetic feed
+  implies `provider: "fixture"` too, so a hand-edited body claiming
+  `alpaca`/`synthetic` would be a pairing no server produces — the one thing the
+  fixture module exists to prevent. Producing it honestly needs a store
+  backfilled through the fixture provider. Recorded as a handoff on Story 2.14,
+  which owns provenance. The visual risk is low, because the same treatment is
+  reviewed in `FeedProvenance`'s stories; the risk is that the _branch_ in this
+  panel has never run.
+
+**The generalisation is the useful output.** A states checklist walks past a
+field on a state, and two of them got through in one story. The cheap sweep — for
+each member list its fields, and for each field say what produces each value —
+is now the thing to run at any close that touches a union.
+
+## The two-vocabularies comparison, as a finding rather than an assumption
+
+Task 2.10.2's note asked the close to read the universe page and the series
+states against `FRONTEND-STATE.md` §4 rather than assume they agree. Read.
+
+**They agree on meaning and differ in richness, and the difference is defensible
+rather than drift.** Both derive `retryable` and `retrying` through the same
+`isRetryableApiErrorCode`, and both say _waiting will help_ for a 503 and _asking
+again will not change this_ otherwise. What differs:
+
+|                    | `UniverseTable`                                                                                      | `BarSeriesPanel`                                                      |
+| ------------------ | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Failure treatments | **Three**, each with a status word — _no response_, _temporarily unavailable_, _unexpected response_ | **Two** sentences plus the flag                                       |
+| A 503              | gets its **own headline and its own marker**                                                         | folds into _"The series could not be read"_ with a retryable prospect |
+| Marker             | three silhouettes (hollow, pending, attention)                                                       | one dashed marker for every failure                                   |
+| `refused`          | no such state                                                                                        | a fourth kind of thing, outside the flag                              |
+
+The asymmetry is a property of the two surfaces rather than an inconsistency: the
+table is a page's whole content and can afford a status word, and the panel is
+one region among several on a page that must degrade **locally** (§36). Recorded
+so that the next person comparing them does not read it as drift and "fix" it.
+
+## What was swept upward
+
+| Claim                                                                                       | Where                                | Action                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _"a current index of ADRs 0001–0022"_                                                       | `CLAUDE.md`                          | → 0023                                                                                                                                                              |
+| _"Stories 2.10 to 2.14 remain"_                                                             | `CLAUDE.md`                          | Story 2.10 now has its own paragraph; 2.11–2.14 remain                                                                                                              |
+| _"What a user can see today"_                                                               | `CLAUDE.md`                          | now names `/securities/:symbol` and one security's real bars                                                                                                        |
+| _"no state library yet — four hooks, no store — and that is Story 2.10's decision to take"_ | `CLAUDE.md` _Intended stack_         | replaced by the decision **with its reversal trigger**. Grepped first: **one** live copy, plus two historical mentions in Story 2.9's close which are left standing |
+| `FRONTEND-STATE.md` is a subject document                                                   | `CLAUDE.md` _Where the record lives_ | added                                                                                                                                                               |
+
+**`use-securities.ts`'s header argues at length that the store decision is Story
+2.10's.** Left standing deliberately, and it is worth saying why: it is not a
+claim about the _present_ that has gone false — it is that file explaining why
+**it** has no store, and the reasoning ("one static list is the weakest possible
+evidence") is exactly as true now as it was, and is the reasoning ADR 0023
+decision 1 rests on.
+
+**Four new entries in `CLAUDE.md`'s _stated invariants nothing checks_ list**, in
+that list's own form — the claim, the failure it hides, how to re-measure:
+
+1. **The `market` module's `no-restricted-imports` pattern must stay inside the
+   browser boundary's `patterns` array.** The most dangerous thing on that list:
+   flat config resolves a rule to the **last** matching configuration, so a second
+   block **replaces** the first, and the browser boundary disappears with no
+   symptom. Seven more feature modules are coming and a new block is the natural
+   way to add the second one's rule.
+2. **`Marker` renders nothing unless the row sets `--marker-color`.**
+3. **A live region belongs to a subject and its sentences name it**, enforced
+   inside one component and nowhere at page level.
+4. **The recorded fixture bodies must not reach the shipped bundle.** Measured:
+   `dist/` contains none of their bar timestamps.
+
+**The deploy-ordering hazard was recorded in ADR 0023's Consequences rather than
+in that list**, and the placement is a judgement worth stating: `isBarSeriesResponse`'s
+strictness rests on both halves shipping from one commit, and `deploy.yml` rolls
+the **backend first** — so the first addition to `MARKET_FEEDS`, `PROVIDER_IDS`
+or `ADJUSTMENTS` opens a window in which the deployed frontend refuses every
+series. That is not a gap in `pnpm verify`, which has no deploy; it is a
+consequence of a decision, and it belongs where the decision is. Epic 3's live
+feed is **not** the trigger, because `iex` is already a member.
+
+## Figures, taken rather than carried forward
+
+- **The frontend artefact: 400,960 B of JavaScript** (128,147 B gzipped) and
+  30,191 B of CSS; `dist/` is 556 kB. **No library was adopted at either
+  decision**, so there is no figure from Task 2.10.1 to re-take — the cache was
+  hand-rolled over `@tanstack/react-query` and the fixture backend is a global
+  `fetch` stub rather than MSW.
+- **The deployed store answers `partial`**, checked directly rather than
+  inferred: `sessions=5` for NVDA returns **1,170 bars through 2026-09-08 20:00Z**
+  against a window requested to 2026-09-10 20:00Z, in 133,172 B on the wire. So
+  the deployed panel renders the state this story spent the most care on, and the
+  CI gate — 518 securities and zero bars — renders `empty`. Both are correct and
+  neither is the other.
+- **`pnpm e2e:deployed`: 15 passed**, including two axe runs reporting **0
+  violations** against the live host.
+
+## What Story 2.10 did not decide, restated at the close
+
+The charting decision (2.12), search and the per-security route's URL strings
+(2.11), the window vocabulary and its calendar words (2.13), and provenance as a
+product-wide requirement including a series naming two feeds at once (2.14).
+Each now carries a dated amendment on its own `STORY.md` saying what it inherits
+rather than decides.
+
+---
+
+# For the stakeholders — the story that changed nothing on screen, and everything after it
+
+## What Story 2.10 was for
+
+Every screen this product will ever build — the price chart, the volume chart,
+search, the market overview, the AI's workspace — has to answer the same four
+questions. Where does the application keep what it knows? How does it ask the
+server for more? What does it keep, and for how long? And what does it show while
+it is waiting?
+
+Answer those once and the next four stories are fast. Answer them four times and
+the product ends up with four subtly different ideas about what a loading screen
+is, which is how software becomes expensive without anybody deciding to make it
+so.
+
+That is the whole story. It also happens to have produced the first screen in
+MarketPulse that shows one company's actual trading data.
+
+## The four decisions, in plain terms
+
+**One: we did not add a state-management library, and that is now a decision
+rather than a delay.** The specification names one (Redux) and immediately warns
+against adding it too early. We looked at what the application actually holds
+today — which company you are looking at, what time range, and some recent
+prices — and it did not need one. What we did instead is the important part: we
+kept everything in a shape that a library could take over later without a
+rewrite. And we wrote down the exact condition that would trigger it: **the first
+piece of information two parts of the product must agree about that neither one
+owns.**
+
+**Two: we do keep recent prices in memory, and the design point is what it is
+_not_ allowed to do.** Going back to a company you just looked at shows its
+figures instantly instead of a loading spinner. The trap in that kind of cache is
+that it starts deciding _not_ to ask the server — and then quietly shows people
+old numbers. Ours cannot: it has no concept of time at all, and every time it
+shows you something it is already asking for a fresh copy. It also has a size
+limit, and that limit was set by measurement rather than by guessing — a price
+series can vary **twenty-five-fold** in size, so limiting the number of them
+would have limited the wrong thing and could have used almost sixty megabytes of
+someone's browser.
+
+**Three: what you are looking at lives in the web address.** That means a link to
+a company is a real link — you can send it to a colleague and they see what you
+saw. It sounds obvious, and it is the reason the eventual AI workspace can be
+described, saved and reopened at all.
+
+**Four: "try again" only appears when trying again would actually work.** The
+server distinguishes _"this is temporary"_ from _"this will fail the same way
+next time"_, and the application now respects that distinction everywhere rather
+than showing a hopeful button beside a permanent failure. A button that cannot
+work costs the user twice: once when they press it, and again when they stop
+trusting the ones that do.
+
+## Why the closing task looks like paperwork and is not
+
+A large part of this task was re-checking things that were already claimed to be
+true — and doing it in a way that could **fail**.
+
+For example: the application promises that exactly one file is allowed to talk to
+the network, which is what keeps every request going through the same error
+handling. Rather than run the check and note that it passed, we deliberately
+broke the rule first, confirmed the check caught it, and then undid the break.
+A check that has never been seen to fail is not evidence of anything.
+
+The same discipline found two real things this time:
+
+- **A test we were relying on cannot see what we thought it saw.** One property —
+  that abandoning a request stops it cleanly — is genuinely unobservable in the
+  fast test environment; it looks green even against code with no protection at
+  all. That is now written down, and the property is checked where it actually
+  can be.
+- **A second piece of the interface has never run.** Alongside the one we found
+  and fixed last task, there is a display for data from our simulated feed that
+  no test has ever produced. We chose **not** to fake it, because faking it would
+  have meant recording a server response no real server would ever send — and the
+  entire value of our test material is that every piece of it came off a real
+  server. It is recorded as an open item on the story that owns it.
+
+## Where the product stands
+
+**Epic 2 is nine stories in and four from done.** MarketPulse now has: a real
+database, 518 tracked companies, 48 million minute-by-minute price bars, a
+trading calendar, a market-data provider it can swap out, a public interface for
+serving prices, and — as of this story — a frontend that can ask for them, hold
+them, cancel them, and tell the truth about every way that can go wrong.
+
+**What a user sees:** five screens, a live status strip, the full list of tracked
+companies with real closing prices, and one company's real minute-by-minute
+figures at its own web address.
+
+**What a user still cannot do:** see a chart (Story 2.12), change the time range
+(2.13), search for a company or click one in the list (2.11), or see live prices
+(Epic 3). Those are the next four, and each one now starts from a written
+handoff saying what is already decided for it — which is the actual product of
+this story.

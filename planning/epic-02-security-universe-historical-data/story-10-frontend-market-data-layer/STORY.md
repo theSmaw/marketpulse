@@ -1,6 +1,6 @@
 # Story 2.10 — Frontend Market-Data Layer & Application State
 
-**Status:** In progress — Tasks 2.10.1 to 2.10.8 complete (2026-09-10); 2.10.9 closes it
+**Status:** Complete (2026-09-10) — all nine tasks. Record: [`FRONTEND-STATE.md`](FRONTEND-STATE.md) and ADR 0023
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.9
 **Epic scope covered:** **Addition to this epic's stated scope** — the client-side half implied by every UI item in it

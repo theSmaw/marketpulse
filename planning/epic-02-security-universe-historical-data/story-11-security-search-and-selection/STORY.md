@@ -180,3 +180,52 @@ is the one to work from.
   at §6's 500-security ceiling a single group is longer than a screen, and groups need to
   become jumpable or collapsible — **which is a control**, and controls were out of scope for
   Story 2.4. They are in scope for you.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.9, after Story 2.10 closed — what you inherit rather than decide
+
+The subject document is
+[`FRONTEND-STATE.md`](../story-10-frontend-market-data-layer/FRONTEND-STATE.md)
+and the decisions are ADR 0023. Read both before designing search; this is the
+pointer rather than a second copy, and where they disagree the subject document
+wins.
+
+**The route already exists and the symbol is already a path segment.**
+`/securities/:symbol` is declared in `routes/paths.ts`'s second table,
+`ROUTE_PATTERNS`, and `securityPath(symbol)` builds a destination from one — a
+pattern is **not** a destination, and six places walk `PATHS` as a list of real
+destinations, one of them asserting every route has a distinct `<h1>`. So your
+click-through builds a link with `securityPath()`; it does not add a third
+spelling.
+
+**There is no store, and you should not need one.** The URL holds the selection,
+a bounded cache holds parsed series, and `useBarSeries` keys on the request as
+sent. Clicking a row is a navigation, and the panel will paint a held series in
+its first commit if the user has been there before.
+
+**Two things are genuinely yours and both are stated as unsolved elsewhere.**
+
+- **A client-side link between two securities does not exist yet, and its absence
+  costs more than it looks.** Every route to a second symbol today is a document
+  navigation, which reloads the bundle and takes the module-level cache with it.
+  That is why the stale mark had to be demonstrated through the header
+  navigation, and why _"the panel never shows one symbol's bars under another's
+  name"_ is asserted in jsdom by request identity rather than in a browser. **Your
+  click-through is what makes that browser assertion possible for the first
+  time**, and it is worth adding when you add it.
+- **The rate at which a live region speaks.** `/securities` now has **two**
+  polite regions — the universe table's and the panel's — and the rule is one
+  region per subject, with every sentence naming its subject
+  (`FRONTEND-STATE.md` §7). Nothing today changes either region's text without a
+  user having navigated or pressed something. **A search field that re-requested
+  on every keystroke would drive a live region at typing speed, which is actively
+  hostile.** You owe either a debounce upstream of the request or a decision to
+  leave the region silent while a query is being typed — and if you add a third
+  asynchronously-filled surface to this page, note that §7's reversal trigger
+  fires: two self-describing sentences queue tolerably, and nobody has found out
+  where that stops being true.
+
+**One thing that is not yours**, so it is not taken in passing: the window
+control and its calendar vocabulary are Story 2.13's, and the panel deliberately
+carries no control that changes the window.

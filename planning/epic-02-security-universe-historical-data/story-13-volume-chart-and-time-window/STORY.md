@@ -132,3 +132,49 @@ and an instant swap of one dataset for another is the version that feels dead.
 
 The epic's exit criterion met in substance, and the window control Epics 8, 11 and 13 reuse
 or deliberately distinguish themselves from.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.9, after Story 2.10 closed — the window control's rules are already written
+
+The subject document is
+[`FRONTEND-STATE.md`](../story-10-frontend-market-data-layer/FRONTEND-STATE.md)
+and the decisions are ADR 0023. Four things about the window are settled, and
+each would otherwise be re-taken differently here.
+
+**The window lives in the URL, and the address bar is never rewritten into a
+different form** (§3). A user who picked "the last five sessions" shared a link
+that means five sessions; resolving it to an absolute range behind their back
+changes what their link says tomorrow. That is a rule about the **address** and
+it says nothing about what is sent behind it — Task 2.10.5 declined to re-ask for
+a resolved window on its own arithmetic, and its reasoning and reversal trigger
+are in `use-bar-series.ts`'s header.
+
+**A window change is the same event as a symbol change**, as far as this layer is
+concerned: it changes `barSeriesQuery(request)`, which is the cache key and the
+request. `useBarSeries` already supersedes the request in flight, resets the view
+to the new key's held entry or to `loading`, and never paints the previous
+window's series under the new window's label. **You should need no new
+cancellation code**; if you find yourself writing some, that is the signal
+something is being keyed differently rather than that the rule is missing.
+
+**Stale-while-loading is decided and you inherit it whole** (§2's amendment). A
+held answer for the same request paints in the first commit, marked with a rail
+above the body — a dashed marker, a sentence, a travelling dashed hairline — and
+**no number is touched**. The settle wash on the new answer plays only if a
+figure actually moved. Your control is the second thing to produce this
+transition and the first to produce it deliberately, so it is the natural place
+to check the mark under a _rapid_ sequence of changes, which nothing has done.
+
+**The cap is 10,000 bars and it is refused rather than reduced**, with a 400 that
+names the number. A control that can ask for more than the cap has to render a
+refusal — which already has a rendering, carries the server's sentence verbatim,
+and correctly offers **no retry**, because waiting never helps. Do not write copy
+around a bar count: every number on this surface comes from the response, and a
+sentence written around a specific figure is wrong for every window except one.
+
+**One gap this story is well placed to close.** A window control that changes the
+request while one is in flight is the cheapest way to observe a **superseded**
+answer in a real browser. Today that property is asserted in jsdom by request
+identity, because there is no client-side route from one request to another —
+see Story 2.11's amendment for the other half of the same gap.
