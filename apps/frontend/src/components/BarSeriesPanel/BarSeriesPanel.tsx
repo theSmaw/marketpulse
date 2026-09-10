@@ -1,16 +1,15 @@
-import type {
-  MarketFeed,
-  SecurityStatus,
-  TimeRange,
-} from "@marketpulse/shared";
+import type { MarketFeed, TimeRange } from "@marketpulse/shared";
 import { MARKET_FEED_DESCRIPTIONS } from "@marketpulse/shared";
 
+import { Badge } from "../Badge/Badge.js";
 import { Button } from "../Button/Button.js";
 import { MetricStrip } from "../MetricStrip/MetricStrip.js";
 import { cx } from "../../cx.js";
 import type { BarSeriesView, PopulatedBarSeries } from "../../market/index.js";
 import { Marker } from "../Marker/Marker.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
+import { announceSeries } from "./series-announcement.js";
+import type { SeriesPrices } from "./series-facts.js";
 import {
   barSpan,
   changePercent,
@@ -68,12 +67,24 @@ import styles from "./BarSeriesPanel.module.css";
 // here than it did for the universe table because three of these states need a
 // deliberately broken server to produce in a browser.
 //
-// ## Not a live region
+// ## A live region since Task 2.10.8, and the page's second
 //
-// Deliberately, and it is Task 2.10.8's to add. That task owns what a surface
-// whose content changes *more than once* says when it changes — a question the
-// universe page could not raise, because its content arrives once — and
-// answering it here, for one panel, is how two surfaces end up disagreeing.
+// The words are `series-announcement.ts`', which carries the whole argument:
+// why this page has two polite regions rather than one, why every sentence here
+// begins with the symbol, and why a stale answer says so out loud rather than
+// passing in silence. What is here is the element — persistent, rendered in
+// every state, never unmounted, and `role="status"` and never `role="alert"`.
+//
+// ## The two marks this panel carries that are not about the answer
+//
+// **Stale** — a request is in flight behind figures that are correct and one
+// request old — and **untracked**, which is a property of the *security* rather
+// than of this answer. They sit in different places for that reason: the stale
+// rail is above the body it qualifies and goes when the answer settles; the
+// untracked badge is on the subject header beside the symbol, because it is
+// still true whatever the body is showing. Both can be true at once, along with
+// a short coverage line, which is exactly why none of the three is allowed to
+// take the same position.
 
 export interface BarSeriesPanelProps {
   /** Everything this application knows about the series. Taken whole. */
@@ -112,9 +123,106 @@ export function BarSeriesPanel({
 }: BarSeriesPanelProps) {
   return (
     <div className={styles.panel}>
-      <Subject symbol={symbol} defaulted={defaulted} />
+      {/*
+       * First in the tree and rendered in every state, which is the whole
+       * mechanism rather than a placement: a live region added at the same
+       * moment as its content is not reliably announced, and one that is
+       * *removed* announces nothing at all. It holds a constant position so
+       * React updates it rather than recreating it — the property the browser
+       * suite asserts by node identity, because a text assertion cannot see it.
+       */}
+      <p className={styles.visuallyHidden} role="status">
+        {announceSeries(view, symbol)}
+      </p>
+
+      <Subject
+        symbol={symbol}
+        defaulted={defaulted}
+        untracked={isUntracked(view)}
+      />
+      {isStale(view) && <Refreshing />}
       <Body view={view} onRetry={onRetry} />
     </div>
+  );
+}
+
+/**
+ * Is a newer answer in flight behind the one on screen?
+ *
+ * Read from the union rather than taken as a prop, because it *is* part of the
+ * union — `bar-series-view.ts` carries the argument for the flag living on the
+ * three answer members. Only an answer can be stale, so this is total without a
+ * default: the other three members have nothing on screen to be one request
+ * old.
+ */
+function isStale(view: BarSeriesView): boolean {
+  switch (view.state) {
+    case "loaded":
+    case "partial":
+    case "empty":
+      return view.stale;
+    case "loading":
+    case "refused":
+    case "failed":
+      return false;
+  }
+}
+
+/** Is this a security we hold bars for and no longer follow? */
+function isUntracked(view: BarSeriesView): boolean {
+  switch (view.state) {
+    case "loaded":
+    case "partial":
+    case "empty":
+      return view.securityStatus === "untracked";
+    case "loading":
+    case "refused":
+    case "failed":
+      return false;
+  }
+}
+
+/**
+ * A newer answer is on its way, and the ones below are held.
+ *
+ * ## What it must not do, which decided nearly everything about it
+ *
+ * **It does not touch a single number.** No dim, no blur, no fade, no skeleton
+ * replacing a value — `VISUAL-LANGUAGE.md`'s rule is that motion must never
+ * make a number harder to read, and dimming a price while an analyst reads it
+ * is that failure by another route. The figures below stay at full ink and full
+ * weight; what changes is that a line appears above them.
+ *
+ * **And it does not read as a problem.** These figures are correct. They are
+ * one request old, which is a fact about the request rather than about the
+ * market, so there is no red, no amber and no box — the marker is the same
+ * dashed silhouette `Marker` gives an indeterminate state, and the sentence
+ * says *held* rather than *out of date*.
+ *
+ * ## Why it is a rule that moves
+ *
+ * The design asked for a marching perimeter and this is that idea at this
+ * product's weight: one hairline under the sentence, dashed, travelling. It is
+ * the only thing in the application that moves while somebody is reading, and
+ * that is deliberate — the bar asks whether a screen *feels alive*, and a panel
+ * whose only signal of work in progress is text is a panel that looks frozen
+ * during the one second it is busiest.
+ *
+ * Three things keep it honest. It is **beside** the numbers rather than on
+ * them; it is a **texture** rather than a value, so nothing being read is
+ * moving; and the duration comes from a token that resolves to `0ms` under
+ * `prefers-reduced-motion`, which leaves a static dashed rule that still marks
+ * the state. Colour is not the encoding in any of the three cases — the dashes
+ * are, and they survive greyscale.
+ */
+function Refreshing() {
+  return (
+    <p className={styles.refreshing}>
+      <Marker shape="dashed" />
+      <span>
+        Refreshing — showing the held answer while a newer one is read.
+      </span>
+    </p>
   );
 }
 
@@ -128,13 +236,39 @@ export function BarSeriesPanel({
 function Subject({
   symbol,
   defaulted,
+  untracked,
 }: {
   readonly symbol: string;
   readonly defaulted: boolean;
+  readonly untracked: boolean;
 }) {
   return (
     <div className={styles.subject}>
-      <h3 className={styles.symbol}>{symbol}</h3>
+      <div className={styles.subjectLine}>
+        <h3 className={styles.symbol}>{symbol}</h3>
+        {/*
+         * **On the header and not in the body**, which is Task 2.10.8's D2 and
+         * is an argument about what the fact is *about*. An untracked security
+         * is untracked whatever this answer turned out to be — it is still true
+         * under a partial series, under an empty one, and while a newer answer
+         * is being read — so a note at the bottom of the body reads as a
+         * footnote on the numbers when it is a qualification on the subject.
+         * Beside the symbol it is read before the figures rather than after
+         * them, which is the order it matters in.
+         *
+         * A `Badge`, and the neutral tone, because it is **not a warning**: the
+         * bars are real and the series is correct, and what changed is the
+         * universe. `BADGE_TONES` has no warning tone by design, which is the
+         * language agreeing with the judgement rather than constraining it.
+         */}
+        {untracked && <Badge>Untracked</Badge>}
+      </div>
+      {untracked && (
+        <p className={styles.defaulted}>
+          MarketPulse no longer tracks this security. These bars are what was
+          stored while it did.
+        </p>
+      )}
       {defaulted && (
         <p className={styles.defaulted}>
           Showing a default security. Search arrives with Story 2.11; until
@@ -161,11 +295,7 @@ function Body({
     case "loaded":
     case "partial":
       return (
-        <SeriesState
-          series={view.series}
-          securityStatus={view.securityStatus}
-          complete={view.state === "loaded"}
-        />
+        <SeriesState series={view.series} complete={view.state === "loaded"} />
       );
 
     case "empty":
@@ -223,11 +353,9 @@ const SKELETON_ROWS = [1, 2, 3, 4];
  */
 function SeriesState({
   series,
-  securityStatus,
   complete,
 }: {
   readonly series: PopulatedBarSeries;
-  readonly securityStatus: SecurityStatus;
   readonly complete: boolean;
 }) {
   const prices = seriesPrices(series);
@@ -238,82 +366,128 @@ function SeriesState({
   return (
     <div className={styles.series}>
       {/*
-       * The headline: what the security did across the bars we hold. It is the
-       * one figure on this panel a person reads before they read anything else,
-       * so it is the one thing set at display size — and it is deliberately
-       * paired with the coverage line below rather than standing alone, because
-       * a percentage with no window attached is a number about nothing.
+       * **The settle flash, and it is a `key` rather than a comparison.**
+       *
+       * Task 2.10.8 owes a mark for the moment a held answer is replaced by a
+       * fresh one — and owes it *only when something changed*, because a flash
+       * over numbers that did not move is a claim about the numbers. A refetch
+       * landing on an identical answer is the common case for a closed
+       * session's bars, and it must pass in silence.
+       *
+       * The signature below is the whole implementation. React remounts a
+       * keyed element when its key changes and leaves it alone when it does
+       * not, so the animation on `.settle` plays exactly on the transitions
+       * that moved a figure — no previous-value ref, no `useEffect`, and no
+       * second copy of "which fields count as the answer" that could drift
+       * from the ones on screen.
+       *
+       * It is a background wash and never a transform: nothing here is a
+       * `translate` or an `opacity` on a value, so no number is harder to read
+       * while it plays. On the first paint it runs alongside `.series`' own
+       * arrival, which reads as one thing arriving rather than two.
        */}
-      <div className={styles.headline}>
-        <span className={styles.close}>{formatPrice(prices.close)}</span>
-        {percent !== null && (
-          <span className={styles.headlineChange}>
-            <PriceChange
-              change={formatChangePercent(percent)}
-              direction={directionOf(percent)}
-            />
-          </span>
-        )}
+      <div className={styles.settle} key={settleSignature(series, prices)}>
+        {/*
+         * The headline: what the security did across the bars we hold. It is the
+         * one figure on this panel a person reads before they read anything else,
+         * so it is the one thing set at display size — and it is deliberately
+         * paired with the coverage line below rather than standing alone, because
+         * a percentage with no window attached is a number about nothing.
+         */}
+        <div className={styles.headline}>
+          <span className={styles.close}>{formatPrice(prices.close)}</span>
+          {percent !== null && (
+            <span className={styles.headlineChange}>
+              <PriceChange
+                change={formatChangePercent(percent)}
+                direction={directionOf(percent)}
+              />
+            </span>
+          )}
+        </div>
+
+        <Coverage
+          complete={complete}
+          bars={series.bars.length}
+          requested={requested}
+          coveredEnd={formatMarketInstant(covered.end)}
+        />
+
+        {/*
+         * The four prices, as a strip rather than as rows of a list.
+         *
+         * This is the one block on the panel that has to read at a glance, and a
+         * label/value list cannot: a reader comparing an open to a close is
+         * comparing two figures, and putting a sentence's worth of label between
+         * them is what makes a terminal feel like a form.
+         *
+         * **It is a `MetricStrip` since the 2026 refresh**, which is the component
+         * this block's own comment asked for: it used to say `UniverseTable`'s
+         * summary strip was the idiom and that it was "reused here rather than
+         * re-invented", which is a stated copy — the signal this repository
+         * extracts on. The `<div>` around it keeps the rule and the padding, which
+         * are this panel's business rather than the strip's.
+         */}
+        <div className={styles.prices}>
+          <MetricStrip
+            metrics={[
+              { label: "Open", value: formatPrice(prices.open) },
+              { label: "High", value: formatPrice(prices.high) },
+              { label: "Low", value: formatPrice(prices.low) },
+              { label: "Close", value: formatPrice(prices.close) },
+            ]}
+          />
+        </div>
+
+        {/*
+         * The windows, and they are the reason this panel exists.
+         *
+         * Two rows rather than four scattered facts, aligned so the two ranges
+         * sit directly above one another — because the question a reader is
+         * asking is *how do these two differ*, and two ranges that do not line up
+         * cannot be compared without reading both in full.
+         */}
+        <dl className={styles.windows}>
+          <Window label="Asked for" value={formatMarketRange(requested)} />
+          <Window label="Held" value={formatMarketRange(covered)} />
+          <Window
+            label="Bars"
+            value={`${formatCount(series.bars.length)} × ${series.timeframe}`}
+          />
+          <Window
+            label="First → last"
+            value={`${formatMarketInstant(first.startsAt)} → ${formatMarketInstant(last.startsAt)}`}
+          />
+        </dl>
       </div>
-
-      <Coverage
-        complete={complete}
-        bars={series.bars.length}
-        requested={requested}
-        coveredEnd={formatMarketInstant(covered.end)}
-      />
-
-      {/*
-       * The four prices, as a strip rather than as rows of a list.
-       *
-       * This is the one block on the panel that has to read at a glance, and a
-       * label/value list cannot: a reader comparing an open to a close is
-       * comparing two figures, and putting a sentence's worth of label between
-       * them is what makes a terminal feel like a form.
-       *
-       * **It is a `MetricStrip` since the 2026 refresh**, which is the component
-       * this block's own comment asked for: it used to say `UniverseTable`'s
-       * summary strip was the idiom and that it was "reused here rather than
-       * re-invented", which is a stated copy — the signal this repository
-       * extracts on. The `<div>` around it keeps the rule and the padding, which
-       * are this panel's business rather than the strip's.
-       */}
-      <div className={styles.prices}>
-        <MetricStrip
-          metrics={[
-            { label: "Open", value: formatPrice(prices.open) },
-            { label: "High", value: formatPrice(prices.high) },
-            { label: "Low", value: formatPrice(prices.low) },
-            { label: "Close", value: formatPrice(prices.close) },
-          ]}
-        />
-      </div>
-
-      {/*
-       * The windows, and they are the reason this panel exists.
-       *
-       * Two rows rather than four scattered facts, aligned so the two ranges
-       * sit directly above one another — because the question a reader is
-       * asking is *how do these two differ*, and two ranges that do not line up
-       * cannot be compared without reading both in full.
-       */}
-      <dl className={styles.windows}>
-        <Window label="Asked for" value={formatMarketRange(requested)} />
-        <Window label="Held" value={formatMarketRange(covered)} />
-        <Window
-          label="Bars"
-          value={`${formatCount(series.bars.length)} × ${series.timeframe}`}
-        />
-        <Window
-          label="First → last"
-          value={`${formatMarketInstant(first.startsAt)} → ${formatMarketInstant(last.startsAt)}`}
-        />
-      </dl>
 
       <Provenance series={series} />
-      {securityStatus === "untracked" && <Untracked />}
     </div>
   );
+}
+
+/**
+ * What counts as *the answer changed*, for the settle flash above.
+ *
+ * The three facts a reader would notice moving: where it closed, how many bars
+ * we hold, and how far the coverage reaches. Deliberately **not** every field —
+ * a retrieval timestamp in the provenance changes on every request and means
+ * nothing to anybody looking at a price, and keying on it would flash the panel
+ * on precisely the refetch this is designed to leave alone.
+ *
+ * The instant is compared by `getTime`, for the reason `toBarSeriesView`
+ * compares its windows that way: two `Date`s are two objects, and interpolating
+ * one would work here by accident of its string form rather than on purpose.
+ */
+function settleSignature(
+  series: PopulatedBarSeries,
+  prices: SeriesPrices,
+): string {
+  return [
+    prices.close,
+    series.bars.length,
+    series.coverage.covered.end.getTime(),
+  ].join("·");
 }
 
 /**
@@ -438,26 +612,6 @@ function FeedLabel({ feed }: { readonly feed: MarketFeed }) {
         <span className={styles.feedSentence}>{description.sentence}</span>
       )}
     </span>
-  );
-}
-
-/**
- * A security we hold data for and no longer track.
- *
- * `securityStatus` is the field the response envelope carries so that this can
- * be said at all, and this panel is the first thing in the product able to say
- * it. It is a note rather than a warning: the bars are real and the series is
- * correct; what has changed is whether the universe still follows it.
- */
-function Untracked() {
-  return (
-    <p className={styles.note}>
-      <Marker shape="ring" />
-      <span>
-        MarketPulse no longer tracks this security. These bars are what was
-        stored while it did.
-      </span>
-    </p>
   );
 }
 

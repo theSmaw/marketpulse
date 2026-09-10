@@ -143,6 +143,37 @@ describe("the recorded bar-series fixtures", () => {
     });
   });
 
+  it("reads an untracked security as a populated answer, not as an absence", () => {
+    // The eleventh body, and the one the states checklist could not reach: it
+    // is a **field** on three members rather than a member. What it must not
+    // be is a 404 or an empty series — the store keeps an untracked security's
+    // bars and the route still serves them, so the only difference from any
+    // other complete answer is the status.
+    const view = barSeriesFixtureView("untracked");
+
+    expect(view.state).toBe("loaded");
+    if (view.state !== "loaded") return;
+
+    expect(view.securityStatus).toBe("untracked");
+    expect(view.series.bars.length).toBeGreaterThan(0);
+  });
+
+  it("marks every recorded answer fresh, because a response that just arrived is", () => {
+    // `stale` is set at a cache read and nowhere else. Nothing built from a
+    // response can carry it, which is what makes the mark on screen mean what
+    // it claims — see `bar-series-view.ts`.
+    for (const name of BAR_SERIES_FIXTURE_NAMES) {
+      const view = barSeriesFixtureView(name);
+      if (
+        view.state === "loaded" ||
+        view.state === "partial" ||
+        view.state === "empty"
+      ) {
+        expect(view.stale, `${name} arrived stale`).toBe(false);
+      }
+    }
+  });
+
   it("reads a body naming an unknown feed as answered-badly by the other route", () => {
     // Refused one layer earlier, by the predicate rather than by the parse, so
     // it arrives as `unreadable-body`. The same state on screen and a different

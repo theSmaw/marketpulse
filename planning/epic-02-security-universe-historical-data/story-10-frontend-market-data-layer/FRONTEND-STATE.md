@@ -223,6 +223,53 @@ duration of one in-flight request, and only underneath a visible loading
 affordance. That is a **product** behaviour Task 2.10.8 designs, not a
 correctness hazard.
 
+> **Designed 2026-09-10 by Task 2.10.8, and this is the half Story 2.13 and
+> Epic 3 inherit rather than decide again.**
+>
+> **The label is a `stale` boolean on the three answer members**, not a seventh
+> union member and not a field beside `retry`. It is §4's `retrying` precedent —
+> a flag, not a state, because the difference is one mark on screen rather than
+> a different shape of screen — and it is the only one of the three homes a
+> story can express, since `barSeriesFixtureView` returns a `BarSeriesView` and
+> a fixture set exists precisely so nobody hand-builds one.
+>
+> **It is set at the cache read and nowhere else.** `use-bar-series.ts` has one
+> `held(key)` through which both reads pass, and `barSeriesCache.write`
+> normalises the flag back off. So the rule above — _every read is accompanied
+> by a request_ — and the mark on screen are the same expression rather than two
+> that could drift, and an entry can never hand a later reader a claim it has
+> not earned.
+>
+> **What the mark does on screen**: a rail above the body — one sentence, a
+> dashed marker, a travelling dashed hairline — and **not one pixel of change to
+> any number**. No dim, no blur, no fade, no skeleton replacing a value.
+> `VISUAL-LANGUAGE.md`'s rule is that motion must never make a number harder to
+> read, and every treatment that marks the figures themselves is that rule
+> broken by another route. The encoding is dashes rather than colour, so it
+> survives greyscale, and the durations resolve to `0ms` under
+> `prefers-reduced-motion`, leaving a static dashed rule that still marks the
+> state.
+>
+> **And the settle**: when the fresh answer replaces the held one, the figures
+> take a 240ms background wash — but **only if a figure moved**. That is a
+> `key` on the block rather than a comparison, so React replays it exactly on
+> the transitions that changed something. A refetch landing on an identical
+> answer, which is the common case for a closed session's bars, passes in
+> silence, because a flash over numbers that did not move is a claim about the
+> numbers.
+>
+> ### Reversal trigger
+>
+> - **The first consumer that needs a stale answer to differ in shape rather
+>   than in mark** — a chart drawing held bars in a second style, say. At that
+>   point the difference has stopped being one mark and the seventh union member
+>   has earned its cost.
+> - **The first surface that refreshes without a user having acted.** Everything
+>   that sets this flag today follows a navigation or a press. A poll, or Epic
+>   3's socket, would raise the rail on its own schedule — at which point _is a
+>   request in flight_ stops being news and the mark needs a rate, or a
+>   different meaning.
+
 ### What this does not decide
 
 The entry bound (24 is the working number) and the parsed-heap cost of a series
@@ -522,7 +569,7 @@ user pays for twice.
 | **2.10.5** | §2's design — bounded LRU, read-to-paint-never-to-skip, no clock, **keyed on the request as sent** — and the heap figure it owes. Its own file was drafted with a resolved-window key and carries a dated amendment reversing it |
 | **2.10.6** | Nothing decided here constrains the fixture backend; it serves the contract §3 sends                                                                                                                                             |
 | **2.10.7** | §3's URL rule — the symbol is a **path segment**, so this task declares `/securities/:symbol`; the panel states the resolved range back                                                                                          |
-| **2.10.8** | §2's stale-while-loading consequence, which is a product behaviour it designs                                                                                                                                                    |
+| **2.10.8** | §2's stale-while-loading consequence, which is a product behaviour it designs. **Shipped 2026-09-10** — the flag's home, its mark, and its two reversal triggers are the amendment in §2                                         |
 | **2.10.9** | This file, into `CLAUDE.md`'s _Where the record lives_ table, and the ADR                                                                                                                                                        |
 
 ## 6. What this task did not decide, restated

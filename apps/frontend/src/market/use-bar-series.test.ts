@@ -310,6 +310,61 @@ describe("useBarSeries", () => {
     });
   });
 
+  // The label on that behaviour, which Task 2.10.8 added and Task 2.10.5 could
+  // not: a component can now tell a cached paint from a fresh answer.
+  it("marks a held series stale, and clears the mark when the answer lands", async () => {
+    stub(() => okAfter(series(4), 40));
+
+    const first = renderHook(() => useBarSeries(REQUEST));
+    await waitFor(() => {
+      expect(first.result.current.view.state).toBe("loaded");
+    });
+    first.unmount();
+
+    const second = renderHook(() => useBarSeries(REQUEST));
+
+    // The very first render, before anything has been awaited. The flag is what
+    // makes *"a request is in flight behind these numbers"* sayable at all.
+    expect(second.result.current.view).toMatchObject({
+      state: "loaded",
+      stale: true,
+    });
+
+    // And it goes when the fresh answer arrives, because `toBarSeriesView`
+    // builds every answer fresh. The mark's whole meaning is that a request is
+    // outstanding; one that outlived the request would be a standing lie.
+    await waitFor(() => {
+      expect(second.result.current.view).toMatchObject({
+        state: "loaded",
+        stale: false,
+      });
+    });
+  });
+
+  it("does not remember that an answer was once painted stale", async () => {
+    // The cache stores answers, never the fact that one was held: `stale` is a
+    // fact about the screen rather than about the answer. Without this, the
+    // third view of a security would inherit the second's mark and keep it
+    // through every future paint.
+    stub(() => ok(series(4)));
+
+    const first = renderHook(() => useBarSeries(REQUEST));
+    await waitFor(() => {
+      expect(first.result.current.view.state).toBe("loaded");
+    });
+    first.unmount();
+
+    // A second mount paints stale, settles fresh, and writes back.
+    const second = renderHook(() => useBarSeries(REQUEST));
+    await waitFor(() => {
+      expect(second.result.current.view).toMatchObject({ stale: false });
+    });
+    second.unmount();
+
+    const entry = barSeriesCache.read(barSeriesQuery(REQUEST));
+    expect(entry).toMatchObject({ stale: false });
+  });
+
   // The key is the whole request. A held series for five sessions must not be
   // painted under a request for twenty — that is a chart of the wrong window
   // wearing the right label, which is plausible and wrong rather than visibly

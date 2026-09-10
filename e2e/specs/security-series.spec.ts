@@ -1,7 +1,7 @@
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-import { expectNothingFailedToRender } from "../support/app.js";
+import { expectNothingFailedToRender, readable } from "../support/app.js";
 
 // One security's bar series on screen, deep-linked, against the **real pair**
 // (Task 2.10.7).
@@ -64,9 +64,13 @@ const SYMBOL = "NVDA";
  * Waiting for the union is what makes this file honest in both environments.
  */
 function anAnswer(scope: Locator): Locator {
-  return scope
-    .getByText(/Holding .* bars/)
-    .or(scope.getByText(/No bars stored for this window/));
+  // `readable` rather than `getByText` since Task 2.10.8: this panel now has a
+  // live region whose sentence repeats what is on screen, so a bare text match
+  // resolves to two elements. Every assertion in this file is about what a
+  // reader sees; the announcement has its own spec.
+  return readable(scope, /Holding .* bars/).or(
+    readable(scope, /No bars stored for this window/),
+  );
 }
 
 /** Did this run land on a store with bars in it? */
@@ -159,7 +163,7 @@ test("a symbol the universe does not hold is a sentence, not a crash", async ({
   const region = page.getByRole("region", { name: "Market data" });
   await expect(region.getByRole("heading", { name: "ZZZZ" })).toBeVisible();
   await expect(
-    region.getByText(/ZZZZ is not a security this system tracks/),
+    readable(region, /ZZZZ is not a security this system tracks/),
   ).toBeVisible();
   await expect(region.getByRole("button")).toHaveCount(0);
 

@@ -1,7 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Fragment } from "react";
 
-import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
+import {
+  barSeriesFixtureView,
+  staleBarSeriesFixtureView,
+} from "../../fixtures/bar-series.js";
 import gridStyles from "../stories.module.css";
 import { BarSeriesPanel } from "./BarSeriesPanel.js";
 
@@ -41,6 +44,12 @@ import { BarSeriesPanel } from "./BarSeriesPanel.js";
 //  - **A refusal offers no retry and a failure that cannot be retried says so.**
 //    Three states carry no control and two carry one; getting that wrong is a
 //    button that cannot work, which a reader pays for twice.
+//  - **Two marks that are not about the answer, in two places, deliberately**
+//    (Task 2.10.8). *Stale* is a rail above the body and goes when the answer
+//    settles; *untracked* is a badge on the subject and stays whatever the body
+//    shows. Seeing them beside a short coverage line is the only way to check
+//    that all three can be true at once without any of them being read as the
+//    others.
 
 const meta = {
   title: "Market/BarSeriesPanel",
@@ -159,6 +168,41 @@ export const FailedIncoherent: Story = {
   args: { view: barSeriesFixtureView("incoherent") },
 };
 
+/**
+ * The same answer, one request old.
+ *
+ * **The state Task 2.10.5 shipped the behaviour for and could not say.** A held
+ * series paints in the first commit while the fresh answer is in flight, and
+ * until this task nothing on screen marked it. See it in the real product in
+ * two clicks — `/securities/NVDA` → `/securities/AMD` → back — where the third
+ * view paints from the cache with a request still going.
+ *
+ * What to review here is what the mark does **not** do: no number is dimmed,
+ * blurred or moved, because these figures are correct and are one request old
+ * rather than wrong. The rail is above them, the encoding is dashes rather than
+ * colour, and the whole thing survives greyscale.
+ */
+export const Stale: Story = {
+  args: { view: staleBarSeriesFixtureView("partial") },
+};
+
+/**
+ * A security MarketPulse holds bars for and no longer follows.
+ *
+ * **The rendering that shipped in Task 2.10.7 and had never been executed.**
+ * `securityStatus` is a field on three of the six members rather than a member
+ * of its own, which is exactly the shape a states checklist walks past — so
+ * this story exists as much to make the gap un-reopenable as to review the
+ * mark.
+ *
+ * It is a **populated** answer: an untracked security keeps its bars and the
+ * route still serves them. The badge sits on the subject rather than in the
+ * body because it qualifies the security rather than this answer.
+ */
+export const Untracked: Story = {
+  args: { view: barSeriesFixtureView("untracked"), symbol: "AMD" },
+};
+
 /** The bare `/securities`, where nobody named a security. The panel says search
  * is a story away rather than presenting a default as a choice. */
 export const DefaultedSymbol: Story = {
@@ -169,7 +213,14 @@ export const DefaultedSymbol: Story = {
  * Every state at once — the review that cannot be done one story at a time.
  *
  * The landmark rule that bit `AppHeader` and `Region` does not apply: this panel
- * declares no landmark, so eleven of them on one page is eleven `<div>`s.
+ * declares no landmark, so thirteen of them on one page is thirteen `<div>`s.
+ *
+ * **What it does now have is thirteen live regions**, which is a property of
+ * the grid rather than of the panel and is worth knowing before anybody reads
+ * an axe run here. A `role="status"` is not a landmark and does not want an
+ * accessible name, so the uniqueness rule that forced `AppHeader`'s hand does
+ * not fire — and every one of them is empty at rest in this story, because
+ * nothing here transitions.
  */
 export const AllPermutations: Story = {
   parameters: { layout: "fullscreen" },
@@ -217,6 +268,13 @@ export const AllPermutations: Story = {
             "NVDA",
             false,
           ],
+          [
+            "Stale — a newer answer in flight",
+            staleBarSeriesFixtureView("partial"),
+            "NVDA",
+            false,
+          ],
+          ["Untracked", barSeriesFixtureView("untracked"), "AMD", false],
           ["Defaulted symbol", barSeriesFixtureView("partial"), "NVDA", true],
         ] as const
       ).map(([label, view, symbol, defaulted]) => (

@@ -2,9 +2,9 @@ import type { ApiError, BarSeriesResponse } from "@marketpulse/shared";
 import { isApiError, isBarSeriesResponse } from "@marketpulse/shared";
 
 import type { BarSeriesView } from "../market/index.js";
-import { toBarSeriesView } from "../market/index.js";
+import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
 
-// Ten bodies `GET /market-data/bars` answers with, recorded from the real
+// Eleven bodies `GET /market-data/bars` answers with, recorded from the real
 // endpoint over the real store — the fixture backend Stories 2.11 to 2.13 test
 // against instead of each inventing a mock (Task 2.10.6).
 //
@@ -39,6 +39,25 @@ import { toBarSeriesView } from "../market/index.js";
 // curl -s "$B?symbol=NVDA&timeframe=1m&start=2023-09-04T13:30:00.000Z&end=2023-09-04T20:00:00.000Z" > bar-series/refused-calendar.json
 // curl -s "$B?symbol=ZZZZ&timeframe=1m&sessions=1"                                                  > bar-series/refused-unknown-symbol.json
 // ```
+//
+// **`untracked.json` needed the universe changed under it**, which is the one
+// recording here with a side effect, so both halves are written down. The
+// loader untracks a row rather than deleting it, and the direct route is what
+// `market-bars.database.test.ts` already does twice for the same reason:
+//
+// ```
+// docker exec marketpulse-postgres-1 psql -U marketpulse -d marketpulse \
+//   -c "update securities set status='untracked' where symbol='AMD';"
+// curl -s "$B?symbol=AMD&timeframe=1m&start=2026-09-04T13:30:00.000Z&end=2026-09-04T14:00:00.000Z" > bar-series/untracked.json
+// docker exec marketpulse-postgres-1 psql -U marketpulse -d marketpulse \
+//   -c "update securities set status='active' where symbol='AMD';"
+// ```
+//
+// The restore is the third line and is not optional: an untracked row is
+// invisible to every reader that filters on `status`, so leaving one behind is
+// a local store quietly missing a security. Recorded 2026-09-10 and restored in
+// the same command; `pnpm universe` converges on the file and would also undo
+// it.
 //
 // The 503 is the same request against a backend pointed at a port nothing
 // listens on — `DATABASE_PORT=59999 node dist/index.js` — which is the
@@ -131,9 +150,10 @@ import REFUSED_UNKNOWN_SYMBOL from "./bar-series/refused-unknown-symbol.json" wi
 import STITCHED from "./bar-series/stitched.json" with { type: "json" };
 import UNAVAILABLE from "./bar-series/unavailable.json" with { type: "json" };
 import UNKNOWN_FEED from "./bar-series/unknown-feed.json" with { type: "json" };
+import UNTRACKED from "./bar-series/untracked.json" with { type: "json" };
 
 /**
- * The three transport outcomes these ten bodies can be.
+ * The three transport outcomes these eleven bodies can be.
  *
  * A **recorded fact about each fixture, not a computation** — deliberately, so
  * that nothing here becomes a second copy of `api-client.ts`'s classification.
@@ -285,6 +305,34 @@ export const BAR_SERIES_FIXTURES = {
     outcome: "unreadable-body",
     describes: "a body naming a feed slug this bundle does not know",
   },
+
+  /**
+   * 30 bars for a security the universe no longer tracks. → `loaded`, with
+   * `securityStatus: "untracked"`.
+   *
+   * **The eleventh, added by Task 2.10.8, and the reason it had to exist.**
+   * `securityStatus` is a field on all three answer members, and the panel has
+   * carried a rendering for `untracked` since Task 2.10.7 that nothing had ever
+   * executed: all ten bodies recorded before it were `active`, every row in
+   * the local store was `active`, and no deployed row has ever been anything
+   * else. A field on three members is exactly the shape a states checklist
+   * walks past — it is not a member of the union, so *"every state produced"*
+   * did not reach it.
+   *
+   * It is a **populated** answer with a different status rather than an empty
+   * one, which is the fact worth keeping: the store keeps an untracked
+   * security's bars and the route still serves them, so this is not a 404 and
+   * not an absence.
+   *
+   * Recorded, not written, and the procedure is in the header.
+   */
+  untracked: {
+    status: 200,
+    body: UNTRACKED,
+    outcome: "ok",
+    describes:
+      "a populated series for a security the universe no longer tracks",
+  },
 } as const satisfies Record<string, BarSeriesFixture>;
 
 /** The name of one recorded body. */
@@ -367,6 +415,29 @@ export function barSeriesFixtureView(
         requestId: FIXTURE_REQUEST_ID,
       });
   }
+}
+
+/**
+ * The same state, marked as a held answer with a newer one in flight.
+ *
+ * **A helper rather than a spread at the call site**, and the reason is the one
+ * this whole module exists for: `barSeriesFixtureView` returns the union, so
+ * `{ ...view, stale: true }` is a literal against a six-member type and `tsc`
+ * refuses it — correctly, since `loading`, `refused` and `failed` have no such
+ * field. Narrowing by hand at each call site would be a cast, and a cast is how
+ * a story ends up rendering a state the layer cannot produce.
+ *
+ * So it goes through the **real** `toStaleBarSeriesView`, which is the same
+ * function `use-bar-series.ts` applies at its two cache reads. A story built
+ * this way is showing what a cached paint actually looks like.
+ *
+ * A name that is not an answer comes back untouched, which is the transition's
+ * own behaviour rather than this helper's opinion.
+ */
+export function staleBarSeriesFixtureView(
+  name: BarSeriesFixtureName,
+): BarSeriesView {
+  return toStaleBarSeriesView(barSeriesFixtureView(name));
 }
 
 /**

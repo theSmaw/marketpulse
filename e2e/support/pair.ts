@@ -107,3 +107,13 @@ export const SECURITIES_ROUTE_PATTERN = (url: URL): boolean =>
  * one is a predicate keyed on the port.
  */
 export const MARKET_DATA_ROUTE_PATTERN = "**/market-data";
+
+/**
+ * A URL pattern matching the bar-series endpoint, whatever host it is on.
+ *
+ * A glob for the same reason as the one above and with the same fence: this
+ * application has no `/market-data/bars` **route**, so the glob cannot fulfil a
+ * document navigation by accident. The trailing `*` is what admits the query
+ * string, which every real request to this endpoint carries.
+ */
+export const BARS_ROUTE_PATTERN = "**/market-data/bars*";
