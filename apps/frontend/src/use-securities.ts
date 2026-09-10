@@ -41,6 +41,14 @@ import type { ApiResult } from "./api-client.js";
 // 190,736 bytes against `/health`'s 61 (17,299 at the 101 securities, no
 // coverage array and no closes this was first written against), so it is not
 // the cheap request the health poll is either. A page reload is the refresh.
+//
+// **The figure moved on 2026-09-10 and the argument did not.** Task 2.9.10
+// registered response compression, so what a browser actually pulls is
+// **20,072 bytes**, not 190,736 — the number above is what an
+// `Accept-Encoding: identity` client receives. Still ~330x `/health`'s 61
+// bytes, per open tab, forever, to re-learn a fact that has not moved. Recorded
+// rather than substituted, because a figure that has moved looks exactly like a
+// figure that was mis-recorded.
 
 /**
  * Why the universe could not be read.

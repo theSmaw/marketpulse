@@ -251,6 +251,31 @@ it owes. §12.2, §12.4, §12.6, §12.7 and §12.11 are untouched. `STORY.md`'s 
 bullet is discharged. Nothing here falsifies `PRODUCT_SPEC.md`, an ADR or
 `CLAUDE.md`.
 
+### The upward sweep, done 2026-09-10 and not anticipated by this file
+
+**This task's own work list said "re-take the figures that change, and only
+those" and named five sections of one document. It named no code and no other
+story, and three live claims outside `MARKET-DATA-API.md` were made false by the
+same change** — which is exactly the shape `CLAUDE.md` warns about when it says
+falsification travels upward and that recording a correction and propagating it
+are two obligations. Found by grepping for the claim rather than by remembering
+it:
+
+| Site                                         | The claim                                                                       | What it is now                                                                                                                                                                                |
+| -------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/frontend/src/api-client.ts`            | _"nothing in this stack compresses, which is Story 2.10's to look at"_          | False, and it also named the wrong owner — this story's scope owed it. Amended with the 20,072 B figure                                                                                       |
+| `packages/shared/src/securities-response.ts` | _"quote the gzipped one"_, false since 2.9.9 and **true again** since this task | Both halves recorded, because the second is not a restoration of the first. And the number is **20,072 B, not the 19,526 there** — that reading was `gzip -9`, the plugin runs zlib's default |
+| `apps/frontend/src/use-securities.ts`        | 190,736 B, as the reason not to poll the universe                               | The argument survives at 20,072 B — still ~330x `/health`'s 61 bytes per open tab — and the figure is dated rather than substituted                                                           |
+| Story 2.11 `STORY.md`                        | _"take it uncompressed"_, which **Task 2.9.9 put there**                        | Reversed with a dated note. It moves that story's decision rather than decorating it: at 20 kB, client-side filtering needs no defending                                                      |
+
+The last one is the one worth noticing. **Task 2.9.9 swept a claim into another
+story's file eleven hours before this task made it false**, which is a sweep
+behaving correctly and then being overtaken — the amendment says so rather than
+quietly reversing it.
+
+**One figure in that file is a deployed reading and cannot be re-taken here**:
+`/securities` at ~1.15 s. It is marked as owed by the gate below.
+
 ### Outstanding — the deployed gate
 
 **The four deployed readings are not taken**, because the coding does not exist

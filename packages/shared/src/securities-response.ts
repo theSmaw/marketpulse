@@ -61,6 +61,18 @@
  * uncompressed figure is the one that looks alarming and is not the one being
  * transferred; quote the gzipped one.
  *
+ * **That instruction was measured false on 2026-09-10 and made true again the
+ * same day, and both halves are recorded because the second is not a
+ * restoration of the first.** Task 2.9.9 found that *nothing on this path
+ * compressed* — neither the application nor the deployed ingress — so for as
+ * long as that held, the 190,736 was the wire and "quote the gzipped one" was
+ * advice to quote a number nobody received. Task 2.9.10 registered
+ * `@fastify/compress`, and the gzipped figure is the wire again. **The number
+ * is 20,072 B, not the 19,526 above**: that reading was `gzip -9` and the
+ * plugin runs zlib's default level. Quote 20,072, and take it with `curl`'s
+ * `%{size_download}` rather than off a `content-length` — a compressed response
+ * from this server is chunked and carries none.
+ *
  * The compression ratio is the interesting half, and Task 2.9.7 is the first
  * key to make it **worse**: 6.7:1 at 101 securities, **11.7:1** with coverage,
  * **9.8:1** now. The reason was predicted before the key was added and the
@@ -78,6 +90,11 @@
  * payload past roughly 100 kB, or a response this endpoint cannot serve in one
  * piece.** At that point the envelope gains the keys a bare array had nowhere
  * to put, which is the whole argument for the envelope above.
+ *
+ * **Since 2026-09-10 that trigger is a wire figure rather than a hypothetical
+ * one** — the payload is compressed in transit, so "a compressed payload past
+ * roughly 100 kB" is now something a `curl` can read directly. It stands at
+ * 20,072 B, a fifth of the way there.
  */
 
 import { TIMEFRAMES } from "./bar.js";
