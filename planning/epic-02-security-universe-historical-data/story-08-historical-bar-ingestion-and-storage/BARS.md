@@ -971,6 +971,14 @@ worked on in bursts — and it fails **silently**, which is the shape this
 repository keeps finding. The instrument that catches it is `pnpm bars:check`,
 whose default window is the ledger's own span, and not this workflow.
 
+> **Amended 2026-09-10: "the store" in the paragraph above means the MINUTE
+> store, and the sentence does not say so.** `--sessions 10` carries no
+> `--timeframe`, and `backfill.ts`'s default is `1m` — so **the nightly job has
+> never fetched a daily bar.** §8.18 is the finding, its measurement and the
+> consequence. Nothing here is wrong about the schedule; what is wrong is the
+> unqualified word "store", in a document whose own tables (§8.1, §8.16) list
+> two timeframes.
+
 ### 8.13 Today's session, which the store deliberately does not hold
 
 **The walk takes COMPLETE sessions only** — `resolveSessions` asks for `N + 1`
@@ -1297,3 +1305,91 @@ was bought for.
 The deployed store matches the local one to the digit (§8.16), so the deployed
 page is predicted to read the same summary line character for character. **Task
 2.8.10 owns confirming that**; it has not been read.
+
+---
+
+## 8.18 The nightly catch-up fills one timeframe of two — found 2026-09-10
+
+**Logged against this story rather than fixed in it. Nothing here is a code
+defect; the deployed page is faithfully reporting what the store holds.**
+
+Found from the other end, by a reader looking at the shipped `/securities` page
+on 2026-09-10 and asking why the **Last close** column said **`2026-09-04`**.
+
+### What was measured
+
+Against the deployed backend, not inferred:
+
+| Reading                                                      | Answer                                   |
+| ------------------------------------------------------------ | ---------------------------------------- |
+| `/securities` — the session on every one of 518 `lastCloses` | **`2026-09-04`**, all 518, no exceptions |
+| `/securities` — the `1m` coverage `end` on every row         | **`2026-09-08T20:00:00.000Z`**           |
+| `GET /market-data/bars?symbol=NVDA&timeframe=1d&sessions=10` | **7 bars, newest `2026-09-04`**          |
+
+So the page shows a **daily** figure from the 4th beside a **minute** coverage
+figure from the 8th, and both are true. `routes/securities.ts` reads the close at
+`CLOSE_TIMEFRAME = "1d"` — deliberately, because it is 345k daily rows against
+47.7M minute ones — and reports coverage at `REPORTED_TIMEFRAME = "1m"`. **Two
+timeframes, one row, and nothing on the screen says so.**
+
+### The cause, and it is one line
+
+`.github/workflows/backfill.yml` runs the catch-up as:
+
+```
+BACKFILL_ARGS: ${{ inputs.args || '--sessions 10' }}
+```
+
+with no `--timeframe`, and `backfill.ts` declares `let timeframe: Timeframe =
+"1m"`. **The scheduled job has therefore only ever filled minute bars.** The
+daily table was filled once, by hand, and this document already records the run
+that did it — §8.8's table, `1d --from 2024-01-02 --to 2026-09-04`, 345,559 rows,
+672 sessions. **`2026-09-04` on the page is that `--to`, and nothing has moved it
+since.** It is also, not coincidentally, the worked example in `backfill.ts`'s
+own usage text and in the workflow's `args` input hint — so the frozen date is
+visible in three places in this repository and reads as documentation in all
+three.
+
+### How far behind it actually is: two sessions, not six days
+
+`2026-09-07` is **Labor Day**, and it is in the checked-in calendar
+(`market-calendar.ts`) as `closed`. So the daily table is missing **2026-09-08
+and 2026-09-09** — two sessions. The minute table is one session behind for an
+unremarkable reason: the only scheduled run at the time of writing was
+`2026-09-09T12:43Z`, before the 9th had closed.
+
+### Why this is a finding rather than a repair
+
+**The fix is one line — a second `--timeframe 1d --sessions 10` pass in the same
+job — and it was deliberately not taken by the task that found it**, for two
+reasons that are both about ownership rather than difficulty. It changes a
+**scheduled** workflow that spends Alpaca quota, which is a decision rather than
+an implementation detail; and the backfill, its ledger and its schedule are this
+story's subject, not Story 2.9's. A task reaching across stories to change a cron
+is how a story stops having an owner.
+
+### What this says about the instruments, which is the part worth keeping
+
+**`pnpm bars:check` would have caught this and was never pointed at it.** The
+workflow's own post-run report is `pnpm bars:check --timeframe 1m`, hard-coded —
+so the one instrument that reports staleness honestly is asked about the one
+timeframe that is never stale. §8.12 already names the silent-schedule hazard and
+names `bars:check` as the instrument that catches it; **this is the same hazard
+one level down, and the instrument was configured past it.**
+
+And `bar_coverage.updated_at` — _when what we hold last changed_ — is doing its
+job perfectly here. It is simply that nobody read it for `1d`.
+
+### The condition for fixing it, as a condition
+
+**The first screen whose correctness depends on a daily close being current.**
+Story 2.9's `/securities` column is not quite that: a close labelled with its own
+session date is honest, if stale. Story 2.12's price chart and Epic 5's anomaly
+detection both are — a percentile computed against a daily series that silently
+ends two sessions ago is a wrong number that looks right, which is the outcome
+`PRODUCT_SPEC.md` §35 rules out. **Either of those firing makes this a task
+rather than a note.**
+
+**A second, cheaper condition that should fire first:** the next change to
+`backfill.yml` for any reason at all. The fix is one line in a file that would
+already be open.
