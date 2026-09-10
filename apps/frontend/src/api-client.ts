@@ -330,9 +330,16 @@ export function getHealth(
  * Note the second figure is smaller than the ~13 kB predicted for §6's 500,
  * because Task 2.8.2's coarser industry taxonomy repeats 25 labels across 503
  * rows where the old one had 45 near-unique ones, and repetition is what gzip
- * is. The uncompressed figure is what actually crosses the wire from a laptop —
- * nothing in this stack compresses, which is Story 2.10's to look at if it ever
- * matters. And no `?q=`: Story 2.11 owns search and has an open decision about
+ * is.
+ *
+ * **The last sentence of that paragraph was `nothing in this stack compresses,
+ * which is Story 2.10's to look at if it ever matters`, and Task 2.9.10 made it
+ * false on 2026-09-10.** `@fastify/compress` is registered in `buildServer()`,
+ * so **20,072 bytes is what crosses the wire** and the 190,736 is what an
+ * `Accept-Encoding: identity` client would receive. `fetch` negotiates and
+ * decompresses transparently, which is why nothing in this file changed: the
+ * hook above sees the same JSON it always did. It was never Story 2.10's — this
+ * story's own scope owed it. And no `?q=`: Story 2.11 owns search and has an open decision about
  * whether matching happens here or in the server, which a parameter added now
  * would settle by accident.
  */

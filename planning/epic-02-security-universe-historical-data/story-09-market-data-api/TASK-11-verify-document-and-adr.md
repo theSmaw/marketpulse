@@ -304,6 +304,58 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
     **356 ms** when the validator hits, and a month of minute bars is **1.06 MB**
     and **~2.5 s**.
 
+- **What Task 2.9.10 leaves you, added 2026-09-10.** It swept its own
+  falsifications the same day, so there is nothing outstanding to sweep — with
+  **one exception, which is a hard precondition on this task rather than an
+  item on a list.**
+
+  - **DO NOT START THIS TASK WHILE 2.9.10'S DEPLOYED GATE IS OUTSTANDING.** That
+    task is `Built and measured locally; the deployed gate is outstanding`,
+    because the coding does not exist deployed until it merges. Four `curl`
+    readings against the deployed backend are owed, `MARKET-DATA-API.md` §12.8's
+    `200` rows and §13.6 are the empty slots waiting for them, and Story 2.11's
+    `STORY.md` carries a ~1.15 s deployed figure that is now pre-compression. An
+    ingress that strips, re-encodes or buffers `Content-Encoding` makes the whole
+    of §13 inert **with every test green**, so closing the story over an untaken
+    gate would certify a mechanism nobody has seen work. If the readings differ
+    from local it is a falsification of §11 or §12.5 and it sweeps upward the
+    same day.
+  - **§13 is the new section** — the plugin, the hook order, what the `ETag`
+    validates, `Vary`, and the two measured numbers. It is Task 2.9.10's and this
+    task does not re-take it.
+  - **The document now carries two dates on purpose.** §4 has **two** amendments
+    (2.9.9 saying its arithmetic is about a transfer that does not happen, 2.9.10
+    saying it happens again); §11 and §12.1 have one each; §12.5's heading is
+    deliberately left saying _nothing on this path compresses_, because that is
+    what was true when it was measured. **Do not flatten any of them into a
+    single current statement** — the sequence is the finding.
+  - **`strongETag` is `weakETag` and emits `W/"…"`.** Anything in this task's own
+    criteria walk that quotes a strong tag is stale.
+  - **Three things for the ADR, on top of the finding 2.9.9 left you.** That
+    entry says the ADR should carry _an assumption about the transport that every
+    test was structurally unable to see_. 2.9.10 adds the repair's own shape and
+    it is the better half of the pairing: **the fix for an invisible assumption
+    was itself a silent-failure risk of exactly the same kind** — a compressor
+    registered ahead of the validator removes every `ETag` with nothing on screen
+    wrong and every `app.inject()` test green. Both failures were produced red
+    first. Second: **the entity tag became weak, and which of the three RFC-legal
+    repairs was happening had to be found by asking a running server** rather
+    than by reading a plugin's documentation. Third, and it is a `CLAUDE.md`
+    candidate rather than an ADR one: **`@fastify/compress` attaches its `onSend`
+    per route via `onRoute`, so Fastify runs it after every instance-level
+    hook** — which means the ordering trap this task's predecessor was written
+    around is not reachable through that plugin at all. Judge whether that earns
+    a line in the _Backend_ section beside the `Content-Length` one 2.9.8 left;
+    it is listed here so the judgement is made rather than skipped.
+  - **A second entry for _What `pnpm verify` does not cover_ §3, and it is the
+    same class as the five-minute ceiling above.** Nothing in `verify` negotiates
+    an encoding against a deployed host, so the claim that the ingress passes
+    `Content-Encoding` through untouched is a stated invariant checked by one
+    `curl` at one moment. One line with its re-measurement.
+  - **One figure a stakeholder will feel, to sit beside 2.9.9's two:**
+    `/securities` fell from **190,736 to 20,072 bytes** on the wire, and the
+    month of minute bars from **1.06 MB to ~171 kB**.
+
 - **Write the stakeholder section** in the shape Task 2.4.2 and 2.8.9 established:
   what this actually did in plain terms, why the small decisions went the way they
   did, and where it leaves the product. Say plainly that the visible result is one
@@ -311,6 +363,8 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
 
 ## Done when
 
+- **Task 2.9.10's deployed gate is discharged before this task starts** — four
+  readings taken and quoted, `MARKET-DATA-API.md` §12.8 and §13.6 filled in
 - All seven criteria re-taken, each with the instrument named and the reading
   quoted
 - `pnpm verify`, `pnpm test:database` and `pnpm e2e` all pass, and the numbers

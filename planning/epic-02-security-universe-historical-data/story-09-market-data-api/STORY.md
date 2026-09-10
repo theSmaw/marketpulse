@@ -112,7 +112,15 @@ work to be proved end to end.
   since Task 2.9.1 describes a transfer that does not happen (`MARKET-DATA-API.md` §12.5).
   **Task 2.9.10 is the "choosing" half of this bullet**, and it is deliberately the dullest
   possible choice — a compression plugin — because the bullet's own warning was against
-  cleverness rather than against encoding
+  cleverness rather than against encoding.
+  **Built 2026-09-10 by Task 2.9.10, and this bullet is now discharged.**
+  `@fastify/compress` is registered in `buildServer()` over every response above
+  1,024 bytes: `/securities` falls from **190,736 to 20,072 bytes** on the wire
+  and the at-the-cap series from **1,104,621 to 178,698**. The sentence above
+  that says nothing between a handler and a browser compresses **was true when
+  it was written on 2026-09-10 and is no longer**; §4's gzipped arithmetic is
+  true again, and `MARKET-DATA-API.md` §13 carries the choice, the hook order
+  and the two failures that were produced before it was taken
 - Caching semantics — historical bars for a closed session are immutable, which is the
   cheapest caching opportunity this product will ever have.
   **Built 2026-09-10 by Task 2.9.8, and the bullet's premise needed qualifying:
@@ -412,5 +420,5 @@ blind substitution would have corrupted — was not one of them.
 | [2.9.7](TASK-07-the-first-real-price-on-screen.md)                      | Last close on `/securities` ✅                             | **Yes — the payoff**    |
 | [2.9.8](TASK-08-caching-and-the-immutable-session.md)                   | Closed sessions never change                               | No                      |
 | [2.9.9](TASK-09-measured-against-forty-eight-million-rows.md)           | Timings and payloads, local and deployed                   | No                      |
-| [2.9.10](TASK-10-compress-the-wire.md)                                  | The encoding this story's scope always owed                | No                      |
+| [2.9.10](TASK-10-compress-the-wire.md)                                  | The encoding this story's scope always owed ✅             | No                      |
 | [2.9.11](TASK-11-verify-document-and-adr.md)                            | Verify, `MARKET-DATA-API.md`, the ADR, the upward sweep    | No                      |

@@ -95,20 +95,49 @@ export function reusableFor(seconds: number): string {
 }
 
 /**
- * A strong entity tag for a serialised body.
+ * A **weak** entity tag for a serialised body.
  *
  * SHA-1 rather than a stronger digest because this is a **change detector and
  * not a security boundary**: an attacker who can choose the bytes of a bar
  * series can already choose the bar series. `base64url` because every character
  * it produces is legal inside an ETag's quoted string, unescaped.
  *
- * Strong rather than weak (`W/`), which is a claim we can actually make: the
- * bytes are the response, byte for byte, with no transformation between here
- * and the socket — nothing in this application compresses, and the header is
- * computed from the payload the hook is about to return.
+ * ## Weak (`W/`) since Task 2.9.10, and it was strong before it — established
+ * by observation rather than from documentation
+ *
+ * Until this application compressed, the strong claim was one it could make:
+ * the bytes hashed here were the bytes on the socket, with no transformation in
+ * between. `http-compression.ts` ends that, and RFC 9110 §8.8.1 is explicit
+ * that a content-coding produces a **different representation** — so a *strong*
+ * tag covering both the gzipped and the identity bytes is, read strictly,
+ * wrong.
+ *
+ * There are three honest repairs and only one of them is what actually happens
+ * here, which is why it was produced against a running server rather than read
+ * off a plugin's README:
+ *
+ *   - **hash before compression and mark the tag weak** — what this does;
+ *   - **let the compressor suffix the tag per encoding** (nginx's
+ *     `gzip_etag`-style `"x-gzip"`) — `@fastify/compress` does no such thing,
+ *     verified: the same request with and without `Accept-Encoding: gzip`
+ *     returns the **identical** entity tag;
+ *   - **hash after compression and emit `Vary`** — would require the validator
+ *     to run last, which it structurally cannot (see `http-compression.ts`).
+ *
+ * A weak validator is exactly the claim that is true: the two codings are
+ * *semantically equivalent* and this tag identifies the pair rather than
+ * either. `If-None-Match` uses the weak comparison function regardless, so the
+ * `304` this earns is unaffected — `matchesETag` below already strips `W/`, and
+ * did before this changed.
+ *
+ * **This preserves the property the module comment argues for**: the hash is
+ * still taken over the string `fast-json-stringify` produced, after every
+ * undeclared field has been stripped. Compression happens downstream of it and
+ * cannot change what two responses that differ only in a stripped field hash
+ * to.
  */
-export function strongETag(payload: string): string {
-  return `"${createHash("sha1").update(payload).digest("base64url")}"`;
+export function weakETag(payload: string): string {
+  return `W/"${createHash("sha1").update(payload).digest("base64url")}"`;
 }
 
 /**
@@ -174,8 +203,29 @@ export function installResponseValidator(app: FastifyInstance): void {
       return;
     }
 
-    const etag = strongETag(payload);
+    const etag = weakETag(payload);
     reply.header("etag", etag);
+
+    // `Vary: accept-encoding`, set here rather than left to the compressor
+    // (Task 2.9.10).
+    //
+    // `@fastify/compress` sets it, but **only on a response it actually
+    // compressed** — verified: an identity `200` and a `304` came back with no
+    // `vary` at all. Those are the two a cache is most likely to store and
+    // re-serve, so the header belongs on every response that carries a
+    // validator, which is what this line does. The plugin's own
+    // `setVaryHeader` de-duplicates against an existing value, so it adds
+    // nothing on top of this rather than emitting the token twice.
+    //
+    // **Whether it is load-bearing, said rather than assumed.** §11's argument
+    // for `private` is that two headers on this API are computed per
+    // requester, so no shared cache should hold these bodies at all — and if
+    // that holds, the only cache is the browser's, which keys the encoding it
+    // asked for. So this is belt-and-braces. It is set anyway because "we said
+    // `private` so `Vary` cannot matter" is a claim about every intermediary
+    // between here and a browser, and §12.5 is the section that exists because
+    // an assumption of exactly that shape turned out to be wrong.
+    reply.header("vary", "accept-encoding");
 
     if (!matchesETag(request.headers["if-none-match"], etag)) {
       done(null, payload);
