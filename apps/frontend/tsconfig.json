@@ -46,6 +46,22 @@
     // shows up in the browser, not in a compile error.
     "jsx": "react-jsx",
 
+    // Recorded response bodies are checked in as `.json` and imported by the
+    // fixture module (Task 2.10.6). Without this, tsc does not put a `.json`
+    // file in the program at all and the import is TS2732 — while Vite resolves
+    // it happily, which is the usual shape of a convention only tsc enforces.
+    //
+    // Scoped to this package rather than added to `tsconfig.base.json`: it
+    // widens what `include` admits, and `packages/shared` and `apps/backend`
+    // have no JSON to import. `apps/backend/src/fixtures/alpaca/` is read at
+    // runtime rather than imported, deliberately, because those files are a
+    // vendor's raw bytes.
+    //
+    // `nodenext` requires the import attribute — `with { type: "json" }` — and
+    // that is not ceremony: it is what a browser and Node both need to fetch a
+    // JSON module, and Vite emits the content either way.
+    "resolveJsonModule": true,
+
     // --- The browser baseline ---
     //
     // Desktop-first, per PRODUCT_SPEC.md §3, and evergreen: current Chrome,

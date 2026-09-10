@@ -184,3 +184,90 @@ not six — and renders the member it is given.
 - **Nothing here needs a `try` or an error boundary for a bad answer.** Every
   failure, including a body whose numbers disagree with each other, is already a
   member of the union.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.6 — the fixture backend exists, and your tests should use it rather than invent bodies
+
+There is now one home for recorded response bodies:
+`apps/frontend/src/fixtures/`, outside `src/market/` because the module's lint
+boundary would make anything inside it unreachable from a component test or a
+story. Three things in it are yours:
+
+- **`stubBarSeries(name)`** — installs a `fetch` stub answering every request
+  with one of ten recorded bodies. `stubBarSeries("partial")` and render the
+  panel is the whole arrangement. Names: `full`, `partial`, `empty`, `stitched`,
+  `refusedCap`, `refusedCalendar`, `refusedUnknownSymbol`, `unavailable`,
+  `incoherent`, `unknownFeed`.
+- **`barSeriesFixtureView(name)`** — the same body as a `BarSeriesView`, built
+  through the real `toBarSeriesView`. This is what a story should hold. **Do not
+  hand-build a state**: a `partial` whose `covered` disagrees with its bars is a
+  state this layer cannot produce, and a panel tuned against it renders the real
+  one wrongly.
+- **`stubFetch(respond)`** — the general form, whose handler is given
+  `{ url, signal, index }`. Four test files were migrated onto it; do not write a
+  fifth copy.
+
+Two consequences for this task specifically.
+
+**The panel's facts can be asserted against real numbers.** `full` is 30 bars
+over exactly the half-hour asked for; `partial` is 60 bars whose `covered` stops
+at a session boundary inside a wider `requested`; `stitched` is 150 bars naming
+two provenance sources. Those are real NVDA prices from 2026-09-04 and 2026-09-08,
+so _"the window asked for against the window held"_ has something true to be
+checked against rather than a shape.
+
+**You no longer clear the series cache in your own test file.**
+`src/test-setup.ts` does it in the same `afterEach` as `cleanup()`. A file that
+clears it itself protects that file and nothing else, which is exactly the state
+`market/use-bar-series.test.ts` was in and no longer is.
+
+One thing the fixture set cannot give you, recorded rather than assumed:
+**`stitched.json`'s two sources name the same feed**, because both halves come
+from Alpaca's historical API, which is SIP on this plan. A series naming two
+_different_ feeds arrives with Epic 3's IEX socket. If this panel's provenance
+line is written as though two feeds are the interesting case, it is being written
+against something no server has yet sent — Story 2.14 owns that wording.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.6 — the default window, measured against both stores, and what it will actually render
+
+Recording the fixtures meant asking both stores what a default request returns,
+and the answer bears directly on this task's _"choose a default and say so"_
+bullet. **Measured 2026-09-10, 08:46–09:15 UTC**, `symbol=NVDA&timeframe=1m`:
+
+| Window       | Local store                                  | Deployed store                                 |
+| ------------ | -------------------------------------------- | ---------------------------------------------- |
+| `sessions=1` | `empty` — `covered: null`                    | `empty` — `covered: null`                      |
+| `sessions=2` | `empty` — `covered: null`                    | `empty` — `covered: null`                      |
+| `sessions=5` | `partial` — 780 bars, covered to 09-04 close | `partial` — 1,170 bars, covered to 09-08 close |
+
+Three things follow, and the first is a trap rather than a preference.
+
+**A small default renders an empty panel on a store holding 48 million bars.**
+`sessions=1` resolves to today's session, which has not opened; `sessions=2`
+reaches back one more, which the nightly backfill has not taken yet. Both are
+correct 200s and both look exactly like a broken data layer to whoever is
+building this panel. If the default is one or two sessions, the first thing this
+task puts on screen is the empty state — so **pick a default that has bars in it**,
+and know that the reason is the backfill's cadence rather than anything here.
+
+**`partial` is the state this panel will normally be in, and the state a demo
+shows.** That is what Task 2.10.4 meant by _"the normal case rather than the
+exceptional one"_, now with a number against it. The panel's _"we hold X of the
+window you asked for, through T"_ line is not an edge case to be handled — it is
+the main line of copy, and it should read as an answer rather than as an apology.
+
+**`loaded` is a narrow condition through a named window, not the ordinary one.**
+`requested.end` is always the _current_ session's close, so `covered` can only
+equal it once the store holds bars through that close — which is true between the
+nightly backfill and the next session's open, and was true at neither store when
+this was measured. A screenshot showing `loaded` therefore wants an **absolute**
+window ending at or before `covered.end`, which is also the honest thing for a
+deep link to carry. Both are legitimate; they are just not the same screen, and
+this task should know which one it is showing before it takes the screenshot.
+
+None of this is a reason to resolve a window from the browser's clock — that
+remains forbidden, and the server still reports back what it meant in
+`coverage.requested`.

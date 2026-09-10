@@ -40,7 +40,7 @@ difference between a demo and a product.
   | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
   | partial            | ask for a window that starts before this symbol's backfill does — `pnpm bars:check` says what is missing and why |
   | empty              | a tracked symbol with no stored bars, or a window entirely before coverage                                       |
-  | refused (cap)      | ask for a year of minute bars; the 400 names 98,280 against 10,000                                               |
+  | refused (cap)      | ask for a year of minute bars; the 400 names the count against 10,000 — see the amendment, it is not 98,280      |
   | refused (calendar) | a window outside 2024–2028                                                                                       |
   | unreachable        | stop the backend                                                                                                 |
   | retryable          | `DATABASE_PORT=59999 node dist/index.js`, which produces a real 503                                              |
@@ -221,3 +221,134 @@ The announcement question inherits the same shape: a refetch that lands on an
 identical series is the common case for a closed session's bars, and it produces
 the same sentence, which a live region passes over in silence. That is arguably
 correct here — nothing changed — but it must be decided rather than discovered.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.6 — every state now has a named cause on disk
+
+This task's title is _every state produced, not described_, and the fixture
+backend is what makes the producing cheap. `apps/frontend/src/fixtures/` holds
+ten recorded bodies of `GET /market-data/bars`, eight of them taken from the real
+endpoint over the real store, each with the state it collapses to asserted in
+`fixtures/bar-series.test.ts`:
+
+| Cause                                 | Fixture                | State                             |
+| ------------------------------------- | ---------------------- | --------------------------------- |
+| A complete answer                     | `full`                 | `loaded`                          |
+| A window past what the store holds    | `partial`              | `partial`                         |
+| A window with no prints in it         | `empty`                | `empty`                           |
+| History plus a live tail              | `stitched`             | `loaded`, two provenance sources  |
+| A window over the 10,000-bar cap      | `refusedCap`           | `refused`, naming 98,310          |
+| A window outside the trading calendar | `refusedCalendar`      | `refused`                         |
+| A symbol the universe does not hold   | `refusedUnknownSymbol` | `refused` — **the third refusal** |
+| The store unreachable                 | `unavailable`          | `failed`, **`retryable: true`**   |
+| Our own server contradicting itself   | `incoherent`           | `failed`, not retryable           |
+| A feed slug this bundle does not know | `unknownFeed`          | `failed`, via `unreadable-body`   |
+
+`stubBarSeries(name)` installs a `fetch` stub answering with any of them;
+`barSeriesFixtureView(name)` returns the state itself, built through the real
+`toBarSeriesView`, which is the form a story wants. **Constructing a state by
+hand is the thing to avoid**: a hand-built `partial` whose `covered` disagrees
+with its bars is unreachable in the real layer, and a component tuned against it
+renders the real one wrongly.
+
+Three states this task must produce that no recorded body can, because they are
+properties of a **transport** rather than of an answer: `loading` (use
+`neverAnswers` from `fixtures/stub-fetch.ts` — the socket that accepts and does
+not reply), `unreachable` (reject with `new TypeError("Failed to fetch")`), and
+`timeout` (`neverAnswers` again, past the deadline). All three are in
+`stub-fetch.ts` or one line away from it.
+
+And the one wording constraint that comes out of the recording rather than out of
+a decision: **`stitched.json`'s two sources name the same feed.** Both halves are
+Alpaca's historical API, which is SIP on this plan, so _"this chart is stitched
+from two feeds"_ is not a sentence anything can currently produce. The two-feed
+case arrives with Epic 3's IEX socket, and Story 2.14 owns it.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.6 — three corrections to the causes table, measured while recording the fixtures
+
+### The cap's number: 98,280 is not a number this endpoint produces
+
+The causes table above says _"ask for a year of minute bars; the 400 names
+**98,280** against 10,000"_. Recording that refusal against the real endpoint
+produced **98,310**, and the discrepancy is not a drift — it is a figure that was
+derived rather than taken. Measured, `symbol=NVDA&timeframe=1m`:
+
+| Window                                          | The 400 names |
+| ----------------------------------------------- | ------------- |
+| `start=2025-09-04T13:30Z&end=2026-09-04T20:00Z` | 98,310        |
+| `start=2025-09-05T13:30Z&end=2026-09-04T20:00Z` | 97,920        |
+| `sessions=252`                                  | 97,920        |
+| `sessions=253`                                  | 98,310        |
+
+The counts step by exactly 390 and are ≡ 30 (mod 390) for a session-aligned
+window, so **98,280 = 390 × 252 sits off the lattice** and no session-aligned
+window produces it. It is the naive sizing arithmetic — `390 × 252` — which
+`BARS.md` §"Mean 97,494" already flags as _not_ the real figure for a different
+purpose, arriving here as though it were a server's output.
+
+**Only the live instruction is corrected: this table's row.** The other twelve
+copies of 98,280 are deliberately left standing, and they split into two kinds
+that must not be swept together. `UNIVERSE.md`, `BARS.md` and Story 2.8's tasks
+use it as the _naive sizing estimate it is_, correctly and about a different
+subject. `TASK-04`'s four copies, `bar-series-view.ts`'s doc comment and three
+frontend test files use it as an **invented example sentence** demonstrating that
+the client shows the server's message verbatim — where the number is immaterial
+by construction, since the whole property under test is that nothing here reads
+it.
+
+Which is also the durable point, and it is the one this task should act on rather
+than the number: **no document and no component should carry this figure at all.**
+The criterion _"both refusals name their number"_ is satisfied by rendering
+`message`, and any copy written around a specific number is copy that will be
+wrong for every window except one.
+
+### The `empty` row has a much cheaper cause, and it is the default
+
+The table offers _"a tracked symbol with no stored bars, or a window entirely
+before coverage"_. Neither is needed, and neither is available cheaply: every
+security in the store has a ledger row for both timeframes, so there is no
+symbol with nothing stored.
+
+What produces `empty` is **the ordinary default**. Measured 2026-09-10 against
+both stores, `symbol=NVDA&timeframe=1m`: `sessions=1` and `sessions=2` are both
+`empty` with `covered: null`, because the current session has not opened and the
+nightly backfill has not taken the one before it. `sessions=5` is `partial` on
+both. See TASK-07's amendment for the full table and what it means for the
+default window — the short form is that **`empty` and `partial` are what this
+panel renders in normal use**, which makes this task's _"produce every state from
+a named cause"_ considerably cheaper and its copy considerably more important.
+
+### The coherence fixture mutates a count, not an ordering
+
+Task 2.10.4's amendment says `failed` / `answered-badly` is produced by _"a body
+shaped like the contract whose bars do not ascend"_. The shipped fixture takes the
+other route the amendment offered: `incoherent.json` decrements the single
+source's `barCount` from 30 to 29, so the sources no longer sum to the bars. Same
+branch, same state, same one `try` in the layer — but anyone grepping for a
+non-ascending fixture will not find one.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.6 — a consequence for where the stale label goes
+
+Task 2.10.5's amendment lists three homes for the _a request is in flight behind
+this answer_ label: a seventh union member, a boolean on the answer members, or a
+field on `BarSeriesSource` beside `retry`. The fixture backend adds one input to
+that choice that was not visible when those three were written.
+
+**`barSeriesFixtureView(name)` returns a `BarSeriesView`.** That is what a story
+holds, and it is deliberately built through the real `toBarSeriesView` so a story
+cannot render a state the layer cannot produce. If the flag lands on the union or
+on its answer members, a stale story is `{ ...barSeriesFixtureView("partial"),
+stale: true }` and costs nothing. If it lands on `BarSeriesSource`, the fixture
+module cannot express it and this task owes a second helper — because a story
+that constructs the source shape by hand is back to hand-building state, which is
+the thing the fixture set exists to stop.
+
+That is a cost on the third option, not a case against it: a fact about _the
+request_ rather than about _the market_ arguably does belong beside `retry`, and
+one small helper is a fair price. It should just be priced rather than discovered
+after the choice.

@@ -1,0 +1,26 @@
+{
+  "series": {
+    "symbol": "NVDA",
+    "timeframe": "1m",
+    "bars": [],
+    "provenance": {
+      "adjustment": "raw",
+      "sources": [
+        {
+          "provider": "alpaca",
+          "feed": "sip",
+          "retrievedAt": "2026-09-10T08:50:03.220Z",
+          "barCount": 0
+        }
+      ]
+    },
+    "coverage": {
+      "requested": {
+        "start": "2026-09-10T13:30:00.000Z",
+        "end": "2026-09-10T20:00:00.000Z"
+      },
+      "covered": null
+    }
+  },
+  "securityStatus": "active"
+}

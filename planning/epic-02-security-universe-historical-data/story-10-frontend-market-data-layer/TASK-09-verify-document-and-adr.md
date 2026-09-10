@@ -256,3 +256,60 @@ What this task still owes the record, beyond its own list:
   written from an async callback and a `setState` called during render, which
   were the two most likely provocations this story had to offer. `CLAUDE.md`'s
   reading of that silence stands and should not be upgraded to a claim.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.6 — what the fixture backend adds to this close, and one criterion it makes answerable
+
+### Criterion 4 now has an instrument, and the trap in checking it has moved
+
+_"The layer works against a fixture backend with no network"_ is this story's
+criterion 4 and was Task 2.10.6's objective. It is met: ten recorded bodies in
+`apps/frontend/src/fixtures/`, and the frontend suite runs with no socket, no
+database and no network — 320 tests in ~5.1s.
+
+The bullet says to run the suite with the network disabled and read the **counts
+rather than the exit code**, because a non-matching `-t` reports skips and exits 0. That still applies, and there is now a second, sharper version of the same
+trap worth checking at the close: **`fixtures/bar-series.ts` holds every fixture
+to its declared outcome as it loads, by throwing.** So a fixture set that has
+silently stopped matching the contract fails loudly at import rather than
+skipping — but only in a file that imports it. Confirm the fixture module is
+actually reached by the run rather than assuming the guard fires.
+
+### Three things this task added that the sweep should see in the diff
+
+- **`apps/frontend/tsconfig.json` gained `resolveJsonModule`.** A frontend story
+  that changed a build configuration, which is the same class of surprise as Task
+  2.10.4 changing `packages/shared/src/bar-series.ts` — worth a sentence at the
+  close rather than leaving a reader to find it. It is scoped to the one package
+  deliberately, and the reasoning is written in beside it.
+- **`market/index.ts` exports `clearBarSeriesCache`, a test-only function.** The
+  close should confirm the thing it promises: `grep -rn "clearBarSeriesCache"
+apps/frontend/src` should find the export, the barrel and `test-setup.ts`, and
+  **no product call site**. If it ever finds one, something upstream is wrong
+  rather than this having become useful.
+- **`CLAUDE.md`'s repository map gained `src/market/` and `src/fixtures/`**,
+  already done, so do not do it twice. The map had no entry for the feature
+  module either; both lines went in together.
+
+### One line the ADR owes, now that the answer is known
+
+The bullet _"Record the artefact's new size … if a library was adopted"_ has its
+answer: **no library was adopted, at either decision.** `FRONTEND-STATE.md` §2
+hand-rolled the cache over `@tanstack/react-query`, and Task 2.10.6 kept a global
+`fetch` stub over MSW. Both were measured with the alternative built rather than
+argued away, and the second one's deciding fact is worth an ADR line because it is
+a property of this workspace rather than of the library: **MSW runs a
+`postinstall`, and adopting it means a permanent entry in the `allowBuilds`
+allowlist that exists to keep install scripts out.** That is a supply-chain
+consideration paying for a routing capability this layer does not use, and it is
+the kind of reason a future reader will otherwise assume was never considered.
+
+### And one correction this task made to its own brief, for the record
+
+Task 2.10.5's amendment to TASK-06 said _"the six files each build their own
+`stubFetch` helper by copy"_. Six files stub the global `fetch`; **four** define a
+helper by that name, and all four are now on the shared one. The other two —
+`api-client.test.ts`'s body-shaped `respondWith` and `App.test.tsx`'s three
+one-liners — were left deliberately, with the reasons in TASK-06 §5. The close
+should not go looking for two more migrations.

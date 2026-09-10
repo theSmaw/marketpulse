@@ -1,9 +1,11 @@
 import type { BarPayload, BarSeriesPayload } from "@marketpulse/shared";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { BarSeriesRequest } from "../bar-series-query.js";
 import { barSeriesQuery } from "../bar-series-query.js";
+import type { StubbedFetchCall } from "../fixtures/stub-fetch.js";
+import { stubFetch } from "../fixtures/stub-fetch.js";
 import { barSeriesCache } from "./series-cache.js";
 import { useBarSeries } from "./use-bar-series.js";
 
@@ -74,21 +76,15 @@ function series(count: number, symbol = "NVDA"): BarSeriesPayload {
 const body = (payload: BarSeriesPayload): string =>
   JSON.stringify({ series: payload, securityStatus: "active" });
 
-/** Every request the stub has seen: its URL, and the signal it was handed. */
-let calls: { url: string; signal: AbortSignal | undefined }[] = [];
+/**
+ * Every request the current stub has seen: its URL, and the signal it was
+ * handed. Replaced by each {@link stub}, so nothing resets it between tests.
+ */
+let calls: readonly StubbedFetchCall[] = [];
 
-function stubFetch(
-  respond: (url: string, call: number) => Promise<Response>,
-): void {
-  calls = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn((input: string | URL, init?: RequestInit) => {
-      const url = String(input);
-      calls.push({ url, signal: init?.signal ?? undefined });
-      return respond(url, calls.length);
-    }),
-  );
+/** Install the shared stub and remember what it sees. */
+function stub(respond: (call: StubbedFetchCall) => Promise<Response>): void {
+  ({ calls } = stubFetch(respond));
 }
 
 const ok = (payload: BarSeriesPayload): Promise<Response> =>
@@ -102,22 +98,20 @@ const okAfter = (payload: BarSeriesPayload, ms: number): Promise<Response> =>
     }, ms);
   });
 
-beforeEach(() => {
-  // The cache is module-level and therefore process-wide. A test inheriting
-  // another test's entries is a test that passes for a reason it does not
-  // state — and in this file it would pass by painting a series nobody asked
-  // for.
-  barSeriesCache.clear();
-});
-
+// The cache is module-level and therefore process-wide, and clearing it is
+// **`src/test-setup.ts`'s job since Task 2.10.6** rather than this file's. It
+// used to be here, in a `beforeEach` and an `afterEach`, which protected this
+// file and nothing else — the moment a second file rendered anything that
+// fetched a series the ordering hazard was live again.
+// `series-cache-isolation.test.ts` is the pair that would go red if that line
+// were removed.
 afterEach(() => {
   vi.unstubAllGlobals();
-  barSeriesCache.clear();
 });
 
 describe("useBarSeries", () => {
   it("asks for the series it was given, once, and loads it", async () => {
-    stubFetch(() => ok(series(3)));
+    stub(() => ok(series(3)));
 
     const { result } = renderHook(() => useBarSeries(REQUEST));
 
@@ -143,7 +137,7 @@ describe("useBarSeries", () => {
   // than on the query string, this would fetch forever — and it would look
   // exactly like a working hook on screen.
   it("does not re-ask when the same request arrives as a new object", async () => {
-    stubFetch(() => ok(series(1)));
+    stub(() => ok(series(1)));
 
     const { result, rerender } = renderHook(() =>
       useBarSeries({
@@ -165,7 +159,7 @@ describe("useBarSeries", () => {
   });
 
   it("asks again, and aborts the request in flight, when the symbol changes", async () => {
-    stubFetch((url) =>
+    stub(({ url }) =>
       okAfter(series(1, url.includes("AMD") ? "AMD" : "NVDA"), 20),
     );
 
@@ -197,7 +191,7 @@ describe("useBarSeries", () => {
   // because "changing the window re-asks" is a claim about the key including
   // the window — which is a different thing to get wrong than the symbol.
   it("asks again when only the window changes", async () => {
-    stubFetch(() => ok(series(1)));
+    stub(() => ok(series(1)));
 
     const { result, rerender } = renderHook(
       ({ sessions }: { sessions: number }) =>
@@ -228,7 +222,7 @@ describe("useBarSeries", () => {
   // Verified by deleting the `current.current !== controller` line in the hook
   // and watching this go red.
   it("cannot render a superseded answer that arrives after the newer one", async () => {
-    stubFetch((url) =>
+    stub(({ url }) =>
       url.includes("NVDA")
         ? okAfter(series(1), 40)
         : okAfter(series(9, "AMD"), 0),
@@ -264,7 +258,7 @@ describe("useBarSeries", () => {
   // the guard that clears the ref beside it is the same line the supersession
   // test above does hold red.
   it("aborts the request in flight when it is unmounted", async () => {
-    stubFetch(() => okAfter(series(1), 60));
+    stub(() => okAfter(series(1), 60));
 
     const { unmount } = renderHook(() => useBarSeries(REQUEST));
 
@@ -292,7 +286,7 @@ describe("useBarSeries", () => {
   // (`FRONTEND-STATE.md` §2: every read of the cache is accompanied by one), so
   // a test counting requests would be asserting the opposite of the design.
   it("paints a held series immediately when the same security is returned to", async () => {
-    stubFetch(() => ok(series(4)));
+    stub(() => ok(series(4)));
 
     const first = renderHook(() => useBarSeries(REQUEST));
     await waitFor(() => {
@@ -321,7 +315,7 @@ describe("useBarSeries", () => {
   // wearing the right label, which is plausible and wrong rather than visibly
   // broken.
   it("does not paint a held series under a different window", async () => {
-    stubFetch(() => okAfter(series(4), 40));
+    stub(() => okAfter(series(4), 40));
 
     const first = renderHook(() => useBarSeries(REQUEST));
     await waitFor(() => {
@@ -341,8 +335,8 @@ describe("useBarSeries", () => {
   // the collapse is `bar-series-view.ts`'s; what is asserted here is that
   // pressing it produces a real second request and a recovery with no reload.
   it("recovers from a retryable failure without a reload, and holds nothing from it", async () => {
-    stubFetch((_url, call) =>
-      call === 1
+    stub(({ index }) =>
+      index === 0
         ? Promise.resolve(
             new Response(
               JSON.stringify({
@@ -378,7 +372,7 @@ describe("useBarSeries", () => {
   // entry would save nothing and would outlive the screen its sentence was
   // written for.
   it("does not hold a refusal", async () => {
-    stubFetch(() =>
+    stub(() =>
       Promise.resolve(
         new Response(
           JSON.stringify({
@@ -404,7 +398,7 @@ describe("useBarSeries", () => {
   // would be standing traffic per open tab for a tail that moves once a night,
   // and it is the wrong mechanism arriving before Epic 3's live feed.
   it("does not poll", async () => {
-    stubFetch(() => ok(series(1)));
+    stub(() => ok(series(1)));
 
     const { result } = renderHook(() => useBarSeries(REQUEST));
 

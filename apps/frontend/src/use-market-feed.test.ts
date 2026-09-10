@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { stubFetch } from "./fixtures/stub-fetch.js";
 import { useMarketFeed } from "./use-market-feed.js";
 
 // The hook drives the real effect against a stubbed `fetch`, which is its only
@@ -9,19 +10,6 @@ import { useMarketFeed } from "./use-market-feed.js";
 // the client's seven outcomes onto the four states, and the two properties that
 // belong to the loop rather than to a request: it asks **once**, and a teardown
 // writes nothing.
-
-let requests = 0;
-
-function stubFetch(respond: () => Promise<Response>): void {
-  requests = 0;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(() => {
-      requests += 1;
-      return respond();
-    }),
-  );
-}
 
 const json = (status: number, body: unknown) =>
   Promise.resolve(new Response(JSON.stringify(body), { status }));
@@ -139,7 +127,7 @@ describe("useMarketFeed", () => {
   // so polling it would be standing traffic to re-learn a fact that has not
   // moved.
   it("asks once and never again", async () => {
-    stubFetch(() => json(200, { feed: "iex" }));
+    const { calls } = stubFetch(() => json(200, { feed: "iex" }));
 
     const { result, rerender } = renderHook(() => useMarketFeed());
 
@@ -150,7 +138,7 @@ describe("useMarketFeed", () => {
     rerender();
     rerender();
 
-    expect(requests).toBe(1);
+    expect(calls).toHaveLength(1);
   });
 
   // A torn-down effect is not a fact about the service. Under `StrictMode` the

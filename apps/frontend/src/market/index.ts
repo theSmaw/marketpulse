@@ -78,6 +78,14 @@ export type { BarSeriesSource } from "./use-bar-series.js";
 // series without asking for one, which is the rule that keeps *every read is
 // accompanied by a request* true (`FRONTEND-STATE.md` §2) rather than merely
 // stated.
+//
+// **One function off it is, and only one** (Task 2.10.6): the reset. It can
+// forget and it cannot read, so the invariant above is untouched, and what it
+// buys is that `src/test-setup.ts` — which is outside this module and reaches it
+// only through this file — can clear a module-level singleton between tests. The
+// argument for exporting a test-only function at all, and the `eslint.config.mjs`
+// exemption that was rejected instead, are in `series-cache.ts` beside it.
+export { clearBarSeriesCache } from "./series-cache.js";
 
 // Re-exported rather than moved — see the header. A consumer asking for a
 // series and a consumer holding one should not need to know that the request

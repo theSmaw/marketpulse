@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { stubFetch } from "./fixtures/stub-fetch.js";
 import { useSecurities } from "./use-securities.js";
 
 // The hook drives the real effect against a stubbed `fetch`, which is the only
@@ -35,19 +36,6 @@ const PROVENANCE = {
     retrievedAt: "2026-09-05T00:00:00.000Z",
   },
 };
-
-let requests = 0;
-
-function stubFetch(respond: () => Promise<Response>): void {
-  requests = 0;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(() => {
-      requests += 1;
-      return respond();
-    }),
-  );
-}
 
 const json = (status: number, body: unknown, headers?: HeadersInit) =>
   Promise.resolve(
@@ -341,7 +329,7 @@ describe("useSecurities", () => {
   // replaces.
   it("re-asks when a retry is requested, and recovers without a reload", async () => {
     let answered = false;
-    stubFetch(() => {
+    const { calls } = stubFetch(() => {
       if (answered) {
         return json(200, { securities: [NVDA], coverage: [], lastCloses: [] });
       }
@@ -372,7 +360,7 @@ describe("useSecurities", () => {
     await waitFor(() => {
       expect(result.current.view.state).toBe("loaded");
     });
-    expect(requests).toBe(2);
+    expect(calls).toHaveLength(2);
   });
 
   // Pressing twice cannot render a stale answer. The second press supersedes
@@ -385,7 +373,7 @@ describe("useSecurities", () => {
     // is immediate and says it is empty. If the loser's answer is allowed to
     // land, this ends up "loaded" 40 ms after it ended up "empty".
     let call = 0;
-    stubFetch(() => {
+    const { calls } = stubFetch(() => {
       call += 1;
       const populated = call !== 3;
       const delay = call === 2 ? 40 : 0;
@@ -428,7 +416,7 @@ describe("useSecurities", () => {
     // that had already resolved when the abort landed.
     await new Promise((resolve) => setTimeout(resolve, 80));
     expect(result.current.view.state).toBe("empty");
-    expect(requests).toBe(3);
+    expect(calls).toHaveLength(3);
   });
 
   // The contrast with `useBackendHealth` that is the whole reason this is a
@@ -436,7 +424,7 @@ describe("useSecurities", () => {
   // read once and never polled. A regression here is standing billable traffic
   // per open tab against a fact that has not moved.
   it("asks once and does not poll", async () => {
-    stubFetch(() =>
+    const { calls } = stubFetch(() =>
       json(200, {
         securities: [NVDA],
         provenance: PROVENANCE,
@@ -452,6 +440,6 @@ describe("useSecurities", () => {
     });
 
     await new Promise((resolve) => setTimeout(resolve, 120));
-    expect(requests).toBe(1);
+    expect(calls).toHaveLength(1);
   });
 });
