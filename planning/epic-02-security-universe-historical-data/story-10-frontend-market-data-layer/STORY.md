@@ -267,3 +267,55 @@ to several is a query-parameter change rather than a rename (§1).
 and no second fetch — Task 2.9.7 added a fourth key to a response
 `useSecurities` already fetched, precisely so this story's decision stayed open.
 `use-*.ts` is still four files.
+
+---
+
+## Tasks — added 2026-09-10
+
+Nine tasks, sequential. The shape follows Story 2.9's: **the decisions are
+settled first and ship nothing** (2.10.1, the precedent being Tasks 2.6.1 and
+2.9.1), the layer is built in four thin slices that are each testable without a
+screen, and the last three put it in front of a person and close the story.
+
+**This story says "nothing new on screen by itself", and that is still true of
+the layer — but it is not true of the story.** Three of the nine tasks are
+visible, and they are placed as early as the dependency graph allows rather than
+banked at the end, because a run of stories with no visible change is how a
+product stops being demonstrable. 2.10.2 lands second and is visible: it applies
+the retryable-failure decision to `/securities`, which is a page that already
+exists and already produces the failure, so it needs none of the series work
+beneath it.
+
+**2.10.7 renders a real series and deliberately draws nothing.** Story 2.12 owns
+the charting decision — library or hand-built, line or candlestick, how the
+x-axis handles market gaps — and it should take it against a data layer that is
+already known to be right, rather than debugging both at once. So this story's
+payoff is a panel of stated facts: the window asked for against the window held,
+the bar count, the first and last market timestamps, the four prices, the feed
+labelled by the rule that already ships. No axis, no line, no sparkline. That
+fence is written into the task and into the component's header.
+
+**2.10.8 is a task rather than a step** because the state union has members the
+universe page could not produce — partial, empty, and two refusals that are not
+failures — and because "what the screen does while the next series loads" is a
+decision Story 2.13's window control and Epic 3's live feed both inherit. Taking
+it once, here, is the whole reason this story sits before the charts.
+
+| Task                                                                    | What it does                                                           | Visible?                     |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------- |
+| [2.10.1](TASK-01-settle-the-state-decisions.md)                         | Store, cache, where selection lives, and what "retryable" means        | No                           |
+| [2.10.2](TASK-02-a-failure-a-user-can-act-on.md)                        | `/securities` says whether waiting will help, and offers a retry       | **Yes — and it lands early** |
+| [2.10.3](TASK-03-the-series-on-the-wire.md)                             | `isBarSeriesResponse`, `getBarSeries`, and the window we never compute | No                           |
+| [2.10.4](TASK-04-the-market-module-and-the-states.md)                   | The `market` module, and partial as a first-class state                | No                           |
+| [2.10.5](TASK-05-the-hook-cancellation-and-what-survives-an-unmount.md) | Cancellation, supersession, and a parsed series kept across unmount    | No                           |
+| [2.10.6](TASK-06-the-fixture-backend.md)                                | A fixture backend, so 2.11–2.13 do not invent three mocks              | No                           |
+| [2.10.7](TASK-07-a-real-series-on-screen-without-a-chart.md)            | A real series on screen, URL-keyed, drawing nothing                    | **Yes — the payoff**         |
+| [2.10.8](TASK-08-every-state-produced-not-described.md)                 | Every state from a named cause; stale-while-loading; the announcement  | **Yes**                      |
+| [2.10.9](TASK-09-verify-document-and-adr.md)                            | Verify, `FRONTEND-STATE.md`, the ADR, the upward sweep, the deploy     | No                           |
+
+**What this story deliberately does not take**, so that no task quietly does: the
+charting decision (2.12), search and the per-security route's URL strings (2.11),
+the window control and its calendar vocabulary (2.13), and provenance as a
+product-wide requirement including a series naming two feeds at once (2.14).
+2.10.1 owns the _rules_ those four inherit — where state lives, what a shared
+link carries — and none of the strings.
