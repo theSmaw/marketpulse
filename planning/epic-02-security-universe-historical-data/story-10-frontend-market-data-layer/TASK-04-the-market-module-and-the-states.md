@@ -143,3 +143,43 @@ and then three UI stories.
   every transport outcome including `aborted`
 - `aborted` produces no state, asserted by a test
 - `pnpm verify` passes
+
+---
+
+## Amended 2026-09-10 by Task 2.10.3 — the coherence check is yours, and nothing else will do it
+
+`isBarSeriesResponse` shipped in `packages/shared` and it checks **shape and
+never coherence**: it does not know whether the bars ascend, whether the sources'
+`barCount`s sum to the bars, or whether `covered` agrees with either.
+`bar-series-response.ts`'s own header had predicted that the domain constructors
+would live in the predicate, and building it produced the argument against —
+which is about what the answer would _mean_ rather than about cost.
+`api-client.ts` maps a predicate failure to `unreadable-body`, whose documented
+meaning is _something that is not this API is answering at this address_. A body
+shaped exactly like this contract and carrying mis-ordered bars is the opposite
+diagnosis — **our own server with a bug** — and reporting it as a stranger at the
+address sends the next reader to the wrong half of the system.
+
+So the check is not lost, it is **relocated to this task**, and the obligation is
+explicit rather than implied: wherever this module first turns a
+`BarSeriesResponse` into domain objects, it goes through `toTimeRange`,
+`toSeriesProvenance` and `toBarSeries` rather than casting or reading the payload
+field by field. Those constructors throw, which is correct — every failure they
+can produce is a bug in a server we wrote, not a market condition — so the
+collapse decides which state a thrown coherence failure becomes, and that is a
+_failed_ member rather than `refused` (nobody asked for anything wrong) and
+rather than `unreadable-body`'s reading (this is our API, answering badly).
+
+Two smaller things the same task settled that belong here:
+
+- **The request type already exists.** `BarSeriesRequest` and `SeriesWindow` are
+  in `apps/frontend/src/bar-series-query.ts`, and `barSeriesQuery()` renders one
+  as the query string. The string it returns is deliberately order-stable so it
+  can be the cache key `FRONTEND-STATE.md` §2 asks for — Task 2.10.5's cache
+  should use it rather than inventing a second spelling of one request.
+- **`empty` and `partial` are distinguishable on the wire, and the contract makes
+  the distinction for you.** An empty series is `bars: []` with `covered: null`;
+  a partial one has a `covered` window narrower than `requested`. There is no
+  third reading, so the question this task's bullet leaves open — whether
+  `partial` with zero bars is a real state — answers itself: it cannot occur,
+  because a series with no bars covers nothing at all.

@@ -1,7 +1,9 @@
 import {
   type ApiError,
+  type BarSeriesResponse,
   type HealthResponse,
   isApiError,
+  isBarSeriesResponse,
   isHealthResponse,
   isMarketDataResponse,
   isSecuritiesResponse,
@@ -11,6 +13,7 @@ import {
 } from "@marketpulse/shared";
 
 import { apiBaseUrl } from "./api-base-url.js";
+import { barSeriesQuery, type BarSeriesRequest } from "./bar-series-query.js";
 
 // The frontend's transport: the one place that knows the base URL, the
 // deadline, the abort signal, the `ApiError` shape and the correlation id
@@ -372,4 +375,60 @@ export function getMarketData(
   options?: ApiRequestOptions,
 ): Promise<ApiResult<MarketDataResponse>> {
   return apiRequest("/market-data", isMarketDataResponse, options);
+}
+
+/**
+ * `GET /market-data/bars` — one security's bars, over one window (Task 2.10.3).
+ *
+ * The fourth request shape, and a fourth call to `apiRequest` for the reason
+ * {@link getSecurities} writes out: the base URL, the five-second deadline,
+ * composing the caller's abort signal with it, reading the correlation id off a
+ * response the browser only lets us see because `exposedHeaders` names it, and
+ * the seven outcomes are each invisible at a call site. **This is the request
+ * most likely to have broken the one-`fetch`-file property**, because it is the
+ * first with parameters — and a parameter is exactly the excuse for assembling
+ * a URL somewhere else.
+ *
+ * The predicate is `isBarSeriesResponse`, imported from `packages/shared`
+ * beside the shape it checks. Read its header before interpreting an
+ * `unreadable-body` from this endpoint, because two answers here look like
+ * failures and are not: **`bars: []` and a `null` `coverage.covered` are both
+ * 200s** (`MARKET-DATA-API.md` §6), both accepted, and both mean *we asked and
+ * we hold nothing*. What that outcome does mean is a body that is not this
+ * contract's shape — a wrong host, or a feed slug this bundle predates. It
+ * never means the numbers disagree with each other; the guard checks shape and
+ * not coherence.
+ *
+ * ## The window is not built here and cannot be
+ *
+ * `bar-series-query.ts` owns the parameters and its header owns the argument:
+ * this client never resolves "the last 5 sessions" from the browser's clock,
+ * because a browser knows a timezone and only the server knows the market date.
+ * Send `sessions=N`; read what it meant back out of `coverage.requested`.
+ *
+ * ## Two refusals are part of the contract rather than surprises
+ *
+ * The **10,000-bar cap is refused with a 400 naming the number** rather than
+ * quietly reduced — the server never downsamples (§3, §4), because a chart drawn
+ * from fewer bars than were asked for is wrong and looks right. And the trading
+ * calendar **refuses a window outside 2024–2028** rather than returning fewer
+ * sessions than asked for.
+ *
+ * Both arrive here as `api-error` carrying a `code` and a message written for a
+ * person, and this function neither renders them nor swallows them. Note what
+ * that means for the state union above it: neither is a failure of this server
+ * and neither is a fault the user can retry their way out of, so they are
+ * `refused` rather than `failed` — Task 2.10.4's collapse owns that branch, and
+ * `FRONTEND-STATE.md` §4 records that it is tested **before** the retryable
+ * flag rather than under it.
+ */
+export function getBarSeries(
+  request: BarSeriesRequest,
+  options?: ApiRequestOptions,
+): Promise<ApiResult<BarSeriesResponse>> {
+  return apiRequest(
+    `/market-data/bars?${barSeriesQuery(request)}`,
+    isBarSeriesResponse,
+    options,
+  );
 }

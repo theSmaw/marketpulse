@@ -321,8 +321,20 @@ export type {
 // An envelope rather than a bare series, because MARKET-DATA-API.md §7 requires
 // the response to be able to say the security is UNTRACKED — `status` is not
 // filtered on this path, and a 404 for a symbol whose bars we hold would be a
-// lie about our own data. `isBarSeriesResponse` is deliberately absent until
-// Story 2.10 reads one, which is Task 1.7.3's rule.
+// lie about our own data. `isBarSeriesResponse` arrived with Task 2.10.3's
+// `getBarSeries` rather than with the contract, which is Task 1.7.3's rule that
+// a predicate ships with its first reader — held for the third time.
+//
+// It is strict about every CLOSED VOCABULARY (feed, provider, adjustment,
+// timeframe, security status) and lenient about everything else, on the line
+// "would an unrecognised value be rendered?": a feed this bundle has no words
+// for is invariant 6's caption problem arriving through the one door left open,
+// where an instant it cannot parse fails locally and visibly. It accepts the
+// two shapes that look like failures and are answers — `bars: []` and a null
+// `covered` — and it checks SHAPE and never COHERENCE, so an `unreadable-body`
+// from this endpoint means a wrong host or a vocabulary this bundle predates,
+// never that the numbers disagree with each other.
+export { isBarSeriesResponse } from "./bar-series-response.js";
 export type {
   BarPayload,
   BarSeriesPayload,
