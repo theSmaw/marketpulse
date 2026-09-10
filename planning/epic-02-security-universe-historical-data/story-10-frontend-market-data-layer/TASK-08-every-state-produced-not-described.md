@@ -184,3 +184,40 @@ difference between a demo and a product.
   deliberate: the diagnosis differs, the user's action does not. The sentence
   naming which check failed goes to the console with the `requestId`, never to
   the screen.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.5 — stale-while-loading half exists, and the half that is missing is the label
+
+The cache landed, and with it the behaviour half of this task's stale decision:
+**a held series for the same request paints in the first commit**, while the
+fresh answer is in flight behind it. `FRONTEND-STATE.md` §2's rule is what makes
+that safe — every read of the cache is accompanied by a request, so a stale entry
+can be on screen only for the duration of one in-flight request.
+
+**What does not exist is any way for a component to know it is looking at one.**
+`BarSeriesView` has six members and none of them says _a request is in flight
+behind this answer_; a cached `loaded` and a freshly-fetched `loaded` are the
+same value. So this task's decision is now sharper than "decide what happens to
+visible data while new data loads" — the behaviour is decided and the **label is
+missing**, and the question is where it goes:
+
+- a seventh union member, which every consumer's `switch` then has to handle;
+- a boolean on the answer members, which is `FRONTEND-STATE.md` §4's `retrying`
+  precedent — a flag rather than a state, for a difference that is one mark on
+  screen rather than a different shape of screen;
+- or a field on `BarSeriesSource` beside `retry`, which keeps the union
+  comparable and constructible-as-data and is arguably where a fact about _the
+  request_ rather than about _the market_ belongs.
+
+Two constraints on whichever is chosen. **Only an answer is ever stale** — the
+cache holds `loaded`, `partial` and `empty` and never a `failed` or a `refused`,
+so there is no "stale failure" case to design for. And a **different** request
+never shows the previous one's series: a key change resets the view to the new
+key's entry or to `loading`, so the thing being marked stale is always the same
+symbol, timeframe and window.
+
+The announcement question inherits the same shape: a refetch that lands on an
+identical series is the common case for a closed session's bars, and it produces
+the same sentence, which a live region passes over in silence. That is arguably
+correct here — nothing changed — but it must be decided rather than discovered.

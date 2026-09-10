@@ -204,3 +204,78 @@ if they need its types, which is the direction the boundary allows.
 an inline fixture, all 14 tests passed, and only `tsc -b` in `pnpm verify` caught
 it — a test run is not a typecheck. A recorded body cannot get this wrong, which
 is the argument for recording rather than writing, restated as a live example.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.5 — the reset exists, its wiring does not
+
+The cache landed as `apps/frontend/src/market/series-cache.ts`, and the reset the
+amendment above asked for is on the instance: **`barSeriesCache.clear()`**, with
+a doc comment saying it is for tests and that there is no product call site.
+
+What is **not** done, and is still this task's:
+
+- **Wiring it where `cleanup` is called** — `apps/frontend/src/test-setup.ts`.
+  Today the only file that clears it is `market/use-bar-series.test.ts`, in its
+  own `beforeEach` and `afterEach`, which protects that file and nothing else.
+  The moment a second file renders anything that fetches a series, the ordering
+  hazard the amendment describes is live again.
+- **The test that would fail without it**, which is the half that matters: two
+  tests in one file passing individually and disagreeing when run together. Note
+  the symptom this cache produces is specific and worth arranging for
+  deliberately — the second test's **first rendered state is `loaded`** rather
+  than `loading`, because the entry the first test left behind paints
+  immediately. A test asserting only the eventual state passes either way.
+
+One thing the fixtures now have to respect: **the cache key is
+`barSeriesQuery(request)`**, so two fixtures differing only in window form are
+two entries, and a fixture set that reuses one request across tests shares one
+entry across them.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.5 — the premise under the MSW decision is wrong, and correcting it changes the answer
+
+The first bullet says _"the frontend's tests stub at the module boundary"_ and
+builds the MSW case on it: that a module-level stub of `api-client.ts` can only
+**assert** `unreadable-body`, `http-error` and `unreachable`, never **produce**
+them, whereas a request-level intercept exercises the client itself.
+
+**Neither half is true of this tree, and Task 2.10.5 walked into the evidence
+while writing the hook's tests.** Nothing in `apps/frontend` mocks a module —
+`grep -rn "vi.mock" apps/frontend/src` returns nothing. Six test files stub the
+**global `fetch`**: `api-client.test.ts`, `use-backend-health.test.ts`,
+`use-market-feed.test.ts`, `use-securities.test.ts`, `App.test.tsx`, and now
+`market/use-bar-series.test.ts`. That is the transport boundary, one layer below
+the one this bullet names, and it means the real `apiRequest` runs — the deadline,
+the composed signal, the correlation-id read, the `isApiError` parse and the
+whole outcome classification.
+
+So the three outcomes are **already produced rather than asserted**, and
+`api-client.test.ts` produces all seven today: `unreadable-body` at its lines 148
+and 160, `http-error` at 202, `unreachable` at 218 from a rejected
+`TypeError("Failed to fetch")`, plus `timeout`, `aborted` and `api-error`.
+
+**Two consequences for this task.**
+
+1. **The comparison to weigh is three-way, not two, and the third option is the
+   incumbent** — a global `fetch` stub, which costs nothing, has no service
+   worker, keeps `pnpm test` sockets-free, and is what every other test in this
+   package already reads like. MSW's stated advantage over it is not "produces
+   the transport outcomes"; that is already had. What MSW genuinely adds is
+   _routing_ — one handler set serving many URLs — which matters for a component
+   rendering several requests and matters less for a hook making one. Weigh that
+   rather than the advantage this bullet describes, and note the repository habit
+   the bullet invokes cuts the other way when the alternative is already built and
+   working in six files.
+2. **The fixture-set half of this task is untouched and is still the valuable
+   half.** Recorded bodies covering full, partial, empty, `null`-covered,
+   multi-source, both refusals and the 503, in one home, is what stops Stories
+   2.11 to 2.13 inventing three sets — and that is worth doing under _any_ of the
+   three mechanisms. The mechanism decision is smaller than it looked; the
+   fixture decision is not.
+
+**And one deliverable this task now certainly owns**, in addition to the reset
+wiring noted above: the six files each build their own `stubFetch` helper by
+copy. A shared one belongs wherever the fixtures land, and this is the task that
+can see all six at once.

@@ -1,6 +1,6 @@
 # Task 2.10.5 — The hook: cancellation, supersession, and the one thing the browser cannot cache
 
-**Status:** Not started
+**Status:** Complete — 2026-09-10
 **Story:** [2.10 Frontend Market-Data Layer & Application State](STORY.md)
 **Depends on:** Task 2.10.4
 
@@ -212,3 +212,295 @@ should add nothing else to them.
   same question. Note this for the cache too — **only a parsed series that
   reached a state is worth keeping**, so cache the domain object rather than the
   payload, and an incoherent answer caches nothing.
+
+---
+
+## What was done — 2026-09-10
+
+Two files under `apps/frontend/src/market/`, two test files beside them, and two
+lines added to the module's barrel. No component, no route, nothing on screen.
+
+| File                                         | What it is                                                     |
+| -------------------------------------------- | -------------------------------------------------------------- |
+| `apps/frontend/src/market/use-bar-series.ts` | The hook: one request, cancelled and superseded correctly      |
+| `apps/frontend/src/market/series-cache.ts`   | The parsed-series cache: two bounds, no clock, no lifetime     |
+| two `*.test.ts` beside them                  | 22 tests — 11 on the loop, 11 on the cache                     |
+| `apps/frontend/src/market/index.ts`          | `useBarSeries` and `BarSeriesSource` leave; the cache does not |
+
+`pnpm verify` passes, including the React Compiler rules — see _what the
+compiler said_ below, which is a finding rather than a green tick.
+
+### The hook is an effect and nothing else
+
+Task 2.10.4's instruction held. The union, both pure transitions, the coherence
+check and the request's spelling were already there; this file adds the loop and
+imports the rest. It is `useSecurities`' shape — one `useState`, one
+`useEffect`, one `useCallback` over pure functions — with the differences
+below.
+
+**Three events end a request's claim on the state, not one.** The inputs
+changing (symbol or window), the effect tearing down (navigation, unmount), and
+a retry. All three go through the one mechanism `useSecurities` established: a
+ref holding the controller of the request whose answer this hook will accept.
+Starting a request aborts the previous one and takes that ref; an answer from a
+request that no longer owns it is dropped; the teardown clears the ref as well
+as aborting.
+
+**And the identity guard is the half that matters, verified rather than
+asserted.** Deleting the `current.current !== controller` line and re-running
+turned the supersession test red, exactly as the task's amendment predicted:
+aborting cannot un-resolve a request that had already resolved, so the loser's
+`ok` result reaches the callback normally. The test is arranged so that a stale
+landing is _visible_ — the two answers carry 1 bar and 9 bars respectively, so an
+assertion that only checked `loaded` would have passed either way.
+
+**The unmount test asserts the signal, not the state, and that is a correction
+to the criterion rather than a shortcut.** React does not re-render an unmounted
+component, so `result.current` cannot move after an unmount whether the guard
+exists or not — a state assertion there is green against a hook with no guard at
+all. What is observable is that the in-flight request's `AbortSignal` reports
+`aborted`, and that an answer landing after the unmount is **not** written to the
+cache, so a later mount starts from `loading` rather than from an answer no
+component ever rendered. Both are asserted.
+
+### The trap that is not in the task: a request object is a new object every render
+
+A route builds `{ symbol, timeframe, window }` inline, so the hook receives a
+different object identity on every render while describing the identical
+request. An effect keyed on that object re-fetches forever — and on screen it
+looks like a working hook.
+
+The key settles it, and it did not have to be invented: `barSeriesQuery(request)`
+is a total, order-stable spelling of a request, fixed in that order by Task
+2.10.3 **so that it could be this key**. The hook holds the request in state and
+adjusts it during render when the key changes — React's own documented
+"adjusting state when a prop changes", which re-renders before committing rather
+than painting once and correcting. There is a test for it: two `rerender()`s with
+a fresh literal produce one request.
+
+### The cache: what was measured, and the bound the measurement changed
+
+`FRONTEND-STATE.md` §2 left this task two things to settle — the parsed heap cost
+of a real series, and whether 24 entries is the right bound. Measured on the real
+`toDomainSeries` over a payload built from 390 **real** recorded Alpaca minute
+bars (`nvda-1min-regular-session.json`) tiled to length, 20 parsed copies held
+live, `--expose-gc` either side, `heapUsed` divided by 20, three runs agreeing to
+0.6 kB:
+
+| Series                            | Wire (identity) | Parsed heap | Parse + construct |
+| --------------------------------- | --------------- | ----------- | ----------------- |
+| 1 session of minute bars (390)    | 44,561 B        | **97.8 kB** | 0.22–0.26 ms      |
+| 5 sessions of minute bars (1,950) | 221,238 B       | **475 kB**  | 0.93–1.88 ms      |
+| The 10,000-bar cap                | 1,132,936 B     | **2.43 MB** | 4.6–8.7 ms        |
+
+**A series varies 25× in size, so a bound counted in entries bounds entries and
+not memory.** 24 entries is 11.4 MB of held series at the default window and
+**58 MB** at the cap — a figure a window control can reach, and exactly the shape
+of thing that looks fine in testing and exhausts a tab in use. So the cache
+carries **two** bounds: **50,000 bars** (~12 MB — five cap-sized series, 25
+default ones, or 128 single sessions) and **32 entries**, the guard for the
+degenerate case a bar budget cannot see, since an empty series is a correct
+answer weighing zero bars. Both are counts, neither is a clock. `FRONTEND-STATE.md`
+§2 has the same table as a dated amendment.
+
+**§2's first reversal trigger has not fired.** A cap-sized series parses and
+constructs in 4.6–8.7 ms against §28's 50 ms budget, so this stays a convenience
+rather than becoming a Web Worker. The figure is V8 under Vitest rather than a
+browser tab — the same engine, not the same allocator — so it is the right order
+of magnitude rather than good to the kilobyte.
+
+**What the cache holds is the three answers and nothing else.** `loading` is not
+an answer; a `refused` re-asked gets the same refusal and would put a server's
+sentence in a store that outlives the screen it was written for; a `failed`
+painted before a new request has had its chance reports a fault that may already
+be fixed. An incoherent body needs no rule of its own — `toBarSeriesView` turns
+one into `failed`, so it is excluded by the same line.
+
+**The LRU has one subtlety worth recording.** `read` deliberately does not
+promote an entry, because the hook reads it _during a render_ in order to paint a
+held series in the first commit rather than one paint later, and promoting would
+be a mutation performed during a render. It costs nothing: every read is followed
+by a request whose answer is written back, and the write promotes. Recency-on-write
+is recency-on-read, without a side effect where React promises there are none.
+For the same reason the cache write is its own `useEffect` rather than a line
+inside the `setView` updater — an updater must be pure, and React calls it twice
+under `StrictMode`.
+
+### A criterion this task could not meet as written, and why that is correct
+
+> _"Leaving a security and returning does not re-`JSON.parse` a series still
+> held, demonstrated by a test that counts requests or parses."_
+
+**Not expressible under the mechanism `FRONTEND-STATE.md` §2 chose, and the
+criterion predates it.** §2's rule is that _every read of the cache is
+accompanied by a request_ — the entry paints sooner while the fresh answer is in
+flight and is never consulted to decide that no request is needed. That is what
+keeps freshness entirely with the browser and the server's five-minute ceiling.
+So returning to a security still costs a request and still parses its answer; a
+test counting requests would be asserting the opposite of the design.
+
+What the cache actually buys is the **first paint**, and that is what the test
+asserts: after an unmount and a remount of the same request, the state of the
+very first render is `loaded` with the held bars, and the request still goes out.
+Both halves are the assertion — the second one is the one that would catch a
+future edit turning this into a cache that answers on its own.
+
+### The absolute-window re-ask: explicitly declined
+
+The task asked for this to be taken or declined explicitly. **Declined**, with
+the reasoning and a reversal trigger in the hook's header. Three reasons: it is a
+guaranteed second request for bars already held, to buy a cheaper third that may
+never happen; it is a different cache key holding the same series, so the bar
+budget would bound half the history it appears to; and a named window's repeat
+request is already revalidated into a `304` with an empty body, so five minutes
+of `max-age` saves one round trip rather than a megabyte. Note it is a decision
+about a **request** — `FRONTEND-STATE.md` §3's rule is about the address bar and
+is untouched.
+
+### The refetch policy, and the seam Epic 3 attaches to
+
+**A request on mount, on a change of symbol or window, and on retry. No poll, no
+refetch on focus.** `useBackendHealth` polls because a health state changing is
+the whole information it carries; `useSecurities` asks once because the universe
+changes a handful of times a year; a bar series is a third thing — immutable once
+its session closes, moving during one.
+
+**What this hook does with an open session's tail is nothing, and it says so.**
+Such a window comes back `partial` carrying `covered.end` — _"we have data
+through 15:42"_ — and stays that way until something asks again. The free plan
+withholds the most recent ~15 minutes and the store is backfilled nightly, so a
+poll would re-ask every 30 seconds for a tail that moves once a night. And
+`covered.end` is exactly the seam Epic 3's socket resumes from. Two reversal
+triggers are in the header, both conditions.
+
+### What the compiler said
+
+**Nothing**, and `CLAUDE.md`'s reading of that stands: the 17 React Compiler
+rules have still never fired on shipped code, which is evidence that nothing has
+yet written the shape they dislike rather than evidence the tree satisfies them.
+This story was named as their second real test, and the two constructs most
+likely to have provoked one — a `useRef` holding an `AbortController` that is
+written from an async callback, and a `setState` called during render — both
+passed silently. Recorded so the next reader knows it was looked at.
+
+### Done-when, against what landed
+
+| Criterion                                               | Where                                                                |
+| ------------------------------------------------------- | -------------------------------------------------------------------- |
+| Symbol or window change aborts; superseded cannot land  | Two tests; the guard verified by removal                             |
+| Unmount aborts, nothing kept from it                    | Asserted on the signal and on the cache — see the correction above   |
+| `aborted` renders nothing, never a failure              | `bar-series-view.ts`'s branch, exercised through both teardown paths |
+| Returning does not re-parse a series still held         | **Amended** — the paint is what is asserted; see the section above   |
+| No TTL, bounded by count, keyed on the request as sent  | `series-cache.ts`, and a test that an entry survives time passing    |
+| Parsed heap measured; the bound set from it             | The table above; two bounds rather than 24 entries                   |
+| The refetch policy written down with a reversal trigger | The hook's header, two triggers                                      |
+| `pnpm verify` passes, React Compiler rules included     | Exit 0; 306 frontend tests                                           |
+
+---
+
+## For the stakeholders — a status report in plain English
+
+### Where the product is
+
+MarketPulse can show you 518 companies with a real last price and a real change,
+drawn from roughly 48 million minute-by-minute price records sitting on our own
+servers. It still cannot draw a chart. Between _"the prices are on our server"_
+and _"you can look at them"_ is a short run of small, unglamorous, load-bearing
+pieces, and this was the fifth of them. **Two more tasks and there is a real
+price series on screen.**
+
+### What this task built
+
+The part of the application that actually goes and gets a price series — and,
+more importantly, the part that knows **when to stop caring about an answer it
+already asked for**.
+
+Nothing visible. Stated plainly, as this project requires.
+
+### Why "stop caring about an answer" is the whole job
+
+Picture an analyst doing what analysts do: clicking NVDA, then AMD, then back to
+NVDA, changing the window from five days to a month on the way. That is four
+requests in about three seconds, over a network that does not deliver answers in
+the order they were asked for.
+
+The failure this creates is genuinely nasty because **it looks like success**.
+The answer for NVDA arrives a moment after you have moved to AMD, and the screen
+fills with NVDA's prices under AMD's name. No error, no warning, no red box —
+just the wrong company's data, labelled convincingly. In a product whose entire
+purpose is to be trusted about numbers, that is the worst class of bug there is.
+
+So the rule this task implements is: **at any moment there is exactly one request
+whose answer this screen will accept, and every other answer is thrown away**,
+however correct it is. The obvious way to do this — cancel the old request — is
+not enough on its own, and that is the finding worth reporting. A request that
+had _already finished_ microseconds before you cancelled it cannot be un-finished;
+its answer is still coming. So the code also checks, at the moment an answer
+arrives, whether it is still the answer we are waiting for. We proved that check
+works by deleting it and watching the test fail — because a safety net nobody has
+tested is a claim, not a net.
+
+The same mechanism handles you navigating away entirely. Leave a page mid-request
+and nothing is left behind: no error message sitting on a screen you have left,
+no half-finished work, no wasted data.
+
+### The other half: not making you wait for something we already have
+
+Go from NVDA to AMD and back to NVDA, and the second visit should feel instant.
+It now does: the application keeps the prices it has already prepared and puts
+them back on screen immediately.
+
+Two decisions here are worth explaining because they are the difference between a
+cache that helps and one that quietly lies.
+
+**First, it never decides for itself that the data is fresh enough.** It shows
+you what it has _while it asks the server anyway_. This matters: elsewhere in the
+system we guarantee that nothing serves out-of-date prices for longer than five
+minutes, and a memory that answered on its own authority would break that promise
+invisibly — the one kind of bug you would never notice and could never trust us
+about afterwards. So this memory has no expiry date, deliberately. It cannot
+disagree with the guarantee because it never gets a vote.
+
+**Second, we measured how much memory a price series actually occupies before
+deciding how many to keep**, rather than picking a number that sounded sensible.
+The plan said "keep about 24 of them". Measurement showed a series can be
+anything from 98 kilobytes to 2.4 megabytes depending on how much history you
+asked for — a 25-fold range. Keeping 24 of the large kind would be 58 megabytes
+of a user's browser quietly consumed, which works fine in testing and degrades a
+real user's machine after an afternoon's work. So the limit is now expressed in
+the thing that actually costs money — the amount of price history held, capped at
+about 12 megabytes — with a second, simpler limit as a backstop. A number that
+was a guess is now a number with a measurement behind it.
+
+We also confirmed the underlying work is fast: preparing the largest series we
+will ever send takes under 9 milliseconds, comfortably inside the 50-millisecond
+budget the product sets for keeping the interface responsive. If it had been
+slower, this task would have had to move that work off the main thread; it did
+not, and we wrote down why so nobody re-litigates it.
+
+### What we chose not to build, and why that is progress
+
+**We did not add automatic refreshing.** A price chart for a closed trading day
+never changes, so re-asking on a timer would be pure waste. A chart of today's
+trading does move — but the right way to follow a live market is a live
+connection, which is the next epic's job, and a timer added now would be the
+wrong machine arriving early and would have to be torn out. Instead, the state
+this task produces carries the exact point our data reaches ("we have prices
+through 15:42"), which is precisely where the live feed will pick up. The seam is
+built; the thing that plugs into it comes later.
+
+**We also declined an optimisation that looked free and was not.** There was a
+way to make repeat requests cheaper by re-asking the server a slightly different
+question. It would have cost an extra request every single time to save a cheaper
+one that may never happen, and would have halved the useful capacity of the
+memory described above. The reasoning is written down alongside the code,
+including the specific condition under which we would change our minds.
+
+### What you still cannot do
+
+Everything you could not do yesterday. There are no charts, no live prices, no
+per-company page. What exists now is the machinery that fetches a company's price
+history correctly and quickly, with every way it can go wrong already named and
+handled. The next task builds a stand-in server so the screens can be developed
+and tested without touching the real market data; the one after that puts a real
+price series in front of a person for the first time.
