@@ -686,3 +686,30 @@ _when what we hold last changed_ rather than _when the backfill last ran_ — is
 the only field that can report it honestly. It is now the **check on** the
 schedule rather than the substitute for one, which matters because GitHub
 disables a `schedule:` on a repository with no pushes for 60 days, silently.
+
+---
+
+## Amended 2026-09-10 — the nightly catch-up fills one timeframe of two
+
+**A finding logged against this story after it closed, found from the other end:
+a reader looking at the shipped `/securities` page on 2026-09-10 asked why the
+Last close column said `2026-09-04`.** It does because **the nightly catch-up has
+never fetched a daily bar** — `--sessions 10` carries no `--timeframe` and
+`backfill.ts` defaults to `1m`. The daily table still ends at the `--to` of the
+one-off run this story recorded in [`BARS.md`](BARS.md) §8.8.
+
+The measurement, the cause, how far behind it is (two sessions — `2026-09-07` is
+Labor Day), and the condition for fixing it are in [`BARS.md`](BARS.md) §8.18.
+§8.12's own "the store is kept current" now carries a dated note saying which
+store it meant.
+
+**Not repaired here, and the reason is ownership rather than difficulty.** It is
+one line in `backfill.yml`, but it changes a **scheduled** job that spends vendor
+quota, and Story 2.9 — which found it — reaching across to edit this story's cron
+is how a story stops having an owner.
+
+**The part worth carrying forward is about the instruments, not the gap.** The
+workflow's own post-run report is `pnpm bars:check --timeframe 1m`, hard-coded —
+so the one instrument that reports staleness honestly was pointed at the only
+timeframe that is never stale. §8.12 already names the silent-schedule hazard;
+this is that hazard one level down, with the instrument configured past it.
