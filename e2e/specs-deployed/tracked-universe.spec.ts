@@ -107,8 +107,13 @@ test("the deployed page renders the tracked universe from the deployed database"
   const region = page.getByRole("region", { name: "Tracked universe" });
   await expect(region).toBeVisible();
 
-  // The table by role with its five column headers in order, asserted as a list
+  // The table by role with its seven column headers in order, asserted as a list
   // so a column silently disappearing is caught as well as one being renamed.
+  //
+  // `Last close` carries the session date when every close on the page shares
+  // one, so the date is matched as a shape and never as a literal: which session
+  // the deployed store's closes belong to is a property of when the backfill
+  // last ran against it, and a stale store is a `pnpm backfill`, not a rollback.
   const table = region.getByRole("table");
   await expect(table).toBeVisible();
   await expect(table.getByRole("columnheader")).toHaveText([
@@ -116,6 +121,8 @@ test("the deployed page renders the tracked universe from the deployed database"
     "Name",
     "Industry",
     "Kind",
+    /^Last close( \d{4}-\d{2}-\d{2})?$/,
+    "Change",
     "Minute-bar history",
   ]);
 
