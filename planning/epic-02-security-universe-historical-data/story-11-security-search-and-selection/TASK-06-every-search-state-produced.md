@@ -49,6 +49,18 @@ recorded market body to every visitor.
   vocabulary for this and **the words must not be reinvented**: read
   `bar-series-view.ts` and `BarSeriesPanel` and keep one set of terms, in which
   _partial_ is an answer rather than a failure.
+- **A row whose close is older than the surface says, and a row with no close at
+  all — added 2026-09-11 by Task 2.11.1.** The result row carries a close and a
+  change (the user's decision, `SEARCH-AND-SELECTION.md` §5), the surface names
+  the session once, and a row whose own `session` is earlier carries its own date.
+  **Both of those are unreachable from real data today and that is exactly why
+  they need producing here**: measured 2026-09-11, all 518 securities have a close
+  and all 518 sessions read `2026-09-04`, so a bug in which the footer states one
+  session while a row's close came from another is **invisible while the data is
+  uniform**. A partially-backfilled security is the condition that ends the
+  uniformity, and it is constructed from a fixture rather than waited for. Neither
+  is an error state: an older close is a true fact about what we hold, and a
+  missing one is the same first-class answer as a missing bar.
 - **The universe is still loading.** The control exists before its corpus does.
   Say what it does — disabled with a reason, or accepting input and holding it —
   and make it a state rather than a flicker.
@@ -83,6 +95,8 @@ Two further pieces of work that are about states rather than a state:
   an empty universe — rather than by setting a prop by hand where the real cause
   is reachable
 - The untracked case and the no-stored-bars case have tests naming them
+- The stale-close and missing-close rows are produced from a fixture, since real
+  data cannot reach either today
 - A failing search leaves the panel and the table rendering
 - The summary line has a test that would fail if filtering made it a lie
 - The vocabulary matches `bar-series-view.ts` rather than adding a second set

@@ -24,6 +24,29 @@ tracked universe stops being a page you scroll through to find out what is in it
   one and record the alternatives and a reversal trigger in
   `SEARCH-AND-SELECTION.md`.
 
+  **Amended 2026-09-11 by Task 2.11.1: it proposed two things and only one of them
+  is yours to build.** Read `SEARCH-AND-SELECTION.md` §5 before starting, because
+  this instruction as originally written would have you implement a control that
+  was declined:
+  - **The sector jump rail is taken in principle** — a row of sector links over
+    the table, with the band counts — and its detail is yours.
+  - **The kind-filter chips are declined** (`All (518)` / `Equities (502)` /
+    `Index & ETFs (16)`). Not on taste: a filter changes which rows are on screen,
+    and the summary line says **which of two numbers it is reporting**, so a filter
+    owes an amended summary line. It is also what fires §3's URL reversal trigger,
+    because a filtered list is a view of the list and a view a person would share
+    belongs in the query string — which this story deliberately leaves empty for
+    Story 2.13's window control. **A filter is therefore a feature with a query
+    parameter and a summary-line change, in a task that owns both, and adding it
+    here as three chips over a table takes two decisions in the wrong place.** If
+    the grouping work makes a genuine case that a filter is needed to make 518 rows
+    navigable, that is an amendment to `SEARCH-AND-SELECTION.md` §3 and §5 rather
+    than a chip row.
+  - Also declined, and worth knowing because the mock is the thing you will be
+    looking at: its counts are wrong (the real split is **503 `equity`, 11
+    `sector_etf`, 4 `index_etf`**), and every figure in its table header — aggregate
+    ADV, market cap, `100% TAPE SYNC` — is fabricated. §5 lists them by name.
+
 - **It interacts with search, and that interaction is the design work.** A
   filtered table may not want grouping at all — eleven sector bands holding one
   row each is worse than a flat list of eleven. Decide what grouping does when a

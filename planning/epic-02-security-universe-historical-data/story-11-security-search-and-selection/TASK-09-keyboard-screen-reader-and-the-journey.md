@@ -37,12 +37,24 @@ focused, a sentence announced with no subject in it.
   - Tab out of an open list
   - Shift-Tab back into the control
   - The control reached from the table, and from a security's page
+  - **Back, from an opened security to the list — added 2026-09-11 by Task
+    2.11.1.** The query is component state and does **not** survive it, so Back
+    lands on the list with an empty field. That is a decision taken with its
+    reasons (`SEARCH-AND-SELECTION.md` §3) and not a defect to file: state it in
+    the numbered flow, and if walking it makes a case that it is wrong, that is an
+    amendment to §3 rather than a fix here. This is also the step where the
+    third polite region must stay silent — arriving at a page is not a change.
 
 - **The screen-reader pass**, done with a real screen reader rather than inferred
   from the DOM. What is announced when the list opens, when the active option
   changes, when results settle, and when a security opens. Every sentence names
   its subject — this page has two polite regions already and a third is a
-  decision (`FRONTEND-STATE.md` §7).
+  decision (`FRONTEND-STATE.md` §7). **Amended 2026-09-11 by Task 2.11.1: the
+  decision is taken and there are three.** Search's region speaks 400 ms after the
+  last keystroke and quotes the query. What this pass is listening for is whether
+  that rate is right in practice — whether it speaks over somebody still typing, or
+  arrives late enough to feel disconnected from what they did. That is §4's own
+  reversal trigger, and this task is its first real opportunity.
 
 - **The browser journey.** A spec in `e2e/specs/` covering the criterion as a
   sentence: search for a security, open it, and land on its page with its bars.

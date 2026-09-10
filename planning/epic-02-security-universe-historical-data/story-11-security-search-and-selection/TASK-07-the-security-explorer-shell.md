@@ -64,11 +64,21 @@ looks confident.
   asserts every route has a distinct heading and the browser suite walks the
   routes asserting theirs.
 
-- **Do not add a third asynchronously-filled surface without deciding to.**
+- **Do not add another asynchronously-filled surface without deciding to.**
   `FRONTEND-STATE.md` §7's reversal trigger fires on exactly that: two polite
   regions queue tolerably and nobody has found out where that stops being true.
   If the shell adds one, it is a decision recorded in
   `SEARCH-AND-SELECTION.md`, not a consequence of a layout.
+
+  **Amended 2026-09-11 by Task 2.11.1: the count is three, not two, and the
+  trigger has already fired once.** Search's own region is the third, and it was
+  admitted on a specific argument rather than a general one — the other two speak
+  on arrival and on navigation, while search's speaks only 400 ms after a
+  keystroke, so the three cannot be updated in the same moment
+  (`SEARCH-AND-SELECTION.md` §4). **A fourth region has no such argument
+  available**, because the shell's regions fill when their data arrives, which is
+  precisely the moment the other two are already speaking. So a region added here
+  is a harder decision than the third was, not an easier one by precedent.
 
 - **Motion.** Content arriving has a duration in this language already (240ms,
   one asymmetric easing, reduced motion answered at the token layer). Use it, and
