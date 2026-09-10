@@ -114,6 +114,34 @@ mid-request leaves an error sitting on the previous page.
   absolute form once it knows one — a decision worth taking explicitly here or
   explicitly declining.
 
+  > **Amended 2026-09-10 by Task 2.10.3 — the middle clause of that bullet is
+  > dead and the key already exists as a string.** _"The resolved absolute range
+  > is what the cache keys on"_ is the key the amendment above this one already
+  > reversed; it survived in this sentence because the two were written a task
+  > apart. **The key is the request as sent.** The first and last clauses stand
+  > unchanged.
+  >
+  > What is new is that the key does not have to be invented: `barSeriesQuery()`
+  > in `apps/frontend/src/bar-series-query.ts` renders a `BarSeriesRequest` as
+  > the query string, and its **parameter order is fixed on purpose so that this
+  > string can be the key**. Use it rather than composing a second spelling —
+  > two spellings of one request are two misses and two round trips, and nothing
+  > on screen looks wrong while it happens. `SeriesWindow` is the discriminated
+  > union the request holds, so a named and an absolute window are different
+  > strings because they are different requests, which is the same key every HTTP
+  > cache between here and the server is already using.
+  >
+  > **And the last clause has a consequence to take with eyes open.** If this
+  > hook does re-ask with the absolute form once `coverage.requested` has told it
+  > one, that second request is a **different key holding the same bars** — the
+  > cache pays for the same series twice, and the entry bound this task is
+  > setting has to be read against that. Both forms are expressible
+  > (`SeriesWindow` makes sure of it) and neither is preferred by the builder, so
+  > this is genuinely a decision rather than a constraint. Note it is a decision
+  > about a _request_, not about the address bar: `FRONTEND-STATE.md` §3 forbids
+  > rewriting the URL's window form, and says nothing about what is asked for
+  > behind it.
+
 - **Refetch policy, stated rather than defaulted.** The story's own framing:
   a closed session's bars never change, so this is mostly a question of what to
   keep and when to re-ask at all. Contrast the two hooks that exist —

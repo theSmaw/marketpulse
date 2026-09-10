@@ -68,6 +68,33 @@ they do not each answer "what does a partial series look like?" differently.
   > fixture set with no retryable failure in it cannot produce the one failure
   > state this layer treats differently from all the others.
 
+  > **Amended 2026-09-10 by Task 2.10.3 — there are two inline fixtures to
+  > replace already, and one of them is in a package this task's home cannot
+  > reach.** That task was told to inline its fixtures rather than invent a
+  > second home, and it did, in **two** files: `api-client.test.ts` holds a
+  > series body and an empty one, and `packages/shared/src/bar-series-response.test.ts`
+  > holds a fuller set — full, partial, empty, multi-source, and the vocabulary
+  > refusals.
+  >
+  > The second one is the constraint. `packages/shared` **cannot import from
+  > `apps/frontend`**: the dependency runs the other way, and reversing it for a
+  > test fixture would make the domain package depend on an application. So a
+  > fixture home under `apps/frontend` serves the hook, the components and the
+  > stories, and leaves the guard's own tests inline — which is **correct rather
+  > than a gap**, because that predicate is tested against bodies chosen to probe
+  > _it_ (an unknown feed slug, an empty `sources`) rather than against bodies the
+  > server actually produces. Decide it that way explicitly and say so, or move
+  > the fixtures into `packages/shared` and have the frontend import them from
+  > there; what must not happen is a third set nobody knows about.
+  >
+  > One property the recorded bodies must keep, because the guard is stricter
+  > than the wire type: **every `feed`, `provider`, `adjustment`, `timeframe` and
+  > `securityStatus` in a fixture has to be a member this bundle knows.** A
+  > recorded body always is. A hand-edited one — widening a fixture to
+  > "something realistic" — is the way a fixture set acquires a body the
+  > application refuses, and the symptom is `unreadable-body` in a test that
+  > looks like it is about something else.
+
 - **Any provider this story adds lands in `test-render.tsx`.** That file already
   says so in its header: it is the one place the application's context is
   described for tests, deliberately the third and last such description, and
