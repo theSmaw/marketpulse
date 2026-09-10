@@ -271,6 +271,16 @@ that is the line.
 > needs. The repair that would make this paragraph true again is a compression
 > plugin, and §12.5 states the condition for it.
 
+> **Amended again 2026-09-10 by Task 2.9.10: the plugin is shipped, and this
+> paragraph's original arithmetic is true again.** `@fastify/compress` is
+> registered in `buildServer()`, and every response over 1,024 bytes now goes
+> out gzipped (§13). Measured on the wire rather than over the body: the
+> at-the-cap response is **178,698 bytes**, which is exactly the figure the
+> `gzip` column above already carried — hypothetical when it was written, the
+> wire now. At 10,000 bars the payload is ~184 kB compressed and "about 150 ms
+> on 10 Mbit/s" describes what a client actually receives. **Nothing about the
+> cap changed; what changed is that its stated reason is once again its reason.**
+
 The cap is stated **in bars and not in bytes**, and the measurement says it may
 be: across eight securities spanning the price and liquidity range, the per-bar
 cost varied only from **109.4 to 113.6 bytes** (13.4–18.5 gzipped), a 4% spread.
@@ -776,6 +786,18 @@ So the shape is: **the calendar decides freshness, the body decides identity.**
 `series-cache.ts` owns the first, `http-cache.ts` the second, and neither knows
 about the other's subject.
 
+> **Amended 2026-09-10 by Task 2.9.10: the validator is now **weak** (`W/"…"`)
+> and every response carrying one also carries `Vary: accept-encoding`.** This
+> application compresses since that task, RFC 9110 §8.8.1 makes a content-coding
+> a different representation, and the tag is computed **before** compression —
+> so one tag covers the gzipped and the identity bytes alike, which is a weak
+> claim rather than a strong one. Established by observation:
+> `@fastify/compress` suffixes nothing, and the same request with and without
+> `Accept-Encoding: gzip` returns the identical tag. Nothing else in this
+> section moves — `If-None-Match` uses the weak comparison function regardless,
+> the `304` is unchanged, and the hash is still taken over the string
+> `fast-json-stringify` produced. §13 has the whole of it.
+
 ### What each response carries
 
 | Response                                                                       | `Cache-Control`        | `ETag` |
@@ -841,6 +863,15 @@ Method: `curl` against the built backend on loopback, `Content-Length` for the
 > bodies _would_ cost compressed, and the `200 body` column is what a browser
 > actually receives today. The method above already said as much; this note
 > exists because §4 drew a conclusion from a figure of this kind.
+
+> **Amended again 2026-09-10 by Task 2.9.10: the `gzipped` column is now the
+> wire.** With `@fastify/compress` registered, `curl -H 'Accept-Encoding: gzip'`
+> against the built backend downloads **20,072 B** for `/securities` and
+> **7,549 B** for the single session — the same numbers this column already
+> carried, because `zlib.gzipSync` at its default level is what the plugin runs.
+> The **`200 body`** column is now what a client that asks for `identity`
+> receives. The `Conditional` column is untouched: a `304` is 0 bytes either
+> way, and it carries no `Content-Encoding` (§13).
 
 | Window                                                   | 200 body        | gzipped   | Conditional  |
 | -------------------------------------------------------- | --------------- | --------- | ------------ |
@@ -1030,6 +1061,15 @@ would have measured one store read and fourteen cache hits.
 `zlib.gzipSync` at its default level over the served body — see §12.5 for why
 that column is a **property of the payload and not of the wire**.
 
+> **Amended 2026-09-10 by Task 2.9.10: the `gzip` column is the wire, and it is
+> the same number.** Re-taken with `curl`'s `%{size_download}` against the built
+> backend now that `@fastify/compress` is registered, and every figure
+> reproduced to the byte — 20,072 for `/securities`, 7,549 for the session,
+> 178,698 at the cap. **`Body` is now what an `identity` client receives**, and
+> the three timing columns are re-taken below rather than in place, because
+> whether the coding costs anything is the question this task exists to answer
+> and a single column cannot say it.
+
 | Access pattern                 | Status |  Bars | Body        |      gzip | Miss        | Hit         | 304         |
 | ------------------------------ | ------ | ----: | ----------- | --------: | ----------- | ----------- | ----------- |
 | `1m`, one session              | 200    |   390 | 44,701 B    |   7,549 B | **4.9 ms**  | **2.6 ms**  | **2.2 ms**  |
@@ -1049,6 +1089,52 @@ control that says the cache is doing the work in the rows above it.
 
 **One row does not belong to the pattern the others make**, and §12.4 is about it:
 the `1d` depth is the _smallest_ 200 in the table and the _slowest_ hit.
+
+#### Re-taken with the coding, 2026-09-10 (Task 2.9.10)
+
+Same method, same machine, same store, n=15 per cell, median. Two arms per row:
+`Accept-Encoding: identity` and `Accept-Encoding: gzip`, against **one** server
+— so the difference between the arms is the coding and nothing else. Node's
+`fetch` sends its own `Accept-Encoding` and decompresses transparently, so the
+identity arm has to ask for identity **explicitly** or it is not one; that was
+got wrong once and the first run silently measured gzip twice.
+
+| Access pattern                 | Wire, identity | Wire, gzip | Ratio | Miss id → gzip | Hit id → gzip  | 304 id → gzip  |
+| ------------------------------ | -------------: | ---------: | ----: | -------------- | -------------- | -------------- |
+| `1m`, one session (390)        |       44,701 B |    7,549 B | 16.9% | 6.7 → 9.4 ms   | 3.1 → 6.1 ms   | 3.3 → 4.8 ms   |
+| `1m`, five sessions (1,950)    |      221,603 B |   36,656 B | 16.5% | 10.1 → 12.8 ms | 4.0 → 7.3 ms   | 3.6 → 3.7 ms   |
+| `1m`, one month (24 sessions)  |    1,060,490 B |  171,389 B | 16.2% | 31.7 → 49.4 ms | 12.0 → 27.8 ms | 11.6 → 11.6 ms |
+| `1m`, 25 sessions — at the cap |    1,104,621 B |  178,698 B | 16.2% | 30.2 → 47.0 ms | 11.2 → 27.5 ms | 10.9 → 10.9 ms |
+| `1d`, the whole stored depth   |       77,212 B |   16,813 B | 21.8% | 26.8 → 27.3 ms | 26.7 → 27.8 ms | 26.2 → 26.2 ms |
+| `1m`, one year — refused       |          258 B |      258 B |  100% | 10.1 → 9.9 ms  | —              | —              |
+| Unknown symbol — 404           |          173 B |      173 B |  100% | 1.9 → 1.9 ms   | —              | —              |
+| `/securities`                  |      190,736 B |   20,072 B | 10.5% | 12.3 → 13.8 ms | 11.0 → 13.8 ms | 12.0 → 11.4 ms |
+
+**Read the last two rows of the wire columns first: the refusal and the 404 are
+unchanged.** They are 258 and 173 bytes, below the 1,024-byte threshold, so they
+are never coded — no `Content-Encoding`, no `Vary`, no cost. That is the
+threshold doing its job and it is the control for everything above it.
+
+**The CPU cost is real, it is bounded, and the `hit` column is where to read
+it** — the `miss` column has a store read in it and the `304` column has no
+body to code. Isolated that way, the coding costs **+16.3 ms on the 1.10 MB
+at-the-cap series**, which is the only row big enough to be read confidently:
+the 44.7 kB and 190,736 B rows come out at +3.0 and +2.8 ms here and at +1.2 and
++1.0 ms on a separate n=21 run of the same three URLs, so **anything under about
+five milliseconds on this machine is inside run-to-run variance and should be
+re-taken rather than quoted**. What is bought is not ambiguous: **925,923,
+1,084,549 and 170,664 bytes removed from the wire** on those three rows. §12.5
+priced the deployed link at 116–415 kB/s; at the low end `/securities` alone is
+about 1.5 seconds of transfer bought for a few milliseconds of server.
+
+**The `304` column does not move, in any row, and that is a check rather than a
+result.** A conditional request that hits serialises a body, hashes it and
+discards it; there is nothing left to compress, so a coding that changed those
+numbers would mean something was compressing an empty payload — which is
+exactly the failure §13 produced deliberately at `threshold: 0`.
+
+**The `1d` depth row does not move either**, for §12.4's reason and not for this
+one: 20.6 ms of that row is the calendar walk, which no coding touches.
 
 ### 12.2 The three queries on the served read, separately
 
@@ -1206,6 +1292,23 @@ minute series over a link**, which is Story 2.12 the moment it is deployed.~~
 > matters. Measure it before choosing anything clever"_ — and this section is
 > the measuring.
 
+> **Built 2026-09-10 by Task 2.9.10, and this section's title is now false.**
+> `@fastify/compress` is registered in `buildServer()` and every response over
+> 1,024 bytes on this path is gzipped: `/securities` falls from **190,736 to
+> 20,072 bytes**, the at-the-cap series from **1,104,621 to 178,698**, a single
+> session from **44,701 to 7,549**. The two rows in the table above that are
+> almost entirely connection stay almost entirely connection — a 173-byte 404
+> is below the threshold and is not coded at all. **The heading is left
+> standing rather than rewritten**, because it is what was true when it was
+> measured; §13 is where the coding lives and §12.1 carries the re-taken
+> figures.
+>
+> **One thing this did not have to change: the ingress.** §12.5's other finding
+> was that Azure Container Apps adds no coding of its own, and it does not have
+> to — the application's `Content-Encoding` reaches the client through it
+> untouched. That is a reading rather than an assumption and it is taken in the
+> deployed table below.
+
 ### 12.6 The stitch costs under 20 ms, and §5's condition still does not fire
 
 **This could only be measured deployed**, and that is itself the finding §11
@@ -1307,6 +1410,15 @@ entire saving over a network". Deployed: **1,153 ms for the body against 356 ms
 for the 304 — about 800 ms saved on every repeat page load**, against 1.1 ms
 saved locally. The deployed body is **190,736 bytes, byte for byte the local
 figure**, which is a second confirmation that the two universes agree.
+
+> **Task 2.9.10 owes this table a re-take of its `Body` and `Miss`/`Hit`
+> columns, and it is not taken yet** — the coding does not exist deployed until
+> this change merges (§13.6). **The `304` column should not move**, which is
+> itself the check: a conditional request transfers no body, so a coding cannot
+> touch it. The prediction, from §12.1's wire figures and this table's own
+> 116–415 kB/s: `/securities` should fall from **1,153 ms** towards the
+> **356 ms** floor its own `304` already reaches, because 20,072 bytes is close
+> enough to nothing at this distance that the round trip is all that is left.
 
 **What this cannot say.** One machine over one link cannot tell its own network
 from the environment, and nothing here is called an outage. What it can say is
@@ -1412,3 +1524,162 @@ plain index is the cheap experiment.
 sentence that came close is `CLAUDE.md`'s note that the outbound market socket is
 safe because of a minimum replica count of one; §12.7 confirms it and supplies
 the maximum it did not have.
+
+---
+
+## 13. Compressing the wire — Task 2.9.10
+
+**Decided: `@fastify/compress` is registered in `buildServer()`, gzip and
+deflate only, over every response above 1,024 bytes; the entity tag is computed
+before the coding and is therefore weak; and every response carrying a validator
+carries `Vary: accept-encoding`.** `apps/backend/src/http-compression.ts` is
+the whole of the registration and carries the arguments beside the numbers.
+
+Story 2.9's scope has owed this choice from the start — _"a year of minute bars
+is large enough that the encoding matters — measure it before choosing anything
+clever"_ — and §12.5 is the measuring. What it found was that the encoding was
+`identity`, everywhere, always.
+
+### 13.1 The hook order, and both failures it can take
+
+`http-cache.ts` installs an `onSend` hook whose **first guard is `typeof payload
+!== "string"`**. A compressor is also an `onSend` hook, so there are two orders
+and each has a failure in it. **Both were produced and seen red before an order
+was chosen**, because a break that does not go red is equally evidence the break
+did not land:
+
+| Order                  | The failure                                                                                         | Produced                                                                                                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Compression first**  | The validator sees a `Buffer`, takes its early return, and **no response carries an `ETag` at all** | An instance-level `onSend` returning a gzipped `Buffer` ahead of the validator: **no `etag` on the 200, and the conditional request answered `200` with the whole body** |
+| **Compression second** | The compressor is handed the validator's output, which for a `304` is the empty string              | At `threshold: 0` the shipped arrangement emits **a `304` carrying `content-encoding: gzip` and a 20-byte body** — gzip's framing of nothing                             |
+
+**The first is the one to be afraid of, and it is silent.** Nothing 404s,
+nothing 500s, and every one of Task 2.9.8's assertions goes on passing, because
+they all run through `app.inject()` and **none of them negotiates an encoding**.
+Every client would simply re-download a body it already held. That is why the
+four assertions added in `http-cache.test.ts` ask for gzip and then ask for the
+`304`: the substitution above turns three of them red.
+
+**What the experiment actually found is that the first order is not reachable
+through this plugin, which is the opposite of what the task expected.**
+`@fastify/compress` adds no instance-level hook: it listens on `onRoute` and
+attaches its `onSend` to each **route**, and Fastify runs route-level hooks
+after instance-level ones. Registered at the root, registered before the
+validator inside a plugin, and registered after it inside a plugin all produced
+the identical tag over the identity bytes. The ordering argument is written down
+anyway, in the module and here, because the alternative is that the next reader
+has to re-derive that a line they could move is safe to move.
+
+The plugin is registered in `buildServer()` beside CORS and the error contract,
+because like both of those it is a property of the application rather than of
+any route. It must stay **above** the route registrations, for a reason that is
+not the usual one: an `onRoute` listener only hears the routes registered after
+it.
+
+### 13.2 What the `ETag` validates, established by observation
+
+RFC 9110 §8.8.1 makes a content-coding a **different representation**, so a
+strong validator covering both the gzipped and the identity bytes is, read
+strictly, wrong. There are three honest repairs and **which one is happening was
+found by asking a running server rather than by reading a README**:
+
+| Repair                                           | Happening? | How it was established                                                                  |
+| ------------------------------------------------ | ---------- | --------------------------------------------------------------------------------------- |
+| Hash before the coding, mark the validator weak  | **Yes**    | Chosen. `strongETag` is now `weakETag` and emits `W/"…"`                                |
+| Let the compressor **suffix** the tag per coding | No         | The same request with and without `Accept-Encoding: gzip` returns the **identical** tag |
+| Hash **after** the coding and emit `Vary`        | No         | Would need the validator to run last, which §13.1 shows it structurally cannot          |
+
+A weak validator is exactly the claim that is true: the two codings are
+semantically equivalent, and the tag identifies the pair rather than either.
+`If-None-Match` uses the weak comparison function regardless, so the `304` is
+unaffected — `matchesETag` already stripped `W/`, and did before this changed.
+
+**The property `http-cache.ts`'s header argues for survives unchanged.** The
+hash is still taken over the string `fast-json-stringify` produced, after every
+undeclared field has been stripped; the coding happens strictly downstream of it
+and cannot change what two responses differing only in a stripped field hash to.
+That paragraph is amended rather than rewritten, and only where it claimed the
+bytes reach the socket untransformed.
+
+### 13.3 `Vary: accept-encoding`, and whether `private` already covers it
+
+The plugin sets `Vary` **only on a response it actually compressed** — verified:
+an identity `200` and a `304` came back with none. Those are the two a cache is
+most likely to store and re-serve, so the header is set in the validator
+instead, on every response that carries a tag. The plugin de-duplicates against
+an existing value, so it adds nothing on top rather than emitting the token
+twice.
+
+**Whether it is load-bearing, said rather than assumed: it is not.** §11's
+argument for `private` is that two of this API's headers are computed per
+requester, so no shared cache should hold these bodies at all — and if that
+holds, the only cache is the browser's, which keys the coding it asked for. So
+`Vary` here is belt-and-braces. It is set anyway because _"we said `private`, so
+`Vary` cannot matter"_ is a claim about every intermediary between this server
+and a browser, and §12.5 is the section that exists because an assumption of
+exactly that shape turned out to be wrong.
+
+### 13.4 The two numbers, both measured rather than defaulted
+
+**The threshold is 1,024 bytes**, which is also the plugin's default and is
+restated explicitly for the reason every option in `tsconfig.base.json` is: an
+upgrade must not be able to quietly change what goes on the wire. It is one of
+the two guards keeping `Content-Encoding` off a `304`, the other being that a
+`304`'s payload is the empty string. Every response this API serves below it is
+a refusal, a 404 or `GET /market-data` — 173 to 258 bytes, where §12.8 says the
+round trip is the entire cost.
+
+**The synchronous path is disabled** (`syncThreshold: 0`), so every coded body
+goes through a stream and onto libuv's threadpool. Two reasons, both
+measurements:
+
+- The plugin's default is derived from `availableParallelism()`, so the same
+  code compresses synchronously on a small host and through a stream on a large
+  one — 4,096 bytes on the laptop that took these figures. **A behaviour that
+  differs by host is a figure that cannot be re-taken.**
+- Serially the two paths cost the same: +16.2 ms on the 1.10 MB series either
+  way, because the coding is the coding. **Under load they are not the same.**
+  Four concurrent at-the-cap requests, with a `/health` probe running beside
+  them, on loopback through the built server:
+
+  | Path              | 32 × 1.10 MB | `/health` p95 | `/health` max | Probes answered |
+  | ----------------- | -----------: | ------------: | ------------: | --------------: |
+  | Synchronous       |       798 ms |   **92.7 ms** |       93.8 ms |              42 |
+  | Streamed (`0`) ✅ |   **487 ms** |   **29.7 ms** |       40.6 ms |         **143** |
+
+  On a **single replica** — `maxReplicas: 1`, measured in §12.7 — the event loop
+  is the whole server, and the platform's liveness probe is one of the things
+  that queues behind a synchronous coding.
+
+**The price, stated because it is a real one:** a compressed response carries no
+`Content-Length` and goes out `Transfer-Encoding: chunked`, so a client cannot
+show determinate progress and §12.5's method of reading a size off that header
+does not work on one. `curl`'s `%{size_download}` does, and it is what every
+re-taken figure above uses.
+
+**`br` is declined.** Brotli compresses this JSON a little better and costs
+materially more CPU on the request path, and the deployed replica is 0.25 vCPU.
+Where the saving is entirely transfer and the budget is entirely CPU, the cheap
+coding is the right one. **Reversal trigger, as a condition:** the first
+measurement showing the server rather than the link is the constraint on this
+path.
+
+### 13.5 The frontend needed no change, and that was confirmed
+
+`api-client.ts` uses `fetch`, browsers negotiate and decompress transparently,
+and `useSecurities` sees the same JSON. Not assumed: **`pnpm e2e` passes against
+a locally started pair, 30 specs including the three that render the tracked
+universe from the real pair and the three axe runs over it.** Task 2.9.7 put a
+rendered page on this path, which is what makes that run the check rather than a
+formality.
+
+### 13.6 The deployed gate
+
+**Not yet taken. This section is the placeholder and it is deliberately empty**,
+because the change is not deployed until it is merged: `deploy.yml` is keyed on
+`workflow_run` of `verify` against `main`. The four readings §12.8 needs, and
+what each would falsify, are listed in `TASK-10-compress-the-wire.md`. An
+ingress that strips, re-encodes or buffers `Content-Encoding` makes the whole of
+this inert with every test green, so this is a **gate** rather than a reading —
+and §12.5 already establishes that the ingress adds no coding of its own, which
+is a different claim from passing one through.

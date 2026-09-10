@@ -1,6 +1,6 @@
 # Task 2.9.10 — Compress the wire
 
-**Status:** Not started
+**Status:** Built and measured locally; the deployed gate is outstanding
 **Story:** [2.9 Market Data API](STORY.md)
 **Depends on:** Task 2.9.9
 
@@ -172,3 +172,167 @@ happens by accident.
 that negotiates an encoding, and a re-take of four tables. The other four findings
 in §12 have their own conditions written as conditions; none of them is this
 task's.
+
+---
+
+## What was done — 2026-09-10
+
+`@fastify/compress` 9.2.0, registered in `buildServer()` beside CORS and the
+error contract, gzip and deflate over every response above 1,024 bytes.
+`apps/backend/src/http-compression.ts` is the whole of it and carries the
+arguments beside the numbers; `MARKET-DATA-API.md` §13 is the record.
+
+**Both order failures were produced and seen red before an order was chosen.**
+
+| Break                                                                          | Result                                                                                       |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| An instance-level `onSend` returning a gzipped `Buffer` ahead of the validator | **No `etag` at all**, and the conditional request answered `200` with the whole body         |
+| `threshold: 0` on the shipped arrangement                                      | **A `304` carrying `content-encoding: gzip` and a 20-byte body** — gzip's framing of nothing |
+
+Both turn the four new assertions in `http-cache.test.ts` red — three and two
+respectively — which is the check that the tests would have caught the silent
+order rather than merely describing it.
+
+**The trap this task was written around does not exist in this plugin, and that
+is worth more than the ordering line it justifies.** `@fastify/compress` adds no
+instance-level hook: it listens on `onRoute` and attaches its `onSend` to each
+**route**, and Fastify runs route hooks after instance hooks. Registered at the
+root, before the validator, and after the validator all produced the identical
+tag over the identity bytes. The argument is written down anyway, in the module
+and in §13.1, because the next reader would otherwise have to re-derive that a
+line they could move is safe to move.
+
+**What the `ETag` validates was established by observation.** The plugin
+suffixes nothing — the same request with and without `Accept-Encoding: gzip`
+returns the identical tag — and the validator cannot run last, so of the three
+honest repairs only one was available: hash before the coding and mark the tag
+**weak**. `strongETag` is now `weakETag` and emits `W/"…"`. The `onSend`
+argument in `http-cache.ts`'s header survives unchanged and was amended only
+where it claimed the bytes reach the socket untransformed.
+
+**`Vary: accept-encoding` is set by the validator, not left to the plugin**,
+which sets it only on a response it actually compressed — an identity `200` and
+a `304` came back with none. It is belt-and-braces rather than load-bearing,
+and §13.3 says which.
+
+**Two numbers, both measured rather than defaulted.** The threshold is 1,024 —
+the plugin's default, restated so an upgrade cannot quietly move it, and one of
+the two guards keeping a coding off a `304`. The synchronous path is disabled,
+because its default is derived from `availableParallelism()` and because four
+concurrent at-the-cap requests hold `/health` at a **92.7 ms p95 synchronously
+against 29.7 ms streamed**, on a server whose replica count is one. The price is
+a chunked response with no `Content-Length`, stated in §13.4.
+
+**What it bought, on the wire, locally:**
+
+| Response                      | identity    | gzip      | Removed                    |
+| ----------------------------- | ----------- | --------- | -------------------------- |
+| `/securities`                 | 190,736 B   | 20,072 B  | 89.5%                      |
+| `1m`, one session             | 44,701 B    | 7,549 B   | 83.1%                      |
+| `1m`, at the cap (9,750 bars) | 1,104,621 B | 178,698 B | 83.8%                      |
+| `1m`, one year — refused      | 258 B       | 258 B     | none — below the threshold |
+| Unknown symbol — 404          | 173 B       | 173 B     | none — below the threshold |
+
+Every gzip figure reproduced §12.1's hypothetical column **to the byte**, which
+is the second confirmation that the column was honestly labelled rather than
+optimistic.
+
+**The frontend needed no change and it was confirmed rather than assumed:**
+`pnpm e2e` passes against a locally started pair, 30 specs, including the three
+that render the tracked universe from the real pair and the three axe runs over
+it. `pnpm verify` passes.
+
+**Documents swept the same day:** §4 gains a second dated amendment saying its
+original arithmetic is true again; §11's mechanism and its bytes table gain
+amendments for the weak validator and for the `gzipped` column becoming the
+wire; §12.1 gains a re-taken table with both arms; §12.5's framing is inverted
+in a dated note with its heading left standing; §12.8 carries a note saying what
+it owes. §12.2, §12.4, §12.6, §12.7 and §12.11 are untouched. `STORY.md`'s scope
+bullet is discharged. Nothing here falsifies `PRODUCT_SPEC.md`, an ADR or
+`CLAUDE.md`.
+
+### Outstanding — the deployed gate
+
+**The four deployed readings are not taken**, because the coding does not exist
+deployed until this merges: `deploy.yml` is keyed on `workflow_run` of `verify`
+against `main`. They are the last thing this task owes, and §12.8's `200` rows
+and §13.6 are the slots waiting for them. The prediction on record, so it can be
+wrong: `/securities` should fall from **1,153 ms** towards the **356 ms** floor
+its own `304` already reaches.
+
+---
+
+## For the stakeholders — what this actually did
+
+**In one sentence: the page that shows real prices now downloads about a
+twentieth of what it used to, and nothing about it looks different.**
+
+Every time somebody opens MarketPulse's securities page, their browser asks our
+server for the list of 518 companies we track, together with what each one last
+closed at. Until today that answer travelled as **186 kilobytes of plain text**.
+Measured honestly — a laptop in the UK talking to our server in Virginia — that
+took **1.15 seconds**, and almost all of it was the text crawling down the wire
+rather than the server thinking.
+
+Text like that is enormously repetitive: the same field names, the same date
+format, the same shapes, 518 times over. Squeezing it before it is sent is a
+solved problem that every website has used for twenty years, and we simply
+were not doing it. Last week's measuring task found that out — not by assuming,
+but by looking at what actually arrives — and this task is the repair.
+**The same answer is now 20 kilobytes. About nine tenths of it never leaves the
+building.**
+
+Three decisions are worth explaining, because each one is a place where the
+obvious thing would have been quietly wrong.
+
+**First, we made sure the squeezing did not break the thing we built last
+week.** MarketPulse already avoids re-sending data a browser has seen before: it
+gives every answer a short fingerprint, and a browser that still has the old
+answer gets told "nothing changed" instead of the whole thing again. That saves
+about 800 milliseconds on every repeat visit. The catch is that squeezing and
+fingerprinting happen at the same moment in the request, and **in the wrong
+order the fingerprint silently disappears** — no error, no crash, nothing on
+screen looks wrong, every one of our tests keeps passing, and every visitor
+quietly starts re-downloading everything forever. So we deliberately built that
+failure once, on purpose, watched it happen, and then wrote a test that catches
+it. We did the same for a second, opposite mistake. Neither can now reach a
+user without a test going red first.
+
+**Second, we chose the cheap squeezing rather than the best.** There is a newer
+method that would have squeezed a little harder. It also costs noticeably more
+of the server's attention, and our server is deliberately a small one — a single
+machine with a quarter of a processor. Where the thing we are short of is
+transfer and the thing we are spending is processing, the cheap method is the
+right trade. That is written down along with the condition that would make us
+revisit it.
+
+**Third, we measured the cost instead of assuming it was free.** Squeezing is
+work, and work on a small server can make everything else wait. We tested that
+directly: with four large requests running at once, one way of doing the
+squeezing made the server's own health checks take three times longer than the
+other. We took the slower-looking option that keeps the server responsive, and
+we wrote down what it costs us — the browser can no longer show a determinate
+progress bar on a large download. That is a fair trade and it is recorded as one
+rather than glossed over.
+
+**How this moves the product forward.** MarketPulse's whole pitch is that a user
+sees something odd in the market and investigates it _while they are still
+curious_. The specification asks for visible feedback within half a second of an
+action. The very next stories build the price and volume charts — the first
+screens that will pull down a month of minute-by-minute market data, which is
+just over a megabyte each time. Uncompressed, from the UK, that measured between
+two and four seconds. Compressed, it is under 180 kilobytes. **Without this
+task, the first chart we ship would have felt slow on the day it shipped**, and
+the natural instinct would have been to fix it by showing users less data —
+which is exactly the wrong repair for a product whose job is to show people the
+evidence.
+
+There is one honest caveat. Everything above was measured on a developer
+machine. The change has to be released before we can confirm that the hosting
+platform passes the squeezed data through untouched rather than helpfully
+un-squeezing it — a thing we cannot see from a file, only from a live request.
+That check is written down as a gate rather than a formality, and it is the last
+thing this task owes.
+
+**Nothing on screen changed today.** The securities page looks exactly as it did
+yesterday. It just arrives.
