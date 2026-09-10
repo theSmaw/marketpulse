@@ -71,6 +71,16 @@ export type {
   BarSeriesView,
   PopulatedBarSeries,
 } from "./bar-series-view.js";
+export {
+  MATCH_TIERS,
+  SECURITY_MATCH_LIMIT,
+  matchSecurities,
+} from "./security-match.js";
+export type {
+  MatchTier,
+  SecurityMatch,
+  SecurityMatches,
+} from "./security-match.js";
 export { useBarSeries } from "./use-bar-series.js";
 export type { BarSeriesSource } from "./use-bar-series.js";
 
