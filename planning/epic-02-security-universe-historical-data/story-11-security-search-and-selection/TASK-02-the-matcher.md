@@ -45,6 +45,19 @@ where this function is what makes typing do something.
   a multi-word query; whitespace; a dot-bearing symbol like `BRK.B`; and the
   empty query. Each answer is a test.
 
+  **Amended 2026-09-11 by Task 2.11.1: the interesting case is a name substring,
+  not a symbol substring, and it is measured rather than hypothetical.** A naive
+  `name.includes(q)` over the real universe returns **seven** matches for `nv`,
+  five of which a person typing `nv` did not mean: `FRT` (Federal Realty
+  **Inv**estment Trust), `INVH` (**Inv**itation Homes), `IVZ` (**Inv**esco),
+  `KVUE` (Ken**vu**e) and `QQQ` (**Inv**esco QQQ Trust). Write that as a test
+  first — it is the one that decides whether a name match is prefix-aware,
+  word-boundary-aware, or merely ranked below symbol matches — and `SEARCH-AND-SELECTION.md`
+  §0 has the reading. Note also that **`nvid` resolves through the name path and
+  not the symbol path**: it matches exactly one security, NVDA, via
+  `NVIDIA Corporation`. Acceptance criterion 1's third spelling cannot be
+  satisfied with symbol rules alone.
+
 - **The order.** A ranked list, not a filtered one. An exact symbol match is
   first or the control is wrong — typing `NVDA` and pressing Enter must open
   NVDA, which is acceptance criterion 1. Beyond that, state the tiers, and make
@@ -69,7 +82,13 @@ where this function is what makes typing do something.
   avoided**, but do not build an index before a measurement asks for one. 518
   entries is small; say so in the header with the figure, so the next reader
   knows the simple implementation was chosen against a number rather than by
-  default.
+  default. **Amended 2026-09-11 by Task 2.11.1: the figure exists, so cite it
+  rather than re-deriving one** — a linear scan over symbol and name measured
+  **0.295 ms** at 518 securities and **0.58 ms** over a synthetic 5,000
+  (`SEARCH-AND-SELECTION.md` §0). Both are two orders of magnitude inside a
+  16.7 ms frame, which is what makes an index unjustifiable today. Re-take the
+  figure if the implementation stops being a linear scan; a scorer with a nested
+  loop over name tokens is a different curve.
 
 ## Done when
 

@@ -71,6 +71,11 @@ at its price and volume — is Stories 2.12 and 2.13.
   - Story 2.4's reversal trigger for grouping is recorded as unfired. It fired.
   - `FRONTEND-STATE.md` §7's note that nothing changes a live region without a
     user having navigated or pressed something, and its two reversal triggers.
+    **Amended 2026-09-11 by Task 2.11.1: both of §7's triggers have already fired
+    and been answered**, so this is a correction to make rather than a question to
+    settle — a third region exists, it speaks 400 ms after a keystroke rather than
+    after a navigation, and §7's "what nothing checks" paragraph gains the page-level
+    gap that a fourth region would pass through unnoticed.
   - Any live claim that the only route to a second symbol is a document
     navigation — 2.11.5 ended that, and it is asserted in more than one file.
   - **Count a duplicated sentence with a grep before correcting it**, and tell a

@@ -51,6 +51,32 @@ What a user still cannot do afterwards: see a chart. That is Stories 2.12 and
   qualifier, because the last close is the last session we hold a bar for and is
   behind the calendar during a live session.
 
+  **Amended 2026-09-11 by Task 2.11.1: it is five facts, not four, and the fifth
+  brings work this task did not previously own.** The user settled it — the row
+  carries **a close and its change** — so:
+  - **The close comes from a join this task has to write.** `lastCloses` is a
+    **separate array** in the `GET /securities` body, one entry per security with
+    `symbol`, `session`, `close` and `previousClose`. The universe array carries no
+    price at all, so a result row is a join by symbol rather than a field read.
+    Measured 2026-09-11: 518 of 518 securities have an entry, and every entry's
+    session is `2026-09-04` — one distinct value. Neither of those is guaranteed
+    by a type, so the join has to answer what a **missing** entry renders as.
+  - **The qualifier is on the surface, once, and on a row only when it differs.**
+    The result surface names the session beside the cap
+    (`Closes as of 4 Sep · showing 10 of 24`); a row whose own `session` is
+    **earlier** than that carries its own date. That costs nothing in the uniform
+    case measured above and cannot be a lie in the case that ends it.
+  - **The number is a close, and the column says so.** Nothing in a result row is
+    labelled "price" while the live feed does not exist — that is invariant 6 in
+    the small.
+  - **The change keeps `PriceChange`'s glyph and sign.** A percentage
+    distinguished only by hue differs by 1.04:1 in greyscale.
+  - **The equity/ETF distinction is a derived grouping, not a field.** `kind` has
+    **three** values — measured 503 `equity`, 11 `sector_etf`, 4 `index_etf` — and
+    the distinction a person needs maps two of them onto one word. Rendering `kind`
+    verbatim produces `SECTOR ETF` beside `INDEX ETF` as though that difference
+    were the point, which it is not.
+
 - **The matched substring** gets whatever treatment the design settled on. The
   accent is unavailable; a background wash on a datum is a colour-on-data
   decision that needed an argument, and if it did not get one, bolding is the
@@ -72,18 +98,39 @@ What a user still cannot do afterwards: see a chart. That is Stories 2.12 and
   which produces every state; this task ships the happy path plus whatever the
   control cannot render without.
 
-- **The live region rate.** Implement 2.11.1's rule: either the settled debounce
-  interval, or silence while typing and one sentence when results settle. Every
-  sentence names its subject, because this page already has two polite regions
-  and a screen reader queues them in an order neither component controls
-  (`FRONTEND-STATE.md` §7). And a live region whose text does not change
-  announces nothing — if the result count returns to where it started, there has
-  to be a distinct in-between text or the announcement is silent.
+- **The live region rate. Restated 2026-09-11 by Task 2.11.1, because the
+  either/or above is no longer the instruction and following it literally builds
+  the wrong thing.** The rule is not one of two options; it is both halves,
+  settled differently, and the distinction is the whole point
+  (`SEARCH-AND-SELECTION.md` §4):
+  - **The visible result list updates on every keystroke. It is not debounced.**
+    There is no request to debounce — matching is a **0.295 ms** synchronous scan
+    over data the page already holds — and debouncing it would make the list lag
+    behind a person's typing for nothing. This is the likely defect: an
+    "announcement debounce" implemented one layer too low.
+  - **Only the spoken sentence waits, and it waits 400 ms** after the last
+    keystroke. One named constant with one reader, not a magic number in a hook.
+  - **This IS a third polite region on this page**, and 2.11.1 fired and answered
+    §7's reversal trigger rather than leaving it to a layout: it cannot queue
+    against the other two, because they speak on arrival and on navigation while
+    this one is definitionally silent then. So the count in this file's old
+    sentence — "two polite regions" — is now **three**.
+  - **The sentence quotes the query**, which is what makes the in-between text
+    problem go away: a count can return to where it started, but the query cannot,
+    because the query is what the person just changed. The shape is subject first,
+    then the quoted query, then the count, then the top match named — because a
+    listener about to press Enter needs to know what Enter opens. §4 has the four
+    worked sentences.
+  - Every sentence names its subject, and a screen reader queues regions in an
+    order neither component controls (`FRONTEND-STATE.md` §7).
 
 ## Done when
 
 - Typing a symbol or a name produces ranked results, and choosing one opens that
   security at `/securities/:symbol`
+- A result row carries its close and change, joined from `lastCloses` by symbol,
+  with the session qualified on the surface and on any row that differs — and the
+  visible list updates per keystroke while only the announcement waits 400 ms
 - Enter with one match opens it; Enter with none does nothing
 - The control is a real combobox: roles, `aria-expanded`, active descendant, and
   Escape behaviour
