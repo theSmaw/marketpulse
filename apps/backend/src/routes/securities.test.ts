@@ -24,7 +24,11 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { toTimeRange } from "@marketpulse/shared";
 
-import type { BarCoverage, MarketBarsRepository } from "../market-bars.js";
+import type {
+  BarCoverage,
+  LastClose,
+  MarketBarsRepository,
+} from "../market-bars.js";
 import { SecurityMappingError } from "../securities.js";
 import type { SecuritiesRepository } from "../securities.js";
 import { buildServer } from "../server.js";
@@ -112,23 +116,53 @@ function coverageFor(
 }
 
 /**
+ * A daily close for one symbol, at the last session the local store holds.
+ *
+ * The instant is **market midnight** — 04:00Z in summer — because that is how
+ * the vendor labels a daily bar and what `marketDateAt` has to convert. A
+ * fixture written at 20:00Z would pass the same assertions and would stop
+ * exercising the conversion the route is doing.
+ */
+function closeFor(
+  symbol: string,
+  close = 230.36,
+  previousClose: number | null = 228.45,
+): LastClose {
+  return {
+    symbol: toTicker(symbol),
+    observedAt: new Date("2026-09-04T04:00:00.000Z"),
+    close,
+    previousClose,
+  };
+}
+
+/**
  * The half of `MarketBarsRepository` this route is allowed to use.
  *
- * One function, because the parameter is a `Pick` — which is the narrowing
+ * Two functions, because the parameter is a `Pick` — which is the narrowing
  * paying for itself: a stub of the whole interface would be eight methods of
- * `throw new Error("not called")` to prove a route reads one of them.
+ * `throw new Error("not called")` to prove a route reads two of them. It went
+ * from one to two by hand at Task 2.9.7, which is the `Pick` doing its job.
  */
 function stubBars(
   coverage: readonly BarCoverage[] = [],
-): Pick<MarketBarsRepository, "listCoverage"> {
-  return { listCoverage: () => Promise.resolve(coverage) };
+  closes: readonly LastClose[] = [],
+): Pick<MarketBarsRepository, "listCoverage" | "readLastCloses"> {
+  return {
+    listCoverage: () => Promise.resolve(coverage),
+    readLastCloses: () =>
+      Promise.resolve(new Map(closes.map((close) => [close.symbol, close]))),
+  };
 }
 
 let open: FastifyInstance | undefined;
 
 async function server(
   repository: SecuritiesRepository,
-  bars: Pick<MarketBarsRepository, "listCoverage"> = stubBars(),
+  bars: Pick<
+    MarketBarsRepository,
+    "listCoverage" | "readLastCloses"
+  > = stubBars(),
   configure?: (app: FastifyInstance) => void,
 ): Promise<FastifyInstance> {
   const app = buildServer({
@@ -162,6 +196,7 @@ describe("GET /securities", () => {
       securities: [NVDA, SPY],
       provenance: PROVENANCE,
       coverage: [],
+      lastCloses: [],
     });
   });
 
@@ -210,6 +245,7 @@ describe("GET /securities", () => {
       securities: [untracked],
       provenance: PROVENANCE,
       coverage: [],
+      lastCloses: [],
     });
   });
 
@@ -222,7 +258,11 @@ describe("GET /securities", () => {
     const response = await app.inject({ method: "GET", url: "/securities" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ securities: [], coverage: [] });
+    expect(response.json()).toEqual({
+      securities: [],
+      coverage: [],
+      lastCloses: [],
+    });
   });
 
   it("omits provenance when the rows no longer agree", async () => {
@@ -250,7 +290,7 @@ describe("GET /securities", () => {
       await app
         .inject({ method: "GET", url: "/securities" })
         .then((response) => response.json<unknown>()),
-    ).toEqual({ securities: [NVDA, SPY], coverage: [] });
+    ).toEqual({ securities: [NVDA, SPY], coverage: [], lastCloses: [] });
   });
 
   it("reports what the ledger holds, as a window and a size", async () => {
@@ -311,6 +351,110 @@ describe("GET /securities", () => {
       );
 
     expect(body.coverage.map((record) => record.timeframe)).toEqual(["1m"]);
+  });
+
+  it("puts the last close and the one before it on the wire", async () => {
+    // The first real price this product has ever sent anybody, asserted at the
+    // layer that sends it. Two prices and a session date, and deliberately no
+    // change and no percentage: `PriceChange`'s header draws that line, and the
+    // arithmetic happens where the claim is made.
+    const app = await server(
+      stubRepository([NVDA, SPY]),
+      stubBars([], [closeFor("NVDA")]),
+    );
+
+    expect(
+      await app
+        .inject({ method: "GET", url: "/securities" })
+        .then((response) => response.json<{ lastCloses: unknown }>()),
+    ).toMatchObject({
+      lastCloses: [
+        {
+          symbol: "NVDA",
+          session: "2026-09-04",
+          close: 230.36,
+          previousClose: 228.45,
+        },
+      ],
+    });
+  });
+
+  it("reports the session as a market date rather than an instant", async () => {
+    // The one representational decision in `toWireLastClose`, and the reason it
+    // goes through `marketDateAt`: a daily bar is labelled at market midnight,
+    // so the *instant* is the day before in UTC terms for half the year and the
+    // conversion is the only thing that gets the session right. Made to fail by
+    // sending `observedAt.toISOString()`, which puts `2026-09-04T04:00:00.000Z`
+    // in a field the client parses as a `MarketDate` and rejects.
+    const app = await server(
+      stubRepository([NVDA]),
+      stubBars([], [closeFor("NVDA")]),
+    );
+
+    const raw = await app
+      .inject({ method: "GET", url: "/securities" })
+      .then((response) => response.body);
+
+    expect(raw).toContain('"session":"2026-09-04"');
+    expect(raw).not.toContain("T04:00:00");
+  });
+
+  it("carries a single-session close as a null previous, not a zero", async () => {
+    // **The assertion this field's schema exists for, and it is on the RAW
+    // body** — `response.json()` is exactly what would hide it. Declared
+    // plainly `"number"` rather than `["number", "null"]`, the null serialises
+    // as `0`: a plausible-looking price that renders as a −100% move on a
+    // security whose only fault is that we hold one session of it.
+    const app = await server(
+      stubRepository([NVDA]),
+      stubBars([], [closeFor("NVDA", 230.36, null)]),
+    );
+
+    const response = await app.inject({ method: "GET", url: "/securities" });
+
+    expect(response.body).toContain('"previousClose":null');
+    expect(response.body).not.toContain('"previousClose":0');
+    expect(
+      response.json<{ lastCloses: { previousClose: unknown }[] }>()
+        .lastCloses[0]?.previousClose,
+    ).toBeNull();
+  });
+
+  it("says nothing at all about a security with no daily bars", async () => {
+    // The absent case, and the same honesty `coverage` already has one field
+    // along: SPY is in the universe and holds no daily bars, so it is absent
+    // here rather than present with a zero or a null price.
+    const app = await server(
+      stubRepository([NVDA, SPY]),
+      stubBars([], [closeFor("NVDA")]),
+    );
+
+    const body = await app
+      .inject({ method: "GET", url: "/securities" })
+      .then((response) =>
+        response.json<{ lastCloses: { symbol: string }[] }>(),
+      );
+
+    expect(body.lastCloses.map((record) => record.symbol)).toEqual(["NVDA"]);
+  });
+
+  it("reads the closes at the daily timeframe and never the minute one", async () => {
+    // The cost decision, asserted rather than commented. The minute half of
+    // `market_bars` is 47.7M rows against 345k daily ones, and a page that
+    // reached it to draw a list is the thing `bar_coverage` exists to prevent.
+    // This is the one place the choice is visible from outside the repository.
+    const asked: string[] = [];
+    const app = await server(stubRepository([NVDA]), {
+      listCoverage: () => Promise.resolve([]),
+      readLastCloses: (timeframe) => {
+        asked.push(timeframe);
+        return Promise.resolve(new Map());
+      },
+    });
+
+    await app.inject({ method: "GET", url: "/securities" });
+
+    expect(asked).toEqual(["1d"]);
   });
 
   it("strips a ledger field the contract does not name", async () => {

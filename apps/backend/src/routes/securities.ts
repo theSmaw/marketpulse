@@ -16,10 +16,11 @@
 // the other direction: a field added to `SecuritiesResponse` and forgotten here
 // vanishes from the wire with a green build, a green lint and a passing test.
 // `satisfies Record<keyof T, JsonSchemaProperty>` is what turns that into
-// `TS1360`, and this route applies it **three times** — once for the envelope,
-// once for a security, once for a provenance record — because the guard checks
-// top-level keys and does not reach into a nested object. Nothing forces the
-// second and third applications; `json-schema.ts` records that as the limit.
+// `TS1360`, and this route applies it **five times** — the envelope, a
+// security, a provenance record, a coverage record and a last close — because
+// the guard checks top-level keys and does not reach into a nested object.
+// Nothing forces any application after the first; `json-schema.ts` records that
+// as the limit.
 //
 // The stripping is asserted on this route rather than on a copy of its schema,
 // through a `preSerialization` hook in the tests. An `onSend` hook is handed a
@@ -68,6 +69,7 @@
 import type { FastifyPluginCallback } from "fastify";
 
 import {
+  marketDateAt,
   SECTORS,
   SECURITY_KINDS,
   SECURITY_STATUSES,
@@ -79,13 +81,18 @@ import type {
   SecuritiesResponse,
   Security,
   SecurityCoverage,
+  SecurityLastClose,
   Timeframe,
 } from "@marketpulse/shared";
 
 import { throughDatabase } from "../database.js";
 import { apiErrorSchema } from "../errors.js";
 import type { JsonSchemaProperty } from "../json-schema.js";
-import type { BarCoverage, MarketBarsRepository } from "../market-bars.js";
+import type {
+  BarCoverage,
+  LastClose,
+  MarketBarsRepository,
+} from "../market-bars.js";
 import type { SecuritiesRepository } from "../securities.js";
 
 // One security on the wire.
@@ -173,9 +180,45 @@ const coverageSchema: JsonSchemaProperty = {
   required: Object.keys(coverageProperties),
 };
 
+// One last close on the wire.
+//
+// The **fifth** application of the `satisfies` guard on this route, for the
+// fourth's reason: the guard checks top-level keys and does not reach into a
+// nested object, so nothing about the envelope's guard would stop a field added
+// to `SecurityLastClose` from silently vanishing.
+//
+// `previousClose` declares `["number", "null"]` and that is the one line here
+// worth measuring rather than trusting. `sector` next door is the recorded
+// precedent: declared plainly `"string"`, a genuine `null` reaches the wire as
+// the **empty string**. The numeric analogue is worse — a `null` under a plain
+// `"number"` serialises as **`0`**, which is not obviously wrong, renders as a
+// price, and turns "we hold one session and cannot compare it" into a −100%
+// move. The nullable case is therefore asserted on the raw body rather than on
+// `response.json()`, which is exactly what would hide it.
+//
+// `session` is a plain `"string"`: `MarketDate` is a branded string and JSON
+// has no brands, so what crosses the wire is the eleven characters
+// `marketDateAt` produced. The client's predicate is what re-establishes the
+// brand, which is the same division `Ticker` already has.
+const lastCloseProperties = {
+  symbol: { type: "string" },
+  session: { type: "string" },
+  close: { type: "number" },
+  previousClose: { type: ["number", "null"] },
+} satisfies Record<keyof SecurityLastClose, JsonSchemaProperty>;
+
+const lastCloseSchema: JsonSchemaProperty = {
+  type: "object",
+  properties: lastCloseProperties,
+  // Total, and stays total: a null `previousClose` is a present null rather
+  // than an absent field, which is the whole point of declaring it nullable.
+  required: Object.keys(lastCloseProperties),
+};
+
 const securitiesProperties = {
   securities: { type: "array", items: securitySchema },
   coverage: { type: "array", items: coverageSchema },
+  lastCloses: { type: "array", items: lastCloseSchema },
   provenance: {
     type: "object",
     properties: provenanceProperties,
@@ -199,9 +242,10 @@ const securitiesSchema = {
       // `coverage` **is** listed, which is the difference between the two: it
       // is always sent, empty when the store holds nothing, and its contract
       // says why (an absent field would give "we hold nothing yet" a second
-      // spelling). So the literal is now two of three keys rather than one, and
-      // the one it omits is the one whose absence carries meaning.
-      required: ["securities", "coverage"],
+      // spelling). `lastCloses` joined it on the same argument at Task 2.9.7.
+      // So the literal is now three of four keys rather than one, and the one
+      // it omits is the one whose absence carries meaning.
+      required: ["securities", "coverage", "lastCloses"],
     },
 
     // Declared, and doing real work here rather than as ceremony. This handler
@@ -273,6 +317,50 @@ function toWireCoverage(coverage: BarCoverage): SecurityCoverage {
 }
 
 /**
+ * The series the last close is read from.
+ *
+ * **`1d` where {@link REPORTED_TIMEFRAME} is `1m`**, and the two constants
+ * disagreeing is the decision rather than an oversight. Coverage answers *how
+ * much history do we hold*, which is about the minute series every chart reads;
+ * a close is the **official session close**, which only a daily bar carries —
+ * `bar.ts` records that a close derived from single-venue minute bars may not
+ * contain the auction print, so it would be a different and worse number rather
+ * than the same one computed twice. `SecuritiesResponse.lastCloses` carries the
+ * argument at length.
+ *
+ * It is also what makes the read cheap: 345k daily rows against 47.7M minute
+ * ones, two per security through the existing index.
+ */
+const CLOSE_TIMEFRAME: Timeframe = "1d";
+
+/**
+ * The last close, as the wire says it.
+ *
+ * One function beside the query for `toWireCoverage`'s reason, and it holds the
+ * one representational decision this field has: a daily bar's `observed_at`
+ * becomes a **market date** rather than an ISO instant. `marketDateAt` and not
+ * `toISOString().slice(0, 10)` — `market-time.ts` is the one module permitted
+ * to convert and a lint rule enforces it (ADR 0017). It matters here rather
+ * than being ceremony: a daily bar is labelled at market midnight, which is
+ * 04:00Z in summer and 05:00Z in winter, and a slice of the ISO string is right
+ * both times by luck and wrong the day the vendor labels a bar at the open
+ * instead.
+ *
+ * `previousClose` passes through untouched, `null` included. The change itself
+ * is not computed here: `PriceChange`'s header draws that line — a band name is
+ * a decision this server reports, the direction of a move is arithmetic on two
+ * numbers already on the wire.
+ */
+function toWireLastClose(close: LastClose): SecurityLastClose {
+  return {
+    symbol: close.symbol,
+    session: marketDateAt(close.observedAt),
+    close: close.close,
+    previousClose: close.previousClose,
+  };
+}
+
+/**
  * The route, as a factory over two repositories rather than over a pool.
  *
  * The interfaces are the narrower dependency: this file never learns there is a
@@ -282,13 +370,16 @@ function toWireCoverage(coverage: BarCoverage): SecurityCoverage {
  *
  * **The second one is a `Pick` and not the whole repository**, which is the
  * same instinct one level finer. `MarketBarsRepository` can write bars, upsert
- * a ledger row and read fifty million rows back; this route may do exactly one
+ * a ledger row and read fifty million rows back; this route may do exactly two
  * of those things, and narrowing the parameter is what says so in a way the
- * compiler holds. It also keeps the stub in the tests one function long.
+ * compiler holds. It also keeps the stub in the tests two functions long — and
+ * it is the line that had to be *widened* by hand at Task 2.9.7, which is the
+ * `Pick` working: a route reaching for a new read announces itself in its own
+ * signature rather than acquiring the capability silently.
  */
 export function createSecuritiesRoutes(
   securities: SecuritiesRepository,
-  bars: Pick<MarketBarsRepository, "listCoverage">,
+  bars: Pick<MarketBarsRepository, "listCoverage" | "readLastCloses">,
 ): FastifyPluginCallback {
   return (app, _options, done) => {
     app.get(
@@ -319,13 +410,22 @@ export function createSecuritiesRoutes(
         // failure is two answers to one question. A malformed row is still a
         // 500: that is this server having failed, and `isDatabaseUnavailable`
         // rethrows it untouched.
-        const [list, provenances, coverage] = await throughDatabase(
+        const [list, provenances, coverage, lastCloses] = await throughDatabase(
           "The securities store",
           () =>
             Promise.all([
               securities.listSecurities(),
               securities.listSecuritiesProvenance(),
               bars.listCoverage(),
+              // **The fourth read, and the first on this route that touches
+              // `market_bars` at all.** It touches the daily half of it, two
+              // rows per security through the existing index — `readLastCloses`
+              // carries the measurement and the 200×-worse shape it rejects.
+              // The skew it inherits is the same one the third does and matters
+              // as little: a security added between reads has no close, which
+              // is exactly how a security with no daily bars is reported
+              // anyway.
+              bars.readLastCloses(CLOSE_TIMEFRAME),
             ]),
         );
 
@@ -362,6 +462,12 @@ export function createSecuritiesRoutes(
           coverage: coverage
             .filter((record) => record.timeframe === REPORTED_TIMEFRAME)
             .map(toWireCoverage),
+          // `Map` → array, ordered by the map's insertion order, which is the
+          // query's `order by securities.symbol`. Stated rather than relied
+          // upon: nothing on the page reads this array in order (the client
+          // keys it by symbol immediately), so the ordering is a property of
+          // the payload being diffable rather than a contract.
+          lastCloses: [...lastCloses.values()].map(toWireLastClose),
           ...(provenance !== undefined && rest.length === 0
             ? { provenance }
             : {}),

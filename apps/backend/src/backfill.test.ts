@@ -191,6 +191,7 @@ function harness(
     readCoverage: () => Promise.resolve(undefined),
     listCoverage: () => Promise.resolve([]),
     readLastBarDates: () => Promise.resolve(new Map()),
+    readLastCloses: () => Promise.resolve(new Map()),
   };
 
   const attempts: BarAttemptsRepository = {

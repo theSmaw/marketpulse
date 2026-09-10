@@ -454,7 +454,10 @@ describe("the response-schema declaration", () => {
             listSecuritiesProvenance: () => Promise.resolve([]),
             findSecurity: () => Promise.resolve(undefined),
           },
-          { listCoverage: () => Promise.resolve([]) },
+          {
+            listCoverage: () => Promise.resolve([]),
+            readLastCloses: () => Promise.resolve(new Map()),
+          },
         ),
       );
       // The one route registered in `index.ts` that could have gone in the
@@ -475,6 +478,7 @@ describe("the response-schema declaration", () => {
             readCoverage: () => Promise.resolve(undefined),
             listCoverage: () => Promise.resolve([]),
             readLastBarDates: () => Promise.resolve(new Map()),
+            readLastCloses: () => Promise.resolve(new Map()),
           },
           securities: { findSecurity: () => Promise.resolve(undefined) },
         }),

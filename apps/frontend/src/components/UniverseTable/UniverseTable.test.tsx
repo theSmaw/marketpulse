@@ -3,13 +3,14 @@ import { describe, expect, it } from "vitest";
 
 import type { SecuritiesView } from "../../use-securities.js";
 import { groupUniverse, summarise, UniverseTable } from "./UniverseTable.js";
-import { toTicker } from "@marketpulse/shared";
+import { toMarketDate, toTicker } from "@marketpulse/shared";
 import type {
   EquitySecurity,
   IndexEtfSecurity,
   SectorEtfSecurity,
   Security,
   SecurityCoverage,
+  SecurityLastClose,
 } from "@marketpulse/shared";
 
 // The table's own tests. `SecurityExplorer.test.tsx` drives the same component
@@ -77,15 +78,38 @@ function coverageFor(
   };
 }
 
+/**
+ * A stored close, at the last session the local store actually holds.
+ *
+ * `toMarketDate` rather than a bare literal, because `MarketDate` is branded:
+ * a cast would assert a check that never happened, and the branding is what
+ * carries "this went through `market-time.ts`" across the wire.
+ */
+function closeFor(
+  symbol: string,
+  close = 230.36,
+  previousClose: number | null = 228.45,
+  session = "2026-09-04",
+): SecurityLastClose {
+  return {
+    symbol,
+    session: toMarketDate(session),
+    close,
+    previousClose,
+  };
+}
+
 function loaded(
   securities: readonly [Security, ...Security[]],
   coverage: readonly SecurityCoverage[] = [],
+  lastCloses: readonly SecurityLastClose[] = [],
 ): SecuritiesView {
   return {
     state: "loaded",
     securities,
     provenance: null,
     coverage: new Map(coverage.map((record) => [record.symbol, record])),
+    lastCloses: new Map(lastCloses.map((record) => [record.symbol, record])),
   };
 }
 
@@ -234,6 +258,158 @@ describe("UniverseTable", () => {
     expect(row.textContent).not.toContain("0");
   });
 
+  // --- The price column (Task 2.9.7) ---
+
+  it("renders the last close and its move against the session before", () => {
+    // The first real price this product shows anybody, asserted on the string a
+    // screen reader is handed rather than on two elements: the figure and its
+    // direction are one claim, and a version that separated them would pass a
+    // per-element assertion.
+    render(
+      <UniverseTable
+        view={loaded([equity()], [], [closeFor("NVDA", 230.36, 228.45)])}
+      />,
+    );
+
+    const row = screen.getByRole("row", { name: /^NVDA / });
+    expect(row.textContent).toContain("230.36");
+    expect(row.textContent).toContain("+0.84%");
+    // The spoken word, which is the third channel. The glyph is `aria-hidden`
+    // — read aloud it is the name of a triangle — so `up` is what a listener
+    // gets, and it is the half that survives both the colour and the glyph.
+    expect(row.textContent).toContain("up");
+  });
+
+  it("carries a fall as a sign and a word, not only as a colour", () => {
+    // Task 1.4.4 measured this palette's positive green and negative red at
+    // 1.05:1 under `grayscale(1)`, which is no difference at all. A test cannot
+    // see colour — no stylesheet is applied here — and that is the point: what
+    // it *can* see is the sign and the word, which is exactly the encoding that
+    // has to be there.
+    render(
+      <UniverseTable
+        view={loaded([equity()], [], [closeFor("NVDA", 319.97, 328.21)])}
+      />,
+    );
+
+    const row = screen.getByRole("row", { name: /^NVDA / });
+    expect(row.textContent).toContain("−2.51%");
+    expect(row.textContent).toContain("down");
+  });
+
+  it("renders a move that rounds away as unchanged, with no sign", () => {
+    // The two channels agreeing. By raw sign this is a rise; rendered it is
+    // `0.00%`, and an up arrow beside a figure saying nothing moved is the one
+    // disagreement `PriceChange` exists to make impossible.
+    render(
+      <UniverseTable
+        view={loaded([equity()], [], [closeFor("NVDA", 230.36, 230.3598)])}
+      />,
+    );
+
+    const row = screen.getByRole("row", { name: /^NVDA / });
+    expect(row.textContent).toContain("0.00%");
+    expect(row.textContent).toContain("unchanged");
+    expect(row.textContent).not.toContain("+0.00%");
+  });
+
+  it("renders a single stored session as no comparison rather than as flat", () => {
+    // Two different absences, and they send a reader to different conclusions:
+    // "we hold one session of this" is not "this security did not move". The
+    // price is still shown, because we have it.
+    render(
+      <UniverseTable
+        view={loaded([equity()], [], [closeFor("NVDA", 230.36, null)])}
+      />,
+    );
+
+    const row = screen.getByRole("row", { name: /^NVDA / });
+    expect(row.textContent).toContain("230.36");
+    expect(row.textContent).toContain("No previous session to compare against");
+    expect(row.textContent).not.toContain("0.00%");
+    expect(row.textContent).not.toContain("unchanged");
+  });
+
+  it("renders a security with no close as an absence rather than as a zero", () => {
+    // §36 again, and the half that needs a test: the em dash reads as nothing
+    // to a screen reader, so the sentence is what is announced. A `0.00` here
+    // would be an invented price.
+    render(<UniverseTable view={loaded([equity()], [], [])} />);
+
+    const row = screen.getByRole("row", { name: /^NVDA / });
+    expect(row.textContent).toContain("No close yet");
+    expect(row.textContent).not.toContain("0.00");
+  });
+
+  it("states the session once in the heading, not in every row", () => {
+    // The furniture argument, and the same one that keeps the timeframe out of
+    // the history cells. 518 identical dates under a heading that could carry
+    // one is a column of repetition; the heading is where the claim goes while
+    // it is true of everything.
+    render(
+      <UniverseTable
+        view={loaded(
+          [equity(), ABBV],
+          [],
+          [closeFor("NVDA", 230.36, 228.45), closeFor("ABBV", 256.46, 260.21)],
+        )}
+      />,
+    );
+
+    expect(
+      screen.getByRole("columnheader", { name: /Last close 2026-09-04/ }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("row", { name: /^NVDA / }).textContent,
+    ).not.toContain("2026-09-04");
+  });
+
+  it("withdraws the heading's date and dates every row when they disagree", () => {
+    // The asymmetry `coverage.ts` and the summary line already have: a shared
+    // claim is made while it is true of everything and is then withdrawn rather
+    // than approximated. This state does not exist in the store today — 518 of
+    // 518 share a session — and it is guaranteed to arrive, because a security
+    // that stops printing keeps its history and stops extending it.
+    render(
+      <UniverseTable
+        view={loaded(
+          [equity(), ABBV],
+          [],
+          [
+            closeFor("NVDA", 230.36, 228.45),
+            closeFor("ABBV", 256.46, 260.21, "2026-08-28"),
+          ],
+        )}
+      />,
+    );
+
+    expect(
+      screen.getByRole("columnheader", { name: "Last close" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("row", { name: /^NVDA / }).textContent).toContain(
+      "2026-09-04",
+    );
+    expect(screen.getByRole("row", { name: /^ABBV / }).textContent).toContain(
+      "2026-08-28",
+    );
+  });
+
+  it("tells a listener which session the prices are from", () => {
+    // The column heading answers this for a reader, and a listener meeting a
+    // table of prices cannot get it from a column header until they land on a
+    // cell. It is the one sentence keeping a stale number from being heard as a
+    // live one.
+    render(
+      <UniverseTable
+        view={loaded([equity()], [], [closeFor("NVDA", 230.36, 228.45)])}
+      />,
+    );
+
+    expect(screen.getByRole("status").textContent).toContain(
+      "Closing prices are from the 2026-09-04 session.",
+    );
+  });
+
   it("reports the store's scale in the summary rather than in every row", () => {
     render(
       <UniverseTable
@@ -339,6 +515,7 @@ describe("UniverseTable", () => {
         securities: [equity()],
         provenance: null,
         coverage: new Map(),
+        lastCloses: new Map(),
       },
     ] satisfies readonly SecuritiesView[]) {
       const { unmount } = render(<UniverseTable view={view} />);

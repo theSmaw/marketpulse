@@ -107,6 +107,41 @@ coverage }, securityStatus }`. Measured on the shipped shape rather than
   reading, and the same for every other access pattern. Note it also sits 0.9%
   above §8's 44.3 kB envelope arithmetic, which is the estimate behaving.
 
+- **`/securities` is now an access pattern too, and it is the one with a local
+  reading and no deployed one — added 2026-09-09 by Task 2.9.7.** That task made
+  the universe page issue **four** concurrent reads instead of three, and the
+  fourth is the first query on any page-load path in this product that touches
+  `market_bars` at all. It is a cross-sectional read — the last two daily closes
+  for every tracked security — which is exactly the shape the bullet below warns
+  about, so it was measured rather than assumed:
+
+  | Reading                                           |                Local, 2026-09-09 |
+  | ------------------------------------------------- | -------------------------------: |
+  | `GET /securities` end to end, warm                |                     **13–20 ms** |
+  | the same, cold                                    |                            33 ms |
+  | the close query alone, warm, round trip from Node |                       4.8–8.2 ms |
+  | the close query alone, cold                       |                          21.4 ms |
+  | payload                                           | 190,736 B, **19,526** gzipped -9 |
+
+  What is owed here is the deployed half and a distribution: those are single
+  requests from `curl` against a container on the same machine, with no n and no
+  percentile. The deployed database is across a link, and the query is 518 index
+  searches inside **one** statement rather than 518 round trips — which is the
+  property to confirm rather than assume, because it is the difference between
+  20 ms and a page that visibly stalls.
+
+- **One control named in Task 2.9.7's brief was NOT re-taken, and it is this
+  task's to settle — added 2026-09-09.** That brief said `BARS.md` §8.6's
+  cross-sectional reading — **493 rows, 28.2 ms, via a PostgreSQL 18 skip scan**
+  — was "the control to re-take rather than cite". It was not: the task measured
+  the query it actually shipped instead, which is the better instrument for its
+  own decision and leaves §8.6's figure standing on its 2026-09-08 reading with
+  nothing having re-confirmed it. That matters because §8.6's skip-scan finding
+  is what keeps `0004_market_bars.sql`'s deferred `(observed_at)`-leading index
+  deferred, and that deferral is enforced by a test asserting the table has
+  exactly two indexes. Re-take it here, and if it has moved, the deferral is the
+  claim to check rather than the timing.
+
 - **Watch for the query nobody meant to write.** A serving path that touches
   `market_bars` where it should touch `bar_coverage`, or that runs at minute
   resolution where daily would answer, is invisible in a unit test and obvious in
@@ -130,6 +165,11 @@ coverage }, securityStatus }`. Measured on the shipped shape rather than
 
 - Local and deployed timings and payload sizes for each named access pattern are
   recorded in `MARKET-DATA-API.md`, dated, with the row counts they were taken at
+- `/securities` is among them, deployed as well as local, and its close query is
+  confirmed to be one statement rather than 518 round trips
+- `BARS.md` §8.6's 28.2 ms cross-sectional reading is re-taken, and if it moved,
+  the two-index deferral it justifies is re-argued rather than the number simply
+  replaced
 - ~~The reduction (if any) is shown to preserve a real spike~~ **Struck
   2026-09-09: no reduction ships** (`MARKET-DATA-API.md` §3), which the third
   bullet above already says — this line contradicted it. What replaces it is that

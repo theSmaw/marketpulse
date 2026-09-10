@@ -60,10 +60,19 @@ async function expectTheUniverseRendered(page: Page): Promise<void> {
   const region = page.getByRole("region", { name: "Tracked universe" });
   await expect(region).toBeVisible();
 
-  // The table, by role, with its five column headers in order. Asserted as a
+  // The table, by role, with its seven column headers in order. Asserted as a
   // list rather than one at a time, so a column silently disappearing is caught
   // as well as a column being renamed — which is how the fifth one arriving in
-  // Task 2.8.9 showed up here rather than being noticed later.
+  // Task 2.8.9 showed up here rather than being noticed later, and the sixth
+  // and seventh in Task 2.9.7.
+  //
+  // **`Last close` is a regex and the rest are literals**, and that asymmetry
+  // is the same rule the depth assertion below states: the heading carries the
+  // session date when every close on the page shares one, and which session
+  // that is depends on when somebody last ran `pnpm backfill` on this machine.
+  // A literal date here would be a gate reporting the age of a laptop's store
+  // as a defect. What is asserted is the shape the code produces — the word,
+  // and a date **or nothing**, which is the state where the closes disagree.
   const table = region.getByRole("table");
   await expect(table).toBeVisible();
   await expect(table.getByRole("columnheader")).toHaveText([
@@ -71,6 +80,8 @@ async function expectTheUniverseRendered(page: Page): Promise<void> {
     "Name",
     "Industry",
     "Kind",
+    /^Last close( \d{4}-\d{2}-\d{2})?$/,
+    "Change",
     "Minute-bar history",
   ]);
 }
@@ -152,6 +163,47 @@ test("each security says how much history we hold for it", async ({ page }) => {
   ).toBeVisible();
 });
 
+// The first real price on screen (Task 2.9.7), against the real pair.
+//
+// **Asserting no number, for the reason the history test above states.** What
+// NVDA closed at is a property of the store on this machine, and a literal here
+// would be a gate reporting a backfill's age as a defect. What is asserted is
+// the shape the code produces: a two-decimal figure, a signed percentage with
+// its glyph, and the spoken word that carries the direction when the colour
+// cannot — or, on a laptop with no daily bars, the honest absence.
+test("each security shows what it last closed at", async ({ page }) => {
+  await page.goto(SECURITIES);
+  await expectTheUniverseRendered(page);
+
+  const region = page.getByRole("region", { name: "Tracked universe" });
+
+  // On the row's accessible name rather than on two cells, because that is the
+  // string a screen reader is handed — and because a price rendered apart from
+  // its direction would satisfy two separate cell assertions and be heard as
+  // nonsense. The alternation covers a store with no daily bars, which is what
+  // a clean clone has.
+  await expect(
+    region.getByRole("row", {
+      name: /^NVDA .*(\d+\.\d{2} (up|down|unchanged) [+−]?\d+\.\d{2}%|No close yet)/,
+    }),
+  ).toBeVisible();
+
+  // **The direction survives the colour being removed**, which is the property
+  // Task 1.4.4 measured this palette's need for: positive and negative differ
+  // by 1.05:1 under `grayscale(1)`, so hue is no difference at all. The word
+  // above is one channel and the glyph is the other; this asserts the glyph is
+  // in the DOM and `aria-hidden`, which is what keeps it out of the sentence a
+  // listener hears while remaining what a reader sees.
+  const glyphs = await region
+    .locator('[aria-hidden="true"]')
+    .filter({ hasText: /^[▲▼—]$/ })
+    .count();
+  expect(
+    glyphs,
+    "no direction glyph is rendered beside any change",
+  ).toBeGreaterThan(0);
+});
+
 // Three viewports, because **every axe figure this repository holds was taken at
 // one** and Task 1.13.4's `scrollable-region-focusable` defect proves that is
 // not the same as a page having no violations: it was invisible on the
@@ -211,8 +263,12 @@ test("the arrival is announced, by a live region that survives it", async ({
   // Three sentences since Task 2.8.9 — the third says whether there is
   // anything to look at, which is the fact a listener can act on. The scale
   // figure is deliberately not in it: `47.7M` spoken is worse than not said.
+  // Four sentences since Task 2.9.7 — the fourth names the session the prices
+  // are from, which is the one fact keeping a stale number from being *heard*
+  // as a live one. A reader gets it from the column heading; a listener meeting
+  // a table of prices cannot, until they land on a cell.
   await expect(status).toHaveText(
-    /^The tracked universe loaded\. \d+ securities in \d+ sectors\. (No market history is stored yet\.|Market history is stored for (all of them|\d+ of them)\.)$/,
+    /^The tracked universe loaded\. \d+ securities in \d+ sectors\. (No market history is stored yet\.|Market history is stored for (all of them|\d+ of them)\.) (No closing prices are stored yet\.|Closing prices are from the \d{4}-\d{2}-\d{2} session\.|Closing prices are stored for \d+ of them, from more than one session\.)$/,
   );
 
   // **The same node**, which is what makes it an announcement rather than a
@@ -423,7 +479,7 @@ test("an empty universe names the command that fills it", async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ securities: [], coverage: [] }),
+      body: JSON.stringify({ securities: [], coverage: [], lastCloses: [] }),
     });
   });
   await page.goto(SECURITIES);

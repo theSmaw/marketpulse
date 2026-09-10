@@ -367,7 +367,7 @@ measurement against 48 million rows, and because its result may change Story
 | [2.9.4](TASK-04-the-read-and-the-provenance-the-store-does-not-hold.md) | Rows → `BarSeries`, and where provenance comes from ✅     | No                      |
 | [2.9.5](TASK-05-the-live-tail-and-the-stitch.md)                        | The uncovered tail, merged and labelled ✅                 | No                      |
 | [2.9.6](TASK-06-the-route.md)                                           | The endpoint, and every way it can fail ✅                 | **A URL, not a screen** |
-| [2.9.7](TASK-07-the-first-real-price-on-screen.md)                      | Last close on `/securities`                                | **Yes — the payoff**    |
+| [2.9.7](TASK-07-the-first-real-price-on-screen.md)                      | Last close on `/securities` ✅                             | **Yes — the payoff**    |
 | [2.9.8](TASK-08-caching-and-the-immutable-session.md)                   | Closed sessions never change                               | No                      |
 | [2.9.9](TASK-09-measured-against-forty-eight-million-rows.md)           | Timings and payloads, local and deployed                   | No                      |
 | [2.9.10](TASK-10-verify-document-and-adr.md)                            | Verify, `MARKET-DATA-API.md`, the ADR, the upward sweep    | No                      |

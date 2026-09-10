@@ -106,19 +106,42 @@
  * because they are the two columns that carry sentences.
  */
 .colSymbol {
-  width: 9%;
+  width: 8%;
 }
 
 .colName {
-  width: 32%;
+  width: 25%;
 }
 
 .colIndustry {
-  width: 30%;
+  width: 23%;
 }
 
 .colKind {
-  width: 12%;
+  width: 10%;
+}
+
+/*
+ * The price and its move (Task 2.9.7). Taken out of Name and Industry rather
+ * than added to the total, for the reason the history column was: both are
+ * prose that wraps gracefully, and these hold fixed strings that must not wrap.
+ *
+ * **Two columns and not one cell holding both**, which is the decision this
+ * page's density argument actually turns on. `230.36 ▲ +0.84%` in one cell is
+ * narrower on paper and destroys the mechanism: a right-aligned tabular column
+ * aligns decimal points for free, and a cell whose content changes width to the
+ * left of the figure has no column at all. Two columns is also what every dense
+ * institutional table does, and this one is meant to look like one.
+ *
+ * `Change` is the narrower of the two because its content is bounded — a sign,
+ * four digits and a percent — where a price is not.
+ */
+.colClose {
+  width: 10%;
+}
+
+.colChange {
+  width: 10%;
 }
 
 /*
@@ -127,7 +150,7 @@
  * holds a fixed string — `1y from 2025-09-08` — that must not wrap at all.
  */
 .colHistory {
-  width: 17%;
+  width: 14%;
 }
 
 /*
@@ -161,6 +184,31 @@
   color: var(--ink-secondary);
   font-weight: var(--font-weight-regular);
   border-bottom: var(--border-width) solid var(--rule-hairline);
+}
+
+/*
+ * The session date under the `Last close` heading — what the prices in that
+ * column are *about*, stated once for the whole page.
+ *
+ * Its own line rather than a suffix, because the heading is a micro-label
+ * (uppercase, letterspaced) and a `YYYY-MM-DD` set that way is unreadable. It
+ * is a block so the two lines stack without a `<br>`, and it drops out of the
+ * micro-label treatment entirely: this is a *value*, and the only value in the
+ * table's furniture.
+ *
+ * `--ink-tertiary` would be the instinct and there is not one — the ladder
+ * stops at secondary above `--ink-disabled`, which Task 1.12.4 already caught
+ * below the contrast floor. So it recedes by *size and case* rather than by
+ * more grey, which is this repository's rule: standing out and receding are
+ * jobs for weight and hierarchy, never for ink outside the floor.
+ */
+.headingDetail {
+  display: block;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: normal;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- The sector band: this page's signature --- */
@@ -304,6 +352,51 @@ tbody:last-of-type .row:last-child {
   composes: microLabel from "../../styles/type.module.css";
   color: var(--ink-secondary);
   white-space: nowrap;
+}
+
+/*
+ * The two numeric columns, and the two-class selector rather than a bare
+ * `.numeric`.
+ *
+ * `.cell` above is specificity (0,1,0); a bare `.numeric` would tie on it and
+ * win only by source order, which is a rule that breaks the moment the file is
+ * reordered. `SecurityRow.module.css` has carried the same note since Story 1.4
+ * and this is the same trap in a second table.
+ *
+ * Right-aligned because a right-aligned tabular column aligns decimal points
+ * for free — `tabular-nums` is inherited from `body` in `base.css`, which is
+ * exactly what Task 1.4.3 bought it for. A component that breaks the alignment
+ * has overridden it, not failed to declare it.
+ */
+.cell.numeric,
+.heading.numeric {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* --- The price: the first number in this product about a security --- */
+
+/*
+ * The close. Primary ink and no weight of its own — the ticker is this row's
+ * only strong word and it stays that way, which is what keeps 518 rows reading
+ * as a table rather than as 518 headlines.
+ */
+.price {
+  color: var(--ink-primary);
+}
+
+/*
+ * A row whose close is from a different session than the heading claims.
+ *
+ * Its own line under the price, secondary, and it renders on **no row at all**
+ * while the page's closes agree — which they do today for all 518. It is the
+ * exception's channel and it is deliberately not a chip, a tint or an icon:
+ * standing out is a job for hierarchy, and a date appearing where 517 rows have
+ * nothing is already the loudest thing in the column.
+ */
+.session {
+  display: block;
+  color: var(--ink-secondary);
 }
 
 /* --- What we hold: the first column in this product about the market --- */

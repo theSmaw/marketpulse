@@ -60,6 +60,7 @@ export type {
   SecuritiesProvenance,
   SecuritiesResponse,
   SecurityCoverage,
+  SecurityLastClose,
 } from "./securities-response.js";
 
 // The wire contract with the API: the shape every error response takes, and the

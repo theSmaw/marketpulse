@@ -1,5 +1,9 @@
-import { toTicker } from "@marketpulse/shared";
-import type { Security, SecurityCoverage } from "@marketpulse/shared";
+import { toMarketDate, toTicker } from "@marketpulse/shared";
+import type {
+  Security,
+  SecurityCoverage,
+  SecurityLastClose,
+} from "@marketpulse/shared";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import type { SecuritiesView } from "../../use-securities.js";
@@ -148,9 +152,62 @@ const COVERAGE: readonly SecurityCoverage[] = [
   coverageFor("ABBV", "2026-06-15T13:30:00.000Z", 19_541),
 ];
 
+/**
+ * The last session the local store holds a daily bar for, and the session
+ * before it.
+ *
+ * Not today, and not a round number: the store holds complete sessions only and
+ * the nightly catch-up runs before the open, so the last close is always at
+ * least a day behind. Reviewing this column against a fixture dated "today"
+ * would be reviewing a state the product cannot be in.
+ */
+const LAST_SESSION = toMarketDate("2026-09-04");
+
+function closeFor(
+  symbol: string,
+  close: number,
+  previousClose: number | null,
+  session = LAST_SESSION,
+): SecurityLastClose {
+  return { symbol, session, close, previousClose };
+}
+
+/**
+ * Real closes, taken off the local store on 2026-09-09 — **not invented ones.**
+ *
+ * The reason is the same one the coverage fixture gives and it matters more
+ * here: this column's whole visual argument is that a column of two-decimal
+ * figures at four different magnitudes lines up under `tabular-nums`, and moves
+ * of a fraction of a percent are what the palette's 1.05:1 greyscale problem
+ * actually looks like. Tidy `100.00`s would look right and would not be the
+ * thing being reviewed.
+ *
+ * The specimen deliberately carries one of each thing worth looking at, at a
+ * proportion far higher than the real store's:
+ *
+ *   - `NVDA` and `XLK` are up, `AAPL`, `ABBV` and `XLV` are down — so both
+ *     directions are on screen together, which is the only way to check that
+ *     the glyph and the sign carry them without the colour.
+ *   - `SPY` has no close at all, which is a security nobody has backfilled at
+ *     the daily timeframe.
+ *
+ * Every one of them is on the same session, which is what the real store looks
+ * like — 518 of 518 on 2026-09-04. The states that are *not* like that get
+ * their own stories below, because they are the ones a browser cannot be put
+ * into.
+ */
+const LAST_CLOSES: readonly SecurityLastClose[] = [
+  closeFor("XLK", 187.28, 185.97),
+  closeFor("AAPL", 319.97, 328.21),
+  closeFor("NVDA", 230.36, 228.45),
+  closeFor("XLV", 171.45, 173.26),
+  closeFor("ABBV", 256.46, 260.21),
+];
+
 function loaded(
   securities: readonly Security[],
   coverage: readonly SecurityCoverage[] = COVERAGE,
+  lastCloses: readonly SecurityLastClose[] = LAST_CLOSES,
 ): SecuritiesView {
   // The `loaded` state carries a non-empty tuple, so "loaded with zero rows"
   // cannot be constructed at all. The head is asserted rather than checked,
@@ -163,6 +220,7 @@ function loaded(
     securities: [first, ...rest],
     provenance: null,
     coverage: new Map(coverage.map((record) => [record.symbol, record])),
+    lastCloses: new Map(lastCloses.map((record) => [record.symbol, record])),
   };
 }
 
@@ -198,6 +256,54 @@ export const NoHistoryStored: Story = {
   args: { view: loaded(UNIVERSE, []) },
 };
 
+/**
+ * The state the heading's shared date does not cover: one security's last close
+ * is from an earlier session than everybody else's.
+ *
+ * **It does not exist in the store today** — all 518 securities last closed on
+ * the same session — and it is guaranteed to arrive, because a security that
+ * stops printing keeps its history and stops extending it. So this is the only
+ * place the withdrawal can be reviewed: the heading drops its date and every
+ * cell grows one.
+ */
+export const ClosesFromDifferentSessions: Story = {
+  args: {
+    view: loaded(UNIVERSE, COVERAGE, [
+      ...LAST_CLOSES.filter((close) => close.symbol !== "ABBV"),
+      closeFor("ABBV", 256.46, 260.21, toMarketDate("2026-08-28")),
+    ]),
+  },
+};
+
+/**
+ * A security we hold exactly one daily bar for — §36's partial answer, one
+ * field wide.
+ *
+ * There is a price and there is nothing to measure it against, which is a
+ * different absence from having no price at all and must not render as a zero:
+ * a `0.00%` claims the market did not move, and a zero previous close would
+ * render as a −100% collapse.
+ */
+export const OneStoredSession: Story = {
+  args: {
+    view: loaded(UNIVERSE, COVERAGE, [
+      ...LAST_CLOSES.filter((close) => close.symbol !== "NVDA"),
+      closeFor("NVDA", 230.36, null),
+    ]),
+  },
+};
+
+/**
+ * The universe with no daily bars behind it, so the price column is empty
+ * throughout.
+ *
+ * The state a clean clone meets, and the one that has to read as *nobody has
+ * backfilled this* rather than as *these securities are worth nothing*.
+ */
+export const NoClosesStored: Story = {
+  args: { view: loaded(UNIVERSE, COVERAGE, []) },
+};
+
 export const Loading: Story = { args: { view: { state: "loading" } } };
 
 /** A migrated-but-unseeded database. Not a failure, and not a table with a
@@ -223,7 +329,7 @@ export const AnsweredBadly: Story = {
 };
 
 /**
- * All six renderings, stacked.
+ * All nine renderings, stacked.
  *
  * `stack` rather than the two-column grid: this is a full-width table, and the
  * grid's `max-content` column would squeeze it to nothing. The order is the
@@ -251,6 +357,14 @@ const PERMUTATIONS: readonly (readonly [string, SecuritiesView])[] = [
   ["Loaded", loaded(UNIVERSE)],
   ["Loaded — one no longer tracked", loaded(WITH_UNTRACKED)],
   ["Loaded — no history stored", loaded(UNIVERSE, [])],
+  [
+    "Loaded — closes from more than one session",
+    loaded(UNIVERSE, COVERAGE, [
+      ...LAST_CLOSES.filter((close) => close.symbol !== "ABBV"),
+      closeFor("ABBV", 256.46, 260.21, toMarketDate("2026-08-28")),
+    ]),
+  ],
+  ["Loaded — no closes stored", loaded(UNIVERSE, COVERAGE, [])],
   ["Loading", { state: "loading" }],
   ["Empty", { state: "empty" }],
   [

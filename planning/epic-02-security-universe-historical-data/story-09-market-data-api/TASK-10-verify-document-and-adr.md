@@ -15,17 +15,26 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   which instrument answered each. Criterion 1 is a compile error **produced**, not
   described — add a field, see `TS1360`, remove it.
   **Two things about criterion 1, added 2026-09-09 by Task 2.9.3.** There are
-  ~~**eleven**~~ **sixteen** guard applications across the application — **counted
-  2026-09-09 by Task 2.9.6 rather than carried forward; the original figure said
-  eleven while its own enumeration summed to thirteen, and both were low.** The
-  count is: **five** in `routes/securities.ts`, **seven** on the series response,
-  and one each in `routes/health.ts`, `routes/diagnostics.ts`, `/market-data`'s
-  feed response and `errors.ts` (`ApiError` itself). The one-liner is
-  `grep -rn "satisfies Record<keyof" apps/backend/src`, minus the four hits that
-  are prose about the idiom rather than uses of it. The point is unchanged and is
+  ~~**eleven**~~ ~~**sixteen**~~ **seventeen** guard applications across the
+  application — **re-counted 2026-09-09 by Task 2.9.7, which added one; the
+  figure before it was eleven, which its own enumeration contradicted at
+  thirteen, and both were low.** The count is: **six** in `routes/securities.ts`
+  (`SecurityLastClose` is the sixth), **seven** on the series response, and one
+  each in `routes/health.ts`, `routes/diagnostics.ts`, `/market-data`'s feed
+  response and `errors.ts` (`ApiError` itself). The point is unchanged and is
   the reason the number matters: "add a field" at the envelope demonstrates
-  nothing about the fifteen inside it, which is the whole property the criterion
-  is about; pick a **nested** shape. And `packages/shared` is consumed as **built output**, so the
+  nothing about the sixteen inside it, which is the whole property the criterion
+  is about; pick a **nested** shape.
+
+  **The one-liner is `grep -rn "satisfies Record<keyof" apps/backend/src`, and
+  re-count rather than subtracting a remembered number from it.** It returns
+  **28** hits today: 17 response-schema guards, **8** prose mentions of the idiom
+  rather than uses of it (this file's ancestor said four, which was true when it
+  was written and has not been true since), and **3** applications of the same
+  idiom to a _different_ guard — `satisfies Record<keyof T, ExpectedColumn>` in
+  the two database suites, which check a migration against `information_schema`
+  and are not response schemas at all. That third category is the one that makes
+  a bare `wc -l` of the grep wrong in a way that looks right. And `packages/shared` is consumed as **built output**, so the
   edit proves nothing until that package is rebuilt: skip the rebuild and
   `typecheck` is green against the old `.d.ts`, which looks identical to the guard
   not firing. Criterion 3 is four responses
@@ -48,6 +57,19 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   caching result from 2.9.8, and 2.9.9's measurements with their dates. Add it to `CLAUDE.md`'s
   _Where the record lives_ table, and add nothing else to `CLAUDE.md` — that file
   holds rules and traps, not figures.
+
+  **One section this list did not anticipate, added 2026-09-09 by Task 2.9.7:
+  the cross-sectional read.** That task answers _what did every tracked security
+  last close at_ with a lateral scan of two rows per security, and measured the
+  obvious alternative — a `row_number()` window over the daily half — at **30–40×
+  worse warm** (182–279 ms against 4.8–8.2 ms). Its own file has the numbers, and
+  they belong here too, because the _task_ file is where a reader goes for how
+  2.9.7 was built and the _subject_ document is where they go before writing the
+  next query of that shape. **Epic 4's Market Overview is that reader**: §8.1's
+  landing screen wants the same figure for the same 518 securities, and the
+  cheapest way for it to get that wrong is to not know this was already settled.
+  Record the shape, both timings, and that the minute half is untouched by
+  construction rather than by luck.
 
 - **Write the ADR** — the next free number after 0020, never a reused one. The
   decision worth recording is not "we added an endpoint": it is the pair the rest
@@ -98,8 +120,13 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   place rather than deleted, because that sentence is what made the 503 decision;
   its **reversal trigger** is a separate line and is still live, so check that
   one; `market-provenance.ts`'s module comment
-  anticipating the first stitch, which has happened; and `CLAUDE.md`'s
-  "no state library yet / four hooks" line if Task 2.9.7 moved it.
+  anticipating the first stitch, which has happened; and ~~`CLAUDE.md`'s
+  "no state library yet / four hooks" line if Task 2.9.7 moved it~~ — **checked
+  2026-09-09: it did NOT move it.** That task added a fourth key to a response
+  the existing hook already fetched and built no hook, no store and no second
+  fetch, precisely so Story 2.10's decision stayed open; `use-*.ts` is still four
+  files. The line stands as written and needs no edit — recorded so a later
+  reader does not re-check it.
   **Added 2026-09-09 by Task 2.9.2 and certain rather than conditional:**
   `errors.ts`'s 4xx branch, whose recorded trigger — _"once request schemas
   exist"_ — this story fires, and whose decision Task 2.9.6 takes; amend that
@@ -133,6 +160,36 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   `migrations/README.md` should carry the rule that reconciles them rather than
   leaving the next reader to pick one.
 
+  **Added 2026-09-09 by Task 2.9.7 — one discharged, two live.**
+
+  - ~~The `/securities` payload figure, quoted in three live sites
+    (`api-client.ts`, `use-securities.ts`, `securities-response.ts`)~~ — **DONE
+    by Task 2.9.7 in the same change that moved it**, 150,660/12,831 →
+    **190,736/19,526**. Nothing to sweep unless 2.9.8 or 2.9.9 moves it again;
+    if either does, it is three sites and they are named here.
+  - **`CLAUDE.md`'s _Current state_ paragraph, and it is a live claim rather than
+    a figure.** It reads _"the tracked universe with its coverage. There are no
+    charts and no live data yet."_ The two negatives are still true and the
+    enumeration is now short by the most significant thing on the screen — a real
+    price for 518 securities, which is the first one this product has ever shown.
+    A reader taking that paragraph as the current state would under-describe what
+    exists, which is the failure mode that paragraph exists to prevent. It is
+    listed here rather than swept on the day because the same paragraph has to be
+    rewritten at this story's close anyway and two edits would fight; **if this
+    story stalls, sweep it regardless** — the rule is same-day and the exception
+    is that the close is imminent, not that the close exists.
+  - **`fast-json-stringify`'s null coercion now has a second measured instance,
+    and `CLAUDE.md` already names the class.** That file's backend section
+    records the gap as _"a declared JSON type disagreeing with the TypeScript one
+    is coerced silently"_ — abstractly correct and, as written, easy to read past.
+    There are now two produced instances: a `null` under `"string"` reaches the
+    wire as `""` (Task 2.4.2, `sector`), and a `null` under `"number"` reaches it
+    as **`0`** (Task 2.9.7, `previousClose`). The second is the worse of the two
+    and the pair is what makes the rule land, because `""` is visibly wrong and a
+    plausible price is not. This is a trap rather than a figure, so it is inside
+    this task's "add nothing else to `CLAUDE.md`" carve-out — one clause on the
+    existing sentence, not a new one.
+
   **Added 2026-09-09 by Task 2.9.6 — one discharged, one new, and the new one is
   the kind this list exists for.**
 
@@ -162,8 +219,9 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
 - `pnpm verify`, `pnpm test:database` and `pnpm e2e` all pass, and the numbers
   (`pnpm test`'s three-way split, the database count) are re-read rather than
   carried forward
-- `MARKET-DATA-API.md` is complete and linked from `CLAUDE.md`; the ADR is written
-  and indexed; the upward sweep is done and its greps recorded
+- `MARKET-DATA-API.md` is complete and linked from `CLAUDE.md` — including the
+  cross-sectional read and its two timings, which Epic 4 inherits; the ADR is
+  written and indexed; the upward sweep is done and its greps recorded
 - `STORY.md`'s status is Complete and its open decisions are struck through with
   pointers to where each was settled
 

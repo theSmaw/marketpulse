@@ -56,6 +56,7 @@ import {
   createMarketBarsRepository,
   ForeignSourceError,
   UnknownSecurityError,
+  type LastClose,
   type MarketBarsRepository,
   type SeriesSource,
 } from "./market-bars.js";
@@ -1882,3 +1883,160 @@ describe("the source the ledger stores, and the writer that keeps it true", () =
     expect(stored.rows[0]?.count).toBe("0");
   });
 });
+
+describe("readLastCloses — the read behind the first price on screen", () => {
+  afterEach(clearStore);
+
+  /**
+   * A daily bar at **market midnight**, which is how a `1d` bar is labelled.
+   *
+   * 04:00Z in EDT and 05:00Z in EST. Written as an explicit instant rather than
+   * derived, because the thing under test one layer up is the conversion back
+   * to a session date — a helper that computed the instant from the date would
+   * be the same arithmetic on both sides of the assertion.
+   */
+  async function dailyBar(
+    id: string,
+    observedAt: string,
+    close: number,
+  ): Promise<void> {
+    await insertBar({
+      security_id: id,
+      timeframe: "1d",
+      observed_at: observedAt,
+      open: close - 1,
+      high: close + 1,
+      low: close - 2,
+      close,
+      volume: 1_000_000,
+    });
+  }
+
+  it("answers the newest close and the one before it", async () => {
+    await dailyBar(securityId, "2026-09-02T04:00:00.000Z", 224.41);
+    await dailyBar(securityId, "2026-09-03T04:00:00.000Z", 228.45);
+    await dailyBar(securityId, "2026-09-04T04:00:00.000Z", 230.36);
+
+    const found = await repository().readLastCloses("1d");
+
+    expect(found.get(symbol)).toEqual({
+      symbol,
+      observedAt: new Date("2026-09-04T04:00:00.000Z"),
+      close: 230.36,
+      previousClose: 228.45,
+    });
+  });
+
+  it("compares against the session before, not the day before", async () => {
+    // The reason the previous close is READ rather than derived. These two
+    // sessions are a Friday and the Monday after Labor Day; nothing traded in
+    // between, and arithmetic on a calendar would look for a session that does
+    // not exist. Made to fail by reversing the `observed_at` ordering, at which
+    // point the pair comes back as (oldest, newest) and every figure on the
+    // page has its sign inverted.
+    await dailyBar(securityId, "2026-09-04T04:00:00.000Z", 230.36);
+    await dailyBar(securityId, "2026-09-08T04:00:00.000Z", 235.1);
+
+    const close = closes(await repository().readLastCloses("1d"), symbol);
+
+    expect(close.observedAt).toEqual(new Date("2026-09-08T04:00:00.000Z"));
+    expect(close.previousClose).toBe(230.36);
+  });
+
+  it("reports a single stored session as a null previous, never a zero", async () => {
+    // §36's partial answer, one field wide. A zero would render as a −100%
+    // move, which is the most alarming wrong number this page could produce.
+    await dailyBar(securityId, "2026-09-04T04:00:00.000Z", 230.36);
+
+    expect(
+      closes(await repository().readLastCloses("1d"), symbol),
+    ).toMatchObject({ close: 230.36, previousClose: null });
+  });
+
+  it("omits a security we hold no daily bars for", async () => {
+    // The absence is a missing key rather than a null price — `listCoverage`'s
+    // spelling of the same distinction, and the one that keeps "we hold nothing
+    // for this" from becoming "it closed at nothing".
+    await dailyBar(securityId, "2026-09-04T04:00:00.000Z", 230.36);
+
+    const found = await repository().readLastCloses("1d");
+
+    expect(found.has(symbol)).toBe(true);
+    expect(found.has(otherSymbol)).toBe(false);
+  });
+
+  it("reads the timeframe it was asked for and not the other one", async () => {
+    // The cost decision, held by a test. Minute bars for the same security are
+    // 47.7M rows in the deployed store and are not what a close is: a session's
+    // official close carries the auction print, which single-venue minute bars
+    // may not contain. A read that fell through to `1m` would answer with a
+    // plausible and different number.
+    await dailyBar(securityId, "2026-09-04T04:00:00.000Z", 230.36);
+    await insertBar({
+      security_id: securityId,
+      timeframe: "1m",
+      observed_at: "2026-09-04T19:59:00.000Z",
+      close: 999.99,
+    });
+
+    expect(closes(await repository().readLastCloses("1d"), symbol).close).toBe(
+      230.36,
+    );
+    expect(closes(await repository().readLastCloses("1m"), symbol).close).toBe(
+      999.99,
+    );
+  });
+
+  it("answers for every security that has bars, in one query", async () => {
+    await dailyBar(securityId, "2026-09-03T04:00:00.000Z", 10);
+    await dailyBar(securityId, "2026-09-04T04:00:00.000Z", 11);
+    await dailyBar(otherSecurityId, "2026-09-04T04:00:00.000Z", 20);
+
+    const found = await repository().readLastCloses("1d");
+
+    expect([...found.keys()].sort()).toEqual([symbol, otherSymbol].sort());
+    expect(closes(found, otherSymbol).previousClose).toBeNull();
+  });
+
+  it("returns a security we have stopped tracking", async () => {
+    // `UNIVERSE.md` §12.2's rule, on the *do not filter* side: a security we
+    // removed from the curated file still closed at a price on the last session
+    // we hold, and the page renders the row. Nothing in the query filters
+    // `status`, and this is what says so.
+    await db().query(
+      "update securities set status = 'untracked' where id = $1",
+      [securityId],
+    );
+    await dailyBar(securityId, "2026-09-04T04:00:00.000Z", 230.36);
+
+    try {
+      expect((await repository().readLastCloses("1d")).has(symbol)).toBe(true);
+    } finally {
+      await db().query(
+        "update securities set status = 'active' where id = $1",
+        [securityId],
+      );
+    }
+  });
+
+  it("parses a numeric column into a number rather than the string pg hands back", async () => {
+    // `pg` returns a `numeric` as a **string**, deliberately. A price that
+    // stayed a string renders, sorts wrongly, and throws nowhere — so the parse
+    // is asserted on the type rather than on the value.
+    await dailyBar(securityId, "2026-09-04T04:00:00.000Z", 230.36);
+
+    expect(
+      typeof closes(await repository().readLastCloses("1d"), symbol).close,
+    ).toBe("number");
+  });
+});
+
+/** One entry out of the map, or a failing test rather than an `undefined`. */
+function closes(
+  found: ReadonlyMap<Ticker, LastClose>,
+  ticker: Ticker,
+): LastClose {
+  const close = found.get(ticker);
+  if (close === undefined) throw new Error(`no close for ${ticker}`);
+  return close;
+}
