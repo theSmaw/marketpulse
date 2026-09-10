@@ -165,3 +165,49 @@ wrong at least as much as on its happy path.
 
 A closed epic, and the provenance pattern Epic 3 extends from "which feed" to "which feed,
 and is it still connected".
+
+---
+
+## Amended 2026-09-10 by Task 2.10.9, after Story 2.10 closed — what already renders, and the one sentence nothing can produce
+
+The subject document is
+[`FRONTEND-STATE.md`](../story-10-frontend-market-data-layer/FRONTEND-STATE.md)
+and the decisions are ADR 0023.
+
+**Provenance already renders on the series, per series.** `BarSeriesPanel` reads
+`series.provenance.sources`, takes the **distinct feeds**, and labels each one
+from `MARKET_FEED_DESCRIPTIONS` — never from a table of its own. The rule that
+record carries is applied rather than re-decided: **a sentence appears when the
+label cannot stand alone**, so `IEX` gets one and `All US exchanges` does not.
+
+**The partial states are done, and there are more of them than this story's title
+assumes.** Six union members, of which three are answers; plus a **stale** mark
+for a held answer with a request in flight, and an **untracked** badge for a
+security we hold bars for and no longer follow. Every one is produced from a
+named cause and reviewable in `BarSeriesPanel.stories.tsx`'s `AllPermutations`
+grid. The copy matrix — visible text against announced sentence, for every state
+— is in
+[`TASK-08`](../story-10-frontend-market-data-layer/TASK-08-every-state-produced-not-described.md).
+Read it before rewriting any of it.
+
+**The one sentence nothing in this product can currently produce, and it is
+yours.** `stitched.json` is a real recorded body whose provenance names **two
+sources** — and both name the **same feed**, because both halves came from
+Alpaca's historical API, which is SIP on this plan. So _"this chart is stitched
+from two feeds"_ is not a sentence anything can produce today, and writing it now
+would be inventing a body no server has ever sent. **The two-feed case arrives
+with Epic 3's IEX socket**, and this story owns the wording for it. The panel
+already renders distinct feeds, so it will show two labels without a change here
+— what it will not have is the sentence explaining why there are two, or invariant
+6's fence against implying that one venue is the whole tape.
+
+**And one gap of the same class as `untracked`, recorded rather than closed.**
+The panel has a `synthetic` branch — an amber square marker and _"Generated test
+data. Not a market feed."_ — that **no recorded body exercises**: all seven valid
+fixtures are `sip`. It is not fake-able honestly, because a synthetic feed
+implies `provider: "fixture"` too, and a hand-edited body claiming
+`alpaca`/`synthetic` is a pairing no server produces. Producing it for real means
+a store backfilled through the fixture provider (`PROVIDER.md` §5.4). The visual
+risk is low — the same treatment is reviewed in `FeedProvenance`'s stories — but
+the branch in _this_ panel has never executed, and this is the story that owns
+provenance.

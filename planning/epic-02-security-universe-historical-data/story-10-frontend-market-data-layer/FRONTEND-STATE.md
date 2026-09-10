@@ -1,10 +1,20 @@
 # Frontend state — the store, the cache, the URL, and what "retryable" means
 
-The subject document for [Story 2.10](STORY.md), produced by Task 2.10.1, which
-**ships no hook, no module and no pixel**. Its whole output is that Tasks 2.10.3
-to 2.10.8 — and Stories 2.11, 2.12 and 2.13 after them — do not each answer the
-same four questions differently. Task 2.9.1's precedent exactly, and Task
-2.6.1's before it.
+The subject document for [Story 2.10](STORY.md), begun by Task 2.10.1, which
+**shipped no hook, no module and no pixel**. Its whole output was that Tasks
+2.10.3 to 2.10.8 — and Stories 2.11, 2.12 and 2.13 after them — do not each
+answer the same four questions differently. Task 2.9.1's precedent exactly, and
+Task 2.6.1's before it.
+
+> **Closed 2026-09-10 by Task 2.10.9.** It is now the subject document for **how
+> this frontend holds domain state and fetches market data**, rather than for
+> four decisions: §§1–4 are the decisions as taken, §6 is the shape they were
+> built into, and §7 is what an asynchronously-filled surface says out loud. The
+> decisions are ADR 0023.
+>
+> **Where this document and any task or story file in this folder disagree, this
+> document wins.** Those files are dated records of what was true when they were
+> written and are deliberately not swept; this one is maintained.
 
 Every bundle figure below was **taken on 2026-09-10 in this repository**, by the
 method §1 names: add the candidate, wire a realistic use of it into the render
@@ -13,8 +23,12 @@ The server-side caching figures are quoted from
 [`MARKET-DATA-API.md`](../story-09-market-data-api/MARKET-DATA-API.md) §11 with
 their date, and that document wins where the two disagree.
 
-**Four decisions, and one boundary.** This task decides where state lives and
-how it is fetched. It does **not** choose a charting library (Story 2.12), does
+**Four decisions, and one boundary** — the framing Task 2.10.1 wrote, kept
+because the sequence matters and because §§1–4 are referenced by number from
+seventeen places in the tree. **§7 was appended at the close** rather than
+inserted, for the same reason: it is the announcement decision, which belongs to
+the whole layer rather than to the panel that first needed it. This task decides
+where state lives and how it is fetched. It does **not** choose a charting library (Story 2.12), does
 not design the per-security route's URL strings (Story 2.11), and does not
 settle the window vocabulary (Story 2.13). It owns the _rules_ those three
 inherit and none of the strings.
@@ -582,3 +596,103 @@ naming two feeds at once (Story 2.14).
 
 Nothing above forced any of them. If a later task finds that it did, that is a
 finding to record here rather than a licence to take it.
+
+---
+
+## 7. What an asynchronously-filled surface says out loud
+
+**Added 2026-09-10 by Task 2.10.9**, and appended rather than inserted so that
+§§1–4's numbers keep meaning what seventeen references in the tree think they
+mean.
+
+It is here rather than in a component because it is a property of **every**
+consumer of this layer. Story 2.4 settled the mechanism against a page that
+fills once; Story 2.10 was the first thing to fill a page **twice**, and that
+raised two questions a single fill cannot.
+
+### The four mechanical clauses, inherited and not re-derived
+
+`UniverseTable`'s `Announcement` is a **persistent `role="status"`, rendered in
+every state, never unmounted, and silent on arrival**, and each clause was
+produced rather than reasoned about (Task 2.4.5):
+
+- **Never unmounted.** The first version put `aria-live` on the _loading_
+  paragraph — the element that gets removed when data lands — so the page said it
+  had started and never said it had finished.
+- **Present before its content changes.** A region created at the same moment as
+  its content is not reliably announced.
+- **`status`, never `alert`.** §36 makes an unreachable service a product state
+  rather than a failure, and `alert` is `ErrorFallback`'s — which the browser
+  suite reads as a render failure on every route.
+- **Silent on arrival.** Arriving at a page is not a change, so a sentence there
+  is only a second copy of the visible line.
+
+### Decision: a live region belongs to a SUBJECT, and its sentences name it
+
+`/securities` fills two surfaces over the network — the tracked universe and the
+market-data panel — and both speak. Two polite regions updated in the same moment
+are queued by a screen reader in an order **neither component controls**, so
+landing on the page announces two things about two different subjects.
+
+**Each region belongs to one subject, and every sentence names that subject.**
+_"NVDA: holding 1,438 bars…"_ and _"The tracked universe loaded. 518
+securities…"_ are each complete out of context, in either order, which is what
+makes the queue order stop mattering.
+
+Two alternatives, both rejected with reasons the next surface should read:
+
+- **One region for the page.** It makes one component the owner of another's
+  sentences, and the two states are produced by two independent hooks with no
+  moment at which both are settled.
+- **Two regions for one subject** (a lifecycle one and a data one, which the
+  design brief proposed). It reproduces the page-level problem one level down: a
+  listener hearing _"NVDA: refreshing"_ after _"NVDA: 1,438 bars"_ cannot tell
+  which is current. A lifecycle fact is a **clause** on the subject's own
+  sentence, never a second voice.
+
+### The mechanism a page that fills once cannot meet: a region that repeats itself is silent
+
+**A live region whose text does not change announces nothing.** Measured on a
+retry. So any two consecutive states producing the same sentence are inaudible,
+and the case nobody pictures is the one that matters — a retry or a refetch that
+lands back on the state it started from, which is the _common_ case for a closed
+session's bars.
+
+The repair is a distinct in-between text the region passes through and back out
+of. Two exist, and neither was invented for the mechanism:
+
+- `"Trying the tracked universe again."` on a retry (Task 2.10.2);
+- the **stale clause** — _"Showing a held answer while a newer one is read."_ —
+  which is true, is the same fact the visible rail carries, and happens to be
+  exactly the in-between text the region needs.
+
+### Two copy judgements, recorded because they were departures
+
+- **A correlation id is never spoken.** It is 36 characters of hex a listener
+  cannot hold or transcribe. The announcement says a reference exists; the id is
+  on screen, selectable, and that is where it is useful. Same judgement as the
+  universe table's about a magnitude — `47.7M` spoken is worse than not said.
+- **A re-entered state IS announced**, though the visible settle for the same
+  transition is suppressed. The two channels differ deliberately: a flash over
+  numbers that did not move is a claim about the numbers, whereas a listener with
+  no flash cannot otherwise tell _nothing changed_ from _nothing happened_.
+
+### Reversal trigger
+
+- **The first surface that changes a region's text without a user having acted.**
+  Everything today follows a navigation or a press. Story 2.11's search is the
+  near case — a field re-requesting on every keystroke would drive a region at
+  typing speed, which is actively hostile — and Epic 3's socket is the certain
+  one. At that point a region needs a rate, or the announcement stops being of
+  the _change_ and becomes of the _state_.
+- **The third asynchronous surface on one page.** Two self-describing sentences
+  queue tolerably; the number at which that stops being true is not known, and
+  finding out is cheaper than guessing.
+
+### What nothing checks
+
+**That a new asynchronously-filled surface follows this rule at all.** It is
+enforced by two tests inside `BarSeriesPanel` and by nothing at the page level: a
+third region with an unnamed sentence would pass `pnpm verify` and the browser
+suite. Re-measure by adding a `role="status"` to any route and confirming that
+nothing goes red — which is the point.
