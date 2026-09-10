@@ -147,6 +147,23 @@ export interface SeriesRefusal {
 }
 
 /**
+ * Which of the two window forms the caller used.
+ *
+ * Reported rather than discarded because **the two forms are cacheable
+ * differently and their bodies are identical**, which is the trap Task 2.9.8
+ * exists to close. `?sessions=5` is a stable URL naming a moving target — it
+ * resolves against today's market date, so the same address means a different
+ * window tomorrow — while an absolute window's URL and its meaning are the same
+ * thing. `series-cache.ts` reads this to decide whether a response may carry a
+ * freshness lifetime at all; nothing else does, and the resolved
+ * {@link SeriesRequest.range} is identical either way.
+ */
+export const SERIES_WINDOW_FORMS = ["absolute", "named"] as const;
+
+/** One of {@link SERIES_WINDOW_FORMS}. */
+export type SeriesWindowForm = (typeof SERIES_WINDOW_FORMS)[number];
+
+/**
  * A request this server is willing to answer.
  *
  * Three fields, and the window is **always absolute** whichever form the caller
@@ -168,6 +185,15 @@ export interface SeriesRequest {
   readonly timeframe: Timeframe;
   /** The resolved half-open window, `[start, end)`. */
   readonly range: TimeRange;
+  /**
+   * How the caller expressed that window.
+   *
+   * A fourth field on a three-field interface, added by Task 2.9.8, and it is
+   * the only thing on this type that is **about the request rather than about
+   * what was asked for**. It exists because a cache keys on the URL and this
+   * says whether the URL means one thing forever. See {@link SeriesWindowForm}.
+   */
+  readonly windowForm: SeriesWindowForm;
 }
 
 /** Either a request or a refusal; never both, never neither. */
@@ -246,6 +272,11 @@ export function parseSeriesRequest(
       symbol: symbol.value,
       timeframe: timeframe.value,
       range: range.value,
+      // Read off the query rather than returned by `parseWindow`, and it is
+      // exact: that function refuses both forms at once and refuses neither, so
+      // by the time it has succeeded, `sessions` being present is the whole
+      // discriminator.
+      windowForm: query.sessions !== undefined ? "named" : "absolute",
     },
   };
 }

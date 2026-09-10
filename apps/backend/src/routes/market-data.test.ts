@@ -37,6 +37,8 @@ import type { MarketData } from "../market-data.js";
 import { resolveMarketData } from "../market-data.js";
 import { loadConfig } from "../config.js";
 import type { SeriesRefusalReason } from "../series-request.js";
+import { createSeriesCache } from "../series-cache.js";
+import type { SeriesCache } from "../series-cache.js";
 import { buildServer } from "../server.js";
 import { createMarketDataRoutes, toBarSeriesResponse } from "./market-data.js";
 
@@ -229,6 +231,14 @@ interface StoreStub {
   readonly held?: BarCoverage | undefined;
   /** Thrown by `readSeries` instead of answering. */
   readonly fails?: Error;
+  /**
+   * Incremented on every `readSeries`, for Task 2.9.8's cache tests.
+   *
+   * A mutable counter rather than a spy, because what is being asserted is that
+   * a **query did not run** — and a cache that missed returns the same bars in
+   * the same order, so counting the read is the only way to see the difference.
+   */
+  readonly reads?: { count: number };
 }
 
 /**
@@ -248,6 +258,7 @@ function stubBars(store: StoreStub): MarketBarsRepository {
 
   return {
     readSeries: (symbol, timeframe, requested, now) => {
+      if (store.reads !== undefined) store.reads.count += 1;
       if (store.fails !== undefined) return Promise.reject(store.fails);
 
       const held = store.held;
@@ -282,6 +293,14 @@ interface RouteOptions {
   readonly now?: Date;
   /** Installed as a `preSerialization` hook, for the stripping test. */
   readonly decorate?: (payload: unknown) => unknown;
+  /**
+   * A cache to share across two servers (Task 2.9.8).
+   *
+   * Left out by every other test, which is the arrangement that matters: the
+   * route factory mints its own, so each server here starts empty without a
+   * suite having to remember to clear one.
+   */
+  readonly cache?: SeriesCache;
 }
 
 async function barsServer(
@@ -319,6 +338,7 @@ async function barsServer(
             : Promise.resolve("security" in options ? options.security : NVDA),
       },
       now: () => options.now ?? NOW,
+      ...(options.cache !== undefined ? { cache: options.cache } : {}),
     }),
   );
 
@@ -895,5 +915,308 @@ describe("the GET /market-data/bars response schema", () => {
     // fields really were there to be stripped.
     expect(response.json<BarSeriesResponse>().securityStatus).toBe("untracked");
     expect(response.json<BarSeriesResponse>().series.bars).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Caching, and the one immutable thing this product has (Task 2.9.8)
+// ---------------------------------------------------------------------------
+//
+// Three things are asserted here and each has its own failure mode:
+//
+//  1. **The header**, which is what a browser and any proxy act on. The
+//     negative case is the one that goes wrong silently — a live window marked
+//     reusable is a chart frozen at whatever it said five minutes ago, and
+//     nothing on the response says so.
+//  2. **The validator**, which is what saves the bytes.
+//  3. **The cache in front of `serveSeries`**, which is what bounds the metered
+//     vendor request — asserted by *counting provider calls*, because a cache
+//     that missed returns exactly the same bars.
+
+/** A whole ordinary session, as the named window that resolves to it. */
+const NAMED_PATH = "/market-data/bars?symbol=NVDA&timeframe=1m&sessions=1";
+
+/** The same Tuesday session, absolutely. */
+const TUESDAY_PATH =
+  "/market-data/bars?symbol=NVDA&timeframe=1m" +
+  "&start=2026-09-08T13:30:00.000Z&end=2026-09-08T20:00:00.000Z";
+
+/** After Tuesday's close, so `?sessions=1` resolves to a window that is over. */
+const AFTER_TUESDAYS_CLOSE = new Date("2026-09-08T20:30:00.000Z");
+
+describe("the bars route's cache headers", () => {
+  it("lets an absolute window inside closed sessions be reused, briefly", async () => {
+    const instance = await populatedServer();
+
+    const response = await instance.inject({ method: "GET", url: BARS_PATH });
+
+    expect(response.headers["cache-control"]).toBe("private, max-age=300");
+    expect(response.headers.etag).toBeDefined();
+  });
+
+  // **The negative case, and the break was made.** Marking a live window
+  // reusable — by dropping the `isClosedWindow` test from `seriesCacheControl`
+  // — turns this assertion red on `private, max-age=300`. A break that does not
+  // go red is equally evidence the break did not land.
+  it("never lets a window ending in the live session be reused", async () => {
+    const instance = await populatedServer({
+      now: new Date("2026-09-09T18:00:00.000Z"),
+    });
+
+    const response = await instance.inject({
+      method: "GET",
+      url:
+        "/market-data/bars?symbol=NVDA&timeframe=1m" +
+        "&start=2026-09-09T13:30:00.000Z&end=2026-09-09T20:00:00.000Z",
+    });
+
+    expect(response.headers["cache-control"]).toBe("private, no-cache");
+    expect(response.headers["cache-control"]).not.toContain("max-age");
+  });
+
+  it("never lets a named window be reused, whatever it resolved to", async () => {
+    // `?sessions=1` at 16:30 has resolved to a session that is entirely over,
+    // and tomorrow morning the same URL means a different window. Every HTTP
+    // cache keys on the URL, so this form can carry a validator and must never
+    // carry a lifetime.
+    const instance = await populatedServer({ now: AFTER_TUESDAYS_CLOSE });
+
+    const response = await instance.inject({ method: "GET", url: NAMED_PATH });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe("private, no-cache");
+    expect(response.headers.etag).toBeDefined();
+  });
+
+  it("answers the same window both ways with one body and two freshnesses", async () => {
+    const instance = await populatedServer({ now: AFTER_TUESDAYS_CLOSE });
+
+    const named = await instance.inject({ method: "GET", url: NAMED_PATH });
+    const absolute = await instance.inject({
+      method: "GET",
+      url: TUESDAY_PATH,
+    });
+
+    // The same question, so the same answer — `coverage.requested` included,
+    // which is what makes the named form sugar rather than a second product.
+    expect(named.body).toBe(absolute.body);
+    // And therefore the same validator, which is the property that makes this
+    // pair safe: the difference between them is a promise about the *future*,
+    // not a difference in what was served.
+    expect(named.headers.etag).toBe(absolute.headers.etag);
+
+    expect(named.headers["cache-control"]).toBe("private, no-cache");
+    expect(absolute.headers["cache-control"]).toBe("private, max-age=300");
+  });
+
+  it("moves the validator when the security's status moves", async () => {
+    // The envelope trap, asserted rather than described: `securityStatus` comes
+    // from `securities` and not from `market_bars`, and `pnpm universe` can flip
+    // it against a window of sessions that closed years ago. A validator
+    // recomputed from the whole body catches that; a lifetime derived from the
+    // calendar would serve the old label under a correct-looking body.
+    const active = await populatedServer();
+    const activeResponse = await active.inject({
+      method: "GET",
+      url: BARS_PATH,
+    });
+    await active.close();
+
+    const untracked = await populatedServer({
+      security: { ...NVDA, status: "untracked" },
+    });
+    const untrackedResponse = await untracked.inject({
+      method: "GET",
+      url: BARS_PATH,
+    });
+
+    expect(untrackedResponse.headers.etag).not.toBe(
+      activeResponse.headers.etag,
+    );
+  });
+
+  it("gives a refusal neither a lifetime nor a validator", async () => {
+    const instance = await populatedServer();
+
+    const refused = await instance.inject({
+      method: "GET",
+      url: "/market-data/bars?symbol=NVDA&timeframe=5m&sessions=1",
+    });
+
+    expect(refused.statusCode).toBe(400);
+    expect(refused.headers["cache-control"]).toBeUndefined();
+    expect(refused.headers.etag).toBeUndefined();
+  });
+
+  it("answers a conditional request with a 304 and no body", async () => {
+    const instance = await populatedServer();
+
+    const first = await instance.inject({ method: "GET", url: BARS_PATH });
+    const second = await instance.inject({
+      method: "GET",
+      url: BARS_PATH,
+      headers: { "if-none-match": String(first.headers.etag) },
+    });
+
+    expect(second.statusCode).toBe(304);
+    expect(second.body).toBe("");
+    expect(second.headers["cache-control"]).toBe(
+      first.headers["cache-control"],
+    );
+  });
+});
+
+/**
+ * A provider that counts what it is asked, and serves an empty tail.
+ *
+ * Counting is the whole point. A cache that missed returns the same bars in the
+ * same order with the same coverage, so **the only observable difference is
+ * whether a metered request was made** — which is exactly the thing
+ * `MARKET-DATA-API.md` §5 hands this task to bound.
+ */
+function countingProvider(): {
+  readonly marketData: MarketData;
+  calls: number;
+} {
+  const counter = {
+    calls: 0,
+    marketData: {
+      selection: "alpaca" as const,
+      provider: {
+        id: "alpaca" as const,
+        feed: "iex" as const,
+        fetchBars: (request: { readonly range: TimeRange }) => {
+          counter.calls += 1;
+          return Promise.resolve({
+            outcome: "range-not-available" as const,
+            requested: request.range,
+            message: "the free plan withholds the most recent minutes",
+          });
+        },
+        fetchManyBars: () => {
+          throw new Error("the bars route must not batch.");
+        },
+      },
+    },
+  };
+  return counter;
+}
+
+describe("the bars route's answer cache", () => {
+  /** Mid-session Wednesday, with the store holding Wednesday's opening bars. */
+  const LIVE_NOW = new Date("2026-09-09T18:00:00.000Z");
+  const LIVE_PATH =
+    "/market-data/bars?symbol=NVDA&timeframe=1m" +
+    "&start=2026-09-09T13:30:00.000Z&end=2026-09-09T20:00:00.000Z";
+
+  function liveStore(): StoreStub {
+    return {
+      rows: [row("2026-09-09T13:30:00.000Z", 198.5401)],
+      held: {
+        symbol: toTicker("NVDA"),
+        timeframe: "1m",
+        covered: toTimeRange(
+          new Date("2026-09-09T13:30:00.000Z"),
+          new Date("2026-09-09T13:31:00.000Z"),
+        ),
+        source: { provider: "alpaca", feed: "sip" },
+        barCount: 1,
+        updatedAt: new Date("2026-09-09T13:31:00.000Z"),
+      },
+    };
+  }
+
+  it("makes one metered request for a live window however often it is asked for", async () => {
+    const counter = countingProvider();
+    const instance = await barsServer({
+      store: liveStore(),
+      marketData: counter.marketData,
+      now: LIVE_NOW,
+    });
+
+    const first = await instance.inject({ method: "GET", url: LIVE_PATH });
+    const second = await instance.inject({ method: "GET", url: LIVE_PATH });
+    const third = await instance.inject({ method: "GET", url: LIVE_PATH });
+
+    // The bound `MARKET-DATA-API.md` §5 asked for: what a live window costs the
+    // vendor is a function of time and of how many distinct windows exist, not
+    // of how many people are looking at one.
+    expect(counter.calls).toBe(1);
+    // And the answer is unchanged, which is why counting is the only way to see
+    // this at all.
+    expect(second.body).toBe(first.body);
+    expect(third.body).toBe(first.body);
+  });
+
+  it("reads the store once for a closed window asked for twice", async () => {
+    const reads = { count: 0 };
+    const instance = await barsServer({
+      store: { rows: TWO_ROWS, held: TWO_BAR_LEDGER, reads },
+    });
+
+    const first = await instance.inject({ method: "GET", url: BARS_PATH });
+    const second = await instance.inject({ method: "GET", url: BARS_PATH });
+
+    // The objective's own promise: switching back to a window already looked at
+    // does not re-read the rows. At the cap that is 10,000 of them.
+    expect(reads.count).toBe(1);
+    expect(second.body).toBe(first.body);
+  });
+
+  it("keeps the 404 a statement about the security, not about what was cached", async () => {
+    // The cache sits in front of `serveSeries` and **behind** the universe
+    // lookup, so a symbol removed from the universe stops being served
+    // immediately. A cache in front of the whole response would go on serving
+    // it, and the 404 would become a statement about what was recently asked
+    // for.
+    const cache = createSeriesCache();
+
+    const known = await barsServer({
+      store: { rows: TWO_ROWS, held: TWO_BAR_LEDGER },
+      cache,
+    });
+    expect(
+      (await known.inject({ method: "GET", url: BARS_PATH })).statusCode,
+    ).toBe(200);
+    await known.close();
+    app = undefined;
+
+    const forgotten = await barsServer({
+      store: { rows: TWO_ROWS, held: TWO_BAR_LEDGER },
+      security: undefined,
+      cache,
+    });
+
+    const response = await forgotten.inject({ method: "GET", url: BARS_PATH });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json<ApiError>().code).toBe("NOT_FOUND");
+  });
+
+  it("keeps a database that is down a 503, cached answer or not", async () => {
+    // The same placement, from the other direction: the universe lookup runs on
+    // every request, so an unreachable database is reported rather than hidden
+    // behind a body we happen to still hold.
+    const cache = createSeriesCache();
+
+    const up = await barsServer({
+      store: { rows: TWO_ROWS, held: TWO_BAR_LEDGER },
+      cache,
+    });
+    expect(
+      (await up.inject({ method: "GET", url: BARS_PATH })).statusCode,
+    ).toBe(200);
+    await up.close();
+    app = undefined;
+
+    const down = await barsServer({
+      store: { rows: TWO_ROWS, held: TWO_BAR_LEDGER },
+      lookupFails: refusedConnection(),
+      cache,
+    });
+
+    const response = await down.inject({ method: "GET", url: BARS_PATH });
+
+    expect(response.statusCode).toBe(503);
   });
 });

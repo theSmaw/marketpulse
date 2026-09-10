@@ -6,9 +6,10 @@ The subject document for [Story 2.9](STORY.md), produced by Task 2.9.1, which
 which settled the provider seam's shape a task before anything implemented it.
 
 Every figure below was taken **on 2026-09-09 against the local 48,027,772-row
-store**, by the method each table names, or is quoted with its source and date.
-Nothing here is carried forward from `CLAUDE.md`, and §8 records the one figure
-that did **not** reproduce.
+store**, by the method each table names, or is quoted with its source and date —
+**except §11, which was taken on 2026-09-10 against the same store** and says so
+under each of its tables. Nothing here is carried forward from `CLAUDE.md`, and
+§8 records the one figure that did **not** reproduce.
 
 **Read §8 before quoting anything.** One number this task was handed to work
 from is wrong by 24%, and it is wrong in the direction that matters.
@@ -710,3 +711,249 @@ latest 15:59 America/New_York. The assumption holds and the cap is an upper boun
 rather than an under-estimate. The method, so it is re-taken rather than cited: a
 `count(*) filter` on `(observed_at at time zone 'America/New_York')::time`
 against `'09:30'` and `'16:00'`.
+
+---
+
+## 11. Caching, and the one immutable thing this product has — Task 2.9.8
+
+Every figure in this section was taken on **2026-09-10**, against the same local
+48,027,772-row store, through the **built backend** on loopback. Method under
+each table; re-take rather than cite.
+
+### The mechanism, and why it is a validator
+
+**Decided: an `ETag` recomputed from the whole serialised body carries every
+cacheable response, and no response carries a long `max-age` or `immutable`.**
+
+The objective is that the bars of a closed session never change. That is true of
+the **bars** and, twice over, not quite true of the **response** — and both
+findings arrived after the task was written:
+
+| What moves                                                                       | How often                                                                    | Found by   |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------- |
+| A vendor **correction** overwrites a bar and its `recorded_at`                   | Rare; `BarWriteResult.corrected` is the only trigger for noticing            | Task 2.9.4 |
+| **`securityStatus`**, which is read from `securities` and not from `market_bars` | One `pnpm universe` away, against a window of sessions that closed years ago | Task 2.9.6 |
+| A **close** on `/securities`' `lastCloses`                                       | Once a day, when the nightly catch-up runs                                   | Task 2.9.7 |
+
+A validator survives all three because it does not know which field moved: it
+hashes the bytes about to go on the wire. A long `max-age` survives none of
+them, and is the one mechanism whose failure a user cannot clear — a promise
+made before the change, which nothing can withdraw.
+
+So the shape is: **the calendar decides freshness, the body decides identity.**
+`series-cache.ts` owns the first, `http-cache.ts` the second, and neither knows
+about the other's subject.
+
+### What each response carries
+
+| Response                                                                       | `Cache-Control`        | `ETag` |
+| ------------------------------------------------------------------------------ | ---------------------- | ------ |
+| `/market-data/bars`, **absolute** window, entirely inside closed sessions      | `private, max-age=300` | yes    |
+| `/market-data/bars`, **named** window (`?sessions=N`), whatever it resolved to | `private, no-cache`    | yes    |
+| `/market-data/bars`, any window reaching into the current session              | `private, no-cache`    | yes    |
+| `/securities`                                                                  | `private, no-cache`    | yes    |
+| `GET /market-data`, `/health`, `/diagnostics/*`, every `ApiError`              | none                   | no     |
+
+**A named window is a stable URL naming a moving target, and every HTTP cache
+keys on the URL.** `?sessions=5` resolves through the calendar against _today's_
+market date, so the same address means a different window tomorrow and a
+different one again at every session close. A browser holding a `max-age` answer
+for it serves yesterday's window under today's address, and the response looks
+entirely well-formed — `coverage.requested` reports the resolved range honestly;
+it is simply the wrong range. So immutability is a property of the **resolved**
+range while the cache key is the **URL**, and only the absolute form's URL and
+meaning are the same thing.
+
+Asserted, in `routes/market-data.test.ts`: the same window asked both ways
+returns **byte-identical bodies and the same `ETag`**, with `no-cache` on one and
+`max-age=300` on the other. The difference between them is a promise about the
+future, not a difference in what was served.
+
+**Five minutes is one number used twice** — the browser's `max-age` and the
+server-side cache's lifetime for the same answer — and it is a ceiling on how
+long _anything in this system_ may serve a body a correction or a status flip
+has invalidated. Two numbers would be two answers to one question.
+
+**`private` on both directives.** Two headers on this API are computed per
+requester — `access-control-allow-origin` and `x-request-id` — and neither is
+safe for a shared proxy to hand to a second client. The deployed frontend's own
+host caches nothing on this path, so the browser is the whole audience anyway.
+
+### Where the cache sits, and what that keeps working
+
+**In front of `serveSeries` and behind `findSecurity`**, keyed on the resolved
+`(symbol, timeframe, range)`. The cheaper option — caching the whole response —
+was refused because three things go with the universe lookup it would skip:
+
+- **The 404 stops being about the security.** §6's sentence is that a 404 is
+  about the _security_, never about the _data_; a symbol removed from the
+  universe would go on being served from cache, and the 404 would become a
+  statement about what was recently asked for.
+- **`securityStatus` goes stale** — the second row of the table above.
+- **The 503 stops happening.** A database that is down would be invisible behind
+  a body we happen to still hold.
+
+The price is one point read of `securities` per request. All three are asserted
+against a cache deliberately shared across two servers, so the second server
+answers a 404 and a 503 over a warm cache.
+
+### What it saves — bytes
+
+Method: `curl` against the built backend on loopback, `Content-Length` for the
+200, `gzip -c | wc -c` for the compressed figure, and a second request carrying
+`If-None-Match` for the conditional one.
+
+| Window                                                   | 200 body        | gzipped   | Conditional  |
+| -------------------------------------------------------- | --------------- | --------- | ------------ |
+| `/securities` — 518 securities, coverage and last closes | **190,736 B**   | 20,072 B  | **304, 0 B** |
+| `NVDA` `1m`, one closed session (390 bars)               | **44,701 B**    | 7,549 B   | **304, 0 B** |
+| `NVDA` `1m`, 24 sessions (9,360 bars)                    | **1,060,490 B** | 171,389 B | **304, 0 B** |
+| `NVDA` `1d`, 20 sessions                                 | 2,790 B         | 801 B     | **304, 0 B** |
+
+Against §8's re-measured worst case — a year of minute bars at **11.08 MB** — a
+conditional request that hits saves the whole of it. That is the figure the
+first draft of this task was asked to weigh against the complexity, and the
+answer is unambiguous.
+
+**The 304 goes out with `Content-Length: 0`, which is checked rather than
+accepted.** RFC 9110 §15.4.5 says a `304` carries no content, and a length
+header on one is a claim about a representation that is not empty.
+`reply.removeHeader("content-length")` inside the `onSend` hook **does nothing** —
+produced against a running server rather than reasoned about: Fastify computes
+the header from the payload after every `onSend` hook has run. Left as it is,
+because it is what `@fastify/etag` emits and every client tested handles it.
+
+### What it saves — work
+
+Method: 15 requests each, median reported, `fetch` from Node 24 on loopback. A
+**miss** is a distinct window every time, so each one is a real store read; a
+**hit** is one window repeated.
+
+| `NVDA` `1m`, 9,360 bars, 1.06 MB     | median      | range         |
+| ------------------------------------ | ----------- | ------------- |
+| Miss — store read, then serialise    | **31.3 ms** | 28.9–104.5 ms |
+| Hit — cached, then serialise         | **11.6 ms** | 10.7–13.1 ms  |
+| Hit + `If-None-Match` — 304, no body | **10.9 ms** | 9.7–11.5 ms   |
+
+The store read alone is **11.1 ms** for those 9,360 rows, timed inside
+PostgreSQL (`\timing`, warm local container) — so about two thirds of a miss is
+the database and the rest is serialising a megabyte. **The validator saves the
+wire and not the work**: the server still reads the cache, serialises the body
+and hashes it before discarding it, which is why the 304 row is barely faster
+than the hit row _on loopback_. On a real link the megabyte is the whole cost,
+and it is exactly what the 304 removes.
+
+`/securities` measures 12.4 ms for the 200 and 11.5 ms for the 304, for the same
+reason: 190 kB costs nothing over loopback and is the entire saving over a
+network.
+
+### What it saves — vendor requests, and §5's condition
+
+**§5's condition does not fire. The metered request is bounded, and this section
+says exactly in which dimension.**
+
+Since Task 2.9.5 a window ending _now_ is a metered vendor request on a cache
+miss — §5's own words, and the reason that section names this task as the
+trigger for bringing the stitch decision back rather than narrowing it. What
+bounds it is the live entry's **60-second lifetime**: the finest timeframe this
+API serves is `1m`, so a second request inside the same minute cannot be
+answered with a bar the first one could not have had.
+
+The bound is therefore **one vendor request per (symbol, timeframe, resolved
+window) per minute, per process**, and the dimension that matters is the one it
+removes: the cost no longer scales with **how many people are looking**, which is
+what §5 was worried about, and no longer scales with page loads.
+
+**"Per process" is load-bearing and was understated when this section was first
+written on 2026-09-10; corrected the same day.** The cache is an in-process
+`Map`, so the deployed bound is `replicas × 1` per window per minute rather than
+`1`. `HOSTING.md` records `minReplicas: 1` as a **required setting** and records
+no maximum, because the Container App's scale rule is platform-only
+configuration that exists in no file in this repository (`CLAUDE.md`, _What
+`pnpm verify` does not cover_ §6). So the deployed multiplier is a number nobody
+here can read, which makes it Task 2.9.9's to take rather than this section's to
+assert. It does not change the shape of the result — the cost is bounded by
+replicas and time rather than by traffic — and a shared cache is emphatically
+**not** the fix, because that is a second database bought to save a request the
+free plan does not charge for.
+
+What it also still scales with is how many distinct windows exist — a client
+enumerating windows can mint one request per minute each — and that is stated
+rather than left to be discovered. It is not a new exposure: the same client can
+already mint one request per page load today.
+
+**Measured, and the method matters because the local store could not produce a
+real one.** Counted through the shipping plugin, the shipping cache and the
+shipping handler, with a provider stub that increments a counter:
+**three identical requests for a live window → one `fetchBars` call.** Without
+the cache the same test counts **three**, produced by disabling the cache read
+and watching it go red.
+
+Against the **real** Alpaca provider it could not be counted, and why is itself a
+reading worth recording: the local store's `covered_end` is **2026-09-04T20:00Z**
+and the market date at the time of measurement was 2026-09-09, so §5 rule 3's
+session-gap bound declined every tail outright. Both requests logged
+`tail: "stale-store"` and **zero** vendor requests were made with or without the
+cache. A store that is days behind costs the vendor nothing; the bound above is
+what governs a store that is current, which is the deployed one.
+
+### What happens when the store is backfilled underneath a cached answer
+
+**Every entry expires, including one the calendar calls immutable**, and that is
+the whole answer. The nightly catch-up fills gaps in sessions that are already
+closed, so an honest-and-partial answer can go stale without anything _in the
+window_ changing — the calendar cannot see that, because it is a fact about our
+store rather than about the market. The 300-second lifetime bounds it without
+needing to know.
+
+There is deliberately **no invalidation hook** for the backfill to call. A cache
+a writer has to remember to clear is a cache that is wrong on the day somebody
+forgets, and the same argument that rejected a long `max-age` rejects a
+correctness mechanism that depends on a second process behaving.
+
+### The negative cases, and the breaks that were made
+
+Three assertions exist for things that fail silently, and each was made to fail
+once before being put back:
+
+| Assertion                                              | The break                                       | Result                        |
+| ------------------------------------------------------ | ----------------------------------------------- | ----------------------------- |
+| A live window is never marked reusable                 | Drop `isClosedWindow` from `seriesCacheControl` | red on `private, max-age=300` |
+| A live window costs one vendor request, not three      | Make `cache.read` always miss                   | red, 3 calls                  |
+| A closed window is read from the store once, not twice | The same break                                  | red, 2 reads                  |
+
+A break that does not go red is equally evidence the break did not land, so all
+three substitutions were verified rather than assumed.
+
+### `/securities` is in scope, and only half of it
+
+**Stated either way, because a later reader finding one route cached and the
+other not will assume it was an oversight.** The validator is on `/securities`;
+a freshness lifetime and the answer cache are not.
+
+**Why the validator is in.** Task 2.9.7 put `lastCloses` there — the close of a
+session that has closed, for 518 securities, which is precisely the immutable
+thing this task's objective names. It is also the bigger payload of the two this
+story serves (190,736 B against 44,701 B for a session of minute bars) and it is
+fetched on every page load by `useSecurities`. Leaving it out would mean the
+first question a reader asks — _is my price fresh?_ — has one answer on one route
+and a different answer on the other, with two rules to keep in step.
+
+**Why no `max-age`.** That response has no window, so there is nothing to
+resolve and nothing the immutability predicate can be applied to. It carries the
+same envelope trap from the other direction: **immutable in its closes and
+mutable in its rows**, because `securities` carries `status`. A lifetime derived
+from the calendar would be a promise about the closes covering the rows.
+
+**Why no answer cache.** The cache exists to bound a metered vendor request and
+there is no provider on that path. Its four reads are the universe, its
+provenance, the ~1,036-row ledger and two daily bars per security — none of which
+touch the minute table, all of which Task 2.9.7 measured.
+
+### What Epic 13 gets for free
+
+The rule is written in **sessions that have closed** rather than in "not today",
+and `closedThrough(now)` takes the instant as an argument. In replay every window
+is closed, so a replay clock substitutes for a wall clock and the whole of this
+section applies unchanged. A rule phrased against the wall clock would have been
+one replay had to special-case.

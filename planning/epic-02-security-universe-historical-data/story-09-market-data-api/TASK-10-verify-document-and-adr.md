@@ -93,6 +93,33 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   and its measured basis belong in it too; the downsampling decision is the
   interesting **negative**.
 
+  **And one more, added 2026-09-10 by Task 2.9.8, which took it: what this
+  product treats as immutable, and what it does about the fact that it is not
+  quite.** The bars of a closed session never change; the **response** carrying
+  them changes in two ways the calendar cannot see — a vendor correction moving a
+  price and its `recorded_at`, and a `securityStatus` read from a different table
+  that `pnpm universe` can flip against a window closed years ago. So the
+  decision worth recording is not "we added caching": it is that **freshness is
+  decided by the trading calendar and identity by the body**, that no response
+  carries `immutable` or a `max-age` longer than five minutes, and that a named
+  window is a stable URL naming a moving target and therefore never carries a
+  lifetime at all. It is ADR-shaped because Epic 13's replay inherits the whole of
+  it — in replay every window is closed — and because the reversal trigger is a
+  condition rather than a preference: a correction that a client is measured to
+  hold past its usefulness, or a third mutable field found in an "immutable"
+  response. `MARKET-DATA-API.md` §11 has the tables and the measurements.
+
+  **Two properties the ADR should state rather than leave implied**, both added
+  2026-09-10 with the rest of this entry. The cache is **in-process**, so §11's
+  vendor bound is per replica and the deployed multiplier is platform-only
+  configuration — Task 2.9.9 reads it, and the ADR should record that a shared
+  cache was refused rather than overlooked, because it is a second database
+  bought to save a request the free plan does not charge for. And **the whole
+  mechanism is two response headers**, which means it is the first thing this
+  application ships whose correctness depends on a proxy nobody here configures;
+  say so, and point at 2.9.9's deployed readings as the only evidence it works
+  outside `app.inject()`.
+
   **And one more, added 2026-09-09 by Task 2.9.6, which took it: how this API
   distinguishes a dependency being down from this server having failed.**
   `SERVICE_UNAVAILABLE` is `API_ERROR_CODES`' fourth member and the first added
@@ -206,6 +233,38 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
     a well-formed answer naming the wrong thing, which is exactly what _What
     `pnpm verify` does not cover_ §3 enumerates. Add it to that list with its
     one-line re-measurement, and to nothing else.
+
+  **Added 2026-09-10 by Task 2.9.8 — one discharged, two live, and one figure to
+  re-check.**
+
+  - ~~`index.ts`'s _"it is cached by nothing yet"_ about `/securities`~~ —
+    **DONE in the same change**, amended in place with a dated note rather than
+    rewritten, because the conclusion that paragraph supported (no server-side
+    TTL on that route) is unchanged and only its premise moved.
+  - **`CLAUDE.md`'s _What `pnpm verify` does not cover_ §3 gains a stated
+    invariant nothing checks**, which is exactly that list's subject: the
+    five-minute ceiling is spelled **twice** — as `CLOSED_ANSWER_SECONDS`' 300 in
+    the `Cache-Control` header and as the same constant's derived
+    `CLOSED_ANSWER_TTL_MS` in the cache — and the two agreeing is what makes
+    "five minutes is the ceiling on how long anything in this system serves an
+    invalidated body" true. They are derived from one constant today, so the
+    invariant holds by construction; what nothing checks is that a later edit
+    keeps them derived. One line, with its re-measurement, and nothing else.
+  - **`CLAUDE.md`'s _Backend_ section has no line about `onSend`**, and Task
+    2.9.8 produced one worth having: **a hook cannot remove `Content-Length`**,
+    because Fastify computes it from the payload after every `onSend` hook has
+    run. That is a trap rather than a figure — attempted, measured against a
+    running server, reverted — and it is the sort of thing the next person to
+    reach for a response hook will otherwise spend an hour on. Judge whether it
+    earns its line; it is listed here so the judgement is made rather than
+    skipped.
+  - **The `/securities` payload figure is quoted in three live sites** and Task
+    2.9.7's entry above says to re-sweep if 2.9.8 or 2.9.9 moves it. **It did not
+    move** — 190,736 bytes, re-taken 2026-09-10 through the built backend. The
+    gzipped figure differs from 2.9.7's **19,526** only because that reading used
+    `gzip -9` and 2.9.8's `gzip` default gives **20,072**; that is the flag and
+    not the payload. Nothing to sweep, recorded so a later reader does not read
+    two numbers as a regression.
 
 - **Write the stakeholder section** in the shape Task 2.4.2 and 2.8.9 established:
   what this actually did in plain terms, why the small decisions went the way they

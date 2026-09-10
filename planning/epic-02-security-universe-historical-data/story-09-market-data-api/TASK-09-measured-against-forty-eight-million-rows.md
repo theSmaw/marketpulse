@@ -142,11 +142,85 @@ coverage }, securityStatus }`. Measured on the shipped shape rather than
   exactly two indexes. Re-take it here, and if it has moved, the deferral is the
   claim to check rather than the timing.
 
+- **There is a CACHE on this path now, and it will silently make your numbers
+  wrong — added 2026-09-10 by Task 2.9.8.** The route holds an in-process LRU of
+  served answers, keyed on the **resolved** `(symbol, timeframe, range)`, with a
+  300-second lifetime for a window inside closed sessions and 60 seconds for one
+  reaching into the live session. So a naive "hit the endpoint five times and take
+  the median" measures **one store read and four cache hits**, and the median is
+  the cache. That trap is not hypothetical: it is exactly how 2.9.8's own first
+  timing run came out with a miss and a hit five milliseconds apart.
+
+  The technique, which that task used and which this one should reuse: **vary the
+  window by one minute per sample** so every request is a distinct key and every
+  one is a real read. Its own readings, as a baseline to beat rather than an
+  answer — `NVDA` `1m`, 9,360 bars, 1.06 MB, median of 15 on loopback against
+  `dist/`: **miss 31.3 ms, hit 11.6 ms, conditional 304 10.9 ms**, against
+  **11.1 ms** for the same read timed inside PostgreSQL. Two thirds of a miss is
+  the database and the rest is serialising a megabyte.
+
+  Three consequences for this task's own bullets. The **stitch** bullet's "how
+  often it happens with 2.9.8's caching in front of it" now has an answer —
+  **at most once a minute per resolved window** (`MARKET-DATA-API.md` §11) — so
+  what is owed here is the added latency of a tail that _is_ fetched, not the
+  frequency. The **cap-check** bullet is unaffected: the calendar walk runs before
+  the cache is consulted, on every request including a hit. And the **`/securities`**
+  bullet gains a second reading to take: that route now carries an `ETag`, so its
+  deployed measurement should record the conditional request as well as the full
+  one — 190,736 B against 0 B locally, and the deployed figure is the one that
+  matters because 190 kB costs nothing over loopback and is the entire saving over
+  a link.
+
 - **Watch for the query nobody meant to write.** A serving path that touches
   `market_bars` where it should touch `bar_coverage`, or that runs at minute
   resolution where daily would answer, is invisible in a unit test and obvious in
   a timing. If a number surprises you, `EXPLAIN (ANALYZE, BUFFERS)` it before
   explaining it.
+
+- **Confirm the cache headers SURVIVE THE DEPLOYED INGRESS, and treat that as a
+  gate rather than a reading — added 2026-09-10 by Task 2.9.8.** Everything that
+  task built is carried by two response headers, and **every test it wrote runs
+  through `app.inject()`, which has no proxy in it at all**. Between the
+  application and a browser sits an Azure Container Apps ingress that no file in
+  this repository configures — `CLAUDE.md`'s _What `pnpm verify` does not cover_
+  §6 names that class exactly — and a proxy that strips `ETag`, rewrites
+  `Cache-Control` or answers a conditional request itself makes the whole
+  mechanism inert **with every test still green**. That is the shape of failure
+  `CLAUDE.md` warns about in terms: a green run certifies internal consistency,
+  not an environment.
+
+  Four readings, and they are `curl` against the deployed backend rather than a
+  timing:
+
+  1. `GET /market-data/bars` over an **absolute closed** window answers
+     `cache-control: private, max-age=300` and an `etag`, byte for byte as the
+     local one does;
+  2. the same URL with `If-None-Match` answers **304**, and the `304` still
+     carries `cache-control` and `etag`;
+  3. a **named** window (`?sessions=N`) answers `private, no-cache` — a proxy
+     that "helpfully" adds a lifetime here is the one failure that produces a
+     wrong chart rather than a slow one;
+  4. `GET /securities` answers `private, no-cache` with an `etag`, and its
+     conditional request answers 304.
+
+  If any of them differ, the finding is **not** a number for a table: it is a
+  falsification of `MARKET-DATA-API.md` §11 and it sweeps upward the same day.
+  Note the deployed **frontend** host is not on this path at all — it serves the
+  bundle, and the browser calls the backend directly — so this is one hop rather
+  than two.
+
+- **Read the deployed REPLICA COUNT, because it is the multiplier on §11's
+  vendor bound — added 2026-09-10 by Task 2.9.8.** That task's cache is an
+  in-process `Map`, so its "one vendor request per resolved window per minute"
+  is **per process**. `HOSTING.md` records `minReplicas: 1` as a required setting
+  and records **no maximum**, because the Container App's scale rule exists only
+  on the platform. So the deployed bound is `replicas × 1` and nobody in this
+  repository can currently say what `replicas` is. Read it, record it in §11
+  beside the bound, and add it to `HOSTING.md`'s account of what lives only on
+  the platform if it is not there. **Do not "fix" it with a shared cache** — that
+  is a second database bought to save a request the free plan does not charge
+  for, and `CLAUDE.md`'s rule against a second database in V1 without a
+  measurement applies squarely.
 
 - **Then take the same readings against the deployed backend and the deployed
   store**, because the local database is a container on the same machine and the
@@ -164,9 +238,17 @@ coverage }, securityStatus }`. Measured on the shipped shape rather than
 ## Done when
 
 - Local and deployed timings and payload sizes for each named access pattern are
-  recorded in `MARKET-DATA-API.md`, dated, with the row counts they were taken at
+  recorded in `MARKET-DATA-API.md`, dated, with the row counts they were taken at,
+  and **each one says whether it was a cache miss or a hit** — a figure that does
+  not is a figure nobody can reproduce
 - `/securities` is among them, deployed as well as local, and its close query is
   confirmed to be one statement rather than 518 round trips
+- **The four deployed header readings are taken and quoted**, and any difference
+  from the local ones is swept upward the same day rather than recorded as a
+  variation
+- **The deployed replica count is read and recorded beside §11's vendor bound**,
+  because that bound is per process and the multiplier lives only on the
+  platform
 - `BARS.md` §8.6's 28.2 ms cross-sectional reading is re-taken, and if it moved,
   the two-index deferral it justifies is re-argued rather than the number simply
   replaced

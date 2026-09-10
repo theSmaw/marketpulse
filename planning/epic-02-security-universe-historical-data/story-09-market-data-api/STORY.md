@@ -104,7 +104,22 @@ work to be proved end to end.
 - Payload size and shape: a year of minute bars is large enough that the encoding matters.
   Measure it before choosing anything clever
 - Caching semantics — historical bars for a closed session are immutable, which is the
-  cheapest caching opportunity this product will ever have
+  cheapest caching opportunity this product will ever have.
+  **Built 2026-09-10 by Task 2.9.8, and the bullet's premise needed qualifying:
+  the BARS of a closed session never change and the RESPONSE does** — a vendor
+  correction moves a price and its `recorded_at`, and `securityStatus` comes from
+  `securities` rather than from `market_bars`, so `pnpm universe` can change a
+  response about a session that closed years ago. What shipped is therefore a
+  **validator** (`ETag` recomputed from the whole serialised body) on both
+  `/market-data/bars` and `/securities`, with a short five-minute freshness
+  lifetime for an **absolute** window inside closed sessions and none at all for a
+  named one — `?sessions=5` is a stable URL naming a moving target. An in-process
+  answer cache in front of `serveSeries` bounds Task 2.9.5's metered vendor
+  request to one per resolved window per minute **per replica** — the cache is
+  in-process and the deployed replica count is platform-only configuration, which
+  is Task 2.9.9's to read — which is the condition
+  [`MARKET-DATA-API.md`](MARKET-DATA-API.md) §5 set for keeping the stitch: it
+  holds, and the stitch is unchanged. §11 has every measurement
 
 ## Out of scope, and who owns it
 
