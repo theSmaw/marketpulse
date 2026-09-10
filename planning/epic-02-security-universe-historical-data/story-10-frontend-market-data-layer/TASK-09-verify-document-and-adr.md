@@ -28,6 +28,21 @@ and sweep what this story falsified.
   3. **A navigation away from a pending request cancels it, and the cancelled
      result is not rendered as a failure** — in a browser, against a throttled
      connection, not only in jsdom.
+
+     > **Sharpened 2026-09-10 by Task 2.10.5 — criterion 3's browser check is not
+     > belt-and-braces, it is the only instrument for half the property.** That task
+     > tried to assert _"no state update happens after an unmount"_ in jsdom and
+     > found it **cannot be observed there**: React does not re-render an unmounted
+     > component, so `result.current` cannot move whether the guard exists or not,
+     > and the assertion is green against a hook with no guard at all. What jsdom
+     > _can_ see is the `AbortSignal` reporting `aborted` and the cache holding
+     > nothing from an answer that landed after the unmount, and both are asserted.
+     >
+     > So the "in a browser, against a throttled connection, not only in jsdom"
+     > clause is load-bearing rather than thorough, and the close should say which
+     > half each level actually answered rather than treating the pair as one green
+     > tick.
+
   4. **The layer works against a fixture backend with no network** — run the
      frontend suite with the network disabled and confirm it is green rather
      than skipped. `CLAUDE.md`'s trap applies: a non-matching `-t` reports skips

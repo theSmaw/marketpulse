@@ -231,3 +231,51 @@ One thing the fixtures now have to respect: **the cache key is
 `barSeriesQuery(request)`**, so two fixtures differing only in window form are
 two entries, and a fixture set that reuses one request across tests shares one
 entry across them.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.5 — the premise under the MSW decision is wrong, and correcting it changes the answer
+
+The first bullet says _"the frontend's tests stub at the module boundary"_ and
+builds the MSW case on it: that a module-level stub of `api-client.ts` can only
+**assert** `unreadable-body`, `http-error` and `unreachable`, never **produce**
+them, whereas a request-level intercept exercises the client itself.
+
+**Neither half is true of this tree, and Task 2.10.5 walked into the evidence
+while writing the hook's tests.** Nothing in `apps/frontend` mocks a module —
+`grep -rn "vi.mock" apps/frontend/src` returns nothing. Six test files stub the
+**global `fetch`**: `api-client.test.ts`, `use-backend-health.test.ts`,
+`use-market-feed.test.ts`, `use-securities.test.ts`, `App.test.tsx`, and now
+`market/use-bar-series.test.ts`. That is the transport boundary, one layer below
+the one this bullet names, and it means the real `apiRequest` runs — the deadline,
+the composed signal, the correlation-id read, the `isApiError` parse and the
+whole outcome classification.
+
+So the three outcomes are **already produced rather than asserted**, and
+`api-client.test.ts` produces all seven today: `unreadable-body` at its lines 148
+and 160, `http-error` at 202, `unreachable` at 218 from a rejected
+`TypeError("Failed to fetch")`, plus `timeout`, `aborted` and `api-error`.
+
+**Two consequences for this task.**
+
+1. **The comparison to weigh is three-way, not two, and the third option is the
+   incumbent** — a global `fetch` stub, which costs nothing, has no service
+   worker, keeps `pnpm test` sockets-free, and is what every other test in this
+   package already reads like. MSW's stated advantage over it is not "produces
+   the transport outcomes"; that is already had. What MSW genuinely adds is
+   _routing_ — one handler set serving many URLs — which matters for a component
+   rendering several requests and matters less for a hook making one. Weigh that
+   rather than the advantage this bullet describes, and note the repository habit
+   the bullet invokes cuts the other way when the alternative is already built and
+   working in six files.
+2. **The fixture-set half of this task is untouched and is still the valuable
+   half.** Recorded bodies covering full, partial, empty, `null`-covered,
+   multi-source, both refusals and the 503, in one home, is what stops Stories
+   2.11 to 2.13 inventing three sets — and that is worth doing under _any_ of the
+   three mechanisms. The mechanism decision is smaller than it looked; the
+   fixture decision is not.
+
+**And one deliverable this task now certainly owns**, in addition to the reset
+wiring noted above: the six files each build their own `stubFetch` helper by
+copy. A shared one belongs wherever the fixtures land, and this is the task that
+can see all six at once.
