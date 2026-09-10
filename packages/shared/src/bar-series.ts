@@ -117,6 +117,16 @@ export interface BarSeriesInput {
  *
  * What it checks, and why each one is worth a check rather than a comment:
  *
+ * - **Every bar's instant is a valid `Date`.** Added 2026-09-10 by Task 2.10.4,
+ *   which found this hole while writing the frontend's mapper: `toTimeRange`
+ *   guards its own two ends and until now nothing guarded a bar's. An invalid
+ *   `Date` compares as neither less than nor greater than anything, so it
+ *   passes the ascending check below **and** both range checks — `NaN < start`
+ *   is false and `NaN >= end` is false — which makes a bar built from an
+ *   unparseable instant a member of every window ever asked for. It is checked
+ *   here rather than at a call site because there are two: the frontend parsing
+ *   a response, and `alpaca-mapping.ts` doing `new Date(bar.t)` on a vendor
+ *   field, where the bar would be **stored**.
  * - **The bars are strictly ascending.** Everything downstream — a chart axis,
  *   a return, a percentile window, a replay cursor — assumes it, and an
  *   out-of-order pair is the shape a naive concatenation produces.
@@ -136,6 +146,21 @@ export interface BarSeriesInput {
  */
 export function toBarSeries(input: BarSeriesInput): BarSeries {
   const { bars, provenance, coverage } = input;
+
+  // Before the ordering check rather than inside it, because an invalid instant
+  // is invisible to every comparison that follows: it would pass ascending, and
+  // it would pass both bounds of the covered range.
+  for (let i = 0; i < bars.length; i += 1) {
+    const bar = bars[i];
+    if (bar !== undefined && Number.isNaN(bar.startsAt.getTime())) {
+      throw new RangeError(
+        `Bar ${String(i)} has an invalid startsAt. An invalid Date compares ` +
+          `as neither before nor after anything, so it passes every ordering ` +
+          `and range check below and reaches a chart as a point with no ` +
+          `position.`,
+      );
+    }
+  }
 
   for (let i = 1; i < bars.length; i += 1) {
     const previous = bars[i - 1];

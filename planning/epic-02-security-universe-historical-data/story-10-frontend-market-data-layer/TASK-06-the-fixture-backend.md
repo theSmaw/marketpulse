@@ -146,3 +146,61 @@ they do not each answer "what does a partial series look like?" differently.
 - The hook's tests run with no network and no socket, and `pnpm test` stays fast
 - The built artefact is unchanged in shape and the fixtures are not in it
 - `pnpm verify` passes
+
+---
+
+## Amended 2026-09-10 by Task 2.10.4 — three more bodies, and where the fixtures may not live
+
+### The fixture set grows by three, and one of them cannot be recorded
+
+The list above covers the 2xx answers and two refusals. The union that shipped
+has three causes it does not reach:
+
+- **A `404` carrying `NOT_FOUND`** — a symbol the universe does not hold. It is
+  a **refusal** rather than a failure (see the finding in TASK-04), so the set
+  now covers **three** refusals rather than two, and Task 2.10.8 names it as a
+  cause. Recorded the way the others are: ask the real endpoint for a symbol that
+  is well-formed and not tracked.
+- **A body whose numbers disagree with each other** — the coherence failure
+  `toDomainSeries` throws on, which becomes `failed` / `answered-badly`. **This
+  one cannot be recorded**, because a correct server never produces it, and that
+  is precisely why it needs a fixture: it is otherwise unreachable from a test
+  and the branch would be covered by nothing.
+
+  It is therefore **the one hand-made body in the set, and it must be made by
+  mutating a recorded one in a single documented step** — swap two adjacent bars,
+  or decrement a source's `barCount` — with the mutation named in the file and
+  the recorded original kept beside it. Note this does **not** contradict the
+  amendment above forbidding hand-edited fixtures: that rule is about widening a
+  body into a value the guard refuses, whose symptom is `unreadable-body` in a
+  test that looks like it is about something else. This mutation is the opposite
+  — it must keep every closed vocabulary valid, because the whole point is a body
+  `isBarSeriesResponse` **accepts** and `toBarSeries` refuses.
+
+- **A body with an unknown feed slug**, for `unreadable-body` — already named by
+  Task 2.10.3's amendment in TASK-08 as a cause. It belongs in the set for the
+  same reason: hand-made, deliberately invalid, and labelled as such so nobody
+  reads it as a body the server sends.
+
+### The fixtures may not live inside `src/market/`
+
+Task 2.10.4 added a `no-restricted-imports` rule: nothing outside
+`apps/frontend/src/market/` may import anything under it except its `index.ts`.
+So a fixture module placed inside the module would be unreachable from a
+component test, a story or the browser suite — and the way round it is worse
+than the problem, because re-exporting test fixtures through `index.ts` puts
+them in the module's public API and, with them, in the application's import
+graph.
+
+**Put them outside the module**, beside the other test scaffolding
+`vitest.config.ts` already knows about (`test-render.tsx`, `test-setup.ts` are
+both excluded from coverage there by name, and a fixture module wants the same
+treatment). The module imports nothing from them; they import the module's API
+if they need its types, which is the direction the boundary allows.
+
+### One property the recorded bodies must have that a hand-written one will not
+
+`securityStatus` is **`active` | `untracked`**. Task 2.10.4 wrote `"tracked"` in
+an inline fixture, all 14 tests passed, and only `tsc -b` in `pnpm verify` caught
+it — a test run is not a typecheck. A recorded body cannot get this wrong, which
+is the argument for recording rather than writing, restated as a live example.

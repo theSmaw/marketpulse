@@ -1,0 +1,78 @@
+// The `market` module — this application's first feature module under
+// PRODUCT_SPEC.md §26's boundaries, and **the precedent for the seven that
+// follow it** (Task 2.10.4).
+//
+// Epics 3 to 11 add `topology`, `charts`, `anomalies`, `investigations`,
+// `replay`, `filings` and `shared`. Where the first one goes and what leaves it
+// is therefore worth deciding once and writing down, rather than being settled
+// seven times by whoever needs the second one.
+//
+// ## Where it sits, and why not literally where §26 draws it
+//
+// §26 draws `app/market/{data,models,state}`. This tree has no `app/` — the
+// application *is* `apps/frontend/src`, which is flat today: `components/`,
+// `routes/`, `styles/`, and the hooks and helpers at the root. Nesting one more
+// `app/` inside `src/` would be a directory whose only content is the word
+// "app", which is the shape of a convention copied rather than applied.
+//
+// So a feature module is **a directory under `src/`, sibling to `components/`
+// and `routes/`**, named for its domain. That is the rule the next seven
+// inherit.
+//
+// §26's three sub-namespaces are a *shape for a module big enough to need
+// them*. This one is three files, and `data/`, `models/` and `state/`
+// directories holding one file each would be five directories of ceremony over
+// 400 lines of code. They are spelled as filenames instead —
+// `bar-series-payload.ts` is the data edge, `bar-series-view.ts` is the state —
+// and a directory arrives when a namespace has more than a couple of files in
+// it. `CLAUDE.md`'s "do not scaffold ahead of the current step" is the whole
+// argument.
+//
+// ## What leaves the module, and what enforces it
+//
+// **This file is the module's API.** §26's rule — the one that matters — is
+// that a feature module exposes a domain-level API rather than reaching into
+// another's internals, and a barrel is the mechanism: what is re-exported here
+// is public, and everything else in the directory is the module's business.
+//
+// It is not a convention somebody remembers. `eslint.config.mjs` carries a
+// `no-restricted-imports` block forbidding any file outside `src/market/` from
+// importing anything under it except this file, because a stated invariant that
+// nothing checks quietly stops being true — this repository has watched that
+// happen and wrote it down.
+//
+// ## What is deliberately NOT in here
+//
+// **The four existing hooks stay where they are.** `use-backend-health.ts` and
+// `use-market-clock.ts` are chrome rather than market domain — a service's
+// health and a wall clock are facts about the deployment and the day, not about
+// the market's data. `use-securities.ts` genuinely is market domain and is a
+// candidate; moving it is a change with **no user in it**, it would touch a
+// route, a component, two test files and a story to relocate a file that works,
+// and this task's job is to establish the module rather than to reorganise
+// around it. The judgement is recorded here so the next reader knows it was
+// taken rather than missed. It moves when something else has to move anyway.
+//
+// **`bar-series-query.ts` stays at the root too**, for the same reason and one
+// more: Task 2.10.3 shipped it, `api-client.ts` imports it, and its header is
+// referenced from two documents by path. Its types are re-exported below, so a
+// consumer of this module gets one import for *what we ask for* and *what we
+// know about the answer* without the file moving.
+
+export { toDomainSeries } from "./bar-series-payload.js";
+export {
+  BAR_SERIES_FAILURES,
+  toBarSeriesView,
+  toRetryingBarSeriesView,
+} from "./bar-series-view.js";
+export type {
+  BarSeriesFailure,
+  BarSeriesView,
+  PopulatedBarSeries,
+} from "./bar-series-view.js";
+
+// Re-exported rather than moved — see the header. A consumer asking for a
+// series and a consumer holding one should not need to know that the request
+// type predates the module.
+export { barSeriesQuery } from "../bar-series-query.js";
+export type { BarSeriesRequest, SeriesWindow } from "../bar-series-query.js";

@@ -139,3 +139,73 @@ and sweep what this story falsified.
 - The artefact size is recorded
 - `pnpm verify`, `pnpm test:database` and `pnpm e2e` pass, and `pnpm e2e:deployed`
   passes against the live environment
+
+---
+
+## Amended 2026-09-10 by Task 2.10.4 — one criterion is already demonstrated, and one new invariant nothing checks
+
+### Criterion 2 has its produced compile error, and it is already a nested one
+
+The bullet above warns to pick a **nested** shape rather than the outermost one.
+Task 2.10.4 did: `PopulatedBarSeries` narrows `bars` inside `series` inside the
+`loaded` member, so the error is two levels in and is quoted verbatim in that
+task's file. Re-take it at the close rather than citing it — the point of the
+criterion is the instrument, not the transcript — but re-take **that** shape,
+because assigning a plain `BarSeries` to the member is the assignment the union
+exists to forbid and an envelope-level demonstration would prove nothing about
+it.
+
+### A new stated invariant that nothing checks, and it has more weight than it looks
+
+**The market module's `no-restricted-imports` pattern must stay inside the
+browser boundary's own `patterns` array, and nothing enforces that.**
+
+ESLint's flat config resolves a rule to the **last** configuration that matched,
+so a second config object setting `no-restricted-imports` for
+`apps/frontend/src/**` does not add to the first — it replaces it. Task 2.10.4
+reproduced this: with the market pattern in a block of its own,
+`import path from "node:path"` in a frontend source file lints **clean**, with no
+diagnostic anywhere.
+
+That is not a lint-hygiene problem. `CLAUDE.md`'s frontend section records that
+`no-restricted-globals` and `no-restricted-imports` over `apps/frontend/src/**`
+are **the only thing standing** where a compile error used to be, because both
+things downstream of tsc are silent: `process.env.X` compiles to `{}.X`, and
+`import "node:path"` builds at exit 0. So the failure is the browser boundary
+disappearing without a symptom — and the moment it becomes likely is the obvious,
+well-intentioned change: **Epics 3 to 11 add seven more feature modules, and the
+natural way to add the second one's rule is a new block.**
+
+The close owes this a sentence in `FRONTEND-STATE.md` and an entry in
+`CLAUDE.md`'s _stated invariants nothing checks_ list, in the form that list
+already uses — the claim, the failure it hides, and how to re-measure it:
+`import path from "node:path"` in a frontend source file must produce **two**
+errors on a file that also deep-imports `market/`, not one.
+
+The reversal, if it ever needs to become a mechanism rather than a sentence: one
+`no-restricted-imports` configuration is the constraint, so a second module's
+rule is another entry in the same `patterns` array — which is also where the
+generalisation question gets asked, since a rule written against `market/`
+specifically was a deliberate refusal to guess at a `*/index.js` shape from one
+instance.
+
+### One more sweep target, unusual for a frontend story
+
+Task 2.10.4 changed **`packages/shared/src/bar-series.ts`**, adding a guard that
+refuses a bar whose `startsAt` is an invalid `Date`. That is a shared constructor
+on the **ingestion** path as well as the read path — `alpaca-mapping.ts` builds
+bars from a vendor string — so a story that was supposed to touch only the
+frontend has changed behaviour the backfill depends on. It is covered by
+`pnpm test:database` and the backend suite, both green at the time, and the
+close should say so rather than leave a reader to notice the file in the diff and
+wonder.
+
+### The two-vocabularies comparison is now actually possible
+
+Task 2.10.2's note above asks the close to read the universe page and the series
+states against `FRONTEND-STATE.md` §4 and record the comparison. Both now exist:
+`SecuritiesView` and `BarSeriesView` each carry `retryable` and `retrying`,
+derived through the same `isRetryableApiErrorCode`. What is **not** shared is the
+copy, the silhouette and the control, and §4's amendment records one deliberate
+divergence to check rather than flag — `BarSeriesView` has a `refused` member the
+universe page has no use for, and it sits outside the flag entirely.

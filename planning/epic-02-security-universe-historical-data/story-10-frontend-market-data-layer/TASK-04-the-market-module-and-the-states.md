@@ -1,6 +1,6 @@
 # Task 2.10.4 — The `market` module, and the state a static list could not teach us
 
-**Status:** Not started
+**Status:** Complete — 2026-09-10
 **Story:** [2.10 Frontend Market-Data Layer & Application State](STORY.md)
 **Depends on:** Task 2.10.3
 
@@ -183,3 +183,315 @@ Two smaller things the same task settled that belong here:
   third reading, so the question this task's bullet leaves open — whether
   `partial` with zero bars is a real state — answers itself: it cannot occur,
   because a series with no bars covers nothing at all.
+
+---
+
+## What was done — 2026-09-10
+
+Four files under a new directory, one guard added to `packages/shared`, and one
+lint rule. No React, no component, nothing on screen.
+
+| File                                             | What it is                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------------ |
+| `apps/frontend/src/market/index.ts`              | The module's API, and the header recording where a module sits     |
+| `apps/frontend/src/market/bar-series-payload.ts` | The wire body turned into domain objects, through the constructors |
+| `apps/frontend/src/market/bar-series-view.ts`    | The six-member union and the collapse                              |
+| two `*.test.ts` beside them                      | 21 tests: every transport outcome, every coherence refusal         |
+| `packages/shared/src/bar-series.ts`              | One new guard — see _the hole nobody was checking_ below           |
+| `eslint.config.mjs`                              | The module boundary, as a rule rather than a habit                 |
+
+### Where a feature module sits, and what enforces its edge
+
+§26 draws `app/market/{data,models,state}`. This tree has no `app/` — the
+application **is** `apps/frontend/src` — so a feature module is **a directory
+under `src/`, sibling to `components/` and `routes/`, named for its domain**.
+That is the rule the seven modules Epics 3 to 11 add now inherit, and it is
+written in the module's own header rather than here, because that is the file
+the next person opens.
+
+§26's three sub-namespaces were **not** created. They are a shape for a module
+big enough to need them; this one is three files, and `data/`, `models/` and
+`state/` holding one file each would be ceremony over 400 lines of code. They are
+spelled as filenames instead, and a directory arrives when a namespace has more
+than a couple of files in it.
+
+**The edge is a lint rule.** `index.ts` is the API; nothing outside
+`src/market/` may import anything else under it. A stated invariant that nothing
+checks quietly stops being true, and this repository has watched that happen.
+
+**And the rule's placement is itself a finding.** It went into the existing
+browser-boundary block's `patterns` array rather than into a config object of its
+own, because flat config resolves a rule to the **last** configuration that
+matched — a second block setting `no-restricted-imports` for the same files
+replaces the first rather than adding to it. Reproduced rather than reasoned
+about: with the market pattern in its own block, `import path from "node:path"`
+in a frontend source file lints **clean**, and the browser boundary — the only
+thing standing where a compile error used to be — is gone with no diagnostic
+anywhere. Restored, and both restrictions then fire on one file at once.
+
+### The four existing hooks did not move, and neither did the request type
+
+Recorded as a judgement rather than left as a silence. `use-backend-health.ts`
+and `use-market-clock.ts` are chrome — a service's health and a wall clock are
+facts about the deployment and the day, not about the market's data.
+`use-securities.ts` genuinely is market domain and is a candidate; moving it
+touches a route, a component, two test files and a story to relocate a file that
+works, and it is **a change with no user in it**. It moves when something else
+has to move anyway.
+
+`bar-series-query.ts` stayed at the root for the same reason plus one more: Task
+2.10.3 shipped it, `api-client.ts` imports it, and two documents reference it by
+path. Its types are **re-exported** through `market/index.ts`, so a consumer gets
+one import for _what we ask for_ and _what we know about the answer_ without the
+file moving.
+
+### The union: six members, three of them answers
+
+`loading` · `loaded` · `partial` · `empty` · `refused` · `failed`.
+
+**`loaded` cannot exist without bars, and the compile error was produced rather
+than described.** `BarSeries.bars` may legitimately be empty, so a `loaded`
+member carrying a plain `BarSeries` would make "loaded with nothing in it"
+constructible. `PopulatedBarSeries` is an **intersection** that narrows `bars` to
+a non-empty tuple and `covered` to a non-null range in place — not a second copy
+of `BarSeries` that could drift from it. A scratch file assigning a plain
+`BarSeries` to the `loaded` member gave:
+
+```
+src/scratch-loaded.ts(9,3): error TS2322: Type 'BarSeries' is not assignable to type 'PopulatedBarSeries'.
+    Types of property 'bars' are incompatible.
+      Type 'readonly Bar[]' is not assignable to type 'readonly [Bar, ...Bar[]]'.
+        Source provides no match for required element at position 0 in target.
+```
+
+`covered` is narrowed **alongside** `bars` because `toBarSeries` has already made
+the two one fact. It is a type predicate rather than a rebuilt object on purpose:
+spreading a `BarSeries` into a new object to attach narrower types would be a
+second way to obtain one, which is exactly what its brand exists to prevent.
+
+**`partial` carries both windows**, in `series.coverage`, and both are needed:
+_"you asked for five sessions"_ comes off `requested` and _"we have data through
+15:42"_ comes off `covered.end`. It is the normal case rather than the
+exceptional one — the store is backfilled nightly and the plan withholds the most
+recent ~15 minutes — and it is a **200**.
+
+**`empty` is a distinct member and the contract settles it**, exactly as Task
+2.10.3 predicted: an empty series is `bars: []` with `covered: null`, a partial
+one has a narrower `covered`, and a series with no bars covers nothing at all. So
+_partial with zero bars_ cannot occur.
+
+**The three answer members carry `securityStatus`.** §7 puts it on the envelope
+because it is a fact about the security rather than about the bars, and a panel
+that cannot say _we no longer track this security_ would be dropping the only
+thing that field is for.
+
+### The finding: every `BAD_REQUEST` on this endpoint is a refusal, and so is `NOT_FOUND`
+
+The task's amendment says the collapse tests for a refusal **before** the
+retryable branch, and that `FRONTEND-STATE.md` §4's `BAD_REQUEST` row governs
+only a `BAD_REQUEST` this client did not recognise as a refusal. Reading the
+server settles what that leaves:
+
+- `parseSeriesRequest` produces **five** refusals — malformed symbol, malformed
+  timeframe, malformed window, a window outside the calendar, and the
+  10,000-bar cap — and all five are a `400 BAD_REQUEST`. The machine-readable
+  `reason` is **logged and never sent**, so this client cannot subset them.
+- It does not need to. All five are well-formed answers _about the request_,
+  each carrying a sentence written for a person, and none is a fault anybody can
+  wait out. So **there is no reachable `BAD_REQUEST` on this endpoint that is
+  not a refusal**, and §4's row for it governs `/securities` and nothing here.
+- `NOT_FOUND` — a symbol we do not track — is the same kind of thing: an answer
+  about the request rather than about the market or the server. It is `refused`
+  too, and a **reversal trigger** is recorded below.
+
+`refused` therefore carries the server's `message` **verbatim** and nothing else.
+Not a rewritten sentence: the numbers in it are the server's own arithmetic, and
+a client that re-words _"that window is 98,280 bars and one response carries at
+most 10,000"_ into _"too much data"_ is inventing prose about a calculation it
+did not do. No `retryable` flag, because waiting never helps and saying so would
+imply it might otherwise. No `requestId`, because the rule is that an id appears
+only beside a failure the user is already being told about, and a refusal is not
+a failure.
+
+### The hole nobody was checking, and where it was closed
+
+Found while writing three lines of the mapper, and it is the kind that is
+invisible: **`new Date("nonsense")` is an `Invalid Date` rather than a throw, and
+an invalid instant compares as neither before nor after anything.** So a bar
+built from one passes `toBarSeries`' ascending check, and passes both of its
+range checks too — `NaN < start` is false and `NaN >= end` is false — which makes
+it a member of every window ever asked for and puts it on a chart as a point with
+no position.
+
+`toTimeRange` has always refused an invalid end. Nothing refused a **bar's**
+instant.
+
+The guard went into **`toBarSeries` in `packages/shared`**, not into the mapper
+that found it, because the mapper is not the only call site:
+`apps/backend/src/alpaca-mapping.ts` does `new Date(bar.t)` on a vendor field and
+the bar it builds is **stored**. A check written where it was noticed would have
+left the worse of the two paths open — the same argument `api-client.ts` makes
+about predicates, arriving from the other direction. `bar-series.ts`' list of
+what it checks gained a bullet with the date and the reason; both call sites now
+pass bare `new Date(...)` calls in, deliberately.
+
+### The coherence check landed, and its failure is a `failed` rather than an `unreadable-body`
+
+Task 2.10.3's relocated obligation, discharged: nothing in this module reads a
+payload field into a domain object by hand. `toDomainSeries` goes through
+`toTicker`, `toTimeRange`, `toSeriesProvenance`, `mergeSeriesProvenance` and
+`toBarSeries` — the same constructors the backend builds its answers with — so
+the bars ascend, the sources' `barCount`s sum to the bars, `covered` is null
+exactly when the series is empty, every bar starts inside `covered`, and
+`covered` lies inside `requested`, all checked on the way in.
+
+A throw from any of them becomes `failed` / `answered-badly`, **not retryable**.
+Not `refused` — nobody asked for anything wrong — and not `unreadable-body`'s
+reading, whose documented meaning is _something that is not this API is answering
+at this address_ and which points the next reader at the wrong half of the
+system. This is our own server with a bug.
+
+The thrown sentence is **not** put on the state: it names checks, fields and
+instants, which is developer detail and is exactly what `ErrorFallback` keeps a
+boolean in order to make unshowable. It is written to the console instead, with
+the `requestId`, because the alternative is swallowing the one sentence that says
+_which_ check failed — and swallowing it is how that bug stays invisible. A test
+asserts both halves: the state, and that the report happened and names the check.
+
+### Verified
+
+- `pnpm verify` passes — build, lint, format, stories, env, links, **1,187
+  tests** (237 shared, 650 backend, 286 frontend, 14 process).
+- The `loaded`-without-bars compile error was **produced** and is quoted above;
+  the scratch file was then deleted.
+- The lint boundary was checked by **both** directions on one file: a deep
+  import into `market/` errors, and moving the rule into a block of its own
+  silently disables the `node:*` restriction beside it. Both measured, the
+  second reverted.
+- `grep -rn "fetch(" apps/frontend/src` returns **one file**, `api-client.ts`,
+  at one line. Story 2.10's acceptance criterion 1 still holds.
+- `aborted` produces no state, asserted by identity (`toBe`) from two different
+  previous states rather than by equality — nothing is constructed at all.
+- One thing the tests could not tell me and `tsc` did: the fixtures were written
+  with `securityStatus: "tracked"`, which is not a member of `SecurityStatus`
+  (`active` | `untracked`). **Vitest passed all 14 anyway**, because a test run
+  is not a typecheck. `pnpm verify` caught it in the build step. A small live
+  instance of this repository's rule that a green test suite is evidence of
+  less than it looks like.
+- Not run: `pnpm e2e`. Nothing rendered changed — no route, no component, no
+  stylesheet — and the browser suite asserts what is on screen.
+
+### Reversal triggers
+
+- **`refused` splits** at the first surface that offers an _action_ for an
+  unknown security rather than a sentence — Story 2.11's search is the likely
+  one. "Ask for a narrower window" and "search for the security you meant" are
+  the same shape today and stop being so the moment the second has a control.
+- **The two failure members split** at the first failure a reader of _this
+  screen_ can act on differently. A coherence failure and a 500 are different
+  bugs and the same instruction, which is why they share a member now.
+- **The module grows directories** when a namespace inside it holds more than a
+  couple of files.
+
+---
+
+## For the stakeholders — a status report in plain English
+
+### Where the product is
+
+MarketPulse today shows a list of 518 companies with a real last price and a real
+change, drawn from roughly 48 million minute-by-minute price records we hold on
+our own servers. It still cannot draw a chart. The distance between _"the prices
+are on our server"_ and _"you can look at them"_ is a short run of small,
+unglamorous, load-bearing pieces, and this was the fourth of them. Two more and
+there is something on screen.
+
+### What this task built
+
+**A vocabulary for every way a price request can turn out** — and the first
+proper home for the market side of the application.
+
+Nothing visible. Stated plainly, as this project requires.
+
+### The one idea worth understanding
+
+When you ask a financial application for "the last five days of NVDA", there are
+more possible outcomes than _it worked_ and _it broke_, and the interesting ones
+are in between:
+
+- **We have all of it.**
+- **We have most of it.** We hold data up to 3:42pm and you asked for up to now.
+  Our data supplier withholds the most recent quarter of an hour on the free
+  plan, and our own overnight top-up runs once a day. This is the **normal**
+  case, not a rare one.
+- **We have none of it**, for that company over that period — and that is a
+  correct answer, not a fault.
+- **We won't answer that.** You asked for a year of minute-by-minute data, which
+  is 98,280 individual records; we cap a single answer at 10,000 and we refuse
+  rather than quietly sending less.
+- **Something went wrong**, and there are two versions: nothing answered at all,
+  or something answered badly.
+
+Most applications collapse the middle three into either "loading forever" or a
+red error box. Both are lies. A chart that shows four and a half days when you
+asked for five, and says nothing about it, is the worse of the two — it looks
+completely correct.
+
+This task made those outcomes **named states in the code**, in a form where the
+nonsensical combinations cannot be written down at all. A screen cannot claim to
+have loaded data it does not have: that is now a build failure, and we produced
+the failure to prove it rather than asserting it in a comment. And where we hold
+part of a window, the application keeps **both** numbers — what you asked for and
+what we have — because "we have data through 3:42pm" is a sentence you can only
+write if somebody kept the 3:42.
+
+### Three decisions worth explaining
+
+**We show the server's own sentence when it refuses.** When the cap is hit, our
+server replies with the actual arithmetic: _"that window is 98,280 bars and one
+response carries at most 10,000."_ The application passes that through
+unchanged. The temptation is to write friendlier prose in the interface — "too
+much data" — and that is a downgrade: it takes a number the user can act on and
+replaces it with a shrug.
+
+**A refusal is not an error, and it does not get a "try again" button.** Asking
+for too much data is a well-formed answer about your request. A retry button
+under it would be a lie the user pays for twice — pressing it produces the same
+refusal. Where waiting genuinely _does_ help, we say so and offer the button;
+that distinction was built two tasks ago and this one spells it identically, so
+two screens can never disagree about what the same failure means.
+
+**We check our own server's arithmetic before we draw anything.** The response
+now goes through the same validators the server used to build it: the timestamps
+must ascend, the record of where each price came from must account for every
+price, and the window we claim to cover must fit inside the window you asked
+for. If any of that disagrees, we say the series could not be read rather than
+charting it. This is deliberately distrustful of our own code, and it is cheap
+insurance: a chart drawn from subtly wrong data looks exactly like a chart drawn
+from right data.
+
+### A bug caught on the way past
+
+Writing the above turned up something that had been true since the price
+storage was built and that nothing would have reported. A timestamp that cannot
+be understood — a supplier sending something malformed — produces a special
+"invalid" value that, when compared to any other date, answers _neither earlier
+nor later_. Every one of our existing ordering checks therefore let it through:
+it was, technically, inside every time window ever requested.
+
+The fix went into the shared foundation rather than into the screen that found
+it, because the same weakness sat on the path that **stores** prices from our
+supplier — a bad timestamp there would have been written to the database rather
+than merely shown once. It is one guard and one test, and it is the sort of
+thing that is nearly free to fix now and expensive to find later, when the
+symptom is a chart with a point in the wrong century.
+
+### What this unlocks
+
+The next task connects this vocabulary to the screen: fetching, cancelling a
+request when the user navigates away, and keeping a price series in memory so
+that flicking between two companies does not refetch. The one after that builds
+the test harness. Then — two tasks later — a real price series appears on screen
+for the first time, deliberately as a panel of stated facts rather than a chart,
+so that when the chart arrives in Story 2.12 it is drawn on a foundation already
+known to be correct.

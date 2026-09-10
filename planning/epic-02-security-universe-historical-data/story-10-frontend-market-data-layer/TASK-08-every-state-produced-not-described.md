@@ -156,3 +156,31 @@ difference between a demo and a product.
 - A state that is re-entered — a retry or a refetch landing where it started — is
   still announced, or the decision not to announce it is recorded with its reason
 - `pnpm verify` and `pnpm e2e` both pass
+
+---
+
+## Amended 2026-09-10 by Task 2.10.4 — the union is six wide, and one member takes no control
+
+- **Six members, and three of them are answers.** `loaded`, `partial` and
+  `empty` are all 200s. `refused` is a fourth kind of thing — a well-formed
+  answer about the request — and only `failed` is a failure.
+- **`refused` must not acquire a retry control.** It carries no `retryable` flag
+  by design: waiting never helps, and offering the button is a lie the user pays
+  for twice. Both refusals name their number or their range because the state
+  keeps the server's sentence verbatim, so "both refusals name their number" in
+  the criteria above is satisfied by rendering `message` rather than by writing
+  new copy.
+- **How to produce each member from a named cause**, since the criteria ask for
+  causes rather than descriptions. `refused` (cap): ask for `1m` over a year —
+  the server computes the bar count and names it. `refused` (calendar): ask for a
+  window in 2029. `refused` (unknown security): ask for a symbol not in the
+  universe — it arrives as `NOT_FOUND` and is a refusal, not a failure. `empty`:
+  a tracked security with no stored bars in the window. `partial`: any window
+  reaching to now, which is the default case. `failed` / `unreachable`: stop the
+  backend. `failed` / `answered-badly`: the fixture backend Task 2.10.6 builds is
+  the only comfortable way to produce the coherence failure — a body shaped like
+  the contract whose bars do not ascend.
+- **A coherence failure looks exactly like a 500 on screen**, and that is
+  deliberate: the diagnosis differs, the user's action does not. The sentence
+  naming which check failed goes to the console with the `requestId`, never to
+  the screen.

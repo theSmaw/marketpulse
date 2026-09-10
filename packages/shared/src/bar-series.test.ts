@@ -99,6 +99,31 @@ describe("toBarSeries", () => {
     );
   });
 
+  it("refuses a bar whose instant is not a valid Date", () => {
+    // Added 2026-09-10 by Task 2.10.4, which found the hole while writing the
+    // frontend's mapper. The check below it cannot catch this: an invalid Date
+    // compares as neither before nor after anything, so a single bar built from
+    // `new Date("nonsense")` ascends fine, sits inside every covered range, and
+    // reaches a chart as a point with no position. Both call sites — the
+    // frontend parsing a response, and `alpaca-mapping.ts` on a vendor's `t` —
+    // build one from a string they did not write.
+    const invalid: Bar = { ...barAt(0), startsAt: new Date("nonsense") };
+
+    expect(() =>
+      toBarSeries(
+        input({
+          bars: [invalid],
+          provenance: toSeriesProvenance("raw", {
+            provider: "fixture",
+            feed: "synthetic",
+            retrievedAt: "2026-09-07T13:30:00.000Z",
+            barCount: 1,
+          }),
+        }),
+      ),
+    ).toThrow(/invalid startsAt/);
+  });
+
   it("refuses bars that are not strictly ascending", () => {
     expect(() => toBarSeries(input({ bars: [barAt(2), barAt(1)] }))).toThrow(
       /strictly ascending/,
