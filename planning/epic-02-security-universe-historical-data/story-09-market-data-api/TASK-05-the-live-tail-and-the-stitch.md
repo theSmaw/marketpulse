@@ -33,6 +33,18 @@ a task rather than a bullet, and it is what its tests are mostly about.
   "ask the provider for the whole window on demand", which was the option nobody
   wanted, and it is invisible in a test that only checks the bars came back right.
 
+  **`covered_end` is `StoredSeries.held.covered.end`, and `held` can be
+  `undefined` — added 2026-09-09 by Task 2.9.4, which built the read.**
+  `readSeries` returns `{ series, held }`, where `held` is the **ledger row** and
+  is absent exactly when we hold nothing at all for that `(symbol, timeframe)`.
+  Read the tail's start from there rather than from `series.coverage.covered`,
+  which is `null` on every empty answer and would give a nullable field two
+  meanings. **The absent case has no `covered_end` to start from and this task
+  owes it an answer** — a symbol we have never backfilled is not the same request
+  as one whose store is two days behind, and "fetch from `undefined`" is the shape
+  that becomes "fetch the whole window", which is the option nobody chose. The
+  session bound below is what keeps that honest whichever way it is answered.
+
 - **Clamp the tail to what the plan will actually serve.** `ALPACA.md` §10's
   recency cliff keys on `end` **alone** and refuses the **whole** request rather
   than trimming it, so an unclamped mid-session fetch returns nothing at all.
@@ -78,6 +90,17 @@ a task rather than a bullet, and it is what its tests are mostly about.
   **mechanism** — two sources, counts summing, both feeds preserved — with a stub
   provider declaring a different feed.
 
+  **Do not merge the stored half's provenance when the stored half is EMPTY —
+  added 2026-09-09 by Task 2.9.4.** `SeriesProvenance.sources` is a non-empty
+  tuple, so an empty stored answer still carries **one** source, whose `barCount`
+  is `0` and whose `provider`/`feed` come from a module constant rather than from
+  the ledger — because with no ledger row there is nothing that knows. Merging it
+  with a real tail produces a two-source record whose first source describes
+  nothing and is not a fact, and `MARKET_FEED_DESCRIPTIONS` would render it in
+  Story 2.14 beside the source that is. Use the tail's own provenance alone when
+  the stored half has no bars. The counts still have to sum, which is what
+  `toBarSeries` checks and what makes getting this wrong loud rather than subtle.
+
   **The wire half of that is already built and asserted, so this task does not
   touch the contract (added 2026-09-09 by Task 2.9.3).**
   `SeriesProvenancePayload.sources` is an array in both the type and the schema,
@@ -91,6 +114,22 @@ a task rather than a bullet, and it is what its tests are mostly about.
   `toSeriesProvenance` and `mergeSeriesProvenance`, and is re-established on the
   way in by Story 2.10's predicate.
 
+- **The fetched tail is SERVED and not STORED, and the write path now enforces
+  that rather than trusting it — added 2026-09-09 by Task 2.9.4.** The instinct at
+  the end of this task is to keep what was just fetched: it was paid for, it is a
+  metered request, and Task 2.9.8 is about not paying twice. **`recordSeries` will
+  refuse it**, and the refusal is correct rather than an obstacle to route around.
+  `0007_bar_coverage_provenance.sql` stores one `provider`/`feed` per
+  `(security, timeframe)` window, so the write throws `ForeignSourceError` when
+  an arriving series' source disagrees with the ledger row it would extend, and
+  again when a **stitched** series names two sources for one window. That is
+  `0004_market_bars.sql`'s trigger for a per-bar `feed` column firing at the
+  moment a second feed tries to enter the store, which is exactly what it was
+  written for. Storing the tail is a decision for the story that adds the per-bar
+  column — Epic 3 — and not a side effect of a read path. Task 2.9.8's caching is
+  where the metered request is bounded instead, and it is bounded **in front of**
+  the store rather than inside it.
+
 - **Test with a stub provider and no network.** `fixture-provider.ts` is the
   precedent and `retry-provider.ts` shows the wrapper shape. `pnpm verify` must
   stay runnable with no server, no database, no network and no credentials; the
@@ -100,6 +139,9 @@ a task rather than a bullet, and it is what its tests are mostly about.
 
 - A window ending after `covered_end` returns one series spanning both halves,
   with `provenance.sources` naming each and the counts summing
+- A window for a symbol the store holds **nothing** for is answered explicitly
+  rather than by arithmetic on an absent `held`, and the tail it fetches (if any)
+  is the only source in the resulting record
 - A gap older than the current session issues **no** provider call, asserted, with
   the assertion made to fail once
 - A provider failure yields the stored part with honest coverage rather than a

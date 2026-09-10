@@ -78,7 +78,18 @@ work to be proved end to end.
   `/securities` and `/market-data` all follow that split; this bullet's original wording
   described only the first half
 - **Provenance in the payload**, per Story 2.6 — the response says which feed it came from
-  and whether it is adjusted, so the UI cannot render market data without knowing
+  and whether it is adjusted, so the UI cannot render market data without knowing.
+  **Amended 2026-09-09 by Task 2.9.4: satisfying this bullet took a MIGRATION, which this
+  scope did not anticipate.** `0004_market_bars.sql` deliberately stores no per-bar
+  provenance, so "the response says which feed it came from" had nothing to read.
+  `0007_bar_coverage_provenance.sql` puts `provider` and `feed` on the **ledger** —
+  ~1,036 rows rather than forty-eight million — after the cheap alternative, a constant
+  asserted at the read boundary, was **measured false**: a shipped command writes fixture
+  bars into a real store, and the constant would have labelled invented prices as the full
+  consolidated tape. So this story owns a schema change as well as a wire contract, which is
+  worth knowing for anyone reading the scope list as an inventory of the work.
+  [`MARKET-DATA-API.md`](MARKET-DATA-API.md) §10 carries the four candidates, the
+  `min`-versus-`max` choice for `retrievedAt`, and the reversal trigger
 - Partial answers as first-class results (§36): "we have data through 15:42" and "we have
   nothing for this symbol" are answers, not errors, and the contract must be able to say
   them without using an error code
@@ -330,6 +341,15 @@ temporal seam does real work, and it inherits a problem `readBars`' own comment
 names and leaves open: the store deliberately holds **no** provenance, and a
 series cannot exist without it.
 
+**It ran on 2026-09-09 and the answer was a migration rather than an assertion.**
+Recorded here because two later tasks inherit it. `0007_bar_coverage_provenance.sql`
+puts `provider` and `feed` on `bar_coverage`; the read builds a `BarSeries` from the
+ledger's source and `min(market_bars.recorded_at)`, never from the clock; and
+`recordSeries` now **refuses** a series whose source disagrees with the ledger row it
+would extend, or which names two sources for one window. That last one is the constraint
+Task 2.9.5 has to design around: **the tail it fetches is served and cannot be stored**,
+and the metered request is bounded in front of the store by 2.9.8 rather than inside it.
+
 **2.9.7 is the payoff, and it is the last close on `/securities` rather than a
 chart.** It rides on a response the page already fetches, so it pre-empts neither
 Story 2.10's state decision nor Story 2.12's charting decision, and it is the
@@ -344,7 +364,7 @@ measurement against 48 million rows, and because its result may change Story
 | [2.9.1](TASK-01-settle-the-contract-decisions.md)                       | Namespace, windows, downsampling, caps, the read-side join | No                      |
 | [2.9.2](TASK-02-the-request-contract-and-the-window.md)                 | Symbol, timeframe, window — parsed, validated, refused     | No                      |
 | [2.9.3](TASK-03-the-response-contract.md)                               | The wire shape, guarded at every nesting level             | No                      |
-| [2.9.4](TASK-04-the-read-and-the-provenance-the-store-does-not-hold.md) | Rows → `BarSeries`, and where provenance comes from        | No                      |
+| [2.9.4](TASK-04-the-read-and-the-provenance-the-store-does-not-hold.md) | Rows → `BarSeries`, and where provenance comes from ✅     | No                      |
 | [2.9.5](TASK-05-the-live-tail-and-the-stitch.md)                        | The uncovered tail, merged and labelled                    | No                      |
 | [2.9.6](TASK-06-the-route.md)                                           | The endpoint, and every way it can fail                    | **A URL, not a screen** |
 | [2.9.7](TASK-07-the-first-real-price-on-screen.md)                      | Last close on `/securities`                                | **Yes — the payoff**    |

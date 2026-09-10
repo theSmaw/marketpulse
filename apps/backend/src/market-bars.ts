@@ -52,10 +52,14 @@ import type pg from "pg";
 import {
   marketDateAt,
   marketSessionsBetween,
+  toBarSeries,
+  toSeriesProvenance,
   toTicker,
   toTimeRange,
   type Bar,
   type BarSeries,
+  type MarketFeed,
+  type ProviderId,
   type Ticker,
   type Timeframe,
   type TimeRange,
@@ -148,6 +152,21 @@ export interface BarCoverage {
    * 2.8.7 keeps them in separate columns and this is why it can.
    */
   readonly covered: TimeRange;
+
+  /**
+   * Who sold us the bars in {@link covered}, and which venues are in them
+   * (`0007_bar_coverage_provenance.sql`).
+   *
+   * **The fact `market_bars` deliberately does not store, held once per series
+   * instead of once per row.** It is what lets {@link toStoredSeries} build a
+   * `BarSeries` out of stored rows at all, and it is a stored fact rather than
+   * an assertion at the read boundary — which matters because a store holding
+   * `fixture`/`synthetic` bars is something this repository creates on purpose.
+   *
+   * Not a `BarSource`: that type also carries `retrievedAt` and `barCount`, and
+   * both are answers about a *served window* rather than about the ledger's.
+   */
+  readonly source: { readonly provider: ProviderId; readonly feed: MarketFeed };
 
   /** How many bars we hold inside {@link covered}. A read, never a `count(*)`. */
   readonly barCount: number;
@@ -346,6 +365,377 @@ export function toBar(row: BarRow): Bar {
 }
 
 /**
+ * Who sold us a window's bars, and which venues are in them — the pair the
+ * ledger stores and `market_bars` deliberately does not.
+ *
+ * A pair rather than a {@link BarSource}: that type also carries `retrievedAt`
+ * and `barCount`, which are answers about a *served* window rather than about a
+ * stored one.
+ */
+export interface SeriesSource {
+  readonly provider: ProviderId;
+  readonly feed: MarketFeed;
+}
+
+/**
+ * What a series says it came from when the store has **no row** to say it with.
+ *
+ * Not the general answer, and the general answer is the interesting part. See
+ * `0007_bar_coverage_provenance.sql`: `market_bars` stores no per-bar
+ * provenance, `bar_coverage` stores it per `(security, timeframe)`, and
+ * {@link toStoredSeries} reads it from there. This constant covers the one case
+ * the ledger cannot: an answer holding **no bars at all**, for a pair the
+ * ledger has never had a row for.
+ *
+ * `SeriesProvenance.sources` is a non-empty tuple, so such an answer still owes
+ * one source — and that source's `barCount` is `0`, so what these two fields
+ * describe is nothing. They are not a claim about data; a claim about data
+ * requires data. The alternative was to make the field nullable throughout
+ * `packages/shared` so that "we hold nothing" could be spelled with no source at
+ * all, which is a change to the domain model of every series in the product to
+ * express a case the wire already distinguishes with `bars: []` and
+ * `coverage.covered: null`.
+ */
+const SOURCE_OF_NOTHING: SeriesSource = { provider: "alpaca", feed: "sip" };
+
+/**
+ * What has been done to the prices in this table: **nothing**.
+ *
+ * `market-provenance.ts` names the store as `raw`'s reader in terms — it holds
+ * raw bars and never rewrites one because of a corporate action, which is what
+ * Epic 13's replay needs and what Epic 5's percentile windows will have to
+ * adjust for themselves. There is deliberately no default adjustment anywhere
+ * in `packages/shared` (acceptance criterion 5 of Story 2.6), so this is a
+ * statement about this table rather than a fallback.
+ */
+const STORED_BAR_ADJUSTMENT = "raw";
+
+/**
+ * A series' source disagrees with the ledger row it would extend, or with
+ * itself.
+ *
+ * **This is `0004_market_bars.sql`'s trigger firing per series rather than
+ * being noticed later by a person.** That migration stores no per-bar
+ * provenance and names its reversal condition as *a second feed writing into
+ * this table*; `bar_coverage` holds one source per `(security, timeframe)`, so
+ * the moment a second one writes into one series there is no row that can
+ * describe it truthfully.
+ *
+ * A throw rather than a relabel and rather than a silent accept, because both
+ * alternatives end in the same place: rows in `market_bars` that the ledger
+ * then misdescribes to every reader, with nothing able to tell them apart from
+ * the rows it describes correctly. That is invariant 6 failing without anything
+ * going red — the shape this story's task file warns against resolving with a
+ * shrug.
+ *
+ * It is **not** only a tripwire for Epic 3. It is what stops the case that
+ * exists today: `pnpm backfill` under `MARKET_DATA_PROVIDER=fixture` stores
+ * invented prices, and appending them to a window already filled from a real
+ * feed would put both under one label.
+ */
+export class ForeignSourceError extends Error {
+  readonly provider: ProviderId;
+  readonly feed: MarketFeed;
+
+  constructor(
+    symbol: Ticker,
+    timeframe: Timeframe,
+    provider: ProviderId,
+    feed: MarketFeed,
+    held: SeriesSource | "itself",
+  ) {
+    super(
+      held === "itself"
+        ? `This ${symbol} ${timeframe} series names more than one source, and ` +
+            `one of them is ${provider}/${feed}. The ledger holds one source ` +
+            `per security and timeframe, so a stitched series cannot be ` +
+            `stored as one window — record each part against the window it ` +
+            `actually covers.`
+        : `This ${symbol} ${timeframe} series came from ${provider}/${feed} ` +
+            `and the store already holds ${held.provider}/${held.feed} for the ` +
+            `same series. \`market_bars\` stores no per-bar provenance, so the ` +
+            `two would be indistinguishable afterwards and every bar in the ` +
+            `window would be served under one label. If a second feed now ` +
+            `writes here, this is the trigger \`0004_market_bars.sql\` records ` +
+            `for a per-bar feed column.`,
+    );
+    this.name = "ForeignSourceError";
+    this.provider = provider;
+    this.feed = feed;
+  }
+}
+
+/**
+ * The one source a series names, or a refusal if it names more than one.
+ *
+ * A stitched series — `mergeSeriesProvenance`'s output, which Task 2.9.5
+ * produces routinely — has several, and the honest way to store one is to
+ * record each part against the window it actually covers. Silently taking the
+ * first is how both halves end up under one label.
+ */
+function singleSourceOf(series: BarSeries): SeriesSource {
+  const [first, ...rest] = series.provenance.sources;
+
+  for (const other of rest) {
+    if (other.provider !== first.provider || other.feed !== first.feed) {
+      throw new ForeignSourceError(
+        series.symbol,
+        series.timeframe,
+        other.provider,
+        other.feed,
+        "itself",
+      );
+    }
+  }
+
+  return { provider: first.provider, feed: first.feed };
+}
+
+/**
+ * Bars exist for a window the ledger makes no statement about.
+ *
+ * The mirror of {@link CoverageGapError}, on the read side, and the reason it
+ * is a throw is that the alternative is a **fabricated coverage claim**: with
+ * no ledger row there is nothing to say how far the answer reaches, and the
+ * only ways to produce one are to derive it from the bars themselves — which
+ * turns a thin name's quiet hour into a partial answer, the exact conflation
+ * `BarCoverage.covered` is documented to avoid — or to claim the whole
+ * requested window, which is a false statement about data we do not have.
+ *
+ * It is unreachable through {@link MarketBarsRepository.recordSeries}, which
+ * writes bars and ledger in one transaction. It is reachable by anything that
+ * deletes from `bar_coverage` alone, and that is one of the two silent failures
+ * this module's header exists to describe — so it becomes a 500 rather than a
+ * plausible chart.
+ */
+export class MissingCoverageError extends Error {
+  readonly symbol: Ticker;
+  readonly timeframe: Timeframe;
+
+  constructor(symbol: Ticker, timeframe: Timeframe, barCount: number) {
+    super(
+      `The store holds ${String(barCount)} ${timeframe} bar(s) for ${symbol} ` +
+        `in this window and the ledger holds no row for the pair, so there is ` +
+        `nothing that can say how far the answer reaches. Bars and ledger are ` +
+        `written in one transaction, so this is a store that has been edited ` +
+        `around the writer.`,
+    );
+    this.name = "MissingCoverageError";
+    this.symbol = symbol;
+    this.timeframe = timeframe;
+  }
+}
+
+/**
+ * A `market_bars` row with the one bookkeeping column the served read needs.
+ *
+ * `recorded_at` is not part of a {@link Bar} and never will be — a bar is what
+ * the market did — but it is the only per-row fact in this schema that answers
+ * *when did we fetch this*, and {@link toStoredSeries} turns it into the
+ * series' `retrievedAt`.
+ */
+export type DatedBarRow = BarRow & { readonly recorded_at: Date };
+
+/** Everything {@link toStoredSeries} needs, which is one query's worth of it. */
+export interface StoredSeriesInput {
+  readonly symbol: Ticker;
+  readonly timeframe: Timeframe;
+
+  /** The window the caller asked for. Reported back as `coverage.requested`. */
+  readonly requested: TimeRange;
+
+  /** The rows inside {@link requested}, ascending. */
+  readonly rows: readonly DatedBarRow[];
+
+  /** The ledger's statement about the pair, or `undefined` if there is none. */
+  readonly held: BarCoverage | undefined;
+
+  /**
+   * The instant of the read, used **only when the answer holds no bars**.
+   *
+   * Injected rather than read from the clock so the one branch that touches it
+   * is visible at the call site and assertable in a test. See
+   * {@link toStoredSeries} for why an empty answer is the one case where this
+   * is not the trap `BarSource.retrievedAt` warns about.
+   */
+  readonly now: Date;
+}
+
+/**
+ * Stored rows → a {@link BarSeries}, **including the provenance
+ * `market_bars` does not hold** (Task 2.9.4).
+ *
+ * Pure, exported and unit-tested without a socket, for `toBar`'s reason: the
+ * interesting half of this function is a set of decisions about what to claim,
+ * and a decision that can only be exercised through a database is a decision
+ * nobody exercises.
+ *
+ * ## `provider` and `feed` come off the ledger, not off a constant here
+ *
+ * `0004_market_bars.sql` stores no per-bar provenance and that is unchanged —
+ * four columns on forty-eight million rows are forty-eight million copies of two
+ * constants. `0007_bar_coverage_provenance.sql` stores them on `bar_coverage`
+ * instead, ~1,036 rows, and the reason it is stored rather than asserted here is
+ * a measurement rather than a preference: `backfill.database.test.ts` drives the
+ * shipped backfill with the **fixture** provider into a real database, so a
+ * store holding `fixture`/`synthetic` bars is something this repository creates
+ * on purpose. A constant asserting `alpaca`/`sip` would label invented prices as
+ * the full US consolidated tape.
+ *
+ * ## `retrievedAt` comes from `recorded_at`, and is never stamped now
+ *
+ * **The rule first, because it is the one that matters:** a read path that
+ * stamps `retrievedAt` when it serves stored bars turns *"these bars were
+ * fetched three weeks ago"* into *"these bars are current"*.
+ * `market-provenance.ts` warns about it in terms, and Task 2.3.5 already found
+ * the same trap once — a provenance date defaulted to `now()` is permanently
+ * silent, unable to report the one thing it exists to report.
+ *
+ * So the value is `min(recorded_at)` **over the rows actually returned**, and
+ * each half of that is a choice:
+ *
+ *  - **`recorded_at` rather than `bar_coverage.updated_at`.** The ledger's
+ *    timestamp is scoped to the whole series, so a catch-up appending today's
+ *    bars moves it for a window fetched a year earlier — it overstates the
+ *    freshness of everything it covers. `recorded_at` is scoped to the window
+ *    being served, and it is *already* per-retrieval rather than per-row:
+ *    {@link BAR_COLUMNS} lets it default to `now()`, which is transaction start,
+ *    so every bar one batch wrote shares one value and **the batch is the
+ *    retrieval**. That is exactly what invariant 5 asks a provenance record to
+ *    carry.
+ *  - **`min` rather than `max`.** A window can span several batches — measured
+ *    on 2026-09-09 against the local store, five sessions of `NVDA` minute bars
+ *    are six batches spanning 13 seconds — and a single-source record has one
+ *    timestamp for all of them. `max` reports the freshest and understates the
+ *    staleness of the rest, which is the same failure as the ledger's, smaller.
+ *    `min` cannot overstate freshness. The alternative that reports both truly
+ *    is one source per batch, and it is refused: a year of daily backfill would
+ *    put ~250 sources on the wire, and `sources` is the field Story 2.14 renders
+ *    to say *part IEX, part consolidated tape*.
+ *
+ * **The empty answer is the one case that uses {@link StoredSeriesInput.now},
+ * and it is not the trap above.** `SeriesProvenance.sources` is a non-empty
+ * tuple, so a series with no bars still owes one source; the source's
+ * `barCount` is then `0`, and a retrieval timestamp attached to zero bars can
+ * misdate nothing. What it states is true: as of this instant, we looked and
+ * held nothing. The rejected alternative was the ledger's `updated_at`, which
+ * would attribute a real past retrieval to an answer that contains none of it.
+ *
+ * ## `covered` comes from the ledger, and `null` when the answer is empty
+ *
+ * `BARS.md` §9.1: coverage is read from `bar_coverage`, never by counting
+ * `market_bars` — a page load that scanned forty-eight million rows would
+ * arrive in Task 2.9.9's timings as a mystery with no obvious author. So a
+ * non-empty answer covers the **intersection** of what was asked for with what
+ * the ledger says we hold, which is *"how far this answer reaches"* rather than
+ * *"where the bars happen to stop"*. The distinction is the one
+ * {@link BarCoverage.covered} already draws and is not cosmetic: Task 2.8.5
+ * measured that only 8 of 28 S&P 500 constituents print a full 390 minutes in a
+ * session, so deriving `covered` from the bars would report a quiet hour in a
+ * thinly traded name as a partial answer.
+ *
+ * An **empty** answer covers `null`, in both directions, because
+ * {@link toBarSeries} requires exactly that — and Task 2.9.3 measured the wire
+ * shape it produces (`covered: null`, never `""`, which the serialiser would
+ * render as a covered window). The information that gets lost — *we do cover
+ * this window and nothing traded in it* — is not lost from the caller, which
+ * receives the ledger row beside the series as {@link StoredSeries.held}.
+ */
+export function toStoredSeries(input: StoredSeriesInput): BarSeries {
+  const { symbol, timeframe, requested, rows, held, now } = input;
+
+  const bars = rows.map(toBar);
+
+  const provenance = toSeriesProvenance(STORED_BAR_ADJUSTMENT, {
+    // From the ledger, which is where `0007_bar_coverage_provenance.sql` put
+    // it. The constant is reached only when there is no ledger row at all,
+    // which is an answer holding no bars — see `SOURCE_OF_NOTHING`.
+    ...(held?.source ?? SOURCE_OF_NOTHING),
+    retrievedAt: (earliestRecordedAt(rows) ?? now).toISOString(),
+    barCount: bars.length,
+  });
+
+  if (bars.length === 0) {
+    return toBarSeries({
+      symbol,
+      timeframe,
+      bars,
+      provenance,
+      coverage: { requested, covered: null },
+    });
+  }
+
+  if (held === undefined)
+    throw new MissingCoverageError(symbol, timeframe, bars.length);
+
+  // The intersection. `toTimeRange` refuses an inverted or zero-width range, and
+  // that refusal is wanted here: bars inside a window the ledger says we do not
+  // hold is the ledger under-reporting, which is one of the two silent failures
+  // this module's header describes, and a served answer built on it would be a
+  // false coverage claim. `toBarSeries` catches the narrower version of the same
+  // disagreement — a bar outside the range this then claims.
+  const covered = toTimeRange(
+    later(requested.start, held.covered.start),
+    earlier(requested.end, held.covered.end),
+  );
+
+  return toBarSeries({
+    symbol,
+    timeframe,
+    bars,
+    provenance,
+    coverage: { requested, covered },
+  });
+}
+
+/** The oldest write time among these rows, or `undefined` if there are none. */
+function earliestRecordedAt(rows: readonly DatedBarRow[]): Date | undefined {
+  let earliest: Date | undefined;
+  for (const row of rows) {
+    if (
+      earliest === undefined ||
+      row.recorded_at.getTime() < earliest.getTime()
+    ) {
+      earliest = row.recorded_at;
+    }
+  }
+  return earliest;
+}
+
+function later(first: Date, second: Date): Date {
+  return first.getTime() >= second.getTime() ? first : second;
+}
+
+function earlier(first: Date, second: Date): Date {
+  return first.getTime() <= second.getTime() ? first : second;
+}
+
+/**
+ * A served series, with the ledger's own statement beside it.
+ *
+ * **Two fields because the route needs to tell three empty answers apart**, and
+ * a `BarSeries` alone can only express two of them. `MARKET-DATA-API.md` §6:
+ * a symbol this system does not know is a **404**; a symbol we know and hold
+ * nothing for, and a window inside which nothing traded, are both **200 with an
+ * empty series**. The first of those three is answered by the securities lookup
+ * (Task 2.9.6) and never by this read — `UNIVERSE.md` §12.2 and §7 are explicit
+ * that `status` is **not** filtered here, so an `untracked` symbol returns its
+ * stored history rather than a 404, which would be a lie about data we hold.
+ * The other two are `held === undefined` and `held !== undefined` respectively.
+ *
+ * `held` is also what Task 2.9.5 stitches against: `held.covered.end` is where
+ * the store stops and therefore the only part of the window worth asking a
+ * metered provider for.
+ */
+export interface StoredSeries {
+  /** The bars, with provenance and coverage. Possibly empty. */
+  readonly series: BarSeries;
+
+  /** The ledger's statement, or `undefined` when we hold nothing at all. */
+  readonly held: BarCoverage | undefined;
+}
+
+/**
  * Reading and writing bars.
  *
  * An interface rather than a class, for `SecuritiesRepository`'s reason: what a
@@ -400,15 +790,43 @@ export interface MarketBarsRepository {
    * into this table**, which is Epic 3's live `iex` stream against this story's
    * historical `sip`.
    *
-   * Story 2.9 owns the read contract and will meet that. What is here is the
-   * round trip the write path's own tests need — a writer whose output has
-   * never been read back is a writer nobody has checked.
+   * ~~Story 2.9 owns the read contract and will meet that.~~ **Met by
+   * {@link readSeries} (Task 2.9.4)**, which produces the missing `feed` from
+   * {@link STORED_BAR_SOURCE} rather than from a column. This one stays: it is
+   * the round trip the write path's own tests need — a writer whose output has
+   * never been read back is a writer nobody has checked — and it is the cheaper
+   * question when a caller genuinely wants bars rather than a series.
    */
   readBars(
     symbol: Ticker,
     timeframe: Timeframe,
     range: TimeRange,
   ): Promise<readonly Bar[]>;
+
+  /**
+   * The stored series for one security, timeframe and window — **the read the
+   * market-data API serves** (Task 2.9.4).
+   *
+   * {@link readBars} with the two things a wire response cannot do without: the
+   * provenance `0004_market_bars.sql` deliberately does not store, and the
+   * ledger's statement of how far the answer reaches. See
+   * {@link toStoredSeries} for where each of those comes from and what was
+   * rejected, and {@link StoredSeries} for why the ledger row travels beside
+   * the series rather than inside it.
+   *
+   * **`status` is not filtered**, deliberately — `UNIVERSE.md` §12.2's rule is
+   * that we filter when computing over the market we track *now* and never when
+   * showing something we *stored*. A symbol we have stopped tracking returns
+   * its stored history; saying otherwise would be a lie about data we hold.
+   *
+   * `now` is used only when the answer holds no bars.
+   */
+  readSeries(
+    symbol: Ticker,
+    timeframe: Timeframe,
+    range: TimeRange,
+    now: Date,
+  ): Promise<StoredSeries>;
 
   /** What we hold for one security at one timeframe, or nothing. */
   readCoverage(
@@ -450,6 +868,8 @@ interface CoverageRow {
   readonly timeframe: Timeframe;
   readonly covered_start: Date;
   readonly covered_end: Date;
+  readonly provider: ProviderId;
+  readonly feed: MarketFeed;
   readonly bar_count: string;
   readonly updated_at: Date;
 }
@@ -464,6 +884,11 @@ function toCoverage(row: CoverageRow): BarCoverage {
     symbol: toTicker(row.symbol),
     timeframe: row.timeframe,
     covered: toTimeRange(row.covered_start, row.covered_end),
+    // Both columns are `check`-constrained to the shipped vocabularies, and
+    // `pnpm test:database` compares the constraints against `PROVIDER_IDS` and
+    // `MARKET_FEEDS` — so the narrowing here is held by the database rather than
+    // asserted by this line.
+    source: { provider: row.provider, feed: row.feed },
     // `bar_count` is a `bigint` and therefore a string. Safe as a `number`:
     // 2^53 against a universe-wide ceiling of ~50.5M rows a year.
     barCount: Number(row.bar_count),
@@ -526,6 +951,8 @@ export function createMarketBarsRepository(
         "bar_coverage.timeframe",
         "bar_coverage.covered_start",
         "bar_coverage.covered_end",
+        "bar_coverage.provider",
+        "bar_coverage.feed",
         "bar_coverage.bar_count",
         "bar_coverage.updated_at",
       ])
@@ -539,6 +966,11 @@ export function createMarketBarsRepository(
   return {
     async recordSeries(series: BarSeries): Promise<BarWriteResult> {
       const { symbol, timeframe, bars, coverage } = series;
+
+      // **Before the transaction, before a round trip.** The ledger holds one
+      // source per `(security, timeframe)` window, so a series naming two
+      // cannot be recorded as one — see `ForeignSourceError`.
+      const source = singleSourceOf(series);
 
       return db.transaction().execute(async (trx) => {
         const security = await trx
@@ -560,7 +992,7 @@ export function createMarketBarsRepository(
         // (Task 2.8.6), so that window is not one anything walks into.
         const held = await trx
           .selectFrom("bar_coverage")
-          .select(["covered_start", "covered_end"])
+          .select(["covered_start", "covered_end", "provider", "feed"])
           .where("security_id", "=", securityId)
           .where("timeframe", "=", timeframe)
           .forUpdate()
@@ -599,6 +1031,21 @@ export function createMarketBarsRepository(
               missing,
             );
           }
+
+          // **`0004_market_bars.sql`'s trigger, as a mechanism.** That
+          // migration stores no per-bar provenance and names its reversal
+          // condition as a second feed writing into this table; this row can
+          // describe one source, so appending a second to the same series would
+          // put both under one label with nothing able to tell them apart.
+          if (held.provider !== source.provider || held.feed !== source.feed) {
+            throw new ForeignSourceError(
+              symbol,
+              timeframe,
+              source.provider,
+              source.feed,
+              held,
+            );
+          }
         }
 
         let inserted = 0;
@@ -619,6 +1066,7 @@ export function createMarketBarsRepository(
           timeframe,
           arriving,
           inserted,
+          source,
         );
 
         return {
@@ -654,6 +1102,53 @@ export function createMarketBarsRepository(
       return rows.map(toBar);
     },
 
+    async readSeries(symbol, timeframe, range, now) {
+      // **Bars first, then the ledger, and the order is deliberate.** The two
+      // statements run outside a transaction — `securities.ts` records the same
+      // trade-off — so under READ COMMITTED each sees its own snapshot, and a
+      // write landing between them is visible to the second only. Read this way
+      // round, the ledger a concurrent write leaves is at least as wide as the
+      // bars already in hand. The other way round it would be narrower, and
+      // `toStoredSeries` would refuse a bar outside the range it then claims,
+      // turning an ordinary race into a 500 on a page load.
+      const rows = await db
+        .selectFrom("market_bars")
+        .innerJoin("securities", "securities.id", "market_bars.security_id")
+        .select([
+          "market_bars.observed_at",
+          "market_bars.open",
+          "market_bars.high",
+          "market_bars.low",
+          "market_bars.close",
+          "market_bars.volume",
+          // The one column `readBars` does not select, and the whole reason
+          // this is a separate query rather than a wrapper around it. See
+          // `toStoredSeries`: it becomes the series' `retrievedAt`.
+          "market_bars.recorded_at",
+        ])
+        // No filter on `securities.status`. See the interface.
+        .where("securities.symbol", "=", symbol)
+        .where("market_bars.timeframe", "=", timeframe)
+        .where("market_bars.observed_at", ">=", range.start)
+        .where("market_bars.observed_at", "<", range.end)
+        .orderBy("market_bars.observed_at")
+        .execute();
+
+      const held = await coverageFor(symbol, timeframe);
+
+      return {
+        series: toStoredSeries({
+          symbol,
+          timeframe,
+          requested: range,
+          rows,
+          held,
+          now,
+        }),
+        held,
+      };
+    },
+
     readCoverage: coverageFor,
 
     async readLastBarDates(timeframe) {
@@ -684,6 +1179,8 @@ export function createMarketBarsRepository(
           "bar_coverage.timeframe",
           "bar_coverage.covered_start",
           "bar_coverage.covered_end",
+          "bar_coverage.provider",
+          "bar_coverage.feed",
           "bar_coverage.bar_count",
           "bar_coverage.updated_at",
         ])
@@ -842,6 +1339,7 @@ async function extendCoverage(
   timeframe: Timeframe,
   arriving: TimeRange,
   inserted: number,
+  source: SeriesSource,
 ): Promise<BarCoverage> {
   await trx
     .insertInto("bar_coverage")
@@ -850,6 +1348,13 @@ async function extendCoverage(
       timeframe,
       covered_start: arriving.start,
       covered_end: arriving.end,
+      // Supplied rather than defaulted. Both columns carry a database default
+      // so the *previous* backfill survives the window between the deploy's
+      // migrate step and its code roll (`0007_bar_coverage_provenance.sql`);
+      // `schema.ts` types them as required on insert so no shipped writer can
+      // reach it.
+      provider: source.provider,
+      feed: source.feed,
       bar_count: inserted,
     })
     .onConflict((oc) =>
@@ -859,6 +1364,10 @@ async function extendCoverage(
           covered_start: sql<Date>`least(bar_coverage.covered_start, excluded.covered_start)`,
           covered_end: sql<Date>`greatest(bar_coverage.covered_end, excluded.covered_end)`,
           bar_count: sql<string>`bar_coverage.bar_count + excluded.bar_count`,
+          // `provider` and `feed` are deliberately absent. The source of a
+          // window does not change; a series claiming a different one is
+          // refused above rather than relabelled here, and `schema.ts` makes
+          // updating either a compile error.
           updated_at: sql<Date>`now()`,
         }))
         .where(
@@ -897,6 +1406,8 @@ async function readCoverageRow(
       "bar_coverage.timeframe",
       "bar_coverage.covered_start",
       "bar_coverage.covered_end",
+      "bar_coverage.provider",
+      "bar_coverage.feed",
       "bar_coverage.bar_count",
       "bar_coverage.updated_at",
     ])

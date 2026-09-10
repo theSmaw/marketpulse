@@ -42,6 +42,21 @@ back to a window already looked at should not re-read 8,000 rows.
   deliberately **different** cache headers, and make the break — mark the named
   form immutable and watch a test go red.
 
+- **"A closed session never changes" is true of the BARS and not quite true of
+  the RESPONSE — added 2026-09-09 by Task 2.9.4.** That task put
+  `min(market_bars.recorded_at)` on the wire as the series' `retrievedAt`, and
+  Story 2.8's open decision 1 settled that a vendor **correction overwrites** a
+  bar and moves its `recorded_at`. So a correction landing against a closed
+  session changes both a price and the timestamp beside it, in a window this
+  task's rule would already have called immutable. That is not an argument
+  against the rule — corrections are rare, and the trigger for noticing one is
+  `BarWriteResult.corrected`, which exists precisely because it would otherwise
+  be undetectable. It is an argument about **which mechanism**: a validator
+  recomputed from the response survives a correction, and a long
+  `Cache-Control: max-age` on a closed session serves the pre-correction body for
+  its whole life with no way to clear it. Say which way this was taken and why,
+  rather than leaving "immutable" to mean two things.
+
 - **Prefer the mechanism with the smallest failure mode.** A validator (`ETag` and
   a conditional request) is cheap and correct when in doubt; a long
   `Cache-Control: max-age` on the wrong response is a wrong number a user cannot
@@ -76,7 +91,8 @@ back to a window already looked at should not re-read 8,000 rows.
 ## Done when
 
 - The immutability rule is expressed through the calendar and tested either side
-  of a session close
+  of a session close, and what a **correction** to a closed session does to a
+  cached answer is stated
 - A live-window response is asserted **not** to carry it, with the assertion made
   to fail once
 - A named window is asserted never to carry a long `max-age`, whatever it resolved

@@ -182,6 +182,12 @@ function harness(
       return Promise.resolve(result);
     },
     readBars: () => Promise.resolve([]),
+    // The backfill writes; it never serves. Task 2.9.4's read is on the
+    // interface because a caller depends on the set of questions it can ask,
+    // and this fake answers the ones this command asks.
+    readSeries: () => {
+      throw new Error("the backfill does not read series");
+    },
     readCoverage: () => Promise.resolve(undefined),
     listCoverage: () => Promise.resolve([]),
     readLastBarDates: () => Promise.resolve(new Map()),
@@ -207,6 +213,7 @@ function coverageOf(symbol: Ticker, covered: TimeRange): BarCoverage {
     symbol,
     timeframe: "1m",
     covered,
+    source: { provider: "alpaca", feed: "sip" },
     barCount: 1,
     updatedAt: new Date("2026-03-07T00:00:00.000Z"),
   };

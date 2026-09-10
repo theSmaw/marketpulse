@@ -46,8 +46,20 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
 - **Write the ADR** — the next free number after 0020, never a reused one. The
   decision worth recording is not "we added an endpoint": it is the pair the rest
   of the product inherits — **how a time window is expressed on this wire**, and
-  **what a series says about where it came from when the store deliberately holds
-  no provenance** — and, added 2026-09-09, **the read-side join**: that this
+  ~~**what a series says about where it came from when the store deliberately
+  holds no provenance**~~ — **amended 2026-09-09 by Task 2.9.4, because that
+  framing is now false and would send a reader to the wrong table.** The store
+  **does** hold provenance: `0007_bar_coverage_provenance.sql` put `provider` and
+  `feed` on `bar_coverage`, ~1,036 rows. What stays true is the shape of the
+  problem and it is the better decision to record — **`market_bars` holds none per
+  bar, on purpose, so the grain at which a product stores provenance is a
+  decision** and this story took it at the series rather than at the observation.
+  Record why the free answer was refused: a constant asserted at the read boundary
+  was **measured false**, because a shipped command writes fixture bars into a real
+  store. `MARKET-DATA-API.md` §10 has the four candidates and the trigger — and,
+  added 2026-09-09, **the migration itself is worth a line**: this story shipped
+  one, which its scope did not anticipate — and, added 2026-09-09, **the read-side
+  join**: that this
   product answers "up to now" by stitching a stored SIP history to a live tail and
   reporting both feeds, rather than by ending the chart at the last close. The cap
   and its measured basis belong in it too; the downsampling decision is the
@@ -83,6 +95,22 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   list carries the same correction already. Neither is a figure — both are live
   claims about where the contract is, and a reader sent to the wrong package is
   the cost.
+
+  **Added 2026-09-09 by Task 2.9.4 and certain rather than conditional:**
+  `market-bars.ts`'s header, which says the module is _"the bar store's write
+  path, and the ledger"_ and that _"it does not serve HTTP"_ — it now also holds
+  the serving read, and the second half of that sentence is still true only in the
+  narrow sense that the route is elsewhere; `schema.ts`'s and
+  `migrations/README.md`'s accounts of `bar_coverage`, which predate its two new
+  columns; ADR 0020, whose enumerations of what the ledger holds were written
+  before them and which wants a **dated amendment** rather than a rewrite; and
+  `PROVIDER.md`, if it anywhere says a stored series has no feed. **And one that
+  is a decision rather than a description:** `0002_securities.sql` argues that a
+  provenance column must have **no default**, and `0007` gives its two a default
+  for a deploy-window reason with the compile-time guard doing the work instead —
+  two migrations now say opposite-looking things about one convention, so
+  `migrations/README.md` should carry the rule that reconciles them rather than
+  leaving the next reader to pick one.
 
 - **Write the stakeholder section** in the shape Task 2.4.2 and 2.8.9 established:
   what this actually did in plain terms, why the small decisions went the way they

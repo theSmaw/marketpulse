@@ -488,6 +488,15 @@ function parseInstant(name: "start" | "end", raw: unknown): Parsed<Date> {
  * prints are not in it. If that ever stops being true this count is an
  * under-estimate and the cap admits a response larger than it means to — which
  * is the direction worth stating rather than discovering.
+ *
+ * **Measured 2026-09-09 by Task 2.9.4, which is the first task that could look
+ * at the rows: it holds.** Of 47,682,213 stored minute bars, **zero** fall
+ * outside the regular session — the earliest is 09:30 and the latest 15:59
+ * America/New_York, on the local 48,027,772-row store. So the count above is an
+ * upper bound rather than an under-estimate, which is the assumption this cap
+ * needed. Re-take it rather than cite it: the query is a `count(*) filter`
+ * on `(observed_at at time zone 'America/New_York')::time` against `'09:30'`
+ * and `'16:00'`.
  */
 function enforceCap(
   timeframe: Timeframe,

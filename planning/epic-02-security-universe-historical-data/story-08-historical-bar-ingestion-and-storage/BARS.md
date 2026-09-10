@@ -1228,6 +1228,17 @@ page sends the `1m` half, stated in the contract rather than implied. The daily
 depth is a different and deeper window (2024-01-01) and belongs beside the chart
 that reads it, which is Story 2.11's per-security route.
 
+**Amended 2026-09-09 by Task 2.9.4 — the ledger now holds two more columns, and
+the page does not read them.** `0007_bar_coverage_provenance.sql` adds `provider`
+and `feed`, because a `BarSeries` cannot exist without provenance and
+`0004_market_bars.sql` deliberately stores none per bar. It is on the **ledger**
+rather than on the bars for the reason the page depends on: ~1,036 rows is two
+constants stored a thousand times, where per-bar would be forty-eight million
+copies. The `/securities` payload is unchanged — what it sends is still the
+window, the timeframe and the count — and the decision, its three rejected
+alternatives and its reversal trigger are in
+[`MARKET-DATA-API.md`](../story-09-market-data-api/MARKET-DATA-API.md) §10.
+
 ### 9.2 The endpoint reconciles against the ledger exactly
 
 Read from the local store on 2026-09-09, against `psql` on the same database:

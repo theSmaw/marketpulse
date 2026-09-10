@@ -32,8 +32,11 @@ import pg from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  MARKET_FEEDS,
+  PROVIDER_IDS,
   TIMEFRAMES,
   lastMarketSessions,
+  mergeSeriesProvenance,
   toBarSeries,
   toMarketDate,
   toSeriesProvenance,
@@ -51,14 +54,19 @@ import { loadUniverse } from "./load-universe.js";
 import {
   CoverageGapError,
   createMarketBarsRepository,
+  ForeignSourceError,
   UnknownSecurityError,
   type MarketBarsRepository,
+  type SeriesSource,
 } from "./market-bars.js";
 import { runMigrations } from "./migrate.js";
 import type { BarCoverageTable, MarketBarsTable } from "./schema.js";
 
 /** The same database name the other three suites use, for the same reasons. */
 const TEST_DATABASE_NAME = "marketpulse_vitest";
+
+/** What `seriesFor` says its bars came from, and therefore what the ledger holds. */
+const STORED_SOURCE: SeriesSource = { provider: "alpaca", feed: "sip" };
 
 interface ColumnRow {
   readonly column_name: string;
@@ -159,6 +167,19 @@ const EXPECTED_BAR_COVERAGE = {
   // its behalf.
   covered_start: { dataType: "timestamp with time zone", nullable: false },
   covered_end: { dataType: "timestamp with time zone", nullable: false },
+  // Both carry a default, which `securities` deliberately refuses for its own
+  // provenance columns. `0007_bar_coverage_provenance.sql` has the argument: it
+  // exists so the *previous* backfill survives the window between the deploy's
+  // migrate step and its code roll, and `schema.ts` types both as required on
+  // insert so no shipped writer can reach it. Asserted here rather than
+  // described, because a default that quietly disappeared would take the
+  // deploy's safety with it and break nothing until a deploy.
+  provider: {
+    dataType: "text",
+    nullable: false,
+    defaultExpression: "'alpaca'::text",
+  },
+  feed: { dataType: "text", nullable: false, defaultExpression: "'sip'::text" },
   bar_count: {
     dataType: "bigint",
     nullable: false,
@@ -1442,5 +1463,422 @@ describe("the transaction, which is why these two things are one task", () => {
         "alter table bar_coverage drop constraint tmp_refuse_writes",
       );
     }
+  });
+});
+
+// The served read (Task 2.9.4). Everything above is the write path checking its
+// own round trip; this is the query `GET /market-data/bars` answers from, and
+// three of its claims are only settleable against a real server: that the
+// provenance timestamp comes off a `default now()` the *database* wrote rather
+// than off this process's clock, that `status` is genuinely not filtered, and
+// that the ledger it reports agrees with the bars it returns.
+describe("readSeries — the read the market-data API serves", () => {
+  afterEach(clearStore);
+
+  /** The instant of the read. Distinct from anything the database will write. */
+  const readAt = new Date("2030-01-01T00:00:00.000Z");
+
+  it("carries the provenance the schema does not store", async () => {
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 5 }));
+
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      toTimeRange(session.open, session.close),
+      readAt,
+    );
+
+    expect(series.bars).toHaveLength(5);
+
+    const [source, ...rest] = series.provenance.sources;
+    expect(rest).toEqual([]);
+    expect(source.provider).toBe(STORED_SOURCE.provider);
+    expect(source.feed).toBe(STORED_SOURCE.feed);
+    expect(source.barCount).toBe(5);
+  });
+
+  it("does not re-stamp retrievedAt at read time", async () => {
+    // **The assertion this task exists for.** `market-provenance.ts` warns in
+    // terms that a read path stamping this turns "fetched three weeks ago" into
+    // "current", and Task 2.3.5 found the same trap once already. The value has
+    // to come off the row's `recorded_at`, which the *database* defaulted at
+    // transaction start — so this is checkable only here, where a real `now()`
+    // ran, and only against a read clock that is nowhere near it.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+
+    const written = await db().query<{ recorded_at: Date }>(
+      "select min(recorded_at) as recorded_at from market_bars",
+    );
+    const recordedAt = written.rows[0]?.recorded_at;
+    if (recordedAt === undefined) throw new Error("nothing was written");
+
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      toTimeRange(session.open, session.close),
+      readAt,
+    );
+
+    const [source] = series.provenance.sources;
+    expect(source.retrievedAt).toBe(recordedAt.toISOString());
+    expect(source.retrievedAt).not.toBe(readAt.toISOString());
+  });
+
+  it("reports coverage from the ledger, checked against min/max/count", async () => {
+    // `BARS.md` §9.1: coverage is a read of `bar_coverage` and never a scan of
+    // `market_bars` — a page load that counted forty-eight million rows would
+    // arrive in Task 2.9.9's timings as a mystery with no obvious author. The
+    // expensive query is the control for that, exactly as it is for the write
+    // path above: it says what the bars actually are, and the served answer has
+    // to contain them without being derived from them.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 7 }));
+
+    const requested = toTimeRange(session.open, session.close);
+    const { series, held } = await repository().readSeries(
+      symbol,
+      "1m",
+      requested,
+      readAt,
+    );
+
+    const control = await db().query<{
+      first: Date;
+      last: Date;
+      count: string;
+    }>(
+      `select min(b.observed_at) as first, max(b.observed_at) as last,
+              count(*) as count
+         from market_bars b
+         join securities s on s.id = b.security_id
+        where s.symbol = $1 and b.timeframe = '1m'`,
+      [symbol],
+    );
+    const row = control.rows[0];
+    if (row === undefined) throw new Error("no control row");
+
+    expect(series.bars).toHaveLength(Number(row.count));
+    expect(held?.barCount).toBe(Number(row.count));
+
+    // Contains the bars rather than equalling their span. Seven minutes of a
+    // 390-minute session is exactly the thin-name case: the answer still
+    // reaches the whole session, because that is how far we looked.
+    const covered = series.coverage.covered;
+    expect(covered?.start.getTime()).toBeLessThanOrEqual(row.first.getTime());
+    expect(covered?.end.getTime()).toBeGreaterThan(row.last.getTime());
+    expect(covered).toEqual(requested);
+  });
+
+  it("narrows covered to where the store stops, and reports requested unchanged", async () => {
+    // The partial answer of `MARKET-DATA-API.md` §6 — "we have data through
+    // 15:42" — and the seam Task 2.9.5 stitches onto. It is a 200, and the two
+    // windows say between them exactly what is missing.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    const storedEnd = new Date(session.open.getTime() + 10 * 60_000);
+    await repository().recordSeries(
+      seriesFor(symbol, session, { count: 5, coveredEnd: storedEnd }),
+    );
+
+    const requested = toTimeRange(session.open, session.close);
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      requested,
+      readAt,
+    );
+
+    expect(series.coverage.requested).toEqual(requested);
+    expect(series.coverage.covered?.end.getTime()).toBe(storedEnd.getTime());
+  });
+
+  it("returns an untracked security's stored history, and does not 404 it", async () => {
+    // `UNIVERSE.md` §12.2 and `MARKET-DATA-API.md` §7: filter on `status` when
+    // computing over the market we track *now*, never when showing something we
+    // *stored*. Bars filed against a security we have stopped tracking are
+    // still what happened, and refusing them would be a lie about data we hold.
+    //
+    // The failure this catches is invisible in a query that omits the filter,
+    // which is why it is asserted against a real `untracked` row rather than
+    // left as a comment.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 4 }));
+    await db().query(
+      "update securities set status = 'untracked' where symbol = $1",
+      [symbol],
+    );
+
+    const { series, held } = await repository().readSeries(
+      symbol,
+      "1m",
+      toTimeRange(session.open, session.close),
+      readAt,
+    );
+
+    expect(series.bars).toHaveLength(4);
+    expect(held?.barCount).toBe(4);
+
+    await db().query(
+      "update securities set status = 'active' where symbol = $1",
+      [symbol],
+    );
+  });
+
+  it("tells four empty answers apart", async () => {
+    // The route needs all four and a `BarSeries` alone expresses two, which is
+    // why the ledger row travels beside the series. The first is not this
+    // read's to answer — `MARKET-DATA-API.md` §6: a 404 is about the SECURITY,
+    // never about the data — and it is asserted here anyway, because a read
+    // that threw on an unknown symbol would take that decision away from the
+    // route.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+    const requested = toTimeRange(session.open, session.close);
+
+    // 1. A symbol this database does not have. Empty, no ledger row, no throw.
+    //    The securities lookup is what makes it a 404 (Task 2.9.6).
+    const unknown = await repository().readSeries(
+      toTicker("ZZZZ"),
+      "1m",
+      requested,
+      readAt,
+    );
+    expect(unknown.series.bars).toEqual([]);
+    expect(unknown.held).toBeUndefined();
+
+    // 2. A security we track and hold nothing for. Same shape, different
+    //    meaning, and the difference is the securities lookup rather than this.
+    const nothing = await repository().readSeries(
+      symbol,
+      "1m",
+      requested,
+      readAt,
+    );
+    expect(nothing.series.bars).toEqual([]);
+    expect(nothing.held).toBeUndefined();
+
+    // 3. A window inside data we hold, in which nothing traded. **This is the
+    //    one the ledger row distinguishes**: an empty series again, but with a
+    //    statement beside it saying we did look this far.
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+    const quiet = await repository().readSeries(
+      symbol,
+      "1m",
+      toTimeRange(
+        new Date(session.open.getTime() + 60 * 60_000),
+        new Date(session.open.getTime() + 61 * 60_000),
+      ),
+      readAt,
+    );
+    expect(quiet.series.bars).toEqual([]);
+    expect(quiet.series.coverage.covered).toBeNull();
+    expect(quiet.held).toBeDefined();
+    expect(quiet.held?.covered.end.getTime()).toBe(session.close.getTime());
+
+    // 4. A timeframe we hold nothing at, for a security we do hold. The ledger
+    //    keys on the pair, so this is empty even though `1m` is not.
+    const daily = await repository().readSeries(
+      symbol,
+      "1d",
+      requested,
+      readAt,
+    );
+    expect(daily.series.bars).toEqual([]);
+    expect(daily.held).toBeUndefined();
+  });
+
+  it("returns bars in the window only, half-open at both ends", async () => {
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 5 }));
+
+    // [open, open+3m) is three bars: the one at open+3m is outside it.
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      toTimeRange(session.open, new Date(session.open.getTime() + 3 * 60_000)),
+      readAt,
+    );
+
+    expect(series.bars).toHaveLength(3);
+    expect(series.bars[0]?.startsAt.getTime()).toBe(session.open.getTime());
+  });
+});
+
+describe("the ledger's provenance vocabulary, and the checks that back it", () => {
+  it("permits exactly the members of PROVIDER_IDS and MARKET_FEEDS", async () => {
+    // `market_bars_timeframe_check`'s arrangement, for the same reason and with
+    // the same parse: Postgres rewrites `check (provider in (…))` as
+    // `= ANY (ARRAY[…])`, so an assertion written against the migration's own
+    // text would never match what the database holds.
+    //
+    // What it closes is the gap that makes a union in `packages/shared` and a
+    // `check` in the database two spellings of one vocabulary. It matters more
+    // here than for `timeframe`: `MARKET_FEEDS` is the invariant-6 vocabulary,
+    // so a member the database refuses is a feed the product cannot record
+    // having read.
+    for (const [constraint, vocabulary] of [
+      ["bar_coverage_provider_check", PROVIDER_IDS],
+      ["bar_coverage_feed_check", MARKET_FEEDS],
+    ] as const) {
+      const result = await db().query<{ definition: string }>(
+        `select pg_get_constraintdef(oid) as definition
+           from pg_constraint
+          where conrelid = 'bar_coverage'::regclass
+            and conname = $1`,
+        [constraint],
+      );
+
+      expect(result.rows, constraint).toHaveLength(1);
+      const permitted = [
+        ...(result.rows[0]?.definition ?? "").matchAll(/'([^']*)'::text/g),
+      ]
+        .map((match) => match[1])
+        .sort();
+
+      expect(permitted, constraint).toEqual([...vocabulary].sort());
+    }
+  });
+});
+
+describe("the source the ledger stores, and the writer that keeps it true", () => {
+  afterEach(clearStore);
+
+  it("stores the series' own source rather than a constant", async () => {
+    // The whole reason `0007_bar_coverage_provenance.sql` exists. A read
+    // boundary asserting `alpaca`/`sip` would label these invented prices as
+    // the full US consolidated tape, and `backfill.database.test.ts` proves
+    // that store is a thing this repository creates on purpose.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    const requested = toTimeRange(session.open, session.close);
+    const invented = sessionBars(session, 3);
+    await repository().recordSeries(
+      toBarSeries({
+        symbol,
+        timeframe: "1m",
+        bars: invented,
+        provenance: toSeriesProvenance("raw", {
+          provider: "fixture",
+          feed: "synthetic",
+          retrievedAt: "2026-09-08T00:00:00.000Z",
+          barCount: invented.length,
+        }),
+        coverage: { requested, covered: requested },
+      }),
+    );
+
+    const { series, held } = await repository().readSeries(
+      symbol,
+      "1m",
+      requested,
+      new Date("2030-01-01T00:00:00.000Z"),
+    );
+
+    expect(held?.source).toEqual({ provider: "fixture", feed: "synthetic" });
+    const [source] = series.provenance.sources;
+    expect(source.provider).toBe("fixture");
+    expect(source.feed).toBe("synthetic");
+  });
+
+  it("refuses a second source for a series it already holds, writing nothing", async () => {
+    // **`0004_market_bars.sql`'s trigger, fired.** One ledger row describes one
+    // source, and `market_bars` stores none per row — so appending a second
+    // feed to a window a first one filled would put both under one label with
+    // nothing able to tell them apart. That is invariant 6 failing with nothing
+    // going red, and this is the mechanism that makes it go red instead.
+    const [session, next] = sessions(2);
+    if (session === undefined || next === undefined) {
+      throw new Error("no sessions");
+    }
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+
+    const requested = toTimeRange(next.open, next.close);
+    const live = sessionBars(next, 2);
+    const iex = toBarSeries({
+      symbol,
+      timeframe: "1m",
+      bars: live,
+      provenance: toSeriesProvenance("raw", {
+        // Epic 3's stream, against this story's stored SIP history.
+        provider: "alpaca",
+        feed: "iex",
+        retrievedAt: "2026-09-08T00:00:00.000Z",
+        barCount: live.length,
+      }),
+      coverage: { requested, covered: requested },
+    });
+
+    await expect(repository().recordSeries(iex)).rejects.toThrow(
+      ForeignSourceError,
+    );
+
+    // Nothing of the refused series landed, and the ledger still says what it
+    // said. A refusal that had written half the bars would be worse than the
+    // mislabelling it exists to prevent.
+    const stored = await db().query<{ count: string }>(
+      "select count(*) as count from market_bars",
+    );
+    expect(stored.rows[0]?.count).toBe("3");
+
+    const held = await repository().readCoverage(symbol, "1m");
+    expect(held?.source).toEqual(STORED_SOURCE);
+  });
+
+  it("refuses a stitched series, which names two sources for one window", async () => {
+    // `mergeSeriesProvenance` is the only way to obtain a multi-source record
+    // and Task 2.9.5 produces one routinely — the stored half plus a live tail.
+    // The ledger holds one source per window, so the honest way to store such a
+    // series is to record each part against the window it actually covers.
+    // Taking the first source silently is how both halves end up under one
+    // label.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    const requested = toTimeRange(session.open, session.close);
+    const stitched = sessionBars(session, 4);
+    const series = toBarSeries({
+      symbol,
+      timeframe: "1m",
+      bars: stitched,
+      provenance: mergeSeriesProvenance(
+        toSeriesProvenance("raw", {
+          provider: "alpaca",
+          feed: "sip",
+          retrievedAt: "2026-09-08T00:00:00.000Z",
+          barCount: 2,
+        }),
+        toSeriesProvenance("raw", {
+          provider: "alpaca",
+          feed: "iex",
+          retrievedAt: "2026-09-08T00:00:00.000Z",
+          barCount: 2,
+        }),
+      ),
+      coverage: { requested, covered: requested },
+    });
+
+    await expect(repository().recordSeries(series)).rejects.toThrow(
+      ForeignSourceError,
+    );
+
+    const stored = await db().query<{ count: string }>(
+      "select count(*) as count from market_bars",
+    );
+    expect(stored.rows[0]?.count).toBe("0");
   });
 });

@@ -97,6 +97,7 @@ function coverageOver(
     symbol,
     timeframe: "1m",
     covered: toTimeRange(first.open, last.close),
+    source: { provider: "alpaca", feed: "sip" },
     barCount,
     updatedAt: new Date("2026-03-07T00:00:00.000Z"),
   };
