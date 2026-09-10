@@ -6,7 +6,7 @@ import { InvestigationWorkspace } from "./routes/InvestigationWorkspace.js";
 import { MarketOverview } from "./routes/MarketOverview.js";
 import { MarketReplay } from "./routes/MarketReplay.js";
 import { NotFound } from "./routes/NotFound.js";
-import { PATHS } from "./routes/paths.js";
+import { PATHS, ROUTE_PATTERNS } from "./routes/paths.js";
 import { SecurityExplorer } from "./routes/SecurityExplorer.js";
 import { useBackendHealth } from "./use-backend-health.js";
 import { useMarketFeed } from "./use-market-feed.js";
@@ -205,6 +205,18 @@ export function App() {
                 element={<InvestigationWorkspace />}
               />
               <Route path={PATHS.securities} element={<SecurityExplorer />} />
+              {/* The same screen for one named security (Task 2.10.7). A
+                  sibling rather than a nested `<Route>` with an `<Outlet>`,
+                  because the two addresses render the *same* component with a
+                  different parameter rather than a shell with two different
+                  insides — a layout route here would be one more indirection
+                  for zero shared chrome. `ROUTE_PATTERNS` is a second table
+                  because this is a pattern and everything in `PATHS` is a
+                  destination; that file carries the argument. */}
+              <Route
+                path={ROUTE_PATTERNS.security}
+                element={<SecurityExplorer />}
+              />
               <Route path={PATHS.replay} element={<MarketReplay />} />
               {/* Everything else. `*` is not in PATHS because it is not an
                   address — nothing links to it and nothing should. */}
