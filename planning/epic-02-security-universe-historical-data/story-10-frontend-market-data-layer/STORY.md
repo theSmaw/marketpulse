@@ -51,7 +51,28 @@ Getting it after the charts would mean rewriting them.
 - A `market` feature module under the §26 boundaries, exposing a domain-level API rather
   than its internals
 - Caching and invalidation: a closed session's bars never change, so this is mostly a
-  question of what to keep and when to refetch
+  question of what to keep and when to refetch.
+  **Amended 2026-09-10 by Task 2.9.8: the SERVER now answers half of this, and it
+  answers it in a layer no JavaScript here can see.** Both `/market-data/bars` and
+  `/securities` carry an `ETag` and a `Cache-Control`, so the **browser's own HTTP
+  cache** already holds every response, revalidates it with `If-None-Match`, and
+  turns an unchanged answer into a `304` with no body — measured at 190,736 bytes
+  → 0 for `/securities` and 1,060,490 → 0 for a month of minute bars
+  (`MARKET-DATA-API.md` §11). `fetch()` sees a 200 either way; none of this needs
+  a line of frontend code and **adding a second cache in front of it would be a
+  cache that can disagree with a correct one**. An **absolute** window inside
+  closed sessions is additionally reusable for five minutes with no request at
+  all; a **named** window (`?sessions=N`) deliberately is not, because the same
+  URL means a different window tomorrow — which is a reason for this layer to
+  prefer sending resolved absolute windows once it knows one.
+
+  So what is genuinely left here is the half the browser cannot do: **keeping a
+  parsed, typed series in memory across a component unmount**, and deciding when a
+  window the user is looking at should be re-asked for at all. Open decision 2
+  below should be read against that — the measured saving a hand-rolled or
+  library server cache still has to justify is a `304` round-trip and a
+  `JSON.parse`, not a megabyte
+
 - Request cancellation on navigation and on window change, which `api-client.ts` already
   composes an abort signal for
 - What test support this needs, so Stories 2.11 to 2.13 test components without each

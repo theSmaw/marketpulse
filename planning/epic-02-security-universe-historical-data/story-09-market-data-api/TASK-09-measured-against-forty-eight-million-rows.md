@@ -142,6 +142,35 @@ coverage }, securityStatus }`. Measured on the shipped shape rather than
   exactly two indexes. Re-take it here, and if it has moved, the deferral is the
   claim to check rather than the timing.
 
+- **There is a CACHE on this path now, and it will silently make your numbers
+  wrong — added 2026-09-10 by Task 2.9.8.** The route holds an in-process LRU of
+  served answers, keyed on the **resolved** `(symbol, timeframe, range)`, with a
+  300-second lifetime for a window inside closed sessions and 60 seconds for one
+  reaching into the live session. So a naive "hit the endpoint five times and take
+  the median" measures **one store read and four cache hits**, and the median is
+  the cache. That trap is not hypothetical: it is exactly how 2.9.8's own first
+  timing run came out with a miss and a hit five milliseconds apart.
+
+  The technique, which that task used and which this one should reuse: **vary the
+  window by one minute per sample** so every request is a distinct key and every
+  one is a real read. Its own readings, as a baseline to beat rather than an
+  answer — `NVDA` `1m`, 9,360 bars, 1.06 MB, median of 15 on loopback against
+  `dist/`: **miss 31.3 ms, hit 11.6 ms, conditional 304 10.9 ms**, against
+  **11.1 ms** for the same read timed inside PostgreSQL. Two thirds of a miss is
+  the database and the rest is serialising a megabyte.
+
+  Three consequences for this task's own bullets. The **stitch** bullet's "how
+  often it happens with 2.9.8's caching in front of it" now has an answer —
+  **at most once a minute per resolved window** (`MARKET-DATA-API.md` §11) — so
+  what is owed here is the added latency of a tail that _is_ fetched, not the
+  frequency. The **cap-check** bullet is unaffected: the calendar walk runs before
+  the cache is consulted, on every request including a hit. And the **`/securities`**
+  bullet gains a second reading to take: that route now carries an `ETag`, so its
+  deployed measurement should record the conditional request as well as the full
+  one — 190,736 B against 0 B locally, and the deployed figure is the one that
+  matters because 190 kB costs nothing over loopback and is the entire saving over
+  a link.
+
 - **Watch for the query nobody meant to write.** A serving path that touches
   `market_bars` where it should touch `bar_coverage`, or that runs at minute
   resolution where daily would answer, is invisible in a unit test and obvious in
@@ -164,7 +193,9 @@ coverage }, securityStatus }`. Measured on the shipped shape rather than
 ## Done when
 
 - Local and deployed timings and payload sizes for each named access pattern are
-  recorded in `MARKET-DATA-API.md`, dated, with the row counts they were taken at
+  recorded in `MARKET-DATA-API.md`, dated, with the row counts they were taken at,
+  and **each one says whether it was a cache miss or a hit** — a figure that does
+  not is a figure nobody can reproduce
 - `/securities` is among them, deployed as well as local, and its close query is
   confirmed to be one statement rather than 518 round trips
 - `BARS.md` §8.6's 28.2 ms cross-sectional reading is re-taken, and if it moved,
