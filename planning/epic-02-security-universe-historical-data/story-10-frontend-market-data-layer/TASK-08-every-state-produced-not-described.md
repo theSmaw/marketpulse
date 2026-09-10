@@ -352,3 +352,44 @@ That is a cost on the third option, not a case against it: a fact about _the
 request_ rather than about _the market_ arguably does belong beside `retry`, and
 one small helper is a fair price. It should just be priced rather than discovered
 after the choice.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.7 — the panel exists, and three of your deliverables are already in it
+
+`components/BarSeriesPanel/` renders all six members from a `BarSeriesView`
+taken whole, and `e2e/specs/security-series.spec.ts` drives the healthy path
+against the real pair. What that leaves you is narrower and sharper than the
+brief above.
+
+**Already done, do not do it twice.**
+
+- **Every state has a rendering**, and every one is reviewable in
+  `BarSeriesPanel.stories.tsx`'s `AllPermutations` grid, built from the recorded
+  fixtures. The refusals carry no control and no correlation id; the retryable
+  failure carries both; the incoherent one says asking again will not help.
+- **The third copy of the button rule is written**, in
+  `BarSeriesPanel.module.css`, with a note saying what must _not_ travel with it
+  when you extract it: `ErrorFallback`'s red rule and `role="alert"` belong to a
+  render failure, and a briefly unavailable service is a product state.
+- **The `refused` states are already correct** — the server's sentence verbatim,
+  and the criterion _"both refusals name their number"_ is satisfied by
+  rendering `message` rather than by writing copy.
+
+**Still entirely yours**, and the list is now specific:
+
+- **The stale-while-loading label.** The behaviour exists — a held series paints
+  in the first commit — and nothing on screen says so. See the two amendments
+  above for where the flag could live and what each choice costs.
+- **The announcement.** The panel is deliberately **not** a live region, and its
+  header says so and names you. Note the panel's content changes on _two_ axes
+  now: the symbol (a navigation) and, from Story 2.13, the window.
+- **Producing each state from a named cause in a browser.** The four states the
+  new spec covers are the healthy ones; the failures are yours.
+
+**One finding from building it, which is about your `answered badly` row.** The
+`Marker` primitive reads `--marker-color` off its inherited context and owns no
+colour. A row that renders a marker without setting it renders an **invisible**
+one — no error, no warning, correct DOM, and nothing in `pnpm verify` can see
+it. That happened here and was caught by looking. Any state you add a marker to
+owes that custom property.

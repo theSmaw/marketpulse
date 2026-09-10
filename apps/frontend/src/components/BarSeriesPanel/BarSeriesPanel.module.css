@@ -1,0 +1,471 @@
+/*
+ * The bar-series panel's styles.
+ *
+ * Every declaration reads a token — there is not a literal colour, length or
+ * font weight in this file, which is the rule `routes.module.css` and
+ * `App.module.css` already follow. The colour tokens are the semantic ones from
+ * `market.css`, never a palette entry and never a hex.
+ *
+ * The design problem here is specific: this is a panel of **numbers**, and
+ * `VISUAL-LANGUAGE.md`'s bar asks whether there is a moment in it worth showing
+ * somebody. A uniform grid of label/value pairs is correct and dead. What
+ * carries it is hierarchy rather than ink — one figure at display size, one
+ * sentence that answers the panel's real question, and everything else set
+ * quietly beneath them — which is the file's own rule that standing out is a
+ * job for weight and hierarchy and never for ink outside the contrast floor.
+ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+/* --- The subject, which survives every state below it --- */
+
+.subject {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/*
+ * The ticker, set as the panel's own name. `--font-mono` because a ticker is a
+ * short identifier read character by character rather than a word — the same
+ * argument `.code` below carries, and the reason `BRK.B` and `BRKB` have to be
+ * told apart at a glance.
+ */
+.symbol {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-subheading);
+  font-weight: var(--font-weight-strong);
+  letter-spacing: var(--letter-spacing-micro);
+}
+
+.defaulted {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+/*
+ * A string somebody is expected to type or quote back — a path, a correlation
+ * id. `--font-mono` for the token's own stated reason: `tabular-nums` fixes a
+ * *column*, and does nothing for `l` against `1` in a UUID that has no column
+ * to align to.
+ */
+.code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-dense);
+}
+
+/* --- The answer with bars in it --- */
+
+/*
+ * The answer entering, and it plays **once, before anybody is reading.**
+ *
+ * That is the line `tokens.css` draws around motion in this product: nothing
+ * animates a value already on screen, because a number that slides while an
+ * analyst reads it is worse than one that changes instantly. This container
+ * mounts when the answer lands and never re-mounts while it is being read.
+ *
+ * The rise is four pixels, which is `UniverseTable`'s measured judgement rather
+ * than a fresh guess: four reads as content settling and twenty reads as a
+ * slide transition, which is a marketing-site gesture and the first thing a
+ * stranger would identify as templated.
+ *
+ * Reduced motion is honoured with no rule here at all — the duration token
+ * resolves to `0ms` under the preference, so the animation does not run and the
+ * series is simply already arrived.
+ */
+.series {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  animation: arrive var(--motion-duration-settle) var(--motion-ease-standard)
+    both;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-4));
+  }
+}
+
+/*
+ * The one moment on the panel. A close at display size with the move beside it
+ * is what a person looks at first, and giving it its own scale is what stops
+ * this reading as a form.
+ *
+ * `baseline` alignment rather than `center`, so the percentage sits on the same
+ * line as the figure it is about rather than floating in the middle of it.
+ */
+.headline {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+}
+
+.close {
+  font-size: var(--font-size-display);
+  line-height: var(--line-height-display);
+  font-weight: var(--font-weight-strong);
+  /* The column-holding property Story 1.4 measured at a 14.3 px spread across
+     three same-length figures. It matters more at display size, not less. */
+  font-variant-numeric: tabular-nums;
+}
+
+.headlineChange {
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-subheading);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The coverage sentence — the panel's real answer, and the reason it sits
+ * directly under the headline rather than among the facts below.
+ *
+ * It is set at body size while everything in the grid is dense, which is the
+ * whole of its emphasis: no colour, no rule, no box. Standing out is a job for
+ * hierarchy.
+ */
+.coverage {
+  /* `--marker-color` is the custom property `Marker` reads: the primitive owns
+     the geometry and the silhouette and never the colour, so every consumer
+     sets it on the row the marker sits in and it inherits down. Four components
+     already do this; forgetting it renders an invisible marker, which is
+     exactly what happened here before it was added. */
+  --marker-color: var(--ink-secondary);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  margin: 0;
+  color: var(--ink-primary);
+}
+
+/*
+ * A short answer is not a failure and must not read as one, so there is no red
+ * and no amber here — the difference from a complete answer is the marker's
+ * shape (a ring rather than a disc) and the sentence itself. Secondary ink is
+ * as far as it goes.
+ */
+.short {
+  color: var(--ink-secondary);
+}
+
+/* --- The four prices --- */
+
+/*
+ * A strip, not a list. `UniverseTable`'s summary is the idiom this reuses —
+ * figure large, label small beneath it — and the reason is that a reader
+ * comparing an open to a close is comparing two *figures*, and a label sitting
+ * between them is what turns a terminal into a form.
+ *
+ * `auto-fit` with a floor rather than four fixed columns, so the strip becomes
+ * two rows of two on a narrow panel instead of four crushed ones.
+ */
+.prices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-12) var(--space-20);
+  margin: 0;
+  padding-top: var(--space-16);
+  border-top: var(--border-width) solid var(--rule-soft);
+}
+
+/*
+ * `column-reverse` rather than reordering the markup. A definition list is
+ * name-then-value and a screen reader reads document order, so the `<dt>` stays
+ * first in the source and the figure is lifted above it visually.
+ */
+.price {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-4);
+}
+
+.priceLabel {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+}
+
+.priceValue {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-subheading);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- The windows --- */
+
+/*
+ * A fixed label column so every value starts in the same place. Two ranges that
+ * do not line up cannot be compared without reading both in full, and comparing
+ * them is the question this block exists to answer.
+ *
+ * `max-content` on the label column rather than a literal width: the longest
+ * label decides, so adding one does not require re-measuring anything.
+ */
+.windows {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-4) var(--space-16);
+  margin: 0;
+  padding-top: var(--space-16);
+  border-top: var(--border-width) solid var(--rule-soft);
+}
+
+/* `display: contents` so the pair's two children join the parent grid rather
+   than forming a row box of their own — which is what keeps the value column
+   aligned across every row. */
+.window {
+  display: contents;
+}
+
+.windowLabel {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  white-space: nowrap;
+}
+
+.windowValue {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Provenance --- */
+
+.provenance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-20);
+  padding-top: var(--space-12);
+  border-top: var(--border-width) solid var(--rule-soft);
+}
+
+.provenanceLabel {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+}
+
+.feed {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+.realFeed {
+  --marker-color: var(--provenance-feed);
+}
+
+/*
+ * The one amber in this file, and it has a safety argument rather than a
+ * legibility one: a fixture-backed deployment serves invented prices, and
+ * `PROVIDER.md` §5.4's mechanism is that such a series advertises itself
+ * structurally rather than by somebody remembering to add a banner. The square
+ * marker carries it too, so the colour is never the only channel.
+ *
+ * **On the marker and never on the word**, and this file got that wrong first
+ * and was caught by measuring it. `--palette-amber` (`#e2b544`) is **1.92:1**
+ * against this panel's white ground where 4.5 is the threshold — the same
+ * defect `FeedProvenance` was caught by at 1.73:1 against the page ground, in
+ * the same place, for the same well-meant reason. The intention is right and
+ * ink below the floor is the wrong mechanism for it: standing out is a job for
+ * weight and hierarchy. So the word is strong-weight primary ink like every
+ * other feed label, the sentence "Generated test data. Not a market feed."
+ * carries the meaning in words, the square marker carries it in shape, and the
+ * amber decorates a silhouette that `Marker` renders `aria-hidden`.
+ *
+ * Getting this wrong means a screenshot of invented prices circulating as if it
+ * were the market, which is why it is the one colour on this panel worth a
+ * measurement rather than a glance.
+ */
+.synthetic {
+  --marker-color: var(--provenance-synthetic);
+}
+
+/* Primary ink and strong weight for every feed, so the synthetic case is told
+   apart by its marker's shape and its sentence rather than by ink. */
+.feedLabel {
+  color: var(--ink-primary);
+  font-weight: var(--font-weight-strong);
+}
+
+.feedSentence {
+  color: var(--ink-secondary);
+}
+
+/* --- The states that are not a series --- */
+
+.state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  align-items: flex-start;
+}
+
+.stateLine {
+  --marker-color: var(--ink-secondary);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  margin: 0;
+  color: var(--ink-primary);
+}
+
+.stateDetail {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+/*
+ * A failure is the one state on this panel that carries the error colour, and
+ * it carries it on the **marker** rather than on the sentence.
+ *
+ * `--status-error` measures 5.90:1 on this ground, so red text would clear the
+ * floor — this is a judgement rather than a contrast fix. §36 makes a service
+ * that is briefly unavailable a *product state* rather than an emergency, and a
+ * sentence in red at body size reads as an alarm about the page. The dashed
+ * marker is what distinguishes it, which is also what keeps the distinction in
+ * greyscale.
+ */
+.failed {
+  --marker-color: var(--status-error);
+}
+
+.note {
+  --marker-color: var(--ink-secondary);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+.reference {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+/*
+ * **The third copy of this product's button treatment**, and it is deliberately
+ * still a copy. `ErrorFallback.module.css` and `UniverseTable.module.css` hold
+ * the other two, and Task 2.10.8 owns the extraction — three is where this
+ * repository extracts, and that task is the one that can see all three at once
+ * and decide what travels and what does not.
+ *
+ * What must not travel with it, recorded here so the extraction does not take
+ * it: `ErrorFallback` carries a red rule and `role="alert"` because a render
+ * failure is what it reports. A service that is briefly unavailable is a
+ * product state and carries neither. The shared thing is the control, not the
+ * error language.
+ */
+.retry {
+  padding: var(--space-4) var(--space-12);
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--rule-hairline);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-primary);
+  cursor: pointer;
+  /* On the hover, not on the resting state: a control that animates into place
+     is decoration, and one that acknowledges the pointer is feedback. Reduced
+     motion is answered once at the token layer. */
+  transition: background-color var(--motion-duration-quick)
+    var(--motion-ease-standard);
+}
+
+.retry:hover:not(:disabled) {
+  background: var(--surface-sunken);
+}
+
+.retry:disabled {
+  color: var(--ink-disabled);
+  cursor: default;
+}
+
+/* --- Waiting --- */
+
+/*
+ * Ragged rather than uniform, which is `UniverseTable`'s finding: identical
+ * bars read as a loading *graphic*, and an uneven right edge reads as content
+ * that has not arrived. The widths and the stagger are here rather than in the
+ * component because they are texture rather than data.
+ */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  width: 100%;
+}
+
+.skeletonRow {
+  height: var(--space-12);
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+  /*
+   * Far slower than either interaction duration, and derived from one rather
+   * than declared as a third token — a waiting texture is not an interaction,
+   * and a `--motion-duration-waiting` would be a token with exactly one
+   * consumer. `UniverseTable`'s skeleton uses the same multiple, so the two
+   * loading states in this page breathe at one rate rather than two. Under
+   * `prefers-reduced-motion` the token is `0ms`, the product is `0ms`, and the
+   * bars simply sit still.
+   */
+  animation: pulse calc(var(--motion-duration-settle) * 6)
+    var(--motion-ease-standard) infinite alternate;
+}
+
+.skeletonRow:nth-child(1) {
+  width: 60%;
+}
+
+.skeletonRow:nth-child(2) {
+  width: 85%;
+  animation-delay: calc(var(--motion-duration-quick) * 1);
+}
+
+.skeletonRow:nth-child(3) {
+  width: 45%;
+  animation-delay: calc(var(--motion-duration-quick) * 2);
+}
+
+.skeletonRow:nth-child(4) {
+  width: 72%;
+  animation-delay: calc(var(--motion-duration-quick) * 3);
+}
+
+/*
+ * The tokens collapse both durations to `0ms` under `prefers-reduced-motion`,
+ * which stops the animation without this file knowing the media query exists.
+ * A zero-duration infinite alternate is inert.
+ */
+@keyframes pulse {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0.55;
+  }
+}

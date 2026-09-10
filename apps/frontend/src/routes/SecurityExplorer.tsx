@@ -1,6 +1,9 @@
+import { BarSeriesPanel } from "../components/BarSeriesPanel/BarSeriesPanel.js";
 import { Region } from "../components/Region/Region.js";
 import { UniverseTable } from "../components/UniverseTable/UniverseTable.js";
+import { useBarSeries } from "../market/index.js";
 import { useSecurities } from "../use-securities.js";
+import { useSecuritySymbol } from "./use-security-symbol.js";
 import styles from "./routes.module.css";
 import page from "./SecurityExplorer.module.css";
 
@@ -13,16 +16,62 @@ import page from "./SecurityExplorer.module.css";
 // `components/UniverseTable`, which is where they moved the day somebody had to
 // design them — see that file for why, and `Region` for the precedent.
 //
-// The symbol form of this route is still not declared: `paths.ts` says why,
-// beside the table that would have to carry it, and it is Story 2.11's along
-// with search and click-through.
+// **The symbol form of this route arrived at Task 2.10.7**, and with it the
+// first series this product has ever rendered. `ROUTE_PATTERNS.security` is the
+// declaration and `use-security-symbol.ts` is the one place the segment is
+// read; both files carry why. Story 2.11 still owns **search** — how a reader
+// names a security without typing a URL — and click-through from the table
+// below.
+//
+// The page serves both addresses and renders the same two regions for each.
+// `/securities` shows a default security and says so; `/securities/AMD` shows
+// that one. The universe table stays underneath in both, because until search
+// ships it is the only way to find out what symbols exist.
+
+/**
+ * How many trading sessions the panel asks for by default.
+ *
+ * Five, and the reason is in the call site below: a named window always reaches
+ * to the current session's close and the store is caught up nightly, so one or
+ * two sessions is reliably an *empty* answer on a store holding 48 million
+ * bars. Named rather than inlined so the story, the test and the route agree
+ * about what "the default window" means.
+ */
+export const DEFAULT_SESSIONS = 5;
 
 export function SecurityExplorer() {
-  // The hook is called here rather than inside the region, so a table that
-  // throws hits `Region`'s own boundary and leaves the request that produced it
-  // alone — the same argument `App` makes for calling `useBackendHealth`
-  // outside the header's boundary.
+  // The hooks are called here rather than inside the regions, so a component
+  // that throws hits `Region`'s own boundary and leaves the request that
+  // produced it alone — the same argument `App` makes for calling
+  // `useBackendHealth` outside the header's boundary.
   const { view, retry } = useSecurities();
+  const { symbol, fromAddress } = useSecuritySymbol();
+
+  // The request is a fresh object literal on every render **and that is the
+  // intended call shape**: `useBarSeries` keys on `barSeriesQuery(request)`
+  // rather than on object identity, precisely so a route can build one inline
+  // without a `useMemo` that would be load-bearing and look decorative.
+  //
+  // `sessions=5` rather than a smaller number, and it is a measured choice
+  // rather than a taste one (Task 2.10.6, recorded in TASK-07's amendment).
+  // A named window always reaches to the *current* session's close, and the
+  // store is caught up nightly — so `sessions=1` and `sessions=2` are both
+  // `empty` on the local and the deployed store alike, which is a correct 200
+  // that looks exactly like a broken data layer. Five reaches back past the
+  // backfill's edge and has bars in it.
+  //
+  // The window is **named and never resolved here.** A browser in Singapore at
+  // 09:00 local is on the previous market date in New York, so a client that
+  // computes "the last five sessions" itself is off by one for half the world
+  // for several hours of every day — and it produces a chart that is plausible
+  // and shifted rather than an error anybody sees. The server resolves it and
+  // reports back what it meant in `coverage.requested`, which is what the panel
+  // renders.
+  const series = useBarSeries({
+    symbol,
+    timeframe: "1m",
+    window: { form: "named", sessions: DEFAULT_SESSIONS },
+  });
 
   return (
     <div className={page.page}>
@@ -53,6 +102,30 @@ export function SecurityExplorer() {
       <h1 className={styles.title}>Security Explorer</h1>
 
       {/*
+       * The series region, above the universe, because it is what this route is
+       * named for: §8.3 asks *"what is happening with this security?"*, and the
+       * table below answers *"which securities are there?"* — a supporting
+       * question until Story 2.11 turns it into navigation.
+       *
+       * `filledBy` says what the region holds **and what it deliberately does
+       * not**, which is Story 1.5's convention taken one step further than the
+       * table needed. A panel of numbers where a reader expects a chart looks
+       * unfinished unless it says the chart is a story away; saying so is the
+       * difference between a fence and an omission.
+       */}
+      <Region
+        name="Market data"
+        filledBy="One security's minute bars, stated rather than drawn. Charts arrive with Stories 2.12 and 2.13."
+      >
+        <BarSeriesPanel
+          view={series.view}
+          symbol={symbol}
+          onRetry={series.retry}
+          defaulted={!fromAddress}
+        />
+      </Region>
+
+      {/*
        * Inside `Region` so the table inherits the landmark, the heading and the
        * error boundary rather than acquiring three near-copies of them.
        *
@@ -62,7 +135,7 @@ export function SecurityExplorer() {
        */}
       <Region
         name="Tracked universe"
-        filledBy="The securities MarketPulse follows. Prices, volume and charts arrive with the live market feed in Epic 3."
+        filledBy="The securities MarketPulse follows, with each one's last stored close. Live prices arrive with the market feed in Epic 3."
       >
         {/*
          * `retry` is passed down rather than the table asking for the universe

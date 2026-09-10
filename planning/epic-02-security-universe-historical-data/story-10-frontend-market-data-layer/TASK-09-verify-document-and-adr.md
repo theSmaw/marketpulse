@@ -313,3 +313,37 @@ helper by that name, and all four are now on the shared one. The other two —
 `api-client.test.ts`'s body-shaped `respondWith` and `App.test.tsx`'s three
 one-liners — were left deliberately, with the reasons in TASK-06 §5. The close
 should not go looking for two more migrations.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.7 — three more things in the diff, and criterion 3's other half
+
+- **`routes/paths.ts` grew a second table.** `ROUTE_PATTERNS` holds route paths
+  that carry a parameter, and `securityPath()` builds a destination from one.
+  The argument is in the file: everything in `PATHS` is a destination and a
+  pattern is not one, and six places walk `PATHS` as a list of real destinations
+  — one of them asserting that every route has a distinct `<h1>`, which a
+  pattern would either fail or force a carve-out in. The close should confirm the
+  split held rather than re-deriving it.
+- **A real contrast violation was found and fixed**, and it belongs in the
+  story's record because it is the second instance of one pattern: amber on a
+  **word** rather than on a marker, measured at **1.92:1** where 4.5 is the
+  floor, in the same place and for the same reason `FeedProvenance` was caught at
+  1.73:1. Two instances is where a rule gets written down —
+  `VISUAL-LANGUAGE.md` already says standing out is a job for weight and
+  hierarchy, and this is the second time somebody has reached for ink instead.
+  Consider whether it wants a sharper form.
+- **A stated invariant nothing checks, in the form that list already uses.**
+  _`Marker` renders nothing visible unless the row containing it sets
+  `--marker-color`._ The failure is an invisible marker with no error, no
+  warning, correct DOM and a green `pnpm verify` — found by looking at the page.
+  Five components now set it. Re-measure: delete the custom property from one
+  row and confirm the marker disappears silently.
+
+**And criterion 3's browser half now has an instrument for the other property.**
+The sharpening above records that jsdom cannot observe _"no state update after an
+unmount"_. `e2e/specs/security-series.spec.ts` drives the real pair over a real
+navigation, so the close can now check the supersession property where it is
+observable — navigate between two symbols and confirm the panel never shows one
+symbol's bars under the other's name, which is the defect the whole cancellation
+design exists to prevent and which no jsdom test can see.

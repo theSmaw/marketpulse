@@ -1,8 +1,14 @@
 import { screen, waitFor } from "@testing-library/react";
+import { Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  barSeriesFixtureResponse,
+  stubFetch as stubEveryRequest,
+} from "../fixtures/stub-fetch.js";
 import { renderWithContext } from "../test-render.js";
-import { PATHS } from "./paths.js";
+import { PATHS, ROUTE_PATTERNS } from "./paths.js";
+import { DEFAULT_SESSIONS } from "./SecurityExplorer.js";
 import { SecurityExplorer } from "./SecurityExplorer.js";
 
 // The route's tests drive the real component against a stubbed `fetch`, so the
@@ -39,10 +45,26 @@ const SPY = {
  * no deployed row is in today. */
 const GILD = { ...NVDA, symbol: "GILD", name: "Gilead", status: "untracked" };
 
+/**
+ * Answer `/securities` with the given body, and `/market-data/bars` with a
+ * settled one.
+ *
+ * **The routing is the point** (Task 2.10.7). This page now makes *two*
+ * requests — the universe and one security's bar series — and a stub answering
+ * every URL with the universe body puts the panel into `unreadable-body` with
+ * the same correlation id the table is showing. That is not hypothetical: it
+ * broke the reference assertion below the moment the panel landed, with "found
+ * multiple elements" naming neither the panel nor the reason.
+ *
+ * So the series gets a recorded body and stays out of the way, and every
+ * assertion in this file remains about the table. The panel's own states are
+ * `BarSeriesPanel.test.tsx`'s.
+ */
 function stubFetch(respond: () => Promise<Response>): void {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(() => respond()),
+  stubEveryRequest((call) =>
+    call.url.includes("/market-data/bars")
+      ? Promise.resolve(barSeriesFixtureResponse("full"))
+      : respond(),
   );
 }
 
@@ -221,5 +243,75 @@ describe("SecurityExplorer", () => {
       expect(screen.getByText("unexpected response")).toBeTruthy();
     });
     expect(screen.getByText("3f1c")).toBeTruthy();
+  });
+});
+
+// The market-data region, added by Task 2.10.7. What is asserted here is the
+// *wiring* — that the route reaches the panel, sends the window it says it
+// sends, and reads the symbol from the address — rather than what the panel
+// renders, which is `BarSeriesPanel.test.tsx`'s and is asserted there against
+// recorded bodies.
+
+describe("the market-data region", () => {
+  /** Render the route at one address, with both endpoints answered apart. */
+  function renderAt(address: string) {
+    stubFetch(() =>
+      json(200, { securities: [NVDA], coverage: [], lastCloses: [] }),
+    );
+    return renderWithContext(
+      <Routes>
+        <Route path={PATHS.securities} element={<SecurityExplorer />} />
+        <Route path={ROUTE_PATTERNS.security} element={<SecurityExplorer />} />
+      </Routes>,
+      { at: address },
+    );
+  }
+
+  it("asks for the symbol in the address, over the default window", async () => {
+    renderAt("/securities/AMD");
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "AMD" })).toBeTruthy();
+    });
+
+    // The window is **named and never resolved here**, which is the property
+    // that keeps a browser in another timezone from asking for a different five
+    // sessions than a browser in New York. Asserted as the absence of an
+    // instant, because that is what the property is.
+    const urls = vi
+      .mocked(fetch)
+      .mock.calls // `fetch`'s first argument is typed `RequestInfo | URL`, and this client
+      // always passes a string; the narrowing keeps the assertion off
+      // `[object Object]` if that ever stops being true.
+      .map(([input]) => (typeof input === "string" ? input : ""))
+      .filter((url) => url.includes("/market-data/bars"));
+
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toContain("symbol=AMD");
+    expect(urls[0]).toContain(`sessions=${String(DEFAULT_SESSIONS)}`);
+    expect(urls[0]).not.toMatch(/start=|end=/);
+  });
+
+  it("falls back to a default security and says search is not here yet", async () => {
+    renderAt(PATHS.securities);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Search arrives with Story 2.11/)).toBeTruthy();
+    });
+  });
+
+  it("names the region and what it deliberately does not hold", async () => {
+    renderAt(PATHS.securities);
+
+    // The region is a landmark with a name, like every other one on this page,
+    // so a keyboard or screen-reader user has something to jump to. `filledBy`
+    // says the charts are a story away — a panel of numbers where a reader
+    // expects a chart looks unfinished unless it says so.
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: "Market data" })).toBeTruthy();
+    });
+    expect(
+      screen.getByText(/Charts arrive with Stories 2.12 and 2.13/),
+    ).toBeTruthy();
   });
 });
