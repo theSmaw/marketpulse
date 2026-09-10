@@ -1,0 +1,106 @@
+# Task 2.11.7 — The Security Explorer shell: the grid every later epic hangs a region off
+
+**Status:** Not started
+**Story:** [2.11 Security Search & Selection](STORY.md)
+**Depends on:** 2.11.5
+
+## Objective
+
+Turn `/securities/:symbol` into the screen PRODUCT_SPEC.md §8.3 describes: an
+identity block, a column grid, the two regions Stories 2.12 and 2.13 fill, and
+honest placeholders for the five that later epics fill.
+
+This is the piece that is expensive to retrofit. §8.3 lists seven contents —
+price chart, volume, abnormal-move indicators, relative performance, connected
+securities, relevant filings, historical anomaly history — and four separate
+epics add to this page after this story. Deciding the grid once, now, while there
+are two real regions on it, is cheaper than deciding it four times.
+
+## What the user can see when this lands
+
+**A security's own page that looks like an instrument rather than a route.** The
+symbol, the company, the sector, the kind and its last close in an identity block
+at the top of the screen; the market-data region under it; and named regions for
+what is coming, each saying which epic fills it.
+
+This is the story's best candidate for "a moment worth showing somebody" — the
+identity block is the one place on this screen that carries a display-size
+figure — and the hardest of the four tests of the bar, because **a screen that is
+mostly honest placeholders is exactly where "would a stranger believe this is a
+real funded product?" is lost.** Show how a deliberately unfinished instrument
+looks confident.
+
+## Work
+
+- **The column grid.** Modules are white panels on the cool ground. Decide which
+  of the seven regions are one, two or three columns wide, and at which
+  viewports; implement the grid so that adding a region later is placing it
+  rather than reflowing the page. Three viewports, as the rest of this product is
+  built and reviewed.
+
+- **The identity block.** Symbol, name, sector, kind, and whatever a person needs
+  to know they are in the right place. The universe response already carries a
+  last close and a previous close for all 518 securities, so a real figure is
+  available — and if it is shown it carries its session date or a qualifier,
+  because the last close is the last session we hold a bar for and is behind the
+  calendar during a live session. **Colour is never the sole encoding** of a
+  change: hue plus a sign, a glyph or a word. `PriceChange` already exists and
+  already does this; prefer it to a second implementation.
+
+- **The placeholders, following Story 1.5's convention**: an empty region says
+  which epic fills it rather than pretending, and it must not read as a broken
+  page. `Region`'s `filledBy` is the existing mechanism and the sentences already
+  on this page — _"Charts arrive with Stories 2.12 and 2.13"_ — are the voice to
+  match. Five regions: abnormal-move indicators (Epic 5), relative performance
+  (Epic 5), connected securities (Epic 6), relevant filings (Epic 9), anomaly
+  history (Epic 5). Name the epic, not a date.
+
+- **Where the universe table goes.** It is currently underneath this page's
+  panel because it was the only way to find out what symbols exist. **That reason
+  expires with this story.** Decide what happens to it — it stays, it moves to
+  `/securities` only, it becomes something smaller and related — and record why.
+  Note that `/securities` and `/securities/:symbol` currently render the same
+  component and share an `<h1>`, deliberately; if that changes, `App.test.tsx`
+  asserts every route has a distinct heading and the browser suite walks the
+  routes asserting theirs.
+
+- **Do not add a third asynchronously-filled surface without deciding to.**
+  `FRONTEND-STATE.md` §7's reversal trigger fires on exactly that: two polite
+  regions queue tolerably and nobody has found out where that stops being true.
+  If the shell adds one, it is a decision recorded in
+  `SEARCH-AND-SELECTION.md`, not a consequence of a layout.
+
+- **Motion.** Content arriving has a duration in this language already (240ms,
+  one asymmetric easing, reduced motion answered at the token layer). Use it, and
+  respect the constraint that outranks it: **motion must never make a number
+  harder to read.** A figure that fades or slides while an analyst is reading it
+  is worse than one that changes instantly.
+
+## Done when
+
+- `/securities/:symbol` renders an identity block, the market-data region, and
+  five named placeholder regions, on a grid, at three viewports
+- Every placeholder names the epic that fills it
+- The universe table's new home is decided and implemented, and the route
+  headings still satisfy the existing assertions
+- Components live under `src/components/<Name>/` with stories; `pnpm stories`
+  passes
+- The axe gate reads zero violations — and note the addon scopes to
+  `#storybook-root`, so a permutation grid conflicts with landmark uniqueness
+  only for landmarks with no accessible name, and a whole-document run is a
+  different measurement that is not comparable
+- `pnpm verify` and `pnpm e2e` pass
+- **The four tests of the bar are applied to a screenshot and the answers are
+  written down**, not asserted: a stranger believing it is a real funded product;
+  designed rather than defaulted; a moment worth showing somebody; and does it
+  feel alive
+
+## Notes
+
+The fence is charts. This shell has a region for a price chart and it stays
+empty — Story 2.12 owns the charting decision and should take it against a data
+layer already known to be right. A sparkline slipped in here is that decision
+taken in the wrong place by the wrong task.
+
+The other fence is later epics' content. A placeholder for connected securities
+is a sentence and a region; it is not a graph with no data in it.
