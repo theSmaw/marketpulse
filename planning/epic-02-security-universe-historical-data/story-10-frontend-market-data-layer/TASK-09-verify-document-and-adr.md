@@ -81,6 +81,31 @@ and sweep what this story falsified.
   > twice. Read both against §4 at the close and record the comparison as a
   > finding either way, rather than assuming it.
 
+  > **Added 2026-09-10 by Task 2.10.3 — one more stated invariant that nothing
+  > checks, and this one has product weight.** `isBarSeriesResponse` refuses a
+  > `feed`, `provider`, `adjustment`, `timeframe` or `securityStatus` it has not
+  > been taught, and the argument for that strictness rests on a **deploy
+  > property**: every one of those unions lives in `packages/shared`, which is
+  > inlined into the frontend bundle, and `deploy.yml` ships both halves from one
+  > commit — so a client that does not know a value and a server that sends one
+  > cannot both be current.
+  >
+  > That is true and it is checked by nothing, and the failure is not small:
+  > `deploy.yml` rolls the **backend first**, so a deploy that introduces a new
+  > feed opens a window in which the deployed frontend refuses **every** series
+  > as `unreadable-body`. Charts go blank, and the message points at the address
+  > rather than at the deploy. It degrades safely — nothing false is rendered —
+  > and it degrades loudly for everyone at once.
+  >
+  > So the close owes it a sentence rather than a mechanism: record it in
+  > `FRONTEND-STATE.md` with the condition that makes it real (**the first
+  > addition to `MARKET_FEEDS`, `PROVIDER_IDS` or `ADJUSTMENTS` after this
+  > layer ships** — Epic 3's live feed is _not_ one, because `iex` is already a
+  > member), and consider whether `CLAUDE.md`'s _stated invariants nothing
+  > checks_ list is where it belongs. The repair, if the condition ever fires, is
+  > a deploy ordering change rather than a looser guard: loosening it is the
+  > caption problem invariant 6 exists to prevent.
+
 - **Hand forward deliberately.** Story 2.11 needs the URL shape and whether
   matching is client- or server-side; Story 2.12 needs the state union, the
   fixture set and the stale-while-loading rule; Story 2.13 needs the window's home

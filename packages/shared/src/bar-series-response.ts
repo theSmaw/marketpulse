@@ -89,10 +89,30 @@
  * field and never passed through `toTimeRange`, `toSeriesProvenance` and
  * `toBarSeries` is a body whose bars may be out of order and whose sources may
  * not add up, which are exactly the failures those constructors exist to catch.
+ *
+ * > **Amended 2026-09-10 by Task 2.10.3, which is that first reader.** The
+ * > predicate is at the foot of this file and the paragraph above is kept as
+ * > the prediction it was, because **its second half was measured wrong while
+ * > its first half held.** The constructors are *not* in the predicate, and
+ * > {@link isBarSeriesResponse}'s own header carries the argument: a body that
+ * > is exactly this shape and carries mis-ordered bars is our own server with a
+ * > bug, and `api-client.ts` would report it as `unreadable-body`, whose
+ * > documented meaning is *something that is not this API is answering at this
+ * > address*. That is a diagnosis pointing at the wrong half of the system. The
+ * > coherence check the paragraph is right to want is `toBarSeries`, and it
+ * > belongs where the payload first becomes domain objects — Task 2.10.4's
+ * > `market` module, which carries the obligation.
  */
 
+import { TIMEFRAMES } from "./bar.js";
 import type { Timeframe } from "./bar.js";
+import {
+  ADJUSTMENTS,
+  MARKET_FEEDS,
+  PROVIDER_IDS,
+} from "./market-provenance.js";
 import type { Adjustment, BarSource } from "./market-provenance.js";
+import { SECURITY_STATUSES } from "./security.js";
 import type { SecurityStatus } from "./security.js";
 
 /**
@@ -317,4 +337,238 @@ export interface BarSeriesResponse {
    * never about the *data*.
    */
   readonly securityStatus: SecurityStatus;
+}
+
+/**
+ * Is `value` a {@link BarSeriesResponse}?
+ *
+ * **This ships here, beside the shape, and it ships now rather than with the
+ * contract** — Task 1.7.3's rule is that a predicate arrives with its first
+ * reader, and Task 2.10.3's `getBarSeries` is that reader. The module comment
+ * above records the absence as a decision rather than an omission; this is that
+ * decision being paid off, and the reason it is not written at the call site is
+ * `isSecuritiesResponse`'s: a validator written where it is used is a second
+ * description of the same judgement, and it is the copy that drifts when the
+ * interface moves.
+ *
+ * ## How strict it is, and why it is strict in exactly one direction
+ *
+ * There is a precedent on each side of this and neither is copied wholesale.
+ * `isHealthResponse` deliberately accepts an unknown `status` and unknown extra
+ * fields, because a newer server is a version skew rather than a broken one.
+ * `isMarketDataResponse` is deliberately stricter about `feed`, because a slug
+ * this bundle has no words for cannot be rendered honestly and must not reach a
+ * component that would print it.
+ *
+ * **This one is `isMarketDataResponse`-strict about every closed vocabulary and
+ * `isHealthResponse`-lenient about everything else.** The line is *would an
+ * unrecognised value be rendered?*, which is the same asymmetry
+ * `isSecurityCoverage` already draws between `timeframe` and an instant:
+ *
+ *  - **Refused: a `feed`, `provider`, `adjustment`, `timeframe` or
+ *    `securityStatus` outside its const array.** `feed` is the invariant-6
+ *    field — {@link MARKET_FEED_DESCRIPTIONS} is where a feed's words live, so
+ *    an unknown slug is rendered raw or rendered as nothing, and both are the
+ *    caption problem `market-provenance.ts` exists to prevent. The other four
+ *    are the same argument with a different noun: each is a **discriminator a
+ *    consumer switches on**, and this package has no words for a member it has
+ *    not been taught. The skew window `isHealthResponse` guards is not open
+ *    here either — every one of these unions lives in `packages/shared`, which
+ *    is **inlined into the frontend bundle**, and `deploy.yml` ships both halves
+ *    from one commit, so a client that does not know a value and a server that
+ *    sends it cannot both be current.
+ *  - **Accepted: unknown extra keys, anywhere.** `securities-response.ts` records
+ *    that growing by gaining a key is the whole argument for an envelope, and a
+ *    client that refuses a field it has not been taught cannot be deployed before
+ *    the backend that adds one.
+ *  - **Accepted: any string where the contract says instant.** `startsAt`,
+ *    `retrievedAt` and both ends of both windows are checked for being strings
+ *    and not for being parseable, which is `isSecurityCoverage`'s stated
+ *    position: a value a consumer *renders* fails locally and visibly, where a
+ *    discriminator it *switches on* fails silently. `Invalid Date`'s one virtue.
+ *  - **Accepted: `symbol` as any string.** `toTicker` re-validates it where a
+ *    branded `Ticker` is actually wanted; asserting the form here would be this
+ *    module claiming a judgement it did not make.
+ *
+ * ## Two shapes that look like failures and are answers
+ *
+ * `MARKET-DATA-API.md` §6 makes both of these a **200**, and a predicate that
+ * refused either would turn this contract's own empty answer into
+ * `unreadable-body` — *something else is answering at this address* — which is
+ * the most misleading diagnosis available.
+ *
+ *  - **`bars: []`**, with provenance and `coverage.requested` present. *We asked
+ *    and we hold nothing for this symbol.*
+ *  - **`coverage.covered` of `null`**, which is the same answer said the other
+ *    way: an empty series reaches nowhere, and `null` rather than a zero-width
+ *    window because `[t, t)` is refused at construction.
+ *
+ * What it *does* refuse is an **empty `sources` array**.
+ * {@link SeriesProvenancePayload.sources} names this predicate as the place the
+ * domain's non-emptiness is re-established on the way in, and the empty series
+ * above is not the exception it looks like: `serve-series.ts` gives one exactly
+ * one source, with `barCount: 0`. A series that came from nowhere is not a
+ * series.
+ *
+ * ## What it deliberately does not check, and what that makes an
+ * `unreadable-body` from this endpoint mean
+ *
+ * **It checks shape, never coherence.** It does not run `toTimeRange`,
+ * `toSeriesProvenance` or `toBarSeries`, so it does not know whether the bars
+ * ascend, whether the sources' `barCount`s sum to the bars, or whether `covered`
+ * agrees with either. The module comment above anticipated that those
+ * constructors would be the validation, and building this found the argument
+ * against putting them here — which is about **what the answer would mean**
+ * rather than about cost:
+ *
+ * `api-client.ts` maps a 2xx whose body fails its predicate to
+ * `unreadable-body`, whose documented meaning is *something is answering at this
+ * address and it is not this API* — the static host returning `index.html` at a
+ * 200 this repository has measured twice. A body that is shaped exactly like
+ * this contract and carries mis-ordered bars is the opposite diagnosis: it is
+ * **our own server with a bug**, and reporting it as a stranger at the address
+ * would send the next reader to the wrong half of the system. A predicate is
+ * also the wrong instrument for it — it would have to `try`/`catch` three
+ * throwing constructors, discard what they built, and let whatever wanted a
+ * domain object build it again.
+ *
+ * So the sentence to carry: **an `unreadable-body` from `/market-data/bars` means
+ * the body is not this contract's shape — a wrong host, or a vocabulary this
+ * bundle predates. It never means the numbers disagree with each other.**
+ *
+ * The coherence check is still worth having and is not lost: it is what
+ * `toBarSeries` does, and it belongs wherever the frontend first turns this
+ * payload into domain objects. Task 2.10.4 owns that module and carries the
+ * obligation.
+ */
+export function isBarSeriesResponse(
+  value: unknown,
+): value is BarSeriesResponse {
+  if (!isRecord(value)) return false;
+
+  return (
+    isBarSeriesPayload(value.series) &&
+    isMember(SECURITY_STATUSES, value.securityStatus)
+  );
+}
+
+/**
+ * Is `value` a {@link BarSeriesPayload}?
+ *
+ * Not exported, for `securities-response.ts`'s reason: nothing outside this
+ * module holds a bare series payload to check, and an exported predicate with
+ * no caller is a second definition waiting to disagree with the one above it.
+ */
+function isBarSeriesPayload(value: unknown): value is BarSeriesPayload {
+  if (!isRecord(value)) return false;
+
+  return (
+    typeof value.symbol === "string" &&
+    isMember(TIMEFRAMES, value.timeframe) &&
+    Array.isArray(value.bars) &&
+    value.bars.every(isBarPayload) &&
+    isSeriesProvenancePayload(value.provenance) &&
+    isSeriesCoveragePayload(value.coverage)
+  );
+}
+
+/** Is `value` a {@link BarPayload}? */
+function isBarPayload(value: unknown): value is BarPayload {
+  if (!isRecord(value)) return false;
+
+  return (
+    typeof value.startsAt === "string" &&
+    typeof value.open === "number" &&
+    typeof value.high === "number" &&
+    typeof value.low === "number" &&
+    typeof value.close === "number" &&
+    typeof value.volume === "number"
+  );
+}
+
+/**
+ * Is `value` a {@link SeriesProvenancePayload}?
+ *
+ * The one place this predicate is stricter than the wire type it checks:
+ * `sources` is typed as a plain array because a tuple has no JSON Schema the
+ * server could enforce, and this is where the domain's non-emptiness is put
+ * back — {@link SeriesProvenancePayload.sources} names this function for it.
+ */
+function isSeriesProvenancePayload(
+  value: unknown,
+): value is SeriesProvenancePayload {
+  if (!isRecord(value)) return false;
+
+  return (
+    isMember(ADJUSTMENTS, value.adjustment) &&
+    Array.isArray(value.sources) &&
+    value.sources.length > 0 &&
+    value.sources.every(isBarSource)
+  );
+}
+
+/**
+ * Is `value` a {@link BarSource}?
+ *
+ * `BarSource` is the one shape in this contract that is **not** twinned for the
+ * wire — all four of its fields are already JSON-native — so this checks the
+ * domain type directly, which is exactly why it can afford to.
+ */
+function isBarSource(value: unknown): value is BarSource {
+  if (!isRecord(value)) return false;
+
+  return (
+    isMember(PROVIDER_IDS, value.provider) &&
+    isMember(MARKET_FEEDS, value.feed) &&
+    typeof value.retrievedAt === "string" &&
+    typeof value.barCount === "number"
+  );
+}
+
+/**
+ * Is `value` a {@link SeriesCoveragePayload}?
+ *
+ * `covered` accepts `null` and refuses `undefined`, which is
+ * `isSecurityLastClose`'s distinction and the same reason: the null carries
+ * meaning — *the series is empty* — where an absent key would be a body from a
+ * server that does not know about this field at all.
+ */
+function isSeriesCoveragePayload(
+  value: unknown,
+): value is SeriesCoveragePayload {
+  if (!isRecord(value)) return false;
+
+  return (
+    isTimeWindowPayload(value.requested) &&
+    (value.covered === null || isTimeWindowPayload(value.covered))
+  );
+}
+
+/** Is `value` a {@link TimeWindowPayload}? */
+function isTimeWindowPayload(value: unknown): value is TimeWindowPayload {
+  if (!isRecord(value)) return false;
+
+  return typeof value.start === "string" && typeof value.end === "string";
+}
+
+/** Anything with keys — the check every predicate above opens with. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/**
+ * Is `candidate` one of `values`?
+ *
+ * The `readonly string[]` widening is what lets a `const` array of literals be
+ * asked about an `unknown`, and the return type is what carries the answer back
+ * to the caller as a narrowing.
+ */
+function isMember<T extends string>(
+  values: readonly T[],
+  candidate: unknown,
+): candidate is T {
+  return (
+    typeof candidate === "string" &&
+    (values as readonly string[]).includes(candidate)
+  );
 }

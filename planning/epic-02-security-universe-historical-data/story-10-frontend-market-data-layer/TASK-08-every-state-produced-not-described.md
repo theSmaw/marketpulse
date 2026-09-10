@@ -48,6 +48,25 @@ difference between a demo and a product.
   | answered badly     | point `VITE_API_BASE_URL` at a static host, which answers 200 with `index.html`                                  |
   | loading            | a throttled connection or a route intercept                                                                      |
 
+  > **Amended 2026-09-10 by Task 2.10.3 — a cheaper cause for one row, and a
+  > sentence that row must not say.** `isBarSeriesResponse` refuses a `feed`,
+  > `provider`, `adjustment`, `timeframe` or `securityStatus` outside its const
+  > array, so **_answered badly_ has a second named cause that needs no second
+  > host**: hand the guard a body carrying an unknown feed slug, through the
+  > fixture backend or a route intercept. Keep the static-host cause too — the
+  > two are different real situations — but this one is producible in a
+  > component test, where the other needs a rebuild.
+  >
+  > **And the copy for that state is now constrained.** From this endpoint,
+  > `unreadable-body` means _the body is not this contract's shape — a wrong
+  > host, or a vocabulary this bundle predates_. It **never** means the numbers
+  > disagree with each other, because the guard checks shape and not coherence
+  > (see that task's finding, and Task 2.10.4's amendment which owns the
+  > coherence check). So a sentence like "the data looks wrong" would be false
+  > here in the same direction "unexpected response" was false on the universe
+  > page: it points a reader at the numbers when the actual fault is the address
+  > or the deploy.
+
 - **Decide what happens to visible data while new data loads, and record the
   decision with its reversal trigger.** A panel that empties and refills flickers;
   one that keeps the old data and marks it stale is the §36 shape. The trap is

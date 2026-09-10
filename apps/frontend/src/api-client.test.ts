@@ -1,7 +1,12 @@
 import { REQUEST_ID_HEADER } from "@marketpulse/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { API_TIMEOUT_MS, apiRequest, getHealth } from "./api-client.js";
+import {
+  API_TIMEOUT_MS,
+  apiRequest,
+  getBarSeries,
+  getHealth,
+} from "./api-client.js";
 
 // The client's tests are the ones Task 1.11.5's `health-probe.test.ts` used to
 // carry, re-homed rather than deleted: the correlation id, the base URL and the
@@ -269,5 +274,255 @@ describe("apiRequest failure classification", () => {
         timeoutMs: 10,
       }),
     ).resolves.toMatchObject({ outcome: "timeout" });
+  });
+});
+
+// The fourth request shape, and the first with parameters. What these tests are
+// about is the three things that could only go wrong here: the URL is assembled
+// by `barSeriesQuery` and not by hand, the two answers that look like failures
+// survive the guard, and the two refusals the contract promises arrive as
+// `api-error` with a code a caller can branch on rather than being flattened
+// into "something went wrong".
+
+const SERIES_BODY = {
+  series: {
+    symbol: "NVDA",
+    timeframe: "1m",
+    bars: [
+      {
+        startsAt: "2026-09-04T13:30:00.000Z",
+        open: 171.02,
+        high: 171.48,
+        low: 170.9,
+        close: 171.31,
+        volume: 1_284_311,
+      },
+    ],
+    provenance: {
+      adjustment: "raw",
+      sources: [
+        {
+          provider: "alpaca",
+          feed: "sip",
+          retrievedAt: "2026-09-05T02:14:07.000Z",
+          barCount: 1,
+        },
+      ],
+    },
+    coverage: {
+      requested: {
+        start: "2026-09-04T13:30:00.000Z",
+        end: "2026-09-04T20:00:00.000Z",
+      },
+      covered: {
+        start: "2026-09-04T13:30:00.000Z",
+        end: "2026-09-04T13:31:00.000Z",
+      },
+    },
+  },
+  securityStatus: "active",
+};
+
+const FIVE_SESSIONS = {
+  symbol: "NVDA",
+  timeframe: "1m",
+  window: { form: "named", sessions: 5 },
+} as const;
+
+describe("getBarSeries", () => {
+  it("requests /market-data/bars with the query the builder produced", async () => {
+    respondWith({ status: 200, body: SERIES_BODY });
+
+    await getBarSeries(FIVE_SESSIONS);
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      "http://localhost:3000/market-data/bars?symbol=NVDA&timeframe=1m&sessions=5",
+      expect.objectContaining({ headers: { accept: "application/json" } }),
+    );
+  });
+
+  it("sends the named window rather than a resolved one, whatever the browser's clock says", async () => {
+    // The defect this whole arrangement exists to prevent: a client in
+    // Singapore resolving "the last 5 sessions" against its own date is off by
+    // one session for several hours of every day, and the chart it produces is
+    // plausible and shifted rather than an error anybody sees. Asserted as an
+    // **absence** — no instant in the URL — because that is what the property
+    // is.
+    respondWith({ status: 200, body: SERIES_BODY });
+
+    await getBarSeries(FIVE_SESSIONS);
+
+    // `fetch`'s first argument is typed `RequestInfo | URL`, and this client
+    // always passes a string; the narrowing is what keeps the assertion off
+    // `[object Object]` if that ever stops being true.
+    const [url] = vi.mocked(fetch).mock.calls[0] ?? [];
+
+    expect(typeof url === "string" ? url : "").not.toMatch(/start=|end=/);
+  });
+
+  it("reports the parsed series and the correlation id", async () => {
+    respondWith({
+      status: 200,
+      body: SERIES_BODY,
+      requestId: "0199c0de-1234-7000-8000-0123456789ab",
+    });
+
+    await expect(getBarSeries(FIVE_SESSIONS)).resolves.toMatchObject({
+      outcome: "ok",
+      status: 200,
+      requestId: "0199c0de-1234-7000-8000-0123456789ab",
+      data: { series: { symbol: "NVDA" } },
+    });
+  });
+
+  it("reports an empty series as ok, because it is an answer rather than a failure", async () => {
+    // `bars: []` with a null `covered` is a 200 (MARKET-DATA-API.md §6). If
+    // this ever reads `unreadable-body`, the guard has turned this contract's
+    // own empty answer into "something else is answering at this address".
+    respondWith({
+      status: 200,
+      body: {
+        ...SERIES_BODY,
+        series: {
+          ...SERIES_BODY.series,
+          bars: [],
+          provenance: {
+            adjustment: "raw",
+            sources: [
+              {
+                provider: "alpaca",
+                feed: "sip",
+                retrievedAt: "2026-09-05T02:14:07.000Z",
+                barCount: 0,
+              },
+            ],
+          },
+          coverage: {
+            requested: SERIES_BODY.series.coverage.requested,
+            covered: null,
+          },
+        },
+      },
+    });
+
+    await expect(getBarSeries(FIVE_SESSIONS)).resolves.toMatchObject({
+      outcome: "ok",
+    });
+  });
+
+  it("reports the 10,000-bar cap as an api-error whose code and number both survive", async () => {
+    // The cap is refused rather than reduced, because a chart drawn from fewer
+    // bars than were asked for is wrong and looks right. This client neither
+    // renders that nor swallows it: the code is what Task 2.10.4 branches on
+    // and the message carries the number a person needs.
+    respondWith({
+      status: 400,
+      body: {
+        code: "BAD_REQUEST",
+        message:
+          "That window is 98,280 bars. The most a single response may carry " +
+          "is 10,000. Ask for a shorter window or a coarser timeframe.",
+        requestId: "0199c0de-1234-7000-8000-0123456789ab",
+      },
+      requestId: "0199c0de-1234-7000-8000-0123456789ab",
+    });
+
+    const result = await getBarSeries({
+      symbol: "NVDA",
+      timeframe: "1m",
+      window: {
+        form: "absolute",
+        start: "2025-09-04T13:30:00.000Z",
+        end: "2026-09-04T20:00:00.000Z",
+      },
+    });
+
+    expect(result).toMatchObject({
+      outcome: "api-error",
+      status: 400,
+      error: { code: "BAD_REQUEST" },
+    });
+    expect(
+      result.outcome === "api-error" ? result.error.message : "",
+    ).toContain("10,000");
+  });
+
+  it("reports a window outside the trading calendar as an api-error with a readable code", async () => {
+    // Not a malformed request — a well-formed one this system cannot express,
+    // because the calendar is a checked-in table covering 2024-2028 and refuses
+    // rather than guessing which days outside it were holidays. Returning fewer
+    // sessions than were asked for would be a wrong answer wearing the shape of
+    // a right one.
+    respondWith({
+      status: 400,
+      body: {
+        code: "BAD_REQUEST",
+        message:
+          "2016-01-04 is outside the trading calendar this system holds, " +
+          "which covers 2024-01-01 to 2028-12-31.",
+        requestId: "0199c0de-1234-7000-8000-0123456789ab",
+      },
+    });
+
+    await expect(
+      getBarSeries({
+        symbol: "NVDA",
+        timeframe: "1d",
+        window: {
+          form: "absolute",
+          start: "2016-01-04T14:30:00.000Z",
+          end: "2016-01-05T21:00:00.000Z",
+        },
+      }),
+    ).resolves.toMatchObject({
+      outcome: "api-error",
+      status: 400,
+      error: { code: "BAD_REQUEST" },
+    });
+  });
+
+  it("reports a body that is not this contract as unreadable-body", async () => {
+    // A feed slug this bundle has no words for. It must not reach a component
+    // that would print it — invariant 6 arriving through the one door left
+    // open.
+    respondWith({
+      status: 200,
+      body: {
+        ...SERIES_BODY,
+        series: {
+          ...SERIES_BODY.series,
+          provenance: {
+            adjustment: "raw",
+            sources: [
+              {
+                provider: "alpaca",
+                feed: "nasdaq-basic",
+                retrievedAt: "2026-09-05T02:14:07.000Z",
+                barCount: 1,
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    await expect(getBarSeries(FIVE_SESSIONS)).resolves.toMatchObject({
+      outcome: "unreadable-body",
+      status: 200,
+    });
+  });
+
+  it("reports a caller's abort as aborted rather than as a failure", async () => {
+    // Acceptance criterion 3 at the transport layer: a superseded request is
+    // not a fact about the backend, and Task 2.10.5 must not render one as a
+    // state.
+    respondNever();
+
+    const controller = new AbortController();
+    const pending = getBarSeries(FIVE_SESSIONS, { signal: controller.signal });
+
+    controller.abort();
+
+    await expect(pending).resolves.toStrictEqual({ outcome: "aborted" });
   });
 });
