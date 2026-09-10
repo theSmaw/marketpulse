@@ -20,6 +20,7 @@ import { REQUEST_ID_HEADER } from "@marketpulse/shared";
 import type { LogFormat, LogLevel } from "./config.js";
 import { registerCors } from "./cors.js";
 import { registerErrorHandling } from "./errors.js";
+import { installResponseCompression } from "./http-compression.js";
 import { resolveRequestId } from "./request-id.js";
 import { healthRoutes } from "./routes/health.js";
 
@@ -222,6 +223,18 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   // constraint is the one that matters and it is satisfied either way: a
   // plugin registered on the root instance applies to everything on it.
   registerCors(app, options.corsOrigin);
+
+  // Response compression (Task 2.9.10). See http-compression.ts for the hook
+  // order, both failures it can take, and why `br` is declined.
+  //
+  // Here rather than in a route plugin because, like the two lines above it,
+  // this is a property of the application: there is no response this API serves
+  // that should be excluded, and the small ones exclude themselves by falling
+  // under the size threshold. It must stay **before** the routes for a reason
+  // that is not the usual one — the plugin attaches its `onSend` through an
+  // `onRoute` listener, and a listener only hears the routes registered after
+  // it. A route registered above this line would silently serve uncompressed.
+  installResponseCompression(app);
 
   // Routes are registered here as they arrive.
   //
