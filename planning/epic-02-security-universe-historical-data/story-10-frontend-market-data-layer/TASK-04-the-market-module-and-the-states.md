@@ -84,6 +84,32 @@ and then three UI stories.
     > **before** it reaches the retryable branch, and §4's row for `BAD_REQUEST`
     > governs only a `BAD_REQUEST` this client did not recognise as a refusal.
 
+    > **Amended 2026-09-10 by Task 2.10.2, which shipped the flag on the other
+    > page.** Two things to copy rather than re-decide, both found by building it.
+    >
+    > **The failed member carries _two_ booleans, not one.** `retryable`, as §4
+    > says — and `retrying`, because "what does the surface do while the retry is
+    > in flight" is a separate question whose obvious answer is wrong. Returning
+    > to `loading` takes the failure's own sentence off the screen while we find
+    > out whether it is still true and puts it back a moment later, which reads as
+    > the thing breaking twice. So the failure stays and the control says it is
+    > working. It is not a member for the same reason `retryable` is not: a member
+    > whose entire content is the member it replaces makes every consumer carry
+    > both. Spell it the same way `SecuritiesView` does — two pages disagreeing
+    > about this is the outcome §4 exists to prevent.
+    >
+    > **The action does not travel on the union.** `useSecurities` now returns
+    > `{ view, retry }` and `UniverseTable` takes the union whole plus a
+    > **required** `onRetry` callback beside it. A function hung off the failed
+    > member would make the state un-comparable, un-serialisable and awkward to
+    > construct in a story or a test — and the _keep the shape describable_ bullet
+    > below is exactly the property that forbids it, because Epic 11 wants state a
+    > `WorkspaceCommand` can act on and Epic 12 persists it. **State on the union,
+    > actions beside it**, and required rather than optional for `ErrorFallback`'s
+    > reason: offering recovery is the half of a failure state that is easy to
+    > forget, and an optional callback is a failure state that silently loses its
+    > way out.
+
   **`aborted` is not a member.** It is not a fact about the backend at all — it is
   a torn-down effect or a superseded request — and rendering one as a failure is
   the specific defect acceptance criterion 3 exists to prevent. It leaves the

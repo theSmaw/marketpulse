@@ -60,6 +60,14 @@ they do not each answer "what does a partial series look like?" differently.
   makes that two feeds disagreeing, and `PROVIDER.md` §2.4 designed for it — and
   the two refusals, the cap's 400 naming its number and the calendar's.
 
+  > **Amended 2026-09-10 by Task 2.10.2 — one more body, and it is a failure.**
+  > The set above is all 2xx answers and refusals. Add the **503 carrying
+  > `SERVICE_UNAVAILABLE`**, recorded the way the others are — it is produced by
+  > `DATABASE_PORT=59999 node dist/index.js` against the real endpoint — because
+  > it is the failure the panel has to render as _retryable_ (Task 2.10.8), and a
+  > fixture set with no retryable failure in it cannot produce the one failure
+  > state this layer treats differently from all the others.
+
 - **Any provider this story adds lands in `test-render.tsx`.** That file already
   says so in its header: it is the one place the application's context is
   described for tests, deliberately the third and last such description, and
