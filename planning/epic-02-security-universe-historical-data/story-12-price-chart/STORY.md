@@ -84,8 +84,9 @@ model, and building the second one first would settle those decisions by acciden
 ## Design surface
 
 Substantial. This is the product's first data visualisation and the thing a demo audience
-looks at longest. It should carry `VISUAL-LANGUAGE.md`'s language — near-black hairlines
-rather than grey borders, the warm ground, restraint with colour — and it must reserve
+looks at longest. It should carry `VISUAL-LANGUAGE.md`'s language — the near-black
+**structural** rule, the cool ground, the data face on every figure, restraint with
+colour — and it must reserve
 room for what arrives later: Epic 5's anomaly markers, Epic 8's comparison series, Epic 9's
 filing markers on the time axis.
 

@@ -36,9 +36,11 @@
  * **This is the design language rather than a convenience**, and
  * `VISUAL-LANGUAGE.md` says so in its own words: it is "the idiom that most says
  * 'institutional application'", and a sentence-case grey label does not read the
- * same way. With no brand hue and no distinctive typeface, the identity of this
- * product is entirely structural, and this is one of the four or five things
- * carrying it.
+ * same way. It was one of four or five things carrying an identity that was
+ * *entirely* structural — no brand hue, no distinctive typeface — and the 2026
+ * refresh gave the product both of those, which makes this idiom less
+ * load-bearing than it was and no less correct: three faces and one accent
+ * changed what carries the identity, not what a label is for.
  *
  * It was hand-copied into **14 rules across 10 files** before this file existed,
  * and nothing checked any of them. That is the failure mode: an author who
@@ -57,4 +59,62 @@
   line-height: var(--line-height-micro);
   letter-spacing: var(--letter-spacing-micro);
   text-transform: uppercase;
+}
+
+/*
+ * A figure, an identifier, or anything else a person reads as a *value* rather
+ * than as a sentence — the second idiom this design language gained in the 2026
+ * refresh, and the one most likely to be reimplemented badly.
+ *
+ * It is three declarations that always travel together and are always got
+ * partly right: the data face, tabular figures, and the tracking backed off.
+ * JetBrains Mono is already monospaced, so `tabular-nums` looks redundant and is
+ * not — the face ships proportional *punctuation* in some contexts, and the
+ * property also survives a fallback to a stack whose first available member is
+ * not monospaced at all, which is exactly the frame a cold load renders. The
+ * negative tracking is because a monospaced face at 13px in a dense column
+ * reads wide beside Inter, and a table whose figures look looser than its labels
+ * has its emphasis backwards.
+ *
+ * **What this class is not for: prose.** A sentence set in the data face is a
+ * terminal, not a product. See `--font-data` in `tokens.css`.
+ */
+.dataCell {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+/*
+ * The headline figure in a metric strip — the number a person looks at first,
+ * before they have decided what they are looking for.
+ *
+ * Composes `.dataCell` rather than restating it, which is the only composition
+ * chain in this file and is worth the indirection: the day the data face gains
+ * a fourth declaration, a metric that had copied three of them would be the
+ * thing that silently stopped matching.
+ */
+.dataMetric {
+  composes: dataCell;
+  font-size: var(--font-size-metric);
+  line-height: var(--line-height-metric);
+  font-weight: var(--font-weight-medium);
+}
+
+/*
+ * A paragraph that is *read* rather than scanned — the sentence explaining a
+ * failure, the description under a region heading, the copy in an empty state.
+ *
+ * It exists because the product's default size is 13px, which is a table's size
+ * and is too small for a paragraph anybody is expected to read to the end of.
+ * The failure mode without it is that prose inherits the dense default and
+ * every explanatory sentence in the product is set at the size of a data cell —
+ * which is what happened before the refresh, in nine files.
+ *
+ * Colour is deliberately not here. Some prose is secondary and some is not, and
+ * a class that decided would be a class every consumer had to override.
+ */
+.prose {
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
 }

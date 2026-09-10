@@ -1,0 +1,88 @@
+/*
+ * The identity accent — the only colour in this interface that means nothing
+ * about the market.
+ *
+ * ## Why this is a file and not three tokens in `tokens.css`
+ *
+ * `tokens.css` is achromatic by rule, and `market.css` is "the only place
+ * colour with meaning enters the interface". The 2026 refresh introduced a
+ * brand hue, which is neither: it is chromatic, so it cannot go in the first,
+ * and it says nothing about a security, a feed or a score, so putting it in the
+ * second would make that file's promise false. A third file keeps both promises
+ * intact and makes the accent's *scope* a property of the layout — a reviewer
+ * asking "where may crimson appear?" opens one short file and finds the answer
+ * written down.
+ *
+ * ## The rule, and it is the load-bearing one
+ *
+ * **Brand colour never touches a datum.** Not a price, not a change, not a
+ * volume, not a ticker, not a score, not a status. Its whole permitted surface
+ * is the chrome:
+ *
+ *   - the mark beside the wordmark;
+ *   - the 2px bar under the current navigation tab;
+ *   - a primary button — the one action on a screen that is *the* action;
+ *   - a text link inside prose.
+ *
+ * That list is exhaustive, and the reason it has to be is arithmetic. This
+ * accent is crimson, and crimson is a hair from `--price-negative`. On a screen
+ * where a number can be red because the market fell, a *second* red that means
+ * "MarketPulse" is a coin flip for the reader — and for roughly one man in
+ * twelve with a red-green deficiency it is worse than a coin flip, because the
+ * green half of the price pair is the channel they are already missing.
+ *
+ * The reference design this refresh is built from breaks that rule in exactly
+ * one place — it sets the benchmark ETF's ticker in the brand crimson — and the
+ * break is instructive: on a day SPY is down, that cell is red for two unrelated
+ * reasons at once. We took the structure and left the ticker achromatic.
+ *
+ * ## Why crimson at all
+ *
+ * A pulse. The product is named for the market's heartbeat and the mark is a
+ * single filled square; there is no other place in the interface where this hue
+ * appears, which is what makes it read as identity rather than as decoration.
+ * The alternative considered was a non-red accent (indigo), which removes the
+ * collision above entirely — it was rejected because the collision is removable
+ * by scope, and because a market instrument in blue looks like every other
+ * dashboard.
+ */
+
+:root,
+[data-theme="light"] {
+  /*
+   * The palette — two crimsons, and they are two because contrast forces it.
+   *
+   * `--palette-crimson` measures 8.28:1 on white and 7.73:1 on the page ground,
+   * so it is safe as **text** at any size. `--palette-crimson-bright` measures
+   * 5.70:1 against white *ink* on top of it, which is what a filled primary
+   * button is, and would be a poor text colour at 5.32:1 on the page ground —
+   * so it is a **fill** and never a foreground.
+   *
+   * Getting these the wrong way round is the likely mistake, and it fails
+   * quietly: bright crimson text on the page ground still passes AA for large
+   * text, so it looks fine in a heading and fails in a caption.
+   */
+  --palette-crimson: #a20000;
+  --palette-crimson-bright: #d00000;
+  /* The palest wash, for a selected row or a callout ground under crimson text.
+     Ink on it is `--ink-primary`, never crimson on crimson. */
+  --palette-crimson-wash: #ffe9e5;
+}
+
+:root {
+  /*
+   * The semantics. Named for the job, not the hue — the day the accent stops
+   * being crimson, this block is the only edit.
+   */
+
+  /* Text, marks and rules that identify the product. */
+  --brand-ink: var(--palette-crimson);
+  /* Filled surfaces that carry white text: the mark, a primary button. */
+  --brand-fill: var(--palette-crimson-bright);
+  /* What sits on `--brand-fill`. White, and stated rather than assumed, because
+     a consumer that inherits `--ink-primary` onto a crimson button gets 3.1:1
+     and nothing complains. */
+  --brand-on-fill: #ffffff;
+  /* A tinted ground for a brand-adjacent surface. Ink on it stays achromatic. */
+  --brand-wash: var(--palette-crimson-wash);
+}

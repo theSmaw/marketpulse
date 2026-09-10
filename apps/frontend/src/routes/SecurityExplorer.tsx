@@ -1,10 +1,10 @@
 import { BarSeriesPanel } from "../components/BarSeriesPanel/BarSeriesPanel.js";
+import { PageHeader } from "../components/PageHeader/PageHeader.js";
 import { Region } from "../components/Region/Region.js";
 import { UniverseTable } from "../components/UniverseTable/UniverseTable.js";
 import { useBarSeries } from "../market/index.js";
 import { useSecurities } from "../use-securities.js";
 import { useSecuritySymbol } from "./use-security-symbol.js";
-import styles from "./routes.module.css";
 import page from "./SecurityExplorer.module.css";
 
 // PRODUCT_SPEC.md §8.3 — "What is happening with this security?".
@@ -95,11 +95,20 @@ export function SecurityExplorer() {
        * would move three things at once, this heading, `AppHeader`'s link and
        * two browser specs, for a name with a shorter life than the route.
        *
-       * There is no micro-label above it. `routes.module.css`'s `.label` says
-       * *what kind of thing this screen is* — "Placeholder", "Not found" — and
-       * this is no longer either.
+       * There is no eyebrow above it. `PageHeader`'s says *what kind of thing
+       * this screen is* — "Placeholder", "Not found" — and this is no longer
+       * either.
+       *
+       * **It is a `PageHeader` since the 2026 refresh** (ADR 0022), which is
+       * where the `<h1>` now lives for every route in the application. The
+       * description under it is new and is the sentence this screen never had:
+       * a stranger landing here from a link had the route's name and nothing
+       * saying what it was for.
        */}
-      <h1 className={styles.title}>Security Explorer</h1>
+      <PageHeader
+        title="Security Explorer"
+        description="What is happening with one security — its bars, its last close, and the universe it belongs to."
+      />
 
       {/*
        * The series region, above the universe, because it is what this route is

@@ -1,0 +1,70 @@
+/*
+ * Two rows: the title block with its actions, and the metrics under them.
+ *
+ * The metric strip sits *below* rather than beside the title, which is the one
+ * layout decision here worth stating. Beside is where it fits on a wide screen
+ * and it is wrong at every other width: the figures wrap under the title anyway
+ * at 1280px, and a strip that is sometimes a column and sometimes a row is a
+ * strip whose separators mean nothing.
+ */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  padding-bottom: var(--space-16);
+
+  /*
+   * The structural rule under the whole header — the same near-black hairline a
+   * panel carries under its own heading. It is what makes the top of a screen
+   * read as a masthead rather than as a paragraph that happens to be large.
+   */
+  border-bottom: var(--border-width) solid var(--rule-strong);
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-24);
+  flex-wrap: wrap;
+}
+
+.headings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.eyebrow {
+  composes: microLabel from "../../styles/type.module.css";
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+/* The display face, the bold weight and the tight tracking all come from
+   `base.css`'s heading rule; only the size and the absent margin are a page
+   header's own business. */
+.title {
+  margin: 0;
+  font-size: var(--font-size-heading);
+  line-height: var(--line-height-heading);
+}
+
+.description {
+  composes: prose from "../../styles/type.module.css";
+  margin: var(--space-4) 0 0;
+  max-width: 68ch;
+  color: var(--ink-secondary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.metrics {
+  min-width: 0;
+}

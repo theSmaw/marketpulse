@@ -1,0 +1,135 @@
+/*
+ * The control's geometry lives here once, and the three variants are colour
+ * only — which is the rule that keeps a toolbar aligned. A variant that changed
+ * its own padding is how a primary and a secondary end up 2px different in
+ * height, side by side, forever.
+ *
+ * Note what is absent: there is no `:focus` rule anywhere in this file.
+ * `base.css` carries one global `:focus-visible` outline and a control that
+ * declares its own is answering a question the token layer already answered.
+ */
+
+.button {
+  /*
+   * The interface face, not the display face — a control is not a heading — and
+   * the micro size, uppercase and letterspaced.
+   *
+   * **That is a deliberate borrowing of the micro-label idiom and it is the
+   * thing that makes these read as instrument controls** rather than as web
+   * buttons. It composes rather than restating the three declarations, so a
+   * change to the idiom reaches the controls too. `composes` sits first in the
+   * rule by convention: it is not a declaration and reading it as one is how a
+   * later author "reorders" it into a place the loader will not accept.
+   */
+  composes: microLabel from "../../styles/type.module.css";
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+
+  /* The height is a token because a button, an input and a select that disagree
+     by 2px turn a toolbar into a ransom note. `--control-height` is the whole
+     reason those tokens exist. */
+  height: var(--control-height);
+  padding: 0 var(--space-12);
+
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius);
+
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-strong);
+
+  cursor: pointer;
+  white-space: nowrap;
+  /* For `linkClassName`: an `<a>` carrying these classes brings the user
+     agent's underline with it, and a control with a line under its label reads
+     as a link that has been dressed up. The `<button>` case is unaffected. */
+  text-decoration: none;
+
+  transition:
+    background-color var(--motion-duration-quick) var(--motion-ease-standard),
+    border-color var(--motion-duration-quick) var(--motion-ease-standard),
+    color var(--motion-duration-quick) var(--motion-ease-standard);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  color: var(--ink-disabled);
+  border-color: var(--rule-soft);
+  background: var(--surface-sunken);
+}
+
+/*
+ * --- Sizes ---
+ *
+ * Two, and the small one is not a scaled-down medium: its padding tightens
+ * proportionally more than its height, because a 28px control with 12px of
+ * side padding reads as a stretched pill rather than a compact button.
+ */
+.medium {
+  height: var(--control-height);
+}
+
+.small {
+  height: var(--control-height-sm);
+  padding: 0 var(--space-8);
+}
+
+/* Square, so an icon-only control is a 36×36 or 28×28 box rather than a wide
+   one with a symbol adrift in the middle of it. */
+.iconOnly {
+  width: var(--control-height);
+  padding: 0;
+}
+
+.small.iconOnly {
+  width: var(--control-height-sm);
+}
+
+/*
+ * --- Variants ---
+ *
+ * `primary` is the one place in this interface where the identity accent
+ * becomes a surface. `--brand-on-fill` is stated rather than inherited: a
+ * button that let `--ink-primary` cascade onto crimson would measure 3.1:1 and
+ * nothing in `pnpm verify` would say so.
+ */
+.primary {
+  background: var(--brand-fill);
+  border-color: var(--brand-fill);
+  color: var(--brand-on-fill);
+}
+
+.primary:hover:not(:disabled) {
+  /* The darker crimson on hover rather than a lighter one: this palette's
+     bright crimson is already at the top of its range, so "more" has to mean
+     deeper. */
+  background: var(--brand-ink);
+  border-color: var(--brand-ink);
+}
+
+.secondary {
+  background: var(--surface-raised);
+  border-color: var(--rule-hairline);
+  color: var(--ink-primary);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  /* The border steps up to the structural near-black on hover — the same
+     hairline the language reserves for structure, borrowed for a moment. It is
+     a stronger signal than a background change alone and it costs no colour. */
+  border-color: var(--rule-strong);
+}
+
+.quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-secondary);
+}
+
+.quiet:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  color: var(--ink-primary);
+}

@@ -1,0 +1,2252 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>MarketPulse | Security Explorer</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      @layer base {
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+        }
+        body {
+          overscroll-behavior: none;
+        }
+      }
+      ::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-container": "#d00000",
+              "on-primary-container": "#ffded9",
+              "inverse-surface": "#2e3135",
+              secondary: "#5b5e66",
+              "surface-container-low": "#f2f3f9",
+              background: "#f8f9ff",
+              primary: "#a20000",
+              "on-tertiary-fixed": "#00210d",
+              "on-surface": "#191c20",
+              "on-secondary": "#ffffff",
+              outline: "#936e69",
+              "on-tertiary-fixed-variant": "#005229",
+              "inverse-primary": "#ffb4a8",
+              "inverse-on-surface": "#eff0f6",
+              "tertiary-fixed-dim": "#7bda97",
+              "secondary-fixed": "#dfe2eb",
+              "on-primary-fixed-variant": "#930000",
+              "on-primary-fixed": "#410000",
+              "on-error-container": "#93000a",
+              "on-secondary-fixed-variant": "#43474e",
+              "secondary-fixed-dim": "#c3c6cf",
+              "surface-variant": "#e1e2e8",
+              "primary-fixed-dim": "#ffb4a8",
+              "surface-container": "#eceef3",
+              "surface-container-highest": "#e1e2e8",
+              "on-secondary-fixed": "#181c22",
+              "tertiary-container": "#02763e",
+              "error-container": "#ffdad6",
+              "on-surface-variant": "#5e3f3a",
+              "surface-dim": "#d8dae0",
+              "outline-variant": "#e8bdb6",
+              "surface-container-high": "#e6e8ee",
+              "secondary-container": "#dfe2eb",
+              "on-tertiary-container": "#99fab3",
+              surface: "#f8f9ff",
+              error: "#ba1a1a",
+              tertiary: "#005b2e",
+              "tertiary-fixed": "#97f7b1",
+              "on-secondary-container": "#61646c",
+              "on-background": "#191c20",
+              "primary-fixed": "#ffdad4",
+              "on-tertiary": "#ffffff",
+              "on-error": "#ffffff",
+              "surface-bright": "#f8f9ff",
+              "surface-tint": "#c00000",
+              "surface-container-lowest": "#ffffff",
+              "on-primary": "#ffffff",
+            },
+            fontFamily: {
+              "body-sm": ["Inter"],
+              "display-xl": ["Hanken Grotesk"],
+              "headline-md": ["Hanken Grotesk"],
+              "data-cell": ["JetBrains Mono"],
+              "headline-lg": ["Hanken Grotesk"],
+              "data-metric-lg": ["JetBrains Mono"],
+              "headline-sm": ["Hanken Grotesk"],
+              "label-caps": ["Hanken Grotesk"],
+              "body-lg": ["Inter"],
+              "title-md": ["Inter"],
+              "body-md": ["Inter"],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body
+    class="bg-[#f8f9fc] font-body-md text-on-surface antialiased selection:bg-primary-container selection:text-on-primary-container min-h-screen flex flex-col"
+  >
+    <!-- Top Global Header / Navigation -->
+    <header class="w-full bg-white border-b border-gray-200 sticky top-0 z-50">
+      <div
+        class="max-w-[1540px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between"
+      >
+        <!-- Left: Logo & Title -->
+        <div class="flex items-center gap-3 shrink-0">
+          <div class="w-3 h-3 bg-primary-container"></div>
+          <div class="flex flex-col">
+            <span
+              class="font-headline-sm text-[16px] font-bold tracking-tight text-on-surface leading-none"
+              >MarketPulse</span
+            >
+            <span
+              class="font-label-caps text-[9px] uppercase tracking-wider text-secondary leading-none mt-1"
+              >Institutional Platform</span
+            >
+          </div>
+        </div>
+        <!-- Center / Nav Links -->
+        <nav class="hidden md:flex items-center h-full space-x-1">
+          <a
+            class="px-3.5 h-full flex items-center text-secondary hover:text-on-surface text-[13px] font-medium border-b-2 border-transparent transition-colors"
+            href="#"
+          >
+            Live Anomaly Detection
+          </a>
+          <a
+            class="px-3.5 h-full flex items-center text-secondary hover:text-on-surface text-[13px] font-medium border-b-2 border-transparent transition-colors"
+            href="#"
+          >
+            Deep Investigation
+          </a>
+          <a
+            class="px-3.5 h-full flex items-center text-secondary hover:text-on-surface text-[13px] font-medium border-b-2 border-transparent transition-colors"
+            href="#"
+          >
+            Historical Replay
+          </a>
+          <a
+            aria-current="page"
+            class="px-3.5 h-full flex items-center text-primary-container font-semibold text-[13px] border-b-2 border-primary-container"
+            href="#"
+          >
+            Securities Explorer
+          </a>
+          <a
+            class="px-3.5 h-full flex items-center text-secondary hover:text-on-surface text-[13px] font-medium border-b-2 border-transparent transition-colors"
+            href="#"
+          >
+            System Status
+          </a>
+        </nav>
+        <!-- Right: Clock / Market Status -->
+        <div
+          class="flex items-center gap-2 font-data-cell text-[12px] text-secondary bg-gray-50 border border-gray-200 px-2.5 py-1"
+        >
+          <span
+            class="w-2 h-2 rounded-full bg-tertiary inline-block animate-pulse"
+          ></span>
+          <span
+            >Clock:
+            <strong class="text-on-surface font-semibold"
+              >2024-09-18 16:00:00 ET</strong
+            ></span
+          >
+        </div>
+      </div>
+    </header>
+    <!-- Main Viewport -->
+    <main
+      class="flex-1 max-w-[1540px] w-full mx-auto px-4 sm:px-6 py-6 space-y-5"
+    >
+      <!-- Subheader & Page Metrics Strip -->
+      <div class="space-y-1">
+        <h1
+          class="font-headline-md text-2xl font-bold text-on-surface tracking-tight"
+        >
+          Security Explorer
+        </h1>
+        <!-- Exact Live Metrics Strip -->
+        <p class="font-data-cell text-[13px] text-secondary">
+          Tracked universe —
+          <span class="text-on-surface font-semibold">102 total</span> |
+          <span class="text-tertiary font-semibold">100% active</span> |
+          <span class="text-on-surface font-semibold">171.19B ADV</span> |
+          <span class="text-on-surface font-semibold">27.50T total cap</span>
+        </p>
+      </div>
+      <!-- Filters & Search Toolbar -->
+      <div class="bg-white border border-gray-200 p-4 space-y-3 shadow-xs">
+        <div
+          class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3"
+        >
+          <!-- Search Input -->
+          <div class="relative flex-1 max-w-lg">
+            <span
+              class="material-symbols-outlined absolute left-3 top-2.5 text-secondary text-[18px]"
+              >search</span
+            >
+            <input
+              class="w-full h-9 pl-9 pr-3 text-body-sm bg-gray-50 border border-gray-200 text-on-surface placeholder:text-gray-400 focus:outline-none focus:border-on-surface text-[13px] transition-colors"
+              id="securities-search"
+              placeholder="Search securities..."
+              type="text"
+            />
+          </div>
+          <!-- Sort / Grouping options -->
+          <div
+            class="flex items-center gap-2 self-end md:self-auto text-body-sm"
+          >
+            <span class="text-secondary text-[12px] font-label-caps uppercase"
+              >Sort by:</span
+            >
+            <select
+              class="h-9 px-2.5 text-[12px] font-data-cell bg-gray-50 border border-gray-200 text-on-surface focus:outline-none cursor-pointer"
+              id="sort-select"
+            >
+              <option value="symbol">Symbol (A-Z)</option>
+              <option value="market_cap">Market Cap (High-Low)</option>
+              <option value="volume">Volume / ADV</option>
+              <option value="change">Daily Change</option>
+            </select>
+            <button
+              class="h-9 px-3 bg-gray-100 hover:bg-gray-200 text-on-surface border border-gray-200 text-[12px] font-label-caps uppercase tracking-wider flex items-center gap-1 transition-colors"
+              id="toggle-all-accordions"
+            >
+              <span class="material-symbols-outlined text-[16px]"
+                >unfold_more</span
+              >
+              <span id="accordion-toggle-text">Collapse All</span>
+            </button>
+          </div>
+        </div>
+        <!-- Sector Filter Buttons -->
+        <div
+          class="flex items-center gap-1.5 overflow-x-auto pb-1 select-none text-[12px] border-t border-gray-100 pt-3"
+        >
+          <button
+            class="sector-filter-btn active px-3 py-1 bg-inverse-surface text-inverse-on-surface font-semibold whitespace-nowrap"
+            data-sector="all"
+          >
+            All Sectors (102)
+          </button>
+          <button
+            class="sector-filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-secondary whitespace-nowrap"
+            data-sector="Technology"
+          >
+            Technology (24)
+          </button>
+          <button
+            class="sector-filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-secondary whitespace-nowrap"
+            data-sector="Financials"
+          >
+            Financials (16)
+          </button>
+          <button
+            class="sector-filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-secondary whitespace-nowrap"
+            data-sector="Healthcare"
+          >
+            Healthcare (14)
+          </button>
+          <button
+            class="sector-filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-secondary whitespace-nowrap"
+            data-sector="Consumer Discretionary"
+          >
+            Consumer Discretionary (11)
+          </button>
+          <button
+            class="sector-filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-secondary whitespace-nowrap"
+            data-sector="Communication Services"
+          >
+            Communication Services (8)
+          </button>
+          <button
+            class="sector-filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-secondary whitespace-nowrap"
+            data-sector="Industrials"
+          >
+            Industrials (8)
+          </button>
+          <button
+            class="sector-filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-secondary whitespace-nowrap"
+            data-sector="Consumer Staples"
+          >
+            Consumer Staples (6)
+          </button>
+          <button
+            class="sector-filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-secondary whitespace-nowrap"
+            data-sector="Energy"
+          >
+            Energy (5)
+          </button>
+          <button
+            class="sector-filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-secondary whitespace-nowrap"
+            data-sector="Utilities"
+          >
+            Utilities (4)
+          </button>
+          <button
+            class="sector-filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-secondary whitespace-nowrap"
+            data-sector="Real Estate"
+          >
+            Real Estate (3)
+          </button>
+          <button
+            class="sector-filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-secondary whitespace-nowrap"
+            data-sector="Materials"
+          >
+            Materials (2)
+          </button>
+          <button
+            class="sector-filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-secondary whitespace-nowrap"
+            data-sector="Benchmark"
+          >
+            Benchmark (1)
+          </button>
+        </div>
+      </div>
+      <!-- Accordion / Table Container -->
+      <div class="space-y-3" id="accordion-container">
+        <!-- ================= 1. TECHNOLOGY (24) ================= -->
+        <div
+          class="sector-accordion border border-gray-200 bg-white overflow-hidden"
+          data-sector-name="Technology"
+        >
+          <!-- Accordion Header -->
+          <button
+            class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors border-b border-gray-200 text-left cursor-pointer accordion-trigger"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="material-symbols-outlined text-gray-500 text-[18px] transition-transform duration-150 rotate-90 chevron-icon"
+                >chevron_right</span
+              >
+              <span
+                class="font-headline-sm text-[14px] font-bold text-on-surface tracking-tight"
+                >Technology</span
+              >
+              <span
+                class="font-data-cell text-[11px] px-2 py-0.5 bg-gray-200 text-gray-700 font-medium"
+                >24 securities</span
+              >
+            </div>
+            <span class="font-data-cell text-[12px] text-secondary"
+              >Dominant cap weight: 42.1%</span
+            >
+          </button>
+          <!-- Table View -->
+          <div class="accordion-content overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="h-9 bg-gray-50/50 border-b border-gray-200 text-secondary font-label-caps text-[11px] uppercase tracking-wider"
+                >
+                  <th class="px-4 py-2 font-semibold">Symbol</th>
+                  <th class="px-4 py-2 font-semibold">Name</th>
+                  <th class="px-4 py-2 font-semibold">Sector / Subsector</th>
+                  <th class="px-4 py-2 font-semibold text-right">Price</th>
+                  <th class="px-4 py-2 font-semibold text-right">Change</th>
+                  <th class="px-4 py-2 font-semibold text-right">
+                    Volume / ADV
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-center">
+                    Last Ingested
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-[13px]">
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    NVDA
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    NVIDIA Corporation
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Semiconductors • AI Hardware
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $116.42
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +2.34%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    48.2M / 52.1M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    AAPL
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">Apple Inc.</td>
+                  <td class="px-4 text-secondary">Consumer Electronics</td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $224.23
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.82%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    39.1M / 46.8M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    MSFT
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Microsoft Corporation
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Enterprise Cloud &amp; Infrastructure
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $432.50
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.65%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    16.8M / 19.5M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    AMD
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Advanced Micro Devices
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Semiconductors • Computing
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $152.80
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +1.84%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    29.4M / 32.1M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    AVGO
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Broadcom Inc.
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Semiconductors • Network Infrastructure
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $164.20
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-error"
+                  >
+                    -0.42%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    18.5M / 21.0M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    QCOM
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Qualcomm Incorporated
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Wireless &amp; Mobile Connectivity
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $168.12
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +1.10%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    8.2M / 9.1M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    INTC
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Intel Corporation
+                  </td>
+                  <td class="px-4 text-secondary">Semiconductors • Foundry</td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $21.14
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-error"
+                  >
+                    -1.48%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    62.8M / 55.4M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    CRM
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Salesforce, Inc.
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Enterprise Application Software
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $254.30
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.75%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    4.2M / 4.8M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    CSCO
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Cisco Systems, Inc.
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Networking Hardware &amp; Security
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $50.18
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.22%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    14.1M / 15.6M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    ADBE
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">Adobe Inc.</td>
+                  <td class="px-4 text-secondary">Digital Media Software</td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $536.80
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-error"
+                  >
+                    -0.88%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    2.3M / 2.7M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    ORCL
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Oracle Corporation
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Database &amp; Enterprise Cloud
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $162.05
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +1.40%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    7.8M / 8.2M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    TXN
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Texas Instruments Inc.
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Analog &amp; Embedded Chips
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $206.15
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.45%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    4.1M / 4.6M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- ================= 2. FINANCIALS (16) ================= -->
+        <div
+          class="sector-accordion border border-gray-200 bg-white overflow-hidden"
+          data-sector-name="Financials"
+        >
+          <!-- Accordion Header -->
+          <button
+            class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors border-b border-gray-200 text-left cursor-pointer accordion-trigger"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="material-symbols-outlined text-gray-500 text-[18px] transition-transform duration-150 rotate-90 chevron-icon"
+                >chevron_right</span
+              >
+              <span
+                class="font-headline-sm text-[14px] font-bold text-on-surface tracking-tight"
+                >Financials</span
+              >
+              <span
+                class="font-data-cell text-[11px] px-2 py-0.5 bg-gray-200 text-gray-700 font-medium"
+                >16 securities</span
+              >
+            </div>
+            <span class="font-data-cell text-[12px] text-secondary"
+              >Dominant cap weight: 18.6%</span
+            >
+          </button>
+          <!-- Table View -->
+          <div class="accordion-content overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="h-9 bg-gray-50/50 border-b border-gray-200 text-secondary font-label-caps text-[11px] uppercase tracking-wider"
+                >
+                  <th class="px-4 py-2 font-semibold">Symbol</th>
+                  <th class="px-4 py-2 font-semibold">Name</th>
+                  <th class="px-4 py-2 font-semibold">Sector / Subsector</th>
+                  <th class="px-4 py-2 font-semibold text-right">Price</th>
+                  <th class="px-4 py-2 font-semibold text-right">Change</th>
+                  <th class="px-4 py-2 font-semibold text-right">
+                    Volume / ADV
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-center">
+                    Last Ingested
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-[13px]">
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    JPM
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    JPMorgan Chase &amp; Co.
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Diversified Banking &amp; Markets
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $212.40
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +1.15%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    8.9M / 9.4M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    GS
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    The Goldman Sachs Group
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Investment Banking &amp; Brokerage
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $485.10
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +1.60%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    2.1M / 2.3M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    V
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">Visa Inc.</td>
+                  <td class="px-4 text-secondary">
+                    Transaction Rails &amp; Payments
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $268.40
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.30%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    5.8M / 6.2M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    BAC
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Bank of America Corporation
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Commercial &amp; Retail Banking
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $39.85
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.68%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    31.2M / 34.0M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- ================= 3. HEALTHCARE (14) ================= -->
+        <div
+          class="sector-accordion border border-gray-200 bg-white overflow-hidden"
+          data-sector-name="Healthcare"
+        >
+          <!-- Accordion Header -->
+          <button
+            class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors border-b border-gray-200 text-left cursor-pointer accordion-trigger"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="material-symbols-outlined text-gray-500 text-[18px] transition-transform duration-150 rotate-90 chevron-icon"
+                >chevron_right</span
+              >
+              <span
+                class="font-headline-sm text-[14px] font-bold text-on-surface tracking-tight"
+                >Healthcare</span
+              >
+              <span
+                class="font-data-cell text-[11px] px-2 py-0.5 bg-gray-200 text-gray-700 font-medium"
+                >14 securities</span
+              >
+            </div>
+            <span class="font-data-cell text-[12px] text-secondary"
+              >Dominant cap weight: 14.8%</span
+            >
+          </button>
+          <!-- Table View -->
+          <div class="accordion-content overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="h-9 bg-gray-50/50 border-b border-gray-200 text-secondary font-label-caps text-[11px] uppercase tracking-wider"
+                >
+                  <th class="px-4 py-2 font-semibold">Symbol</th>
+                  <th class="px-4 py-2 font-semibold">Name</th>
+                  <th class="px-4 py-2 font-semibold">Sector / Subsector</th>
+                  <th class="px-4 py-2 font-semibold text-right">Price</th>
+                  <th class="px-4 py-2 font-semibold text-right">Change</th>
+                  <th class="px-4 py-2 font-semibold text-right">
+                    Volume / ADV
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-center">
+                    Last Ingested
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-[13px]">
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    LLY
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Eli Lilly and Company
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Pharmaceuticals • Therapeutics
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $948.20
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +2.10%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    3.2M / 3.4M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    UNH
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    UnitedHealth Group Inc.
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Managed Healthcare &amp; Services
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $562.10
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-error"
+                  >
+                    -0.25%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    2.8M / 3.1M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- ================= 4. CONSUMER DISCRETIONARY (11) ================= -->
+        <div
+          class="sector-accordion border border-gray-200 bg-white overflow-hidden"
+          data-sector-name="Consumer Discretionary"
+        >
+          <button
+            class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors border-b border-gray-200 text-left cursor-pointer accordion-trigger"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="material-symbols-outlined text-gray-500 text-[18px] transition-transform duration-150 rotate-90 chevron-icon"
+                >chevron_right</span
+              >
+              <span
+                class="font-headline-sm text-[14px] font-bold text-on-surface tracking-tight"
+                >Consumer Discretionary</span
+              >
+              <span
+                class="font-data-cell text-[11px] px-2 py-0.5 bg-gray-200 text-gray-700 font-medium"
+                >11 securities</span
+              >
+            </div>
+            <span class="font-data-cell text-[12px] text-secondary"
+              >Dominant cap weight: 10.4%</span
+            >
+          </button>
+          <div class="accordion-content overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="h-9 bg-gray-50/50 border-b border-gray-200 text-secondary font-label-caps text-[11px] uppercase tracking-wider"
+                >
+                  <th class="px-4 py-2 font-semibold">Symbol</th>
+                  <th class="px-4 py-2 font-semibold">Name</th>
+                  <th class="px-4 py-2 font-semibold">Sector / Subsector</th>
+                  <th class="px-4 py-2 font-semibold text-right">Price</th>
+                  <th class="px-4 py-2 font-semibold text-right">Change</th>
+                  <th class="px-4 py-2 font-semibold text-right">
+                    Volume / ADV
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-center">
+                    Last Ingested
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-[13px]">
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    AMZN
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Amazon.com, Inc.
+                  </td>
+                  <td class="px-4 text-secondary">
+                    E-Commerce &amp; Cloud (AWS)
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $186.49
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +1.02%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    38.9M / 42.0M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    TSLA
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">Tesla, Inc.</td>
+                  <td class="px-4 text-secondary">
+                    Automotive &amp; Clean Energy
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $227.20
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-error"
+                  >
+                    -0.32%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    68.2M / 74.5M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- ================= 5. COMMUNICATION SERVICES (8) ================= -->
+        <div
+          class="sector-accordion border border-gray-200 bg-white overflow-hidden"
+          data-sector-name="Communication Services"
+        >
+          <button
+            class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors border-b border-gray-200 text-left cursor-pointer accordion-trigger"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="material-symbols-outlined text-gray-500 text-[18px] transition-transform duration-150 rotate-90 chevron-icon"
+                >chevron_right</span
+              >
+              <span
+                class="font-headline-sm text-[14px] font-bold text-on-surface tracking-tight"
+                >Communication Services</span
+              >
+              <span
+                class="font-data-cell text-[11px] px-2 py-0.5 bg-gray-200 text-gray-700 font-medium"
+                >8 securities</span
+              >
+            </div>
+            <span class="font-data-cell text-[12px] text-secondary"
+              >Dominant cap weight: 8.5%</span
+            >
+          </button>
+          <div class="accordion-content overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="h-9 bg-gray-50/50 border-b border-gray-200 text-secondary font-label-caps text-[11px] uppercase tracking-wider"
+                >
+                  <th class="px-4 py-2 font-semibold">Symbol</th>
+                  <th class="px-4 py-2 font-semibold">Name</th>
+                  <th class="px-4 py-2 font-semibold">Sector / Subsector</th>
+                  <th class="px-4 py-2 font-semibold text-right">Price</th>
+                  <th class="px-4 py-2 font-semibold text-right">Change</th>
+                  <th class="px-4 py-2 font-semibold text-right">
+                    Volume / ADV
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-center">
+                    Last Ingested
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-[13px]">
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    GOOGL
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Alphabet Inc. (Class A)
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Internet Media &amp; Search
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $160.25
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.58%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    19.5M / 21.0M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    META
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Meta Platforms, Inc.
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Social Networks &amp; Digital Advertising
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $554.22
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +1.18%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    11.4M / 12.8M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- ================= 6. INDUSTRIALS (8) ================= -->
+        <div
+          class="sector-accordion border border-gray-200 bg-white overflow-hidden"
+          data-sector-name="Industrials"
+        >
+          <button
+            class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors border-b border-gray-200 text-left cursor-pointer accordion-trigger"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="material-symbols-outlined text-gray-500 text-[18px] transition-transform duration-150 rotate-90 chevron-icon"
+                >chevron_right</span
+              >
+              <span
+                class="font-headline-sm text-[14px] font-bold text-on-surface tracking-tight"
+                >Industrials</span
+              >
+              <span
+                class="font-data-cell text-[11px] px-2 py-0.5 bg-gray-200 text-gray-700 font-medium"
+                >8 securities</span
+              >
+            </div>
+            <span class="font-data-cell text-[12px] text-secondary"
+              >Dominant cap weight: 6.2%</span
+            >
+          </button>
+          <div class="accordion-content overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="h-9 bg-gray-50/50 border-b border-gray-200 text-secondary font-label-caps text-[11px] uppercase tracking-wider"
+                >
+                  <th class="px-4 py-2 font-semibold">Symbol</th>
+                  <th class="px-4 py-2 font-semibold">Name</th>
+                  <th class="px-4 py-2 font-semibold">Sector / Subsector</th>
+                  <th class="px-4 py-2 font-semibold text-right">Price</th>
+                  <th class="px-4 py-2 font-semibold text-right">Change</th>
+                  <th class="px-4 py-2 font-semibold text-right">
+                    Volume / ADV
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-center">
+                    Last Ingested
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-[13px]">
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    CAT
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Caterpillar Inc.
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Construction &amp; Mining Equipment
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $372.40
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.48%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    2.1M / 2.5M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- ================= 7. CONSUMER STAPLES (6) ================= -->
+        <div
+          class="sector-accordion border border-gray-200 bg-white overflow-hidden"
+          data-sector-name="Consumer Staples"
+        >
+          <button
+            class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors border-b border-gray-200 text-left cursor-pointer accordion-trigger"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="material-symbols-outlined text-gray-500 text-[18px] transition-transform duration-150 rotate-90 chevron-icon"
+                >chevron_right</span
+              >
+              <span
+                class="font-headline-sm text-[14px] font-bold text-on-surface tracking-tight"
+                >Consumer Staples</span
+              >
+              <span
+                class="font-data-cell text-[11px] px-2 py-0.5 bg-gray-200 text-gray-700 font-medium"
+                >6 securities</span
+              >
+            </div>
+            <span class="font-data-cell text-[12px] text-secondary"
+              >Dominant cap weight: 5.1%</span
+            >
+          </button>
+          <div class="accordion-content overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="h-9 bg-gray-50/50 border-b border-gray-200 text-secondary font-label-caps text-[11px] uppercase tracking-wider"
+                >
+                  <th class="px-4 py-2 font-semibold">Symbol</th>
+                  <th class="px-4 py-2 font-semibold">Name</th>
+                  <th class="px-4 py-2 font-semibold">Sector / Subsector</th>
+                  <th class="px-4 py-2 font-semibold text-right">Price</th>
+                  <th class="px-4 py-2 font-semibold text-right">Change</th>
+                  <th class="px-4 py-2 font-semibold text-right">
+                    Volume / ADV
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-center">
+                    Last Ingested
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-[13px]">
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    PG
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    The Procter &amp; Gamble Co.
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Household &amp; Personal Products
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $173.80
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.12%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    5.2M / 6.0M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- ================= 8. ENERGY (5) ================= -->
+        <div
+          class="sector-accordion border border-gray-200 bg-white overflow-hidden"
+          data-sector-name="Energy"
+        >
+          <button
+            class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors border-b border-gray-200 text-left cursor-pointer accordion-trigger"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="material-symbols-outlined text-gray-500 text-[18px] transition-transform duration-150 rotate-90 chevron-icon"
+                >chevron_right</span
+              >
+              <span
+                class="font-headline-sm text-[14px] font-bold text-on-surface tracking-tight"
+                >Energy</span
+              >
+              <span
+                class="font-data-cell text-[11px] px-2 py-0.5 bg-gray-200 text-gray-700 font-medium"
+                >5 securities</span
+              >
+            </div>
+            <span class="font-data-cell text-[12px] text-secondary"
+              >Dominant cap weight: 3.8%</span
+            >
+          </button>
+          <div class="accordion-content overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="h-9 bg-gray-50/50 border-b border-gray-200 text-secondary font-label-caps text-[11px] uppercase tracking-wider"
+                >
+                  <th class="px-4 py-2 font-semibold">Symbol</th>
+                  <th class="px-4 py-2 font-semibold">Name</th>
+                  <th class="px-4 py-2 font-semibold">Sector / Subsector</th>
+                  <th class="px-4 py-2 font-semibold text-right">Price</th>
+                  <th class="px-4 py-2 font-semibold text-right">Change</th>
+                  <th class="px-4 py-2 font-semibold text-right">
+                    Volume / ADV
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-center">
+                    Last Ingested
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-[13px]">
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    XOM
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Exxon Mobil Corporation
+                  </td>
+                  <td class="px-4 text-secondary">Integrated Oil &amp; Gas</td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $114.60
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.72%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    13.8M / 15.0M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- ================= 9. UTILITIES (4) ================= -->
+        <div
+          class="sector-accordion border border-gray-200 bg-white overflow-hidden"
+          data-sector-name="Utilities"
+        >
+          <button
+            class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors border-b border-gray-200 text-left cursor-pointer accordion-trigger"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="material-symbols-outlined text-gray-500 text-[18px] transition-transform duration-150 rotate-90 chevron-icon"
+                >chevron_right</span
+              >
+              <span
+                class="font-headline-sm text-[14px] font-bold text-on-surface tracking-tight"
+                >Utilities</span
+              >
+              <span
+                class="font-data-cell text-[11px] px-2 py-0.5 bg-gray-200 text-gray-700 font-medium"
+                >4 securities</span
+              >
+            </div>
+            <span class="font-data-cell text-[12px] text-secondary"
+              >Dominant cap weight: 2.2%</span
+            >
+          </button>
+          <div class="accordion-content overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="h-9 bg-gray-50/50 border-b border-gray-200 text-secondary font-label-caps text-[11px] uppercase tracking-wider"
+                >
+                  <th class="px-4 py-2 font-semibold">Symbol</th>
+                  <th class="px-4 py-2 font-semibold">Name</th>
+                  <th class="px-4 py-2 font-semibold">Sector / Subsector</th>
+                  <th class="px-4 py-2 font-semibold text-right">Price</th>
+                  <th class="px-4 py-2 font-semibold text-right">Change</th>
+                  <th class="px-4 py-2 font-semibold text-right">
+                    Volume / ADV
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-center">
+                    Last Ingested
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-[13px]">
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    NEE
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    NextEra Energy, Inc.
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Electric Utilities &amp; Renewables
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $81.40
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.35%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    7.1M / 8.0M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- ================= 10. REAL ESTATE (3) ================= -->
+        <div
+          class="sector-accordion border border-gray-200 bg-white overflow-hidden"
+          data-sector-name="Real Estate"
+        >
+          <button
+            class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors border-b border-gray-200 text-left cursor-pointer accordion-trigger"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="material-symbols-outlined text-gray-500 text-[18px] transition-transform duration-150 rotate-90 chevron-icon"
+                >chevron_right</span
+              >
+              <span
+                class="font-headline-sm text-[14px] font-bold text-on-surface tracking-tight"
+                >Real Estate</span
+              >
+              <span
+                class="font-data-cell text-[11px] px-2 py-0.5 bg-gray-200 text-gray-700 font-medium"
+                >3 securities</span
+              >
+            </div>
+            <span class="font-data-cell text-[12px] text-secondary"
+              >Dominant cap weight: 1.9%</span
+            >
+          </button>
+          <div class="accordion-content overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="h-9 bg-gray-50/50 border-b border-gray-200 text-secondary font-label-caps text-[11px] uppercase tracking-wider"
+                >
+                  <th class="px-4 py-2 font-semibold">Symbol</th>
+                  <th class="px-4 py-2 font-semibold">Name</th>
+                  <th class="px-4 py-2 font-semibold">Sector / Subsector</th>
+                  <th class="px-4 py-2 font-semibold text-right">Price</th>
+                  <th class="px-4 py-2 font-semibold text-right">Change</th>
+                  <th class="px-4 py-2 font-semibold text-right">
+                    Volume / ADV
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-center">
+                    Last Ingested
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-[13px]">
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    PLD
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    Prologis, Inc.
+                  </td>
+                  <td class="px-4 text-secondary">
+                    Industrial Real Estate Trust
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $124.80
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-error"
+                  >
+                    -0.15%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    2.8M / 3.1M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- ================= 11. MATERIALS (2) ================= -->
+        <div
+          class="sector-accordion border border-gray-200 bg-white overflow-hidden"
+          data-sector-name="Materials"
+        >
+          <button
+            class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors border-b border-gray-200 text-left cursor-pointer accordion-trigger"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="material-symbols-outlined text-gray-500 text-[18px] transition-transform duration-150 rotate-90 chevron-icon"
+                >chevron_right</span
+              >
+              <span
+                class="font-headline-sm text-[14px] font-bold text-on-surface tracking-tight"
+                >Materials</span
+              >
+              <span
+                class="font-data-cell text-[11px] px-2 py-0.5 bg-gray-200 text-gray-700 font-medium"
+                >2 securities</span
+              >
+            </div>
+            <span class="font-data-cell text-[12px] text-secondary"
+              >Dominant cap weight: 1.4%</span
+            >
+          </button>
+          <div class="accordion-content overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="h-9 bg-gray-50/50 border-b border-gray-200 text-secondary font-label-caps text-[11px] uppercase tracking-wider"
+                >
+                  <th class="px-4 py-2 font-semibold">Symbol</th>
+                  <th class="px-4 py-2 font-semibold">Name</th>
+                  <th class="px-4 py-2 font-semibold">Sector / Subsector</th>
+                  <th class="px-4 py-2 font-semibold text-right">Price</th>
+                  <th class="px-4 py-2 font-semibold text-right">Change</th>
+                  <th class="px-4 py-2 font-semibold text-right">
+                    Volume / ADV
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-center">
+                    Last Ingested
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-[13px]">
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td class="px-4 font-data-cell font-bold text-on-surface">
+                    LIN
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">Linde plc</td>
+                  <td class="px-4 text-secondary">
+                    Industrial Gases &amp; Materials
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $460.10
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.42%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    1.2M / 1.4M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- ================= 12. BENCHMARK (1) ================= -->
+        <div
+          class="sector-accordion border border-gray-200 bg-white overflow-hidden"
+          data-sector-name="Benchmark"
+        >
+          <button
+            class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors border-b border-gray-200 text-left cursor-pointer accordion-trigger"
+          >
+            <div class="flex items-center gap-2.5">
+              <span
+                class="material-symbols-outlined text-gray-500 text-[18px] transition-transform duration-150 rotate-90 chevron-icon"
+                >chevron_right</span
+              >
+              <span
+                class="font-headline-sm text-[14px] font-bold text-on-surface tracking-tight"
+                >Benchmark</span
+              >
+              <span
+                class="font-data-cell text-[11px] px-2 py-0.5 bg-gray-200 text-gray-700 font-medium"
+                >1 security</span
+              >
+            </div>
+            <span class="font-data-cell text-[12px] text-secondary"
+              >Arbitrage &amp; Core Baseline</span
+            >
+          </button>
+          <div class="accordion-content overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="h-9 bg-gray-50/50 border-b border-gray-200 text-secondary font-label-caps text-[11px] uppercase tracking-wider"
+                >
+                  <th class="px-4 py-2 font-semibold">Symbol</th>
+                  <th class="px-4 py-2 font-semibold">Name</th>
+                  <th class="px-4 py-2 font-semibold">Sector / Subsector</th>
+                  <th class="px-4 py-2 font-semibold text-right">Price</th>
+                  <th class="px-4 py-2 font-semibold text-right">Change</th>
+                  <th class="px-4 py-2 font-semibold text-right">
+                    Volume / ADV
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-center">
+                    Last Ingested
+                  </th>
+                  <th class="px-4 py-2 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-[13px]">
+                <tr
+                  class="h-11 hover:bg-gray-50/80 transition-colors security-row"
+                >
+                  <td
+                    class="px-4 font-data-cell font-bold text-primary-container"
+                  >
+                    SPY
+                  </td>
+                  <td class="px-4 text-on-surface font-medium">
+                    SPDR S&amp;P 500 ETF Trust
+                  </td>
+                  <td class="px-4 text-secondary">Broad Market Baseline ETF</td>
+                  <td
+                    class="px-4 text-right font-data-cell text-on-surface font-medium"
+                  >
+                    $562.14
+                  </td>
+                  <td
+                    class="px-4 text-right font-data-cell font-semibold text-tertiary"
+                  >
+                    +0.28%
+                  </td>
+                  <td class="px-4 text-right font-data-cell text-secondary">
+                    54.2M / 62.4M
+                  </td>
+                  <td
+                    class="px-4 text-center font-data-cell text-[12px] text-secondary"
+                  >
+                    2024-09-18 16:00:00
+                  </td>
+                  <td class="px-4 text-right">
+                    <a
+                      class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-secondary hover:text-on-surface font-data-cell text-[11px]"
+                      href="#"
+                    >
+                      <span>Explore</span>
+                      <span class="material-symbols-outlined text-[14px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+    <!-- Accordion & Search Interactivity Script -->
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // 1. Accordion Toggle functionality
+        const triggers = document.querySelectorAll(".accordion-trigger");
+        triggers.forEach((trigger) => {
+          trigger.addEventListener("click", () => {
+            const content = trigger.nextElementSibling;
+            const chevron = trigger.querySelector(".chevron-icon");
+            if (content.style.display === "none") {
+              content.style.display = "";
+              chevron.classList.add("rotate-90");
+            } else {
+              content.style.display = "none";
+              chevron.classList.remove("rotate-90");
+            }
+          });
+        });
+
+        // Expand / Collapse all button
+        let allExpanded = true;
+        const toggleAllBtn = document.getElementById("toggle-all-accordions");
+        const toggleAllText = document.getElementById("accordion-toggle-text");
+        if (toggleAllBtn) {
+          toggleAllBtn.addEventListener("click", () => {
+            allExpanded = !allExpanded;
+            const contents = document.querySelectorAll(".accordion-content");
+            const chevrons = document.querySelectorAll(".chevron-icon");
+            contents.forEach(
+              (c) => (c.style.display = allExpanded ? "" : "none"),
+            );
+            chevrons.forEach((ch) => {
+              if (allExpanded) ch.classList.add("rotate-90");
+              else ch.classList.remove("rotate-90");
+            });
+            toggleAllText.textContent = allExpanded
+              ? "Collapse All"
+              : "Expand All";
+          });
+        }
+
+        // 2. Sector Filter Buttons
+        const filterBtns = document.querySelectorAll(".sector-filter-btn");
+        const accordions = document.querySelectorAll(".sector-accordion");
+
+        filterBtns.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            filterBtns.forEach((b) => {
+              b.classList.remove(
+                "bg-inverse-surface",
+                "text-inverse-on-surface",
+                "font-semibold",
+                "active",
+              );
+              b.classList.add("bg-gray-100", "text-secondary");
+            });
+            btn.classList.add(
+              "bg-inverse-surface",
+              "text-inverse-on-surface",
+              "font-semibold",
+              "active",
+            );
+            btn.classList.remove("bg-gray-100", "text-secondary");
+
+            const targetSector = btn.getAttribute("data-sector");
+            accordions.forEach((acc) => {
+              if (
+                targetSector === "all" ||
+                acc.getAttribute("data-sector-name") === targetSector
+              ) {
+                acc.style.display = "";
+              } else {
+                acc.style.display = "none";
+              }
+            });
+          });
+        });
+
+        // 3. Search Filter
+        const searchInput = document.getElementById("securities-search");
+        if (searchInput) {
+          searchInput.addEventListener("input", (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            accordions.forEach((acc) => {
+              let visibleCountInGroup = 0;
+              const rows = acc.querySelectorAll(".security-row");
+              rows.forEach((row) => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(query)) {
+                  row.style.display = "";
+                  visibleCountInGroup++;
+                } else {
+                  row.style.display = "none";
+                }
+              });
+              acc.style.display =
+                visibleCountInGroup > 0 || query === "" ? "" : "none";
+            });
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

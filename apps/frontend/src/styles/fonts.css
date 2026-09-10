@@ -1,0 +1,102 @@
+/*
+ * The three typefaces, self-hosted.
+ *
+ * ## What this reverses, and why it is a decision rather than a drift
+ *
+ * `VISUAL-LANGUAGE.md` decision 3 was "the system font stack, no webfont", and
+ * `tokens.css` recorded the cost of it in its own words: the reference leaned
+ * on a light heading weight that system stacks do not reliably have, so
+ * hierarchy had to be carried by size and grey alone. The 2026 design refresh
+ * takes the other side of that trade. A product whose identity was *entirely*
+ * structural had exactly one channel left when the structure was copied; three
+ * faces with genuinely different jobs is the channel this interface was
+ * missing.
+ *
+ * ## Self-hosted, not fetched
+ *
+ * These are `@fontsource-variable/*` packages resolved by the bundler, so the
+ * files are emitted into `dist/assets/` and served from our own origin. There
+ * is **no request to fonts.googleapis.com**, which matters for three reasons
+ * that are all properties of this repository rather than preferences:
+ *
+ *   - the browser suite and `pnpm preview` run with no network beyond localhost,
+ *     and a font that only arrives over the public internet is a font that is
+ *     absent exactly where the visual bar is checked;
+ *   - a third-party stylesheet in `index.html` is a second origin in the
+ *     critical path of the first paint, on a page whose backend is already one
+ *     network hop away; and
+ *   - the deployed frontend is a static artefact with a build-time
+ *     configuration (`HOSTING.md`), so anything it needs at runtime that is not
+ *     in the artefact is a dependency nobody can roll back.
+ *
+ * ## Why the `@font-face` rules are written here rather than imported
+ *
+ * `@fontsource-variable/inter` ships an `index.css` covering nine subsets and
+ * both slants — Cyrillic, Greek, Vietnamese — which is 1.9 MB of woff2 emitted
+ * into `dist/` for an application whose entire text is English. Importing the
+ * package's stylesheet is the documented way to use it and it is the wrong one
+ * here, so this file reaches past it to the three files actually wanted:
+ * **latin, upright, variable weight**. Nothing else is referenced, so nothing
+ * else is emitted.
+ *
+ * The consequence to know before editing: adding italics or a second subset is
+ * a `url()` here, not a package upgrade, and forgetting one is silent — the
+ * browser synthesises an oblique from the upright and nobody notices until the
+ * result is compared against the real thing.
+ *
+ * `font-display: swap` on all three. The alternative, `block`, hides text for
+ * up to three seconds on a slow connection; a market interface that renders its
+ * numbers late is worse than one that renders them in the fallback face for a
+ * frame. The fallback stacks in `tokens.css` are metric-chosen to keep that
+ * frame from reflowing the page badly.
+ */
+
+/* The headline face. Hanken Grotesk is a geometric grotesque with a tall
+   x-height and tight apertures — it holds up at 11px uppercase (the micro-label
+   idiom) and at 40px display, which is the whole range this product asks a
+   display face to cover. */
+@font-face {
+  font-family: "Hanken Grotesk Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/hanken-grotesk/files/hanken-grotesk-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+/* The body face. Inter is the least surprising choice available and that is the
+   argument for it: it is a neutral UI grotesque designed for screen text at
+   13px, which is this product's default size. */
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/inter/files/inter-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+/* The data face, and the one that changed this product's mind about mono.
+   `tokens.css` used to carry a rule that mono was "not for numbers in tables";
+   the refresh reverses it deliberately — see the `--font-data` comment there for
+   what changed and what is still true. */
+@font-face {
+  font-family: "JetBrains Mono Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}

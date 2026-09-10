@@ -1,6 +1,7 @@
-import { useId, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { ErrorBoundary } from "../ErrorBoundary/ErrorBoundary.js";
+import { Panel } from "../Panel/Panel.js";
 import styles from "./Region.module.css";
 
 // A layout region: the box PRODUCT_SPEC.md §9 sketches, with a name and a slot.
@@ -68,6 +69,19 @@ import styles from "./Region.module.css";
 // not just the ones currently overflowing: which of the four scrolls is a
 // function of the viewport and of what Epics 4 to 7 put in them, so making it
 // conditional would be a guess re-taken on every window resize.
+//
+// **Since the 2026 refresh the box itself is a `Panel`** (ADR 0022), and what
+// is left here is everything a panel is deliberately not: the landmark, the
+// explanatory line, and the containment boundary. That split is the reason
+// `Panel` does not contain an `ErrorBoundary` of its own — a surface that
+// swallowed the failure of anything placed on it would make every future
+// boundary decision invisible, because the boundary would end up wherever
+// somebody reached for a white background.
+//
+// The three things this used to draw itself — the ground, the hairline and the
+// heading — moved wholesale, so `Region.module.css` is now four rules about
+// *contents* and none about the box. The `useId` went with them: `Panel` owns
+// the heading, so it owns the id that names the landmark.
 export function Region({
   name,
   filledBy,
@@ -77,13 +91,14 @@ export function Region({
   readonly filledBy: string;
   readonly children?: ReactNode;
 }) {
-  const headingId = useId();
-
   return (
-    <section className={styles.region} aria-labelledby={headingId} tabIndex={0}>
-      <h2 className={styles.name} id={headingId}>
-        {name}
-      </h2>
+    // `scrollable` is `Panel`'s name for the pair this component has carried
+    // since Task 1.13.4: `overflow: auto` **and** `tabIndex={0}`, together,
+    // because a scrolling box a keyboard cannot reach is a WCAG 2.1.1 failure
+    // that no test in this repository can see. Every region gets it rather than
+    // the ones currently overflowing — which of the four scrolls is a function
+    // of the viewport and of what Epics 4 to 7 put in them.
+    <Panel title={name} scrollable>
       <p className={styles.filledBy}>{filledBy}</p>
       {/*
        * The containment boundary, and it is *inside* the section on purpose —
@@ -110,6 +125,6 @@ export function Region({
           </ErrorBoundary>
         </div>
       )}
-    </section>
+    </Panel>
   );
 }

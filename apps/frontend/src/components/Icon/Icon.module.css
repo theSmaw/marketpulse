@@ -1,0 +1,19 @@
+/*
+ * Four declarations, and three of them are about sitting correctly beside text.
+ *
+ * `1em` square rather than a pixel size — see the component's header for why
+ * there is no `size` prop. The vertical nudge is the part that cannot be
+ * derived: an inline-block of 1em sits on the baseline, which puts a symmetric
+ * glyph noticeably low against lowercase text. `-0.125em` puts its centre on the
+ * text's optical centre and was arrived at by eye against 11px, 13px and 20px,
+ * which is the whole range this set is used at.
+ *
+ * `flex-shrink: 0` because the common consumer is a flex row of icon + label,
+ * and an icon is the one thing in such a row that must never compress.
+ */
+.icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  flex-shrink: 0;
+}

@@ -52,6 +52,8 @@ Anomaly detection is deterministic and deliberately interpretable: price percent
 
 What a user can see today: five routes, a status strip reporting the market feed, backend health and the market clock, and the tracked universe with its coverage **and a real last close and change for all 518 securities** — the first real prices this product has ever shown. There are still no charts and no live data.
 
+**All of it wears a refreshed design language** (2026-09-10, ADR 0022): three self-hosted typefaces with distinct jobs, a crimson identity accent confined to four positions in the chrome, a cool ground, square corners, and a six-component building-block layer — `Icon`, `Button`, `Badge`, `Panel`, `PageHeader`, `MetricStrip` — each extracted from something the tree was already doing three times.
+
 For anything more specific than this paragraph — what was measured, what was rejected, what a green check does and does not certify — read the record rather than asking here.
 
 ## Where the record lives
@@ -60,7 +62,7 @@ This repository documents itself thoroughly, and **that documentation is the sou
 
 | Subject                                                                                                    | Read                                                                                                                                     |
 | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Every architectural decision, and what each green check certifies                                          | [`docs/adr/README.md`](docs/adr/README.md) — a current index of ADRs 0001–0021                                                           |
+| Every architectural decision, and what each green check certifies                                          | [`docs/adr/README.md`](docs/adr/README.md) — a current index of ADRs 0001–0022                                                           |
 | Hosting, the deployed environment, Azure resources, the database's creation decisions, the credential path | [`HOSTING.md`](planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md)                      |
 | The design language, the visual bar, tokens and their rationale                                            | [`VISUAL-LANGUAGE.md`](planning/epic-01-application-foundation/story-04-ui-component-library-and-styling-conventions/VISUAL-LANGUAGE.md) |
 | The browser-test tooling spike and what was rejected                                                       | [`BROWSER-TESTING.md`](planning/epic-01-application-foundation/story-13-end-to-end-browser-testing/BROWSER-TESTING.md)                   |
@@ -107,7 +109,7 @@ This is not in conflict with "dense, sober, institutional" — that describes a 
 
 **Visual quality is an acceptance criterion on the story that builds the screen, not polish deferred to a later epic** — polish deferred is polish never, and there is no design-review epic. Correct and accessible is the floor, not the goal.
 
-`VISUAL-LANGUAGE.md` holds the design language and its open questions. Two things from it that are settled and load-bearing: **colour is never the sole encoding of anything** (the price palette differs by 1.05:1 in greyscale, so hue is the entire difference — shape, sign, glyph or word must carry it), and **standing out, like receding, is a job for weight and hierarchy, never for ink outside the contrast floor**. Both have caught real defects.
+`VISUAL-LANGUAGE.md` holds the design language and its open questions; it was **rewritten by the 2026 design refresh** (ADR 0022), which gave the product three self-hosted typefaces, a crimson identity accent scoped to four positions in the chrome, a cool ground and square corners. Two things from it that are settled and load-bearing: **colour is never the sole encoding of anything** (the price palette differs by 1.04:1 in greyscale, so hue is the entire difference — shape, sign, glyph or word must carry it), and **standing out, like receding, is a job for weight and hierarchy, never for ink outside the contrast floor**. Both have caught real defects.
 
 ## Commands
 
@@ -207,7 +209,9 @@ apps/frontend/                 React + Vite
                                `fetch` stub. Formatted, unlike the backend's vendor fixtures —
                                .prettierignore says why. Outside src/market/ on purpose
   src/components/<Name>/       <Name>.tsx + .module.css + .stories.tsx, one component per file
-  src/styles/                  tokens.css (achromatic) → market.css (meaning) → base.css,
+  src/styles/                  fonts.css (three self-hosted faces) → tokens.css (achromatic)
+                               → brand.css (the identity accent, chrome only) → market.css
+                               (market meaning) → base.css, in that order at the mount;
                                plus type/a11y module layers reached only through `composes:`
   src/routes/paths.ts          every path, once
 packages/shared/               domain types shared by both apps; consumed as BUILT OUTPUT

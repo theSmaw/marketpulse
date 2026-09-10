@@ -1,133 +1,202 @@
 /*
- * The chrome's styles. Like every other stylesheet in this application there
- * is not one literal colour, length, weight or font here — every declaration
- * reads a token, and that is what makes the design language a property of the
- * build rather than of each author's memory.
+ * The chrome: a 56px masthead over a status strip.
  *
- * Most of this arrived from `App.module.css`, where Task 1.5.2 left it as an
- * explicitly temporary navigation strip. What survived the move is the idioms
- * rather than the markup: the near-black hairline as the separator, the
- * uppercase letterspaced micro-label, and an active link carried by underline
- * as well as weight.
+ * Two grounds rather than one — the masthead is raised and the strip beneath it
+ * is sunken — which is what makes the strip read as *instrumentation attached
+ * to* the product rather than as a second row of navigation. The near-black
+ * rule goes under the pair, not between them: it is the boundary between the
+ * chrome and the page, and it is the most structural line in the application.
  */
+
+.header {
+  /*
+   * Sticky, because the strip beneath the masthead reports facts that are
+   * *currently* true — the clock ticks, the backend can go unreachable — and a
+   * status that scrolls out of view is a status nobody sees at the moment it
+   * changes. The `z-index` is 1 rather than a large number: nothing else in
+   * this application creates a stacking context yet, and a 50 chosen "to be
+   * safe" is how a codebase ends up with a z-index scale nobody can reason
+   * about.
+   */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+
+  background: var(--surface-raised);
+  border-bottom: var(--border-width) solid var(--rule-strong);
+}
 
 /*
- * Two rows: identity and status on the first, navigation spanning the second.
- * The status regions sit hard right against the product name, which is the
- * arrangement §9 sketches.
+ * --- The masthead ---
  */
-.header {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: baseline;
-  gap: var(--space-12) var(--space-40);
-  padding-bottom: var(--space-12);
-  /* The primary separator, and it is near-black rather than grey. This one
-     declaration is most of the difference between this product and a default
-     admin panel. */
-  border-bottom: var(--border-width) solid var(--rule-hairline);
-}
 
-.productName {
-  margin: 0;
-  font-size: var(--font-size-heading);
-  line-height: var(--line-height-heading);
-  /* 600, not 300. The system stack has no reliable light weight — see the
-     divergence recorded in tokens.css. */
-  font-weight: var(--font-weight-strong);
-}
-
-/* --- The status strip: market feed, backend service, market clock --- */
-
-.status {
+.masthead {
   display: flex;
-  flex-wrap: wrap;
+  align-items: stretch;
   gap: var(--space-40);
-  /* The 24-to-40 jump in the ladder, doing its job: the regions are far enough
-     apart to read as separate facts on an otherwise dense strip. */
+
+  /* A fixed height rather than padding, because the tabs are full-height and a
+     tab's underline has to land on the masthead's own bottom edge. Two readers,
+     one token — see `--app-header-height`. */
+  height: var(--app-header-height);
+  padding: 0 var(--space-24);
 }
 
-.region {
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  flex-shrink: 0;
+}
+
+/*
+ * The mark: the pulse glyph, in the brand crimson, on nothing.
+ *
+ * A filled crimson square with a white glyph was the first attempt and it is
+ * what the reference design does. It is wrong here for a reason specific to this
+ * product: a solid block of the only saturated colour in the interface, sitting
+ * 40px from a column of red and green price figures, is the loudest thing on the
+ * screen and it is saying the least. The glyph alone carries the identity and
+ * spends far less ink on it.
+ */
+.mark {
+  display: inline-flex;
+  align-items: center;
+  color: var(--brand-ink);
+  font-size: 22px;
+}
+
+.wordmarks {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 2px;
 }
 
 /*
- * The two regions that render a sentence under their word — the backend
- * service's, and since Task 2.6.7 the market feed's — against a strip that is
- * the grid's `auto` column, so unconstrained they compete with the product name
- * for the row rather than wrapping. The cap is a measure in `ch`, which is a proportion of the text
- * itself rather than a length from the design language: the same category as
- * the region grid's `fr` fractions and its one `vh`, and the reason there is no
- * width token to read here.
- *
- * At the narrow end the cap does nothing, because `.status` already wraps and
- * the region is then the full width of the strip.
+ * The wordmark. The display face at the subheading size with the tight tracking
+ * — it is set as a `<p>` rather than a heading (see the component), so it does
+ * not inherit `base.css`'s heading rule and states all three here.
  */
-.serviceRegion,
-.feedRegion {
-  max-width: 34ch;
+.productName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-subheading);
+  line-height: 1;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-tight);
 }
 
-.microLabel {
+.descriptor {
   composes: microLabel from "../../styles/type.module.css";
   margin: 0;
+  line-height: 1;
+  font-size: 9px;
   color: var(--ink-secondary);
 }
 
 /*
- * The clock region is right-aligned because it is the end of the strip and
- * because a time is a figure: when Epic 3 replaces the placeholder, the digits
- * grow leftwards from a fixed edge rather than pushing the label around.
+ * --- The tabs ---
+ *
+ * Full-height flex items, so the current tab's 2px bar sits on the masthead's
+ * bottom edge rather than floating under a word. The transparent bar on every
+ * *other* tab is what stops the row shifting by two pixels when the current one
+ * changes — the most common defect in this pattern, and one that is invisible
+ * until you navigate.
  */
-.clock {
-  align-items: flex-end;
-  text-align: right;
-}
-
-/*
- * `.clockValue` and `.clockZone` lived here until Task 2.5.5 and moved into
- * `components/MarketClock/MarketClock.module.css` with the markup they style.
- * The rule this region keeps is the alignment above: the clock is the end of
- * the strip, so its digits grow leftwards from a fixed edge rather than pushing
- * the label around.
- */
-
-/* --- Navigation --- */
-
 .nav {
-  grid-column: 1 / -1;
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-16);
+  align-items: stretch;
+  gap: var(--space-4);
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .navLink {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-12);
+
+  border-bottom: 2px solid transparent;
+
   color: var(--ink-secondary);
   font-size: var(--font-size-dense);
   line-height: var(--line-height-dense);
+  font-weight: var(--font-weight-medium);
   text-decoration: none;
+  white-space: nowrap;
+
+  transition: color var(--motion-duration-quick) var(--motion-ease-standard);
 }
 
 .navLink:hover {
   color: var(--ink-primary);
-  text-decoration: underline;
-  text-underline-offset: var(--space-4);
 }
 
 /*
- * The current route. NavLink sets `aria-current="page"` on the match, so this
- * selector and the accessible state are one fact rather than two — and the
- * underline means the state is not carried by ink colour alone, which the
- * design language requires of anything the eye has to find. Story 1.4 measured
- * the two market colours at 1.05:1 under greyscale; the same rule applies to
- * chrome that has no colour at all.
+ * The current tab, and it is the accent's second and last appearance in the
+ * application.
+ *
+ * **Colour is not the only encoding, in the chrome either.** The weight steps
+ * up to strong and the 2px bar appears; either one alone would identify the
+ * current tab in greyscale. That is `market.css`'s rule applied where it is
+ * most often forgotten, because a navigation state feels like decoration rather
+ * than like data.
  */
 .navLink[aria-current="page"] {
-  color: var(--ink-primary);
+  color: var(--brand-ink);
   font-weight: var(--font-weight-strong);
-  text-decoration: underline;
-  text-underline-offset: var(--space-4);
-  text-decoration-thickness: var(--border-width);
+  border-bottom-color: var(--brand-fill);
+}
+
+/*
+ * --- The status strip ---
+ *
+ * Right-aligned on the sunken ground. The generous gap is deliberate and
+ * inherited from the pre-refresh strip: three facts that fail independently
+ * need to read as three things, and 40px is what does that on a row where every
+ * other measurement is 8 or 12.
+ */
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-12) var(--space-40);
+
+  padding: var(--space-8) var(--space-24);
+  background: var(--surface-sunken);
+  border-top: var(--border-width) solid var(--rule-hairline);
+}
+
+.region {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+/*
+ * The label and its value on **one line** since the refresh, where they used to
+ * be stacked.
+ *
+ * The strip is a strip now — 34px rather than 52 — and the label reads as a
+ * prefix to the value rather than as a heading over it. The trap this walks
+ * past is recorded in `e2e/README.md` as `Backend servicehealthy`: there is no
+ * word boundary between a label element and a value element, so anything
+ * asserting on the region's *combined* text sees them run together. That was
+ * already true stacked; the gap here is a CSS gap and not a space character, so
+ * it stays true, and the specs that know it still pass.
+ */
+.microLabel {
+  composes: microLabel from "../../styles/type.module.css";
+  margin: 0;
+  color: var(--ink-secondary);
+  flex-shrink: 0;
+}
+
+.serviceRegion,
+.feedRegion {
+  max-width: 46ch;
+}
+
+.clock {
+  text-align: right;
 }

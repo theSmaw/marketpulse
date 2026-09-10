@@ -5,6 +5,8 @@ import type {
 } from "@marketpulse/shared";
 import { MARKET_FEED_DESCRIPTIONS } from "@marketpulse/shared";
 
+import { Button } from "../Button/Button.js";
+import { MetricStrip } from "../MetricStrip/MetricStrip.js";
 import { cx } from "../../cx.js";
 import type { BarSeriesView, PopulatedBarSeries } from "../../market/index.js";
 import { Marker } from "../Marker/Marker.js";
@@ -267,16 +269,25 @@ function SeriesState({
        * This is the one block on the panel that has to read at a glance, and a
        * label/value list cannot: a reader comparing an open to a close is
        * comparing two figures, and putting a sentence's worth of label between
-       * them is what makes a terminal feel like a form. `UniverseTable`'s
-       * summary strip is the idiom — figure large, label small beneath it —
-       * and it is reused here rather than re-invented.
+       * them is what makes a terminal feel like a form.
+       *
+       * **It is a `MetricStrip` since the 2026 refresh**, which is the component
+       * this block's own comment asked for: it used to say `UniverseTable`'s
+       * summary strip was the idiom and that it was "reused here rather than
+       * re-invented", which is a stated copy — the signal this repository
+       * extracts on. The `<div>` around it keeps the rule and the padding, which
+       * are this panel's business rather than the strip's.
        */}
-      <dl className={styles.prices}>
-        <Price label="Open" value={formatPrice(prices.open)} />
-        <Price label="High" value={formatPrice(prices.high)} />
-        <Price label="Low" value={formatPrice(prices.low)} />
-        <Price label="Close" value={formatPrice(prices.close)} />
-      </dl>
+      <div className={styles.prices}>
+        <MetricStrip
+          metrics={[
+            { label: "Open", value: formatPrice(prices.open) },
+            { label: "High", value: formatPrice(prices.high) },
+            { label: "Low", value: formatPrice(prices.low) },
+            { label: "Close", value: formatPrice(prices.close) },
+          ]}
+        />
+      </div>
 
       {/*
        * The windows, and they are the reason this panel exists.
@@ -342,29 +353,6 @@ function Coverage({
         </span>
       )}
     </p>
-  );
-}
-
-/**
- * One of the four prices: the figure first, its name beneath it.
- *
- * `<dd>` before `<dt>` in the source would be wrong — a definition list is
- * name-then-value and a screen reader reads it in document order — so the
- * visual inversion is `flex-direction: column-reverse` in the stylesheet, which
- * leaves the DOM order correct and puts the figure on top.
- */
-function Price({
-  label,
-  value,
-}: {
-  readonly label: string;
-  readonly value: string;
-}) {
-  return (
-    <div className={styles.price}>
-      <dt className={styles.priceLabel}>{label}</dt>
-      <dd className={styles.priceValue}>{value}</dd>
-    </div>
   );
 }
 
@@ -562,14 +550,20 @@ function FailedState({
           : "Asking again will not change this answer."}
       </p>
       {view.retryable && (
-        <button
-          type="button"
-          className={styles.retry}
+        /* `Button` since the 2026 refresh — this was one of three hand-styled
+           retry controls, each with its own copy of the same six declarations.
+           The `disabled` while a retry is in flight is this panel's own
+           decision and is deliberately kept: unlike the universe table's, this
+           control sits inside the state it replaces, so a second press has
+           nothing to supersede. */
+        <Button
+          variant="secondary"
+          icon="refresh"
           onClick={onRetry}
           disabled={view.retrying}
         >
           {view.retrying ? "Trying again…" : "Try again"}
-        </button>
+        </Button>
       )}
       {/*
        * The whole correlation id, never a prefix, and only here — beside a

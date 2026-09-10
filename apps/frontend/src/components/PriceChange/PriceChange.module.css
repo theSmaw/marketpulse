@@ -4,7 +4,15 @@
  */
 
 .change {
+  /*
+   * The data face (the 2026 refresh). A change is a figure that sits in a
+   * column beside a price, and the two have to share one rhythm — a
+   * proportional change against a monospaced close is the sort of misalignment
+   * that reads as sloppiness without anybody being able to say why.
+   */
+  composes: dataCell from "../../styles/type.module.css";
   white-space: nowrap;
+  font-weight: var(--font-weight-medium);
 }
 
 /*

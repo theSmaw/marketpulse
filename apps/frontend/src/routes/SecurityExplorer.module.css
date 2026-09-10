@@ -1,15 +1,15 @@
 /*
- * The securities page's frame, and nothing else. What the table looks like is
- * `components/UniverseTable/UniverseTable.module.css`, which is the whole
- * reason the table could be moved into the workshop without being rewritten —
- * the same split `Region` and `MarketOverview` already have.
+ * The route's own layout, and it is one rule: a column of regions under the
+ * masthead.
+ *
+ * The measure is `App.module.css`'s now — `--content-max` on `<main>` — where
+ * it used to be a `max-width: 76rem` here. That was the last place in the tree
+ * where one route decided how wide the application was, and it is the sort of
+ * thing that goes unnoticed until a second route picks a different number.
  */
 
 .page {
-  /*
-   * Wider than `routes.module.css`'s 52rem prose measure: that is a column of
-   * sentences and this is a four-column table, and a table squeezed to reading
-   * width wraps names and industries that have no reason to wrap.
-   */
-  max-width: 76rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
 }

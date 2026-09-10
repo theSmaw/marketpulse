@@ -33,11 +33,17 @@
 /*
  * The ticker is a `<th scope="row">`: it is the row's label, not one of its
  * values, which is what lets a screen reader announce "AAPL" before each cell.
- * `font-weight` is reset because a `th` is bold by default and this is a dense
- * table, where weight is not the hierarchy — size and grey are.
+ * `font-weight` is set rather than left alone because a `th` is bold by default
+ * and this is a dense table. It is `medium` rather than `regular` since the
+ * 2026 refresh gave the type layer four weights instead of two — the ticker is
+ * the row's identity and a step of 100 is enough to say so without the row
+ * reading as a headline.
  */
 .ticker {
-  font-weight: var(--font-weight-regular);
+  /* The data face, as in `UniverseTable`: a ticker is an identifier rather than
+     a word, and the two tables in this product must not disagree about that. */
+  composes: dataCell from "../../styles/type.module.css";
+  font-weight: var(--font-weight-medium);
 }
 
 /*
@@ -53,4 +59,15 @@
  */
 .cell.numeric {
   text-align: right;
+}
+
+/*
+ * A figure, so the data face — the same idiom `UniverseTable` sets on its price
+ * and change columns. Written as a bare `.numeric` rather than added to the
+ * compound rule above because `composes` is legal only in a rule whose selector
+ * is a single class; it adds a class to the element and touches no specificity,
+ * so the note above still holds.
+ */
+.numeric {
+  composes: dataCell from "../../styles/type.module.css";
 }
