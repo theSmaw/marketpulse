@@ -1,6 +1,6 @@
 # Task 2.11.1 — Settle where search lives, how it matches, and what the address carries, shipping no component
 
-**Status:** Not started
+**Status:** Complete — 2026-09-11
 **Story:** [2.11 Security Search & Selection](STORY.md)
 **Depends on:** Story 2.10 (complete)
 
@@ -130,3 +130,186 @@ it.
 The second likeliest is deciding the Security Explorer's grid here because it is
 adjacent. It is Task 2.11.7's, and it is a layout question that wants the search
 control to already exist.
+
+---
+
+## What was done — 2026-09-11
+
+The deliverable is
+[`SEARCH-AND-SELECTION.md`](SEARCH-AND-SELECTION.md), this story's subject
+document. Nothing was added to `apps/frontend/src` — confirmed by `git status`,
+whose only entries are that file, the design deliverable and `notes.txt`.
+
+**The three decisions, in one line each:**
+
+1. **Where search lives — on the page**, in the Security Explorer screen's
+   header, above both the panel and the table. The chrome is untouched. The
+   argument that decided it is that `/securities` and `/securities/:symbol`
+   render the **same screen**, so a page-level field already _is_ a persistent
+   symbol switcher wherever a symbol is being looked at.
+2. **Matching — client-side**, over the universe `useSecurities` already fetches.
+   Taken against §27's 5,000-security synthetic ceiling rather than against
+   today: matching 5,000 securities measured **0.58 ms**, two orders of magnitude
+   inside a frame.
+3. **The URL — the query never reaches the address**, not even transiently. The
+   path names the security; the query string stays empty and Story 2.13's window
+   control puts the first parameter in it.
+
+Plus the live-region rate (§4): the visible list updates **per keystroke**, the
+spoken sentence waits **400 ms** after the last one, and the query is quoted
+inside the sentence because a live region whose text does not change announces
+nothing.
+
+**The masthead was measured rather than recalled**, which is what the task asked
+for and what settled decision 1. Its content is **903px** wide — 24px padding, a
+250px identity block, a 40px gap, 565px of navigation in four tabs. There is no
+media query in `AppHeader.module.css`; `.nav` is `overflow-x: auto`, so **the
+navigation is what gives way**, and it gives way at 1024, where a 240px field
+leaves 121px and the four tabs begin to scroll.
+
+**Two escalations, one of which changed the answer.** The result row's price was
+put to the user with a recommendation of change-only plus one surface-level
+qualifier; **the user chose the design deliverable's position — price and change
+on every row** — so §5 records that and narrows it into an honesty rule instead:
+the surface names the close's session once, a row whose own session is earlier
+carries its own date, and the number is labelled a close rather than a price. The
+other escalation, where search lives, came back as recommended.
+
+**One finding worth more than the decision it informed.** A naive
+substring-anywhere match over the company name is measurably wrong: `nv` matches
+`FRT`, `INVH`, `IVZ`, `KVUE` and `QQQ` — Federal Realty **Inv**estment Trust,
+**Inv**itation Homes, **Inv**esco, Ken**vu**e and **Inv**esco QQQ Trust — and a
+person typing `nv` means NVIDIA. Task 2.11.2 has that as a test to write rather
+than a defect to find.
+
+**The design deliverable was read against the brief and the result is in §5**,
+following the precedent `VISUAL-LANGUAGE.md` set with `story-10-design.html`: a
+reference and not a specification. Eight positions taken, four narrowed, six
+declined. The most important decline is not stylistic — the mock's masthead reads
+`SIP CONSOLIDATED` over a **live** feed indicator, which is invariant 6 inverted:
+the free plan's live stream is IEX only, and that label claims coverage of every
+US exchange for a stream with one venue in it. A dozen fabricated figures in the
+mock (aggregate ADV, market cap, a `0.42ms` latency, a CUSIP and an ISIN, two
+securities we do not track, and placeholder cards labelled Stories 2.15 and 2.16,
+which do not exist) are listed by name so that none of them is copied forward.
+
+`pnpm verify` passes.
+
+---
+
+## For the stakeholders — what this week's work actually was, in plain terms
+
+**Nothing changed on screen, and that is the intended outcome of this particular
+piece of work.** What it produced is a set of settled answers so that the six
+tasks after it can build rather than deliberate. If you want the one-sentence
+status: **MarketPulse can already show you 518 real companies and one company's
+real trading history, and the next fortnight is about letting you _find_ a company
+instead of typing its address into the browser.** This task is the design meeting
+that makes that fortnight straightforward.
+
+### The three questions that had to be answered first
+
+**1. Where does the search box go?**
+
+The obvious answer — put it in the top bar, like every trading terminal — turned
+out to be the wrong one, and we know that because we measured the top bar instead
+of eyeballing it. It is already full: the logo, the product name and the four
+main navigation tabs use up 903 pixels of it, and on a 1024-pixel-wide laptop
+screen adding a search box would push the navigation tabs into a little
+sideways-scrolling strip. That is the kind of thing that looks fine on the
+developer's large monitor and is quietly broken on a smaller one.
+
+So the search box goes **on the page**, at the top of the Securities screen. The
+happy accident that makes this genuinely as good rather than just cheaper: the
+list of companies and an individual company's page are the same screen in our
+application. Put the search box there and it is available at exactly the moments
+somebody wants to switch company — which is the whole point of wanting it in the
+top bar. We have written down the specific condition under which we would revisit
+this (a different screen needing to change which company it is about), so it is a
+decision with an expiry condition rather than a permanent one.
+
+**2. Should typing search the computer or ask the server?**
+
+Every letter you type could be sent to our server to be looked up, or the browser
+could already be holding the whole list and search it instantly. We chose
+instantly, and we chose it on the basis of a measurement rather than a hunch: the
+full list of 518 companies is **20 kilobytes** over the network — roughly the size
+of a small photograph's thumbnail — and the page downloads it already, for the
+table you can see today. Searching that list takes **three ten-thousandths of a
+second**.
+
+The more useful thing we measured is what happens if the product grows. We
+duplicated the list up to **5,000 companies** — ten times the size the product
+plan calls for — and searching it still took **six ten-thousandths of a second**.
+So this is not a decision that quietly expires the moment the product succeeds.
+We also wrote down exactly what would change our mind (searching by a company's
+former name, for example — somebody typing "Facebook" and expecting to find
+"Meta") and exactly what we would ask the server for if it did, so that change
+would be an afternoon's rewiring rather than a redesign.
+
+**3. What should the web address say?**
+
+The address will name the company — `/securities/NVDA` — so you can bookmark it,
+send it to a colleague, and have it open on the right thing. What we decided
+against is putting your half-typed search into the address. Two reasons, both
+about not being annoying: a link to somebody else's unfinished typing is not
+useful to anybody, and if the address changed on every keystroke, the browser's
+back button would walk you backwards through your own letters one at a time
+instead of taking you back to where you came from.
+
+There is one honest cost, and we would rather state it than have somebody find
+it: if you search, open a company, and press Back, you land on the list with an
+empty search box rather than your previous search. We think that is the right
+trade — the alternative is the address-bar churn above — and it is now written
+down as a decision rather than waiting to be reported as a bug.
+
+### The bit we spent the most care on, which you cannot see at all
+
+Screen-reader users hear the page rather than see it, and this screen already
+speaks twice: once about the company list and once about the trading history
+panel. A search box is the first thing in this product that changes while somebody
+is actively typing, and the naive implementation would have the page talking over
+them at typing speed. That would be genuinely hostile, so it was settled now,
+before anything is built: **the results on screen update on every keystroke — no
+lag, that part must feel instant — but the page only speaks 400 milliseconds after
+you stop typing, and when it speaks it says which search it is talking about.**
+That last detail is not fussiness; a spoken sentence that reads "7 matches" is
+completely silent if the previous one also said "7 matches", so the sentence quotes
+your query to guarantee it has actually changed.
+
+### On the design work
+
+A design mock was produced for this story and it did a lot of good work: its
+bordered field, its monospace typing, its clear button and escape hint, its treatment
+of a company we no longer track (shown and marked, never hidden), and its
+insistence that selecting a result changes the address were all adopted. **You
+asked for prices on the search results and that is what we are building**, with
+one condition attached: our prices are the last trading session's closing prices,
+not live prices, so the results panel states which session it is showing and any
+individual row from an older session says so itself. A number without a date
+beside it is the single easiest way for a financial product to mislead somebody
+without technically lying, and we are not going to do that.
+
+We also declined a handful of things from the mock, and one of them matters beyond
+this screen. The mock labelled our live market feed "SIP Consolidated" — meaning
+the full US market. Our live feed, on the plan we are on, carries **one exchange**.
+Shipping that label would have been the product claiming market-wide coverage it
+does not have, which is precisely the failure our own architecture rules exist to
+prevent. It was caught here because somebody read the mock against the rulebook,
+which is the reason this task exists at all. Along with it we catalogued a dozen
+invented figures in the mock — a market-capitalisation total, a network latency, a
+securities identification number for NVIDIA — by name, so that none of them gets
+copied into the real product by a well-meaning hand later.
+
+### What happens next, and when you will see something
+
+The next two tasks are still invisible: the matching logic and its tests, then the
+search field itself, reviewable in our component workshop. **Task 2.11.4 is where
+this becomes real** — a working search box on the page, where typing `nvid` finds
+NVIDIA and pressing Enter opens it. After that: every failure state made honest,
+the Security Explorer page layout that the next four epics hang their features
+off, a control for navigating 518 rows, and a keyboard and screen-reader pass.
+
+At the end of this story, the sentence somebody can demonstrate is the one this
+epic was set up to deliver: **search for NVDA and open it.** Charts are the two
+stories after that.
