@@ -229,6 +229,31 @@ The entry bound (24 is the working number) and the parsed-heap cost of a series
 are **Task 2.10.5's to measure when it builds the thing** — a heap figure taken
 against a module that does not exist would be a number about a probe.
 
+> **Answered 2026-09-10 by Task 2.10.5, and the measurement changed the shape of
+> the bound rather than only its number.** Measured on the real
+> `toDomainSeries` over a payload built from 390 real recorded Alpaca minute
+> bars tiled to length — 20 parsed copies held live, `--expose-gc` either side,
+> `heapUsed` divided by 20, three runs agreeing to 0.6 kB:
+>
+> | Series                            | Wire (identity) | Parsed heap | Parse + construct |
+> | --------------------------------- | --------------- | ----------- | ----------------- |
+> | 1 session of minute bars (390)    | 44,561 B        | **97.8 kB** | 0.22–0.26 ms      |
+> | 5 sessions of minute bars (1,950) | 221,238 B       | **475 kB**  | 0.93–1.88 ms      |
+> | The 10,000-bar cap                | 1,132,936 B     | **2.43 MB** | 4.6–8.7 ms        |
+>
+> **A series varies 25× in size, so a bound counted in entries bounds entries
+> and not memory.** 24 entries is 11.4 MB of held series at the default window
+> and **58 MB** at the cap — a figure a window control can reach, and exactly
+> the shape of thing that looks fine in testing. So `series-cache.ts` carries
+> **two** bounds: 50,000 bars (~12 MB, the memory bound) and 32 entries (the
+> guard for the degenerate case a bar budget cannot see, since an empty series
+> is a correct answer weighing zero bars). Both are counts, neither is a clock,
+> and §2's rule is unchanged.
+>
+> The first reversal trigger below **has not fired**: a cap-sized series parses
+> and constructs in 4.6–8.7 ms against §28's 50 ms, so this stays a convenience
+> rather than becoming a worker.
+
 ### Reversal trigger
 
 - **A `JSON.parse` of a real series measured over 50 ms on the main thread**,

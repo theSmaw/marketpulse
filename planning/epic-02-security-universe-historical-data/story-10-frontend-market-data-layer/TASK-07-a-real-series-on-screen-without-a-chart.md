@@ -161,3 +161,26 @@ not six — and renders the member it is given.
 - **The feed comes off `series.provenance.sources`**, which is a list because a
   stitched series may truthfully name two feeds. Today both parts report `sip`;
   that is correct and it is not the steady state.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.5 — the hook this task renders, and its two values
+
+`useBarSeries` exists and leaves the module through `market/index.ts`, beside
+`BarSeriesSource`. Four things about using it that are decided rather than open:
+
+- **It returns `{ view, retry }`, not a bare union** — `SecuritiesSource`'s
+  precedent. The panel takes `view` **whole** as a prop and renders the member it
+  is given; the action travels beside it rather than on it, so the state stays
+  comparable, serialisable and constructible in a story.
+- **The request argument may be a fresh object literal on every render.** The
+  hook keys on `barSeriesQuery(request)` rather than on object identity, so a
+  route building `{ symbol, timeframe, window }` inline is the intended call
+  shape and does not need a `useMemo`.
+- **A held series paints in the first commit.** Returning to a security already
+  looked at renders `loaded` immediately, with a request still in flight behind
+  it. This task should not be surprised by that and should not design around it —
+  Task 2.10.8 owns what the screen says about it.
+- **Nothing here needs a `try` or an error boundary for a bad answer.** Every
+  failure, including a body whose numbers disagree with each other, is already a
+  member of the union.

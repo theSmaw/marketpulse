@@ -209,3 +209,35 @@ derived through the same `isRetryableApiErrorCode`. What is **not** shared is th
 copy, the silhouette and the control, and §4's amendment records one deliberate
 divergence to check rather than flag — `BarSeriesView` has a `refused` member the
 universe page has no use for, and it sits outside the flag entirely.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.5 — what is already swept, and what the ADR now owes
+
+**Already done, do not do it twice.** `FRONTEND-STATE.md` §2's _"What this does
+not decide"_ carries a dated amendment with the parsed-heap table and the bound
+that measurement produced. That is the one live claim this task falsified, and it
+was swept the same day.
+
+What this task still owes the record, beyond its own list:
+
+- **The cache is bounded twice, not once** — 50,000 bars (~12 MB) and 32
+  entries — because a series varies 25× in size and a bound counted in entries
+  bounds entries rather than memory. §2's working number of 24 would have been
+  58 MB at the cap. The ADR should carry the shape of the bound, not just its
+  existence.
+- **§2's first reversal trigger has not fired**, and the figure that says so is
+  worth publishing: a cap-sized series parses and constructs in 4.6–8.7 ms
+  against §28's 50 ms budget.
+- **The absolute-window re-ask was explicitly declined**, with its reasoning and
+  reversal trigger in `use-bar-series.ts`'s header. It is a decision about a
+  request and leaves §3's address-bar rule untouched — worth one line in the ADR
+  so nobody re-derives it as an obvious optimisation.
+- **The refetch policy is a third thing**, neither `useBackendHealth`'s poll nor
+  `useSecurities`' fetch-once: mount, key change and retry only, with an open
+  session's tail deliberately left where it is because `covered.end` is the seam
+  Epic 3 attaches to.
+- **The React Compiler rules still have not fired** — including on a `useRef`
+  written from an async callback and a `setState` called during render, which
+  were the two most likely provocations this story had to offer. `CLAUDE.md`'s
+  reading of that silence stands and should not be upgraded to a claim.

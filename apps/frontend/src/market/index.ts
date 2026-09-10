@@ -70,6 +70,14 @@ export type {
   BarSeriesView,
   PopulatedBarSeries,
 } from "./bar-series-view.js";
+export { useBarSeries } from "./use-bar-series.js";
+export type { BarSeriesSource } from "./use-bar-series.js";
+
+// The cache itself is deliberately **not** exported. It is an implementation
+// detail of the hook — nothing outside this module should be able to read a
+// series without asking for one, which is the rule that keeps *every read is
+// accompanied by a request* true (`FRONTEND-STATE.md` §2) rather than merely
+// stated.
 
 // Re-exported rather than moved — see the header. A consumer asking for a
 // series and a consumer holding one should not need to know that the request

@@ -204,3 +204,30 @@ if they need its types, which is the direction the boundary allows.
 an inline fixture, all 14 tests passed, and only `tsc -b` in `pnpm verify` caught
 it — a test run is not a typecheck. A recorded body cannot get this wrong, which
 is the argument for recording rather than writing, restated as a live example.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.5 — the reset exists, its wiring does not
+
+The cache landed as `apps/frontend/src/market/series-cache.ts`, and the reset the
+amendment above asked for is on the instance: **`barSeriesCache.clear()`**, with
+a doc comment saying it is for tests and that there is no product call site.
+
+What is **not** done, and is still this task's:
+
+- **Wiring it where `cleanup` is called** — `apps/frontend/src/test-setup.ts`.
+  Today the only file that clears it is `market/use-bar-series.test.ts`, in its
+  own `beforeEach` and `afterEach`, which protects that file and nothing else.
+  The moment a second file renders anything that fetches a series, the ordering
+  hazard the amendment describes is live again.
+- **The test that would fail without it**, which is the half that matters: two
+  tests in one file passing individually and disagreeing when run together. Note
+  the symptom this cache produces is specific and worth arranging for
+  deliberately — the second test's **first rendered state is `loaded`** rather
+  than `loading`, because the entry the first test left behind paints
+  immediately. A test asserting only the eventual state passes either way.
+
+One thing the fixtures now have to respect: **the cache key is
+`barSeriesQuery(request)`**, so two fixtures differing only in window form are
+two entries, and a fixture set that reuses one request across tests shares one
+entry across them.
