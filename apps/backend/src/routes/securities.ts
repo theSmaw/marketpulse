@@ -87,6 +87,7 @@ import type {
 
 import { throughDatabase } from "../database.js";
 import { apiErrorSchema } from "../errors.js";
+import { installResponseValidator, REVALIDATE } from "../http-cache.js";
 import type { JsonSchemaProperty } from "../json-schema.js";
 import type {
   BarCoverage,
@@ -382,6 +383,42 @@ export function createSecuritiesRoutes(
   bars: Pick<MarketBarsRepository, "listCoverage" | "readLastCloses">,
 ): FastifyPluginCallback {
   return (app, _options, done) => {
+    // ## This route is IN Task 2.9.8's scope, and only half of it (2026-09-10)
+    //
+    // The question that task asks explicitly, so a later reader finding one
+    // route cached and the other not does not read it as an oversight: **the
+    // validator is here, a freshness lifetime is not, and neither is the answer
+    // cache.**
+    //
+    // **Why the validator is in.** Task 2.9.7 put `lastCloses` on this
+    // response — the close of a session that has closed, for 518 securities,
+    // which is *precisely* the immutable thing 2.9.8's objective names,
+    // changing once a day when the nightly catch-up runs. It is also the bigger
+    // payload of the two this story serves, fetched once per page load by
+    // `useSecurities`. Leaving it out would mean the first question a reader
+    // asks — *is my price fresh?* — has one answer on `/market-data/bars` and a
+    // different one here, with two rules to keep in step. One rule, one
+    // mechanism, both routes.
+    //
+    // **Why no `max-age`.** This response has no window. `series-cache.ts`'s
+    // immutability predicate is a statement about a resolved range, and there
+    // is nothing here to resolve — the body is *the universe as of now*, and
+    // this route carries the same envelope trap from the other direction: it is
+    // immutable in its closes and mutable in its rows, because `securities`
+    // carries `status` and `pnpm universe` can flip one at any moment. A
+    // lifetime derived from the calendar would be a promise about the closes
+    // covering the rows. So: revalidate, always, and let the `ETag` save the
+    // ~190 kB rather than the round-trip.
+    //
+    // **Why no answer cache.** `series-cache.ts` exists to bound a *metered
+    // vendor request*, and there is no provider on this path — the four reads
+    // behind this body are the universe, its provenance, the ~1,036-row ledger
+    // and two daily bars per security, all of which `market-bars.ts` measured
+    // and none of which touch the minute table. Caching them would be a second
+    // cache with no cost to save, and `index.ts` records why this route has no
+    // TTL of its own.
+    installResponseValidator(app);
+
     app.get(
       "/securities",
       { schema: securitiesSchema },
@@ -472,6 +509,12 @@ export function createSecuritiesRoutes(
             ? { provenance }
             : {}),
         };
+
+        // Revalidate-always, which is what earns the `ETag` the hook above
+        // computes (Task 2.9.8). `no-cache` is *store this and ask me before
+        // using it*, not *do not store it*; the saving is a `304` in place of
+        // ~190 kB, on a response the page fetches on every load.
+        reply.header("cache-control", REVALIDATE);
 
         // 200 stated rather than left to Fastify's default, for the reason
         // `/health` states it: this route's status code is part of its contract

@@ -102,10 +102,16 @@ app.register(createDiagnosticsRoutes(createCachedDatabaseCheck(database)));
 //
 // There is deliberately **no bound** on this one, unlike the diagnostic above.
 // That check exists to be polled by an operator against a public unauthenticated
-// endpoint on a 35-connection ceiling; this is a page load, it is cached by
-// nothing yet, and a TTL invented before Story 2.10 has decided how the client
-// caches would be a second cache nobody asked for. Story 2.10's is the layer
-// that gets to want one.
+// endpoint on a 35-connection ceiling; this is a page load, and a TTL invented
+// before Story 2.10 has decided how the client caches would be a second cache
+// nobody asked for. Story 2.10's is the layer that gets to want one.
+//
+// **Amended 2026-09-10 by Task 2.9.8: "it is cached by nothing yet" is no
+// longer true, and the conclusion is unchanged.** That route now carries an
+// `ETag` and answers a conditional request with a `304`, which saves the ~190 kB
+// body and not the four reads behind it — so there is still no server-side
+// answer cache here and still no bound on the work. `routes/securities.ts`
+// records why the validator was taken and the freshness lifetime was not.
 //
 // Two repositories since Task 2.8.9, because the response now carries what the
 // bar ledger says about each security. Both are built over the same pool and

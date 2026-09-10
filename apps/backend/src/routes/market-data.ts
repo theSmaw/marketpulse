@@ -73,10 +73,13 @@ import type {
 
 import { throughDatabase } from "../database.js";
 import { apiErrorSchema } from "../errors.js";
+import { installResponseValidator } from "../http-cache.js";
 import type { JsonSchemaProperty } from "../json-schema.js";
 import type { MarketBarsRepository } from "../market-bars.js";
 import type { MarketData } from "../market-data.js";
 import type { SecuritiesRepository } from "../securities.js";
+import { createSeriesCache, seriesCacheControl } from "../series-cache.js";
+import type { SeriesCache } from "../series-cache.js";
 import { parseSeriesRequest } from "../series-request.js";
 import type { SeriesRequestQuery } from "../series-request.js";
 import { serveSeries } from "../serve-series.js";
@@ -443,6 +446,22 @@ export interface MarketDataRouteDependencies {
    * test file.
    */
   readonly now?: () => Date;
+
+  /**
+   * The answer cache, defaulted to a fresh one (Task 2.9.8).
+   *
+   * **One per registration, which is one per process**, so `index.ts` passes
+   * nothing and every test that builds a server gets an empty cache without
+   * asking for one. That default is what keeps this from being a seam a suite
+   * has to remember: a test asserting a cache hit registers one plugin and
+   * injects twice, and a test asserting anything else is unaffected because its
+   * server is new.
+   *
+   * Injectable at all so a test can hold the same cache across two servers, and
+   * so a future diagnostic can read {@link SeriesCache.size} without reaching
+   * into a closure.
+   */
+  readonly cache?: SeriesCache;
 }
 
 /**
@@ -487,7 +506,13 @@ function unknownSecurityMessage(symbol: string): string {
 export function createMarketDataRoutes(
   dependencies: MarketDataRouteDependencies,
 ): FastifyPluginCallback {
-  const { marketData, bars, securities, now = () => new Date() } = dependencies;
+  const {
+    marketData,
+    bars,
+    securities,
+    now = () => new Date(),
+    cache = createSeriesCache(),
+  } = dependencies;
 
   // Read once, at registration. The configuration is frozen and the provider is
   // constructed at startup, so re-deriving this per request would be work that
@@ -501,6 +526,13 @@ export function createMarketDataRoutes(
   };
 
   return (app, _options, done) => {
+    // The `ETag` and the `304`, scoped by Fastify's encapsulation to this
+    // plugin's two routes (Task 2.9.8). It computes nothing for a response
+    // whose handler did not set `Cache-Control`, which is how `GET
+    // /market-data` — a standing configuration, one field, not worth a
+    // validator — opts out by saying nothing.
+    installResponseValidator(app);
+
     app.get("/market-data", { schema: marketDataSchema }, async () =>
       Promise.resolve(body),
     );
@@ -585,7 +617,7 @@ export function createMarketDataRoutes(
             .send(apiError("BAD_REQUEST", parsed.refusal.message, request.id));
         }
 
-        const { symbol, timeframe, range } = parsed.request;
+        const { symbol, timeframe, range, windowForm } = parsed.request;
 
         // The universe first, because a 404 must not depend on whether the
         // store happens to hold anything — §6's sentence is that a 404 is about
@@ -605,15 +637,45 @@ export function createMarketDataRoutes(
             );
         }
 
-        const served = await throughDatabase("The market-data store", () =>
-          serveSeries(
-            { bars, provider: marketData.provider, log: request.log },
-            symbol,
-            timeframe,
-            range,
-            instant,
-          ),
+        // **Set before the answer is computed and regardless of how it is
+        // computed** (Task 2.9.8). A cached answer and a freshly read one are
+        // the same answer to the same question, so they carry the same
+        // freshness — a header that differed between a hit and a miss would
+        // make a client's cache lifetime a function of ours, which is a
+        // coupling nothing needs and nobody could reason about.
+        //
+        // `seriesCacheControl` is what decides it, from the **resolved** range
+        // and the form the caller used, through Story 2.5's calendar. The
+        // header is also the signal `installResponseValidator` reads: a
+        // response that sets it gets an `ETag`, and one that does not gets
+        // neither that nor a `304`.
+        reply.header(
+          "cache-control",
+          seriesCacheControl(windowForm, range, instant),
         );
+
+        const key = { symbol, timeframe, range };
+
+        // The cache sits **here** — after the universe lookup and in front of
+        // `serveSeries` — and `series-cache.ts` carries the argument at length.
+        // The short form: the point read above is what keeps a 404 a statement
+        // about the security, keeps `securityStatus` current, and keeps a
+        // database that is down a 503 rather than a cached 200.
+        const cached = cache.read(key, instant);
+
+        const served =
+          cached ??
+          (await throughDatabase("The market-data store", () =>
+            serveSeries(
+              { bars, provider: marketData.provider, log: request.log },
+              symbol,
+              timeframe,
+              range,
+              instant,
+            ),
+          ));
+
+        if (cached === undefined) cache.write(key, served, instant);
 
         // The two empty answers, told apart in the log and nowhere else.
         //

@@ -559,3 +559,85 @@ describe("what the schema strips", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// The validator (Task 2.9.8)
+// ---------------------------------------------------------------------------
+//
+// This route is **in** that task's scope for the validator and out of it for a
+// freshness lifetime — `routes/securities.ts` carries the decision and the
+// reason. What is asserted here is both halves of it, because a later reader
+// finding one route with a `max-age` and this one without will otherwise read
+// it as an oversight.
+
+describe("GET /securities' cache headers", () => {
+  it("revalidates always and never carries a lifetime", async () => {
+    const app = await server(stubRepository([NVDA, SPY]));
+
+    const response = await app.inject({ method: "GET", url: "/securities" });
+
+    // No window to resolve, so nothing here can be called immutable — and this
+    // body is immutable in its closes and mutable in its rows, because
+    // `pnpm universe` can flip a `status` at any moment.
+    expect(response.headers["cache-control"]).toBe("private, no-cache");
+    expect(response.headers["cache-control"]).not.toContain("max-age");
+    expect(response.headers.etag).toBeDefined();
+  });
+
+  it("answers a conditional request with a 304 in place of the body", async () => {
+    const app = await server(stubRepository([NVDA, SPY]));
+
+    const first = await app.inject({ method: "GET", url: "/securities" });
+    const second = await app.inject({
+      method: "GET",
+      url: "/securities",
+      headers: { "if-none-match": String(first.headers.etag) },
+    });
+
+    expect(second.statusCode).toBe(304);
+    expect(second.body).toBe("");
+    expect(second.headers.etag).toBe(first.headers.etag);
+  });
+
+  it("moves the validator when a single close moves", async () => {
+    // The daily catch-up is the one thing that routinely changes this body, and
+    // it changes one field of one row. A validator recomputed from the whole
+    // serialised body is what notices; nothing derived from the calendar would.
+    const yesterday = await server(
+      stubRepository([NVDA]),
+      stubBars([], [closeFor("NVDA")]),
+    );
+    const before = await yesterday.inject({
+      method: "GET",
+      url: "/securities",
+    });
+    await yesterday.close();
+    open = undefined;
+
+    const today = await server(
+      stubRepository([NVDA]),
+      stubBars([], [closeFor("NVDA", 231.36)]),
+    );
+    const after = await today.inject({ method: "GET", url: "/securities" });
+
+    expect(after.headers.etag).not.toBe(before.headers.etag);
+  });
+
+  it("gives a failure neither a lifetime nor a validator", async () => {
+    // The handler sets `Cache-Control` on its last line, so a response that
+    // never reaches it declares nothing — which is what stops the hook giving a
+    // validator to an `ApiError`, and what would otherwise let a `304` answer
+    // with an empty body carrying no message at all.
+    const app = await server(stubRepository(new SecurityMappingError("NVDA")));
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/securities",
+      headers: { "if-none-match": "*" },
+    });
+
+    expect(response.statusCode).toBe(500);
+    expect(response.headers["cache-control"]).toBeUndefined();
+    expect(response.headers.etag).toBeUndefined();
+  });
+});
