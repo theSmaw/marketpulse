@@ -15,11 +15,17 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   which instrument answered each. Criterion 1 is a compile error **produced**, not
   described — add a field, see `TS1360`, remove it.
   **Two things about criterion 1, added 2026-09-09 by Task 2.9.3.** There are
-  **eleven** guard applications across the application by then — four in
-  `routes/securities.ts`, one in `/health`, one in `/market-data` and seven on the
-  series response — and "add a field" at the envelope demonstrates nothing about
-  the ten inside it, which is the whole property the criterion is about; pick a
-  **nested** shape. And `packages/shared` is consumed as **built output**, so the
+  ~~**eleven**~~ **sixteen** guard applications across the application — **counted
+  2026-09-09 by Task 2.9.6 rather than carried forward; the original figure said
+  eleven while its own enumeration summed to thirteen, and both were low.** The
+  count is: **five** in `routes/securities.ts`, **seven** on the series response,
+  and one each in `routes/health.ts`, `routes/diagnostics.ts`, `/market-data`'s
+  feed response and `errors.ts` (`ApiError` itself). The one-liner is
+  `grep -rn "satisfies Record<keyof" apps/backend/src`, minus the four hits that
+  are prose about the idiom rather than uses of it. The point is unchanged and is
+  the reason the number matters: "add a field" at the envelope demonstrates
+  nothing about the fifteen inside it, which is the whole property the criterion
+  is about; pick a **nested** shape. And `packages/shared` is consumed as **built output**, so the
   edit proves nothing until that package is rebuilt: skip the rebuild and
   `typecheck` is green against the old `.d.ts`, which looks identical to the guard
   not firing. Criterion 3 is four responses
@@ -63,7 +69,19 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   product answers "up to now" by stitching a stored SIP history to a live tail and
   reporting both feeds, rather than by ending the chart at the last close. The cap
   and its measured basis belong in it too; the downsampling decision is the
-  interesting **negative**. Index it in `docs/adr/README.md`.
+  interesting **negative**.
+
+  **And one more, added 2026-09-09 by Task 2.9.6, which took it: how this API
+  distinguishes a dependency being down from this server having failed.**
+  `SERVICE_UNAVAILABLE` is `API_ERROR_CODES`' fourth member and the first added
+  for a failure that is **not ours** — 503 rather than 500 because the two carry
+  different instructions to a client, with `isDatabaseUnavailable` as the
+  classifier and a deliberate bias towards 500 for anything unrecognised. It is
+  ADR-shaped rather than task-shaped because every later epic that adds an
+  unreliable dependency (Epic 9's SEC client first) inherits the question, and
+  because the bias has a reversal trigger: a failure class that is repeatedly
+  mis-answered as 500 is a reason to add to the allowlist, never to invert the
+  default. Index it in `docs/adr/README.md`.
 
 - **Sweep upward, the same day.** Falsification travels from a task to a
   governing document, and nothing sweeps upward on its own: grep for any claim
@@ -75,8 +93,11 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   `PROVIDER.md` §2.4, whose stitch case is no longer hypothetical; and Story
   2.10's and 2.12's files, which should inherit this contract rather than
   rediscover it. **Added 2026-09-09 and certain rather than conditional:**
-  `database.ts`'s _"nothing in this application serves data yet"_, false since
-  Story 2.4 and doubly so now; `market-provenance.ts`'s module comment
+  ~~`database.ts`'s _"nothing in this application serves data yet"_, false since
+  Story 2.4 and doubly so now~~ **— DONE by Task 2.9.6**, marked superseded in
+  place rather than deleted, because that sentence is what made the 503 decision;
+  its **reversal trigger** is a separate line and is still live, so check that
+  one; `market-provenance.ts`'s module comment
   anticipating the first stitch, which has happened; and `CLAUDE.md`'s
   "no state library yet / four hooks" line if Task 2.9.7 moved it.
   **Added 2026-09-09 by Task 2.9.2 and certain rather than conditional:**
@@ -111,6 +132,23 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   two migrations now say opposite-looking things about one convention, so
   `migrations/README.md` should carry the rule that reconciles them rather than
   leaving the next reader to pick one.
+
+  **Added 2026-09-09 by Task 2.9.6 — one discharged, one new, and the new one is
+  the kind this list exists for.**
+
+  - ~~`/securities` should answer `SERVICE_UNAVAILABLE` once the member exists
+    (`MARKET-DATA-API.md` §6 put it on this list)~~ — **DONE in the same change as
+    the member.** Both routes share `throughDatabase`, so one outage cannot get
+    two answers. Nothing to sweep; check it is still one wrapper.
+  - **NEW, and it is a trap rather than a figure, so it belongs in `CLAUDE.md`
+    despite this task's own "add nothing else" instruction.** `database.ts` matches
+    `pg-pool`'s connection-timeout **message string**, because that one failure
+    carries no code at all — and nothing re-checks the string, since producing it
+    needs a pool that fails to connect and `pnpm verify` has no network. A driver
+    upgrade that rewords it silently downgrades a timed-out pool from 503 to 500:
+    a well-formed answer naming the wrong thing, which is exactly what _What
+    `pnpm verify` does not cover_ §3 enumerates. Add it to that list with its
+    one-line re-measurement, and to nothing else.
 
 - **Write the stakeholder section** in the shape Task 2.4.2 and 2.8.9 established:
   what this actually did in plain terms, why the small decisions went the way they

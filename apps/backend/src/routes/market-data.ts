@@ -49,25 +49,37 @@ import type { FastifyPluginCallback } from "fastify";
 
 import {
   ADJUSTMENTS,
+  apiError,
   MARKET_FEEDS,
   PROVIDER_IDS,
   SECURITY_STATUSES,
   TIMEFRAMES,
 } from "@marketpulse/shared";
 import type {
+  Bar,
   BarPayload,
+  BarSeries,
   BarSeriesPayload,
   BarSeriesResponse,
   BarSource,
   MarketDataResponse,
+  SecurityStatus,
+  SeriesCoverage,
   SeriesCoveragePayload,
   SeriesProvenancePayload,
+  TimeRange,
   TimeWindowPayload,
 } from "@marketpulse/shared";
 
+import { throughDatabase } from "../database.js";
 import { apiErrorSchema } from "../errors.js";
 import type { JsonSchemaProperty } from "../json-schema.js";
+import type { MarketBarsRepository } from "../market-bars.js";
 import type { MarketData } from "../market-data.js";
+import type { SecuritiesRepository } from "../securities.js";
+import { parseSeriesRequest } from "../series-request.js";
+import type { SeriesRequestQuery } from "../series-request.js";
+import { serveSeries } from "../serve-series.js";
 
 // `["string", "null"]` and an `enum` admitting `null`, both measured rather
 // than assumed. `routes/securities.ts` found that a genuinely null value under
@@ -304,8 +316,153 @@ export const barSeriesResponseSchema = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// The domain object on the wire (Task 2.9.6)
+// ---------------------------------------------------------------------------
+
 /**
- * The route, as a factory taking the resolved market data.
+ * A domain {@link TimeRange} as the wire says a window.
+ *
+ * ISO 8601 with the `Z`, which is `toISOString()`'s only output and therefore a
+ * choice made by not making one. Epoch milliseconds was the alternative and is
+ * refused for `securities.ts`' reason: a response nobody can read by eye is a
+ * response nobody checks.
+ */
+function toTimeWindow(range: TimeRange): TimeWindowPayload {
+  return { start: range.start.toISOString(), end: range.end.toISOString() };
+}
+
+/** A bar, with its one `Date` flattened. Every other field is already a number. */
+function toBarPayload(bar: Bar): BarPayload {
+  return {
+    startsAt: bar.startsAt.toISOString(),
+    open: bar.open,
+    high: bar.high,
+    low: bar.low,
+    close: bar.close,
+    volume: bar.volume,
+  };
+}
+
+/**
+ * Coverage, and the one field in this whole mapping that is not a format
+ * change.
+ *
+ * `covered` is `null` exactly when the series is empty, and the null is the
+ * answer rather than a missing value: it says *we asked over `requested` and
+ * hold nothing in it*. `toBarSeries` enforces the correspondence on the domain
+ * side, so this branch cannot invent a null the domain would refuse — it is
+ * carrying one through.
+ */
+function toSeriesCoverage(coverage: SeriesCoverage): SeriesCoveragePayload {
+  return {
+    requested: toTimeWindow(coverage.requested),
+    covered: coverage.covered === null ? null : toTimeWindow(coverage.covered),
+  };
+}
+
+/**
+ * A {@link BarSeries} and a security's status, as the response body.
+ *
+ * **One function, written out, rather than a generic mapper** — `market-bars.ts`
+ * settled that rule for `toBar` on the way in and this is the same rule going
+ * out. The mapping is exactly where a domain guarantee decides how to become a
+ * wire value, and a generic mapper is where those decisions get skipped. Three
+ * of them happen here and each is worth naming:
+ *
+ *  1. Every `Date` becomes an ISO 8601 UTC instant with the `Z` — `startsAt`
+ *     and both ends of both windows.
+ *  2. `coverage.covered` becomes `null` rather than an object when the series
+ *     is empty. See {@link toSeriesCoverage}.
+ *  3. The **branded** `SeriesProvenance` becomes a plain
+ *     `SeriesProvenancePayload`, losing a guarantee the wire cannot keep. The
+ *     brand asserts that `toSeriesProvenance` checked the source counts against
+ *     the bars; JSON carries no brands, so a client that wants that guarantee
+ *     re-derives it from the numbers, which are all present. Spelling the loss
+ *     out is the point — a cast would hide it.
+ *
+ * `symbol` widens from `Ticker` to `string` for the same reason and by the same
+ * mechanism: the payload type says `string`, and a client validates or does not.
+ *
+ * `securityStatus` is a parameter rather than a field of the series, because it
+ * is a fact about the **security** and not about the data
+ * (`MARKET-DATA-API.md` §7). It is never null: an unknown security is the 404.
+ */
+export function toBarSeriesResponse(
+  series: BarSeries,
+  securityStatus: SecurityStatus,
+): BarSeriesResponse {
+  return {
+    series: {
+      symbol: series.symbol,
+      timeframe: series.timeframe,
+      bars: series.bars.map(toBarPayload),
+      provenance: {
+        adjustment: series.provenance.adjustment,
+        sources: series.provenance.sources,
+      },
+      coverage: toSeriesCoverage(series.coverage),
+    },
+    securityStatus,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The route
+// ---------------------------------------------------------------------------
+
+/**
+ * What the pair of routes in this file needs.
+ *
+ * A named object rather than four positional arguments, which is a departure
+ * from `createSecuritiesRoutes(securities, bars)` and is deliberate: two
+ * repositories of related shape next to each other is a call site where a
+ * transposition typechecks in some future where their interfaces converge. It
+ * also makes {@link now} optional without it being "the fourth one".
+ */
+export interface MarketDataRouteDependencies {
+  /** The resolved provider selection, for `GET /market-data`. */
+  readonly marketData: MarketData;
+
+  /** The bar store `GET /market-data/bars` reads. */
+  readonly bars: MarketBarsRepository;
+
+  /**
+   * The universe, for the one question this route asks of it.
+   *
+   * Narrowed to `findSecurity` rather than taking the whole repository, so the
+   * dependency says what it uses — and so a test needs one stub function.
+   */
+  readonly securities: Pick<SecuritiesRepository, "findSecurity">;
+
+  /**
+   * The clock, injected so a test can pin a named window.
+   *
+   * Defaulted rather than required, because `index.ts` has no clock to pass and
+   * inventing one there would put a seam in the process for the benefit of a
+   * test file.
+   */
+  readonly now?: () => Date;
+}
+
+/**
+ * The message an unknown symbol gets.
+ *
+ * It names the symbol, which is **the client's own input coming back** and is
+ * the reflection decision `errors.ts` records in full. It deliberately does not
+ * name the route — the 404 handler declines to for the same reason — and it
+ * says *this system* rather than *the market*, because a symbol we do not track
+ * is not a symbol that does not exist.
+ */
+function unknownSecurityMessage(symbol: string): string {
+  return (
+    `${symbol} is not a security this system tracks. ` +
+    `The tracked universe is listed at /securities.`
+  );
+}
+
+/**
+ * The routes, as a factory taking what they need.
  *
  * It takes {@link MarketData} rather than the whole `Config`, for
  * `buildServer`'s stated reason: a factory takes what the application needs
@@ -315,18 +472,23 @@ export const barSeriesResponseSchema = {
  * **Registered from `index.ts` rather than inside `buildServer()`**, which
  * follows `/diagnostics/database` and `/securities` and keeps one rule rather
  * than two: `/health` needs nothing and lives in the factory; a route with a
- * dependency is registered where its dependency is constructed. This one
- * *could* have gone in the factory — `resolveMarketData` needs no pool and no
- * logger, so the ordering that blocked `/securities` does not apply — and
- * putting it there would have meant a required `ServerOptions` field and a
- * change to every test that builds a server, to move one registration by one
- * file. The cost is the one Task 2.1.7 named: `server.test.ts`'s route-table
- * walk sees this route only because that walk registers what `index.ts`
- * registers, which it does.
+ * dependency is registered where its dependency is constructed. `/market-data`
+ * alone *could* have gone in the factory; `/market-data/bars` could not, because
+ * it needs the pool — so the question the earlier note left open is now closed
+ * by the second route rather than by preference. The cost is the one Task 2.1.7
+ * named: `server.test.ts`'s route-table walk sees these routes only because that
+ * walk registers what `index.ts` registers, which it does.
+ *
+ * **Both routes in one plugin because `/market-data` is the namespace as well
+ * as a resource** (`MARKET-DATA-API.md` §1). Splitting them would put two
+ * registrations of one namespace in `index.ts` and give the schema in this file
+ * a reader in another.
  */
 export function createMarketDataRoutes(
-  marketData: MarketData,
+  dependencies: MarketDataRouteDependencies,
 ): FastifyPluginCallback {
+  const { marketData, bars, securities, now = () => new Date() } = dependencies;
+
   // Read once, at registration. The configuration is frozen and the provider is
   // constructed at startup, so re-deriving this per request would be work that
   // cannot produce a different answer.
@@ -341,6 +503,157 @@ export function createMarketDataRoutes(
   return (app, _options, done) => {
     app.get("/market-data", { schema: marketDataSchema }, async () =>
       Promise.resolve(body),
+    );
+
+    // `GET /market-data/bars` — the first route in this application whose
+    // response size depends on what the caller asked for, and the first that
+    // serves data out of the store.
+    //
+    // ## The status table, which is the handler's whole shape
+    //
+    // | Situation                                              | Answer |
+    // | ------------------------------------------------------ | ------ |
+    // | Any of `parseSeriesRequest`'s five refusals            | 400 `BAD_REQUEST`, the refusal's own message |
+    // | Symbol is not a security we know                       | 404 `NOT_FOUND` |
+    // | We hold nothing for it, or nothing traded in the window| 200, empty series, `covered: null` |
+    // | We hold part of the window                             | 200, `covered` narrower than `requested` |
+    // | The live tail failed                                   | 200, the stored part |
+    // | The database is unavailable                            | 503 `SERVICE_UNAVAILABLE` |
+    // | Anything uncaught                                      | 500 `INTERNAL_ERROR`, never the thrown message |
+    //
+    // Every row is `MARKET-DATA-API.md` §6's, restated here because this is
+    // where it is implemented and a table split between a document and a handler
+    // is a table that drifts.
+    //
+    // ## No `querystring` schema, and that was produced rather than assumed
+    //
+    // This is the first route here with a query string, so the question was
+    // open. Measured against Fastify 5 with its default ajv, on a throwaway
+    // route declaring the obvious schema:
+    //
+    //   ?symbol=NVDA&symbol=AMD&timeframe=1m
+    //     → 400 {"code":"FST_ERR_VALIDATION","message":"querystring/symbol must be string"}
+    //   ?symbol=NVDA&timeframe=5m
+    //     → 400 {"code":"FST_ERR_VALIDATION","message":"querystring/timeframe must be equal to one of the allowed values"}
+    //
+    // Both are refused **before the handler runs**, in Fastify's error shape and
+    // Fastify's vocabulary. That is the deciding measurement: it would leave
+    // `parseSeriesRequest`'s five reasons as dead code for exactly the inputs
+    // they were written for, give one request two error vocabularies, and
+    // replace *"5m" is not a timeframe. Expected 1m or 1d.* with *must be equal
+    // to one of the allowed values*, which does not say what they are.
+    //
+    // The second measurement is coercion, which ajv does by default here:
+    //
+    //   sessions declared `integer`, `?sessions=5`  → the handler sees the
+    //     number 5, not the string "5"
+    //   symbol declared `array`, `?symbol=NVDA`     → the handler sees ["NVDA"]
+    //
+    // `series-request.ts` types every query value `unknown` precisely so that a
+    // repeated key — which arrives as an **array** — is refused with a sentence
+    // saying a series is for one symbol. A schema would rewrite the input on the
+    // way to the parser that exists to judge it.
+    //
+    // So: no request schema, and the response schema stays. The reversal
+    // trigger is a query parameter whose validation `parseSeriesRequest` cannot
+    // express, not a preference for declared inputs.
+    app.get<{ Querystring: SeriesRequestQuery }>(
+      "/market-data/bars",
+      { schema: barSeriesResponseSchema },
+      async (request, reply) => {
+        // **Read once and passed everywhere.** `parseSeriesRequest` resolves a
+        // named window against it and `serveSeries` bounds the live tail
+        // against it; two readings is how one request gets answered as of two
+        // different moments, which at a session boundary is a window and a
+        // bound that disagree.
+        const instant = now();
+
+        const parsed = parseSeriesRequest(request.query, instant);
+
+        if ("refusal" in parsed) {
+          // At `info`, with the machine-readable reason rather than the
+          // sentence: a refused request is ordinary traffic and the client's
+          // mistake, and Task 1.7.1's property is that a healthy server is
+          // silent at `warn`. A server refusing bad windows is healthy.
+          request.log.info(
+            { reason: parsed.refusal.reason },
+            "series request refused",
+          );
+
+          return reply
+            .code(400)
+            .send(apiError("BAD_REQUEST", parsed.refusal.message, request.id));
+        }
+
+        const { symbol, timeframe, range } = parsed.request;
+
+        // The universe first, because a 404 must not depend on whether the
+        // store happens to hold anything — §6's sentence is that a 404 is about
+        // the security, never about the data, and asking in the other order is
+        // how that gets inverted by accident.
+        const security = await throughDatabase("The market-data store", () =>
+          securities.findSecurity(symbol),
+        );
+
+        if (security === undefined) {
+          request.log.info({ symbol }, "series requested for unknown security");
+
+          return reply
+            .code(404)
+            .send(
+              apiError("NOT_FOUND", unknownSecurityMessage(symbol), request.id),
+            );
+        }
+
+        const served = await throughDatabase("The market-data store", () =>
+          serveSeries(
+            { bars, provider: marketData.provider, log: request.log },
+            symbol,
+            timeframe,
+            range,
+            instant,
+          ),
+        );
+
+        // The two empty answers, told apart in the log and nowhere else.
+        //
+        // `held === undefined` is *we hold nothing for this (symbol,
+        // timeframe)*; a present ledger row with an empty series is *the window
+        // had no prints in it*. Both are the same 200 body, deliberately — §6
+        // — and the distinction is what Story 2.14's wording will be built from.
+        // It is available here without a second query because Task 2.9.4 put the
+        // ledger row beside the series.
+        if (served.series.bars.length === 0) {
+          request.log.debug(
+            {
+              symbol,
+              timeframe,
+              held: served.held !== undefined,
+              tail: served.tail.attempted
+                ? served.tail.result.outcome
+                : served.tail.reason,
+            },
+            served.held === undefined
+              ? "series is empty: nothing held for this security and timeframe"
+              : "series is empty: the window contains no bars we hold",
+          );
+        }
+
+        // `tail` is otherwise deliberately *not* on the payload. Every non-`ok`
+        // outcome is already logged under this request's `reqId` by
+        // `serveSeries`, and the provider's eight-member taxonomy is an internal
+        // vocabulary that must not reach a client. What a client needs in order
+        // to say *"displaying data through 15:42"* is `coverage.covered`, which
+        // ends where the answer ends whether the tail succeeded, was declined or
+        // failed — one field that is always true rather than two that can
+        // disagree. The reversal trigger is a client that has to distinguish
+        // *the tail failed* from *there was no tail to fetch*; §36's degrade-
+        // locally rule is about the workspace, and this route's honest partial
+        // answer is the window.
+        return reply
+          .code(200)
+          .send(toBarSeriesResponse(served.series, security.status));
+      },
     );
 
     done();

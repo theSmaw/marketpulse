@@ -83,6 +83,10 @@ function stubRepository(
         ? Promise.reject(securities)
         : Promise.resolve(securities),
     listSecuritiesProvenance: () => Promise.resolve(provenances),
+    // Unused by this route and stubbed rather than omitted: the interface owes
+    // it since Task 2.9.6, and a stub that lies about the shape is a stub that
+    // stops matching the thing it stands for.
+    findSecurity: () => Promise.resolve(undefined),
   };
 }
 

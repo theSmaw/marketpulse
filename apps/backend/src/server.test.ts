@@ -452,6 +452,7 @@ describe("the response-schema declaration", () => {
           {
             listSecurities: () => Promise.resolve([]),
             listSecuritiesProvenance: () => Promise.resolve([]),
+            findSecurity: () => Promise.resolve(undefined),
           },
           { listCoverage: () => Promise.resolve([]) },
         ),
@@ -460,7 +461,23 @@ describe("the response-schema declaration", () => {
       // factory — see routes/market-data.ts. `undefined` is the default
       // deployment: no provider configured.
       app.register(
-        createMarketDataRoutes({ selection: "none", provider: undefined }),
+        createMarketDataRoutes({
+          marketData: { selection: "none", provider: undefined },
+          // The bar store and the universe, stubbed to the two questions
+          // `/market-data/bars` asks. Everything else on `MarketBarsRepository`
+          // is `never`-returning here on purpose: this walk registers routes and
+          // reads their schemas, and a stub that could answer a query would
+          // invite a test that drives one from the wrong file.
+          bars: {
+            recordSeries: () => Promise.reject(new Error("not used")),
+            readBars: () => Promise.resolve([]),
+            readSeries: () => Promise.reject(new Error("not used")),
+            readCoverage: () => Promise.resolve(undefined),
+            listCoverage: () => Promise.resolve([]),
+            readLastBarDates: () => Promise.resolve(new Map()),
+          },
+          securities: { findSecurity: () => Promise.resolve(undefined) },
+        }),
       );
     });
 
@@ -476,6 +493,10 @@ describe("the response-schema declaration", () => {
         "/diagnostics/database",
         "/securities",
         "/market-data",
+        // Task 2.9.6. The route that can produce a 503, and the reason the
+        // walk's list is named rather than counted: a registration that stops
+        // happening is a red test here.
+        "/market-data/bars",
       ]),
     );
 

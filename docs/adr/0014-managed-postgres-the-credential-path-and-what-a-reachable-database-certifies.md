@@ -423,6 +423,14 @@ to this deployment rather than the one everyone will assume.
 question was answered correctly; a 503 would need the `SERVICE_UNAVAILABLE` code
 `database.ts` reserves for Story 2.9's first route that actually needs data.
 
+> **Amendment, 2026-09-09 (Task 2.9.6).** That code now exists, and
+> `GET /market-data/bars` and `GET /securities` both answer 503 with it when the
+> database is unreachable. **This route is unchanged and still answers 200 either
+> way** — the reasoning above is about what the question _is_, not about which
+> codes had been defined, and a diagnostic that fails when its subject fails
+> answers nothing. The classifier that decides which failures are the database
+> being unavailable is `isDatabaseUnavailable` in `database.ts`.
+
 **The body says _whether_, the log says _why_, and `x-request-id` joins them.** No
 error message, host, port or SQLSTATE reaches the wire, because the ingress is
 public and unauthenticated. **What holds that shut is the schema rather than the

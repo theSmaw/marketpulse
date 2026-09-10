@@ -470,6 +470,20 @@ today only because the code did not exist. That is a live falsification of
 own test — a member is added when the server can be made to produce a failure the
 existing set cannot express.
 
+**Implemented 2026-09-09 by Task 2.9.6, and both consequences were taken in that
+change rather than deferred.** `SERVICE_UNAVAILABLE` is `API_ERROR_CODES`' fourth
+member; `errors.ts`' `codeFor` maps 503 to it and gives it its own constant
+message; and **`/securities` answers it too**, so the sweep item above is
+discharged rather than carried. What decides _which_ failures are the database
+being unavailable is `isDatabaseUnavailable` in `database.ts` — an allowlist of
+Node's connection errors, SQLSTATE class `08`, the server-shutdown and
+connection-limit states, and `pg-pool`'s connection-timeout message. It **errs
+towards 500**: anything unrecognised stays ours, because telling a client to
+retry something that cannot succeed is worse than the reverse. Produced end to
+end against a backend pointed at a closed port — both routes answered
+`503 SERVICE_UNAVAILABLE`, and `connect ECONNREFUSED 127.0.0.1:59999` reached the
+log at `warn` and no part of it reached the body.
+
 ---
 
 ## 7. `status` is not filtered on this path

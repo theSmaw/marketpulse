@@ -84,6 +84,19 @@
  * and retry", and the status line still carries the difference. A caller that
  * genuinely has to behave differently on a 413 is the reversal trigger.
  *
+ * `SERVICE_UNAVAILABLE` was added by Task 2.9.6 under the same test, and it is
+ * the first member whose decision was taken *before* the failure was
+ * producible: `database.ts` recorded it in terms for Story 2.9 to implement
+ * rather than re-take, and `MARKET-DATA-API.md` §6 tabulates it. The failure it
+ * names is a **dependency being unavailable** rather than this server having
+ * failed — an unreachable database under `GET /market-data/bars` — and the
+ * distinction is an instruction to the client rather than a shade of meaning: a
+ * 500 says the request will fail again, a 503 says it may usefully be retried.
+ * It is the first member that is not one of Task 1.7.3's four statuses, which
+ * is why `errors.ts`' status-to-code mapping had to grow with it: a 503 raised
+ * without that change answers `INTERNAL_ERROR`, which is a well-formed answer
+ * naming the wrong thing.
+ *
  * Adding a member is non-breaking by construction, which is the property that
  * lets this union start small. Removing one is not.
  *
@@ -102,6 +115,7 @@ export const API_ERROR_CODES = [
   "NOT_FOUND",
   "BAD_REQUEST",
   "INTERNAL_ERROR",
+  "SERVICE_UNAVAILABLE",
 ] as const;
 
 /** One of {@link API_ERROR_CODES}. */

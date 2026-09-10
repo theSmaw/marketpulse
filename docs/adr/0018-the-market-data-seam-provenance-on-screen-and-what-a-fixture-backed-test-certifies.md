@@ -429,6 +429,17 @@ ever; and a null object that throws is "a method left throwing" wearing a differ
 defined behaviour for a caller with no provider is a **503 carrying `SERVICE_UNAVAILABLE`**,
 owned by Story 2.9 — added when a route can produce it, per `API_ERROR_CODES`' own rule.
 
+> **Amendment, 2026-09-09 (Task 2.9.6).** `SERVICE_UNAVAILABLE` now exists and the
+> sentence above is **narrower than it reads**. It holds for a caller that cannot
+> answer without a provider. It does **not** hold for `GET /market-data/bars`, the
+> first route to serve market data: a deployment with `MARKET_DATA_PROVIDER=none`
+> serves stored history from the bar store and answers **200**, because the
+> provider is only needed for the live tail. `serveSeries` returns
+> `{ attempted: false, reason: "no-provider" }` and the response's
+> `coverage.covered` ends where the store ends. The 503 that route owes is for an
+> unavailable **database**. The distinction is _can this route answer at all_, not
+> _is a provider configured_.
+
 ---
 
 ## Rejected, with reasons and reversal triggers

@@ -72,22 +72,40 @@ coverage }, securityStatus }`. Measured on the shipped shape rather than
   multiplying, and note that a stitched response carries one envelope and two
   sources rather than two envelopes.
 
-- **The served read is TWO queries and one extra column per row — added
-  2026-09-09 by Task 2.9.4, with a first reading to beat rather than to cite.**
-  `readSeries` issues the bar query **and** a `bar_coverage` lookup, deliberately
-  in that order (bars first, so a concurrent write cannot leave the ledger
-  narrower than the bars in hand). And the bar query selects `recorded_at` beside
-  the five values, because the series' `retrievedAt` is `min(recorded_at)` over
-  the rows returned — a per-row cost paid on every response, invisible at 390
-  bars and worth a number at the 10,000-bar cap. Measure the ledger lookup
-  separately; it is a point read of a ~1,036-row table and should be
-  microseconds, and if it is not, that is the query nobody meant to write.
+- ~~**The served read is TWO queries**~~ **— it is THREE on the route, corrected
+  2026-09-09 by Task 2.9.6, which built the route.** `readSeries` issues the bar
+  query **and** a `bar_coverage` lookup, deliberately in that order (bars first,
+  so a concurrent write cannot leave the ledger narrower than the bars in hand)
+  — and the handler issues a **third before either of them**:
+  `securities.findSecurity(symbol)`, the point lookup that answers the 404 and
+  supplies `securityStatus`. It is a unique-index read of a 518-row table and
+  should be invisible, but it is on the path of **every** request including the
+  ones that then fail, so measure it rather than assume it: a lookup that turned
+  out to be a sequential scan would be a per-request cost nobody budgeted, and it
+  is the one query on this path that no earlier task measured.
+
+  The per-row cost is unchanged and still worth its own number: the bar query
+  selects `recorded_at` beside the five values, because the series' `retrievedAt`
+  is `min(recorded_at)` over the rows returned — invisible at 390 bars and worth
+  a reading at the 10,000-bar cap. **Measure all three separately.** Both point
+  reads — the universe lookup and the ~1,036-row ledger — should be microseconds,
+  and if either is not, that is the query nobody meant to write.
 
   First readings, local, single-request, warm, so a later divergence is
   attributable: one full `NVDA` session at `1m` is **390 bars in 42 ms cold and
   6 ms warm**, provenance `alpaca`/`sip`. Re-take rather than quote — they were
   taken from a script against the repository handle, not through HTTP, which is
   precisely the gap this task exists to close.
+
+  **Half of that gap is now closed and the reading is a baseline to beat rather
+  than the answer — added 2026-09-09 by Task 2.9.6.** The same session through
+  the real route, against `dist/`, is **44,701 bytes in 36 ms** end to end
+  including `curl`'s own overhead — one request, warm, unrepeated, with no
+  gzip negotiated and no percentile behind it. So it is a sanity check that the
+  HTTP half is not hiding an order of magnitude, and it is **not** criterion 5:
+  this task still owes n, a distribution, the gzipped size, the deployed
+  reading, and the same for every other access pattern. Note it also sits 0.9%
+  above §8's 44.3 kB envelope arithmetic, which is the estimate behaving.
 
 - **Watch for the query nobody meant to write.** A serving path that touches
   `market_bars` where it should touch `bar_coverage`, or that runs at minute

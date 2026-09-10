@@ -16,11 +16,14 @@ import { describe, expect, it } from "vitest";
 
 import type { DatabaseConfig } from "./config.js";
 import {
+  CONNECT_TIMEOUT_MESSAGE,
   DIAGNOSTIC_CACHE_TTL_MS,
   POOL_IDLE_TIMEOUT_MS,
   createCachedDatabaseCheck,
   createDatabasePool,
+  isDatabaseUnavailable,
   pingDatabase,
+  throughDatabase,
 } from "./database.js";
 
 const base: DatabaseConfig = {
@@ -386,5 +389,130 @@ describe("createCachedDatabaseCheck", () => {
   // check pay a cold connection and, deployed, an 866 ms token mint.
   it("bounds checks BELOW the pool's idle timeout, which is what keeps a check warm", () => {
     expect(DIAGNOSTIC_CACHE_TTL_MS).toBeLessThan(POOL_IDLE_TIMEOUT_MS);
+  });
+});
+
+// The classifier behind `MARKET-DATA-API.md` §6's 503 row (Task 2.9.6).
+//
+// Unit tests and not a database test on purpose: what is being checked is a
+// *judgement about an error object*, and the errors are constructed here in the
+// shapes `pg` produces. A real outage would exercise one branch of eight and
+// could not exercise the negatives at all.
+describe("isDatabaseUnavailable", () => {
+  function withCode(code: string, message = "failed"): Error {
+    const error: NodeJS.ErrnoException = new Error(message);
+    error.code = code;
+    return error;
+  }
+
+  it.each([
+    "ECONNREFUSED",
+    "ECONNRESET",
+    "EHOSTUNREACH",
+    "ENETUNREACH",
+    "ENOTFOUND",
+    "EAI_AGAIN",
+    "EPIPE",
+    "ETIMEDOUT",
+  ])("recognises the system error %s", (code) => {
+    expect(isDatabaseUnavailable(withCode(code))).toBe(true);
+  });
+
+  it.each([
+    "08000",
+    "08006",
+    "08003",
+    "57P01",
+    "57P02",
+    "57P03",
+    "53300",
+    "53400",
+  ])("recognises SQLSTATE %s", (code) => {
+    expect(isDatabaseUnavailable(withCode(code))).toBe(true);
+  });
+
+  // The three that must stay 500s. A statement this server got wrong, a
+  // constraint this server violated and a statement this server cancelled are
+  // all ours, and answering them 503 would tell a client to retry something
+  // that cannot succeed.
+  it.each(["42601", "42P01", "23505", "57014"])(
+    "does not recognise SQLSTATE %s, which is ours",
+    (code) => {
+      expect(isDatabaseUnavailable(withCode(code))).toBe(false);
+    },
+  );
+
+  // The one case with no code at all: `pg-pool` constructs a bare `Error` when
+  // `connectionTimeoutMillis` elapses, so the message is the only thing to key
+  // on.
+  //
+  // **This asserts the matching, not the string.** The constant is copied from
+  // the driver and nothing here re-derives it — producing the real message
+  // needs a pool that fails to connect, which needs a network this suite does
+  // not have. See the constant's own note for what that costs and how to
+  // re-measure it.
+  it("recognises the pool's connection timeout, which carries no code", () => {
+    expect(isDatabaseUnavailable(new Error(CONNECT_TIMEOUT_MESSAGE))).toBe(
+      true,
+    );
+    // And the surrounding text does not matter, which is what makes the match a
+    // `includes` rather than an equality: `pg` prepends nothing today and a
+    // wrapper might.
+    expect(
+      isDatabaseUnavailable(
+        new Error(`pool: ${CONNECT_TIMEOUT_MESSAGE} (5000ms)`),
+      ),
+    ).toBe(true);
+  });
+
+  // Kysely rethrows the driver's error untouched today; a wrapper is the kind
+  // of thing a dependency upgrade introduces, and `cause` is where it would put
+  // the original.
+  it("looks through a wrapper's cause", () => {
+    const wrapped = new Error("query failed", {
+      cause: withCode("ECONNREFUSED"),
+    });
+
+    expect(isDatabaseUnavailable(wrapped)).toBe(true);
+  });
+
+  it.each([
+    ["a mapping error this server threw", new Error("row is not a security")],
+    ["something that is not an Error at all", "ECONNREFUSED"],
+  ])("errs towards 500 for %s", (_name, thrown) => {
+    expect(isDatabaseUnavailable(thrown)).toBe(false);
+  });
+});
+
+describe("throughDatabase", () => {
+  it("passes an answer through untouched", async () => {
+    await expect(
+      throughDatabase("The store", () => Promise.resolve(7)),
+    ).resolves.toBe(7);
+  });
+
+  it("turns an unavailable database into a 503-carrying error", async () => {
+    const cause: NodeJS.ErrnoException = new Error("connect ECONNREFUSED");
+    cause.code = "ECONNREFUSED";
+
+    const thrown = await throughDatabase("The store", () =>
+      Promise.reject(cause),
+    ).catch((error: unknown) => error);
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as { statusCode?: number }).statusCode).toBe(503);
+    // The driver's own error is kept as the cause, which is what puts the host
+    // and the code in the log record while the body stays a constant.
+    expect((thrown as Error).cause).toBe(cause);
+  });
+
+  it("rethrows anything else exactly as it was", async () => {
+    const ours = new Error("the ledger disagrees with the bars");
+
+    const thrown = await throughDatabase("The store", () =>
+      Promise.reject(ours),
+    ).catch((error: unknown) => error);
+
+    expect(thrown).toBe(ours);
   });
 });

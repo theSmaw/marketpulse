@@ -143,8 +143,11 @@ a task rather than a bullet, and it is what its tests are mostly about.
 
 - **The fetched tail is SERVED and not STORED, and the write path now enforces
   that rather than trusting it — added 2026-09-09 by Task 2.9.4.** The instinct at
-  the end of this task is to keep what was just fetched: it was paid for, it is a
-  metered request, and Task 2.9.8 is about not paying twice. **`recordSeries` will
+  the end of this task is to keep what was just fetched: it consumed one of a
+  finite number of requests per minute, and Task 2.9.8 is about not spending that
+  quota twice on the same question. (**Wording corrected 2026-09-09**: this
+  bullet said "it was paid for … not paying twice", which reads as money. It is
+  not. See the correction under the stakeholder section below.) **`recordSeries` will
   refuse it**, and the refusal is correct rather than an obstacle to route around.
   `0007_bar_coverage_provenance.sql` stores one `provider`/`feed` per
   `(security, timeframe)` window, so the write throws `ForeignSourceError` when
@@ -287,30 +290,48 @@ would have quietly ended at yesterday's closing bell — technically honest,
 visibly wrong to anyone who expected to see this morning. This task closes that
 last few hours.
 
+> **Correction, 2026-09-09.** This section originally described fetching data
+> from our supplier as _buying_ it, and talked about _the bill_. **That was a bad
+> metaphor and it is wrong: we are on Alpaca's free plan and no money changes
+> hands for market data.** What a request actually costs is **quota** — the free
+> plan allows about 200 requests per minute (measured: 201, then the 201st is
+> refused with a `429`), and the whole account shares that allowance. So "cheap"
+> and "expensive" below now mean _how much of a shared, per-minute allowance a
+> page load consumes_, which is a real constraint with real consequences — a page
+> that burns the allowance makes the next request fail for everyone — but is not
+> an invoice. The corrected wording follows. The one thing this project genuinely
+> does pay for is **Azure hosting**, about $9/month, which has nothing to do with
+> how many times we call the market-data supplier
+> (`HOSTING.md`, _Cost, and the free-tier envelope_).
+
 **How it works, without the machinery.** When you ask for a window, we first
-take everything we already hold from our own database — which is instant, free,
-and where 99% of the data is. Then we look at whether your window runs past
-where our records stop. If it does, and only if it does, we go and buy the
-missing piece from our data supplier, and we join the two together into a single
-chart. If your window is entirely in the past, we buy nothing at all.
+take everything we already hold from our own database — which is instant and
+where 99% of the data is. Then we look at whether your window runs past where
+our records stop. If it does, and only if it does, we ask our data supplier for
+the missing piece, and we join the two together into a single chart. If your
+window is entirely in the past, we ask for nothing at all.
 
-**Three decisions worth explaining, because they all cost money or trust.**
+**Three decisions worth explaining, because they all spend a shared allowance or
+spend trust.**
 
-_We only ever buy the missing piece, never the whole thing._ Our data supplier
-charges per request. The lazy version of this feature asks the supplier for the
-entire window every time somebody opens a chart, which works perfectly and is
-enormously more expensive. Most of the tests written for this task exist to
-prove we are asking for the small piece, because a chart drawn from the
-expensive version looks identical to a chart drawn from the cheap one — the
-difference is only visible in the bill.
+_We only ever request the missing piece, never the whole thing._ Our data
+supplier allows a fixed number of requests per minute across the whole account,
+and refuses the rest outright. The lazy version of this feature asks the supplier
+for the entire window every time somebody opens a chart, which works perfectly
+until enough people open charts at once, and then it does not work for anybody.
+Most of the tests written for this task exist to prove we are asking for the
+small piece, because a chart drawn from the wasteful version looks identical to a
+chart drawn from the careful one — the difference is invisible until the
+allowance runs out.
 
-_We buy at most today, never a backlog._ If our overnight collection has fallen
-behind — say it missed a night — the naive version turns one page load into a
-multi-day purchase. Worse, the cost then depends on how far behind we are rather
-than on what you asked for, which is the kind of bill that grows quietly for
-months before anybody notices. So the rule is: today's missing hours we will buy
-on demand; anything older is the overnight job's problem, and the chart tells
-you honestly how far its data actually reaches rather than pretending. There is
+_We ask for at most today, never a backlog._ If our overnight collection has
+fallen behind — say it missed a night — the naive version turns one page load
+into a multi-day fetch. Worse, the amount of the allowance it consumes then
+depends on how far behind we are rather than on what you asked for, which is the
+kind of problem that grows quietly for months and then surfaces as an outage
+under load. So the rule is: today's missing hours we will fetch on demand;
+anything older is the overnight job's problem, and the chart tells you honestly
+how far its data actually reaches rather than pretending. There is
 a second reason this rule is right, and it is about honesty rather than money:
 if we filled in today but skipped a missed day in the middle, the chart would
 have a hole in it that it had no way to describe. Better to say "our data runs
@@ -345,11 +366,11 @@ come back. Two tasks after that, the first real price appears on the securities
 page — the first number this product has ever shown that came from an actual
 market. The charts themselves follow in the same epic.
 
-**The one cost we have created on purpose, stated plainly.** Every chart that
-runs up to _now_ is a paid request to our supplier unless we have already
-answered that question recently. Task 2.9.8 is where we make sure we do not pay
-twice for the same thing — and because a trading day, once it has closed, can
-never change again, that is one of the easiest and most complete caching
-opportunities this product will ever have. If that task somehow cannot bound the
-cost, the decision to stitch comes back to you rather than being quietly
-narrowed by us.
+**The one cost we have created on purpose, stated plainly — and it is not a
+financial one.** Every chart that runs up to _now_ consumes one of our supplier's
+per-minute requests unless we have already answered that question recently. Task
+2.9.8 is where we make sure we do not spend that allowance twice on the same
+question — and because a trading day, once it has closed, can never change again,
+that is one of the easiest and most complete caching opportunities this product
+will ever have. If that task somehow cannot bound it, the decision to stitch
+comes back to you rather than being quietly narrowed by us.
