@@ -266,6 +266,31 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
     not the payload. Nothing to sweep, recorded so a later reader does not read
     two numbers as a regression.
 
+- **What Task 2.9.9 leaves you, added 2026-09-10.** It took criterion 5 and
+  swept four documents the same day, so there is nothing outstanding to sweep;
+  what it leaves is material for the ADR and one recommendation that is not
+  yours to take silently.
+  - **`MARKET-DATA-API.md` §12 is the measurement section**, and §12.12 is its
+    own table of what it falsified: §4's gzipped-wire inference and the price of
+    the pre-query calendar walk (both amended in place), §11's unknown replica
+    multiplier (read: `maxReplicas: 1`, now in `HOSTING.md` too), and `BARS.md`
+    §8.6's 28.2 ms cross-sectional timing (re-taken; plan identical, warm
+    **1.93 ms**, cold **408.7 ms**, and the two-index deferral re-argued rather
+    than the number replaced).
+  - **The ADR has a genuine finding to carry: nothing on this path compresses.**
+    Neither the application nor the Azure Container Apps ingress. That is the
+    class `CLAUDE.md`'s _What `pnpm verify` does not cover_ §6 names — behaviour
+    that exists only on the platform — and it is the reason §4's cap argument
+    needed amending rather than re-stating. **The recommendation §12.5 makes and
+    deliberately does not act on is registering a compression plugin**, whose
+    whole difficulty is ordering it against §11's `ETag` so the validator is
+    computed over the representation the client validates. Decide whether it is
+    an ADR line, a task in this story, or Story 2.12's — but decide it.
+  - **Two figures worth quoting in the stakeholder section** because they are the
+    only ones a reader will feel: `/securities` costs **1,153 ms** deployed and
+    **356 ms** when the validator hits, and a month of minute bars is **1.06 MB**
+    and **~2.5 s**.
+
 - **Write the stakeholder section** in the shape Task 2.4.2 and 2.8.9 established:
   what this actually did in plain terms, why the small decisions went the way they
   did, and where it leaves the product. Say plainly that the visible result is one

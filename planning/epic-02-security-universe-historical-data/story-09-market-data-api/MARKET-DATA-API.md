@@ -258,6 +258,19 @@ does not refuse anything.
 **10,000 bars the payload is 184 kB gzipped — about 150 ms on 10 Mbit/s** — and
 that is the line.
 
+> **Amended 2026-09-10 by Task 2.9.9, which measured the wire instead of
+> assuming it: this paragraph's arithmetic is about a compressed transfer that
+> does not happen.** Neither the application nor the Azure Container Apps ingress
+> compresses anything — `Accept-Encoding: gzip, deflate, br` returns the full
+> body with no `content-encoding`, both locally and deployed (§12.5). The
+> at-the-cap response is **1,104,621 bytes on the wire**, and measured from the
+> United Kingdom to `eastus` a body of that size takes **1.3–2.7 s** to transfer
+> after **~0.8 s** of connection. **The decision stands and its reasoning does
+> not**: on the uncompressed figure 10,000 is generous rather than tight, and
+> §12.3 re-argues it on what actually admits and refuses the windows Story 2.12
+> needs. The repair that would make this paragraph true again is a compression
+> plugin, and §12.5 states the condition for it.
+
 The cap is stated **in bars and not in bytes**, and the measurement says it may
 be: across eight securities spanning the price and liquidity range, the per-bar
 cost varied only from **109.4 to 113.6 bytes** (13.4–18.5 gzipped), a 4% spread.
@@ -293,6 +306,14 @@ session lengths — so an over-cap request costs a calendar walk rather than a s
 of 97,530 rows that is then thrown away. That also makes the error message able
 to say what the count _would_ have been, which is the half that makes it
 actionable.
+
+> **Amended 2026-09-10 by Task 2.9.9: true, and the walk was never priced.** It
+> costs **~30 µs per session in the window** and it runs on **every** request,
+> including a cache hit, because that is how the count is obtained at all. A
+> month is 0.7 ms of it and invisible; **the whole stored daily depth is 672
+> sessions, 20.6 ms of walking, and the dominant cost of a request whose database
+> read is 1.9 ms** (§12.4). The refusal still costs no scan, which is what this
+> paragraph claims; the accepted path pays the same walk, which it does not say.
 
 **Reversal trigger, as a condition:** the first screen whose **default** window
 is refused by this cap. A user occasionally hitting it is the cap working; a
@@ -393,6 +414,14 @@ therefore load-bearing rather than an optimisation — a closed session is
 immutable and must be served from cache, so the metered request is bounded to the
 open session. If 2.9.8 finds it cannot bound it, that is the condition to bring
 this decision back rather than to absorb the cost.
+
+> **Not brought back. Settled 2026-09-10 across Tasks 2.9.8 and 2.9.9.** 2.9.8
+> bounded it to one vendor request per resolved window per minute per process,
+> and 2.9.9 read the multiplier off the platform — `maxReplicas: 1`, so the bound
+> is that, exactly (§12.7). 2.9.9 also priced the join itself, which nothing had:
+> the first genuine two-source response this product has served cost **~17 ms**
+> more than the same 390 bars read from the store (§12.6). The stitch is
+> affordable as chosen.
 
 **Reversal trigger, as a condition:** the tail's **source** changes when Epic 3
 has a live stream worth joining — at that point rule 2's clamp and rule 3's bound
@@ -564,8 +593,10 @@ amend live claims, leave historical records standing.
   path that stamps `retrievedAt` at serve time turns "these bars were fetched
   three weeks ago" into "these bars are current".
 - **Caching.** Task 2.9.8 — and §5 makes it load-bearing rather than optional.
-- **Response times against the real row count.** Task 2.9.9. §3 and §4's timings
-  are local and single-request; that task takes them properly and deployed.
+- ~~**Response times against the real row count.** Task 2.9.9. §3 and §4's
+  timings are local and single-request; that task takes them properly and
+  deployed.~~ **Taken — see §12**, which also carries what those readings
+  falsified.
 - **The ADR.** Task 2.9.10.
 
 ---
@@ -803,6 +834,13 @@ Method: `curl` against the built backend on loopback, `Content-Length` for the
 200, `gzip -c | wc -c` for the compressed figure, and a second request carrying
 `If-None-Match` for the conditional one.
 
+> **Amended 2026-09-10 by Task 2.9.9: the `gzipped` column is a property of the
+> payload, not of the wire.** Nothing on this path compresses — neither the
+> application nor the deployed ingress (§12.5) — so that column says what these
+> bodies _would_ cost compressed, and the `200 body` column is what a browser
+> actually receives today. The method above already said as much; this note
+> exists because §4 drew a conclusion from a figure of this kind.
+
 | Window                                                   | 200 body        | gzipped   | Conditional  |
 | -------------------------------------------------------- | --------------- | --------- | ------------ |
 | `/securities` — 518 securities, coverage and last closes | **190,736 B**   | 20,072 B  | **304, 0 B** |
@@ -847,6 +885,11 @@ and it is exactly what the 304 removes.
 reason: 190 kB costs nothing over loopback and is the entire saving over a
 network.
 
+> **Measured 2026-09-10 by Task 2.9.9, deployed: 1,153 ms for the 200 against
+> 356 ms for the 304 — about 800 ms saved on every repeat page load**, against
+> 1.1 ms saved locally (§12.8). The prediction above is confirmed, and the
+> deployed body is **190,736 bytes, byte for byte the local figure**.
+
 ### What it saves — vendor requests, and §5's condition
 
 **§5's condition does not fire. The metered request is bounded, and this section
@@ -870,9 +913,13 @@ written on 2026-09-10; corrected the same day.** The cache is an in-process
 `1`. `HOSTING.md` records `minReplicas: 1` as a **required setting** and records
 no maximum, because the Container App's scale rule is platform-only
 configuration that exists in no file in this repository (`CLAUDE.md`, _What
-`pnpm verify` does not cover_ §6). So the deployed multiplier is a number nobody
+`pnpm verify` does not cover_ §6). ~~So the deployed multiplier is a number nobody
 here can read, which makes it Task 2.9.9's to take rather than this section's to
-assert. It does not change the shape of the result — the cost is bounded by
+assert.~~ **Taken 2026-09-10 by Task 2.9.9: `maxReplicas` is `1`, `minReplicas`
+is `1`, and there is no scale rule — so the multiplier is exactly 1 and the
+deployed bound is one vendor request per resolved window per minute, full stop**
+(§12.7). It is recorded in `HOSTING.md` too, because it exists in no file here
+and is load-bearing for two claims rather than one. It does not change the shape of the result — the cost is bounded by
 replicas and time rather than by traffic — and a shared cache is emphatically
 **not** the fix, because that is a second database bought to save a request the
 free plan does not charge for.
@@ -957,3 +1004,399 @@ and `closedThrough(now)` takes the instant as an argument. In replay every windo
 is closed, so a replay clock substitutes for a wall clock and the whole of this
 section applies unchanged. A rule phrased against the wall clock would have been
 one replay had to special-case.
+
+---
+
+## 12. Measured against the store, locally and deployed — Task 2.9.9
+
+**Every figure below was taken on 2026-09-10.** Local readings are through the
+**built** backend (`node dist/index.js`, `MARKET_DATA_PROVIDER=alpaca`) on
+loopback against the 48,027,772-row container store, whose `1m` coverage ends
+`2026-09-04T20:00:00Z`. Deployed readings are `curl` and `fetch` from a laptop in
+the United Kingdom against `marketpulse-backend` in `eastus`, whose `1m`
+coverage ends `2026-09-08T20:00:00Z`. Method under each table; **re-take rather
+than cite.**
+
+**Every miss is a real read.** §11's trap is not hypothetical, so the technique
+it prescribes is the one used throughout: **the window's start is shifted one
+minute earlier per sample**, into pre-market where no bar exists, so every sample
+is a distinct cache key and the bar count is constant. A run of identical URLs
+would have measured one store read and fourteen cache hits.
+
+### 12.1 The access patterns, local
+
+`fetch` from Node 24 on loopback, n=15 per cell, median reported. `gzip` is
+`zlib.gzipSync` at its default level over the served body — see §12.5 for why
+that column is a **property of the payload and not of the wire**.
+
+| Access pattern                 | Status |  Bars | Body        |      gzip | Miss        | Hit         | 304         |
+| ------------------------------ | ------ | ----: | ----------- | --------: | ----------- | ----------- | ----------- |
+| `1m`, one session              | 200    |   390 | 44,701 B    |   7,549 B | **4.9 ms**  | **2.6 ms**  | **2.2 ms**  |
+| `1m`, five sessions            | 200    | 1,950 | 221,603 B   |  36,656 B | **9.7 ms**  | **3.7 ms**  | **3.8 ms**  |
+| `1m`, one month (24 sessions)  | 200    | 9,360 | 1,060,490 B | 171,389 B | **31.9 ms** | **11.6 ms** | **10.8 ms** |
+| `1m`, 25 sessions — at the cap | 200    | 9,750 | 1,104,621 B | 178,698 B | —           | —           | —           |
+| `1d`, the whole stored depth   | 200    |   671 | 77,098 B    |  16,790 B | **31.4 ms** | **25.9 ms** | **26.5 ms** |
+| `1m`, one year — refused       | 400    |     — | 258 B       |         — | **9.7 ms**  | —           | —           |
+| `1m`, six weeks — refused      | 400    |     — | 258 B       |         — | **2.4 ms**  | —           | —           |
+| Unknown symbol                 | 404    |     — | 173 B       |         — | **2.6 ms**  | —           | —           |
+| `/securities`                  | 200    |     — | 190,736 B   |  20,072 B | **12.5 ms** | **12.6 ms** | **11.5 ms** |
+
+The p95 of the miss column is 19.0, 20.8, 42.5, 39.3 and 17.9 ms for the five
+200s, over the same n=15. `/securities` has no answer cache (§11), so its "miss"
+and "hit" are the same request measured twice and agree to 0.1 ms — which is the
+control that says the cache is doing the work in the rows above it.
+
+**One row does not belong to the pattern the others make**, and §12.4 is about it:
+the `1d` depth is the _smallest_ 200 in the table and the _slowest_ hit.
+
+### 12.2 The three queries on the served read, separately
+
+Round trip from Node against the repository handle, n=15, median. `EXPLAIN
+(ANALYZE, BUFFERS)` beside it, warm, run in the container.
+
+| Query                                    | Round trip   | In-engine   | Plan                                              |
+| ---------------------------------------- | ------------ | ----------- | ------------------------------------------------- |
+| `findSecurity('NVDA')` — the 404 lookup  | **1.00 ms**  | **0.22 ms** | Index Scan `securities_symbol_key`, 3 buffers     |
+| `readCoverage('NVDA','1m')` — the ledger | **0.45 ms**  | **0.26 ms** | Nested Loop, two unique index scans, 6 buffers    |
+| `readSeries` `1m`, one session (390)     | **2.25 ms**  | **0.14 ms** | Index Scan, 16 buffers                            |
+| `readSeries` `1m`, five sessions (1,950) | **7.79 ms**  | —           | —                                                 |
+| `readSeries` `1m`, one month (9,360)     | **20.75 ms** | **6.85 ms** | Bitmap Index Scan + quicksort, 209 buffers        |
+| `readSeries` `1m`, at the cap (25 sess.) | **20.66 ms** | —           | —                                                 |
+| `readSeries` `1d`, the whole depth (671) | **1.92 ms**  | —           | —                                                 |
+| `readLastCloses('1d')` — `/securities`   | **3.98 ms**  | 17.1 ms †   | **one** statement, 518 index searches, 1,036 rows |
+| `listSecurities()` — the universe        | **4.58 ms**  | —           | —                                                 |
+
+**No query nobody meant to write.** Both point reads are index scans on three and
+six buffers; neither is the sequential scan the task warned about. The bar query
+is the plan `BARS.md` §8.6 recorded — a bitmap scan plus a sort for a bounded
+window, not the "already sorted" the migration claims, which §8.6 already
+corrected.
+
+**The per-row cost is the client, not the server.** The month's query is 6.85 ms
+in PostgreSQL and 20.75 ms by the time the rows are in JavaScript: ~14 ms of `pg`
+protocol decode and Kysely mapping for 9,360 rows carrying the extra
+`recorded_at` column. That is the cost of the column §10 added, and it is
+invisible at 390 bars (0.14 ms of query) and worth ~1.5 ms per thousand bars at
+the cap.
+
+† **`readLastCloses`' in-engine figure is larger than its round trip, and that is
+the instrument rather than the query.** `EXPLAIN ANALYZE` times every one of 518
+lateral loops; the instrumentation is the difference. The round trip is the
+honest number and the plan is what the reading was for.
+
+**Criterion: `/securities`' close query is one statement, not 518 round trips.**
+Confirmed on the plan — a single `Nested Loop` whose inner side reports
+`Index Searches: 518`, in one statement, in one round trip. Deployed, the same
+route answers a conditional request in **356 ms against a ~250 ms link RTT**, so
+about **106 ms** of server work for all **four** of its reads. 518 sequential
+round trips to a database across the container's own link could not fit in that.
+
+### 12.3 The cap, re-validated against the endpoint
+
+**10,000 stays**, and both halves of §4's argument were re-taken against the
+served body rather than against an array.
+
+**The parse budget is still not the binding constraint.** `JSON.parse` of the
+real 25-session response — the largest one this API will emit — is **2.8 ms**,
+best of five, against §28's 50 ms. §4's negative result reproduces on the wire
+shape (envelope included) that §8's array method could not see.
+
+**The boundary is exactly where §4 says.** 25 sessions is 9,750 bars and is
+served; 26 sessions is 10,140 and is refused with the count named. The refusal
+costs no scan.
+
+**But §4's positive argument does not survive §12.5, and the cap survives for a
+different reason.** §4 sets the line at "184 kB gzipped, ~150 ms on 10 Mbit/s".
+Nothing on this path compresses, so the real figure is **1,104,621 bytes**, and
+measured from the United Kingdom against `eastus` a body of that size takes
+**1.3–2.7 s to transfer** after a **~0.8 s** connection. On the uncompressed
+number the cap is if anything **generous**, not tight — which is the direction
+that leaves the decision standing while falsifying its reasoning. **Re-argued:
+10,000 is right because it is the largest window Story 2.12 has a use for
+(a month is 24 sessions) and because the payload at that size is already a second
+of transfer uncompressed.** The reversal trigger in §4 is unchanged and is now
+also the trigger for compression, whichever fires first.
+
+### 12.4 The cap check runs on every request, and it is not free
+
+**§4 says an over-cap request "costs a calendar walk rather than a scan". True,
+and the walk's cost was never measured. It is ~30 µs per session in the window,
+on every request including a cache hit.**
+
+`marketSessionsBetween(marketDateAt(start), marketDateAt(end))`, best of 200:
+
+| Window                 | Sessions | Walk         | µs/session |
+| ---------------------- | -------: | ------------ | ---------: |
+| One session            |        1 | 0.046 ms     |       45.7 |
+| Five sessions          |        5 | 0.165 ms     |       32.9 |
+| One month              |       24 | 0.715 ms     |       29.8 |
+| One year               |      251 | **7.47 ms**  |       29.7 |
+| The whole stored depth |      672 | **20.62 ms** |       30.7 |
+| The whole calendar     |    1,254 | **39.32 ms** |       31.4 |
+
+It grows with the window's **session count**, exactly as the task predicted, and
+not with the number of bars. The consequence the task did not predict is the
+`1d` row of §12.1: **the whole stored daily depth is 671 bars and 1.92 ms of
+database, and it takes 31.4 ms to serve, because 20.6 ms of it is counting
+sessions to decide that 671 is under 10,000.** It is the dominant cost of that
+request and it is paid again on every cache hit — which is why that row's hit
+(25.9 ms) is barely cheaper than its miss.
+
+**Where the time goes, so the fix has a target rather than a guess:**
+`marketSessionOn` is **28.25 µs** on a trading day and **6.42 µs** on a weekend
+day, so the cost is constructing each session's open and close instants through
+the timezone conversion, not walking the days. The two point measurements are
+what make that an attribution rather than an inference.
+
+**Not fixed here, deliberately, and the condition is written as a condition.**
+The repair is a memoised session table — the calendar is a checked-in file of
+1,254 sessions and could be built once — and it is a change to
+`packages/shared`'s hottest module with its own tests and its own argument.
+**The trigger is the first screen whose default window is a daily series over
+more than ~200 sessions**, which is Story 2.12's "1 year" and "max" controls if
+it offers them. Below that the walk is under 6 ms and invisible; at the full
+depth it is the request.
+
+### 12.5 Nothing on this path compresses
+
+**Measured both ways round.** `Accept-Encoding: gzip, deflate, br` against the
+built backend on loopback returns **no `content-encoding` and no `vary`**, and
+the same request against the deployed backend returns `content-length: 190736`
+— the full body. So the application registers no compression plugin and the
+Azure Container Apps ingress adds none.
+
+That is **not** a defect in anything Task 2.9.8 measured: §11's method says
+`gzip -c | wc -c`, which is honestly labelled as compressing the body after the
+fact. It is a falsification of the **inference** §4 draws from such a figure, and
+§4 now carries a dated amendment saying so.
+
+What it costs, measured. `curl` from the United Kingdom to `eastus`, three
+samples, new connection each time:
+
+| Response          | Body        | `time_appconnect` | TTFB   | Total         | Effective    |
+| ----------------- | ----------- | ----------------- | ------ | ------------- | ------------ |
+| 404, no body      | 173 B       | 0.52 s            | 0.82 s | **0.82 s**    | —            |
+| `1m`, one session | 44,693 B    | 0.52 s            | 0.85 s | **1.10 s**    | 40 kB/s      |
+| `/securities`     | 190,736 B   | 0.51 s            | 0.88 s | **1.64 s**    | 116 kB/s     |
+| `1m`, one month   | 1,016,540 B | 0.52 s            | 1.13 s | **2.4–3.8 s** | 265–415 kB/s |
+
+The link's RTT is **~250 ms** (`time_connect`) and TLS doubles it to ~520 ms
+before a byte of application data moves, so the small rows are almost entirely
+connection. The large row is almost entirely transfer, and it is the one
+compression would change — **1.0 MB against 164 kB is the difference between
+~1.9 s and ~0.4 s of transfer at the same measured rate.**
+
+**Recommended, not built here: register a response-compression plugin.** It is
+the single largest improvement available to this API and it is one dependency —
+but it interacts with §11's validator in a way that has to be got right (the
+`ETag` must be computed over the same representation the client validates, so
+plugin order is the whole of the work), and it is a change to shipped behaviour
+rather than a measurement. **The condition: the first screen that serves a
+minute series over a link**, which is Story 2.12 the moment it is deployed.
+
+### 12.6 The stitch costs under 20 ms, and §5's condition still does not fire
+
+**This could only be measured deployed**, and that is itself the finding §11
+predicted: the local store's coverage ends 2026-09-04 and the session-gap bound
+declines every tail outright, so a laptop cannot produce a stitch at all. The
+deployed store's coverage ends `2026-09-08T20:00:00Z`, so a window reaching into
+2026-09-09 is a genuine two-source answer.
+
+Taken deployed, and it is the first multi-source response this product has ever
+served to anybody:
+
+| Reading                                  | Value                                                                                      |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `NVDA` `1m`, 09-08 13:30Z → 09-09 20:00Z | **780 bars, 88,862 B, `sources` length 2**                                                 |
+| Source 1 — the store                     | `alpaca`/`sip`, `retrievedAt` **2026-09-09T12:46:01Z**, 390 bars                           |
+| Source 2 — the tail                      | `alpaca`/`sip`, `retrievedAt` **the instant of the request**, 390 bars                     |
+| `coverage.covered`                       | the whole requested window — the seam is invisible in the range and visible in the sources |
+
+**One envelope and two sources, not two envelopes**, as Task 2.9.3 said it would
+be: 88,862 B for 780 bars is 113.9 B/bar including the whole envelope, against
+113.3 B/bar for a single-source body of the same shape.
+
+**The added latency, isolated with a matched control.** Two windows of the same
+390 bars, one served entirely from the store (09-08) and one served entirely from
+the vendor tail (09-09), n=8 each, reporting `time_starttransfer − time_appconnect`
+so the figure is server work plus exactly one RTT:
+
+| Window                                    | Server think + 1 RTT |
+| ----------------------------------------- | -------------------: |
+| 390 bars, store only                      |           **351 ms** |
+| 390 bars, all of it a fetched vendor tail |           **368 ms** |
+
+**~17 ms**, and the ranges overlap. A second control at 780 bars — two stored
+sessions against one stored plus one fetched — put the stitched answer at
+**529 ms** median end to end against **608 ms** for the store-only equivalent,
+which is to say the difference is under the noise of the link.
+
+So: **the read-side join is affordable as chosen.** §5 named this task as the
+trigger for bringing the decision back if it were not, and it is not brought
+back. The vendor sits close enough to `eastus` that a session of minute bars
+costs less than the calendar walk in §12.4 does at the same window size.
+
+### 12.7 The deployed replica count, and §11's bound with its multiplier
+
+**Read from the platform, which is the only place it exists:**
+
+```
+az containerapp show -n marketpulse-backend ... --query template.scale
+  minReplicas: 1
+  maxReplicas: 1
+  rules:       null
+```
+
+**So the multiplier is exactly 1.** §11's bound — one vendor request per
+`(symbol, timeframe, resolved window)` per minute **per process** — is, deployed
+today, one vendor request per window per minute, full stop. `az containerapp
+replica list` confirms **one** running replica of `marketpulse-backend--0000147`.
+
+This is now also recorded in `HOSTING.md`, whose account of the Container App
+previously named `minReplicas: 1` as a required setting and said nothing about a
+maximum. **`maxReplicas: 1` is load-bearing for two separate claims** — §11's
+vendor bound here, and `CLAUDE.md`'s note that the Epic 3 outbound market socket
+is safe only at a minimum replica count of one — and it exists in no file in this
+repository. It is precisely the class `CLAUDE.md`'s _What `pnpm verify` does not
+cover_ §6 describes.
+
+**The reversal trigger is a scale rule being added**, which is the moment both
+claims need re-stating rather than the moment traffic grows. A shared cache
+remains the wrong fix (§11).
+
+### 12.8 The deployed readings, and what a single vantage can say
+
+Same script as §12.1, n=10, from one laptop over one link. **These figures are
+dominated by that link and are reported with the instrument that separates it
+out**: the conditional request, which does the same server work and transfers no
+body, is the floor.
+
+| Access pattern                |  Bars | Body        | Miss         | Hit      | 304 (floor) |
+| ----------------------------- | ----: | ----------- | ------------ | -------- | ----------- |
+| `1m`, one session             |   390 | 44,693 B    | **599 ms**   | 810 ms   | **280 ms**  |
+| `1m`, five sessions           | 1,560 | 177,463 B   | **1,217 ms** | 860 ms   | **290 ms**  |
+| `1m`, one month               | 8,970 | 1,016,540 B | **2,505 ms** | 1,598 ms | **444 ms**  |
+| `1d`, the whole stored depth  |   671 | 77,098 B    | **1,124 ms** | 1,029 ms | **460 ms**  |
+| `1m`, one year — refused      |     — | 258 B       | **281 ms**   | —        | —           |
+| Unknown symbol — 404          |     — | 173 B       | **280 ms**   | —        | —           |
+| `/securities`                 |     — | 190,736 B   | **1,153 ms** | 1,151 ms | **356 ms**  |
+| The stitch (780 bars, 2 srcs) |   780 | 88,862 B    | **930 ms**   | 786 ms   | **282 ms**  |
+
+**Read the 404 row first: 280 ms for a response that does one point read and
+returns 173 bytes.** That is the link, and every other row contains it. The
+`hit` column is not reliably faster than the `miss` column at this distance,
+which is not a finding about the cache — §12.1 measured the cache where it can
+be seen — it is the measurement saying the server's contribution is inside the
+link's variance for everything except the megabyte.
+
+**`/securities` is where the validator pays for itself, and now it is measured
+rather than predicted.** §11 said "190 kB costs nothing over loopback and is the
+entire saving over a network". Deployed: **1,153 ms for the body against 356 ms
+for the 304 — about 800 ms saved on every repeat page load**, against 1.1 ms
+saved locally. The deployed body is **190,736 bytes, byte for byte the local
+figure**, which is a second confirmation that the two universes agree.
+
+**What this cannot say.** One machine over one link cannot tell its own network
+from the environment, and nothing here is called an outage. What it can say is
+that the _shape_ is right everywhere: refusals and 404s are the RTT, small
+series are the RTT plus a connection, and the only row that behaves differently
+is the megabyte — which is §12.5's subject.
+
+### 12.9 The first request after ten idle seconds pays for a new database connection
+
+`GET /market-data/bars?symbol=NVDA&timeframe=1d&sessions=5` against the deployed
+backend, reporting `time_starttransfer − time_appconnect`:
+
+| Sequence                          | Server think + 1 RTT                |
+| --------------------------------- | ----------------------------------- |
+| Six requests back to back         | **473**, 281, 281, 293, 277, 280 ms |
+| After a 15-second pause, two more | **446**, 284 ms                     |
+
+The first request of each burst costs **~165–190 ms more** than the ones behind
+it, reproducibly. `database.ts` sets `POOL_IDLE_TIMEOUT_MS = 10_000`, and
+deployed the connection it discards is one that must be re-established over TLS
+**and re-authenticated by minting a fresh Microsoft Entra token** — the
+per-connection credential function `DATA-LAYER.md` describes. `GET
+/diagnostics/database` reports **170.39 ms** for its ping, which is the same
+number seen from the other side.
+
+**On a low-traffic deployment that is almost every real request.** It is not a
+defect and it is not this story's to fix — a ten-second idle timeout against a
+per-connection token is a defensible pair — but it is the largest single
+component of server-side latency on this API and nothing had named it. **The
+condition for revisiting: the first user-facing target this API is held to that
+a 170 ms floor breaks.** The candidate repairs are a longer idle timeout, a
+minimum pool size, or caching the Entra token across connections; all three
+belong to `HOSTING.md`'s subject rather than to the market-data contract.
+
+### 12.10 Against §28's targets, and which of them this path can be held to
+
+**§28's "<250 ms p95, server-received event → application state" is not this
+request's target and quoting it here would be the wrong instrument.** It measures
+a market event arriving at the server and reaching the browser's state, excluding
+provider latency; it is Epic 3's live stream, and this is a historical read
+issued by a user.
+
+The two §28 targets this path **can** be held to:
+
+| Target                                         | This path                                                          |
+| ---------------------------------------------- | ------------------------------------------------------------------ |
+| **No routine main-thread task >50 ms**         | ✅ The largest body this API can emit parses in **2.8 ms** (§12.3) |
+| **Visible feedback <500 ms after user action** | ⚠️ Achievable, and **not** by making the request faster            |
+
+The second is Story 2.12's to satisfy and this section is the input it needs. A
+month of minute bars is **2.5 s** deployed from this vantage, of which ~0.5 s is
+connection and ~1.9 s is an uncompressed megabyte. **No amount of server tuning
+brings that under 500 ms**; what satisfies §28 is the chart rendering its frame,
+axes and loading state immediately and filling in when the series lands — which
+is what §36 requires anyway. The two levers that would move the number itself are
+compression (§12.5) and a narrower default window, in that order.
+
+### 12.11 `BARS.md` §8.6's cross-sectional control, re-taken
+
+**Re-taken as the task required, and the finding it justifies is stronger rather
+than weaker — but the number did not reproduce.**
+
+`EXPLAIN (ANALYZE, BUFFERS)`, same store, `SELECT security_id, close, volume FROM
+market_bars WHERE timeframe='1m' AND observed_at = '2026-09-04T15:00:00Z'`:
+
+| Reading        |     2026-09-08 (§8.6) |            2026-09-10 cold |        2026-09-10 warm |
+| -------------- | --------------------: | -------------------------: | ---------------------: |
+| Plan           | Index Scan, skip scan |              **identical** |          **identical** |
+| Index Searches |                   588 |                    **588** |                **588** |
+| Rows           |                   493 |                    **493** |                **493** |
+| Buffers        |                     — | hit 1,746 / **read 1,125** | hit **2,862** / read 0 |
+| Execution      |           **28.2 ms** |               **408.7 ms** |            **1.93 ms** |
+
+**The 28.2 ms sits between a cold and a warm reading of the same query, which is
+what a part-warm buffer cache looks like** — §8.6 does not record whether it was
+taken warm, and the two readings here bracket it. That is the more likely reading
+than a regression, and it is stated as an inference rather than as a fact,
+because only rebuilding the old state could tell them apart.
+
+**The deferral stands and is re-argued, not merely re-stated.**
+`0004_market_bars.sql` defers an `(observed_at)`-leading index and
+`market-bars.database.test.ts` enforces the deferral by asserting the table has
+exactly two indexes. §8.6's argument was that Postgres 18's skip scan already
+answers this query at 28.2 ms. **Warm it answers in 1.93 ms**, so the argument is
+better than it was. The cold figure is worse than §8.6's — 408.7 ms against a
+local container — and it is the same finding §8.15 recorded deployed at 3,213 ms
+cold and 4.2 ms warm: **the cross-sectional query is a disk problem, not an index
+problem**, and a hypertable does not fix a disk problem either. The reversal
+trigger is unchanged: **Epic 5 issuing this query in anger**, at which point the
+plain index is the cheap experiment.
+
+### 12.12 What moved, and what it falsified
+
+| Finding                                                                     | What it falsified                        | Swept                                         |
+| --------------------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------- |
+| Nothing on the path compresses (§12.5)                                      | §4's "184 kB gzipped… is the line"       | §4, dated amendment; §11's columns relabelled |
+| The cap check is ~30 µs/session and 20.6 ms at the full daily depth (§12.4) | §4's implied cost of the pre-query walk  | §4, dated amendment                           |
+| `maxReplicas: 1` (§12.7)                                                    | §11's "a number nobody here can read"    | §11 and `HOSTING.md`                          |
+| §8.6's 28.2 ms is 1.93 ms warm / 408.7 ms cold (§12.11)                     | `BARS.md` §8.6's timing, not its finding | `BARS.md` §8.6, dated amendment               |
+| The stitch adds ≲20 ms (§12.6)                                              | nothing — §5's condition does not fire   | §5, a pointer                                 |
+
+**Nothing here falsifies `PRODUCT_SPEC.md`, an ADR or `CLAUDE.md`.** The one
+sentence that came close is `CLAUDE.md`'s note that the outbound market socket is
+safe because of a minimum replica count of one; §12.7 confirms it and supplies
+the maximum it did not have.

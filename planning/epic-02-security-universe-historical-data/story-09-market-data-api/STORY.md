@@ -154,7 +154,8 @@ a decision recorded in two places is a decision that will disagree with itself.
    produce the right status and the `ApiError` shape, with a quotable request id
 4. "Partial data" is expressible and is not an error
 5. Response times for the access patterns the charts need are measured against the real
-   row count
+   row count — **taken 2026-09-10 by Task 2.9.9, local and deployed;
+   `MARKET-DATA-API.md` §12, and §12.12 for what those readings falsified**
 6. The contract is exercised by tests against an assembled server, in the shape
    `server.test.ts` established
 7. `pnpm verify` passes

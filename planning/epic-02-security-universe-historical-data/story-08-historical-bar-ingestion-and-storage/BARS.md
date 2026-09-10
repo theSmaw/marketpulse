@@ -741,6 +741,20 @@ changed from _we will build it when Epic 5 asks_ to _the engine already solved
 it_. The deferral is enforced by `market-bars.database.test.ts` asserting the
 table has exactly two indexes, and it should stay enforced.
 
+> **Re-taken 2026-09-10 by Task 2.9.9, which its brief named as the control to
+> re-take rather than cite. The plan reproduces exactly and the timing does
+> not.** Same store, same statement: `Index Scan`, **588 index searches**, **493
+> rows** — identical — but **408.7 ms cold** (`hit=1,746 read=1,125`) and
+> **1.93 ms warm** (`hit=2,862 read=0`). The 28.2 ms above sits between the two,
+> which is what a part-warm buffer cache looks like; this paragraph does not
+> record whether it was taken warm, so that is offered as the likelier reading
+> rather than as a fact — only rebuilding the old state could tell a moved figure
+> from a mis-recorded one. **The deferral is re-argued and stands**, and on the
+> warm figure the argument is stronger than it was. The cold figure restates
+> §8.15's deployed finding at local scale: this query is a disk problem, not an
+> index problem, which is also why a hypertable would not fix it. Trigger
+> unchanged — Epic 5 issuing it in anger. See `MARKET-DATA-API.md` §12.11.
+
 **The chart query is a bitmap scan plus a sort, not the "one index range scan
 already sorted" the migration claims.** The planner prefers building a bitmap
 over a contiguous range and quicksorting 8,190 rows in 704 kB. The index is the
