@@ -232,10 +232,12 @@ which were run rather than assumed.
 
 5. **Whether the stitch's metered cost is bounded.** **It is, and §5's condition
    does not fire.** The bound is one vendor request per resolved window per
-   minute, which removes the dimension §5 was worried about — cost scaling with
-   how many people are looking. What it still scales with is how many distinct
-   windows exist, and that is stated in §11 rather than left to be discovered.
-   The stitch was **not** narrowed.
+   minute **per replica**, which removes the dimension §5 was worried about —
+   cost scaling with how many people are looking. What it still scales with is
+   how many distinct windows exist, and — corrected the same day, because the
+   first draft of §11 said "per minute" and meant "per minute per process" — how
+   many replicas the Container App is running, which is platform-only
+   configuration Task 2.9.9 owns reading. The stitch was **not** narrowed.
 
 6. **What a backfill underneath a cached answer does.** Every entry expires,
    immutable or not, because the catch-up changes a fact about our store that

@@ -860,13 +860,27 @@ API serves is `1m`, so a second request inside the same minute cannot be
 answered with a bar the first one could not have had.
 
 The bound is therefore **one vendor request per (symbol, timeframe, resolved
-window) per minute**, and the dimension that matters is the one it removes: the
-cost no longer scales with **how many people are looking**, which is what §5 was
-worried about, and no longer scales with page loads. What it still scales with is
-how many distinct windows exist — a client enumerating windows can still mint one
-request per minute each — and that is stated rather than left to be discovered.
-It is not a new exposure: the same client can already mint one request per page
-load today.
+window) per minute, per process**, and the dimension that matters is the one it
+removes: the cost no longer scales with **how many people are looking**, which is
+what §5 was worried about, and no longer scales with page loads.
+
+**"Per process" is load-bearing and was understated when this section was first
+written on 2026-09-10; corrected the same day.** The cache is an in-process
+`Map`, so the deployed bound is `replicas × 1` per window per minute rather than
+`1`. `HOSTING.md` records `minReplicas: 1` as a **required setting** and records
+no maximum, because the Container App's scale rule is platform-only
+configuration that exists in no file in this repository (`CLAUDE.md`, _What
+`pnpm verify` does not cover_ §6). So the deployed multiplier is a number nobody
+here can read, which makes it Task 2.9.9's to take rather than this section's to
+assert. It does not change the shape of the result — the cost is bounded by
+replicas and time rather than by traffic — and a shared cache is emphatically
+**not** the fix, because that is a second database bought to save a request the
+free plan does not charge for.
+
+What it also still scales with is how many distinct windows exist — a client
+enumerating windows can mint one request per minute each — and that is stated
+rather than left to be discovered. It is not a new exposure: the same client can
+already mint one request per page load today.
 
 **Measured, and the method matters because the local store could not produce a
 real one.** Counted through the shipping plugin, the shipping cache and the

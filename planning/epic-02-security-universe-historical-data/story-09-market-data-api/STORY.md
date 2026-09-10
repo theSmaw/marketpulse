@@ -115,7 +115,9 @@ work to be proved end to end.
   lifetime for an **absolute** window inside closed sessions and none at all for a
   named one — `?sessions=5` is a stable URL naming a moving target. An in-process
   answer cache in front of `serveSeries` bounds Task 2.9.5's metered vendor
-  request to one per resolved window per minute, which is the condition
+  request to one per resolved window per minute **per replica** — the cache is
+  in-process and the deployed replica count is platform-only configuration, which
+  is Task 2.9.9's to read — which is the condition
   [`MARKET-DATA-API.md`](MARKET-DATA-API.md) §5 set for keeping the stitch: it
   holds, and the stitch is unchanged. §11 has every measurement
 

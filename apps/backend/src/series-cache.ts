@@ -37,6 +37,15 @@
 // and of how many distinct windows the UI offers, and **not** of how many people
 // are looking — which is the dimension §5 was worried about.
 //
+// **This cache is in-process, so that bound is per REPLICA.** The deployed
+// backend is a Container App with `minReplicas: 1` and a maximum that exists
+// only on the platform, in no file in this repository — so the real multiplier
+// is a number nothing here can read, and Task 2.9.9 owns taking it
+// (`MARKET-DATA-API.md` §11). A shared cache is not the fix: that is a second
+// database bought to save a request the free plan does not charge for. The shape
+// of the result is unchanged — bounded by replicas and time rather than by
+// traffic.
+//
 // ## Why the cache is in FRONT of `serveSeries` and not in front of the response
 //
 // The handler is three steps in one order: parse, `findSecurity`, `serveSeries`.

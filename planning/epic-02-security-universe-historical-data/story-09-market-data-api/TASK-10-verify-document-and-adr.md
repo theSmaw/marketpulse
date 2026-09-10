@@ -109,6 +109,17 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
   hold past its usefulness, or a third mutable field found in an "immutable"
   response. `MARKET-DATA-API.md` §11 has the tables and the measurements.
 
+  **Two properties the ADR should state rather than leave implied**, both added
+  2026-09-10 with the rest of this entry. The cache is **in-process**, so §11's
+  vendor bound is per replica and the deployed multiplier is platform-only
+  configuration — Task 2.9.9 reads it, and the ADR should record that a shared
+  cache was refused rather than overlooked, because it is a second database
+  bought to save a request the free plan does not charge for. And **the whole
+  mechanism is two response headers**, which means it is the first thing this
+  application ships whose correctness depends on a proxy nobody here configures;
+  say so, and point at 2.9.9's deployed readings as the only evidence it works
+  outside `app.inject()`.
+
   **And one more, added 2026-09-09 by Task 2.9.6, which took it: how this API
   distinguishes a dependency being down from this server having failed.**
   `SERVICE_UNAVAILABLE` is `API_ERROR_CODES`' fourth member and the first added
