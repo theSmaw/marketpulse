@@ -39,3 +39,4 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0018](0018-the-market-data-seam-provenance-on-screen-and-what-a-fixture-backed-test-certifies.md)  | The market-data seam, provenance on screen, and what a fixture-backed test certifies     | Accepted |
 | [0019](0019-the-alpaca-client-a-measured-vendor-and-what-a-recorded-fixture-certifies.md)           | The Alpaca client, a measured vendor, and what a recorded fixture certifies              | Accepted |
 | [0020](0020-the-bar-store-the-backfill-and-what-a-completed-backfill-certifies.md)                  | The bar store, the backfill, and what a completed backfill certifies                     | Accepted |
+| [0021](0021-the-market-data-wire-the-grain-of-provenance-and-what-a-cached-response-certifies.md)   | The market-data wire, the grain of provenance, and what a cached response certifies      | Accepted |

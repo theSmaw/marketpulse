@@ -341,7 +341,11 @@ export interface MarketBarsTable {
  * **It is a statement about {@link MarketBarsTable} rather than more of it**,
  * and it exists because acceptance criterion 5 asks the system to say what it
  * holds without scanning fifty million rows. Read it as the ledger: one row per
- * `(security_id, timeframe)`, one contiguous covered window, and a count.
+ * `(security_id, timeframe)`, one contiguous covered window, a count, and —
+ * **since `0007_bar_coverage_provenance.sql` (Task 2.9.4, 2026-09-09)** — the
+ * {@link BarCoverageTable.provider} and {@link BarCoverageTable.feed} that
+ * window came from. That last pair is what lets a served series carry
+ * provenance the bars themselves deliberately do not hold.
  *
  * The two silent failures it can have are mirror images and both look like a
  * healthy system — under-reporting re-fetches history already held, on a

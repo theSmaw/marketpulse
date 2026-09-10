@@ -252,7 +252,10 @@ export function registerErrorHandling(app: FastifyInstance): void {
     //     the only party who cannot see the log.
     //
     // The reversal trigger is a 4xx message interpolating something the client
-    // did **not** send. On Task 2.9.10's sweep list either way.
+    // did **not** send. On Task 2.9.11's sweep list either way — renumbered
+    // from 2.9.10 on 2026-09-10, when the compression task took that number.
+    // Checked at that close: no 4xx message this application writes
+    // interpolates anything but the caller's own value.
     request.log.info({ err: error }, "request rejected");
     return reply.code(status).send(apiError(code, error.message, request.id));
   });

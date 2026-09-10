@@ -223,6 +223,18 @@ This is the concrete answer to Task 2.6.3's instruction to make the stitched cas
 truthful or refused": **feed is truthful, adjustment is refused**, and each has a reason
 rather than sharing one.
 
+**Amended 2026-09-10 at Story 2.9's close: the stitched case is no longer
+hypothetical.** This section was written against a series nothing produced. Task
+2.9.5 built one — `GET /market-data/bars` serves a window ending _now_ by
+stitching the stored SIP history to a live tail that is not stored and comes
+from a different tape — so "two sources, two `feed` values" describes a response
+this application returns rather than a shape the type permits. Two things this
+section predicted were then produced rather than reasoned about: the
+adjustment refusal fires at construction, and `market-bars.ts` **additionally**
+refuses to _store_ a stitched series, because one `bar_coverage` row holds
+exactly one source for one window. `MARKET-DATA-API.md` §5 and §10 carry the
+mechanism; ADR 0021 records why the grain of stored provenance is a decision.
+
 ### 2.5 Coverage lives on the series, not on the response envelope
 
 Task 2.6.3 asks whether coverage belongs with provenance or with the response shape and says

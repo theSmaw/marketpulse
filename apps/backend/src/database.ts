@@ -58,6 +58,16 @@
 // socket until something asks it for a client, which is why constructing it
 // cannot fail and why the reachability question needs an explicit probe rather
 // than a `try` around the constructor.
+//
+// **Re-checked 2026-09-10 at Story 2.9's close, and still unfired.**
+// `GET /market-data/bars` is the second route that needs data and it is
+// registered from `index.ts` for exactly the reason above — the repository is
+// built over this pool and this function needs `app.log`. Neither condition
+// has been met: the repository is not constructible without the application's
+// logger, and no route has had to exist before the pool does. Recorded so a
+// later reader does not re-derive it. The *other* sentence this file carried,
+// "nothing in this application serves data yet" further down, stopped being
+// true on 2026-09-09 and is marked superseded in place there.
 
 import pg from "pg";
 import type { PoolConfig } from "pg";

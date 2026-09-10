@@ -218,3 +218,52 @@ Whether the sentence is a _good_ one was judged by a person; no instrument can h
 
 Caching, invalidation, the `market` feature module's real shape, and the store decision
 itself. Nothing about a fetch-once-on-mount hook over a curated list constrains any of them.
+
+---
+
+## Amended 2026-09-10, after Story 2.9 closed — the contract you fetch through, and four things you inherit rather than decide
+
+Story 2.9 is complete. Its subject document is
+[`MARKET-DATA-API.md`](../story-09-market-data-api/MARKET-DATA-API.md) and its
+decisions are ADR 0021. Read both before designing the `market` module's fetch
+layer — this section is the pointer rather than a second copy, and where the two
+disagree the subject document wins.
+
+**The endpoint is `GET /market-data/bars?symbol=&timeframe=&sessions=` or
+`&start=&end=`.** One symbol per request today, on a path chosen so widening it
+to several is a query-parameter change rather than a rename (§1).
+
+- **Do not resolve a window from the browser's clock.** Send `sessions=5` and let
+  the server resolve it. A browser in Singapore at 09:00 local is on the previous
+  _market_ date in New York, so a client that computes "the last 5 sessions"
+  itself is off by one session for roughly half the world for several hours of
+  every day — invisible in local testing, and it produces a chart that is
+  plausible and shifted rather than an error anybody sees (§2). The response
+  reports the resolved absolute range back in `coverage.requested`, which is the
+  only way you can tell what "5 sessions" meant.
+- **A partial answer is a 200, and so is an empty one.** `coverage.covered` is
+  narrower than `coverage.requested` when we hold part of the window, and `null`
+  when the series is empty; `bars: []` with provenance and `requested` present is
+  an **answer**, never an error (§6). Your states-as-types union needs a member
+  for _loaded and partial_ that is not _failed_ — that is the one shape Story
+  2.4's static list could not teach you.
+- **Caching is already half-decided on the server and you should not fight it**
+  (§11). Every response carries a weak `ETag` recomputed from the whole body;
+  an absolute window inside closed sessions carries `private, max-age=300` and a
+  named window carries no lifetime at all, because `?sessions=5` is a stable URL
+  naming a moving target. `fetch()` revalidates on its own. **Whatever you decide
+  about a client store, do not build a second TTL over these URLs** — the
+  five-minute ceiling exists so nothing in this system serves an invalidated body
+  for longer, and a client cache with its own lifetime defeats it silently.
+- **The cap is 10,000 bars and it is refused rather than reduced** (§3, §4). The
+  server never downsamples, so a window control that can ask for more than the
+  cap has to handle a 400 that names the number. A year of minute bars is 11.08
+  MB and is refused; a month is ~1.06 MB identity and **~154 kB on the wire**,
+  because the server compresses (§13) and `fetch` decompresses transparently —
+  you need no code for that, and Task 2.9.10 confirmed it against the browser
+  suite.
+
+**And one thing that is still entirely yours.** Story 2.9 built no hook, no store
+and no second fetch — Task 2.9.7 added a fourth key to a response
+`useSecurities` already fetched, precisely so this story's decision stayed open.
+`use-*.ts` is still four files.
