@@ -1,6 +1,10 @@
 # Story 2.9 — Market Data API
 
-**Status:** Not started
+**Status:** **Complete** — closed 2026-09-10 by Task 2.9.11. Every acceptance
+criterion re-taken with its instrument named
+([`TASK-11`](TASK-11-verify-document-and-adr.md)), the subject document finished
+([`MARKET-DATA-API.md`](MARKET-DATA-API.md), §1–§15), and the decisions recorded
+as [ADR 0021](../../../docs/adr/0021-the-market-data-wire-the-grain-of-provenance-and-what-a-cached-response-certifies.md).
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Stories 2.3, 2.8
 **Epic scope covered:** **Addition to this epic's stated scope** — the read contract implied by "security search/select" and the two charts
@@ -177,10 +181,18 @@ a decision recorded in two places is a decision that will disagree with itself.
 4. "Partial data" is expressible and is not an error
 5. Response times for the access patterns the charts need are measured against the real
    row count — **taken 2026-09-10 by Task 2.9.9, local and deployed;
-   `MARKET-DATA-API.md` §12, and §12.12 for what those readings falsified**
+   `MARKET-DATA-API.md` §12, and §12.12 for what those readings falsified**, and
+   re-taken after compression by Task 2.9.10 (§13.6)
 6. The contract is exercised by tests against an assembled server, in the shape
    `server.test.ts` established
 7. `pnpm verify` passes
+
+**All seven re-taken 2026-09-10 at the close, each against the thing it is about
+rather than cited.** Criteria 1, 3, 4, 6 and 7 are properties of the **code** and
+re-take from a clean clone; criteria 2 and 5 are properties of a **populated
+database** and cannot — the same split ADR 0020 recorded, and the reason those
+two are dated readings rather than a rerunnable check. The instruments and the
+quoted readings are in [`TASK-11`](TASK-11-verify-document-and-adr.md).
 
 ## What this story hands forward
 
@@ -409,16 +421,16 @@ not reflect its order is a trap for every future reader; the eleven references
 were remapped by hand in the same change, and Story 2.8's own `TASK-10` — which a
 blind substitution would have corrupted — was not one of them.
 
-| Task                                                                    | What it does                                               | Visible?                |
-| ----------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------- |
-| [2.9.1](TASK-01-settle-the-contract-decisions.md)                       | Namespace, windows, downsampling, caps, the read-side join | No                      |
-| [2.9.2](TASK-02-the-request-contract-and-the-window.md)                 | Symbol, timeframe, window — parsed, validated, refused     | No                      |
-| [2.9.3](TASK-03-the-response-contract.md)                               | The wire shape, guarded at every nesting level             | No                      |
-| [2.9.4](TASK-04-the-read-and-the-provenance-the-store-does-not-hold.md) | Rows → `BarSeries`, and where provenance comes from ✅     | No                      |
-| [2.9.5](TASK-05-the-live-tail-and-the-stitch.md)                        | The uncovered tail, merged and labelled ✅                 | No                      |
-| [2.9.6](TASK-06-the-route.md)                                           | The endpoint, and every way it can fail ✅                 | **A URL, not a screen** |
-| [2.9.7](TASK-07-the-first-real-price-on-screen.md)                      | Last close on `/securities` ✅                             | **Yes — the payoff**    |
-| [2.9.8](TASK-08-caching-and-the-immutable-session.md)                   | Closed sessions never change                               | No                      |
-| [2.9.9](TASK-09-measured-against-forty-eight-million-rows.md)           | Timings and payloads, local and deployed                   | No                      |
-| [2.9.10](TASK-10-compress-the-wire.md)                                  | The encoding this story's scope always owed ✅             | No                      |
-| [2.9.11](TASK-11-verify-document-and-adr.md)                            | Verify, `MARKET-DATA-API.md`, the ADR, the upward sweep    | No                      |
+| Task                                                                    | What it does                                                  | Visible?                |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------- |
+| [2.9.1](TASK-01-settle-the-contract-decisions.md)                       | Namespace, windows, downsampling, caps, the read-side join ✅ | No                      |
+| [2.9.2](TASK-02-the-request-contract-and-the-window.md)                 | Symbol, timeframe, window — parsed, validated, refused ✅     | No                      |
+| [2.9.3](TASK-03-the-response-contract.md)                               | The wire shape, guarded at every nesting level ✅             | No                      |
+| [2.9.4](TASK-04-the-read-and-the-provenance-the-store-does-not-hold.md) | Rows → `BarSeries`, and where provenance comes from ✅        | No                      |
+| [2.9.5](TASK-05-the-live-tail-and-the-stitch.md)                        | The uncovered tail, merged and labelled ✅                    | No                      |
+| [2.9.6](TASK-06-the-route.md)                                           | The endpoint, and every way it can fail ✅                    | **A URL, not a screen** |
+| [2.9.7](TASK-07-the-first-real-price-on-screen.md)                      | Last close on `/securities` ✅                                | **Yes — the payoff**    |
+| [2.9.8](TASK-08-caching-and-the-immutable-session.md)                   | Closed sessions never change ✅                               | No                      |
+| [2.9.9](TASK-09-measured-against-forty-eight-million-rows.md)           | Timings and payloads, local and deployed ✅                   | No                      |
+| [2.9.10](TASK-10-compress-the-wire.md)                                  | The encoding this story's scope always owed ✅                | No                      |
+| [2.9.11](TASK-11-verify-document-and-adr.md)                            | Verify, `MARKET-DATA-API.md`, the ADR, the upward sweep ✅    | No                      |

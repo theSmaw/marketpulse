@@ -1,6 +1,16 @@
 // The bar store's write path, and the ledger that answers "what do I have"
 // (Task 2.8.4).
 //
+// **Amended 2026-09-10 at Story 2.9's close: it is also the SERVING read.**
+// Task 2.9.4 grew {@link MarketBarsRepository.readBars} into the query
+// `GET /market-data/bars` answers from, and Task 2.9.7 added
+// {@link MarketBarsRepository.readLastCloses}, which `GET /securities`
+// answers from. The first line is therefore short by the thing most readers
+// now arrive here for. What is still true, and is the distinction worth
+// keeping, is that this module does not *serve HTTP* — no route, no status,
+// no schema lives here — it returns domain objects and `routes/` puts them on
+// a wire.
+//
 // Two things in one module because they are one transaction. A bar written
 // without its ledger row is a system that under-reports what it holds and
 // re-fetches it forever, on a metered API, in a command slow enough that nobody
@@ -45,6 +55,14 @@
 // deliberately. It does not serve HTTP — Story 2.9 owns the wire contract, and
 // {@link MarketBarsRepository.readBars} exists here because a write path whose
 // round trip is untested is a write path nobody has checked.
+//
+// **Amended 2026-09-10 at Story 2.9's close.** That last clause records why
+// `readBars` was *originally* here and is no longer why it is here: Story 2.9
+// took it as the served read rather than writing a second one, which is the
+// outcome the seam exists to produce. "It does not serve HTTP" is still true
+// in the narrow sense — the route, the status and the schema are in
+// `routes/market-data.ts` — and false in the sense a reader would take from
+// it, which is that nothing on this path is user-facing.
 
 import { Kysely, PostgresDialect, sql, type RawBuilder } from "kysely";
 import type pg from "pg";

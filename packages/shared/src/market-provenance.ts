@@ -10,7 +10,12 @@
  * ## Why this is a field on the data and not a caption on a component
  *
  * The cheap version of this file is a `feed: string` on a response object and a
- * caption under the chart, and it survives exactly until the first stitch. The
+ * caption under the chart, and it survives exactly until the first stitch —
+ * **which happened on 2026-09-09 (Task 2.9.5), so this paragraph is now a
+ * record of a prediction that came true rather than a warning about a future
+ * one.** `GET /market-data/bars` serves a series whose stored part is
+ * `alpaca`/`sip` and whose live tail is a different feed, and
+ * `MARKET-DATA-API.md` §5 is where the seam and its bound are recorded. The
  * argument is mechanical rather than moral: **a caption is true of the
  * component, and provenance is a fact about the data.** The moment Story 2.8's
  * read path puts stored bars and freshly fetched bars in one series — which it

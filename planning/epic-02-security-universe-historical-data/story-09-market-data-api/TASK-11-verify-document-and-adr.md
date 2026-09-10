@@ -1,6 +1,6 @@
 # Task 2.9.11 — Verify, document, ADR
 
-**Status:** Not started
+**Status:** **Done** — 2026-09-10
 **Story:** [2.9 Market Data API](STORY.md)
 **Depends on:** Task 2.9.10
 
@@ -382,3 +382,407 @@ Half of Story 2.8's criteria could not be re-taken from a clean clone because th
 were properties of a populated database, and that story said so criterion by
 criterion. The same is true here for criterion 5. Say which half is code and which
 half is data.
+
+---
+
+# Outcome
+
+Story 2.9 is closed. Seven criteria re-taken, three gates run, the subject
+document finished at §15, [ADR 0021](../../../docs/adr/0021-the-market-data-wire-the-grain-of-provenance-and-what-a-cached-response-certifies.md)
+written and indexed, and eleven documents swept.
+
+## The seven criteria, re-taken
+
+**Which half is code and which half is data**, since the Notes ask for it. Five
+of the seven are properties of the **code** and re-take from a clean clone:
+1, 3, 4, 6, 7. Two are properties of a **populated database** and cannot —
+criterion 2 needs bars in a store to return, and criterion 5 is a timing against
+48 million rows. Those two are dated readings. This is the same split ADR 0020
+recorded for Story 2.8, and it is stated here rather than discovered by whoever
+tries to reproduce them.
+
+### 1 — a field added to a response type without its schema entry fails to compile
+
+**Instrument: the compiler, on a NESTED shape.** Produced rather than described.
+
+A `readonly vwap: number` was added to `BarPayload` in
+`packages/shared/src/bar-series-response.ts` — nested three levels inside the
+response envelope, because the guard checks **top-level keys** and does not reach
+into a nested object, so a probe at the envelope would demonstrate nothing about
+the shapes inside it. `pnpm typecheck`:
+
+```
+apps/backend/src/routes/market-data.ts(243,3): error TS1360: Type '{ startsAt: …;
+  open: …; high: …; low: …; close: …; volume: … }' does not satisfy the expected
+  type 'Record<keyof BarPayload, JsonSchemaProperty>'.
+apps/backend/src/routes/market-data.ts(340,3): error TS2741: Property 'vwap' is
+  missing in type '{ … }' but required in type 'BarPayload'.
+```
+
+Removed, rebuilt, green.
+
+**The count, re-taken rather than subtracted from a remembered one.**
+`grep -rn "satisfies Record<keyof" apps/backend/src` returns **28**, and it
+splits exactly as this file predicted:
+
+| Category                                                |  Count | Where                                                                                                                                                    |
+| ------------------------------------------------------- | -----: | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Response-schema guards (the thing criterion 1 is about) | **17** | 6 `routes/securities.ts`, 7 on the series response, 1 each in `market-data.ts`'s feed response, `routes/health.ts`, `routes/diagnostics.ts`, `errors.ts` |
+| Prose mentions of the idiom rather than uses of it      |  **8** | `schema.ts`, `json-schema.ts` ×2, `market-data-provider.test.ts`, `migrate.database.test.ts`, `market-data.ts`, `securities.ts`, `health.ts`             |
+| The same idiom applied to a **different** guard         |  **3** | `satisfies Record<keyof T, ExpectedColumn>` in the two database suites — migration checks, not response schemas                                          |
+
+That third category is what makes a bare `wc -l` of the grep wrong in a way that
+looks right.
+
+**One thing this file warned about turns out not to apply, and it is worth
+correcting rather than repeating.** The brief says the edit proves nothing until
+`packages/shared` is rebuilt, and that skipping the rebuild leaves `typecheck`
+green against the old `.d.ts`. **It does not**, because `pnpm typecheck` is
+`tsc -b` — which rebuilds the referenced project as part of the build graph.
+Confirmed in the same session: the source reverted with no explicit
+`--filter shared build`, `tsc -b` regenerated the declaration and reported 0
+errors. The trap is real for `tsc --noEmit`, which is exactly why no script in
+this repository uses it.
+
+### 2 — a series returns bars with provenance, over a calendar-resolved window
+
+**Instrument: `curl` against the running pair, over the real 48-million-row
+store.** `GET /market-data/bars?symbol=NVDA&timeframe=1d&sessions=5`:
+
+```json
+{ "securityStatus": "active",
+  "series": {
+    "symbol": "NVDA", "timeframe": "1d",
+    "bars": [ { "startsAt": "2026-09-03T04:00:00.000Z", "open": 226.02,
+                "high": 230.4, "low": 224.75, "close": 228.45,
+                "volume": 135429028 }, … ],
+    "provenance": { "adjustment": "raw", "sources": [
+      { "provider": "alpaca", "feed": "sip",
+        "retrievedAt": "2026-09-08T07:29:39.358Z", "barCount": 2 } ] },
+    "coverage": {
+      "requested": { "start": "2026-09-03T04:00:00.000Z",
+                     "end":   "2026-09-11T04:00:00.000Z" },
+      "covered":   { "start": "2026-09-03T04:00:00.000Z",
+                     "end":   "2026-09-08T04:00:00.000Z" } } } }
+```
+
+Everything the criterion asks for is in it: the window was resolved server-side
+from `sessions=5` through the trading calendar and reported back absolutely; the
+bars carry `alpaca`/`sip` with a `retrievedAt` that is the **batch's** and not
+the clock's; and `covered` is narrower than `requested`, which is criterion 4 in
+the same reading.
+
+### 3 — four failures, the right status, the `ApiError` shape, a quotable request id
+
+**Instrument: `curl` for the first three, and a backend pointed at a closed port
+for the fourth.**
+
+| Request                                  | Status  | Body                                                                                                                                                                   |
+| ---------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `?symbol=ZZZZ&timeframe=1d&sessions=5`   | **404** | `NOT_FOUND` · "ZZZZ is not a security this system tracks. The tracked universe is listed at /securities." · `4a309516-32af-40da-93d0-a0d8dc1b67e8`                     |
+| `?symbol=NVDA&timeframe=7m&sessions=5`   | **400** | `BAD_REQUEST` · `"7m" is not a timeframe. Expected 1m or 1d.` · `d01c9d3e-de9f-43ab-a224-cf1b0c7be4f3`                                                                 |
+| `?symbol=NVDA&timeframe=1d` (no window)  | **400** | `BAD_REQUEST` · "No window given. Pass ?sessions=5 …, or ?start= and ?end= as UTC instants." · `4aaf60d2-79e4-4192-8e45-68a1f3ce38e0`                                  |
+| `…&start=2016-01-04T05:00:00.000Z&end=…` | **400** | `BAD_REQUEST` · "That window reaches 2016-01-04, outside the trading calendar this system covers — 2024-01-01 to 2028-12-31." · `c11a619a-817c-473f-9b41-8520c7d14eb1` |
+| `?symbol=NVDA&timeframe=1m&sessions=40`  | **400** | `BAD_REQUEST` · "That window is 15,600 bars and one response carries at most 10,000. …" · `f565e91d-b514-460d-9ba5-3216800fc8b9`                                       |
+| The same, against `DATABASE_PORT=59999`  | **503** | `SERVICE_UNAVAILABLE` · "Market data is temporarily unavailable. Try again shortly." · `7a6dd980-6bd5-4173-af57-40ace43e8950`                                          |
+| `GET /securities`, same dead backend     | **503** | `SERVICE_UNAVAILABLE`, the same constant message · `935d0560-fa93-40c9-af21-0c6086e89117`                                                                              |
+
+**Both routes answer the same way**, which is the property `throughDatabase`
+exists to give — one outage cannot get two answers. And the internal detail
+stayed internal: `connect ECONNREFUSED 127.0.0.1:59999`, the Kysely stack and the
+`ServiceUnavailableError` cause all reached the **log** at `warn`, and no part of
+any of it reached a body.
+
+Note the calendar-range refusal names `2024-01-01` and `2028-12-31` and names
+neither `packages/shared` nor `MARKET_CALENDAR` — the rewrite Task 2.9.2 argued
+for, checked at the wire rather than at the unit.
+
+### 4 — "partial data" is expressible and is not an error
+
+**Instrument: two `curl`s, one for each shape.** Criterion 2's reading above is
+the _partial_ case — `covered` ends 2026-09-08, `requested` ends 2026-09-11, at
+a 200. The _empty_ case, asked over Independence Day 2024 when the market was
+shut:
+
+```json
+{
+  "series": {
+    "symbol": "NVDA",
+    "timeframe": "1m",
+    "bars": [],
+    "provenance": {
+      "adjustment": "raw",
+      "sources": [
+        {
+          "provider": "alpaca",
+          "feed": "sip",
+          "retrievedAt": "2026-09-10T04:17:42.143Z",
+          "barCount": 0
+        }
+      ]
+    },
+    "coverage": {
+      "requested": {
+        "start": "2024-07-04T13:30:00.000Z",
+        "end": "2024-07-04T14:00:00.000Z"
+      },
+      "covered": null
+    }
+  },
+  "securityStatus": "active"
+}
+```
+
+**HTTP 200.** `bars: []`, `covered: null`, and the requested window still on the
+wire — which is the whole argument against 204 produced rather than asserted:
+the body _is_ the answer.
+
+### 5 — response times measured against the real row count
+
+**Instrument: Task 2.9.9's measurement suite, re-taken by Task 2.9.10 after
+compression.** Not re-taken here — `MARKET-DATA-API.md` §12 and §13.6 carry them
+with their dates, and this file's own brief says explicitly not to flatten the
+two dates into one.
+
+The headline pair, post-compression: **`/securities` is 484 ms deployed against a
+376 ms conditional floor** (from 1,153 ms), and **a month of minute bars is
+154 kB on the wire and 1,210 ms** (from 1.06 MB and 2,606 ms).
+
+### 6 — the contract is exercised by tests against an assembled server
+
+**Instrument: two suites, counted rather than remembered.**
+
+| Suite                            |  Tests | What it walks                                                              |
+| -------------------------------- | -----: | -------------------------------------------------------------------------- |
+| `src/server.test.ts`             | **17** | The route table — every route that can fail declares `500: apiErrorSchema` |
+| `src/routes/market-data.test.ts` | **39** | `app.inject()` over the assembled server                                   |
+| `src/routes/securities.test.ts`  | **22** | the same, for the route that carries the last closes                       |
+| `src/series-request.test.ts`     | **28** | the refusal taxonomy, with no pool, no Fastify and no clock                |
+
+### 7 — `pnpm verify` passes
+
+**Instrument: `pnpm verify`, exit 0, with no database running.** Re-read rather
+than carried forward:
+
+| Suite                 |  Files |     Tests |
+| --------------------- | -----: | --------: |
+| `packages/shared`     |     14 |       218 |
+| `apps/backend`        |     29 |       650 |
+| `apps/frontend`       |     22 |       240 |
+| **`pnpm test` total** | **65** | **1,108** |
+| `pnpm test:process`   |      1 |        14 |
+
+## The three gates
+
+All three required checks on `main`, run because this story can break all three —
+Task 2.9.7 touches a rendered page and Task 2.9.10 changed the wire under it.
+
+| Gate                 | Result                                                                  |
+| -------------------- | ----------------------------------------------------------------------- |
+| `pnpm verify`        | **exit 0** — 1,108 tests + 14 process tests                             |
+| `pnpm test:database` | **exit 0** — 6 files, **165 tests**, real PostgreSQL                    |
+| `pnpm e2e`           | **exit 0** — **30 specs**, real Chromium against a locally started pair |
+
+## The upward sweep, and the greps behind it
+
+Eleven sites. Live claims amended, ADRs given dated amendments rather than
+rewrites, historical records in task files left standing.
+
+| Site                                           | What was false                                                                                   | What was done                                                                      |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `market-bars.ts` header                        | "the write path, and the ledger" — it now holds two **serving** reads                            | Dated amendment; the narrow sense ("does not serve HTTP") kept and qualified       |
+| `market-bars.ts` §What this module does not do | "Story 2.9 owns the wire contract" as the reason `readBars` is here                              | Dated amendment: 2.9 took it as the served read rather than writing a second one   |
+| `database.ts` reversal trigger                 | nothing — **re-checked and still unfired**                                                       | One dated line, so a later reader does not re-derive it                            |
+| `market-provenance.ts` module comment          | "survives exactly until the first stitch" — the stitch happened 2026-09-09                       | Dated amendment pointing at §5                                                     |
+| `errors.ts` 4xx branch                         | "On Task 2.9.10's sweep list" — the number moved at the 2026-09-10 renumber                      | Corrected to 2.9.11, with the check's result recorded                              |
+| `schema.ts` `bar_coverage` docblock            | enumerated "one window, and a count" — predates `0007`'s two columns                             | Enumeration extended, dated                                                        |
+| `migrations/README.md`                         | `0002` says a provenance column takes no default; `0007` gives two one                           | The **rule that reconciles them** added, rather than leaving a reader to pick one  |
+| ADR 0020                                       | three enumerations of the ledger written before it had provenance                                | **Dated amendment**, not a rewrite — nothing above it reversed                     |
+| `BARS.md` §8.13                                | "no owner written down" for the read-side join                                                   | Struck; the owner is Task 2.9.5, the paragraph left as what handed the decision on |
+| `PROVIDER.md` §2.4                             | the stitch case written as hypothetical                                                          | Dated amendment: it is a response this application returns                         |
+| `MARKET-DATA-API.md` §9 first bullet           | four nested shapes (there are seven); "types live in `packages/shared`" (the **schemas** do not) | Both corrected in place, pointing at the new §14                                   |
+| `STORY.md` 2.10                                | had no record of the contract it fetches through                                                 | A "what you inherit" section: the window, the partial answer, the caching, the cap |
+
+**And what was checked and needed nothing**, recorded so it is not re-checked:
+`CLAUDE.md`'s "no state library yet / four hooks" line — still four `use-*.ts`
+files, because Task 2.9.7 added a key to a response an existing hook already
+fetched. `/securities` and `/market-data/bars` still share one
+`throughDatabase`, so the 503 sweep item stays discharged.
+
+**Four `CLAUDE.md` edits, all inside the "add nothing else" carve-out** — three
+are traps rather than figures and one is the _Current state_ paragraph the close
+owed anyway:
+
+- _Where the record lives_ gains `MARKET-DATA-API.md`; the ADR range becomes
+  0001–0021.
+- _Current state_ now says Story 2.9 is complete and stops under-describing the
+  screen: the tracked universe carries a real last close and change for 518
+  securities. The two negatives it was right about — no charts, no live data —
+  are kept.
+- The `fast-json-stringify` coercion sentence gains **one clause** naming both
+  produced instances: `null` under `"string"` reaching the wire as `""`, and
+  `null` under `"number"` reaching it as **`0`**. The pair is what makes the rule
+  land, because `""` is visibly wrong and a plausible price is not.
+- _What `pnpm verify` does not cover_ §3 gains **three** stated invariants
+  nothing checks, each with its one-line re-measurement: `pg-pool`'s
+  connection-timeout **message string**; the five-minute ceiling being spelled
+  twice from one constant; and the ingress passing `Content-Encoding` through,
+  which one `curl` at one moment is the whole evidence for.
+- The _Backend_ section gains **two** lines, both judged rather than assumed
+  into: an `onSend` hook cannot remove `Content-Length` (Fastify recomputes it
+  after every hook), and `@fastify/compress` attaches per route via `onRoute`, so
+  the hook-ordering trap the caching work was written around is **not reachable
+  through that plugin at all**.
+
+## What went into the subject document
+
+`MARKET-DATA-API.md` gains **§14** and **§15** and keeps its numbering, so every
+existing cross-reference still resolves.
+
+- **§14 — the request contract as built.** §2 settled the _decision_ and did not
+  record what shipped: the five refusal reasons and the test that governs a
+  sixth (_does a caller do anything different for each?_), the two window forms
+  with the four traps under them, and the cap's half-day boundary. The
+  measurement worth keeping is `new Date`'s inconsistency about unreal dates —
+  `2026-02-30` becomes March 2nd silently, and the rollover is more dangerous
+  than the NaN because it produces a **plausible** answer rather than an
+  inexplicable empty one.
+- **§15 — the cross-sectional read**, with both timings, because **Epic 4's
+  Market Overview is the known next reader** and the cheapest way for it to get
+  this wrong is not to know it was settled. A lateral scan of two rows per
+  security at **4.8–8.2 ms warm** against **182–279 ms** for the `row_number()`
+  window function — 30–40× — and the minute table untouched **by construction**:
+  the timeframe is in the `Index Cond`, 518 index searches, 2,597 buffers.
+
+## The ADR
+
+[ADR 0021](../../../docs/adr/0021-the-market-data-wire-the-grain-of-provenance-and-what-a-cached-response-certifies.md),
+seven decisions, indexed. It records the pairs the rest of the product inherits
+rather than "we added an endpoint": how a window is expressed (and why the
+browser's clock decides it), why the server never reduces, **the grain at which
+this product stores provenance** and why the free answer was measured false, the
+stitch, freshness-by-calendar with identity-by-body, 503-versus-500 with a bias
+towards 500, and the compression finding.
+
+**The finding is the better half of the last one**, and it is why that decision
+is written as a pair rather than as a fix: _an assumption about the transport
+that every test was structurally unable to see_ — `app.inject()` never negotiates
+an encoding and nothing in `verify` opens a socket — sitting underneath a
+decision (the cap) argued in the units that assumption produced. And **the repair
+had the same shape**: a compressor registered ahead of the validator removes every
+`ETag` with nothing on screen wrong and every test green. Both were produced red
+first.
+
+---
+
+# For the stakeholder — what this actually did, in plain terms
+
+**In one line: the price history is now something the application can ask for
+over the internet, and asking for it twice is nearly free.**
+
+## Where we were, and where we are
+
+Last month's work ended with roughly 48 million real US stock prices sitting in
+a database — minute by minute, for 518 companies, going back a year. Real data,
+correctly stored, and **completely unreachable** by anything a person looks at.
+A database is not a product.
+
+This story built the doorway. There is now a web address the application can call
+that answers _"give me NVIDIA's prices for the last five trading days"_, and gets
+back the prices, the exact window they cover, and a note saying where they came
+from. That doorway is the thing the next five stories all walk through: the
+search box, the price chart, the volume chart and the window controls are each
+one screen built on top of this one answer.
+
+**What you can see on screen today** is the securities table, and it now carries
+a real last price and a real percentage change for all 518 companies — the first
+real prices this product has ever shown anybody. **The chart is next.** That is
+Story 2.12, and it is now the only thing standing between the data and a picture
+of it.
+
+## Five decisions, and why they went the way they did
+
+**1. "The last five trading days" is worked out by the server, never the
+browser.** This sounds pedantic and is not. If a laptop in Singapore works out
+"the last five trading days" from its own calendar, it is on the _previous_ New
+York trading day for several hours of every day — so it silently asks for the
+wrong window and draws a chart that looks perfectly reasonable and is shifted by
+a day. Nobody would ever notice, because there is no error and the picture looks
+fine. The server knows what today means in the market; a browser only knows what
+day it is where it is sitting. So the browser asks by name and the server does
+the arithmetic.
+
+**2. The server never quietly sends less than you asked for.** A year of
+minute-by-minute prices for one company is eleven megabytes — too big to send.
+The tempting fix is to thin it out invisibly. We refused, and instead the server
+says _"that is 15,600 prices and I send at most 10,000; ask for a narrower window
+or use daily prices."_ The reason is the product's founding rule: **every number
+a user sees must come from code they can point at.** A server that quietly
+averages prices together has done a calculation nobody asked for, on data
+somebody is about to draw a conclusion from — and it also has to decide which
+high and which low survive the thinning, which is exactly the kind of hidden
+judgement this product exists not to make.
+
+**3. Every batch of prices carries a label saying which market it came from.**
+Our data supplier gives us the _full_ US market for historical prices but only
+_one exchange_ for live ones. Those are genuinely different things and a chart
+that mixes them without saying so is misleading. We had assumed we could just
+stamp every price with "full US market" — it is stored, so it must be. **We
+tested that assumption and it was false**: the repository ships a command that
+loads _invented_ test prices into a real database, so the stamp would have
+labelled fake prices as the real US market. So we spent a small database change
+on storing the label properly. That is roughly a thousand extra rows against
+forty-eight million — cheap, and honest.
+
+**4. A chart that runs up to "now" is stitched from two sources, and it says
+so.** Our stored history stops at the last completed trading day. A chart ending
+_now_ therefore needs a fresh piece from the supplier, live, while the user
+waits. We could have ducked it by ending every chart at yesterday's close —
+honest, cheap, and obviously wrong to anyone expecting today. Instead the answer
+is stitched together and **labelled at the seam**, so the interface can show
+which part came from where. It costs under 20 milliseconds and is capped so it
+can never hammer the supplier.
+
+**5. "We only have part of that" and "we have none of that" are answers, not
+errors.** If you ask for prices for a day the market was shut, you get a normal,
+successful reply that says: here is the window you asked about, and it is empty.
+This matters more than it sounds. The product's whole thesis is that _"there
+isn't enough evidence"_ is a legitimate, useful conclusion rather than a
+failure — and a system that treats missing data as a crash can never say that
+honestly.
+
+## Two things we found by measuring rather than assuming
+
+**Nobody had ever checked whether the data was compressed on the way out.** It
+was not — not by our software, not by the hosting platform. Every size figure
+this project had quoted for months described a saving that was not happening. We
+turned compression on, and the securities page dropped from **191 kB to 20 kB**
+on the wire, a month of minute prices from **1.06 MB to about 154 kB**, and the
+page load from about 1.15 seconds to **0.48 seconds** — a bit over twice as fast,
+for a change that is four lines of configuration.
+
+The lesson is the more valuable half, and it is written down as such: this was
+not an oversight, it was a thing **none of our 1,100 automated tests could
+possibly have seen**, because they test the software without ever putting it on a
+network. We now keep an explicit list of exactly those claims — true today,
+checked by nothing — so the next one is found on purpose rather than by luck.
+
+**And asking twice is now nearly free.** Yesterday's stock prices never change,
+which is the cheapest saving this product will ever get. But we found that the
+_answer_ about them can still change — a supplier can correct a price, and a
+company's status can change — so rather than telling browsers "this is frozen
+forever", the server sends a fingerprint of the answer. A browser that already
+has that answer gets a 20-byte "still correct" reply instead of the whole thing,
+and nothing anywhere in the system can serve a stale answer for more than five
+minutes. That is the same mechanism the eventual replay feature — the one this
+product is being built around — will run on, because in replay every trading day
+is a closed one.
+
+## Where this leaves the product
+
+The backend half of this epic is **finished**. Everything from here to the end of
+Epic 2 is on screen: the search box, the price chart, the volume chart and the
+time-window control. The doorway is built, measured, documented, and its
+decisions are written down with the alternatives that lost — so the five stories
+that walk through it inherit the answers rather than re-taking them differently
+five times.

@@ -1021,7 +1021,13 @@ things say so:**
 **So today's session is Epic 3's, and the split is by how the data ARRIVES
 rather than by how old it is.**
 
-**What is genuinely open, and has no owner written down: the read-side join.**
+**~~What is genuinely open, and has no owner written down: the read-side
+join.~~ SETTLED 2026-09-09 and BUILT — it has an owner, and it is Task 2.9.5.**
+The choice was the second of the three below — **stitch the store to a live tail
+and label the seam** — with four rules that bound the metered request, recorded
+in `MARKET-DATA-API.md` §5. The paragraph is left standing because it is what
+handed the decision on. What follows it is the state of the question on
+2026-09-08.
 When Story 2.9 serves a chart window ending _now_, the window spans a stored
 part and a live part from two different tapes. Three shapes, none chosen:
 serve only what is stored and let the chart end sixteen minutes ago; stitch the

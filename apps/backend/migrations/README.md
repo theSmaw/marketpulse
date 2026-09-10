@@ -173,6 +173,29 @@ to a populated table is a migration that fails, so this shape is only available
 while the table is empty, and a later table gets its provenance columns in its
 own `create table`.
 
+**And then `0007_bar_coverage_provenance.sql` gave two of them a default, which
+looks like the opposite rule (added 2026-09-09, Task 2.9.4).** Two applied
+migrations now say opposite-looking things about one convention, so the rule
+that reconciles them is here rather than left to the next reader to pick one:
+
+> **The rule is that a writer must not be able to insert without naming a
+> source. `not null` with no default is the usual way to get that, and it is not
+> the only way.** `0007` adds `provider` and `feed` to a **populated** table, so
+> a no-default `not null` cannot be added at all — and it adds them during a
+> deploy that migrates **before** the code rolls, so for the length of that
+> window the previous backfill is still the writer and does not know the columns
+> exist. A default is what stops that insert failing. What replaces the
+> database's guarantee is a compile-time one: `schema.ts` declares both columns
+> **required on insert**, so a writer that omits one is a type error and the
+> default is unreachable from any shipped writer.
+
+So: **no default on a new table; a default plus a required-on-insert declaration
+in `schema.ts` when the table is already populated.** The second is strictly
+weaker — it is checked by `tsc` rather than by PostgreSQL — and is only reached
+for when the first is unavailable. `market-bars.database.test.ts` asserts both
+halves: the defaults out of `information_schema`, and the vocabularies out of
+`pg_constraint` against `PROVIDER_IDS` and `MARKET_FEEDS`.
+
 ---
 
 ## 3. Identifiers: a surrogate `bigint` key, with the natural key beside it

@@ -180,6 +180,18 @@ So _"from the last bar I stored, to now"_ stores **nothing on every run**.
 as `coverage.covered` — which is what `SeriesCoverage` exists for, and what makes the
 resume point the ledger's statement rather than the newest bar.
 
+**Amended 2026-09-10 (Story 2.9's close).** Every enumeration of the ledger in this
+document — decision 4's, decision 8's, and _What the coverage column certifies_ — was
+written before `bar_coverage` had provenance on it. `0007_bar_coverage_provenance.sql`
+(Task 2.9.4) added `provider` and `feed`, ~1,036 rows rather than forty-eight million,
+because a served series cannot exist without provenance and `market_bars` deliberately
+holds none per bar. Nothing above is reversed: the resume point is still `covered.end`,
+the ledger is still a statement rather than a count of rows, and it still certifies
+nothing about density or freshness. What is new is that the ledger is now also **the
+answer to "which tape is this"**, and that `market-bars.ts` **refuses** a write whose
+source disagrees with the row it would extend — which is decision 1's correction gap
+gaining a mechanism on one axis. See ADR 0021 and `MARKET-DATA-API.md` §10.
+
 ### 9. The backfill runs from a RUNNER, and the catch-up is SCHEDULED
 
 Open decision 4, corrected by measurement rather than abandoned. ~250 ms per round trip from

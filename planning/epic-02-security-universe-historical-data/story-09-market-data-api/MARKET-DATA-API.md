@@ -589,11 +589,30 @@ amend live claims, leave historical records standing.
 
 ## 9. What this document deliberately does not decide
 
-- **The request and response types.** Tasks 2.9.2 and 2.9.3. This settles the
-  shape; they type it, and the `satisfies` guard has to be applied at **every**
-  nesting level — `securities-response.ts` applies it three times because it
-  checks top-level keys and does not reach into a nested object, and a series
-  response has bars, provenance, sources and coverage nested inside it.
+- ~~**The request and response types.** Tasks 2.9.2 and 2.9.3.~~ **Built —
+  see §14 for the request and its refusals.** Two corrections to this bullet,
+  taken 2026-09-10 at the story's close, because both are live claims about
+  where the contract is rather than figures:
+  - It names _"bars, provenance, sources and coverage"_ as the nested shapes,
+    which was a forward-looking guess and **undercounts**. There are **seven**
+    guarded shapes on the series response — `TimeWindowPayload`,
+    `SeriesCoveragePayload`, `BarSource`, `SeriesProvenancePayload`,
+    `BarPayload`, `BarSeriesPayload`, `BarSeriesResponse` — and the seventh in
+    that list, `TimeWindowPayload`, is the one the nullable field hangs off.
+  - It says the types _"live in `packages/shared`"_. That is true of the
+    **types** and **false of the schemas**: the schemas are in
+    `apps/backend/src/routes/market-data.ts`, beside the route, because
+    `JsonSchemaProperty` is deliberately not in `packages/shared` — nothing
+    outside the backend declares a response schema, and that package is inlined
+    into the frontend bundle. `/health`, `/securities` and `/market-data` all
+    follow the same split. `STORY.md`'s scope list already carries this
+    correction; a reader sent to the wrong package is the cost of leaving it in
+    only one place.
+
+  The guard's own property is unchanged and was re-produced at the close: it
+  checks **top-level keys** and does not reach into a nested object, which is why
+  it is applied seven times here rather than once. See §14.3.
+
 - ~~**Where a stored series' `retrievedAt` comes from.**~~ **Settled by Task
   2.9.4 — see §10**, which took `min(market_bars.recorded_at)` over the rows
   actually returned, and found that the `provider`/`feed` half could not be
@@ -1752,3 +1771,178 @@ its own: a compressed size is platform-dependent, so it is re-taken per
 environment rather than carried across one.** Every _identity_ figure is
 byte-identical between the two (44,693 / 177,463 / 190,736), which is the control
 that says the stores agree and only the encoder differs.
+
+---
+
+## 14. The request contract as built, and its refusal taxonomy — Task 2.9.2
+
+§2 settles the **decision** — both window forms, absolute as the primitive — and
+does not record what shipped. This section does, because a reader coming to add a
+sixth refusal reason needs the test that governs the five that exist, and because
+"which mistake is which reason" is the sort of thing three later callers would
+otherwise each answer differently.
+
+`apps/backend/src/series-request.ts`, one exported function, 28 tests. No
+`fetch`, no pool, no Fastify and **no clock** — `now` is a parameter.
+
+```
+parseSeriesRequest(query, now) -> SeriesRequest | SeriesRefusal
+```
+
+### 14.1 It returns a result rather than throwing, which inverts the domain rule
+
+`toTicker`, `toTimeRange` and `toBarSeries` all **throw**, because every refusal
+they can produce is a programming error. A query string is the opposite: every
+refusal is the **client's** mistake, it arrives from outside the process, and it
+has to become a 400 carrying a sentence a person can act on. An exception would
+be control flow for ordinary traffic, and `errors.ts` would map it to a **500**
+unless something remembered to catch it — a well-formed answer naming the wrong
+thing, which is the failure this contract's whole `satisfies`/schema apparatus
+exists to prevent one layer up. `fetchBarsCommand`'s `{ problem }` union is the
+same choice one layer over; this is that shape with a machine-readable reason
+added.
+
+### 14.2 The five reasons, and the test that governs a sixth
+
+| Reason           | What the caller did                                     | Status |
+| ---------------- | ------------------------------------------------------- | ------ |
+| `symbol`         | absent, not a ticker, or repeated in the query string   | 400    |
+| `timeframe`      | absent or not `1m`/`1d`                                 | 400    |
+| `window`         | absent, doubly specified, unparseable, or reversed      | 400    |
+| `calendar-range` | well-formed, and outside the calendar's 2024–2028 range | 400    |
+| `too-large`      | more bars than §4's cap                                 | 400    |
+
+**Every one of them is a 400**, so the route does not branch on them. That raises
+`API_ERROR_CODES`' own question — a member exists when something reads it — and
+the reader that justifies this union is the **test suite**, because a test
+asserting on prose fails the moment the prose is improved. `MarketCalendarRangeError`
+carries its date as a field for exactly that reason.
+
+**`window` deliberately covers four spellings of one mistake**, and that is the
+rule for adding a sixth reason: _a caller does nothing different for each_. Absent,
+doubly specified, unparseable and reversed are one mistake — "your window is not a
+window" — and they carry **different messages**, which is where the difference
+belongs. A message is read by a person; a reason is read by code.
+
+**`calendar-range` is separate for the opposite reason**: it is not a malformed
+request at all. It is a well-formed one this system cannot express, and a caller
+who receives it should widen nothing and retry nothing — it should ask for a
+different window.
+
+### 14.3 The two window forms, and the four traps under them
+
+- **The named form goes through `windowFor`, not through `[first.open,
+last.close)` written out again.** That module knows the expensive thing: a
+  **daily** bar is stamped at midnight ET, hours before the open, so a `1d`
+  window framed on session bounds contains no daily bar at all and returns a
+  perfectly well-formed **empty** answer. This is its third caller rather than
+  its second copy. Asserted: `sessions=5&timeframe=1d` resolves to
+  `2026-08-31T04:00:00Z → 2026-09-08T04:00:00Z`, midnight to midnight, with the
+  upper bound skipping Labor Day.
+- **The `Z` is required on an instant, and a numeric offset is refused with it.**
+  `new Date("2026-09-04T13:30:00")` parses as **local** time — right on a UTC
+  server, wrong by hours on a laptop, and a chart that is plausible and shifted
+  rather than an error. `+01:00` is unambiguous and still refused, because
+  accepting it puts a second wire format in a contract whose whole point is that
+  there is one.
+- **`new Date` is inconsistent about unreal dates, measured on Node 24.**
+  `2026-13-01`, `2026-01-32` and `25:00:00` all give `Invalid Date`;
+  **`2026-02-30T13:30:00Z` silently becomes `2026-03-02`** and `2026-04-31`
+  becomes `2026-05-01`. Neither a shape check nor a NaN check can see the
+  rollover, so `parseInstant` round-trips the parsed date back against the input.
+  The rollover is the more dangerous of the two, which is the opposite of the
+  intuition: an invalid `Date` compares as neither before nor after anything, so
+  it survives the ordering check and produces an **empty** answer nobody can
+  explain, while a date that quietly moved two days produces a **plausible**
+  answer over a window nobody asked for.
+- **Query values are typed `unknown`, not `string | undefined`.** A query string
+  can repeat a key, so `?symbol=NVDA&symbol=AMD` reaches a handler as an
+  **array**. Typing them as strings is a lie the compiler agrees with, and the
+  first symptom would be `isTicker` handed an array.
+
+**And no default timeframe**, unlike `pnpm bars`: a caller who mistypes the
+parameter would otherwise be served minute bars over a daily window.
+
+### 14.4 The calendar's refusal is rewritten rather than passed through
+
+`MarketCalendarRangeError`'s message names `packages/shared/src/market-calendar.ts`
+and the constant to extend — correct for a developer reading a stack, and internal
+detail on a wire. `errors.ts` draws that line for 5xx messages and it does not
+stop applying at 400. Two assertions hold it: the message names `2024-01-01` and
+`2028-12-31`, and contains neither `packages/shared` nor `MARKET_CALENDAR`.
+
+### 14.5 The cap's boundary is asserted on a half day, on purpose
+
+Twenty-seven sessions back from Monday 2026-11-30 is 26 regular sessions **plus
+2026-11-27's 13:00 ET half day**: 26 × 390 + 210 = **10,350**, refused.
+Twenty-six is 9,960 and is accepted. The half day is what the boundary turns on —
+27 _regular_ sessions would be 10,530 and 26 would be 10,140, so a count that
+ignored the early close would refuse both and the test would still be green **for
+the wrong reason**. The assertion is on the number in the message.
+
+---
+
+## 15. The cross-sectional read — what every tracked security last closed at — Task 2.9.7
+
+Recorded here rather than only in that task's file, because the task file is where
+a reader goes for _how 2.9.7 was built_ and this document is where they go
+**before writing the next query of that shape** — and there is a known next
+reader. **Epic 4's Market Overview is it**: §8.1's landing screen wants the same
+figure for the same 518 securities, and the cheapest way for it to get that wrong
+is not to know this was already settled.
+
+**The shape is a lateral scan of two rows per security, and not the window
+function everybody writes first.**
+
+```sql
+select securities.symbol, recent.observed_at, recent.close
+from securities
+cross join lateral (
+  select observed_at, close from market_bars
+  where security_id = securities.id and timeframe = $1
+  order by observed_at desc limit 2
+) as recent
+order by securities.symbol, recent.observed_at desc
+```
+
+Two rows rather than one because the second is what makes a **change** — a last
+close with no previous close is a price with no direction, and §5.4's rule that
+colour is never the sole encoding needs a sign to encode.
+
+`cross join` and **not** `left join`: a security with no daily bars contributes no
+rows and is simply absent from the map. A left join gives it one row of nulls, and
+a null close is a value somebody eventually renders.
+
+### 15.1 Both timings, against the real store
+
+Local, 2026-09-09, against 47,682,213 minute bars and 345,559 daily ones, using
+`explain (analyze, buffers)` over the SQL Kysely actually compiles rather than a
+hand-written approximation of it:
+
+| Shape                                              |  Rows |           Time |
+| -------------------------------------------------- | ----: | -------------: |
+| The lateral scan, cold                             | 1,036 |    **21.4 ms** |
+| The lateral scan, warm, whole round trip from Node | 1,036 | **4.8–8.2 ms** |
+| `row_number() over (partition by …)`, cold         | 1,036 |       830.1 ms |
+| the same, warm                                     | 1,036 |     182–279 ms |
+
+**30–40× worse warm** for the window function. That is the shape this had to
+_avoid_ rather than the shape it had to reach for, and it is the number worth
+carrying: a `row_number()` over the same daily rows reads all **345,559** of them
+and sorts them to return 1,036.
+
+### 15.2 The minute table is untouched by construction, not by luck
+
+This is the half that matters most to the next reader, because it is a property of
+the **plan** rather than a hope. The `Index Cond` is
+`(security_id = securities.id) AND (timeframe = '1d')`; there are **518 index
+searches returning two rows each**; the whole query touches **2,597 buffers**. The
+47.7-million-row minute half of the table is never read, and it is never read
+because the timeframe is in the index condition rather than because the daily rows
+happen to be cached.
+
+`GET /securities` end to end against the real pair: **13–20 ms warm**, 33 ms cold,
+for 518 securities with coverage _and_ closes.
+
+`BARS.md` §8.6's own cross-sectional control was re-taken at Task 2.9.9 (§12.11):
+identical plan, **1.93 ms warm / 408.7 ms cold**.
