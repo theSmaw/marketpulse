@@ -30,6 +30,20 @@
 }
 
 /*
+ * The ticker and whatever qualifies it, on one line.
+ *
+ * `baseline` rather than `center`, so a badge sits on the ticker's baseline
+ * rather than floating beside its cap height — the same reason the headline's
+ * percentage is baselined against the close.
+ */
+.subjectLine {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+/*
  * The ticker, set as the panel's own name. `--font-data` because a ticker is a
  * short identifier read character by character rather than a word — the same
  * argument `.code` below carries, and the reason `BRK.B` and `BRKB` have to be
@@ -60,6 +74,80 @@
 .code {
   font-family: var(--font-data);
   font-size: var(--font-size-dense);
+}
+
+/*
+ * The live region. Off screen and never `display: none` — a hidden element is
+ * hidden from a screen reader too, which would make the region silent rather
+ * than invisible. `a11y.module.css` owns the idiom; this is its fifth consumer.
+ */
+.visuallyHidden {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}
+
+/* --- A newer answer on its way --- */
+
+/*
+ * The stale rail: one sentence, a dashed marker, and a hairline under it that
+ * travels.
+ *
+ * **No colour carries this.** The marker's dashed silhouette and the rule's
+ * dashes are the encoding, and both survive `grayscale(1)` unchanged — which
+ * matters more here than usual, because the nearest available colours are the
+ * feed amber and the price red and either would say *something is wrong* about
+ * an answer that is correct.
+ *
+ * Secondary ink, body size, no box and no background. It sits above the figures
+ * and never on them: `VISUAL-LANGUAGE.md`'s rule is that motion must never make
+ * a number harder to read, and every gesture that would have marked the numbers
+ * themselves — a dim, a blur, a fade — is that rule broken by another route.
+ */
+.refreshing {
+  --marker-color: var(--ink-secondary);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  margin: 0;
+  padding-bottom: var(--space-8);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+
+  /*
+   * A dashed rule drawn as a background rather than as a `border`, because a
+   * border cannot be moved and this one has to travel. 6px of ink, 6px of gap,
+   * one pixel tall, pinned to the bottom edge.
+   */
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--rule-hairline) 0,
+    var(--rule-hairline) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  background-size: 200% var(--border-width);
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+
+  /*
+   * The one thing in this application that moves while somebody is reading, and
+   * it is deliberately not near a value. Derived from the settle duration
+   * rather than declared as a third token — a waiting rhythm is not an
+   * interaction, and the skeleton above uses the same multiple so the two
+   * "we are working" textures on this page breathe at one rate.
+   *
+   * Under `prefers-reduced-motion` the token resolves to `0ms`, the product is
+   * `0ms`, and what is left is a static dashed rule that still marks the state.
+   * That is the point of putting the meaning in the dashes rather than in the
+   * movement.
+   */
+  animation: march calc(var(--motion-duration-settle) * 5) linear infinite;
+}
+
+@keyframes march {
+  to {
+    background-position: 24px 100%;
+  }
 }
 
 /* --- The answer with bars in it --- */
@@ -93,6 +181,45 @@
   from {
     opacity: 0;
     transform: translateY(var(--space-4));
+  }
+}
+
+/*
+ * The figures settling after a held answer was replaced by a fresh one.
+ *
+ * **A background wash and nothing else** — no transform, no opacity on the
+ * text, no scale. `VISUAL-LANGUAGE.md`'s rule again: a value that fades or
+ * slides while an analyst reads it is worse than one that changes instantly, so
+ * the ink stays put and the ground behind it warms for a quarter of a second.
+ *
+ * It runs only when something moved, and that is the component's `key` rather
+ * than anything here — see `settleSignature`.
+ *
+ * No padding and no margin, so the wash covers exactly the box the figures
+ * already occupy and nothing shifts by a pixel when it mounts. An earlier draft
+ * bled it outwards with a negative margin and that is the defect to avoid: the
+ * rules above the price strip and the window list would have overhung the
+ * panel's own edge, which is visible for a quarter of a second and looks like a
+ * layout bug rather than a settle.
+ *
+ * `--motion-duration-settle` resolves to `0ms` under `prefers-reduced-motion`,
+ * which leaves the change instantaneous and unmarked. That is the correct
+ * degradation: the mark is a courtesy, and the numbers are already right.
+ */
+.settle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  animation: settle var(--motion-duration-settle) var(--motion-ease-standard);
+}
+
+@keyframes settle {
+  from {
+    background-color: var(--surface-sunken);
+  }
+
+  to {
+    background-color: transparent;
   }
 }
 

@@ -1,6 +1,6 @@
 # Task 2.10.8 — Every state produced rather than described, and what happens while the next one loads
 
-**Status:** Not started
+**Status:** Complete — 2026-09-10
 **Story:** [2.10 Frontend Market-Data Layer & Application State](STORY.md)
 **Depends on:** Task 2.10.7
 
@@ -495,3 +495,450 @@ does.
 interception — which makes it the cheapest browser assertion in this whole
 story and the one most worth making load-bearing. If the empty state's copy is
 wrong, the gate can catch it.
+
+---
+
+# What was done — 2026-09-10
+
+**Status: complete.** `pnpm verify` and `pnpm e2e` both pass (42 browser tests,
+385 frontend tests). The design brief's six deliverables are answered below, in
+its own order, followed by the causes table, the copy matrix, and a
+non-technical status report.
+
+## D1 — The stale mark
+
+### Where the flag lives, and the two homes that were rejected
+
+**A `stale: boolean` on the three answer members** of `BarSeriesView`. The
+argument is in `bar-series-view.ts` beside it and in `FRONTEND-STATE.md` §2's
+amendment, which is where Story 2.13 and Epic 3 will read it.
+
+- **Not a seventh union member.** Every consumer's `switch` would carry it
+  forever, and each would have to re-derive which answer it is stale _of_ — the
+  member would have to carry the whole answer to be renderable, which is the
+  answer members with a boolean, spelled longer.
+- **Not a field on `BarSeriesSource`.** That cost was priced in the amendment
+  above and it turned out to be the deciding one: `barSeriesFixtureView` returns
+  a `BarSeriesView`, so a story could not express the state without hand-building
+  it — which is the thing the fixture set exists to stop.
+- **A flag and not a state** is `FRONTEND-STATE.md` §4's `retrying` precedent,
+  and the test it states is whether a consumer renders something structurally
+  different. A stale answer renders the same panel with a line above it.
+
+**It is set in exactly one place**: `use-bar-series.ts`'s `held(key)`, through
+which both cache reads pass. `barSeriesCache.write` normalises it back off, so
+an entry never remembers that it was once painted from the cache. That is what
+makes the mark mean what it claims — §2's _every read is accompanied by a
+request_ and the mark are one expression rather than two that can drift.
+
+### What is on screen
+
+A rail above the body: a dashed `Marker`, one sentence, and a travelling dashed
+hairline under it.
+
+> Refreshing — showing the held answer while a newer one is read.
+
+**Not one pixel of any number changes.** No dim, no blur, no fade, no skeleton
+replacing a value. Every treatment that would have marked the figures themselves
+is R3 broken by another route, and the brief said so first.
+
+**Colour carries none of it.** The dashed marker and the dashed rule are the
+encoding and both survive `grayscale(1)` unchanged, which matters more here than
+usual: the only colours nearby are the feed amber and the negative-price red, and
+either would say _something is wrong_ about an answer that is correct.
+
+**Motion, in tokens only.** The rail's dash travel is
+`calc(var(--motion-duration-settle) * 5)` linear infinite — the same multiple the
+two skeletons use, so every "we are working" texture on this page breathes at one
+rate rather than three. The settle wash is `var(--motion-duration-settle)` with
+`var(--motion-ease-standard)`. Both resolve to `0ms` under
+`prefers-reduced-motion` at the token layer, so **there is no media query in this
+component** and what is left under the preference is a static dashed rule that
+still marks the state.
+
+### The transition out, including the case where nothing changed
+
+The settle wash plays **only when a figure actually moved**, and the mechanism is
+a `key` rather than a comparison:
+
+```
+<div className={styles.settle} key={settleSignature(series, prices)}>
+```
+
+The signature is the close, the bar count and `covered.end` — the three facts a
+reader would notice moving, and deliberately not the provenance's retrieval
+timestamp, which changes on every request and would flash the panel on precisely
+the refetch this is designed to leave alone. React remounts a keyed element when
+its key changes and leaves it alone when it does not, so there is no
+previous-value ref, no effect, and no second copy of _what counts as the answer_
+that could drift from the one on screen.
+
+A refetch landing on an identical answer therefore passes in complete visual
+silence. That is the design's own reversal-trigger protocol, and it is right: a
+flash over numbers that did not move is a claim about the numbers.
+
+### The route that produces it, which was a finding
+
+The brief's two-click route — `/securities/NVDA` → `/securities/AMD` → back —
+**does not work in a browser and cannot**, because each of those is a document
+navigation and a document navigation reloads the bundle and takes the
+module-level cache with it. Nothing in the interface links one security to
+another yet; Story 2.11's search and click-through is what will.
+
+What does work, and is a real user's route: **leave the route by the header's
+primary navigation and come back.** That is client-side, it unmounts and remounts
+the panel inside one document, and the bare `/securities` asks for
+`DEFAULT_SYMBOL` — so the second mount reads the entry the first visit stored.
+`e2e/specs/security-series-states.spec.ts` drives exactly that.
+
+## D2 — `untracked`
+
+**The copy is confirmed and the placement changed.** The sentence reads as it
+did; what moved is where it sits.
+
+> **AMD** `Untracked`
+> MarketPulse no longer tracks this security. These bars are what was stored
+> while it did.
+
+A neutral `Badge` beside the ticker on the subject header, with the sentence
+under it — **not** a note at the bottom of the body. The argument is what the
+fact is _about_: an untracked security is untracked whatever this answer turned
+out to be, so it is still true under a partial series, an empty one, and one
+being refreshed. A note under the provenance line reads as a footnote on the
+numbers when it is a qualification on the subject, and it is read _after_ the
+figures rather than before them.
+
+Neutral tone because it is **not a warning**: the bars are real, the series is
+correct, and what changed is the universe. `BADGE_TONES` has no warning tone by
+design, which is the language agreeing with the judgement rather than
+constraining it.
+
+**How the three marks compose**, since all can be true at once: the badge is on
+the header and stays; the stale rail is above the body and goes when the answer
+settles; the coverage line is inside the body and belongs to this answer. None of
+the three can take another's position, which is why they can be read together.
+
+**It has a recorded fixture now.** `apps/frontend/src/fixtures/bar-series/untracked.json`
+is the eleventh recorded body — a **populated** 200 for AMD, produced by setting
+`status='untracked'` on the real row, curling the real endpoint, and restoring the
+row in the same command. The full procedure, including the restore and why it is
+not optional, is in `fixtures/bar-series.ts`'s header.
+
+## D3 — Two live regions on one page
+
+**Two regions, one per subject, and every sentence names its own subject.**
+
+The reason, because the next asynchronous surface inherits it: naming the subject
+is what makes the queue order stop mattering. _"NVDA: holding 1,438 bars…"_ and
+_"The tracked universe loaded. 518 securities…"_ are each complete out of
+context, in either order, and a screen reader is free to queue them however it
+likes.
+
+Two alternatives were rejected:
+
+- **One region for the page** would make one component the owner of another's
+  sentences, and the two states are produced by two independent hooks with no
+  moment at which both are settled.
+- **The design's two regions inside this panel** (a lifecycle one and a data one)
+  reintroduces the page-level problem one level down: two polite regions about
+  _one_ subject queue against each other in an order neither controls, and a
+  listener hearing _"NVDA: refreshing"_ after _"NVDA: 1,438 bars"_ cannot tell
+  which is current. The lifecycle fact is a **clause** on the subject's own
+  sentence instead, never a second voice.
+
+It is `role="status"` and never `role="alert"`, persistent, rendered in every
+state, never unmounted, and silent on arrival — all four of `UniverseTable`'s
+clauses, none of them re-derived.
+
+**Two live claims went false the moment this landed and were corrected in the
+same change**, which is the obligation `CLAUDE.md` records as routinely missed:
+`FeedProvenance.tsx` and `MarketClock.tsx` both said this application had one
+live region. `styles/a11y.module.css`'s call-site count was a third, and
+`e2e/specs/securities-route.spec.ts`'s unscoped `getByRole("status")` was the
+instrument that would have gone red — it is now scoped to the table's region,
+and the scope is the assertion rather than a workaround.
+
+## D4 — Announcement copy
+
+The matrix is below. Three decisions in it are worth stating separately.
+
+**A re-entered state is announced, and the stale clause is what does it.** A live
+region whose text does not change announces nothing, so a refetch landing back on
+the answer it started from would be silent — and that is the _common_ case for a
+closed session's bars. The sequence is `answer` → `answer` + _"Showing a held
+answer while a newer one is read."_ → `answer`: the region passes through a
+different text and back out of it, so the return is heard even when every number
+is identical. Nothing was invented for the mechanism; the clause is true, it is
+the same fact the rail carries, and it happens to be the in-between sentence the
+region needs.
+
+**This is a deliberate departure from the design's _"settled unchanged →
+silent"_, and only for the spoken channel.** The visible flash _is_ suppressed,
+because a flash on unmoved numbers is a claim about the numbers. A listener has
+no flash: silence would leave them unable to tell _nothing changed_ from _nothing
+happened_, and both transitions here follow something the user did.
+
+**The correlation id is not spoken**, which is the second departure — the design
+says _"always announces correlation ID"_. It is a 36-character UUID: read aloud
+it is thirty seconds of hex a listener cannot hold or transcribe, and it is the
+same judgement `UniverseTable` made about a magnitude (`47.7M` spoken is worse
+than not said). The announcement says a reference exists and where; the id itself
+is on screen, selectable, and that is where it is useful.
+
+**A note on rate, which Story 2.11 inherits.** Nothing today changes this text
+without a user having navigated or pressed something. A search field that
+re-requested on every keystroke would drive this region at typing speed, which is
+actively hostile — whatever ships there owes either a debounce upstream of the
+request or a decision to leave the region silent while a query is being typed.
+
+## D5 — Everyday copy
+
+**Confirmed rather than changed, and that is the finding.** `empty` and `partial`
+are what this panel renders in normal use, their copy was argued into shape by
+Task 2.10.7 against the same constraints, and churning it would have been change
+without an improvement. What this task added is the **instrument**: the `empty`
+state's copy is now load-bearing in the CI browser gate, which is the one state
+that gate produces for free on every route.
+
+`e2e/specs/security-series-states.spec.ts` asserts not that the words appear but
+that they do the job: the window that was asked for, in market time with the zone
+named, and the reason nothing is in it. And that it carries **no control and no
+correlation id**, because it is an answer.
+
+R4 held throughout: **no copy carries a figure.** Every number in every sentence
+above — 30, 60, 1,438, 10,000 — comes from the response.
+
+## D6 — What was handed back
+
+- **Annotated states**: `BarSeriesPanel.stories.tsx`'s `AllPermutations` grid,
+  now thirteen wide — the six members, the stitched variant, the retrying
+  control, the defaulted symbol, and the two this task added, **Stale** and
+  **Untracked**. Every one built from a recorded body through the real
+  transition; no state in it is hand-constructed.
+- **The copy matrix**: below.
+- **The motion note**: D1 above, in token terms only.
+- **New shared components**: none. The retry control's extraction was already
+  superseded by the 2026 refresh's `Button`, the badge is the existing `Badge`,
+  and the stale rail is one paragraph in this panel's own stylesheet. Nothing
+  new landed under `src/components/`, so nothing new owes stories.
+
+---
+
+## Every state, from a named cause, seen on screen
+
+| State                        | Named cause                                                                  | Seen in                                                   |
+| ---------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `loading`                    | `neverAnswers`, or a delayed `route.continue()`                              | Story; browser (live-region spec)                         |
+| `loaded`                     | A window entirely inside what the store holds                                | Story (`full`); browser, on a backfilled store            |
+| `partial`                    | The default `sessions=5` against a nightly-backfilled store                  | Story; browser, on a backfilled store                     |
+| `empty`                      | **The ordinary default on CI** — 518 securities and zero bars, every window  | Story; browser gate, load-bearing                         |
+| `refused` — cap              | A year of minute bars; the 400 names the count against 10,000                | Story                                                     |
+| `refused` — calendar         | A window outside 2024–2028                                                   | Story                                                     |
+| `refused` — unknown security | `/securities/ZZZZ` against the **real backend**, no interception             | Story; browser (`security-series.spec.ts`)                |
+| `failed` — retryable         | `DATABASE_PORT=59999 node dist/index.js`; a real 503, `SERVICE_UNAVAILABLE`  | Story; browser, and the retry recovers the page           |
+| `failed` — unreachable       | Stop the backend (`route.abort()` in the browser)                            | Browser                                                   |
+| `failed` — incoherent        | A source's `barCount` off by one, so sources do not sum to bars              | Story; browser, over the **real** body                    |
+| `failed` — unknown feed      | A `feed` slug this bundle does not know; refused by the guard, not the parse | Story                                                     |
+| **`stale`**                  | Leave `/securities` by the header nav and come back — a client-side remount  | Story; browser                                            |
+| **`untracked`**              | `update securities set status='untracked'`, curl, restore                    | Story; browser, over the real body with one field changed |
+
+Two rows are the ones this task added, and one correction to the brief: `empty`
+does **not** need a symbol with nothing stored. Every security in the store has a
+ledger row for both timeframes, and what produces `empty` is the ordinary
+default — which is also why its copy is the most-read text on this surface.
+
+## The copy matrix
+
+`{ }` marks a value from the response. No sentence carries a figure of its own.
+
+| State                | On screen                                                                                                                                                                                 | Announced                                                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `loading`            | _Reading the series…_ + four ragged skeleton bars (`aria-hidden`)                                                                                                                         | **Nothing.** Arriving at a page is not a change                                                                                           |
+| `loaded`             | _Holding all {n} bars of the window asked for._                                                                                                                                           | _{SYM}: holding all {n} bars of the window asked for. Last close {close}, up {pct}._                                                      |
+| `partial`            | _Holding {n} bars, through {covered.end} — less than the window asked for, which runs to {requested.end}._                                                                                | _{SYM}: holding {n} bars, through {covered.end}, of a window running to {requested.end}. Last close {close}, down {pct}._                 |
+| `empty`              | _No bars stored for this window._ / _We asked for {requested} and hold nothing in it. A window reaching into the current session is usually this: stored history is caught up overnight._ | _{SYM}: no bars are stored for the window asked for, {requested}._                                                                        |
+| `refused`            | _That request could not be answered._ / **{message}, verbatim**                                                                                                                           | _{SYM}: that request could not be answered. {message}_                                                                                    |
+| `failed` unreachable | _No response from the service._ / _This is usually temporary. Try again in a moment._ + **Try again**                                                                                     | _{SYM}: no response from the service. This is usually temporary. Try again in a moment._                                                  |
+| `failed` retryable   | _The series could not be read._ / _This is usually temporary. Try again in a moment._ + **Try again** + _Reference {id}_                                                                  | _{SYM}: the series could not be read. This is usually temporary. Try again in a moment. A reference for this failure is shown beside it._ |
+| `failed` permanent   | _The series could not be read._ / _Asking again will not change this answer._ — no control                                                                                                | _{SYM}: the series could not be read. Asking again will not change this answer._                                                          |
+| `retrying`           | The failure's own sentence stays; the control reads _Trying again…_ and is disabled                                                                                                       | _{SYM}: trying {SYM} again._                                                                                                              |
+| **`stale`**          | A rail above the body: dashed marker + _Refreshing — showing the held answer while a newer one is read._ Numbers untouched                                                                | The answer's own sentence **plus** _Showing a held answer while a newer one is read._                                                     |
+| **`untracked`**      | `Untracked` badge beside the ticker + _MarketPulse no longer tracks this security. These bars are what was stored while it did._                                                          | The answer's own sentence **plus** _MarketPulse no longer tracks this security; these bars are what was stored while it did._             |
+| **settle**           | A 240ms background wash over the figures, **only if a figure moved**                                                                                                                      | (the answer's sentence, which changed)                                                                                                    |
+
+## Where the coverage sits
+
+| Level                                | What it can see here                                                                                            |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `series-announcement.test.ts` (11)   | **The sentences.** The only level that reads the copy: subjects, the id that is not spoken, the re-entrant case |
+| `BarSeriesPanel.test.tsx` (52)       | The marks, the region's existence and **node identity** across a change, the region in every state              |
+| `use-bar-series.test.ts` (13)        | That a cached paint is marked and a settled one is not, and that the cache does not remember the mark           |
+| `series-cache.test.ts`               | That `write` normalises the flag off                                                                            |
+| `fixtures/bar-series.test.ts` (14)   | That the eleventh body is a **populated** untracked answer, and that no recorded answer arrives stale           |
+| `security-series-states.spec.ts` (7) | Every failure, both marks, and the live region — in a real browser, from named causes                           |
+
+**What none of them can see is colour**, structurally: no stylesheet is applied
+in the test environment. The stale rail's dashes, the settle wash and the badge's
+contrast were reviewed in Chrome against the workshop's grid, which is the only
+instrument that can.
+
+## Findings recorded for whoever comes next
+
+1. **A document navigation cannot produce a cached paint.** `page.goto` reloads
+   the bundle and takes the module-level cache with it. Any future test of this
+   behaviour has to move within one document, and until Story 2.11 the only such
+   route is the header's primary navigation.
+2. **A second live region on a page breaks an unscoped `getByRole("status")`,
+   loudly and correctly.** The fix is a scope, and the scope is the assertion.
+   The same thing happened one level down in jsdom: text queries that did not say
+   which channel they meant resolved to two elements, which is why
+   `BarSeriesPanel.test.tsx` now has a `VISIBLE` option and `e2e/support/app.ts`
+   a `readable()` helper.
+3. **`untracked` is a field on three members, not a member**, which is why a
+   states checklist walked past it for a whole task. Anything else in this shape
+   — a field carried by several members that changes what is rendered — is
+   invisible to _"every state produced"_ and needs naming separately.
+4. **A settle flash wants a `key`, not a diff.** React already answers _did this
+   change_ for anything expressible as a value, and the version with a
+   previous-value ref is longer, has a second copy of "what counts as the
+   answer", and gets `StrictMode` wrong.
+
+---
+
+# For the stakeholders — what this actually delivered
+
+## The short version
+
+The market-data panel now tells the truth in every situation it can be in,
+including the three it was previously silent about. It says when the numbers on
+screen are a moment out of date while fresher ones are on their way; it says when
+a company has dropped out of the list we follow; and it now speaks to people
+using a screen reader, which it did not do at all before today.
+
+None of this adds a feature you can point at in a demo. All of it is the
+difference between a demo and a product.
+
+## The three gaps, in plain terms
+
+**One: the panel could be showing you yesterday's answer and not say so.**
+
+When you look at a security you have looked at before, the application shows you
+what it already has _immediately_ rather than making you watch a loading spinner
+while it asks again. That is deliberate and it is good — but until today there
+was no way to tell that answer apart from a brand-new one. An analyst could be
+reading a price with a fresher one arriving a second later and have no idea.
+
+Now a line appears above the figures — _"Refreshing — showing the held answer
+while a newer one is read"_ — with a small dashed rule underneath it that
+travels, so the screen visibly looks _busy_ rather than frozen. When the new
+answer lands the line disappears, and the figures take a quarter-second flush of
+background colour **only if something actually changed**. If the new answer is
+identical to the old one, nothing flashes at all, because a flash over numbers
+that did not move would be telling you something untrue.
+
+The rule we held ourselves to throughout: **nothing touches the numbers.** No
+greying out, no fading, no blurring, no replacing a price with a placeholder. A
+figure that goes dim while you are reading it is worse than one that changes
+instantly. The mark sits beside the data, never on it.
+
+**Two: there was a screen in the product nobody had ever seen.**
+
+The system distinguishes companies it actively follows from ones it has stopped
+following but still holds history for. The panel has had a note for that second
+case since last week — and nothing had ever _produced_ it. No test, no example,
+no way to look at it. It was code that had never run.
+
+It runs now. We produced it honestly: we marked a real company as no-longer-
+followed in the real database, recorded what the real server answered, and put
+the row back the way it was. That recording is now permanently part of the test
+material, so the case can never go unseen again.
+
+We also moved where it appears. It used to sit at the bottom, under the numbers,
+where it read like a footnote about the prices. It now sits next to the ticker at
+the top as a small label, because it is a fact about _the company_, not about
+this particular set of prices — and because it should be read before the figures
+rather than after them.
+
+**Three: the panel said nothing to anyone using a screen reader.**
+
+This was left deliberately unbuilt, because the question it raises is bigger than
+one panel: what should a page say out loud when its content changes more than
+once, and what happens when _two_ different parts of the page want to speak at
+the same moment?
+
+That page now has two things that fill in from the network — the panel and the
+list of tracked companies underneath it — and they can finish at the same
+instant, in an order nobody controls. Our answer: **each one speaks for itself,
+and each names what it is talking about.** So a listener hears _"NVDA: holding
+1,438 bars…"_ and _"The tracked universe loaded. 518 securities…"_ and it does
+not matter which arrives first, because neither sentence is ambiguous on its own.
+
+Two smaller judgements inside that, both of which we made against the design
+brief and both of which we have written down with reasons:
+
+- **We do not read the error reference number aloud.** It is a 36-character code.
+  Spoken, it is half a minute of letters and digits nobody can hold in their head
+  or write down. We say that a reference exists and where it is; the code itself
+  stays on screen where it can be copied.
+- **We do announce a refresh that changes nothing.** There is a quirk in how
+  screen readers work: if the text does not change, nothing is said. So pressing
+  "try again" and getting the same failure twice used to be completely silent —
+  the second failure simply never happened, as far as a listener was concerned.
+  Our refresh sentence solves this almost by accident: the wording passes through
+  a different state and back, so the return is always heard.
+
+## Why this was worth a task of its own
+
+Because every one of these is invisible until it costs somebody something.
+
+An analyst reading a stale price is not looking at a bug — they are looking at a
+number that is correct and out of date, and there is nothing on the screen to
+tell them which. A rendering nobody has ever seen is not a rendering that works;
+it is a rendering nobody has checked. And an interface that says nothing to a
+screen reader is not neutral, it is unusable.
+
+The product principle behind all three is the one in the specification: **failures
+and partial answers are normal product states, not exceptions.** A panel that
+only looks good when everything is perfect is a demo. This one now looks
+deliberate when the store is behind, when the service is down, when the request
+was impossible, when the company is no longer followed, and when a fresher answer
+is on its way.
+
+## What a user can see today
+
+The same five screens, and on the Security Explorer:
+
+- a real security's real minute bars, stated as facts — the close, the move, the
+  four prices, the window we asked for against the window we hold, and which
+  market feed the data came from;
+- a clear mark when those figures are being refreshed, and a quiet settle when
+  the new ones land;
+- a clear mark when the company is one we no longer follow;
+- an honest sentence for every way this can go wrong, with a "try again" button
+  **only** where trying again could actually help;
+- and a spoken description of all of it for anyone not looking at the screen.
+
+## What a user still cannot do
+
+- **See a chart.** There is still no line, no candle and no axis, and that is
+  deliberate — Story 2.12 owns that decision, and a small chart added here would
+  be that decision taken by accident by whoever needed one first.
+- **Change the time window.** Story 2.13 owns that, along with the calendar rules
+  that go with it.
+- **Search for a security, or click one in the list to open it.** Story 2.11.
+  Today you reach a security by typing its address, which is also why the stale
+  mark needed a slightly indirect route to demonstrate.
+- **See live prices.** The market feed arrives in Epic 3.
+
+## Where this leaves the story
+
+Story 2.10 has one task left, 2.10.9: verify the whole layer, write its record
+into the repository's index, and take the architecture decision record. Then
+Stories 2.11 to 2.14 turn this panel into something you navigate to rather than
+type your way to, and finally draw the picture.
+
+The decisions this task took are the ones the next three stories inherit rather
+than re-argue — how a refresh is marked, what a page with several speaking
+surfaces does, and what a screen says when it is asked the same question twice.
+Each of them is written down with the condition that would reverse it, so nobody
+has to guess later whether it was a decision or an accident.

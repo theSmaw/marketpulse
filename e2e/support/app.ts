@@ -107,3 +107,26 @@ export async function expectBackendStatus(
 export async function expectNothingFailedToRender(page: Page): Promise<void> {
   await expect(page.getByRole("alert")).toHaveCount(0);
 }
+
+/**
+ * Text a **reader** can see, excluding the sentence written for a screen reader.
+ *
+ * Needed since Task 2.10.8 gave `/securities` a second live region. An
+ * announcement deliberately repeats facts that are also on screen — visible
+ * text is written to be scanned and an announcement to be heard once, out of
+ * context — so a `getByText` that does not say which channel it means resolves
+ * to two elements and fails strict mode.
+ *
+ * **That failure is the locator telling the truth**, and this helper is how a
+ * spec says which of the two it is asserting rather than how it silences the
+ * question. Anything asserting what a *listener* hears reaches into
+ * `role="status"` directly and says so.
+ *
+ * `and()` is the intersection of two locators over the same element: the text
+ * match, restricted to elements that are not the live region. It does not
+ * exclude a live region's *descendants*, which is correct — the regions in this
+ * application hold a single text node and nothing else.
+ */
+export function readable(scope: Locator, text: RegExp | string): Locator {
+  return scope.getByText(text).and(scope.locator(':not([role="status"])'));
+}

@@ -37,10 +37,10 @@
  * red is evidence the break did not land rather than evidence the check works.
  *
  * **It is deliberately a composed class and not a `<VisuallyHidden>` component**,
- * and the call sites are the argument: three of the four are `<span>` and the
- * fourth is `UniverseTable`'s `<p role="status">` live region. A component would
- * have needed an `as` prop on the day it was written, which is a worse API than
- * the class it replaced.
+ * and the call sites are the argument: three of the five are `<span>` and the
+ * other two are the `<p role="status">` live regions in `UniverseTable` and
+ * `BarSeriesPanel`. A component would have needed an `as` prop on the day it
+ * was written, which is a worse API than the class it replaced.
  */
 .visuallyHidden {
   position: absolute;

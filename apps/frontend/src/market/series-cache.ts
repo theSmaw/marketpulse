@@ -216,7 +216,15 @@ export function createSeriesCache(
       // a `Map` already holds updates the value and leaves the position alone,
       // which would make this cache FIFO wearing an LRU's name.
       forget(key);
-      entries.set(key, view);
+      // **Stored fresh, always**, whatever the caller was holding. `stale` is a
+      // fact about *the screen* — this answer is one request old — and not
+      // about the answer, and a cache that remembered it would hand the next
+      // reader a mark it had not earned. It is set at the read instead
+      // (`toStaleBarSeriesView`), where the accompanying request is what makes
+      // it true. Normalising here rather than trusting the call site is the
+      // cheap half: the hook writes back whatever painted, including an entry
+      // it had itself just marked.
+      entries.set(key, { ...view, stale: false });
       bars += weigh(view);
 
       // A single series can exceed the whole bar budget on its own — a

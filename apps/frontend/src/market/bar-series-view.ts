@@ -128,6 +128,46 @@ export type BarSeriesFailure = (typeof BAR_SERIES_FAILURES)[number];
  * well-formed answer about the request rather than about the market, and two
  * states describe the two things that can go wrong: nothing arrived, or what
  * arrived could not be used.
+ *
+ * ## `stale`, and why it is a flag on three members rather than a seventh
+ *
+ * Task 2.10.5 shipped the *behaviour* — a held series for the same request
+ * paints in the first commit while the fresh answer is in flight — and nothing
+ * on the union could say so, which made a cached `loaded` and a
+ * freshly-fetched `loaded` the same value. Task 2.10.8's amendment listed three
+ * homes for the label and this is the middle one, taken for three reasons:
+ *
+ *  1. **It is one mark on screen, not a different shape of screen.** That is
+ *     exactly `retrying`'s precedent in `FRONTEND-STATE.md` §4 — a flag, not a
+ *     state — and the test it states is whether a consumer would render
+ *     something structurally different. A stale answer renders the same panel
+ *     with a line above it.
+ *  2. **A seventh member would land in every consumer's `switch` forever**, and
+ *     each one would have to re-derive which answer it is stale *of*. The
+ *     member would have to carry the whole answer to be renderable at all,
+ *     which is the answer members with a boolean, spelled longer.
+ *  3. **A field on `BarSeriesSource` cannot be expressed by
+ *     `barSeriesFixtureView`**, which returns a `BarSeriesView` and is the only
+ *     sanctioned way to obtain one for a story. A story would be back to
+ *     hand-building state, which is the thing the fixture set exists to stop.
+ *     Here a stale story is `{ ...barSeriesFixtureView("partial"), stale: true }`.
+ *
+ * **Only an answer is ever stale.** The cache holds `loaded`, `partial` and
+ * `empty` and never a `failed` or a `refused` (`series-cache.ts`), so there is
+ * no stale-failure case and no flag on the other three members to get wrong.
+ * And a *different* request never shows the previous one's series — a key
+ * change resets the view — so the thing marked stale is always the same symbol,
+ * timeframe and window as the answer coming to replace it.
+ *
+ * `toBarSeriesView` sets it `false` on every answer it builds, because an
+ * answer that has just arrived is by definition not one. The only thing that
+ * sets it `true` is {@link toStaleBarSeriesView}, at the two cache reads.
+ *
+ * Reversal trigger — a condition, not a story number: **the first consumer that
+ * needs to render a stale answer differently in shape rather than in mark** —
+ * a chart that draws held bars in a second style, say. At that point the
+ * difference has stopped being one mark and the seventh member has earned its
+ * cost.
  */
 export type BarSeriesView =
   /** A request is in flight and no request has settled yet. */
@@ -143,6 +183,7 @@ export type BarSeriesView =
       readonly state: "loaded";
       readonly series: PopulatedBarSeries;
       readonly securityStatus: SecurityStatus;
+      readonly stale: boolean;
     }
   /**
    * Bars, over less than the window that was asked for. **An answer, not a
@@ -164,6 +205,7 @@ export type BarSeriesView =
       readonly state: "partial";
       readonly series: PopulatedBarSeries;
       readonly securityStatus: SecurityStatus;
+      readonly stale: boolean;
     }
   /**
    * We asked, and we hold nothing at all for that window. **Also a 200, also an
@@ -183,6 +225,7 @@ export type BarSeriesView =
       readonly state: "empty";
       readonly series: BarSeries;
       readonly securityStatus: SecurityStatus;
+      readonly stale: boolean;
     }
   /**
    * The request itself was not answerable, and the server said why in a
@@ -303,7 +346,7 @@ export function toBarSeriesView(
       // covered range to compare: `covered` is null exactly when there are no
       // bars, so this is the same question asked in the form the type can use.
       if (!isPopulated(series)) {
-        return { state: "empty", series, securityStatus };
+        return { state: "empty", series, securityStatus, stale: false };
       }
 
       // The one comparison that separates the two populated answers. Instants
@@ -315,9 +358,12 @@ export function toBarSeriesView(
         covered.start.getTime() === requested.start.getTime() &&
         covered.end.getTime() === requested.end.getTime();
 
+      // `stale: false` on both, and it is not a formality: this is the only
+      // place an answer is built from a response, and a response that has just
+      // arrived is the definition of not stale.
       return complete
-        ? { state: "loaded", series, securityStatus }
-        : { state: "partial", series, securityStatus };
+        ? { state: "loaded", series, securityStatus, stale: false }
+        : { state: "partial", series, securityStatus, stale: false };
     }
 
     case "api-error":
@@ -415,6 +461,36 @@ export function toRetryingBarSeriesView(
   return previous.state === "failed" && previous.retryable
     ? { ...previous, retrying: true }
     : previous;
+}
+
+/**
+ * The pure transition into *this answer is one request old*.
+ *
+ * Applied at the two places `use-bar-series.ts` reads the cache — the first
+ * commit of a mount, and the commit after a key change — and nowhere else. That
+ * is what makes the flag mean what the mark on screen claims: `FRONTEND-STATE.md`
+ * §2's rule is that **every read of the cache is accompanied by a request**, so
+ * an entry can only ever be painted with a request already in flight behind it,
+ * and the two facts are set in the same expression rather than in two places
+ * that could drift.
+ *
+ * Anything that is not an answer is returned untouched rather than refused.
+ * There is nothing to mark: a `loading` has nothing on screen to be one request
+ * old, and the cache never holds a `refused` or a `failed`, so this branch is
+ * unreachable from the call sites and exists so the function is total.
+ */
+export function toStaleBarSeriesView(view: BarSeriesView): BarSeriesView {
+  switch (view.state) {
+    case "loaded":
+    case "partial":
+    case "empty":
+      return { ...view, stale: true };
+
+    case "loading":
+    case "refused":
+    case "failed":
+      return view;
+  }
 }
 
 /**

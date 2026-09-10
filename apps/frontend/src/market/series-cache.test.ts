@@ -27,7 +27,12 @@ function answer(
     bars: Array.from({ length: bars }) as readonly Bar[],
   } as unknown as BarSeries;
 
-  return { state, series, securityStatus: "active" } as CacheableBarSeriesView;
+  return {
+    state,
+    series,
+    securityStatus: "active",
+    stale: false,
+  } as CacheableBarSeriesView;
 }
 
 describe("isCacheableBarSeriesView", () => {
@@ -67,11 +72,27 @@ describe("createSeriesCache", () => {
     expect(cache.read("symbol=NVDA")).toBeUndefined();
     cache.write("symbol=NVDA", held);
 
-    expect(cache.read("symbol=NVDA")).toBe(held);
+    // `toEqual` and not `toBe`: since Task 2.10.8 `write` normalises `stale`
+    // off the entry, so what comes back is an equal answer rather than the same
+    // object. The next assertion is the one that says why.
+    expect(cache.read("symbol=NVDA")).toEqual(held);
     // Two spellings of one request would be two misses; two genuinely different
     // requests must not share an entry, and this is the assertion that says the
     // key is the whole request rather than the symbol.
     expect(cache.read("symbol=AMD")).toBeUndefined();
+  });
+
+  it("stores an answer, never the fact that one was painted from here", () => {
+    // `stale` is a fact about the **screen** — this answer is one request old —
+    // and not about the answer. The hook writes back whatever painted,
+    // including an entry it had itself just marked, so an entry that remembered
+    // the mark would hand every future reader a claim it had not earned. The
+    // mark is applied at the read instead, where an accompanying request is
+    // what makes it true.
+    const cache = createSeriesCache();
+    cache.write("symbol=NVDA", { ...answer(10), stale: true });
+
+    expect(cache.read("symbol=NVDA")).toMatchObject({ stale: false });
   });
 
   // The entry bound: the degenerate case the bar budget cannot see, because an

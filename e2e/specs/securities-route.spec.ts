@@ -245,7 +245,17 @@ test("the arrival is announced, by a live region that survives it", async ({
   // It carries no sentence yet because arriving at a page is not a change, so a
   // loading sentence here would never be heard as an announcement and would
   // only be a second copy of the visible line.
-  const status = page.getByRole("status");
+  // **Scoped to the region since Task 2.10.8**, and the scope is the assertion
+  // rather than a workaround for strict mode. This page now has *two* polite
+  // live regions — the universe table's and the market-data panel's — because
+  // the decision that task took is one region per subject, each naming its own
+  // subject, so that a screen reader queueing them in an order neither
+  // component controls still hands a listener two complete sentences. An
+  // unscoped `getByRole("status")` would resolve to both and fail, which is
+  // Playwright reporting the change correctly.
+  const status = page
+    .getByRole("region", { name: "Tracked universe" })
+    .getByRole("status");
   await expect(status).toHaveText("");
   await expect(page.getByText("Loading the tracked universe…")).toBeVisible();
 

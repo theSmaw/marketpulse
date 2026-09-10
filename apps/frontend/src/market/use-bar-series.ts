@@ -4,7 +4,11 @@ import { getBarSeries } from "../api-client.js";
 import type { BarSeriesRequest } from "../bar-series-query.js";
 import { barSeriesQuery } from "../bar-series-query.js";
 import type { BarSeriesView } from "./bar-series-view.js";
-import { toBarSeriesView, toRetryingBarSeriesView } from "./bar-series-view.js";
+import {
+  toBarSeriesView,
+  toRetryingBarSeriesView,
+  toStaleBarSeriesView,
+} from "./bar-series-view.js";
 import { barSeriesCache, isCacheableBarSeriesView } from "./series-cache.js";
 
 // One request for one series, cancelled correctly, superseded correctly, and
@@ -167,6 +171,25 @@ export interface BarSeriesSource {
  * clears the ref as well as aborting, which is the same guard doing the same
  * job for an unmount.
  */
+/**
+ * What to paint for a key before anything has been asked for it.
+ *
+ * A held answer **marked stale**, or `loading` if we hold nothing. The mark and
+ * the read are one expression on purpose: `FRONTEND-STATE.md` §2's rule is that
+ * every read of this cache is accompanied by a request, so an entry can only
+ * ever be on screen with a request already in flight behind it — which is
+ * precisely what the mark claims. Setting the flag anywhere else would be a
+ * second place that has to remember the rule.
+ *
+ * Both call sites below go through here, and they are the only two reads of
+ * the cache in the application: the first commit of a mount, and the commit
+ * after the request changes.
+ */
+function held(key: string): BarSeriesView {
+  const entry = barSeriesCache.read(key);
+  return entry === undefined ? LOADING : toStaleBarSeriesView(entry);
+}
+
 export function useBarSeries(request: BarSeriesRequest): BarSeriesSource {
   const key = barSeriesQuery(request);
 
@@ -176,7 +199,7 @@ export function useBarSeries(request: BarSeriesRequest): BarSeriesSource {
     // Reading the cache in an effect instead would render `loading` and replace
     // it a frame later, which is a flash of nothing on the way to something we
     // already had.
-    () => barSeriesCache.read(key) ?? LOADING,
+    () => held(key),
   );
 
   // The inputs changed. React's own "adjusting state when a prop changes"
@@ -189,7 +212,7 @@ export function useBarSeries(request: BarSeriesRequest): BarSeriesSource {
   // about — plausible and wrong, rather than visibly broken.
   if (pinned.key !== key) {
     setPinned({ request, key });
-    setView(barSeriesCache.read(key) ?? LOADING);
+    setView(held(key));
   }
 
   // `null` between requests, and otherwise the controller of the one request

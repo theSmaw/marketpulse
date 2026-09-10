@@ -1,6 +1,6 @@
 # Story 2.10 — Frontend Market-Data Layer & Application State
 
-**Status:** Not started
+**Status:** In progress — Tasks 2.10.1 to 2.10.8 complete (2026-09-10); 2.10.9 closes it
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.9
 **Epic scope covered:** **Addition to this epic's stated scope** — the client-side half implied by every UI item in it
@@ -214,10 +214,44 @@ The browser suite asserts the mechanism rather than the wording: that the region
 before the content changes, is **the same DOM node** afterwards, and carries a sentence.
 Whether the sentence is a _good_ one was judged by a person; no instrument can hear anything.
 
+> **Answered 2026-09-10 by Task 2.10.8, and the answer adds a fourth clause the
+> three above could not raise.** This section was written when one page filled
+> once. `/securities` now fills **two** surfaces over the network — the universe
+> table and the market-data panel — and both speak.
+>
+> **A live region per subject, and its sentences name that subject.** That is
+> what makes the queue order stop mattering: two polite regions updated in the
+> same moment are read in an order neither component controls, so each sentence
+> has to be complete out of context. _"NVDA: holding 1,438 bars…"_ and _"The
+> tracked universe loaded. 518 securities…"_ are, in either order. One region for
+> the page was rejected — it makes one component the owner of another's
+> sentences, and the two states come from two independent hooks with no moment at
+> which both are settled.
+>
+> Two sub-decisions travel with it, both recorded with their reasons in
+> `components/BarSeriesPanel/series-announcement.ts`: a **correlation id is never
+> spoken** (36 characters of hex a listener cannot hold or transcribe — the same
+> judgement this page made about a magnitude), and a **re-entered state is
+> announced**, by a clause the region passes through and back out of. That second
+> one is the mechanism half of Task 2.4.5's finding: a live region whose text does
+> not change announces nothing, so a refetch landing on the answer it started
+> from — the common case for a closed session's bars — would otherwise be silent.
+>
+> **Story 2.11 inherits one more thing: a note on rate.** Nothing today changes
+> either region's text without a user having navigated or pressed something. A
+> search field that re-requested on every keystroke would drive this at typing
+> speed, which is actively hostile — so whatever ships there owes either a
+> debounce upstream of the request or a decision to stay silent while a query is
+> being typed.
+
 ### Still yours
 
 Caching, invalidation, the `market` feature module's real shape, and the store decision
 itself. Nothing about a fetch-once-on-mount hook over a curated list constrains any of them.
+
+> All four were taken across Tasks 2.10.1 to 2.10.6 and are recorded in
+> [`FRONTEND-STATE.md`](FRONTEND-STATE.md), which is the subject document and
+> wins where it and this file disagree.
 
 ---
 

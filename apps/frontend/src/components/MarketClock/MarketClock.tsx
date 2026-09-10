@@ -81,8 +81,9 @@ import styles from "./MarketClock.module.css";
 // `BackendIndicator`'s recorded reason: the most common transition a live region
 // would fire on is the **mount**, so every page load and every client-side
 // navigation would announce "market closed" — noise about arriving at a page
-// rather than news about the market. `UniverseTable` already owns this
-// application's one live region.
+// rather than news about the market. The two live regions this application does
+// have — `UniverseTable`'s and `BarSeriesPanel`'s — both belong to a subject
+// whose content changes over the network, which a wall clock's does not.
 //
 // The reversal trigger is a page a user keeps open across an actual bell, which
 // is Epic 3's — at which point 09:29:59 → 09:30:00 is genuinely news and the

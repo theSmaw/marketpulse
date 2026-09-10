@@ -1,7 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
+import {
+  BAR_SERIES_FIXTURE_NAMES,
+  barSeriesFixtureView,
+  staleBarSeriesFixtureView,
+} from "../../fixtures/bar-series.js";
 import { BarSeriesPanel } from "./BarSeriesPanel.js";
 
 // What the panel says in each of its six states, asserted against **recorded**
@@ -28,6 +32,21 @@ const props = {
   defaulted: false,
   onRetry: () => undefined,
 };
+
+/**
+ * Query options that exclude the sentence written for a screen reader.
+ *
+ * **Needed since Task 2.10.8 gave this panel a live region**, and the reason is
+ * worth stating rather than routing around: the announcement deliberately
+ * repeats facts that are also on screen — visible text is written to be scanned
+ * and an announcement to be heard once, out of context — so a text query that
+ * does not say which channel it means now resolves to two elements and fails.
+ *
+ * That failure is the queries telling the truth. Every assertion about what a
+ * *reader* sees says so here; the announcement has its own tests below, which
+ * are the only ones that look inside `role="status"`.
+ */
+const VISIBLE = { ignore: "[role='status'], script, style" } as const;
 
 describe("BarSeriesPanel", () => {
   it("names the security in every state, including the ones with no series", () => {
@@ -145,6 +164,7 @@ describe("BarSeriesPanel", () => {
       expect(
         screen.getByText(
           new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+          VISIBLE,
         ),
       ).toBeTruthy();
 
@@ -170,7 +190,7 @@ describe("BarSeriesPanel", () => {
     button.click();
     expect(onRetry).toHaveBeenCalledTimes(1);
 
-    expect(screen.getByText(/usually temporary/)).toBeTruthy();
+    expect(screen.getByText(/usually temporary/, VISIBLE)).toBeTruthy();
   });
 
   it("offers no retry for a failure that will happen again, and says so", () => {
@@ -179,7 +199,9 @@ describe("BarSeriesPanel", () => {
     );
 
     expect(screen.queryByRole("button")).toBeNull();
-    expect(screen.getByText(/will not change this answer/)).toBeTruthy();
+    expect(
+      screen.getByText(/will not change this answer/, VISIBLE),
+    ).toBeTruthy();
   });
 
   it("shows the whole correlation id beside a failure, never a prefix", () => {
@@ -212,7 +234,7 @@ describe("BarSeriesPanel", () => {
     // Returning to `loading` would take the failure off the screen while we
     // find out whether it is still true, and put it back a moment later — which
     // reads as the thing breaking twice.
-    expect(screen.getByText(/usually temporary/)).toBeTruthy();
+    expect(screen.getByText(/usually temporary/, VISIBLE)).toBeTruthy();
     const button = screen.getByRole("button", { name: "Trying again…" });
     expect(button.hasAttribute("disabled")).toBe(true);
   });
@@ -232,6 +254,156 @@ describe("BarSeriesPanel", () => {
       <BarSeriesPanel {...props} view={barSeriesFixtureView("partial")} />,
     );
     expect(screen.queryByText(/Search arrives with Story 2.11/)).toBeNull();
+  });
+
+  // --- Task 2.10.8: the two marks that are not about the answer ---
+
+  it("says a held answer is being refreshed, without touching a number", () => {
+    render(
+      <BarSeriesPanel {...props} view={staleBarSeriesFixtureView("partial")} />,
+    );
+
+    expect(screen.getByText(/Refreshing/)).toBeTruthy();
+
+    // The point of the mark, asserted as what it does *not* do: every figure
+    // the fresh answer will replace is still fully on screen and still says
+    // exactly what it said. A treatment that emptied or replaced them would
+    // pass a "there is a mark" assertion and fail the product.
+    expect(screen.getByText(/Holding 60 bars/)).toBeTruthy();
+    expect(screen.getByText("Open")).toBeTruthy();
+  });
+
+  it("shows no refreshing mark on an answer that just arrived", () => {
+    render(
+      <BarSeriesPanel {...props} view={barSeriesFixtureView("partial")} />,
+    );
+
+    expect(screen.queryByText(/Refreshing/)).toBeNull();
+  });
+
+  it("marks an untracked security on its subject, not in its numbers", () => {
+    render(
+      <BarSeriesPanel
+        {...props}
+        symbol="AMD"
+        view={barSeriesFixtureView("untracked")}
+      />,
+    );
+
+    // A badge beside the ticker, because it qualifies the security rather than
+    // this answer — it is still true under a partial series, an empty one, or
+    // one being refreshed.
+    expect(screen.getByText("Untracked")).toBeTruthy();
+    expect(
+      screen.getByText(/MarketPulse no longer tracks this security/, VISIBLE),
+    ).toBeTruthy();
+
+    // And the bars are still there. An untracked security keeps its history and
+    // the route still serves it: this is not a 404 and not an absence.
+    expect(screen.getByText(/Holding all 30 bars/)).toBeTruthy();
+  });
+
+  it("says nothing about tracking for a security we still follow", () => {
+    render(<BarSeriesPanel {...props} view={barSeriesFixtureView("full")} />);
+
+    expect(screen.queryByText("Untracked")).toBeNull();
+  });
+
+  // --- Task 2.10.8: the live region ---
+
+  it("renders a status region in every state, and never an alert", () => {
+    // Both clauses are the mechanism rather than a preference. A live region
+    // added at the same moment as its content is not reliably announced, so it
+    // has to exist in every state — including the ones with nothing to say. And
+    // `role="alert"` is `ErrorFallback`'s, which the browser suite reads as a
+    // render failure on every route.
+    for (const name of BAR_SERIES_FIXTURE_NAMES) {
+      const { unmount } = render(
+        <BarSeriesPanel {...props} view={barSeriesFixtureView(name)} />,
+      );
+
+      expect(screen.getAllByRole("status")).toHaveLength(1);
+      expect(screen.queryAllByRole("alert")).toHaveLength(0);
+      unmount();
+    }
+  });
+
+  it("is silent while the first answer is still coming", () => {
+    render(<BarSeriesPanel {...props} view={{ state: "loading" }} />);
+
+    // Arriving at a page is not a change. A sentence here would never be heard
+    // as an announcement and would only be a second copy of the visible line.
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+
+  it("names its subject in every sentence it speaks", () => {
+    // The page-level decision, asserted: `/securities` has two polite regions
+    // and a screen reader queues them in an order neither component controls.
+    // A sentence that names its own subject is complete in either order.
+    for (const name of BAR_SERIES_FIXTURE_NAMES) {
+      const { unmount } = render(
+        <BarSeriesPanel {...props} view={barSeriesFixtureView(name)} />,
+      );
+
+      expect(
+        screen.getByRole("status").textContent.startsWith("NVDA:"),
+        `${name} did not name its subject`,
+      ).toBe(true);
+      unmount();
+    }
+  });
+
+  it("keeps the same live region node across a change of state", () => {
+    // The property a text assertion cannot see, and the one that decides
+    // whether anything is announced at all: React must *update* this element
+    // rather than unmount and recreate it. The browser suite asserts the same
+    // thing against the real transition; this is the cheap half.
+    const { rerender } = render(
+      <BarSeriesPanel {...props} view={{ state: "loading" }} />,
+    );
+    const before = screen.getByRole("status");
+
+    rerender(
+      <BarSeriesPanel {...props} view={barSeriesFixtureView("partial")} />,
+    );
+
+    expect(screen.getByRole("status")).toBe(before);
+    expect(before.textContent).toContain("holding 60 bars");
+  });
+
+  it("says a held answer is held, so a refetch landing where it started is heard", () => {
+    // A live region whose text does not change announces nothing, and a refetch
+    // landing on an identical answer is the common case for a closed session's
+    // bars. The stale clause is the text the region passes through and back out
+    // of, which is what makes the return audible.
+    const fresh = barSeriesFixtureView("partial");
+    const { rerender } = render(<BarSeriesPanel {...props} view={fresh} />);
+    const settled = screen.getByRole("status").textContent;
+
+    rerender(
+      <BarSeriesPanel {...props} view={staleBarSeriesFixtureView("partial")} />,
+    );
+    const held = screen.getByRole("status").textContent;
+
+    rerender(<BarSeriesPanel {...props} view={fresh} />);
+
+    expect(held).not.toBe(settled);
+    expect(screen.getByRole("status").textContent).toBe(settled);
+  });
+
+  it("does not read a correlation id aloud", () => {
+    // A 36-character UUID spoken is thirty seconds of hex a listener cannot
+    // hold or transcribe — the same judgement the universe table made about a
+    // magnitude. It is on screen, selectable, and that is where it is useful.
+    render(
+      <BarSeriesPanel {...props} view={barSeriesFixtureView("unavailable")} />,
+    );
+
+    const spoken = screen.getByRole("status").textContent;
+    expect(spoken).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}/u);
+    expect(spoken).toContain(
+      "A reference for this failure is shown beside it.",
+    );
   });
 
   // The fence, asserted rather than left in a comment. Story 2.12 owns the

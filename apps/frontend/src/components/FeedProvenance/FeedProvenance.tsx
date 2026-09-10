@@ -56,7 +56,11 @@ import styles from "./FeedProvenance.module.css";
 // the commonest transition here is the mount — which is the argument
 // `BackendIndicator` and `MarketClock` both made, and it is stronger here,
 // because this value cannot change at all without a deploy and a reload.
-// `UniverseTable` owns the page's one live region.
+// `/securities` has **two** live regions since Task 2.10.8 — `UniverseTable`'s
+// and `BarSeriesPanel`'s — and the rule that arrived with the second is that a
+// region belongs to a **subject** and its sentences name it. A feed label has
+// no subject that changes, which is the same argument again rather than an
+// exception to it.
 //
 // It is presentational: one prop, no hook, no `fetch`. The view is
 // `use-market-feed.ts`'s and every state is reachable from a story, which

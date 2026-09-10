@@ -64,6 +64,7 @@ export {
   BAR_SERIES_FAILURES,
   toBarSeriesView,
   toRetryingBarSeriesView,
+  toStaleBarSeriesView,
 } from "./bar-series-view.js";
 export type {
   BarSeriesFailure,
