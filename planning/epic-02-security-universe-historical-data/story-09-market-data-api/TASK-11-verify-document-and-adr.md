@@ -300,26 +300,26 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
     §12.4, §12.6, §12.7 or §12.11 — so this task inherits a document with two
     dates in it on purpose, and should not flatten them.
   - **Two figures worth quoting in the stakeholder section** because they are the
-    only ones a reader will feel: `/securities` costs **1,153 ms** deployed and
+    only ones a reader will feel: ~~`/securities` costs **1,153 ms** deployed and
     **356 ms** when the validator hits, and a month of minute bars is **1.06 MB**
-    and **~2.5 s**.
+    and **~2.5 s**.~~ **Both moved on 2026-09-10 when Task 2.9.10 deployed the
+    coding, and the post-compression pair is the one to quote: `/securities` is
+    **484 ms** against a **376 ms** conditional floor, and a month of minute bars
+    is **154 kB** on the wire and **1,210 ms**.**
 
 - **What Task 2.9.10 leaves you, added 2026-09-10.** It swept its own
   falsifications the same day, so there is nothing outstanding to sweep — with
   **one exception, which is a hard precondition on this task rather than an
   item on a list.**
 
-  - **DO NOT START THIS TASK WHILE 2.9.10'S DEPLOYED GATE IS OUTSTANDING.** That
-    task is `Built and measured locally; the deployed gate is outstanding`,
-    because the coding does not exist deployed until it merges. Four `curl`
-    readings against the deployed backend are owed, `MARKET-DATA-API.md` §12.8's
-    `200` rows and §13.6 are the empty slots waiting for them, and Story 2.11's
-    `STORY.md` carries a ~1.15 s deployed figure that is now pre-compression. An
-    ingress that strips, re-encodes or buffers `Content-Encoding` makes the whole
-    of §13 inert **with every test green**, so closing the story over an untaken
-    gate would certify a mechanism nobody has seen work. If the readings differ
-    from local it is a falsification of §11 or §12.5 and it sweeps upward the
-    same day.
+  - ~~**DO NOT START THIS TASK WHILE 2.9.10'S DEPLOYED GATE IS OUTSTANDING.**~~
+    **Discharged 2026-09-10, hours after it was written: all four readings pass**
+    (§13.6), §12.8's `200` rows are re-taken with an identity arm as the control,
+    and Story 2.11's deployed figure is re-taken. Nothing falsified §11 or §12.5,
+    so there was no upward sweep. **The headline for your criteria walk:
+    `/securities` fell from 1,153 ms to 484 ms against a 376 ms conditional
+    floor, and a month of minute bars from 2,606 to 1,210 ms.** The `304` column
+    did not move, which was the stated check.
   - **§13 is the new section** — the plugin, the hook order, what the `ETag`
     validates, `Vary`, and the two measured numbers. It is Task 2.9.10's and this
     task does not re-take it.
@@ -363,8 +363,8 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
 
 ## Done when
 
-- **Task 2.9.10's deployed gate is discharged before this task starts** — four
-  readings taken and quoted, `MARKET-DATA-API.md` §12.8 and §13.6 filled in
+- ~~**Task 2.9.10's deployed gate is discharged before this task starts**~~ —
+  **done 2026-09-10**, four readings quoted in §13.6, §12.8 re-taken
 - All seven criteria re-taken, each with the instrument named and the reading
   quoted
 - `pnpm verify`, `pnpm test:database` and `pnpm e2e` all pass, and the numbers

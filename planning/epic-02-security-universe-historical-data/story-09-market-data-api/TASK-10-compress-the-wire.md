@@ -1,6 +1,6 @@
 # Task 2.9.10 — Compress the wire
 
-**Status:** Built and measured locally; the deployed gate is outstanding
+**Status:** Complete — the deployed gate was taken 2026-09-10 and all four readings pass
 **Story:** [2.9 Market Data API](STORY.md)
 **Depends on:** Task 2.9.9
 
@@ -276,14 +276,46 @@ quietly reversing it.
 **One figure in that file is a deployed reading and cannot be re-taken here**:
 `/securities` at ~1.15 s. It is marked as owed by the gate below.
 
-### Outstanding — the deployed gate
+### The deployed gate — taken 2026-09-10, all four pass
 
-**The four deployed readings are not taken**, because the coding does not exist
-deployed until this merges: `deploy.yml` is keyed on `workflow_run` of `verify`
-against `main`. They are the last thing this task owes, and §12.8's `200` rows
-and §13.6 are the slots waiting for them. The prediction on record, so it can be
-wrong: `/securities` should fall from **1,153 ms** towards the **356 ms** floor
-its own `304` already reaches.
+Taken against the deployed backend after the merge that carried this change.
+`MARKET-DATA-API.md` §13.6 has the table; §12.8 has the re-taken timings.
+
+1. `/securities` with gzip → `content-encoding: gzip`, **19,902 B**, `vary`,
+   a weak `ETag`, `private, no-cache`.
+2. Without it → the identity body unchanged, **`content-length: 190736`**, same
+   `ETag`.
+3. Conditional → **`304`, 0 B**, carrying `cache-control` and `etag`, and **no
+   `content-encoding`**.
+4. `/market-data/bars` over an absolute closed window → **`private,
+max-age=300`**, an `etag`, gzip, 7,473 B.
+
+**Nothing differs from local in a way that falsifies §11 or §12.5**, so there was
+nothing to sweep upward.
+
+**`/securities` fell from 1,153 ms to 484 ms, against its own 376 ms conditional
+floor.** The prediction on record was 1,153 → towards 356; what is left above the
+floor is about 100 ms of transferring 19,902 bytes. A month of minute bars fell
+from **2,606 ms to 1,210 ms**. The identity arm of the same run reproduces
+§12.8's original table, which is the control saying the improvement is the coding
+rather than a better day. The `304` column did not move, which was the stated
+check.
+
+**One discrepancy was chased rather than filed.** The deployed coding produced
+**7,473 bytes where local produced 7,549 for a byte-identical body** — not any
+`gzipSync` level of those bytes locally, and exactly the shape of _the ingress
+re-encoded it_. Tested: `Accept-Encoding: deflate` returns **`deflate`**, which
+nothing but this application offers, and `br` alone returns **no coding and the
+full identity body**, where an ingress compressing on its own behalf would have
+served brotli. So §12.5 survives with our coding in front of it. The 76 bytes are
+our own zlib on linux against darwin/arm64 — **a compressed size is
+platform-dependent and is re-taken per environment rather than carried across
+one.**
+
+**One reading came with a caveat the method already anticipated**: the link
+timed out twice mid-run and the script retried. §12.8's own sentence — one
+machine over one link cannot tell its own network from the environment — is why
+that is a retry rather than a finding.
 
 ---
 
@@ -352,12 +384,23 @@ the natural instinct would have been to fix it by showing users less data —
 which is exactly the wrong repair for a product whose job is to show people the
 evidence.
 
-There is one honest caveat. Everything above was measured on a developer
-machine. The change has to be released before we can confirm that the hosting
-platform passes the squeezed data through untouched rather than helpfully
-un-squeezing it — a thing we cannot see from a file, only from a live request.
-That check is written down as a gate rather than a formality, and it is the last
-thing this task owes.
+**And it is now released, which is the half that matters.** Everything above was
+first measured on a developer machine, and the honest caveat was that we could
+not know the hosting platform would pass the squeezed data through untouched
+rather than helpfully un-squeezing it — a thing no file can tell you, only a live
+request. It does. **Measured against the live service: the securities page fell
+from 1.15 seconds to 0.48 seconds, and a month of minute-by-minute market data
+from 2.6 seconds to 1.2.** Roughly two thirds of the wait, removed from the two
+requests this product actually makes.
+
+We also chased one small thing that looked wrong and turned out not to be. The
+live server squeezed the same data 1% smaller than the laptop did, which is
+exactly what it would look like if the hosting platform had quietly unpacked and
+re-packed our data behind our back — the one failure this check exists to catch.
+It had not: the difference is that the two machines ship slightly different
+versions of the same compression library. We know that because we asked the live
+server for a format only our own code offers, and it obliged. Worth the ten
+minutes: the alternative was recording a number we did not understand.
 
 **Nothing on screen changed today.** The securities page looks exactly as it did
 yesterday. It just arrives.
