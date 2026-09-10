@@ -393,3 +393,78 @@ colour. A row that renders a marker without setting it renders an **invisible**
 one — no error, no warning, correct DOM, and nothing in `pnpm verify` can see
 it. That happened here and was caught by looking. Any state you add a marker to
 owes that custom property.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.7 — a seventh thing to produce, and the live region is now the page's _second_
+
+Three findings from building the panel, and the first is a gap that task created
+rather than closed.
+
+### `untracked` renders, and nothing can currently produce it
+
+`BarSeriesPanel` has an `Untracked` note — _"MarketPulse no longer tracks this
+security. These bars are what was stored while it did."_ — because
+`securityStatus` is on all three answer members and this panel is the first
+thing in the product able to say it.
+
+**It has no fixture, no test, no story and no browser cause.** Checked: all six
+recorded 2xx bodies carry `securityStatus: "active"`, every row in the local
+store is `active`, and no deployed row has ever been anything else. So there is a
+rendering path in shipped code that nothing has ever executed, and the criterion
+_"every member of the union has been produced from a named cause"_ does not
+reach it — because it is not a member of the union, it is a **field on three of
+them**, which is exactly the shape a states checklist walks past.
+
+It is producible, and the procedure is worth recording rather than rediscovering.
+Two routes, both reversible:
+
+- **Through the loader**, which is the honest one: remove a symbol from
+  `apps/backend/src/universe.ts`, run `pnpm universe`, and the loader untracks
+  the row rather than deleting it — `load-universe.test.ts` covers exactly that
+  transition. Restore the file and re-run to undo.
+- **Directly**, for a one-off recording:
+  `update securities set status = 'untracked' where symbol = $1`, which is what
+  `market-bars.database.test.ts` already does twice for the same reason.
+
+Either produces a real body with `securityStatus: "untracked"` for
+`apps/frontend/src/fixtures/`, which is where the eleventh recorded body belongs.
+Note the store keeps that security's bars and the route still serves them — an
+untracked security is not a 404 — so the fixture is a **populated** answer with
+a different status, not an empty one.
+
+### The panel's live region will be the page's second, not its first
+
+The announcement bullet above was written when this panel was the only
+asynchronously-filled surface this story added. It is not: `/securities` now
+renders **two** regions that fill over the network — the universe table and the
+market-data panel — and the table already owns a `role="status"`.
+
+So this task is not adding _a_ live region, it is adding a **second one to the
+same document**, and that raises a question the brief does not contemplate: two
+polite regions can be updated in the same moment, and a screen reader queues them.
+Landing on `/securities` currently announces the universe's arrival; with a panel
+region it would announce two things about two different subjects, in an order
+neither component controls. Decide it — one region for the page, two with
+distinct subjects, or the panel staying silent while the table speaks — rather
+than discovering it.
+
+**And two live claims in the tree go false the moment it lands.** Both are true
+today, so leave them alone until then and correct them as part of this task:
+
+- `components/FeedProvenance/FeedProvenance.tsx:59` — _"`UniverseTable` owns the
+  page's one live region."_
+- `components/MarketClock/MarketClock.tsx:85` — _"application's one live
+  region."_
+
+They are named here because recording a correction and propagating it are two
+obligations, and the mechanism that defers the first routinely covers only the
+component being changed.
+
+### The stale label has a concrete route to exercise it now
+
+`/securities/NVDA` → `/securities/AMD` → back is a real navigation that produces
+the cached paint: the third view renders `loaded` in its first commit while a
+request is still in flight. That is the sequence to design the label against, and
+it is cheaper than anything the brief suggests — no throttling, no interception,
+two clicks in a browser.

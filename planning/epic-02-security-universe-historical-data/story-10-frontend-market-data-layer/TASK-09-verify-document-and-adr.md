@@ -347,3 +347,28 @@ navigation, so the close can now check the supersession property where it is
 observable — navigate between two symbols and confirm the panel never shows one
 symbol's bars under the other's name, which is the defect the whole cancellation
 design exists to prevent and which no jsdom test can see.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.7 — one more class of gap for the close to look for
+
+The `untracked` finding in TASK-08's amendment is worth generalising here,
+because the close is where a _class_ of omission gets caught rather than an
+instance.
+
+**A states checklist walks past a field on a state.** `BarSeriesView` has six
+members and this story has been careful about all six — but `securityStatus`
+lives _on_ three of them, `retryable` and `retrying` live on a fourth, and none
+of those is a member the exhaustive `switch` forces anybody to handle. The
+`untracked` rendering shipped with no fixture, no test, no story and no way to
+produce it, and every instrument this story has was green.
+
+So criterion 2's _"a component cannot render loaded without data"_ demonstration
+should be joined at the close by a cheaper sweep: **for each member of the union,
+list its fields, and for each field say what produces each value.** Where the
+answer is "nothing does", that is either a fixture to record or a branch to
+delete — and both are better outcomes than a rendering nobody has seen.
+
+`retrying` is worth checking against that sweep too: it is exercised in a story
+and a component test, and it has never been produced by a real retry in a
+browser.
