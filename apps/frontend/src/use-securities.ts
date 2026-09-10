@@ -5,7 +5,8 @@ import type {
   SecurityCoverage,
   SecurityLastClose,
 } from "@marketpulse/shared";
-import { useEffect, useState } from "react";
+import { isRetryableApiErrorCode } from "@marketpulse/shared";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getSecurities } from "./api-client.js";
 import type { ApiResult } from "./api-client.js";
@@ -160,6 +161,44 @@ export type SecuritiesView =
       readonly state: "failed";
       readonly failure: SecuritiesFailure;
       readonly requestId: string | null;
+
+      /**
+       * Whether asking again is worth offering (Task 2.10.2).
+       *
+       * **A flag on this state rather than a fifth member**, which is
+       * `FRONTEND-STATE.md` §4's decision and its reasoning is worth having
+       * here: only one of the two instructions a failure carries is an action
+       * on *this page*. "Wait and try again" is a button and a sentence;
+       * "check what is answering at that address" is something an operator
+       * does elsewhere, with the `requestId` above. The page's shape is the
+       * same either way — a word, a sentence, and possibly a control — so a
+       * fifth member would grow every consumer's `switch` for a difference of
+       * one sentence and one button, and grow it again at the next code.
+       *
+       * Derived from the error's **`code`** and never from the status number:
+       * `code` is the closed union a client is meant to branch on, and reading
+       * the status line is reading where the contract did not put the answer.
+       * The derivation itself is `isRetryableApiErrorCode` in
+       * `packages/shared`, beside `API_ERROR_CODES`, because the meaning of a
+       * code is part of the contract rather than this client's opinion.
+       */
+      readonly retryable: boolean;
+
+      /**
+       * Whether a retry this user asked for is in flight right now.
+       *
+       * **Also a flag rather than a state, and for a different reason.** A
+       * fifth member would be a state whose whole content is the failed state
+       * it replaces — the same word, the same sentence, the same reference —
+       * and every consumer would have to carry both. What actually changes is
+       * the control: it stops being pressable and says so.
+       *
+       * It is deliberately **not** a return to `loading`. The skeleton would
+       * take the failure's own sentence off the screen while we find out
+       * whether it is still true, and put it back a moment later — which reads
+       * as the page breaking twice.
+       */
+      readonly retrying: boolean;
     };
 
 /**
@@ -197,19 +236,64 @@ function toSecuritiesView(
       };
     }
 
-    case "unreadable-body":
     case "api-error":
-    case "http-error":
+      // The one branch that has a contract to read. Everything else below
+      // decides retryability from the *absence* of one.
       return {
         state: "failed",
         failure: "answered-badly",
         requestId: result.requestId,
+        retryable: isRetryableApiErrorCode(result.error.code),
+        retrying: false,
+      };
+
+    case "unreadable-body":
+      // Something is answering at this address and it is not this API. Waiting
+      // does not change what is deployed there.
+      return {
+        state: "failed",
+        failure: "answered-badly",
+        requestId: result.requestId,
+        retryable: false,
+        retrying: false,
+      };
+
+    case "http-error":
+      // **Not retryable on purpose, and this is the interesting one.** A
+      // non-2xx whose body is not an `ApiError` is often an ingress answering
+      // its own 503 while the replica behind it is not serving — genuinely
+      // temporary. But it carries no `code`, and the fence is that we promise
+      // on the code. An answer we cannot read the contract from is one we
+      // cannot make a promise about, so this understates rather than guesses.
+      //
+      // There is a second, non-obvious path into this branch: `isApiError`
+      // declines a `code` it has not been taught, so a server that later
+      // learns a retryable code reads as non-retryable here until
+      // `packages/shared` learns it too. A version skew degrading in the safe
+      // direction — `FRONTEND-STATE.md` §4 records it because nothing checks
+      // it.
+      return {
+        state: "failed",
+        failure: "answered-badly",
+        requestId: result.requestId,
+        retryable: false,
+        retrying: false,
       };
 
     case "timeout":
     case "unreachable":
-      // Nothing arrived, so there is no response to have carried an id.
-      return { state: "failed", failure: "unreachable", requestId: null };
+      // Nothing arrived, so there is no response to have carried an id — and
+      // nothing to read a code off either. These are retryable on the client's
+      // own judgement rather than the contract's: a refused connection, a name
+      // that did not resolve, or a deadline that expired are all statements
+      // about this moment rather than about the request.
+      return {
+        state: "failed",
+        failure: "unreachable",
+        requestId: null,
+        retryable: true,
+        retrying: false,
+      };
 
     case "aborted":
       return previous;
@@ -217,7 +301,48 @@ function toSecuritiesView(
 }
 
 /**
- * Read the tracked universe, once, on mount.
+ * The pure transition into a retry that has just been asked for.
+ *
+ * Separate from {@link toSecuritiesView} because it is a transition on an
+ * *action* rather than on a result, and pure for the same reason that one is:
+ * a `(state, event) => state` is a reducer that has not been told it is one,
+ * and it is the single thing that makes a later move to a store a re-wiring
+ * rather than a rewrite (`FRONTEND-STATE.md` §1).
+ *
+ * A retry asked for from any other state leaves it alone. Nothing offers one
+ * today, and a state that quietly changed shape because a caller pressed
+ * something it should not have would be a worse answer than doing nothing.
+ */
+function toRetryingView(previous: SecuritiesView): SecuritiesView {
+  return previous.state === "failed" && previous.retryable
+    ? { ...previous, retrying: true }
+    : previous;
+}
+
+/**
+ * What a consumer of this hook gets: the state, and the one action there is.
+ *
+ * Two values rather than a callback hung off the state itself. A function on
+ * the `failed` member would make the union un-comparable, un-serialisable and
+ * awkward to write in a story or a test — and every one of those is a property
+ * this repository actually uses: `UniverseTable`'s stories construct the union
+ * as data, and Epic 11 wants application state describable.
+ */
+export interface SecuritiesSource {
+  readonly view: SecuritiesView;
+
+  /**
+   * Ask again.
+   *
+   * Safe to call at any time, including twice in a row while a request is in
+   * flight: the second call supersedes the first, and the superseded answer is
+   * discarded rather than rendered. See the hook for the mechanism.
+   */
+  readonly retry: () => void;
+}
+
+/**
+ * Read the tracked universe on mount, and again whenever somebody asks.
  *
  * No `try`/`catch` anywhere below, and its absence is deliberate for the reason
  * it is deliberate in `useBackendHealth`: `getSecurities` never throws in any
@@ -226,12 +351,49 @@ function toSecuritiesView(
  * invisible. It is also what keeps an unreachable backend out of
  * `ErrorBoundary` entirely, which is why "the rest of the page stays usable" is
  * structural rather than something the boundaries happen to allow.
+ *
+ * ## The retry is a real request, and the reload it replaces was not
+ *
+ * Before Task 2.10.2 the only recovery from a failed universe was reloading the
+ * document, which throws away every other thing on the screen to re-ask one
+ * question — the opposite of PRODUCT_SPEC.md §36's incremental degradation.
+ * This goes through `api-client.ts` like the first request did, so it inherits
+ * the deadline, the composed abort signal, the correlation-id read and the
+ * seven outcomes rather than reimplementing four of them.
+ *
+ * **There is deliberately no automatic retry and no backoff.** A poll is what a
+ * status indicator does — `useBackendHealth` polls every 30 seconds because a
+ * health state changing *is* the information it carries — and a page of content
+ * is the other thing: a user reading a failure should not have it replaced
+ * under them, and a page that re-asks on a timer makes a request per open tab
+ * forever against a service that is already unwell. And it stays out of the
+ * transport for the reason `apiRequest` states: a retry buried there would make
+ * the five-second deadline a lie.
+ *
+ * ## How a superseded answer is kept off the screen
+ *
+ * One ref holds the controller for the request that *should* win. Starting a
+ * request aborts the previous one and takes ownership of that ref; a result
+ * arrives from a request that no longer owns it — because it had already
+ * resolved when the abort landed, which no amount of aborting can prevent — and
+ * is dropped. So the state can only ever move to the newest answer, and the
+ * `aborted` outcome stays what `api-client.ts` says it is: not a fact about the
+ * service, and never a failure to render.
  */
-export function useSecurities(): SecuritiesView {
+export function useSecurities(): SecuritiesSource {
   const [view, setView] = useState<SecuritiesView>({ state: "loading" });
 
-  useEffect(() => {
+  // `null` between requests, and set to the controller of the one whose answer
+  // this hook will accept.
+  const current = useRef<AbortController | null>(null);
+
+  const request = useCallback(() => {
+    // Supersession, first: whatever was in flight is no longer the answer this
+    // hook is waiting for.
+    current.current?.abort();
+
     const controller = new AbortController();
+    current.current = controller;
 
     const read = async (): Promise<void> => {
       const result = await getSecurities({ signal: controller.signal });
@@ -242,15 +404,33 @@ export function useSecurities(): SecuritiesView {
       // rather than something to suppress.
       if (result.outcome === "aborted") return;
 
+      // The race the abort above cannot win: a request that had already
+      // resolved before it was superseded. Identity rather than a boolean,
+      // because the question is *is this still the request we are waiting for*
+      // and nothing else answers it.
+      if (current.current !== controller) return;
+
       setView((previous) => toSecuritiesView(previous, result));
     };
 
     void read();
-
-    return () => {
-      controller.abort();
-    };
   }, []);
 
-  return view;
+  useEffect(() => {
+    request();
+
+    return () => {
+      current.current?.abort();
+      // Cleared as well as aborted, so a request that had already resolved
+      // cannot set state after this component has gone.
+      current.current = null;
+    };
+  }, [request]);
+
+  const retry = useCallback(() => {
+    setView(toRetryingView);
+    request();
+  }, [request]);
+
+  return { view, retry };
 }

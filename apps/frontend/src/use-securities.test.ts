@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useSecurities } from "./use-securities.js";
@@ -9,6 +9,13 @@ import { useSecurities } from "./use-securities.js";
 // the collapse of the client's seven outcomes onto the four states, and the two
 // properties that belong to the loop rather than to a request: it asks once,
 // and a teardown writes nothing.
+//
+// Task 2.10.2 added a third kind of assertion here: whether a failure says
+// waiting will help, and what happens when a user acts on that. The derivation
+// itself is `packages/shared`' — `isRetryableApiErrorCode`, tested beside
+// `API_ERROR_CODES` — and what is tested here is the mapping from an *outcome*
+// onto it, which is this client's own judgement for the three outcomes that
+// carry no code at all.
 
 const NVDA = {
   symbol: "NVDA",
@@ -65,16 +72,16 @@ describe("useSecurities", () => {
     const { result } = renderHook(() => useSecurities());
 
     // The first state anybody sees, before anything has settled.
-    expect(result.current.state).toBe("loading");
+    expect(result.current.view.state).toBe("loading");
 
     await waitFor(() => {
-      expect(result.current.state).toBe("loaded");
+      expect(result.current.view.state).toBe("loaded");
     });
 
-    if (result.current.state !== "loaded") expect.fail("not loaded");
-    expect(result.current.securities).toHaveLength(1);
-    expect(result.current.securities[0].symbol).toBe("NVDA");
-    expect(result.current.provenance).toStrictEqual(PROVENANCE);
+    if (result.current.view.state !== "loaded") expect.fail("not loaded");
+    expect(result.current.view.securities).toHaveLength(1);
+    expect(result.current.view.securities[0].symbol).toBe("NVDA");
+    expect(result.current.view.provenance).toStrictEqual(PROVENANCE);
   });
 
   it("indexes the coverage the response sends, by symbol", async () => {
@@ -102,12 +109,12 @@ describe("useSecurities", () => {
     const { result } = renderHook(() => useSecurities());
 
     await waitFor(() => {
-      expect(result.current.state).toBe("loaded");
+      expect(result.current.view.state).toBe("loaded");
     });
 
-    if (result.current.state !== "loaded") expect.fail("not loaded");
-    expect(result.current.coverage.get("NVDA")?.barCount).toBe(97530);
-    expect(result.current.coverage.get("SPY")).toBeUndefined();
+    if (result.current.view.state !== "loaded") expect.fail("not loaded");
+    expect(result.current.view.coverage.get("NVDA")?.barCount).toBe(97530);
+    expect(result.current.view.coverage.get("SPY")).toBeUndefined();
   });
 
   it("indexes the closes the response sends, by symbol", async () => {
@@ -132,12 +139,12 @@ describe("useSecurities", () => {
     const { result } = renderHook(() => useSecurities());
 
     await waitFor(() => {
-      expect(result.current.state).toBe("loaded");
+      expect(result.current.view.state).toBe("loaded");
     });
 
-    if (result.current.state !== "loaded") expect.fail("not loaded");
-    expect(result.current.lastCloses.get("NVDA")?.close).toBe(230.36);
-    expect(result.current.lastCloses.get("SPY")).toBeUndefined();
+    if (result.current.view.state !== "loaded") expect.fail("not loaded");
+    expect(result.current.view.lastCloses.get("NVDA")?.close).toBe(230.36);
+    expect(result.current.view.lastCloses.get("SPY")).toBeUndefined();
   });
 
   it("refuses a body whose session is an instant rather than a market date", async () => {
@@ -163,7 +170,7 @@ describe("useSecurities", () => {
     const { result } = renderHook(() => useSecurities());
 
     await waitFor(() => {
-      expect(result.current.state).toBe("failed");
+      expect(result.current.view.state).toBe("failed");
     });
   });
 
@@ -178,7 +185,7 @@ describe("useSecurities", () => {
     const { result } = renderHook(() => useSecurities());
 
     await waitFor(() => {
-      expect(result.current.state).toBe("empty");
+      expect(result.current.view.state).toBe("empty");
     });
   });
 
@@ -193,10 +200,10 @@ describe("useSecurities", () => {
     const { result } = renderHook(() => useSecurities());
 
     await waitFor(() => {
-      expect(result.current.state).toBe("loaded");
+      expect(result.current.view.state).toBe("loaded");
     });
-    if (result.current.state !== "loaded") expect.fail("not loaded");
-    expect(result.current.provenance).toBeNull();
+    if (result.current.view.state !== "loaded") expect.fail("not loaded");
+    expect(result.current.view.provenance).toBeNull();
   });
 
   // A 200 carrying `index.html`, which is what `VITE_API_BASE_URL` pointing at
@@ -210,10 +217,10 @@ describe("useSecurities", () => {
     const { result } = renderHook(() => useSecurities());
 
     await waitFor(() => {
-      expect(result.current.state).toBe("failed");
+      expect(result.current.view.state).toBe("failed");
     });
-    if (result.current.state !== "failed") expect.fail("not failed");
-    expect(result.current.failure).toBe("answered-badly");
+    if (result.current.view.state !== "failed") expect.fail("not failed");
+    expect(result.current.view.failure).toBe("answered-badly");
   });
 
   // The two outcomes that collapse onto one failure, and the id that survives
@@ -230,11 +237,11 @@ describe("useSecurities", () => {
     const { result } = renderHook(() => useSecurities());
 
     await waitFor(() => {
-      expect(result.current.state).toBe("failed");
+      expect(result.current.view.state).toBe("failed");
     });
-    if (result.current.state !== "failed") expect.fail("not failed");
-    expect(result.current.failure).toBe("answered-badly");
-    expect(result.current.requestId).toBe("abc-123");
+    if (result.current.view.state !== "failed") expect.fail("not failed");
+    expect(result.current.view.failure).toBe("answered-badly");
+    expect(result.current.view.requestId).toBe("abc-123");
   });
 
   it("reports a refused connection as unreachable, with no id to quote", async () => {
@@ -243,11 +250,185 @@ describe("useSecurities", () => {
     const { result } = renderHook(() => useSecurities());
 
     await waitFor(() => {
-      expect(result.current.state).toBe("failed");
+      expect(result.current.view.state).toBe("failed");
     });
-    if (result.current.state !== "failed") expect.fail("not failed");
-    expect(result.current.failure).toBe("unreachable");
-    expect(result.current.requestId).toBeNull();
+    if (result.current.view.state !== "failed") expect.fail("not failed");
+    expect(result.current.view.failure).toBe("unreachable");
+    expect(result.current.view.requestId).toBeNull();
+  });
+
+  // The commonest failure this page has, and the reason Task 2.10.2 exists: the
+  // service is up and cannot reach its database. Read off the `code` and never
+  // off the 503 — `code` is the closed union the contract puts the answer in.
+  it("reports a service that cannot reach its data as retryable", async () => {
+    stubFetch(() =>
+      json(
+        503,
+        {
+          code: "SERVICE_UNAVAILABLE",
+          message: "The service is temporarily unavailable.",
+          requestId: "abc-123",
+        },
+        { "x-request-id": "abc-123" },
+      ),
+    );
+
+    const { result } = renderHook(() => useSecurities());
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("failed");
+    });
+    if (result.current.view.state !== "failed") expect.fail("not failed");
+    expect(result.current.view.retryable).toBe(true);
+    expect(result.current.view.requestId).toBe("abc-123");
+  });
+
+  // The other side of the same read. A 500 says this server failed and it will
+  // fail again, which is the whole distinction Task 2.9.6 added the code for.
+  it("reports a server that failed as not retryable", async () => {
+    stubFetch(() =>
+      json(500, {
+        code: "INTERNAL_ERROR",
+        message: "no",
+        requestId: "abc-123",
+      }),
+    );
+
+    const { result } = renderHook(() => useSecurities());
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("failed");
+    });
+    if (result.current.view.state !== "failed") expect.fail("not failed");
+    expect(result.current.view.retryable).toBe(false);
+  });
+
+  // Nothing arrived, so there is no code to read and the judgement is this
+  // client's own: a refused connection is a statement about this moment.
+  it("reports a refused connection as retryable", async () => {
+    stubFetch(() => Promise.reject(new TypeError("Failed to fetch")));
+
+    const { result } = renderHook(() => useSecurities());
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("failed");
+    });
+    if (result.current.view.state !== "failed") expect.fail("not failed");
+    expect(result.current.view.retryable).toBe(true);
+  });
+
+  // **The deliberate understatement**, and the one worth pinning because it
+  // looks like a bug. A 503 from an ingress in front of a replica that is not
+  // serving is genuinely temporary — but its body is not an `ApiError`, so
+  // there is no code, and we do not promise on what we cannot read.
+  it("declines to promise on a 503 that carries no contract", async () => {
+    stubFetch(() =>
+      Promise.resolve(new Response("<html>503</html>", { status: 503 })),
+    );
+
+    const { result } = renderHook(() => useSecurities());
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("failed");
+    });
+    if (result.current.view.state !== "failed") expect.fail("not failed");
+    expect(result.current.view.retryable).toBe(false);
+  });
+
+  // The first control in this product that re-asks a question. The recovery is
+  // a real second request rather than a re-render, and it leaves the page it is
+  // on alone — which is the whole difference from the document reload it
+  // replaces.
+  it("re-asks when a retry is requested, and recovers without a reload", async () => {
+    let answered = false;
+    stubFetch(() => {
+      if (answered) {
+        return json(200, { securities: [NVDA], coverage: [], lastCloses: [] });
+      }
+      answered = true;
+      return json(503, {
+        code: "SERVICE_UNAVAILABLE",
+        message: "The service is temporarily unavailable.",
+        requestId: "abc-123",
+      });
+    });
+
+    const { result } = renderHook(() => useSecurities());
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("failed");
+    });
+
+    act(() => {
+      result.current.retry();
+    });
+
+    // The failure stays on screen while the answer is in flight, marked as
+    // busy rather than replaced by a skeleton: the sentence is still true until
+    // we know otherwise.
+    if (result.current.view.state !== "failed") expect.fail("not failed");
+    expect(result.current.view.retrying).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("loaded");
+    });
+    expect(requests).toBe(2);
+  });
+
+  // Pressing twice cannot render a stale answer. The second press supersedes
+  // the first, and the superseded result is dropped rather than being allowed
+  // to overwrite the newer one — which is the `aborted`-is-not-a-failure rule
+  // met here on a single request, ahead of Task 2.10.5 generalising it.
+  it("cannot render a superseded answer when a retry is pressed twice", async () => {
+    // Three answers, arranged so that a superseded one landing is *visible*:
+    // the second request is slow and says the universe is populated, the third
+    // is immediate and says it is empty. If the loser's answer is allowed to
+    // land, this ends up "loaded" 40 ms after it ended up "empty".
+    let call = 0;
+    stubFetch(() => {
+      call += 1;
+      const populated = call !== 3;
+      const delay = call === 2 ? 40 : 0;
+
+      return new Promise<Response>((resolve) => {
+        setTimeout(() => {
+          resolve(
+            new Response(
+              JSON.stringify({
+                securities: populated ? [NVDA] : [],
+                coverage: [],
+                lastCloses: [],
+              }),
+              { status: 200 },
+            ),
+          );
+        }, delay);
+      });
+    });
+
+    const { result } = renderHook(() => useSecurities());
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("loaded");
+    });
+
+    act(() => {
+      result.current.retry();
+      result.current.retry();
+    });
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("empty");
+    });
+
+    // And it stays there: the slow, superseded answer arrives afterwards and is
+    // dropped. **Verified by removing the identity guard in the hook and
+    // watching this go red** — an abort alone does not do it, because a stubbed
+    // `fetch` that ignores the signal is exactly the shape of a real response
+    // that had already resolved when the abort landed.
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(result.current.view.state).toBe("empty");
+    expect(requests).toBe(3);
   });
 
   // The contrast with `useBackendHealth` that is the whole reason this is a
@@ -267,7 +448,7 @@ describe("useSecurities", () => {
     const { result } = renderHook(() => useSecurities());
 
     await waitFor(() => {
-      expect(result.current.state).toBe("loaded");
+      expect(result.current.view.state).toBe("loaded");
     });
 
     await new Promise((resolve) => setTimeout(resolve, 120));

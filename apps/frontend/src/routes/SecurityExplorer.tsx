@@ -22,7 +22,7 @@ export function SecurityExplorer() {
   // throws hits `Region`'s own boundary and leaves the request that produced it
   // alone — the same argument `App` makes for calling `useBackendHealth`
   // outside the header's boundary.
-  const view = useSecurities();
+  const { view, retry } = useSecurities();
 
   return (
     <div className={page.page}>
@@ -64,7 +64,15 @@ export function SecurityExplorer() {
         name="Tracked universe"
         filledBy="The securities MarketPulse follows. Prices, volume and charts arrive with the live market feed in Epic 3."
       >
-        <UniverseTable view={view} />
+        {/*
+         * `retry` is passed down rather than the table asking for the universe
+         * itself. The same reason the hook is called here: a component that
+         * fetches is a component the workshop cannot render, and every one of
+         * this table's states is reviewable with no backend running precisely
+         * because the only thing it does with the network is take a callback
+         * for it (Task 2.10.2).
+         */}
+        <UniverseTable view={view} onRetry={retry} />
       </Region>
     </div>
   );

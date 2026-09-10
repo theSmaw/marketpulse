@@ -869,19 +869,38 @@ function EmptyState() {
 }
 
 /**
- * The two failures, in one treatment.
+ * The failures, in one treatment.
  *
- * **There are two and not one, and they send a reader to different places** —
- * nothing arrived at all, against something arrived and was not this service.
- * A single "something went wrong" would send half of those readers to check a
- * service that is running perfectly. So there are two words and two sentences,
- * and they share a rendering so the page does not look like it has two
- * unrelated error states.
+ * **There are three renderings and two of them are the same failure**, which is
+ * the shape Task 2.10.2 arrived at rather than the one it started with.
+ *
+ * - *no response* — nothing arrived at all. Check that the service is running
+ *   and that this page is allowed to call it.
+ * - *temporarily unavailable* — the service answered and said it could not
+ *   reach what it needs. Nothing here is broken and waiting is the whole fix.
+ * - *unexpected response* — something answered and it was not this service.
+ *   Check what is serving that address.
+ *
+ * A single "something went wrong" would send two thirds of those readers
+ * somewhere useless. So there are three words and three sentences, and they
+ * share one rendering so the page does not look like it has three unrelated
+ * error states — the rule Task 2.4.3 wrote for two, applied to a third without
+ * inventing a second vocabulary for it.
+ *
+ * **The third is not a third state.** `retryable` is a flag on the failed state
+ * (`use-securities.ts` carries the reasoning, `FRONTEND-STATE.md` §4 the
+ * decision), derived from the error's `code` in `packages/shared`. What it
+ * changes here is exactly the two things that differ: the sentence about
+ * whether waiting will help, and whether there is a control.
+ *
+ * **The raw `code` is nowhere on this screen and must not arrive here.** It is
+ * an internal discriminator; `requestId` remains the only internal identifier
+ * this product shows.
  *
  * **The treatment is `BackendIndicator`'s, deliberately.** A marker whose shape
  * carries the state, a lowercase letterspaced word beside it, achromatic apart
  * from the one amber a glance should land on. That is not a coincidence worth
- * economising on: the same two conditions are already being reported by the
+ * economising on: the same conditions are already being reported by the
  * indicator in the chrome at the moment this region fails, and a second visual
  * vocabulary for the same facts would read as two unrelated things going wrong.
  *
@@ -895,34 +914,56 @@ function EmptyState() {
 function FailedState({
   failure,
   requestId,
+  retryable,
+  retrying,
+  onRetry,
 }: {
   readonly failure: SecuritiesFailure;
   readonly requestId: string | null;
+  readonly retryable: boolean;
+  readonly retrying: boolean;
+  readonly onRetry: () => void;
 }) {
-  const unreachable = failure === "unreachable";
+  const copy = failedCopy(failure, retryable);
 
   return (
     <div className={styles.state}>
-      <span
-        className={cx(
-          styles.marker,
-          unreachable ? styles.markerHollow : styles.markerAttention,
-        )}
-        aria-hidden="true"
-      />
-      <span className={styles.stateLabel}>
-        {unreachable ? "no response" : "unexpected response"}
-      </span>
-      <p className={styles.stateHeadline}>
-        {unreachable
-          ? "The tracked universe is not available."
-          : "The tracked universe could not be read."}
-      </p>
-      <p>
-        {unreachable
-          ? "Nothing answered at the service’s address. Check that the service is running and that this page is allowed to call it."
-          : "Something answered at the service’s address and it was not this service. Check what is serving that address."}
-      </p>
+      <span className={cx(styles.marker, copy.marker)} aria-hidden="true" />
+      <span className={styles.stateLabel}>{copy.label}</span>
+      <p className={styles.stateHeadline}>{copy.headline}</p>
+      <p>{copy.cause}</p>
+      {/*
+       * Whether waiting will help, always said, in both directions.
+       *
+       * The second half is the one that is easy to leave out and is the reason
+       * this is not conditional: a failure that offers no button and says
+       * nothing about why leaves a reader waiting for a page that will never
+       * come good. Saying "this will not fix itself" is the honest half of the
+       * same sentence, and it is what makes the button's absence read as a
+       * decision rather than as something missing.
+       */}
+      <p>{copy.prospect}</p>
+      {retryable && (
+        /*
+         * **The first control in this product that re-asks a question.**
+         *
+         * A real `<button>` styled down to this language, and a button rather
+         * than a link because it changes what is on this page instead of going
+         * anywhere — the same argument `ErrorFallback` makes for its own.
+         *
+         * It is deliberately **not** disabled while the retry is in flight. A
+         * disabled button loses focus in every browser, which would take a
+         * keyboard user to the top of the document at the moment they acted;
+         * and the hook is safe to press again anyway — a second press
+         * supersedes the first and the superseded answer never lands. So the
+         * word changes and the control stays where the user left it.
+         */
+        <p className={styles.actions}>
+          <button type="button" className={styles.retry} onClick={onRetry}>
+            {retrying ? "Trying again…" : "Try again"}
+          </button>
+        </p>
+      )}
       {/*
        * The correlation id, and this page is the first thing in the product to
        * put an internal identifier in front of a user. `api-client.ts` owns the
@@ -932,7 +973,7 @@ function FailedState({
        * user is already being told about. `null` when nothing arrived to carry
        * one, which is most of the `unreachable` cases.
        *
-       * It is set in `--font-mono` as of this task. A value somebody is being
+       * It is set in `--font-mono` as of Task 2.4.4. A value somebody is being
        * asked to read back is the one string on this page a proportional face
        * genuinely damages, and the token's comment carries the argument.
        */}
@@ -943,6 +984,66 @@ function FailedState({
       )}
     </div>
   );
+}
+
+/**
+ * The words for one failure, in one place, so the component above renders them
+ * rather than deciding them.
+ *
+ * `prospect` is the sentence Task 2.10.2 exists for. Before it, the commonest
+ * failure this page has — a service that is up and cannot reach its database —
+ * rendered as *unexpected response*, which told a reader that nothing would
+ * help at the exact moment when waiting was the entire answer.
+ */
+function failedCopy(
+  failure: SecuritiesFailure,
+  retryable: boolean,
+): {
+  readonly label: string;
+  readonly marker: string | undefined;
+  readonly headline: string;
+  readonly cause: string;
+  readonly prospect: string;
+} {
+  if (failure === "unreachable") {
+    return {
+      label: "no response",
+      // Hollow: nothing answered. `BackendIndicator`'s silhouette for the same
+      // condition, which is the imitation this treatment is built on.
+      marker: styles.markerHollow,
+      headline: "The tracked universe is not available.",
+      cause:
+        "Nothing answered at the service’s address. Check that the service is running and that this page is allowed to call it.",
+      prospect:
+        "A service that is starting up looks exactly like this, so trying again may work.",
+    };
+  }
+
+  if (retryable) {
+    return {
+      label: "temporarily unavailable",
+      // Dashed: the silhouette this language already uses for *not yet* rather
+      // than for a state — and deliberately not the amber square, which marks
+      // the one condition on this page that needs somebody to go and look at
+      // something. This one needs nobody.
+      marker: styles.markerPending,
+      headline: "The tracked universe is temporarily unavailable.",
+      cause:
+        "The service answered, and it could not reach the data it needs. Nothing on this page is broken and there is nothing here to fix.",
+      prospect: "This is usually brief. Trying again in a moment should work.",
+    };
+  }
+
+  return {
+    label: "unexpected response",
+    // A filled amber square: something answered and it was the wrong thing.
+    marker: styles.markerAttention,
+    headline: "The tracked universe could not be read.",
+    cause:
+      "Something answered at the service’s address and it was not this service. Check what is serving that address.",
+    prospect:
+      "Trying again now would produce the same answer, so this page is not offering to.",
+  };
 }
 
 /**
@@ -1057,10 +1158,22 @@ function announce(view: SecuritiesView): string {
     case "empty":
       return "The universe has not been loaded. This service holds no securities.";
 
-    case "failed":
-      return view.failure === "unreachable"
-        ? "The tracked universe is not available. Nothing answered at the service’s address."
-        : "The tracked universe could not be read. Something answered at the service’s address and it was not this service.";
+    case "failed": {
+      // **A retry in flight is announced, and that is what makes the button
+      // audible.** Pressing it changes nothing else a listener can hear: the
+      // word, the headline and the reference are all still true. Without this
+      // sentence the control would be one whose entire feedback is visual.
+      //
+      // It also does a second job that is easy to miss. A retry that fails the
+      // same way returns this region to a sentence it has already spoken — and
+      // a live region whose text does not change announces nothing. Passing
+      // through this sentence and back out of it is what makes the second
+      // failure heard at all.
+      if (view.retrying) return "Trying the tracked universe again.";
+
+      const copy = failedCopy(view.failure, view.retryable);
+      return `${copy.headline} ${copy.cause} ${copy.prospect}`;
+    }
   }
 }
 
@@ -1114,16 +1227,39 @@ function describeHistory(withHistory: number, rows: number): string {
  * thing here not to tidy away: it has to survive every transition the `switch`
  * makes, and folding it into a branch is how it stops doing that.
  */
-export function UniverseTable({ view }: { readonly view: SecuritiesView }) {
+export function UniverseTable({ view, onRetry }: UniverseTableProps) {
   return (
     <>
       <Announcement view={view} />
-      <StateBody view={view} />
+      <StateBody view={view} onRetry={onRetry} />
     </>
   );
 }
 
-function StateBody({ view }: { readonly view: SecuritiesView }) {
+export interface UniverseTableProps {
+  /**
+   * The state, **whole**, rather than spread back into props.
+   *
+   * The opposite of `BackendIndicator`'s four separate props, and both are
+   * right: a union exists so the impossible combinations cannot be built, and
+   * handing a renderer the pieces gives back the boolean space it removed.
+   */
+  readonly view: SecuritiesView;
+
+  /**
+   * Ask for the universe again.
+   *
+   * **Required, for `ErrorFallback`'s reason**: offering recovery is the half
+   * of a failure state that is easy to forget, and an optional callback is a
+   * failure state that silently loses its way out. It is only ever *rendered*
+   * on a failure this client believes is worth retrying — which is why this is
+   * a callback rather than a state the table owns. A component that fetched
+   * would be a component that could not be reviewed in the workshop.
+   */
+  readonly onRetry: () => void;
+}
+
+function StateBody({ view, onRetry }: UniverseTableProps) {
   switch (view.state) {
     case "loading":
       return <LoadingState />;
@@ -1141,6 +1277,14 @@ function StateBody({ view }: { readonly view: SecuritiesView }) {
       return <EmptyState />;
 
     case "failed":
-      return <FailedState failure={view.failure} requestId={view.requestId} />;
+      return (
+        <FailedState
+          failure={view.failure}
+          requestId={view.requestId}
+          retryable={view.retryable}
+          retrying={view.retrying}
+          onRetry={onRetry}
+        />
+      );
   }
 }

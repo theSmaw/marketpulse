@@ -228,7 +228,10 @@ const meta = {
   title: "Market/UniverseTable",
   component: UniverseTable,
   parameters: { layout: "padded" },
-  args: { view: loaded(UNIVERSE) },
+  // `onRetry` is required, and in the workshop it is a no-op: what these
+  // stories review is the *rendering* of a failure a user can act on, and the
+  // acting itself is `use-securities.ts`' and is tested where it lives.
+  args: { view: loaded(UNIVERSE), onRetry: () => undefined },
 } satisfies Meta<typeof UniverseTable>;
 
 export default meta;
@@ -312,33 +315,85 @@ export const Empty: Story = { args: { view: { state: "empty" } } };
 
 export const Unreachable: Story = {
   args: {
-    view: { state: "failed", failure: "unreachable", requestId: null },
+    view: {
+      state: "failed",
+      failure: "unreachable",
+      requestId: null,
+      retryable: true,
+      retrying: false,
+    },
   },
 };
 
-/** The other failure, which is a different diagnosis and sends a reader
- *  somewhere else. It is the only state that has an id to offer. */
+/**
+ * **The commonest failure this page actually has**, and the one Task 2.10.2
+ * exists for: the service is up and cannot reach its database, so it answers a
+ * 503 carrying `SERVICE_UNAVAILABLE`.
+ *
+ * Until this task it rendered as *unexpected response* — a sentence that was
+ * false in the direction that matters, because it told a reader nothing would
+ * help at the moment when waiting was the entire answer.
+ */
+export const TemporarilyUnavailable: Story = {
+  args: {
+    view: {
+      state: "failed",
+      failure: "answered-badly",
+      requestId: "0f9c1b4e-7a52-4b1d-9c2e-3d8a6f04b571",
+      retryable: true,
+      retrying: false,
+    },
+  },
+};
+
+/**
+ * The same state with the retry in flight.
+ *
+ * The control is still pressable on purpose — a disabled button loses focus in
+ * every browser, and the hook is safe to press twice. What the workshop is for
+ * here is the thing no test can judge: whether a word swapping under the
+ * pointer reads as *working on it* rather than as a control that has broken.
+ */
+export const Retrying: Story = {
+  args: {
+    view: {
+      state: "failed",
+      failure: "answered-badly",
+      requestId: "0f9c1b4e-7a52-4b1d-9c2e-3d8a6f04b571",
+      retryable: true,
+      retrying: true,
+    },
+  },
+};
+
+/** The failure that will not fix itself, which is a different diagnosis and
+ *  sends a reader somewhere else. It offers no button, and says so rather than
+ *  leaving the absence to be inferred. */
 export const AnsweredBadly: Story = {
   args: {
     view: {
       state: "failed",
       failure: "answered-badly",
       requestId: "0f9c1b4e-7a52-4b1d-9c2e-3d8a6f04b571",
+      retryable: false,
+      retrying: false,
     },
   },
 };
 
 /**
- * All nine renderings, stacked.
+ * All twelve renderings, stacked.
  *
  * `stack` rather than the two-column grid: this is a full-width table, and the
  * grid's `max-content` column would squeeze it to nothing. The order is the
  * order a reader meets them — the ordinary state, then the row-level exception,
- * then the three page-level ones.
+ * then the four page-level ones.
  *
- * The two failures are next to each other on purpose. They are two sentences in
- * one treatment, and the thing worth checking here is that they read as the
- * same *kind* of thing rather than as two unrelated error states.
+ * The failures are next to each other on purpose. They are three sentences and
+ * one busy state in **one** treatment, and the thing worth checking here is
+ * that they read as the same *kind* of thing rather than as unrelated error
+ * states — which is the check that keeps Task 2.10.2's third rendering from
+ * becoming a third error language.
  */
 export const AllPermutations: Story = {
   render: () => (
@@ -346,7 +401,7 @@ export const AllPermutations: Story = {
       {PERMUTATIONS.map(([label, view]) => (
         <div className={gridStyles.stackItem} key={label}>
           <span className={gridStyles.label}>{label}</span>
-          <UniverseTable view={view} />
+          <UniverseTable view={view} onRetry={() => undefined} />
         </div>
       ))}
     </div>
@@ -369,7 +424,33 @@ const PERMUTATIONS: readonly (readonly [string, SecuritiesView])[] = [
   ["Empty", { state: "empty" }],
   [
     "Failed — no response",
-    { state: "failed", failure: "unreachable", requestId: null },
+    {
+      state: "failed",
+      failure: "unreachable",
+      requestId: null,
+      retryable: true,
+      retrying: false,
+    },
+  ],
+  [
+    "Failed — temporarily unavailable",
+    {
+      state: "failed",
+      failure: "answered-badly",
+      requestId: "0f9c1b4e-7a52-4b1d-9c2e-3d8a6f04b571",
+      retryable: true,
+      retrying: false,
+    },
+  ],
+  [
+    "Failed — temporarily unavailable, retrying",
+    {
+      state: "failed",
+      failure: "answered-badly",
+      requestId: "0f9c1b4e-7a52-4b1d-9c2e-3d8a6f04b571",
+      retryable: true,
+      retrying: true,
+    },
   ],
   [
     "Failed — unexpected response",
@@ -377,6 +458,8 @@ const PERMUTATIONS: readonly (readonly [string, SecuritiesView])[] = [
       state: "failed",
       failure: "answered-badly",
       requestId: "0f9c1b4e-7a52-4b1d-9c2e-3d8a6f04b571",
+      retryable: false,
+      retrying: false,
     },
   ],
 ];

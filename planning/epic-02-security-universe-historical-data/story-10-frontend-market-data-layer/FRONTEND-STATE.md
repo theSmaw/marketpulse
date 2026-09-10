@@ -425,6 +425,29 @@ may help and offers a retry; a non-retryable one says it will not and offers
 none — because a retry button under a failure that will fail again is a lie the
 user pays for twice.
 
+> **Amended 2026-09-10, by Task 2.10.2 shipping it.** Two things a later state
+> should copy rather than re-decide.
+>
+> **The failed state carries a second flag, `retrying`.** Not in this section's
+> original decision, and it is a different question with the same answer: what
+> the page does _while_ a retry is in flight. Returning to the loading state
+> takes the failure's own sentence off the screen while we find out whether it
+> is still true and puts it back a moment later, which reads as the page
+> breaking twice. So the failure stays and the control says it is working, and
+> the control is deliberately not disabled — a disabled button loses focus in
+> every browser. `BarSeriesView` should spell both the same way.
+>
+> **The announcement is part of the flag rather than an extra.** A live region
+> whose text does not change announces nothing, so a retry that fails the same
+> way is silent to a listener unless the region passes through a distinct
+> sentence and back out of it. Measured across `failed → retrying → failed`.
+>
+> The shipped copy is tabulated in
+> [`TASK-02`](TASK-02-a-failure-a-user-can-act-on.md). The rule above is what
+> governs, and **both** directions of it are said out loud on screen: a
+> non-retryable failure states that trying again would produce the same answer,
+> rather than leaving the absent button to be inferred.
+
 ### Reversal trigger
 
 - **The first code that is retryable only after a stated delay** — a
