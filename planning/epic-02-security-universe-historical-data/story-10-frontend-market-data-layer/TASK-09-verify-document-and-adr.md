@@ -372,3 +372,122 @@ delete — and both are better outcomes than a rendering nobody has seen.
 `retrying` is worth checking against that sweep too: it is exercised in a story
 and a component test, and it has never been produced by a real retry in a
 browser.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.8 — what is swept, one criterion whose instrument does not exist, and a wider field sweep
+
+Task 2.10.8 is complete. Four parts to this: what is already done, what it
+deliberately did **not** do, one correction to an instrument this file names, and
+three claims for the close to check rather than assume.
+
+### Already swept, do not do it twice
+
+- **`FRONTEND-STATE.md` §2 carries the stale-while-loading decision** as a dated
+  amendment — where the flag lives, the two homes rejected, what the mark does on
+  screen, and **two** reversal triggers. §5's inheritance table now marks 2.10.8
+  shipped. The "finish `FRONTEND-STATE.md`" bullet's _stale-while-loading_ half is
+  done; its _announcement_ half is not — see below.
+- **The two live claims this file's predecessor flagged are corrected.**
+  `FeedProvenance.tsx` and `MarketClock.tsx` no longer say this application has
+  one live region. A **third** copy was found by grep and corrected with them:
+  `styles/a11y.module.css` counted its call sites as "three of the four".
+- **The `untracked` gap is closed.** It has a recorded body
+  (`fixtures/bar-series/untracked.json`, the eleventh), a fixture entry, a
+  component test, a story, a browser cause and an entry in the copy matrix. The
+  close should report it as closed rather than re-finding it as an open gap.
+- **The button-rule extraction bullet in TASK-08 was already superseded** by the
+  2026 refresh's `components/Button`, and no new shared component landed. Nothing
+  in `src/components/` gained a stories obligation.
+
+### Still owed, and this file is the only place it is now recorded
+
+**The announcement decision is not in `FRONTEND-STATE.md`.** It lives in
+`components/BarSeriesPanel/series-announcement.ts`'s header and in TASK-08, and
+the "finish `FRONTEND-STATE.md`" bullet explicitly lists it as a subject that
+document owes. It is a rule every future asynchronous surface inherits, not a
+property of one panel, so it belongs beside the others:
+
+> **A live region per subject, and its sentences name that subject.** Two polite
+> regions updated in the same moment are queued in an order neither component
+> controls, so a sentence that does not name its own subject is a fact with no
+> subject. One region for the page was rejected (it makes one component the owner
+> of another's sentences), and so was two regions for one subject (it reproduces
+> the queue-order problem one level down).
+
+Two sub-decisions go with it, both departures from the design brief and both
+argued in that file: **a correlation id is never spoken**, and **a re-entered
+state is announced**, by a clause the region passes through and back out of.
+
+Story 2.11 inherits a third thing from it — a **note on rate**: nothing today
+changes this region's text without a user having navigated or pressed something,
+and a search field re-requesting on every keystroke would drive it at typing
+speed.
+
+### A correction: criterion 3's browser half has a narrower instrument than this file believes
+
+TASK-07's amendment above tells the close to check supersession in a browser by
+_"navigat[ing] between two symbols and confirm[ing] the panel never shows one
+symbol's bars under the other's name"_. **That check is not available, and the
+reason is worth knowing before an hour is spent on it.**
+
+There is no in-application link from one security to another — Story 2.11 owns
+search and click-through — so the only way to reach a second symbol today is
+`page.goto`, which is a **document** navigation: it tears down the whole bundle
+and re-runs it. Nothing about client-side supersession is exercised, because
+there is no client-side transition. (This is the same finding that forced
+TASK-08's stale spec off the brief's suggested route; the module-level cache goes
+with the document too.)
+
+What **is** available, and what the close should use instead:
+
+- **Client-side unmount**, via the header's primary navigation — leave
+  `/securities` and come back. That is a real route change inside one document,
+  it tears the effect down, and it is what `security-series-states.spec.ts`
+  already drives for the stale mark. It answers _"a navigation away from a
+  pending request cancels it"_.
+- **The wrong-bars-under-the-wrong-name property stays at the jsdom level**,
+  where `use-bar-series.test.ts` asserts it directly by identity, until Story
+  2.11 makes a client-side symbol change possible. The close should record that
+  split rather than claiming the browser covered it — this file's own sharpening
+  of criterion 3 is the precedent for saying which half each level answered.
+
+### The field sweep is one field wider, and one of its examples has moved
+
+TASK-07's last amendment asks the close to sweep **fields on members**, not only
+members, because `untracked` shipped unseen. That sweep is still the right one
+and it now has one more entry:
+
+- **`stale` is a new field on `loaded`, `partial` and `empty`.** It is produced
+  by `toStaleBarSeriesView` at the cache read and by nothing else, it is
+  normalised back off by `barSeriesCache.write`, and every value of it is
+  produced in a story, a component test, a hook test and a browser spec. It is
+  the first field added _after_ the sweep was proposed, so it is also the sweep's
+  first live test.
+- **`retrying`'s status has changed.** That amendment says it "has never been
+  produced by a real retry in a browser". It has now:
+  `security-series-states.spec.ts` clicks the control against a real 503 and the
+  page recovers. What is **still** unasserted in a browser is the in-between
+  label — the answer arrives too quickly to observe _"Trying again…"_ without
+  holding the response. Correct the claim, keep the gap.
+
+### Three claims for the close to check rather than assume
+
+1. **The eleventh fixture must not reach the shipped bundle.** Fixtures live
+   under `src/` and are imported by tests and stories only; measured after this
+   task, `apps/frontend/dist` contains none of `untracked.json`'s bar timestamps
+   and the entry chunk is 400,960 B. Re-measure rather than cite — a fixture
+   pulled into a component by a well-meant import is a recorded market body
+   shipped to every visitor, and nothing checks for it.
+2. **A third asynchronous surface could add an unnamed live region and nothing
+   would fail.** The rule above — one region per subject, sentences that name it
+   — is enforced by two tests inside `BarSeriesPanel` and by nothing at the page
+   level. Story 2.11 is the first chance to break it. This is a candidate for
+   `CLAUDE.md`'s _stated invariants nothing checks_ list, in that list's usual
+   form: the claim, the failure it hides (two facts with no subjects, queued in
+   an order neither component controls), and how to re-measure it.
+3. **The dated figures in the 2.10.6 amendment above have moved**, as dated
+   figures do: it records _"ten recorded bodies"_ and _"320 tests in ~5.1s"_,
+   both true when written and now eleven and 385. They are a historical record of
+   that task's measurement and are left standing; criterion 4 is re-taken at the
+   close against the tree rather than read off them.
