@@ -1,0 +1,1929 @@
+<!doctype html>
+
+<html class="h-full" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>MarketPulse - TASK-08 BarSeriesPanel Spec &amp; Prototype</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600;700;800&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+      rel="stylesheet"
+    />
+    <!-- Tailwind CSS v3 with Plugins -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#a20000",
+              "primary-container": "#d00000",
+              "on-primary": "#ffffff",
+              surface: "#f8f9ff",
+              "surface-dim": "#d8dae0",
+              "surface-bright": "#f8f9ff",
+              "surface-container-lowest": "#ffffff",
+              "surface-container-low": "#f2f3f9",
+              "surface-container": "#eceef3",
+              "surface-container-high": "#e6e8ee",
+              "surface-container-highest": "#e1e2e8",
+              "on-surface": "#191c20",
+              "on-surface-variant": "#5e3f3a",
+              outline: "#936e69",
+              "outline-variant": "#d8dade",
+              secondary: "#5b5e66",
+              tertiary: "#005b2e",
+              "tertiary-container": "#02763e",
+              error: "#ba1a1a",
+              "error-container": "#ffdad6",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              display: ["Hanken Grotesk", "sans-serif"],
+              mono: ["JetBrains Mono", "Menlo", "monospace"],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      /* In-flight dashed perimeter rhythm animation (Spec D1) */
+      @keyframes marchDashes {
+        to {
+          stroke-dashoffset: -16;
+        }
+      }
+      .rhythm-border {
+        background-image:
+          repeating-linear-gradient(
+            90deg,
+            #936e69 0,
+            #936e69 6px,
+            transparent 6px,
+            transparent 12px
+          ),
+          repeating-linear-gradient(
+            180deg,
+            #936e69 0,
+            #936e69 6px,
+            transparent 6px,
+            transparent 12px
+          ),
+          repeating-linear-gradient(
+            270deg,
+            #936e69 0,
+            #936e69 6px,
+            transparent 6px,
+            transparent 12px
+          ),
+          repeating-linear-gradient(
+            0deg,
+            #936e69 0,
+            #936e69 6px,
+            transparent 6px,
+            transparent 12px
+          );
+        background-size:
+          100% 1.5px,
+          1.5px 100%,
+          100% 1.5px,
+          1.5px 100%;
+        background-position:
+          0 0,
+          100% 0,
+          100% 100%,
+          0 100%;
+        background-repeat: no-repeat;
+        animation: rhythmBorder 1.2s linear infinite;
+      }
+      @keyframes rhythmBorder {
+        0% {
+          background-position:
+            0 0,
+            100% 0,
+            100% 100%,
+            0 100%;
+        }
+        100% {
+          background-position:
+            24px 0,
+            100% 24px,
+            calc(100% - 24px) 100%,
+            0 calc(100% - 24px);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .rhythm-border {
+          animation: none !important;
+          border: 1.5px dashed #936e69 !important;
+          background: none !important;
+        }
+        .metric-flash {
+          animation: none !important;
+        }
+      }
+      /* Metric cell settle flash: 240ms duration (Spec D1) */
+      .metric-flash {
+        animation: metricFlashAnim 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes metricFlashAnim {
+        0% {
+          background-color: rgba(2, 118, 62, 0.18);
+        }
+        100% {
+          background-color: transparent;
+        }
+      }
+      /* Custom tab navigation styling */
+      .tab-active {
+        border-bottom: 2px solid #a20000;
+        color: #a20000;
+        font-weight: 700;
+      }
+      .tab-inactive {
+        border-bottom: 2px solid transparent;
+        color: #5b5e66;
+      }
+      .tab-inactive:hover {
+        color: #191c20;
+        border-bottom-color: #d8dade;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-surface text-on-surface font-sans antialiased text-xs min-h-screen flex flex-col selection:bg-red-100 selection:text-primary"
+  >
+    <!-- ACCESSIBILITY: Dedicated Polite Screen Reader Announcers (D3/D4 Live Region Architecture) -->
+    <div class="sr-only">
+      <div
+        aria-atomic="true"
+        aria-live="polite"
+        id="sr-lifecycle-region"
+        role="status"
+      ></div>
+      <div
+        aria-atomic="true"
+        aria-live="polite"
+        id="sr-data-region"
+        role="status"
+      ></div>
+    </div>
+    <!-- BEGIN: MainHeader -->
+    <header
+      class="bg-surface-container-lowest border-b border-outline-variant/60 sticky top-0 z-40"
+    >
+      <div
+        class="max-w-[1700px] mx-auto px-4 sm:px-6 flex items-center justify-between h-14"
+      >
+        <div class="flex items-center space-x-6">
+          <a class="flex items-center space-x-2.5" href="#">
+            <span
+              class="w-3.5 h-3.5 rounded-sm bg-primary inline-block shadow-sm"
+            ></span>
+            <span
+              class="text-base font-display font-bold tracking-tight text-on-surface"
+              >MarketPulse</span
+            >
+            <span
+              class="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-surface-container text-secondary font-medium tracking-wide"
+              >TASK-08 SPEC WORKBENCH</span
+            >
+          </a>
+          <nav
+            aria-label="Workbench Sections"
+            class="hidden md:flex items-center space-x-1 text-xs"
+          >
+            <button
+              class="tab-active px-3 py-4 transition-colors"
+              id="tab-nav-interactive"
+              onclick="switchTab('interactive')"
+            >
+              Interactive Transition Engine (4 Flows)
+            </button>
+            <button
+              class="tab-inactive px-3 py-4 transition-colors"
+              id="tab-nav-catalog"
+              onclick="switchTab('catalog')"
+            >
+              All 8 Permutations Catalog
+            </button>
+            <button
+              class="tab-inactive px-3 py-4 transition-colors"
+              id="tab-nav-deliverables"
+              onclick="switchTab('deliverables')"
+            >
+              Deliverables D1–D6 Spec &amp; Tokens
+            </button>
+          </nav>
+        </div>
+        <div class="flex items-center space-x-6 text-[11px] font-mono">
+          <div class="flex items-center space-x-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-tertiary"></span>
+            <span class="text-on-surface font-medium">NY REGION ACTIVE</span>
+          </div>
+          <div
+            class="hidden sm:block border-l border-outline-variant pl-4 text-secondary"
+          >
+            <span>TASK 2.10.8 • </span>
+            <span class="text-on-surface font-semibold" id="sys-clock"
+              >15:42:00 EST</span
+            >
+          </div>
+        </div>
+      </div>
+    </header>
+    <!-- END: MainHeader -->
+    <!-- BEGIN: MainContent -->
+    <main
+      class="flex-1 max-w-[1700px] w-full mx-auto px-4 sm:px-6 py-5 space-y-6"
+    >
+      <!-- NORTH-STAR VALIDATION CARD (Spec P0 Requirement) -->
+      <section
+        class="bg-surface-container-lowest border border-outline-variant/80 rounded-lg p-4 shadow-sm"
+        data-purpose="north-star-validation"
+      >
+        <div
+          class="flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+        >
+          <div class="space-y-1">
+            <div class="flex items-center space-x-2">
+              <span
+                class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/10 text-primary border border-primary/20"
+              >
+                NORTH-STAR VALIDATION PRINCIPLE
+              </span>
+              <span class="text-xs font-semibold text-secondary"
+                >BarSeriesPanel Standard</span
+              >
+            </div>
+            <h2 class="text-sm font-bold text-on-surface font-display">
+              Every state is produced rather than described. The panel answers
+              three institutional invariants:
+            </h2>
+          </div>
+          <!-- 3 Invariants Metric Badges -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+            <div
+              class="bg-surface-container-low border border-outline-variant/60 rounded px-3 py-2"
+            >
+              <span
+                class="text-[10px] text-secondary font-sans uppercase font-bold block"
+                >1. Latest Answer?</span
+              >
+              <span
+                class="font-semibold text-on-surface flex items-center gap-1.5 mt-0.5"
+              >
+                <span
+                  class="material-symbols-outlined text-[14px] text-tertiary"
+                  >check_circle</span
+                >
+                Explicit sync status
+              </span>
+            </div>
+            <div
+              class="bg-surface-container-low border border-outline-variant/60 rounded px-3 py-2"
+            >
+              <span
+                class="text-[10px] text-secondary font-sans uppercase font-bold block"
+                >2. How Complete?</span
+              >
+              <span
+                class="font-semibold text-on-surface flex items-center gap-1.5 mt-0.5"
+              >
+                <span
+                  class="material-symbols-outlined text-[14px] text-tertiary"
+                  >data_thresholding</span
+                >
+                Definitive bar count ratio
+              </span>
+            </div>
+            <div
+              class="bg-surface-container-low border border-outline-variant/60 rounded px-3 py-2"
+            >
+              <span
+                class="text-[10px] text-secondary font-sans uppercase font-bold block"
+                >3. In-flight Replacement?</span
+              >
+              <span
+                class="font-semibold text-on-surface flex items-center gap-1.5 mt-0.5"
+              >
+                <span class="material-symbols-outlined text-[14px] text-primary"
+                  >autorenew</span
+                >
+                Live perimeter pulse + holding
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- ========================================================================= -->
+      <!-- TAB 1: INTERACTIVE STATE TRANSITION ENGINE (4 FLOWS)                     -->
+      <!-- ========================================================================= -->
+      <div class="space-y-6" id="section-interactive">
+        <!-- Flow Execution Toolbar -->
+        <div
+          class="bg-surface-container-lowest border border-outline-variant rounded-lg p-4"
+        >
+          <div
+            class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-outline-variant/60"
+          >
+            <div>
+              <h3
+                class="text-sm font-bold font-display uppercase tracking-wider text-on-surface"
+              >
+                Interactive Transition Test Rig
+              </h3>
+              <p class="text-xs text-secondary mt-0.5">
+                Execute live asynchronous telemetry transitions on the
+                instrument panel below.
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                class="px-2.5 py-1 text-xs border border-outline-variant rounded bg-surface-container-low hover:bg-surface-container text-on-surface font-mono"
+                onclick="resetPrototypeToDefault()"
+              >
+                ↺ Reset to Clean Baseline
+              </button>
+            </div>
+          </div>
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mt-3"
+          >
+            <!-- Flow 1 -->
+            <button
+              class="group text-left p-3 rounded border border-outline-variant/80 hover:border-primary/50 hover:bg-surface-container-lowest bg-surface-container-low/60 transition-all"
+              onclick="runFlow(1)"
+            >
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-[11px] font-bold text-primary"
+                  >FLOW 1</span
+                >
+                <span
+                  class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white text-secondary border border-outline-variant/60"
+                  >~1200ms</span
+                >
+              </div>
+              <div
+                class="text-xs font-semibold text-on-surface mt-1 group-hover:text-primary"
+              >
+                Fresh → In-Flight → Modified Prints
+              </div>
+              <div class="text-[11px] text-secondary mt-0.5">
+                Dashed perimeter while holding snapshot → price jumps to 226.40
+                with 240ms cell flash + polite announcement.
+              </div>
+            </button>
+            <!-- Flow 2 -->
+            <button
+              class="group text-left p-3 rounded border border-outline-variant/80 hover:border-primary/50 hover:bg-surface-container-lowest bg-surface-container-low/60 transition-all"
+              onclick="runFlow(2)"
+            >
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-[11px] font-bold text-secondary"
+                  >FLOW 2</span
+                >
+                <span
+                  class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white text-secondary border border-outline-variant/60"
+                  >~900ms</span
+                >
+              </div>
+              <div
+                class="text-xs font-semibold text-on-surface mt-1 group-hover:text-primary"
+              >
+                Fresh → In-Flight → Unchanged Fresh
+              </div>
+              <div class="text-[11px] text-secondary mt-0.5">
+                Revalidates in-flight, settles on exact same numbers silently
+                (R7/D3 screen reader silence preserved).
+              </div>
+            </button>
+            <!-- Flow 3 -->
+            <button
+              class="group text-left p-3 rounded border border-outline-variant/80 hover:border-tertiary/50 hover:bg-surface-container-lowest bg-surface-container-low/60 transition-all"
+              onclick="runFlow(3)"
+            >
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-[11px] font-bold text-tertiary"
+                  >FLOW 3</span
+                >
+                <span
+                  class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white text-secondary border border-outline-variant/60"
+                  >~1400ms</span
+                >
+              </div>
+              <div
+                class="text-xs font-semibold text-on-surface mt-1 group-hover:text-tertiary"
+              >
+                503 Timeout → Retrying → Complete Window
+              </div>
+              <div class="text-[11px] text-secondary mt-0.5">
+                Starts in retryable 503 → user/system clicks retry →
+                intermediate pending bar → 100% complete window.
+              </div>
+            </button>
+            <!-- Flow 4 -->
+            <button
+              class="group text-left p-3 rounded border border-outline-variant/80 hover:border-error/50 hover:bg-surface-container-lowest bg-surface-container-low/60 transition-all"
+              onclick="runFlow(4)"
+            >
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-[11px] font-bold text-error"
+                  >FLOW 4</span
+                >
+                <span
+                  class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white text-secondary border border-outline-variant/60"
+                  >~1100ms</span
+                >
+              </div>
+              <div
+                class="text-xs font-semibold text-on-surface mt-1 group-hover:text-error"
+              >
+                503 Retry → Same Failure (New CID)
+              </div>
+              <div class="text-[11px] text-secondary mt-0.5">
+                Retries but fails again; generates fresh correlation ID to force
+                screen reader re-announcement.
+              </div>
+            </button>
+          </div>
+        </div>
+        <!-- THE LIVE PROTOTYPE PANEL & TELEMETRY LOGS GRID -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <!-- Left: The Live BarSeriesPanel Container (8 cols on XL) -->
+          <div class="xl:col-span-8 space-y-4">
+            <div
+              class="flex items-center justify-between text-xs text-secondary font-mono"
+            >
+              <span
+                >LIVE RENDER TARGET:
+                <span class="text-on-surface font-semibold"
+                  >#live-prototype-panel</span
+                ></span
+              >
+              <span
+                class="px-2 py-0.5 rounded bg-tertiary/10 text-tertiary border border-tertiary/20 font-bold"
+                id="current-state-badge"
+                >STATE 01: LOADED</span
+              >
+            </div>
+            <!-- THE DYNAMIC PANEL (Subject to State Transitions) -->
+            <div
+              class="bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm transition-all duration-150 relative overflow-hidden"
+              id="live-prototype-panel"
+            >
+              <!-- In-Flight Stale Indicator Top Rail (Spec D1) -->
+              <div
+                class="hidden px-4 py-1.5 bg-surface-container-high border-b border-outline-variant/80 text-secondary flex items-center justify-between font-mono text-[11px]"
+                id="proto-stale-banner"
+              >
+                <div class="flex items-center space-x-2">
+                  <span
+                    class="inline-block w-2.5 h-2.5 border-2 border-secondary border-t-transparent rounded-full animate-spin"
+                  ></span>
+                  <span class="font-semibold text-on-surface"
+                    >REFRESHING DATA</span
+                  >
+                  <span class="text-secondary/70"
+                    >— Holding previous snapshot per invariant R3</span
+                  >
+                </div>
+                <span class="text-[10px] text-secondary"
+                  >HOLDING SNAPSHOT #NVDA-398</span
+                >
+              </div>
+              <!-- Panel Header Area -->
+              <div class="p-5 border-b border-outline-variant/60">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <!-- Instrument Identity & Universe Tag -->
+                  <div class="flex items-baseline space-x-3">
+                    <h1
+                      class="text-2xl font-bold font-mono tracking-tight text-on-surface"
+                      id="proto-symbol"
+                    >
+                      NVDA
+                    </h1>
+                    <span
+                      class="text-sm font-semibold text-secondary"
+                      id="proto-name"
+                      >NVIDIA Corp.</span
+                    >
+                    <span
+                      class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-surface-container text-secondary font-medium"
+                      >NASDAQ</span
+                    >
+                    <span
+                      class="hidden text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-surface-container-highest text-secondary border border-outline-variant"
+                      id="proto-untracked-tag"
+                    >
+                      UNTRACKED UNIVERSE
+                    </span>
+                  </div>
+                  <!-- Sync Status Pill -->
+                  <div
+                    class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-tertiary/10 text-tertiary border border-tertiary/20"
+                    id="proto-sync-pill"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                    <span class="font-bold" id="proto-sync-text"
+                      >SYNCED (100% COMPLETE)</span
+                    >
+                  </div>
+                </div>
+                <!-- Price & Delta Block -->
+                <div
+                  class="mt-4 flex flex-col sm:flex-row sm:items-baseline gap-4 sm:gap-6"
+                >
+                  <div
+                    class="flex items-baseline space-x-3 p-1 rounded"
+                    id="proto-price-box"
+                  >
+                    <span
+                      class="text-3xl font-bold font-mono tracking-tight text-on-surface"
+                      id="proto-price"
+                      >225.76</span
+                    >
+                    <span class="text-xs font-mono text-secondary">USD</span>
+                    <div
+                      class="flex items-center space-x-1 text-sm font-semibold font-mono"
+                      id="proto-delta"
+                    >
+                      <span class="text-error">−1.71 (−0.75%)</span>
+                    </div>
+                  </div>
+                  <div class="text-[11px] text-secondary font-mono">
+                    Standard consolidated interval • Bar coverage:
+                    <span
+                      class="font-bold text-on-surface"
+                      id="proto-coverage-text"
+                      >1,950 / 1,950 (100%)</span
+                    >
+                  </div>
+                </div>
+              </div>
+              <!-- Main Interactive Canvas / Body Content Area -->
+              <div class="p-5" id="proto-canvas-area">
+                <!-- Content State A: Active Loaded Bar Grid (Shown during normal states) -->
+                <div class="space-y-4" id="proto-content-grid">
+                  <!-- Mini Bar Series Visual Graph Bar (SVG Simulated Candlesticks) -->
+                  <div
+                    class="h-32 w-full bg-surface-container-low/40 rounded border border-outline-variant/60 p-2 flex items-end justify-between gap-1 overflow-hidden"
+                    id="proto-chart-viz"
+                  >
+                    <!-- Simulated 30 visual bars -->
+                    <div class="w-2 bg-tertiary/70 h-16 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-20 rounded-xs"></div>
+                    <div class="w-2 bg-error/70 h-14 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-24 rounded-xs"></div>
+                    <div class="w-2 bg-error/70 h-18 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-28 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-22 rounded-xs"></div>
+                    <div class="w-2 bg-error/70 h-16 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-26 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-30 rounded-xs"></div>
+                    <div class="w-2 bg-error/70 h-19 rounded-xs"></div>
+                    <div class="w-2 bg-error/70 h-15 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-24 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-27 rounded-xs"></div>
+                    <div class="w-2 bg-error/70 h-20 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-25 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-29 rounded-xs"></div>
+                    <div class="w-2 bg-error/70 h-17 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-22 rounded-xs"></div>
+                    <div class="w-2 bg-error/70 h-14 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-26 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-28 rounded-xs"></div>
+                    <div class="w-2 bg-error/70 h-21 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-25 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-20 rounded-xs"></div>
+                    <div class="w-2 bg-error/70 h-16 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-23 rounded-xs"></div>
+                    <div class="w-2 bg-error/70 h-18 rounded-xs"></div>
+                    <div class="w-2 bg-tertiary/70 h-27 rounded-xs"></div>
+                    <div
+                      class="w-2 bg-error/70 h-15 rounded-xs"
+                      id="proto-last-bar"
+                    ></div>
+                  </div>
+                  <!-- Institutional KPI Metric Matrix -->
+                  <div
+                    class="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs"
+                  >
+                    <div
+                      class="bg-surface-container-low border border-outline-variant/60 rounded p-2.5"
+                      id="proto-kpi-1"
+                    >
+                      <span
+                        class="text-[10px] text-secondary font-sans uppercase font-bold block"
+                        >Interval Range</span
+                      >
+                      <span
+                        class="font-bold text-on-surface mt-1 block"
+                        id="proto-kpi-range"
+                        >223.40 – 228.15</span
+                      >
+                      <span
+                        class="text-[10px] text-secondary/80 font-sans mt-0.5 block"
+                        >Session High/Low</span
+                      >
+                    </div>
+                    <div
+                      class="bg-surface-container-low border border-outline-variant/60 rounded p-2.5"
+                      id="proto-kpi-2"
+                    >
+                      <span
+                        class="text-[10px] text-secondary font-sans uppercase font-bold block"
+                        >Aggregated Volume</span
+                      >
+                      <span
+                        class="font-bold text-on-surface mt-1 block"
+                        id="proto-kpi-vol"
+                        >42.18M</span
+                      >
+                      <span
+                        class="text-[10px] text-secondary/80 font-sans mt-0.5 block"
+                        >100% of Tape Volume</span
+                      >
+                    </div>
+                    <div
+                      class="bg-surface-container-low border border-outline-variant/60 rounded p-2.5"
+                      id="proto-kpi-3"
+                    >
+                      <span
+                        class="text-[10px] text-secondary font-sans uppercase font-bold block"
+                        >VWAP</span
+                      >
+                      <span
+                        class="font-bold text-on-surface mt-1 block"
+                        id="proto-kpi-vwap"
+                        >226.04</span
+                      >
+                      <span
+                        class="text-[10px] text-secondary/80 font-sans mt-0.5 block"
+                        >Session benchmark</span
+                      >
+                    </div>
+                    <div
+                      class="bg-surface-container-low border border-outline-variant/60 rounded p-2.5"
+                      id="proto-kpi-4"
+                    >
+                      <span
+                        class="text-[10px] text-secondary font-sans uppercase font-bold block"
+                        >Resolution / Step</span
+                      >
+                      <span class="font-bold text-on-surface mt-1 block"
+                        >1-Min Bars</span
+                      >
+                      <span
+                        class="text-[10px] text-secondary/80 font-sans mt-0.5 block"
+                        >Consolidated Feed</span
+                      >
+                    </div>
+                  </div>
+                </div>
+                <!-- Content State B: Non-Data Overlay Box (Errors, Refusals, Retries) -->
+                <div
+                  class="hidden p-6 rounded border border-outline-variant bg-surface-container-low flex flex-col items-center justify-center text-center space-y-3"
+                  id="proto-error-box"
+                >
+                  <div
+                    class="w-10 h-10 rounded-full bg-error-container/60 text-error flex items-center justify-center"
+                    id="proto-error-icon"
+                  >
+                    <span class="material-symbols-outlined text-[24px]"
+                      >cloud_off</span
+                    >
+                  </div>
+                  <div class="max-w-md">
+                    <h4
+                      class="text-sm font-bold text-on-surface"
+                      id="proto-error-title"
+                    >
+                      Store 503 Unavailable
+                    </h4>
+                    <p
+                      class="text-xs text-secondary mt-1 font-mono"
+                      id="proto-error-msg"
+                    >
+                      Upstream tick store timeout after 3500ms. Correlation ID:
+                      <span class="font-bold text-on-surface" id="proto-cid"
+                        >c-7718-a</span
+                      >.
+                    </p>
+                  </div>
+                  <div class="pt-2" id="proto-error-action-row">
+                    <button
+                      class="px-4 py-1.5 text-xs font-mono font-bold bg-on-surface text-surface-container-lowest rounded hover:bg-secondary transition-colors inline-flex items-center gap-1.5 shadow-xs"
+                      id="proto-retry-btn"
+                      onclick="executeManualRetry()"
+                    >
+                      <span class="material-symbols-outlined text-[14px]"
+                        >refresh</span
+                      >
+                      <span>Retry Request</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <!-- Footer Provenance Stamp -->
+              <div
+                class="px-5 py-2.5 bg-surface-container-low/80 border-t border-outline-variant/60 flex flex-wrap items-center justify-between text-[11px] font-mono text-secondary"
+              >
+                <span id="proto-provenance-text"
+                  >Feed source: CTA Consolidated • Window: 09:30:00 – 16:00:00
+                  EST</span
+                >
+                <span id="proto-last-updated">Last Ingested: 15:42:00 EST</span>
+              </div>
+            </div>
+          </div>
+          <!-- Right: Real-time Screen Reader Telemetry & Transition Event Console (4 cols on XL) -->
+          <div class="xl:col-span-4 space-y-4">
+            <div
+              class="bg-surface-container-lowest rounded-lg border border-outline-variant p-4 shadow-sm h-full flex flex-col"
+            >
+              <div
+                class="flex items-center justify-between pb-3 border-b border-outline-variant/60"
+              >
+                <div class="flex items-center space-x-2">
+                  <span
+                    class="w-2 h-2 rounded-full bg-primary animate-pulse"
+                  ></span>
+                  <h3
+                    class="text-xs font-bold font-mono uppercase tracking-wider text-on-surface"
+                  >
+                    Screen Reader Telemetry
+                  </h3>
+                </div>
+                <button
+                  class="text-[10px] font-mono text-secondary hover:text-on-surface"
+                  onclick="clearTelemetryLog()"
+                >
+                  Clear Buffer
+                </button>
+              </div>
+              <!-- Live Speech Announcement Log -->
+              <div class="mt-3 flex-1 flex flex-col">
+                <div
+                  class="text-[10px] font-mono text-secondary mb-1 flex items-center justify-between"
+                >
+                  <span>[POLITE LIVE REGION OUTPUT]</span>
+                  <span class="text-primary font-bold">aria-live="polite"</span>
+                </div>
+                <div
+                  class="flex-1 min-h-[300px] max-h-[460px] overflow-y-auto bg-surface-container-lowest border border-outline-variant/60 rounded p-2.5 font-mono text-[11px] space-y-2"
+                  id="telemetry-log"
+                >
+                  <!-- Log entries inserted here -->
+                  <div
+                    class="text-secondary/70 italic border-l-2 border-outline-variant pl-2 py-0.5"
+                  >
+                    [15:42:00] Live region initialized for NVDA. Waiting for
+                    state actions...
+                  </div>
+                </div>
+                <!-- Live Architecture Note -->
+                <div
+                  class="mt-3 p-2.5 rounded bg-surface-container-low border border-outline-variant/60 text-[11px] font-mono text-secondary space-y-1"
+                >
+                  <div class="font-bold text-on-surface">
+                    Spec Invariant Compliance:
+                  </div>
+                  <ul class="list-disc pl-4 space-y-0.5 text-[10px]">
+                    <li>
+                      Dual polite regions: Lifecycle &amp; Data (Spec D3/D4)
+                    </li>
+                    <li>Always qualified with symbol prefix: "NVDA: ..."</li>
+                    <li>
+                      Identical data settles silently without re-announcing
+                    </li>
+                    <li>
+                      Failure re-triggers announce via updated correlation ID
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- END TAB 1 -->
+      <!-- ========================================================================= -->
+      <!-- TAB 2: COMPLETE ALL 8 PERMUTATIONS CATALOG                                -->
+      <!-- ========================================================================= -->
+      <div class="hidden space-y-6" id="section-catalog">
+        <div
+          class="bg-surface-container-lowest border border-outline-variant rounded-lg p-4"
+        >
+          <div
+            class="flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+          >
+            <div>
+              <h3
+                class="text-sm font-bold font-display uppercase tracking-wider text-on-surface"
+              >
+                All 8 Permutations Catalog
+              </h3>
+              <p class="text-xs text-secondary mt-0.5">
+                Every state produced using exact recorded fixtures and token
+                compliance (R1–R8).
+              </p>
+            </div>
+            <div class="text-[11px] font-mono text-secondary">
+              Strict Helvetic Light Ground (#f8f9ff) • Zero crimson on status
+            </div>
+          </div>
+        </div>
+        <!-- 2x4 Matrix of Complete Rendered States -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <!-- 01: LOADED -->
+          <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-lg p-3.5 space-y-3 shadow-xs"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <span class="font-mono font-bold text-xs text-primary"
+                >01: LOADED</span
+              >
+              <span
+                class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-tertiary/10 text-tertiary font-bold"
+                >100% COMPLETE</span
+              >
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-baseline justify-between font-mono">
+                <span class="text-base font-bold text-on-surface"
+                  >NVDA • $225.76</span
+                >
+                <span class="text-xs text-error font-semibold">-0.75%</span>
+              </div>
+              <p class="text-[11px] text-secondary">
+                Complete answer: 1,950 of 1,950 bars covering entire regular
+                session.
+              </p>
+            </div>
+            <!-- Mini Representation -->
+            <div
+              class="h-16 bg-surface-container-low rounded border border-outline-variant/40 p-1 flex items-end justify-between gap-0.5"
+            >
+              <div class="w-1.5 bg-tertiary/70 h-8 rounded-xs"></div>
+              <div class="w-1.5 bg-tertiary/70 h-10 rounded-xs"></div>
+              <div class="w-1.5 bg-error/70 h-7 rounded-xs"></div>
+              <div class="w-1.5 bg-tertiary/70 h-12 rounded-xs"></div>
+              <div class="w-1.5 bg-tertiary/70 h-14 rounded-xs"></div>
+              <div class="w-1.5 bg-error/70 h-9 rounded-xs"></div>
+              <div class="w-1.5 bg-tertiary/70 h-13 rounded-xs"></div>
+              <div class="w-1.5 bg-error/70 h-11 rounded-xs"></div>
+            </div>
+            <div
+              class="text-[10px] font-mono text-secondary border-t border-outline-variant/40 pt-1.5 flex justify-between"
+            >
+              <span>Coverage: 100%</span>
+              <span>Sync: Primary Tape</span>
+            </div>
+          </div>
+          <!-- 02: STALE / REFRESHING -->
+          <div
+            class="bg-surface-container-lowest border-2 border-dashed border-secondary/70 rhythm-border rounded-lg p-3.5 space-y-3 shadow-xs"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <span class="font-mono font-bold text-xs text-on-surface"
+                >02: REFRESHING</span
+              >
+              <span
+                class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface-container-highest text-secondary font-bold flex items-center gap-1"
+              >
+                <span
+                  class="w-1.5 h-1.5 rounded-full bg-secondary animate-ping"
+                ></span>
+                HOLDING SNAPSHOT
+              </span>
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-baseline justify-between font-mono">
+                <span class="text-base font-bold text-on-surface"
+                  >NVDA • $225.76</span
+                >
+                <span class="text-xs text-secondary font-semibold"
+                  >REVALIDATING</span
+                >
+              </div>
+              <p class="text-[11px] text-secondary">
+                R3 Compliant: 100% opaque figures held in view while perimeter
+                dashes pulse.
+              </p>
+            </div>
+            <div
+              class="h-16 bg-surface-container-low rounded border border-outline-variant/40 p-1 flex items-end justify-between gap-0.5 opacity-90"
+            >
+              <div class="w-1.5 bg-secondary/60 h-8 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/60 h-10 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/60 h-7 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/60 h-12 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/60 h-14 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/60 h-9 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/60 h-13 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/60 h-11 rounded-xs"></div>
+            </div>
+            <div
+              class="text-[10px] font-mono text-secondary border-t border-outline-variant/40 pt-1.5 flex justify-between"
+            >
+              <span>In-flight request active</span>
+              <span>R1 Greyscale</span>
+            </div>
+          </div>
+          <!-- 03: PARTIAL -->
+          <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-lg p-3.5 space-y-3 shadow-xs"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <span class="font-mono font-bold text-xs text-primary"
+                >03: PARTIAL</span
+              >
+              <span
+                class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface-container text-on-surface font-bold"
+                >1,438 / 1,950 BARS</span
+              >
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-baseline justify-between font-mono">
+                <span class="text-base font-bold text-on-surface"
+                  >NVDA • $225.76</span
+                >
+                <span class="text-xs text-error font-semibold">-0.75%</span>
+              </div>
+              <p class="text-[11px] text-secondary">
+                Framed as honest answer, not defect: Intraday print through
+                15:42 EST.
+              </p>
+            </div>
+            <div
+              class="h-16 bg-surface-container-low rounded border border-outline-variant/40 p-1 flex items-end gap-0.5"
+            >
+              <div class="w-1.5 bg-tertiary/70 h-8 rounded-xs"></div>
+              <div class="w-1.5 bg-tertiary/70 h-10 rounded-xs"></div>
+              <div class="w-1.5 bg-error/70 h-7 rounded-xs"></div>
+              <div class="w-1.5 bg-tertiary/70 h-12 rounded-xs"></div>
+              <div class="w-1.5 bg-tertiary/70 h-14 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/40 h-8 rounded-xs"></div>
+              <!-- Blank remaining window representing future time -->
+              <div
+                class="flex-1 h-full border-l border-dashed border-outline-variant/80 ml-2 flex items-center justify-center text-[9px] font-mono text-secondary"
+              >
+                Session In-Progress
+              </div>
+            </div>
+            <div
+              class="text-[10px] font-mono text-secondary border-t border-outline-variant/40 pt-1.5 flex justify-between"
+            >
+              <span>Coverage: 73.7%</span>
+              <span>T-0 Ingest</span>
+            </div>
+          </div>
+          <!-- 04: EMPTY -->
+          <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-lg p-3.5 space-y-3 shadow-xs"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <span class="font-mono font-bold text-xs text-primary"
+                >04: EMPTY (200 OK)</span
+              >
+              <span
+                class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface-container text-secondary font-bold"
+                >0 PRINTS</span
+              >
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-baseline justify-between font-mono">
+                <span class="text-base font-bold text-on-surface"
+                  >NVDA • $225.76</span
+                >
+                <span class="text-xs text-secondary font-semibold">—</span>
+              </div>
+              <p class="text-[11px] text-secondary">
+                Legitimate 200 OK: Overnight settlement &amp; halt
+                reconciliation window.
+              </p>
+            </div>
+            <div
+              class="h-16 bg-surface-container-low rounded border border-outline-variant/40 p-2 flex flex-col items-center justify-center text-center"
+            >
+              <span class="text-[10px] font-mono font-bold text-secondary"
+                >NO PRINTS IN SELECTED WINDOW</span
+              >
+              <span class="text-[9px] text-secondary/80"
+                >Continuous trading opens 09:30 EST</span
+              >
+            </div>
+            <div
+              class="text-[10px] font-mono text-secondary border-t border-outline-variant/40 pt-1.5 flex justify-between"
+            >
+              <span>Status: 200 Valid</span>
+              <span>Zero Defects</span>
+            </div>
+          </div>
+          <!-- 05: REFUSED -->
+          <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-lg p-3.5 space-y-3 shadow-xs"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <span class="font-mono font-bold text-xs text-secondary"
+                >05: REFUSED</span
+              >
+              <span
+                class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-secondary/10 text-secondary font-bold"
+                >SERVER REFUSAL</span
+              >
+            </div>
+            <div class="space-y-1">
+              <div class="font-mono text-base font-bold text-on-surface">
+                Access Denied (403)
+              </div>
+              <p class="text-[11px] text-secondary">
+                Verbatim server-provided reason shown cleanly. Zero retry button
+                rendered.
+              </p>
+            </div>
+            <div
+              class="h-16 bg-surface-container-low rounded border border-outline-variant/40 p-2 flex flex-col justify-center"
+            >
+              <span class="text-[10px] font-mono text-secondary font-semibold"
+                >Tier Entitlement Refusal:</span
+              >
+              <span class="text-[10px] text-on-surface truncate"
+                >"Account tier lacks real-time Level-2 tick access."</span
+              >
+            </div>
+            <div
+              class="text-[10px] font-mono text-secondary border-t border-outline-variant/40 pt-1.5 flex justify-between"
+            >
+              <span>Non-retryable</span>
+              <span>Explicit Cause</span>
+            </div>
+          </div>
+          <!-- 06: FAILED RETRYABLE -->
+          <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-lg p-3.5 space-y-3 shadow-xs"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <span class="font-mono font-bold text-xs text-error"
+                >06: FAILED RETRYABLE</span
+              >
+              <span
+                class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-error-container text-error font-bold"
+                >503 TIMEOUT</span
+              >
+            </div>
+            <div class="space-y-1">
+              <div class="font-mono text-base font-bold text-on-surface">
+                Store Timeout
+              </div>
+              <p class="text-[11px] text-secondary">
+                Temporary upstream failure with correlation ID and actionable
+                [Retry] button.
+              </p>
+            </div>
+            <div
+              class="h-16 bg-surface-container-low rounded border border-outline-variant/40 p-2 flex items-center justify-between"
+            >
+              <div class="font-mono text-[10px] text-secondary">
+                <div>CID: c-9901-b</div>
+                <div class="text-error font-semibold">Gateway 503</div>
+              </div>
+              <button
+                class="px-2.5 py-1 text-[11px] font-mono bg-on-surface text-surface-container-lowest rounded font-bold hover:bg-secondary"
+              >
+                Retry
+              </button>
+            </div>
+            <div
+              class="text-[10px] font-mono text-secondary border-t border-outline-variant/40 pt-1.5 flex justify-between"
+            >
+              <span>Actionable</span>
+              <span>Polite Speech Trigger</span>
+            </div>
+          </div>
+          <!-- 07: FAILED NON-RETRYABLE -->
+          <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-lg p-3.5 space-y-3 shadow-xs"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <span class="font-mono font-bold text-xs text-error"
+                >07: INCOHERENT METADATA</span
+              >
+              <span
+                class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface-container text-error font-bold"
+                >NON-RETRYABLE</span
+              >
+            </div>
+            <div class="space-y-1">
+              <div class="font-mono text-base font-bold text-on-surface">
+                Interval Contradiction
+              </div>
+              <p class="text-[11px] text-secondary">
+                Start timestamp &gt; End timestamp. Cannot be solved by
+                retrying.
+              </p>
+            </div>
+            <div
+              class="h-16 bg-surface-container-low rounded border border-outline-variant/40 p-2 flex flex-col justify-center"
+            >
+              <span class="text-[10px] font-mono text-error font-bold"
+                >Malformed Query Definition</span
+              >
+              <span class="text-[10px] font-mono text-secondary"
+                >No retry button offered to user.</span
+              >
+            </div>
+            <div
+              class="text-[10px] font-mono text-secondary border-t border-outline-variant/40 pt-1.5 flex justify-between"
+            >
+              <span>Defect Logged</span>
+              <span>Zero Retry Loop</span>
+            </div>
+          </div>
+          <!-- 08: UNTRACKED + POPULATED -->
+          <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-lg p-3.5 space-y-3 shadow-xs"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <span class="font-mono font-bold text-xs text-primary"
+                >08: UNTRACKED + POPULATED</span
+              >
+              <span
+                class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface-container-highest text-secondary font-bold"
+                >HISTORICAL ONLY</span
+              >
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-baseline space-x-1 font-mono">
+                <span class="text-base font-bold text-on-surface">XYZ</span>
+                <span
+                  class="text-[9px] px-1 rounded bg-surface-container-high text-secondary"
+                  >UNTRACKED</span
+                >
+                <span class="text-base font-bold text-on-surface ml-auto"
+                  >$14.20</span
+                >
+              </div>
+              <p class="text-[11px] text-secondary">
+                Subject Header placement: Retains loaded bars with ledger
+                provenance.
+              </p>
+            </div>
+            <div
+              class="h-16 bg-surface-container-low rounded border border-outline-variant/40 p-1 flex items-end gap-0.5"
+            >
+              <div class="w-1.5 bg-secondary/50 h-5 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/50 h-7 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/50 h-9 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/50 h-6 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/50 h-11 rounded-xs"></div>
+              <div class="w-1.5 bg-secondary/50 h-8 rounded-xs"></div>
+            </div>
+            <div
+              class="text-[10px] font-mono text-secondary border-t border-outline-variant/40 pt-1.5 flex justify-between"
+            >
+              <span>Historical Ledger</span>
+              <span>No Live Feed Sync</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- END TAB 2 -->
+      <!-- ========================================================================= -->
+      <!-- TAB 3: COMPLETE DELIVERABLES SPECIFICATION REFERENCE (D1–D6)              -->
+      <!-- ========================================================================= -->
+      <div class="hidden space-y-6" id="section-deliverables">
+        <!-- Spec Header -->
+        <div
+          class="bg-surface-container-lowest border border-outline-variant rounded-lg p-4"
+        >
+          <h3
+            class="text-sm font-bold font-display uppercase tracking-wider text-on-surface"
+          >
+            BarSeriesPanel Engineering Specifications (D1 to D6)
+          </h3>
+          <p class="text-xs text-secondary mt-0.5">
+            Institutional normative contracts, timing tokens, live region speech
+            matrices, and token redlines.
+          </p>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- D1: Stale Mark & Motion Spec -->
+          <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-lg p-4 space-y-3"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <h4 class="font-bold text-xs font-mono uppercase text-primary">
+                D1: Stale Mark &amp; Motion Specification
+              </h4>
+              <span
+                class="text-[10px] font-mono px-1.5 py-0.5 bg-surface-container rounded text-secondary"
+                >NORM-D1</span
+              >
+            </div>
+            <div class="space-y-2 text-xs">
+              <p class="text-secondary">
+                Specifies visual and motion behavior when existing snapshots
+                enter revalidation:
+              </p>
+              <div class="grid grid-cols-2 gap-2 font-mono text-[11px]">
+                <div
+                  class="p-2 rounded bg-surface-container-low border border-outline-variant/60"
+                >
+                  <span class="text-secondary text-[10px] block"
+                    >ENTER DURATION</span
+                  >
+                  <span class="font-bold text-on-surface"
+                    >120ms cubic-bezier(0,0,0.2,1)</span
+                  >
+                </div>
+                <div
+                  class="p-2 rounded bg-surface-container-low border border-outline-variant/60"
+                >
+                  <span class="text-secondary text-[10px] block"
+                    >SETTLE FLASH</span
+                  >
+                  <span class="font-bold text-on-surface"
+                    >240ms cubic-bezier(0.16,1,0.3,1)</span
+                  >
+                </div>
+                <div
+                  class="p-2 rounded bg-surface-container-low border border-outline-variant/60"
+                >
+                  <span class="text-secondary text-[10px] block"
+                    >REDUCED MOTION</span
+                  >
+                  <span class="font-bold text-on-surface"
+                    >0ms (Instantaneous change)</span
+                  >
+                </div>
+                <div
+                  class="p-2 rounded bg-surface-container-low border border-outline-variant/60"
+                >
+                  <span class="text-secondary text-[10px] block"
+                    >PERIMETER RHYTHM</span
+                  >
+                  <span class="font-bold text-on-surface"
+                    >1.2s dash cycle animation</span
+                  >
+                </div>
+              </div>
+              <div
+                class="p-2.5 rounded bg-surface-container-low border border-outline-variant/60 text-[11px]"
+              >
+                <span class="font-bold text-on-surface font-mono"
+                  >Reversal Trigger Protocol:</span
+                >
+                <p class="text-secondary mt-0.5">
+                  If data settles with identical values, do NOT fire a settle
+                  flash. The border rhythm dissolves silently back to solid
+                  hairline without audio interruption.
+                </p>
+              </div>
+            </div>
+          </div>
+          <!-- D2: Untracked Security Lifecycle & Header Placement -->
+          <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-lg p-4 space-y-3"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <h4 class="font-bold text-xs font-mono uppercase text-primary">
+                D2: Untracked Security Lifecycle &amp; Header
+              </h4>
+              <span
+                class="text-[10px] font-mono px-1.5 py-0.5 bg-surface-container rounded text-secondary"
+                >NORM-D2</span
+              >
+            </div>
+            <div class="space-y-2 text-xs">
+              <p class="text-secondary">
+                Rules for securities that transition out of the real-time
+                tracked universe:
+              </p>
+              <ul
+                class="list-disc pl-4 space-y-1 text-secondary font-mono text-[11px]"
+              >
+                <li>
+                  <strong class="text-on-surface">Header Placement:</strong> The
+                  <code class="bg-surface-container px-1 py-0.5 rounded"
+                    >[UNTRACKED UNIVERSE]</code
+                  >
+                  badge lives in the subject title bar beside ticker symbol, NOT
+                  in error banners.
+                </li>
+                <li>
+                  <strong class="text-on-surface">Provenance Holding:</strong>
+                  Retain all previously ingested historical bars. Do NOT blank
+                  the canvas into an error state.
+                </li>
+                <li>
+                  <strong class="text-on-surface">Sync Pill Suspension:</strong>
+                  Sync indicator converts from green active to neutral grey with
+                  label
+                  <code class="bg-surface-container px-1 py-0.5 rounded"
+                    >HISTORICAL LEDGER (NO LIVE SYNC)</code
+                  >.
+                </li>
+              </ul>
+            </div>
+          </div>
+          <!-- D3 & D4: Live Region Architecture & Spoken Matrix Table -->
+          <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-lg p-4 space-y-3 lg:col-span-2"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <h4 class="font-bold text-xs font-mono uppercase text-primary">
+                D3 &amp; D4: Live Region Architecture &amp; Spoken Matrix Table
+              </h4>
+              <span
+                class="text-[10px] font-mono px-1.5 py-0.5 bg-surface-container rounded text-secondary"
+                >NORM-D3/D4</span
+              >
+            </div>
+            <div class="space-y-3 text-xs">
+              <div
+                class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-secondary text-[11px] font-mono"
+              >
+                <div
+                  class="p-2.5 rounded bg-surface-container-low border border-outline-variant/60"
+                >
+                  <span class="font-bold text-on-surface block"
+                    >Region 1: #sr-lifecycle-region</span
+                  >
+                  <span class="text-secondary"
+                    >Tracks in-flight state mutations, connection errors, and
+                    retries. Dedicated polite live region.</span
+                  >
+                </div>
+                <div
+                  class="p-2.5 rounded bg-surface-container-low border border-outline-variant/60"
+                >
+                  <span class="font-bold text-on-surface block"
+                    >Region 2: #sr-data-region</span
+                  >
+                  <span class="text-secondary"
+                    >Tracks numeric settle mutations only when modified numbers
+                    arrive. Dedicated polite live region.</span
+                  >
+                </div>
+              </div>
+              <!-- Complete Spoken Matrix Table -->
+              <div
+                class="overflow-x-auto border border-outline-variant/60 rounded"
+              >
+                <table class="w-full text-left font-mono text-[11px]">
+                  <thead
+                    class="bg-surface-container border-b border-outline-variant/60 text-secondary"
+                  >
+                    <tr>
+                      <th class="p-2">Transition Scenario</th>
+                      <th class="p-2">Target Region</th>
+                      <th class="p-2">Verbatim Spoken Announcement</th>
+                      <th class="p-2">Silence Rules</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-outline-variant/40">
+                    <tr>
+                      <td class="p-2 font-bold text-on-surface">
+                        Fresh → Refreshing
+                      </td>
+                      <td class="p-2 text-secondary">#sr-lifecycle-region</td>
+                      <td class="p-2 text-on-surface">
+                        "NVDA: Refreshing bar series in background; holding
+                        prior snapshot."
+                      </td>
+                      <td class="p-2 text-secondary">
+                        Never interrupt user focus.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="p-2 font-bold text-on-surface">
+                        Settled with Changes
+                      </td>
+                      <td class="p-2 text-secondary">#sr-data-region</td>
+                      <td class="p-2 text-on-surface">
+                        "NVDA: 1,950 bars loaded. Last price 226.40, up 0.28%."
+                      </td>
+                      <td class="p-2 text-secondary">
+                        Fires 240ms cell flash concurrently.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="p-2 font-bold text-on-surface">
+                        Settled Unchanged
+                      </td>
+                      <td class="p-2 text-secondary">None</td>
+                      <td class="p-2 text-secondary italic">
+                        (SILENT — No utterance queued)
+                      </td>
+                      <td class="p-2 text-secondary">
+                        Strictly avoids screen reader fatigue.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="p-2 font-bold text-on-surface">
+                        Failed 503 Timeout
+                      </td>
+                      <td class="p-2 text-secondary">#sr-lifecycle-region</td>
+                      <td class="p-2 text-error font-semibold">
+                        "NVDA: Bar series unavailable. Store timeout.
+                        Correlation ID c-7718-a. Retry available."
+                      </td>
+                      <td class="p-2 text-secondary">
+                        Always announces correlation ID.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="p-2 font-bold text-on-surface">
+                        Retrying Action
+                      </td>
+                      <td class="p-2 text-secondary">#sr-lifecycle-region</td>
+                      <td class="p-2 text-on-surface">
+                        "NVDA: Retrying bar series request."
+                      </td>
+                      <td class="p-2 text-secondary">
+                        Provides immediate click feedback.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <!-- D5: Everyday Copy Refinement -->
+          <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-lg p-4 space-y-3"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <h4 class="font-bold text-xs font-mono uppercase text-primary">
+                D5: Institutional Copy Standards
+              </h4>
+              <span
+                class="text-[10px] font-mono px-1.5 py-0.5 bg-surface-container rounded text-secondary"
+                >NORM-D5</span
+              >
+            </div>
+            <div class="space-y-2 text-xs">
+              <p class="text-secondary">
+                Standardized wording for confidence and institutional precision:
+              </p>
+              <div class="space-y-1.5 font-mono text-[11px]">
+                <div
+                  class="p-2 rounded bg-surface-container-low border border-outline-variant/60 flex justify-between items-center"
+                >
+                  <span class="text-secondary">Prohibited:</span>
+                  <span class="text-error line-through">"Loading data..."</span>
+                </div>
+                <div
+                  class="p-2 rounded bg-surface-container-low border border-outline-variant/60 flex justify-between items-center"
+                >
+                  <span class="text-secondary">Mandatory:</span>
+                  <span class="text-tertiary font-bold"
+                    >"Refreshing data — Holding snapshot"</span
+                  >
+                </div>
+                <div
+                  class="p-2 rounded bg-surface-container-low border border-outline-variant/60 flex justify-between items-center"
+                >
+                  <span class="text-secondary">Truncation:</span>
+                  <span class="text-on-surface font-bold"
+                    >"1,438 / 1,950 bars through 15:42 EST"</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- D6: Token Redlines & Rule Verification (R1 to R8) -->
+          <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-lg p-4 space-y-3"
+          >
+            <div
+              class="flex items-center justify-between border-b border-outline-variant/60 pb-2"
+            >
+              <h4 class="font-bold text-xs font-mono uppercase text-primary">
+                D6: Rule Verification (R1–R8)
+              </h4>
+              <span
+                class="text-[10px] font-mono px-1.5 py-0.5 bg-surface-container rounded text-secondary"
+                >NORM-D6</span
+              >
+            </div>
+            <div class="space-y-1.5 text-[11px] font-mono text-secondary">
+              <div
+                class="flex items-center justify-between p-1.5 rounded bg-surface-container-low"
+              >
+                <span>R1: Greyscale for Stale/Pending (No yellow)</span>
+                <span class="text-tertiary font-bold">PASS (4.5:1+)</span>
+              </div>
+              <div
+                class="flex items-center justify-between p-1.5 rounded bg-surface-container-low"
+              >
+                <span>R2: Primary Brand (#a20000) for chrome only</span>
+                <span class="text-tertiary font-bold"
+                  >PASS (Zero status red)</span
+                >
+              </div>
+              <div
+                class="flex items-center justify-between p-1.5 rounded bg-surface-container-low"
+              >
+                <span>R3: 100% Opacity numbers while holding</span>
+                <span class="text-tertiary font-bold">PASS (Never dimmed)</span>
+              </div>
+              <div
+                class="flex items-center justify-between p-1.5 rounded bg-surface-container-low"
+              >
+                <span>R7: Dual polite regions with symbol prefix</span>
+                <span class="text-tertiary font-bold"
+                  >PASS (ARIA-live verified)</span
+                >
+              </div>
+              <div
+                class="flex items-center justify-between p-1.5 rounded bg-surface-container-low"
+              >
+                <span>R8: Correlation IDs always distinct on retry</span>
+                <span class="text-tertiary font-bold"
+                  >PASS (Fresh CID generated)</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- END TAB 3 -->
+    </main>
+    <!-- END: MainContent -->
+    <!-- BEGIN: MainFooter -->
+    <footer
+      class="bg-surface-container-lowest border-t border-outline-variant/60 py-4 mt-auto text-xs text-secondary"
+    >
+      <div
+        class="max-w-[1700px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 font-mono text-[11px]"
+      >
+        <div class="flex items-center space-x-3">
+          <span class="font-bold text-on-surface">MarketPulse Workbench</span>
+          <span>•</span>
+          <span>BarSeriesPanel Task 2.10.8</span>
+          <span>•</span>
+          <span class="text-tertiary font-semibold"
+            >Strictly Institutional Grade</span
+          >
+        </div>
+        <div>
+          Color Token Contract: Crisp Light Ground
+          <span class="font-bold text-on-surface">#f8f9ff</span> • Hairline
+          Borders • 0ms Reduced Motion Capable
+        </div>
+      </div>
+    </footer>
+    <!-- END: MainFooter -->
+    <!-- ========================================================================= -->
+    <!-- VANILLA JAVASCRIPT: INTERACTIVE TRANSITION ENGINE & TELEMETRY LOGGER      -->
+    <!-- ========================================================================= -->
+    <script>
+      // Tab Navigation
+      function switchTab(tabId) {
+        const tabs = ["interactive", "catalog", "deliverables"];
+        tabs.forEach((t) => {
+          const sec = document.getElementById(`section-${t}`);
+          const btn = document.getElementById(`tab-nav-${t}`);
+          if (t === tabId) {
+            sec.classList.remove("hidden");
+            btn.className = "tab-active px-3 py-4 transition-colors";
+          } else {
+            sec.classList.add("hidden");
+            btn.className = "tab-inactive px-3 py-4 transition-colors";
+          }
+        });
+      }
+
+      // Telemetry Speech Logger
+      function logTelemetry(regionName, utterance, isSilent = false) {
+        const logContainer = document.getElementById("telemetry-log");
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+
+        // Dispatch to actual ARIA polite region in DOM
+        if (!isSilent && regionName) {
+          const ariaRegion = document.getElementById(regionName);
+          if (ariaRegion) {
+            ariaRegion.textContent = utterance;
+          }
+        }
+
+        // Visual log in the telemetry console
+        const entry = document.createElement("div");
+        entry.className = `p-1.5 rounded border transition-all ${
+          isSilent
+            ? "bg-surface-container-low/40 border-outline-variant/30 text-secondary/60 italic"
+            : regionName === "sr-lifecycle-region"
+              ? "bg-surface-container-high/60 border-outline-variant text-on-surface"
+              : "bg-tertiary/5 border-tertiary/30 text-tertiary font-medium"
+        }`;
+
+        entry.innerHTML = `
+        <div class="flex items-center justify-between text-[10px]">
+          <span class="font-bold ${isSilent ? "text-secondary/50" : "text-primary"}">[${timeStr}] ${regionName || "POLITE SILENCE"}</span>
+          <span class="text-[9px] uppercase">${isSilent ? "Suppressed" : "Spoken"}</span>
+        </div>
+        <div class="mt-0.5 text-xs">${utterance}</div>
+      `;
+
+        logContainer.prepend(entry);
+      }
+
+      function clearTelemetryLog() {
+        const logContainer = document.getElementById("telemetry-log");
+        logContainer.innerHTML = `
+        <div class="text-secondary/70 italic border-l-2 border-outline-variant pl-2 py-0.5">
+          [Buffer cleared] Ready for next flow execution...
+        </div>
+      `;
+      }
+
+      // Prototype State Elements
+      const panel = document.getElementById("live-prototype-panel");
+      const staleBanner = document.getElementById("proto-stale-banner");
+      const stateBadge = document.getElementById("current-state-badge");
+      const syncPill = document.getElementById("proto-sync-pill");
+      const syncText = document.getElementById("proto-sync-text");
+      const priceEl = document.getElementById("proto-price");
+      const priceBox = document.getElementById("proto-price-box");
+      const deltaEl = document.getElementById("proto-delta");
+      const coverageText = document.getElementById("proto-coverage-text");
+      const contentGrid = document.getElementById("proto-content-grid");
+      const errorBox = document.getElementById("proto-error-box");
+      const lastBar = document.getElementById("proto-last-bar");
+      const kpiVol = document.getElementById("proto-kpi-vol");
+
+      let correlationCounter = 7718;
+
+      // Reset to Standard Loaded Baseline
+      function resetPrototypeToDefault() {
+        panel.classList.remove("rhythm-border", "border-dashed");
+        panel.classList.add("border-outline-variant");
+        staleBanner.classList.add("hidden");
+        contentGrid.classList.remove("hidden");
+        errorBox.classList.add("hidden");
+
+        stateBadge.className =
+          "px-2 py-0.5 rounded bg-tertiary/10 text-tertiary border border-tertiary/20 font-bold";
+        stateBadge.textContent = "STATE 01: LOADED";
+
+        syncPill.className =
+          "flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-tertiary/10 text-tertiary border border-tertiary/20";
+        syncPill.innerHTML =
+          '<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span><span class="font-bold">SYNCED (100% COMPLETE)</span>';
+
+        priceEl.textContent = "225.76";
+        deltaEl.innerHTML = '<span class="text-error">−1.71 (−0.75%)</span>';
+        coverageText.textContent = "1,950 / 1,950 (100%)";
+        kpiVol.textContent = "42.18M";
+        lastBar.className = "w-2 bg-error/70 h-15 rounded-xs";
+
+        logTelemetry(
+          null,
+          "Reset panel to clean baseline: State 01 (Loaded, 100% complete window).",
+          true,
+        );
+      }
+
+      // Execute Transitions 1 to 4
+      function runFlow(flowId) {
+        if (flowId === 1) {
+          // FLOW 1: Fresh -> In-flight Refreshing -> Modified Prints Settle
+          // 1. Enter In-flight
+          panel.classList.add("rhythm-border");
+          staleBanner.classList.remove("hidden");
+          contentGrid.classList.remove("hidden");
+          errorBox.classList.add("hidden");
+
+          stateBadge.className =
+            "px-2 py-0.5 rounded bg-surface-container-highest text-secondary border border-outline-variant font-bold";
+          stateBadge.textContent = "STATE 02: REFRESHING IN-FLIGHT";
+
+          syncPill.className =
+            "flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-surface-container text-secondary border border-outline-variant";
+          syncPill.innerHTML =
+            '<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-ping"></span><span class="font-bold">REVALIDATING...</span>';
+
+          logTelemetry(
+            "sr-lifecycle-region",
+            "NVDA: Refreshing bar series in background; holding prior snapshot.",
+          );
+
+          // 2. Settle after 1200ms
+          setTimeout(() => {
+            panel.classList.remove("rhythm-border");
+            staleBanner.classList.add("hidden");
+
+            // Update data
+            priceEl.textContent = "226.40";
+            deltaEl.innerHTML =
+              '<span class="text-tertiary">+0.64 (+0.28%)</span>';
+            kpiVol.textContent = "42.85M";
+            lastBar.className = "w-2 bg-tertiary/70 h-26 rounded-xs";
+
+            // 240ms Metric Cell Flash
+            priceBox.classList.add("metric-flash");
+            setTimeout(() => {
+              priceBox.classList.remove("metric-flash");
+            }, 240);
+
+            stateBadge.className =
+              "px-2 py-0.5 rounded bg-tertiary/10 text-tertiary border border-tertiary/20 font-bold";
+            stateBadge.textContent = "STATE 01: LOADED (SYNCED)";
+
+            syncPill.className =
+              "flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-tertiary/10 text-tertiary border border-tertiary/20";
+            syncPill.innerHTML =
+              '<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span><span class="font-bold">SYNCED (100% COMPLETE)</span>';
+
+            logTelemetry(
+              "sr-data-region",
+              "NVDA: 1,950 bars loaded. Last price 226.40, up 0.28%.",
+            );
+          }, 1200);
+        } else if (flowId === 2) {
+          // FLOW 2: Fresh -> In-flight Refreshing -> Unchanged Fresh
+          panel.classList.add("rhythm-border");
+          staleBanner.classList.remove("hidden");
+
+          stateBadge.className =
+            "px-2 py-0.5 rounded bg-surface-container-highest text-secondary border border-outline-variant font-bold";
+          stateBadge.textContent = "STATE 02: REFRESHING IN-FLIGHT";
+
+          syncPill.className =
+            "flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-surface-container text-secondary border border-outline-variant";
+          syncPill.innerHTML =
+            '<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-ping"></span><span class="font-bold">REVALIDATING...</span>';
+
+          logTelemetry(
+            "sr-lifecycle-region",
+            "NVDA: Refreshing bar series in background; holding prior snapshot.",
+          );
+
+          // Settle after 900ms with identical data
+          setTimeout(() => {
+            panel.classList.remove("rhythm-border");
+            staleBanner.classList.add("hidden");
+
+            stateBadge.className =
+              "px-2 py-0.5 rounded bg-tertiary/10 text-tertiary border border-tertiary/20 font-bold";
+            stateBadge.textContent = "STATE 01: LOADED (UNCHANGED)";
+
+            syncPill.className =
+              "flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-tertiary/10 text-tertiary border border-tertiary/20";
+            syncPill.innerHTML =
+              '<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span><span class="font-bold">SYNCED (100% COMPLETE)</span>';
+
+            // Zero metric flash, zero speech output per D1 / D3 Spec
+            logTelemetry(
+              null,
+              "Identical snapshot revalidated. Data live region silent to protect screen reader focus (Spec D3 Rule 3).",
+              true,
+            );
+          }, 900);
+        } else if (flowId === 3) {
+          // FLOW 3: Failed (503) -> User Retries -> Success Complete Window
+          // Step 1: Force panel into 503 Store Unavailable
+          panel.classList.remove("rhythm-border");
+          staleBanner.classList.add("hidden");
+          contentGrid.classList.add("hidden");
+          errorBox.classList.remove("hidden");
+
+          stateBadge.className =
+            "px-2 py-0.5 rounded bg-error-container text-error border border-error/20 font-bold";
+          stateBadge.textContent = "STATE 06: FAILED RETRYABLE";
+
+          syncPill.className =
+            "flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-error-container text-error border border-error/20";
+          syncPill.innerHTML =
+            '<span class="w-1.5 h-1.5 rounded-full bg-error"></span><span class="font-bold">STORE 503 TIMEOUT</span>';
+
+          correlationCounter++;
+          const cid = `c-${correlationCounter}-a`;
+          document.getElementById("proto-cid").textContent = cid;
+
+          logTelemetry(
+            "sr-lifecycle-region",
+            `NVDA: Bar series unavailable. Store timeout. Correlation ID ${cid}. Retry available.`,
+          );
+
+          // Step 2: Auto-trigger retry after 600ms to demonstrate flow
+          setTimeout(() => {
+            executeManualRetry();
+          }, 800);
+        } else if (flowId === 4) {
+          // FLOW 4: Failed 503 -> Retry -> Same Failure with Distinct Correlation ID
+          // Start in 503
+          panel.classList.remove("rhythm-border");
+          staleBanner.classList.add("hidden");
+          contentGrid.classList.add("hidden");
+          errorBox.classList.remove("hidden");
+
+          correlationCounter++;
+          let initialCid = `c-${correlationCounter}-x`;
+          document.getElementById("proto-cid").textContent = initialCid;
+
+          stateBadge.className =
+            "px-2 py-0.5 rounded bg-error-container text-error border border-error/20 font-bold";
+          stateBadge.textContent = "STATE 06: FAILED RETRYABLE";
+
+          logTelemetry(
+            "sr-lifecycle-region",
+            `NVDA: Bar series unavailable. Store timeout. Correlation ID ${initialCid}.`,
+          );
+
+          // Retrying intermediate state
+          setTimeout(() => {
+            logTelemetry(
+              "sr-lifecycle-region",
+              "NVDA: Retrying bar series request...",
+            );
+
+            // Fails again with NEW correlation ID (Spec R8)
+            setTimeout(() => {
+              correlationCounter++;
+              let newCid = `c-${correlationCounter}-z`;
+              document.getElementById("proto-cid").textContent = newCid;
+
+              logTelemetry(
+                "sr-lifecycle-region",
+                `NVDA: Bar series unavailable. Store timeout. Correlation ID ${newCid}. Retry available.`,
+              );
+            }, 600);
+          }, 500);
+        }
+      }
+
+      // Manual Retry Button Trigger
+      function executeManualRetry() {
+        const retryBtn = document.getElementById("proto-retry-btn");
+        retryBtn.innerHTML =
+          '<span class="w-3 h-3 border-2 border-surface-container-lowest border-t-transparent rounded-full animate-spin"></span><span>Retrying...</span>';
+
+        logTelemetry(
+          "sr-lifecycle-region",
+          "NVDA: Retrying bar series request.",
+        );
+
+        setTimeout(() => {
+          // Settle into complete loaded window
+          retryBtn.innerHTML =
+            '<span class="material-symbols-outlined text-[14px]">refresh</span><span>Retry Request</span>';
+          resetPrototypeToDefault();
+
+          logTelemetry(
+            "sr-data-region",
+            "NVDA: 1,950 bars loaded successfully. Coverage complete.",
+          );
+        }, 700);
+      }
+
+      // Live clock update
+      setInterval(() => {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, "0");
+        const m = String(now.getMinutes()).padStart(2, "0");
+        const s = String(now.getSeconds()).padStart(2, "0");
+        const clockEl = document.getElementById("sys-clock");
+        if (clockEl) {
+          clockEl.textContent = `${h}:${m}:${s} EST`;
+        }
+      }, 1000);
+    </script>
+  </body>
+</html>
