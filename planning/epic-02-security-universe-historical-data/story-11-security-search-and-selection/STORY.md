@@ -229,3 +229,56 @@ its first commit if the user has been there before.
 **One thing that is not yours**, so it is not taken in passing: the window
 control and its calendar vocabulary are Story 2.13's, and the panel deliberately
 carries no control that changes the window.
+
+---
+
+## Tasks — added 2026-09-10
+
+Ten tasks, sequential. The shape follows Stories 2.9 and 2.10: **the decisions
+are settled first and ship nothing** (2.11.1), the pieces that can be built
+without a screen are built and tested on their own (2.11.2, 2.11.3), and the
+control lands as early as the dependency graph allows rather than at the end.
+
+**This story is visible in a way the two before it were not.** Six of the ten
+tasks change something a person can see, and the first of those is fourth rather
+than last. That is deliberate: this is the epic's exit criterion and the first
+genuinely interactive control in the product, and a run of tasks with nothing on
+screen is how a product stops being demonstrable.
+
+**2.11.4 is the payoff and 2.11.6 is what makes it honest.** They are split on
+purpose. The first is about the control working — matching, ranking, roles,
+keyboard, and a navigation that opens a security. The second is about every way
+it can go right while looking wrong: no matches, more matches than shown, a
+security with no stored bars, an untracked security that must be found rather
+than hidden, and a backend that is unreachable without the page collapsing.
+Combining them is how the second half gets shortened.
+
+**2.11.5 is a behaviour change to the whole page's lifetime**, not a link-tag
+substitution. Every route to a second symbol today is a document navigation,
+which reloads the bundle and takes the parsed-series cache with it. Ending that
+is what puts the cache in the condition it was designed for and what makes the
+browser assertion Story 2.10 could not write — _the panel never shows one
+symbol's bars under another's name_ — possible for the first time.
+
+**2.11.7 is the expensive-to-retrofit one.** Four later epics add a region to the
+Security Explorer; the grid, the identity block and the placeholder treatment are
+decided once here, while there are two real regions to decide them against.
+
+| Task                                                                  | What it does                                                              | Visible?                     |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------- |
+| [2.11.1](TASK-01-settle-search-selection-and-the-url.md)              | Where search lives, how it matches, what the address carries              | No                           |
+| [2.11.2](TASK-02-the-matcher.md)                                      | What `nvid` matches, in what order, and the cap                           | No                           |
+| [2.11.3](TASK-03-the-field-the-product-never-had.md)                  | The input idiom and its full state set                                    | **In the workshop**          |
+| [2.11.4](TASK-04-search-on-screen.md)                                 | The combobox, results, and opening a security                             | **Yes — the payoff**         |
+| [2.11.5](TASK-05-client-side-navigation-and-the-table-as-a-way-in.md) | Client-side navigation; a table row as a way in; the cache survives       | **Yes**                      |
+| [2.11.6](TASK-06-every-search-state-produced.md)                      | Every state from a named cause, including untracked and unreachable       | **Yes**                      |
+| [2.11.7](TASK-07-the-security-explorer-shell.md)                      | §8.3's shell: the grid, the identity block, five honest placeholders      | **Yes**                      |
+| [2.11.8](TASK-08-the-universe-table-past-500.md)                      | The grouping control Story 2.4's trigger asked for, now that it has fired | **Yes**                      |
+| [2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)           | The keyboard flow, a screen-reader pass, and the browser journey          | Fixes rather than new pixels |
+| [2.11.10](TASK-10-deployed-verify-document-and-adr.md)                | Deployed deep-load, `SEARCH-AND-SELECTION.md`, ADR 0024, the sweep        | **Yes — live**               |
+
+**What this story deliberately does not take**, so that no task quietly does: any
+chart, including a sparkline in a result row or in the shell (2.12 and 2.13); the
+window control and its calendar vocabulary (2.13); provenance as a product-wide
+requirement (2.14); selection from the overview (Epic 4) or the topology graph
+(Epic 6); and comparing two securities (Epics 8 and 11).
