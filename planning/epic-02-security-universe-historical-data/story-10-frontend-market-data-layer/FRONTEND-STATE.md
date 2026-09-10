@@ -372,6 +372,15 @@ where the contract did not put the answer.
 | `unreadable-body`                        | no        | Something is answering and it is not this API                        |
 | `aborted`                                | —         | Not a state at all; the caller did this                              |
 
+**The flag is a property of the failure states only, and the two refusals are
+not failures.** Task 2.10.4's union has a `refused` member for the 10,000-bar cap
+and for a window outside the calendar's range, and both arrive as `api-error`
+carrying `BAD_REQUEST`. They keep their own member and never acquire this flag: a
+refusal is a well-formed answer **about the request**, it owes the user its
+number rather than a statement about waiting, and marking it "not retryable"
+implies waiting was ever the question. The row above governs a `BAD_REQUEST` this
+client did not recognise as a refusal.
+
 **`http-error` is not retryable on purpose, and it is the interesting row.** It
 is a non-2xx whose body is not an `ApiError` — an ingress answering its own 503
 while the replica behind it is not serving, which is genuinely temporary. But it
@@ -429,16 +438,16 @@ user pays for twice.
 
 ## 5. What each following task inherits
 
-| Task       | What it takes from here                                                                        |
-| ---------- | ---------------------------------------------------------------------------------------------- |
-| **2.10.2** | §4 whole — the flag, the mapping, the two prohibitions, and the copy rule                      |
-| **2.10.3** | §3's "never compute the window here"; the cache key's shape (§2)                               |
-| **2.10.4** | §1's four shape rules; the union with a _partial_ member; §4's flag on its failed member       |
-| **2.10.5** | §2's design — bounded LRU, read-to-paint-never-to-skip, no clock — and the heap figure it owes |
-| **2.10.6** | Nothing decided here constrains the fixture backend; it serves the contract §3 sends           |
-| **2.10.7** | §3's URL rule: the panel is keyed on the address, and states the resolved range back           |
-| **2.10.8** | §2's stale-while-loading consequence, which is a product behaviour it designs                  |
-| **2.10.9** | This file, into `CLAUDE.md`'s _Where the record lives_ table, and the ADR                      |
+| Task       | What it takes from here                                                                                                                                                                                                          |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **2.10.2** | §4 whole — the flag, the mapping, the two prohibitions, and the copy rule                                                                                                                                                        |
+| **2.10.3** | §3's "never compute the window here"; the cache key's shape (§2)                                                                                                                                                                 |
+| **2.10.4** | §1's four shape rules; the union with a _partial_ member; §4's flag on its failed member                                                                                                                                         |
+| **2.10.5** | §2's design — bounded LRU, read-to-paint-never-to-skip, no clock, **keyed on the request as sent** — and the heap figure it owes. Its own file was drafted with a resolved-window key and carries a dated amendment reversing it |
+| **2.10.6** | Nothing decided here constrains the fixture backend; it serves the contract §3 sends                                                                                                                                             |
+| **2.10.7** | §3's URL rule — the symbol is a **path segment**, so this task declares `/securities/:symbol`; the panel states the resolved range back                                                                                          |
+| **2.10.8** | §2's stale-while-loading consequence, which is a product behaviour it designs                                                                                                                                                    |
+| **2.10.9** | This file, into `CLAUDE.md`'s _Where the record lives_ table, and the ADR                                                                                                                                                        |
 
 ## 6. What this task did not decide, restated
 

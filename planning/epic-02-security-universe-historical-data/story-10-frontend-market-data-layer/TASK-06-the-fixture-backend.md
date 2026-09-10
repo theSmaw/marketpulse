@@ -64,9 +64,26 @@ they do not each answer "what does a partial series look like?" differently.
   says so in its header: it is the one place the application's context is
   described for tests, deliberately the third and last such description, and
   "every provider Epic 2 adds — a Redux store, an RxJS scheduler — lands here
-  rather than in each test file". If Task 2.10.1 chose a store or a cache
-  provider, this is where it is wired, and the header comment is updated from a
-  prediction into a statement.
+  rather than in each test file".
+
+  > **Amended 2026-09-10 by Task 2.10.1 — there is no provider, and the thing
+  > that replaces it is a trap this task now owns.** `FRONTEND-STATE.md` §1 took
+  > no store and §2 chose a **module-level bounded `Map`** rather than a React
+  > cache provider, so nothing new is wired into `test-render.tsx` and its header
+  > stays a prediction for Epic 11 rather than becoming a statement.
+  >
+  > What arrives instead is **shared mutable state that outlives a test**. A
+  > module-level singleton is imported once per worker, so a series cached by one
+  > test is visible to the next, and the symptom lands in a **later** test as a
+  > request that was never made or a state that was already loaded — which is the
+  > same failure shape, and the same debugging cost, as the missing
+  > `afterEach(cleanup)` this package's `setupFiles` already exists for.
+  >
+  > So this task owes the cache a **reset**, exported from the module and called
+  > where `cleanup` is called, and it owes it a test that would fail without it:
+  > two tests in one file that would pass individually and disagree when run
+  > together. Note the ordering hazard is invisible to a single-file run, which is
+  > exactly how it survives into a suite.
 
   Note the two descriptions it must stay consistent with: `App.tsx` uses a real
   `BrowserRouter`, and `.storybook/preview.tsx` uses a `MemoryRouter` decorator.
@@ -88,7 +105,9 @@ they do not each answer "what does a partial series look like?" differently.
   multi-source and both refusals, recorded from the real endpoint rather than
   written by hand
 - Whether the fixtures are excluded from Prettier is decided and recorded
-- Any provider is in `test-render.tsx` and its header no longer predicts
+- No provider was needed, and the cache's `reset` is called where `cleanup` is —
+  proved by two tests that pass alone and would disagree when run together
+  without it
 - The hook's tests run with no network and no socket, and `pnpm test` stays fast
 - The built artefact is unchanged in shape and the fixtures are not in it
 - `pnpm verify` passes

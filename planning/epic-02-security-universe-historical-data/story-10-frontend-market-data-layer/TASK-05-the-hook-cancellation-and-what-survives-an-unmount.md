@@ -44,13 +44,43 @@ mid-request leaves an error sitting on the previous page.
   anything in this system serves an invalidated body, and a client TTL defeats it
   silently and invisibly.
 
-  So the questions this task actually answers are: keyed on what (symbol,
-  timeframe and the _resolved_ window, not the requested one — `?sessions=5`
-  means a different window tomorrow); bounded how (a series is up to 10,000 bars
-  and a user can visit 518 securities, so unbounded growth is a real leak on a
-  long-lived tab); and evicted when. Implement whichever mechanism Task 2.10.1
-  chose, and **if the choice was a library, the bundle figure it was chosen on
-  gets re-taken here against the real build** rather than carried forward.
+  So the questions this task actually answers are: keyed on what; bounded how (a
+  series is up to 10,000 bars and a user can visit 518 securities, so unbounded
+  growth is a real leak on a long-lived tab); and evicted when.
+
+  > **Amended 2026-09-10 by Task 2.10.1, and this reverses the key this task was
+  > written with.** The paragraph above said to key on the **resolved** window
+  > rather than the requested one, because `?sessions=5` means a different window
+  > tomorrow. That was the right key for the cache this task assumed — one that
+  > **serves without asking** — and `FRONTEND-STATE.md` §2 chose a different
+  > mechanism, so the reason has gone: **every read of the cache is accompanied
+  > by a request**, the entry only paints sooner while that request is in flight,
+  > and freshness stays entirely with the browser and the server's five-minute
+  > ceiling. A stale entry can therefore be on screen only for the duration of one
+  > in-flight request.
+  >
+  > Under that mechanism the resolved key is not merely unnecessary, it is
+  > **actively wrong in the common case**: a named window's first request cannot
+  > look itself up under a resolved range it does not have yet, so `?sessions=5`
+  > — the form decision 3 puts in the address bar — would never hit at all, and
+  > the cache would buy nothing for the only window form a user normally has.
+  >
+  > **So: key on the request as sent** — `symbol | timeframe | window`, with the
+  > window in the form the caller expressed it, which is the same key every HTTP
+  > cache between here and the server is already using. **Record
+  > `coverage.requested` on the entry** rather than in the key, because a
+  > component needs the resolved range to state it (Task 2.10.4's `partial`
+  > carries two windows) and the fresh answer replaces it within one request.
+  > Eviction is by **count, never by clock** — a cache with no lifetime cannot
+  > have a lifetime that disagrees with the server's.
+
+  The mechanism is a hand-rolled bounded LRU `Map`, chosen in `FRONTEND-STATE.md`
+  §2 on the failure-mode test rather than on size (a library was measured at
+  +9.54 kB gzipped against +0.13 kB, and that was the tiebreaker rather than the
+  argument). **The bundle figure does not need re-taking — nothing was
+  installed.** What this task does owe is the figure §2 deferred to it and could
+  not honestly take against a module that did not exist: **the parsed heap cost
+  of a real series, and therefore whether 24 entries is the right bound.**
 
 - **Do not send a window this client resolved.** Task 2.10.3's rule holds inside
   the hook: `sessions=N` goes out, `coverage.requested` comes back, and the
@@ -88,7 +118,10 @@ mid-request leaves an error sitting on the previous page.
   criterion 3)
 - Leaving a security and returning does not re-`JSON.parse` a series still held,
   demonstrated by a test that counts requests or parses rather than by inspection
-- The cache has **no TTL of its own**, is bounded, and its key is the resolved
-  window
+- The cache has **no TTL of its own**, is bounded by count, and is keyed on the
+  request as sent — with `coverage.requested` recorded on the entry rather than
+  in the key (see the amendment above, which reverses this task's original key)
+- The parsed heap cost of a real series is measured, and the entry bound is set
+  from it rather than from the working number of 24
 - The refetch policy is written down with its reversal trigger
 - `pnpm verify` passes, including the React Compiler rules
