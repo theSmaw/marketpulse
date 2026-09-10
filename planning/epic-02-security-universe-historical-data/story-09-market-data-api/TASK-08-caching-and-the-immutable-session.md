@@ -17,6 +17,21 @@ back to a window already looked at should not re-read 8,000 rows.
 
 ## Work
 
+- **What you are bounding now exists, and its size is already capped while its
+  frequency is not — added 2026-09-09 by Task 2.9.5.** `serveSeries` fetches at
+  most the **current session's** tail, so a single request can never become a
+  multi-day vendor fetch however stale the store is. What is unbounded is how
+  _often_ that request is made: every chart window ending `now` is one metered
+  request on a cache miss, once per page load, per symbol. The cache is
+  therefore in front of `serveSeries` rather than inside it, and the store is
+  not the cache — the tail is served and **cannot** be stored, because
+  `recordSeries` refuses a two-source series by design.
+
+  `MARKET-DATA-API.md` §5 names this task failing to bound that request as the
+  condition for bringing the stitch decision back to the user. It is a condition
+  rather than a formality: if it fires, say so rather than narrowing the stitch
+  here.
+
 - **Draw the line where the calendar draws it, not where a clock does.** A window
   entirely inside sessions that have closed is immutable and can say so; a window
   whose end is in the current or a future session is not, because the store's own

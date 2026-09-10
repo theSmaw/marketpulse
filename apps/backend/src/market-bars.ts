@@ -56,6 +56,7 @@ import {
   toSeriesProvenance,
   toTicker,
   toTimeRange,
+  type Adjustment,
   type Bar,
   type BarSeries,
   type MarketFeed,
@@ -407,8 +408,15 @@ const SOURCE_OF_NOTHING: SeriesSource = { provider: "alpaca", feed: "sip" };
  * adjust for themselves. There is deliberately no default adjustment anywhere
  * in `packages/shared` (acceptance criterion 5 of Story 2.6), so this is a
  * statement about this table rather than a fallback.
+ *
+ * **Exported since Task 2.9.5**, which is the reader that makes it load-bearing
+ * rather than local: the stitch asks a provider for the uncovered tail and
+ * `mergeSeriesProvenance` *refuses* to join two adjustments, so the tail has to
+ * be requested at whatever this table holds. A literal `"raw"` at that call
+ * site would be a second statement about this table's contents, and the two
+ * would agree only until one of them was edited.
  */
-const STORED_BAR_ADJUSTMENT = "raw";
+export const STORED_BAR_ADJUSTMENT: Adjustment = "raw";
 
 /**
  * A series' source disagrees with the ledger row it would extend, or with
@@ -909,8 +917,14 @@ function toCoverage(row: CoverageRow): BarCoverage {
  * here by name rather than silently reporting no missing sessions — which is
  * the correct direction, and is why `BARS.md` §2 capped the daily depth at
  * 2024-01-01 in the first place.
+ *
+ * **Exported since Task 2.9.5**, which asks the same question on the read side:
+ * a stored half and a freshly fetched tail can be joined into one covered range
+ * only if nothing the backfill owns lies between them. Same question, same
+ * calendar, one definition — a second copy would be a threshold somewhere that
+ * disagreed with this one about a half day.
  */
-function sessionsInGap(gapStart: Date, gapEnd: Date): readonly string[] {
+export function sessionsInGap(gapStart: Date, gapEnd: Date): readonly string[] {
   if (gapEnd <= gapStart) return [];
 
   return marketSessionsBetween(marketDateAt(gapStart), marketDateAt(gapEnd))

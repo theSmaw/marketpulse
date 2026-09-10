@@ -21,6 +21,33 @@ the chart is Story 2.12's.
 
 ## Work
 
+- **The read is already written and its name is `serveSeries` — added 2026-09-09
+  by Task 2.9.5.** `apps/backend/src/serve-series.ts` takes
+  `{ bars, provider, log }`, a symbol, a timeframe, a `TimeRange` and `now`, and
+  returns `{ series, held, tail }`. The first two fields are `StoredSeries`'
+  unchanged, so §6's three-way _unknown symbol / we hold nothing / nothing
+  traded_ reading is the same reading it would have made of an unstitched read.
+  Four things this route inherits rather than decides:
+
+  - **A failing tail is never a 5xx.** `tail` is a `TailOutcome`, and every
+    non-`ok` result has already been logged under the request's `reqId` — the
+    module takes a structural logger and the route passes `request.log`. The
+    provider's eight-member taxonomy must not reach the client; what reaches it
+    is `coverage.covered`, which ends where the store ends. Do not map an
+    outcome onto a status code.
+  - **`provider: undefined` is not the 503.** `market-data.ts`'s 503 is for a
+    route with _nothing_ to serve; a deployment reading no provider still serves
+    stored history, and `serveSeries` returns `{ attempted: false, reason:
+"no-provider" }` rather than failing. The 503 this route owes is the one for
+    an unavailable **database**.
+  - **`now` is a parameter.** The route reads the clock once and passes the same
+    instant to `parseSeriesRequest` and to `serveSeries`; two readings is how a
+    named window and a session bound end up disagreeing at midnight.
+  - **`tail` is what Story 2.14's _"displaying data through 15:42"_ is built
+    from**, and it is deliberately returned rather than only logged. Whether any
+    of it reaches the payload is this task's call — `bar-series-response.ts`
+    does not carry it today, and `coverage.covered` may well be enough.
+
 - ~~**Declare `500: apiErrorSchema`**~~ **— the response schema is already
   written. Import it; do not write a second one (amended 2026-09-09 by Task
   2.9.3).** `barSeriesResponseSchema` is exported from
