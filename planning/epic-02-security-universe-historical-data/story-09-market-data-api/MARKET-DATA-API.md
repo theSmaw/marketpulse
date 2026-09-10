@@ -1411,14 +1411,47 @@ for the 304 — about 800 ms saved on every repeat page load**, against 1.1 ms
 saved locally. The deployed body is **190,736 bytes, byte for byte the local
 figure**, which is a second confirmation that the two universes agree.
 
-> **Task 2.9.10 owes this table a re-take of its `Body` and `Miss`/`Hit`
-> columns, and it is not taken yet** — the coding does not exist deployed until
-> this change merges (§13.6). **The `304` column should not move**, which is
-> itself the check: a conditional request transfers no body, so a coding cannot
-> touch it. The prediction, from §12.1's wire figures and this table's own
-> 116–415 kB/s: `/securities` should fall from **1,153 ms** towards the
-> **356 ms** floor its own `304` already reaches, because 20,072 bytes is close
-> enough to nothing at this distance that the round trip is all that is left.
+> **Re-taken 2026-09-10 by Task 2.9.10, after the coding was deployed.** The
+> table above is the pre-compression reading and is left standing; the one below
+> is the same script, same vantage, same link, n=10, with **two arms** —
+> `Accept-Encoding: identity` and `gzip` — so the difference between them is the
+> coding and nothing else. **The identity arm is the control, and it reproduces
+> the table above** (`/securities` 1,004 ms against 1,153; the month 2,606
+> against 2,505), which is what says the gzip column is the coding rather than a
+> better day.
+
+| Access pattern               | Wire, gzip |    Miss id → gzip |   Hit id → gzip | 304 id → gzip |
+| ---------------------------- | ---------: | ----------------: | --------------: | ------------: |
+| `1m`, one session            |    7,353 B |     662 → **333** |   515 → **286** |     285 → 310 |
+| `1m`, five sessions          |   29,072 B |     821 → **399** |   541 → **306** |     297 → 293 |
+| `1m`, one month              |  154,480 B | 2,606 → **1,210** | 1,367 → **783** |     418 → 413 |
+| `1d`, the whole stored depth |   16,437 B |     964 → **456** |   922 → **507** |     516 → 435 |
+| `1m`, one year — refused     |      258 B |         317 → 331 |               — |             — |
+| Unknown symbol — 404         |      173 B |         324 → 308 |               — |             — |
+| `/securities`                |   19,902 B |   1,004 → **484** |   794 → **396** |     427 → 376 |
+
+Method note: **the byte columns are single fixed windows read with `curl`'s
+`%{size_download}`**, and the timing columns walk the window start one unit per
+sample as §12's preamble requires — which for the `1d` row moves the body
+between 76,757 and 77,212 B, the one place the two methods do not describe
+byte-identical bodies.
+
+**`/securities` is the row this task existed for: 1,153 ms before, 484 ms now,
+against its own 376 ms conditional floor.** The prediction on record was that it
+would fall from 1,153 towards 356; it did, and what is left above the floor is
+about 100 ms of transferring 19,902 bytes. **The month falls from 2,606 to
+1,210 ms**, which is the row §12.5 said was almost entirely transfer.
+
+**The `304` column does not move, and that was the stated check.** A conditional
+request transfers no body, so a coding cannot touch it; 285/297/418/516/427
+identity against 310/293/413/435/376 gzip is one link's noise around a constant.
+The two sub-1 kB rows do not move either, for the threshold's reason.
+
+**One row is worth reading against §12.4 rather than against this section.** The
+`1d` depth is the smallest 200 in the table and the slowest hit, and compressing
+it changed that not at all — 922 → 507 ms on the miss but 507 ms still floors
+well above the 404's 308, because 20.6 ms of it is the calendar walk and the
+rest is the link.
 
 **What this cannot say.** One machine over one link cannot tell its own network
 from the environment, and nothing here is called an outage. What it can say is
@@ -1673,13 +1706,49 @@ universe from the real pair and the three axe runs over it.** Task 2.9.7 put a
 rendered page on this path, which is what makes that run the check rather than a
 formality.
 
-### 13.6 The deployed gate
+### 13.6 The deployed gate — taken 2026-09-10, all four pass
 
-**Not yet taken. This section is the placeholder and it is deliberately empty**,
-because the change is not deployed until it is merged: `deploy.yml` is keyed on
-`workflow_run` of `verify` against `main`. The four readings §12.8 needs, and
-what each would falsify, are listed in `TASK-10-compress-the-wire.md`. An
-ingress that strips, re-encodes or buffers `Content-Encoding` makes the whole of
-this inert with every test green, so this is a **gate** rather than a reading —
-and §12.5 already establishes that the ingress adds no coding of its own, which
-is a different claim from passing one through.
+**Taken against the deployed backend after the merge that carried this change,
+and treated as a gate rather than a reading.** The Azure Container Apps ingress
+is configured by no file in this repository, and one that stripped, re-encoded
+or buffered `Content-Encoding` would make the whole of this section inert with
+every test green.
+
+| #   | Reading                                           | Result                                                                                                         |
+| --- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 1   | `/securities`, `Accept-Encoding: gzip`            | `200`, **`content-encoding: gzip`**, `vary: accept-encoding`, `etag: W/"…"`, `private, no-cache`, **19,902 B** |
+| 2   | `/securities`, `Accept-Encoding: identity`        | `200`, no coding, **`content-length: 190736`**, the same weak `ETag` — the identity body unchanged             |
+| 3   | The same, conditional, negotiating gzip           | **`304`**, `0 B`, carrying `cache-control` and `etag`, and **no `content-encoding`**                           |
+| 4   | `/market-data/bars`, absolute closed window, gzip | **`private, max-age=300`**, an `etag`, `content-encoding: gzip`, **7,473 B**                                   |
+
+§11's four header readings hold with compression in front of them, and nothing
+here falsifies §11 or §12.5. §12.8 carries the re-taken timings.
+
+#### One discrepancy, chased rather than filed
+
+**The deployed coding produced 7,473 bytes where the local server produced 7,549
+for a body that is byte-identical** — the gzip decompresses to exactly the 44,701
+identity bytes. That is not any `gzipSync` level of those bytes on the machine
+that took the local figure (level 6 gives 7,549, level 9 gives 7,218), and it is
+precisely the shape of _the ingress re-encoded it_. So it was tested rather than
+explained away:
+
+| `Accept-Encoding` | Deployed answer                                        |
+| ----------------- | ------------------------------------------------------ |
+| `deflate`         | **`content-encoding: deflate`**, 7,461 B               |
+| `br`              | **no coding at all — the full 44,701 B identity body** |
+| `br, gzip`        | `gzip` — this application's allowlist choosing         |
+| `zstd`            | no coding                                              |
+
+**`deflate` is offered by nothing in this stack but `http-compression.ts`, and
+`br` alone comes back uncompressed** — an ingress compressing on its own behalf
+would have served brotli there, since every modern proxy prefers it. So §12.5's
+finding survives with the application's coding in front of it: **the ingress adds
+none, and passes ours through untouched.**
+
+The 76 bytes are our own zlib on a different platform — a linux container against
+darwin/arm64, whose Node reports zlib 1.2.12. **Which is a rule worth stating on
+its own: a compressed size is platform-dependent, so it is re-taken per
+environment rather than carried across one.** Every _identity_ figure is
+byte-identical between the two (44,693 / 177,463 / 190,736), which is the control
+that says the stores agree and only the encoder differs.

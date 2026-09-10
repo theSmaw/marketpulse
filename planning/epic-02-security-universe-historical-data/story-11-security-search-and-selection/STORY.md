@@ -168,10 +168,14 @@ is the one to work from.
   it moves this decision rather than decorating it: at 20 kB the whole universe in the
   browser is comfortably free and client-side filtering needs no defending. The
   uncompressed figure is what an `Accept-Encoding: identity` client would get and nothing
-  in this product is one. The **~1.15 s** deployed fetch and the **~356 ms** conditional
+  in this product is one. ~~The **~1.15 s** deployed fetch and the **~356 ms** conditional
   request (`MARKET-DATA-API.md` §12.5, §12.8) are pre-compression readings and **Task
   2.9.10 owes this line a re-take** once it is deployed; expect the first to fall towards
-  the second.
+  the second.~~ **Re-taken 2026-09-10 against the deployed service, and the expectation
+  held: the fetch is now **484 ms** against a **376 ms** conditional floor** — so what is
+  left above the floor is about 100 ms of transferring 20 kB, and this endpoint's cost is
+  now almost entirely the round trip. Whatever you decide about search, **the payload is
+  no longer an argument against holding the universe in the browser.**
 - **Grouping past 500.** Task 2.4.4 recorded the reversal trigger for the sector grouping:
   at §6's 500-security ceiling a single group is longer than a screen, and groups need to
   become jumpable or collapsible — **which is a control**, and controls were out of scope for
