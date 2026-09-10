@@ -42,13 +42,27 @@ by accident on the smallest possible evidence.
 
 ## Work
 
-- **The symbol lives in the URL**, in whatever shape Task 2.10.1 decided. This is
+- **The symbol lives in the URL**, in the shape Task 2.10.1 decided. This is
   open decision 3 being _exercised_ rather than only recorded: deep-linking
-  already works and Epic 1 proved it against the deployed host, so a link to
-  `/securities?symbol=NVDA` (or the decided shape) must survive a reload, a
-  back button and a share. Story 2.11 replaces typing it with search and may move
-  it to a path segment; that is a change to one module if this task keeps the
-  read in one place, and a change to five if it does not.
+  already works and Epic 1 proved it against the deployed host, so the link must
+  survive a reload, a back button and a share.
+
+  > **Amended 2026-09-10 by Task 2.10.1 — the shape is settled and this task's
+  > worked example was the other one.** `FRONTEND-STATE.md` §3 decided **the path
+  > names the subject and the query names the view**, so the symbol is a path
+  > segment — `/securities/NVDA` — and **not** the `/securities?symbol=NVDA` this
+  > task was drafted with. Which means this task **declares the parameterised
+  > route**, and that is not scope creep into Story 2.11: `paths.ts` already
+  > records `/securities/:symbol` as the intended shape and says the route is
+  > deliberately withheld only until there is something behind it, because "an
+  > empty route with a parameter is a promise about a data shape this story has
+  > no business making". This task is that something, arriving earlier than
+  > `paths.ts` predicted. Story 2.11 still owns **search** — how a user gets to a
+  > symbol without typing a URL — and owns nothing here beyond it.
+  >
+  > Read the segment in **one place** regardless. That was the original bullet's
+  > real point and it survives the change of shape: a symbol read in five
+  > components is five things to fix when Story 2.11 adds search above it.
 
   **Decide what happens with no symbol and with a symbol that is not tracked**,
   and neither is an error. No symbol is the ordinary case until Story 2.11 —
@@ -103,8 +117,8 @@ by accident on the smallest possible evidence.
 
 - A real series for a real symbol renders from a real request, seen on screen and
   screenshotted
-- The URL carries the symbol, survives a reload and a share, and is read in one
-  place
+- The URL carries the symbol **as a path segment**, declared in `paths.ts`,
+  survives a reload and a share, and is read in one place
 - No symbol and an unknown symbol both render sentences rather than failures
 - The feed is labelled by the shipped rule, with a sentence where the rule says
   one is owed

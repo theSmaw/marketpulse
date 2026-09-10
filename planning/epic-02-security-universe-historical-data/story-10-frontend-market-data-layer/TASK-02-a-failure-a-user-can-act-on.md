@@ -38,7 +38,30 @@ Story 2.12.
   put a value. `useSecurities` currently collapses `api-error`, `http-error` and
   `unreadable-body` alike onto `answered-badly` — the collapse itself is right and
   its reasoning is written out in that file, so **widen it deliberately rather
-  than replacing it**, in whichever of the three shapes Task 2.10.1 chose.
+  than replacing it**.
+
+  > **Amended 2026-09-10 by Task 2.10.1 — the shape is a flag, and half of this
+  > task is in `packages/shared`.** `FRONTEND-STATE.md` §4 chose **a `retryable`
+  > flag derived from `code`**, carried on the existing failed state: not a third
+  > union member, and not one member per `API_ERROR_CODES` entry. Two consequences
+  > this task's original wording did not carry.
+  >
+  > **The derivation lives beside `API_ERROR_CODES` in
+  > `packages/shared/src/api-error.ts`, not in the frontend** — the meaning of a
+  > code is part of the contract rather than a client's opinion, which is the same
+  > rule `api-client.ts` states for predicates and for the same reason: a second
+  > copy written at a call site is the copy that disagrees first. So this task
+  > edits the shared package and owes it a test, and `packages/shared` must be
+  > built before the frontend typechecks against it.
+  >
+  > **`http-error` is deliberately _not_ retryable**, and the reason is worth
+  > having in front of you while writing the collapse: it carries no `code` at
+  > all, and an answer we cannot read the contract from is one we cannot make a
+  > promise about. There is a second, non-obvious path into that outcome —
+  > `isApiError` declines a `code` it has not been taught — so a server that later
+  > learns a retryable code reads as non-retryable here until the shared package
+  > learns it. That is a version skew degrading in the safe direction, and §4
+  > records it because nothing checks it.
 
 - **Keep the two failure states distinguishable and do not add a third rendering
   vocabulary.** `UniverseTable` already ships two failure sentences in one visual
@@ -85,6 +108,8 @@ Story 2.12.
   page is untouched throughout
 - Pressing retry twice cannot render a stale answer
 - The raw `code` appears nowhere on screen
+- The retryable derivation is in `packages/shared` beside `API_ERROR_CODES`, with
+  its own test, rather than written in the frontend
 - The states are covered at the component level and the wording is judged by a
   person, per Task 2.4.5's rule that no instrument can hear whether a sentence is
   a good one

@@ -65,11 +65,24 @@ and then three UI stories.
     not belong under the failure members. The cap's 400 names the number; a state
     that discards it makes the sentence "too much data" instead of "10,000 bars is
     the limit and you asked for 98,280".
-  - **the failures**, in whatever shape Task 2.10.1 decided for the retryable
-    split, and **exactly the two distinctions a reader can act on** — the one
+  - **the failures**, carrying the `retryable` flag `FRONTEND-STATE.md` §4
+    settled, and **exactly the two distinctions a reader can act on** — the one
     `SecuritiesView` already draws (did anything answer at all?) plus retryability.
     Not one per `API_ERROR_CODES` member: the union grows for the server's reasons
     and a page that mirrors it changes every time the API learns a new failure.
+
+    > **Amended 2026-09-10 by Task 2.10.1 — where `refused` sits relative to the
+    > flag, because the two were settled in different documents and could
+    > otherwise produce two different unions.** §4's mapping table lists
+    > `BAD_REQUEST` as not retryable, and both refusals above — the cap and the
+    > calendar — arrive as `api-error` carrying exactly that code. **They are
+    > still `refused`, not failures.** The flag is a property of the **failure**
+    > members only, and `refused` is upstream of it: a refusal is a well-formed
+    > answer about the request, so it needs its number on screen and needs no
+    > statement about whether waiting helps. Waiting never helps, and saying so
+    > would imply it might otherwise. So the collapse tests the code for a refusal
+    > **before** it reaches the retryable branch, and §4's row for `BAD_REQUEST`
+    > governs only a `BAD_REQUEST` this client did not recognise as a refusal.
 
   **`aborted` is not a member.** It is not a fact about the backend at all — it is
   a torn-down effect or a superseded request — and rendering one as a failure is
