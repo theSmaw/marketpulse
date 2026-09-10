@@ -434,6 +434,88 @@ test("a service error reads as an unexpected response, with a quotable reference
   await expectNoAxeViolations(page, "the securities route, answered badly");
 });
 
+test("a dependency that is down says so, and the retry recovers the page", async ({
+  page,
+}) => {
+  // **The commonest failure this page actually has**, and the one Task 2.10.2
+  // exists for: the service is up and cannot reach its database, so it answers
+  // a 503 carrying `SERVICE_UNAVAILABLE`. Until that task it rendered as
+  // *unexpected response* — a sentence that was false in the direction that
+  // matters, because it told a reader nothing would help at the moment when
+  // waiting was the entire answer.
+  //
+  // The body is built with the shared constructor, so this is the wire shape
+  // `apps/backend/src/errors.ts` actually produces rather than a plausible copy
+  // — and the real one was produced before this spec was written, by pointing
+  // the backend at a port nothing listens on.
+  const requestId = "9c2e1b4e-7a52-4b1d-8f0b-3d8a6f04b571";
+  let unavailable = true;
+
+  await page.route(SECURITIES_ROUTE_PATTERN, async (route) => {
+    if (unavailable) {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        headers: {
+          [REQUEST_ID_HEADER]: requestId,
+          "access-control-expose-headers": REQUEST_ID_HEADER,
+        },
+        body: JSON.stringify(
+          apiError(
+            "SERVICE_UNAVAILABLE",
+            "Market data is temporarily unavailable. Try again shortly.",
+            requestId,
+          ),
+        ),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ securities: [], coverage: [], lastCloses: [] }),
+    });
+  });
+  await page.goto(SECURITIES);
+
+  const region = page.getByRole("region", { name: "Tracked universe" });
+  await expect(
+    region.getByText("temporarily unavailable", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    region.getByText("The tracked universe is temporarily unavailable.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+
+  // The reference is still offered — it is the one internal identifier this
+  // product shows — and the discriminator behind the sentence is not.
+  await expect(region.getByText(/^Reference /)).toContainText(requestId);
+  await expect(page.getByText(/SERVICE_UNAVAILABLE/)).toHaveCount(0);
+
+  // **The first control in this product that re-asks a question.** The page it
+  // is on stays exactly where it is: the heading and the chrome are the same
+  // elements before and after, which is the difference from the document reload
+  // this replaces and is PRODUCT_SPEC.md §36's incremental degradation on the
+  // one page that can currently demonstrate it.
+  await expectBackendStatus(page, "healthy");
+  await expectNoAxeViolations(page, "the securities route, temporarily down");
+
+  unavailable = false;
+  await page.getByRole("button", { name: "Try again" }).click();
+
+  // The dependency came back, so the answer changes without a navigation.
+  await expect(
+    region.getByText("The universe has not been loaded.", { exact: true }),
+  ).toBeVisible();
+  await expect(region.getByRole("button")).toHaveCount(0);
+
+  // And no navigation happened: the same document, still on the same route.
+  expect(new URL(page.url()).pathname).toBe(SECURITIES);
+  await expectNothingFailedToRender(page);
+});
+
 test("a host that is not this service reads the same, without a reference", async ({
   page,
 }) => {

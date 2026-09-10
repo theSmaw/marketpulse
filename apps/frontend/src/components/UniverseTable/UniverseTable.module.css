@@ -565,6 +565,69 @@ tbody:last-of-type .row:last-child {
 }
 
 /*
+ * Dashed: the service answered and said *not right now* (Task 2.10.2).
+ *
+ * The third silhouette in this file and **not** a third language: dashed is
+ * already what the marker vocabulary uses for a rendering that is saying
+ * nothing yet about the thing beside it, which is exactly what a temporarily
+ * unavailable dependency is. Deliberately not the amber square above — that one
+ * marks the single condition on this page that needs somebody to go and look at
+ * something, and this one needs nobody.
+ *
+ * A real border rather than an inset shadow, because `box-shadow` cannot be
+ * dashed. `box-sizing: border-box` is already on `.marker`, which is what keeps
+ * all three the same diameter on screen.
+ */
+.markerPending {
+  border: var(--border-width) dashed var(--service-unreachable);
+}
+
+/*
+ * The row a control sits on. A paragraph like the sentences above it, so the
+ * `.state p + p` rhythm carries it and the button does not need a margin of its
+ * own.
+ */
+.actions {
+  margin-top: var(--space-12);
+}
+
+/*
+ * **The first control in this product that re-asks a question.**
+ *
+ * A real `<button>`, styled down to this language rather than left at the user
+ * agent's — the same treatment `ErrorFallback` gives its own, deliberately, so
+ * that the product has one button rather than two. What is *not* borrowed from
+ * that component is everything around it: no red rule, no `role="alert"`. A
+ * service that is briefly unavailable is a product state (PRODUCT_SPEC.md §36)
+ * and a render failure is not, and the two must not look alike.
+ *
+ * No `:focus-visible` rule. `base.css` carries one global outline and it applies
+ * here like anywhere else; a component-level focus style would be a second
+ * answer to a question the token layer already answered.
+ */
+.retry {
+  padding: var(--space-4) var(--space-12);
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--rule-hairline);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-primary);
+  cursor: pointer;
+  /* On the hover, not on the resting state: a control that animates into place
+     is decoration, and one that acknowledges the pointer is feedback. `quick`
+     because it is under the pointer — `settle` is for a state changing on its
+     own. Reduced motion is answered once at the token layer. */
+  transition: background-color var(--motion-duration-quick)
+    var(--motion-ease-standard);
+}
+
+.retry:hover {
+  background: var(--surface-sunken);
+}
+
+/*
  * A string somebody is expected to type back — a correlation id, or a command
  * to run. The one place on this page set in `--font-mono`, and the token's own
  * comment carries the argument: `tabular-nums` fixes a *column*, and does

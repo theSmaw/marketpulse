@@ -72,6 +72,15 @@ and sweep what this story falsified.
   store decision is Story 2.10's, and Stories 2.11, 2.12 and 2.13 each reference
   decisions this story has now taken. Correct the live sites; leave the histories.
 
+  > **Added 2026-09-10 by Task 2.10.2 — a claim to check rather than to correct.**
+  > The failure vocabulary now ships in **two** places: the universe page (Task
+  > 2.10.2) and the bar-series states (Tasks 2.10.4 and 2.10.8).
+  > `FRONTEND-STATE.md` §4 exists so that those two agree about what a 503 means,
+  > and **nothing checks that they do** — the flag is derived once in
+  > `packages/shared`, but the copy, the silhouette and the control are written
+  > twice. Read both against §4 at the close and record the comparison as a
+  > finding either way, rather than assuming it.
+
 - **Hand forward deliberately.** Story 2.11 needs the URL shape and whether
   matching is client- or server-side; Story 2.12 needs the state union, the
   fixture set and the stale-while-loading rule; Story 2.13 needs the window's home

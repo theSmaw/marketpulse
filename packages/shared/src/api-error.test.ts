@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { API_ERROR_CODES, apiError, isApiError } from "./api-error.js";
+import {
+  API_ERROR_CODES,
+  apiError,
+  isApiError,
+  isRetryableApiErrorCode,
+  RETRYABLE_API_ERROR_CODES,
+} from "./api-error.js";
 import type { ApiError, ApiErrorCode } from "./api-error.js";
 
 describe("apiError", () => {
@@ -54,6 +60,40 @@ describe("API_ERROR_CODES", () => {
 
   it("has no duplicates", () => {
     expect(new Set(API_ERROR_CODES).size).toBe(API_ERROR_CODES.length);
+  });
+});
+
+describe("isRetryableApiErrorCode", () => {
+  // The one code that says *the dependency is unavailable* rather than *this
+  // server failed*, which is the whole reason Task 2.9.6 added it.
+  it("says waiting may help only for SERVICE_UNAVAILABLE", () => {
+    expect(isRetryableApiErrorCode("SERVICE_UNAVAILABLE")).toBe(true);
+    expect(isRetryableApiErrorCode("INTERNAL_ERROR")).toBe(false);
+    expect(isRetryableApiErrorCode("NOT_FOUND")).toBe(false);
+    expect(isRetryableApiErrorCode("BAD_REQUEST")).toBe(false);
+  });
+
+  // Every member of the union gets an answer, so a code added to
+  // API_ERROR_CODES and forgotten here is a `false` — the safe direction — and
+  // never an `undefined` a caller reads as falsy by accident. This is the test
+  // that goes red in a useful way when the union grows: it does not fail, it
+  // asserts the default that was chosen.
+  it("answers for every code in the union, defaulting to not retryable", () => {
+    for (const code of API_ERROR_CODES) {
+      expect(typeof isRetryableApiErrorCode(code)).toBe("boolean");
+    }
+
+    const retryable = API_ERROR_CODES.filter(isRetryableApiErrorCode);
+    expect(retryable).toStrictEqual([...RETRYABLE_API_ERROR_CODES]);
+  });
+
+  // A retryable code that is not a code at all would be a list this package
+  // could not act on. `satisfies` already refuses one at compile time; this
+  // says the same thing where a reader can see it.
+  it("lists only codes the union declares", () => {
+    for (const code of RETRYABLE_API_ERROR_CODES) {
+      expect(API_ERROR_CODES).toContain(code);
+    }
   });
 });
 

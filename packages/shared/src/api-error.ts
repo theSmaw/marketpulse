@@ -121,6 +121,60 @@ export const API_ERROR_CODES = [
 /** One of {@link API_ERROR_CODES}. */
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
 
+/**
+ * The codes that mean *this may usefully be tried again*.
+ *
+ * **A property of the contract, not an opinion held by a client** — which is
+ * why it lives here beside {@link API_ERROR_CODES} rather than in the
+ * frontend. It is the same rule `apps/frontend/src/api-client.ts` states for
+ * the body predicates and for the same reason: a second copy of a judgement,
+ * written at the call site that needed it first, is the copy that disagrees
+ * first. Story 2.10's `FRONTEND-STATE.md` §4 records the decision and the whole
+ * mapping, including the outcomes that have no code at all.
+ *
+ * One member today, and it is the one Task 2.9.6 added the union member for:
+ * `SERVICE_UNAVAILABLE` names *a dependency is unavailable* rather than *this
+ * server failed*, and the whole reason the backend distinguishes the two is
+ * that they carry different instructions — a 500 says the request will fail
+ * again, a 503 says waiting may help. Everything else is a fact that does not
+ * change while the user waits: `INTERNAL_ERROR` is this server having failed,
+ * `NOT_FOUND` is a fact about the subject, and `BAD_REQUEST` is a fact about a
+ * request this client built.
+ *
+ * **This list is the whole mechanism for teaching a client a new retryable
+ * code**, and the cost of that is worth knowing rather than discovering:
+ * {@link isApiError} declines a `code` it has not been taught, so a server that
+ * starts sending a retryable code this bundle has never heard of does not
+ * produce an unrecognised `ApiError` — it produces *not an `ApiError` at all*,
+ * which a client reads as "we cannot promise waiting will help". That is a
+ * version skew degrading in the safe direction, and it means teaching a client
+ * about a new retryable code is a change to this package and a redeploy rather
+ * than a change on the wire.
+ *
+ * Declared as a separate list rather than as a `retryable` field on the wire on
+ * purpose. A field would let one response contradict another about what the
+ * same code means, and it would put a client's behaviour in a value the server
+ * has to remember to set correctly on every failure path.
+ */
+export const RETRYABLE_API_ERROR_CODES = [
+  "SERVICE_UNAVAILABLE",
+] as const satisfies readonly ApiErrorCode[];
+
+/**
+ * Is waiting and asking again a sensible thing for a client to offer?
+ *
+ * Takes an {@link ApiErrorCode} rather than a status number, deliberately:
+ * `code` is the closed union a client is meant to branch on, and reading the
+ * status line is reading where the contract did not put the answer. A caller
+ * with no `ApiError` in its hands — nothing arrived, or something arrived that
+ * is not this API — has nothing to pass here, and that is the point: those
+ * outcomes are the caller's own judgement rather than the contract's, and
+ * `FRONTEND-STATE.md` §4 tabulates them.
+ */
+export function isRetryableApiErrorCode(code: ApiErrorCode): boolean {
+  return RETRYABLE_API_ERROR_CODES.some((retryable) => retryable === code);
+}
+
 /** The body of every failed API response. */
 export interface ApiError {
   /** What went wrong, as a value rather than as prose. */

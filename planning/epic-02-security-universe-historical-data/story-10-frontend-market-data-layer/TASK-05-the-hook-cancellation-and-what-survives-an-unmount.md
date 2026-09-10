@@ -35,6 +35,31 @@ mid-request leaves an error sitting on the previous page.
   Assert it with two overlapping requests resolved in reverse order, and check
   that the rendered state is the later _request's_, not the later _response's_.
 
+  > **Amended 2026-09-10 by Task 2.10.2, which met this on a single request and
+  > found the mechanism the obvious implementation misses.** **Aborting the
+  > previous request is not sufficient, and the gap is not a race you can close
+  > by aborting sooner.** A request that had already resolved when the abort
+  > landed cannot be un-resolved, and `apiRequest` reports `aborted` only when
+  > the fetch itself _rejects_ — so the loser's `ok` result reaches the caller
+  > normally and overwrites the winner's. Aborting is still right; it is just not
+  > the thing that makes this correct.
+  >
+  > What closes it is **identity**: one ref holds the controller whose answer this
+  > hook will accept, starting a request takes that ref, and a result whose
+  > controller no longer owns it is dropped. The teardown clears the ref as well
+  > as aborting, which is what makes "no state update after an unmount" true for
+  > the same already-resolved case. `use-securities.ts` carries the working
+  > implementation and its comments — copy it rather than re-deriving it, and
+  > note this hook has two supersession causes where that one has one.
+  >
+  > **And the test that catches it is not the one it looks like.** A stubbed
+  > `fetch` that ignores the signal is exactly the shape of a real response that
+  > resolved before the abort, so an out-of-order pair in jsdom exercises the
+  > identity guard and _not_ the abort. Arrange the two answers so a stale
+  > landing is visible — the loser must say something different from the winner,
+  > or the assertion passes either way. Verified there by removing the guard and
+  > watching it go red; do the same here.
+
 - **The cache: what it holds, and what it is forbidden from holding.** Read
   `MARKET-DATA-API.md` §11 before writing a line of it. Every response carries a
   weak `ETag`, `fetch()` revalidates on its own, and a `304` costs no body — so
