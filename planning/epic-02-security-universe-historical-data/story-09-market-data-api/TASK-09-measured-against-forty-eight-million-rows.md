@@ -1,6 +1,6 @@
 # Task 2.9.9 — Measured against the real store, locally and deployed
 
-**Status:** Not started
+**Status:** Done — 2026-09-10
 **Story:** [2.9 Market Data API](STORY.md)
 **Depends on:** Tasks 2.9.6, 2.9.7, 2.9.8
 
@@ -261,7 +261,7 @@ coverage }, securityStatus }`. Measured on the shipped shape rather than
   from the bar scan, so a surprise has an author
 - Any figure that falsifies a claim in `BARS.md`, `PROVIDER.md`, an ADR,
   `PRODUCT_SPEC.md` or `CLAUDE.md` is **swept the same day**, upward, by grepping
-  for the claim and amending the live sites — not deferred to Task 2.9.10
+  for the claim and amending the live sites — not deferred to the close task
 - `pnpm verify` passes
 
 ## Notes
@@ -269,3 +269,231 @@ coverage }, securityStatus }`. Measured on the shipped shape rather than
 This is the task most likely to change Story 2.12's plan. If a five-session minute
 window turns out to be 700 kB, the chart story needs to know before it starts, not
 during.
+
+---
+
+## What was measured — 2026-09-10
+
+**No application code changed.** This task is a measurement and four documents;
+`git diff --stat` on the source tree is empty by design.
+
+The readings live in **`MARKET-DATA-API.md` §12**, which is the durable record —
+this section says what was done, what surprised, and what it cost the documents.
+Take a figure from §12, not from here.
+
+### The instrument, and the trap it was written around
+
+§11 warned that a naive "hit it five times and take the median" measures one
+store read and four cache hits. Every miss reading here **shifts the window's
+start one minute earlier per sample**, into pre-market where no bar exists — so
+every sample is a distinct cache key and the bar count is constant. The first
+run of this task's own script had the ETag bug's mirror image (the conditional
+request carried an ETag from a _different_ window and got a 200), which is the
+same class of mistake and is why the conditional column reads 304 now.
+
+Local readings are through `node dist/index.js` with `MARKET_DATA_PROVIDER=alpaca`
+on loopback; deployed readings are from a laptop in the United Kingdom against
+`eastus`, and every deployed table is reported alongside the conditional request
+that isolates the link.
+
+### The gate came first, and it passed
+
+The four deployed header readings the brief made a gate, taken before anything
+was timed:
+
+| Reading                            | Result                                                |
+| ---------------------------------- | ----------------------------------------------------- |
+| Absolute closed window             | `cache-control: private, max-age=300` + `etag` ✅     |
+| The same with `If-None-Match`      | **304**, still carrying `cache-control` and `etag` ✅ |
+| Named window (`?sessions=1`)       | `private, no-cache` ✅ — no proxy added a lifetime    |
+| `/securities`, and its conditional | `private, no-cache` + `etag`; **304** ✅              |
+
+Nothing between the application and the browser strips, rewrites or answers on
+behalf of any of it. The absolute-window body was **44,701 bytes deployed —
+byte for byte the local figure**, which is a second confirmation on top of the
+headers. **`MARKET-DATA-API.md` §11 stands unamended in its mechanism.**
+
+### The five things that were not known before today
+
+1. **Nothing on this path compresses.** Neither the application nor the Azure
+   Container Apps ingress; measured both ways round with
+   `Accept-Encoding: gzip, deflate, br`. §4's cap argument is stated in gzipped
+   bytes and therefore reasons about a transfer that does not happen. **The cap
+   survives on a re-argument and §4 carries a dated amendment.** This is the
+   biggest single thing found.
+2. **The cap check costs ~30 µs per session, on every request including a cache
+   hit.** For the whole stored daily depth that is **20.6 ms** against a **1.9 ms**
+   database read — the dominant cost of the request, and attributed:
+   `marketSessionOn` is 28.25 µs on a trading day against 6.42 µs on a weekend,
+   so it is constructing each session's instants rather than walking days.
+3. **The stitch is cheap.** ~17 ms against a matched control, so §5's condition
+   does not fire and the read-side join stands as chosen. It could only be
+   measured **deployed**, because the local store is four sessions stale and the
+   session-gap bound declines every tail — which is itself what §11 predicted.
+4. **`maxReplicas: 1`.** §11's per-process vendor bound has a multiplier of
+   exactly one. Recorded in `HOSTING.md`, where it also turns out to be the
+   unstated other half of `CLAUDE.md`'s claim about the Epic 3 socket.
+5. **The first request after ten idle seconds costs ~170 ms more**, reproducibly,
+   because `POOL_IDLE_TIMEOUT_MS` is 10 s and a deployed reconnection mints a
+   fresh Entra token. Nothing asked for this reading; it is the largest single
+   component of deployed server-side latency and nothing had named it.
+
+### What did not surprise, which is worth saying
+
+Every plan on the served path is an index scan. `findSecurity` is three buffers
+and 0.22 ms in-engine; the ledger is six and 0.26 ms; the bar query is the plan
+§8.6 recorded. **There is no query nobody meant to write.** `/securities`' close
+query is confirmed **one statement with 518 index searches**, not 518 round
+trips — on the plan locally, and deployed by arithmetic the alternative cannot
+fit inside (§12.2).
+
+### The sweep, done the same day
+
+| Document                    | What                                                                                                      |
+| --------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `MARKET-DATA-API.md` §4     | Two dated amendments — the gzipped-wire inference, and the walk's real cost                               |
+| `MARKET-DATA-API.md` §5, §9 | Pointers: the stitch condition settled, criterion 5 taken                                                 |
+| `MARKET-DATA-API.md` §11    | The gzip column relabelled; the replica multiplier struck and answered; the deployed `/securities` saving |
+| `BARS.md` §8.6              | Dated amendment — query C re-taken, deferral re-argued rather than the number replaced                    |
+| `HOSTING.md`                | `maxReplicas: 1` recorded, with both claims that depend on it and a trigger                               |
+| Story 2.9 `STORY.md`        | Criterion 5 marked taken                                                                                  |
+| Story 2.11 `STORY.md`       | Its live search-sizing argument told to use the uncompressed figure                                       |
+| Story 2.12 `STORY.md`       | Three things this changes about how the chart should be built                                             |
+| Task 2.9.11 (was 2.9.10)    | What it inherits, once Task 2.9.10 was added ahead of it                                                  |
+
+**Nothing falsifies `PRODUCT_SPEC.md`, an ADR or `CLAUDE.md`.** The nearest miss
+is `CLAUDE.md`'s note that the market socket is safe at a minimum replica count
+of one — confirmed, and now supplied with the maximum it did not have.
+
+### One thing recommended and deliberately not built
+
+**Register a response-compression plugin.** It is the single largest improvement
+available to this API — a megabyte against 164 kB — and it is one dependency.
+It is not done here because this is a measurement task, because it changes
+shipped behaviour, and because its whole difficulty is ordering it against
+§11's validator so the `ETag` is computed over the representation the client
+actually validates. §12.5 states the condition.
+
+> **Resolved 2026-09-10, later the same day: it is a task, not a condition.**
+> **Task 2.9.10 — Compress the wire** was added and the close renumbered to
+> 2.9.11. The argument that moved it out of "recommended" is that `/securities`
+> is **shipped and rendered today** at 190,736 bytes, so this is a repair rather
+> than scaffolding — and that this story's own scope has always owed it: _"a year
+> of minute bars is large enough that the encoding matters. Measure it before
+> choosing anything clever."_ The measuring was this task; the choosing is the
+> next one.
+
+---
+
+## For the stakeholder — what this means, in plain terms
+
+### What we did
+
+Nothing about the product changed today. We **measured** it — the price API we
+have spent this story building, against the real store of **48 million** real
+prices, both on a developer's machine and on the live deployed system, and we
+wrote every number down.
+
+That sounds like bookkeeping and it is not. Several of the decisions in this part
+of the product were made on estimates, and an estimate that nobody ever checks
+quietly becomes a fact. Two of them turned out to be wrong.
+
+### What we found
+
+**The good news first: the thing works, and it works for the reason we thought.**
+Asking for a day of minute-by-minute prices takes about **5 milliseconds** on a
+developer's machine. Every database lookup behind it is doing exactly what it was
+designed to do — we checked each one individually rather than trusting the total.
+The safety net we built last week (the "is this answer still current?"
+fingerprint) survives the journey through the live hosting platform intact, which
+was not guaranteed and which every test we had written was structurally incapable
+of proving.
+
+**And the thing we were most worried about is a non-issue.** When you ask for a
+chart that runs up to _right now_, the system has to go and fetch the last few
+minutes from our data provider and join them onto what we already hold. We flagged
+that as a risk when we designed it. Measured: it adds about **17 milliseconds**.
+It is free, in practice. That decision stands.
+
+**Now the two things we got wrong.**
+
+The first is that **we are sending prices over the internet uncompressed.** We had
+assumed compression was happening — it is a thing web servers usually do
+automatically — and we had used the compressed sizes when deciding how much data
+one request is allowed to return. Nobody had ever checked. Nothing compresses
+anything. So a month of minute-by-minute prices is **1 megabyte** rather than the
+164 kilobytes we had been reasoning about, and from the UK to our US server that
+is about **two and a half seconds**.
+
+This is genuinely good news, oddly: it is a large, cheap improvement we now know
+is available, and it is available because we looked. Turning compression on is
+roughly one line of configuration — but it has to be done carefully so it does not
+break the "is this still current?" fingerprint from last week, so we have written
+down exactly what needs doing and handed it to the next piece of work rather than
+rushing it in at the end of a measurement task.
+
+The second is smaller and stranger. Before answering any request, the system
+counts up how many trading days are in the window you asked for, to check you are
+not asking for too much. For an ordinary chart that check is invisible. For a
+request covering **every trading day we hold**, that counting takes **21
+milliseconds** — while reading the actual prices takes 2. We are spending ten
+times more effort checking the question than answering it. It is not broken and
+nobody would notice it today, but the "show me everything" button on the chart we
+are about to build is exactly the request that hits it, so we have written it down
+with a clear trigger for fixing it rather than discovering it later.
+
+We also found, unlooked-for, that the very first request after a quiet moment
+costs an extra fifth of a second, because the server lets its database connection
+lapse after ten seconds of silence and has to re-establish and re-authenticate it.
+On a product with steady traffic that never happens. On ours today, it is most
+requests. Written down, with the three possible fixes, for whoever holds the
+performance budget.
+
+### Why we made the decisions we made
+
+**We measured the endpoint, not the database.** Every earlier figure in this story
+was taken by asking the database directly. That is the wrong instrument: it leaves
+out turning the answer into something a browser can read, and it leaves out the
+network. A browser does not experience a database query. So every number here is
+what somebody sitting in front of a screen would actually wait for.
+
+**We measured from the live system as well as a laptop**, and we reported the two
+separately rather than averaging them into a number that describes nowhere. A
+laptop talking to a database on the same machine tells you about the software. A
+laptop in the UK talking to a server in Virginia tells you about the internet.
+Both matter, and confusing them is how teams conclude their software is slow when
+their office wifi is.
+
+**We resisted fixing things.** Three of the five findings have obvious repairs and
+none of them were made today, because a measurement task that also changes the
+thing it is measuring produces numbers nobody can trust. Each one is written down
+with the specific condition under which it should be done — not "later", but
+"when this particular thing happens" — so it fires on its own rather than relying
+on somebody remembering.
+
+**We corrected the record the same day.** Where a measurement contradicted
+something written down elsewhere, we went and amended the other document
+immediately, including a fairly foundational one about how much data a single
+request may return. We deliberately do not silently overwrite the old reasoning —
+we leave it standing with a dated note explaining what turned out to be untrue.
+Anyone reading this project in a year can see not only what we decided, but what
+we believed when we decided it and when we found out otherwise.
+
+### Where this leaves the product
+
+The price API is **finished and now verified against reality rather than against
+our assumptions**. What is on screen is unchanged: five pages, the tracked list of
+518 companies, and their latest closing prices.
+
+What this unlocks is the next two stories, which are the ones that finally make
+this look like a market product: **the price chart** and **the volume chart**.
+This task existed specifically so that the chart work starts with real numbers —
+how big a request is, how long it takes, which window sizes are comfortable and
+which are not — rather than discovering them halfway through building it. That is
+why the findings were folded directly into the chart story's own brief rather than
+left in a report.
+
+The one thing we would highlight upward: charts will feel fast if they draw
+themselves immediately and fill in the data as it arrives, and will feel slow if
+they wait. That is now a measured requirement on the chart work rather than an
+opinion about it.

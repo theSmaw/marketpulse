@@ -146,7 +146,8 @@ the chart is Story 2.12's.
   — and those messages become 400 bodies here. Take the decision, record it beside
   that comment, and note it is **reflection of the client's own input** and never
   server state: the 404 message deliberately does not name the route for the same
-  reason, so the two should agree. Put it on Task 2.9.10's sweep list either way.
+  reason, so the two should agree. Put it on the close task's sweep list either
+  way (2.9.10 when this was written; **2.9.11** since 2026-09-10).
 
 - **The five refusal reasons already exist; do not invent a second taxonomy.**
   `SERIES_REFUSAL_REASONS` is `symbol`, `timeframe`, `window`, `calendar-range`,
@@ -355,7 +356,7 @@ network. An upgrade that rewords it silently downgrades a timed-out pool from 50
 to 500. It belongs on CLAUDE.md's _stated invariants nothing checks_ list; the
 re-measurement is one `grep` and it is written beside the constant.
 
-**`/securities` took the member too**, rather than leaving it to Task 2.9.10. It
+**`/securities` took the member too**, rather than leaving it to the close task. It
 has been able to produce this failure since Story 2.4 and answered a 500 only
 because the code did not exist. Both routes now share one wrapper,
 `throughDatabase`, so the same outage cannot get two answers. Produced: a backend

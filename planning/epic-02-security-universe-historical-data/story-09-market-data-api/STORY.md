@@ -102,7 +102,17 @@ work to be proved end to end.
 - Failure responses through Story 1.7's `ApiError` shape and its `500: apiErrorSchema`
   convention, with the correlation id already in place
 - Payload size and shape: a year of minute bars is large enough that the encoding matters.
-  Measure it before choosing anything clever
+  Measure it before choosing anything clever.
+  **Both halves now have an owner, and they are two tasks (added 2026-09-10).** Task 2.9.9
+  measured it: a year of minute bars is **11.08 MB** and the cap refuses it, a month is
+  **1,060,490 bytes** and is served, and the clever thing this bullet was guarding against —
+  server-side reduction — was **declined outright** by open decision 2. What the measurement
+  found instead is that **the encoding is `identity`, everywhere**: nothing between a
+  handler and a browser compresses anything, so every gzipped figure this story has quoted
+  since Task 2.9.1 describes a transfer that does not happen (`MARKET-DATA-API.md` §12.5).
+  **Task 2.9.10 is the "choosing" half of this bullet**, and it is deliberately the dullest
+  possible choice — a compression plugin — because the bullet's own warning was against
+  cleverness rather than against encoding
 - Caching semantics — historical bars for a closed session are immutable, which is the
   cheapest caching opportunity this product will ever have.
   **Built 2026-09-10 by Task 2.9.8, and the bullet's premise needed qualifying:
@@ -115,9 +125,13 @@ work to be proved end to end.
   lifetime for an **absolute** window inside closed sessions and none at all for a
   named one — `?sessions=5` is a stable URL naming a moving target. An in-process
   answer cache in front of `serveSeries` bounds Task 2.9.5's metered vendor
-  request to one per resolved window per minute **per replica** — the cache is
+  request to one per resolved window per minute **per replica** — ~~the cache is
   in-process and the deployed replica count is platform-only configuration, which
-  is Task 2.9.9's to read — which is the condition
+  is Task 2.9.9's to read~~ **read 2026-09-10: `maxReplicas` is `1` and there is
+  no scale rule, so the multiplier is exactly one and the bound is one vendor
+  request per resolved window per minute, full stop; it is recorded in
+  `HOSTING.md`, which is the only file that can hold it** — which is the
+  condition
   [`MARKET-DATA-API.md`](MARKET-DATA-API.md) §5 set for keeping the stitch: it
   holds, and the stitch is unchanged. §11 has every measurement
 
@@ -154,7 +168,8 @@ a decision recorded in two places is a decision that will disagree with itself.
    produce the right status and the `ApiError` shape, with a quotable request id
 4. "Partial data" is expressible and is not an error
 5. Response times for the access patterns the charts need are measured against the real
-   row count
+   row count — **taken 2026-09-10 by Task 2.9.9, local and deployed;
+   `MARKET-DATA-API.md` §12, and §12.12 for what those readings falsified**
 6. The contract is exercised by tests against an assembled server, in the shape
    `server.test.ts` established
 7. `pnpm verify` passes
@@ -374,6 +389,18 @@ first real price this product has ever displayed.
 measurement against 48 million rows, and because its result may change Story
 2.12's plan.
 
+**2.9.10 was added and the close renumbered to 2.9.11 on 2026-09-10**, because
+2.9.9's result did change something — not Story 2.12's plan, which it informed
+rather than moved, but this story's own. It measured that **nothing on this path
+compresses**, which makes two of this story's live claims wrong at once: the
+scope bullet below that says the encoding matters, and §4's cap, which is argued
+in gzipped bytes. A build task therefore sits ahead of the close, because the
+close writes an ADR and finishes a document against a wire shape that is about to
+change. Renumbering rather than appending, because a sequence whose numbers do
+not reflect its order is a trap for every future reader; the eleven references
+were remapped by hand in the same change, and Story 2.8's own `TASK-10` — which a
+blind substitution would have corrupted — was not one of them.
+
 | Task                                                                    | What it does                                               | Visible?                |
 | ----------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------- |
 | [2.9.1](TASK-01-settle-the-contract-decisions.md)                       | Namespace, windows, downsampling, caps, the read-side join | No                      |
@@ -385,4 +412,5 @@ measurement against 48 million rows, and because its result may change Story
 | [2.9.7](TASK-07-the-first-real-price-on-screen.md)                      | Last close on `/securities` ✅                             | **Yes — the payoff**    |
 | [2.9.8](TASK-08-caching-and-the-immutable-session.md)                   | Closed sessions never change                               | No                      |
 | [2.9.9](TASK-09-measured-against-forty-eight-million-rows.md)           | Timings and payloads, local and deployed                   | No                      |
-| [2.9.10](TASK-10-verify-document-and-adr.md)                            | Verify, `MARKET-DATA-API.md`, the ADR, the upward sweep    | No                      |
+| [2.9.10](TASK-10-compress-the-wire.md)                                  | The encoding this story's scope always owed                | No                      |
+| [2.9.11](TASK-11-verify-document-and-adr.md)                            | Verify, `MARKET-DATA-API.md`, the ADR, the upward sweep    | No                      |

@@ -159,7 +159,12 @@ is the one to work from.
   still free at this size, but the uncompressed figure is now ~8.7x what this argument was
   written against. Note the universe crossed §6's 500 at Task 2.8.2 and the coverage array
   Task 2.8.9 added is most of the growth. Decide it on the ceiling rather than on today, and
-  take the ceiling from a measurement rather than from this line.
+  take the ceiling from a measurement rather than from this line. **And take it uncompressed:
+  Task 2.9.9 measured on 2026-09-10 that nothing on this path compresses** — neither the
+  application nor the deployed ingress — so the gzipped figure above is what the payload
+  _would_ cost, not what a browser receives. The response is **190,736 bytes** today and
+  takes **~1.15 s** to fetch deployed against **~356 ms** for a conditional request that
+  hits (`MARKET-DATA-API.md` §12.5, §12.8).
 - **Grouping past 500.** Task 2.4.4 recorded the reversal trigger for the sector grouping:
   at §6's 500-security ceiling a single group is longer than a screen, and groups need to
   become jumpable or collapsible — **which is a control**, and controls were out of scope for

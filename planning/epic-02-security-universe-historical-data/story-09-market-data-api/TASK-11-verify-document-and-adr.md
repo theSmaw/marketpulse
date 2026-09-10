@@ -1,8 +1,13 @@
-# Task 2.9.10 — Verify, document, ADR
+# Task 2.9.11 — Verify, document, ADR
 
 **Status:** Not started
 **Story:** [2.9 Market Data API](STORY.md)
-**Depends on:** Task 2.9.9
+**Depends on:** Task 2.9.10
+
+> **Renumbered from 2.9.10 on 2026-09-10**, when Task 2.9.9's measurements put a
+> build task ahead of the close — see Task 2.9.10, which compresses the wire.
+> This file is otherwise unchanged apart from the entry that task's findings
+> earned it, and every reference to it was remapped in the same change.
 
 ## Objective
 
@@ -265,6 +270,39 @@ Close the story: re-take every acceptance criterion rather than citing it, finis
     `gzip -9` and 2.9.8's `gzip` default gives **20,072**; that is the flag and
     not the payload. Nothing to sweep, recorded so a later reader does not read
     two numbers as a regression.
+
+- **What Task 2.9.9 leaves you, added 2026-09-10.** It took criterion 5 and
+  swept four documents the same day, so there is nothing outstanding to sweep;
+  what it leaves is material for the ADR and one recommendation that is not
+  yours to take silently.
+  - **`MARKET-DATA-API.md` §12 is the measurement section**, and §12.12 is its
+    own table of what it falsified: §4's gzipped-wire inference and the price of
+    the pre-query calendar walk (both amended in place), §11's unknown replica
+    multiplier (read: `maxReplicas: 1`, now in `HOSTING.md` too), and `BARS.md`
+    §8.6's 28.2 ms cross-sectional timing (re-taken; plan identical, warm
+    **1.93 ms**, cold **408.7 ms**, and the two-index deferral re-argued rather
+    than the number replaced).
+  - **The ADR has a genuine finding to carry: nothing on this path compressed**,
+    neither the application nor the Azure Container Apps ingress, and nobody had
+    ever checked. That is the class `CLAUDE.md`'s _What `pnpm verify` does not
+    cover_ §6 names — behaviour that exists only on the platform — and it is the
+    reason §4's cap argument needed amending rather than re-stating. ~~Decide
+    whether it is an ADR line, a task in this story, or Story 2.12's.~~
+    **Decided the same day: it is Task 2.9.10, which is why this file is 2.9.11.**
+    What is left for the ADR is the finding rather than the repair, and the
+    finding is the better half: **an assumption about the transport that every
+    test was structurally unable to see**, sitting underneath a decision (§4's
+    cap) that was argued in the units the assumption produced. Task 2.9.8's
+    validator has the same shape and passed its gate; this one did not. That
+    pairing is worth an ADR paragraph on its own.
+  - **Read Task 2.9.10's own outcome before re-taking anything.** It re-takes
+    §12.1, §12.5 and §12.8 and is told explicitly **not** to re-take §12.2,
+    §12.4, §12.6, §12.7 or §12.11 — so this task inherits a document with two
+    dates in it on purpose, and should not flatten them.
+  - **Two figures worth quoting in the stakeholder section** because they are the
+    only ones a reader will feel: `/securities` costs **1,153 ms** deployed and
+    **356 ms** when the validator hits, and a month of minute bars is **1.06 MB**
+    and **~2.5 s**.
 
 - **Write the stakeholder section** in the shape Task 2.4.2 and 2.8.9 established:
   what this actually did in plain terms, why the small decisions went the way they

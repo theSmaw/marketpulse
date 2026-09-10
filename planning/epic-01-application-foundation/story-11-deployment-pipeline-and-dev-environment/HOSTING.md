@@ -124,6 +124,18 @@ and the default rule if none is configured:
 
 So **`minReplicas: 1` is a required setting, not a tuning knob** — left at the default the backend scales to zero, the Alpaca socket dies with the replica, and the cold start is charged to whoever loads the page next. Task 1.11.3 owns setting it and Task 1.11.8 owns confirming it is still set.
 
+> **`maxReplicas` is `1` as well, and that was read off the platform rather than set here — added 2026-09-10 by Task 2.9.9, which needed it.** The full scale block today is `minReplicas: 1`, `maxReplicas: 1`, `rules: null`, and `az containerapp replica list` confirms **one** running replica. It exists in **no file in this repository** — it is one of the platform-only settings this document is the durable copy of — and it is **load-bearing for two separate claims** that are stated elsewhere as though the number were unknown:
+>
+> - `MARKET-DATA-API.md` §11's vendor bound is _per process_, so the deployed bound is `replicas × 1` per resolved window per minute. At `maxReplicas: 1` it is exactly one.
+> - `CLAUDE.md` records that the outbound Alpaca socket is safe only because of the minimum replica count. A **maximum** of 1 is the other half of that: a second replica would open a second socket and duplicate every ingested bar.
+>
+> **The reversal trigger is a scale rule being added** — not traffic growing. Whoever adds one owes both claims a re-statement, and the market-data cache is emphatically not the thing to "fix" with a shared store (`MARKET-DATA-API.md` §11).
+>
+> ```
+> az containerapp show -n marketpulse-backend -g <rg> \
+>   --query properties.template.scale
+> ```
+
 **The inbound request timeout is 240 seconds on the default ingress.** From [Ingress in Azure Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/ingress-overview), listing what HTTP ingress provides:
 
 > - Support for WebSocket and gRPC

@@ -123,3 +123,43 @@ defaults are a starting point rather than an outcome.
 
 The charting foundation Epics 5, 8 and 11 build on, and a wrapper that keeps the choice
 reversible.
+
+---
+
+## What Task 2.9.9 measured for you — added 2026-09-10
+
+Its own notes said this was the task most likely to change your plan. It did not
+change the API, and it changed three things about how this story should be
+built. Every figure is in `MARKET-DATA-API.md` §12; take it from there rather
+than from here, and re-take it if it matters.
+
+**1. Your default window is a design decision with a second of latency in it.**
+The API refuses nothing you are likely to ask for — the cap admits 25 sessions of
+minute bars and a month is 24 — but the payloads are not small, **and nothing on
+the path compresses** (§12.5). A month of minute bars is **1,060,490 bytes**, and
+measured from the United Kingdom against the deployed backend that is **~2.5 s**
+end to end, of which ~0.5 s is connection and ~1.9 s is the body. One session is
+44,701 bytes and ~0.6 s. **Neither is a server problem and no server tuning
+fixes them**: §28's "visible feedback within 500 ms" is satisfied by the chart
+drawing its frame, axes and loading state immediately and filling in when the
+series lands, which §36 requires of you anyway. Design for that, not for a fast
+response.
+
+**2. Criterion 5 has a head start.** The largest body this API can emit —
+9,750 bars at the cap — **parses in 2.8 ms** (§12.3), so `JSON.parse` is not what
+will break your 50 ms budget. Whatever does will be in the renderer.
+
+**3. One window is slower than it looks, and it is one you will want.** A daily
+series over the whole stored depth is 671 bars and 77 kB — the _smallest_ 200
+this API serves — and it takes **31.4 ms locally**, of which **20.6 ms is the
+cap check walking 672 sessions of the trading calendar** before the query runs
+(§12.4). It is the dominant cost of that request and it is paid on every cache
+hit. If your window control offers "1 year" or "max" at `1d`, that walk is what
+you are paying for, and §12.4 names the repair and the condition for taking it.
+It is a `packages/shared` change with its own argument, so raise it rather than
+absorb it.
+
+**And one thing you inherit working.** A window ending _now_ stitches stored bars
+to a freshly fetched tail, the response carries both sources with their own
+`retrievedAt`, and the join costs **under 20 ms** (§12.6). Story 2.14 renders the
+seam; you can rely on it being there and being cheap.
