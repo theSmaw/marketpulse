@@ -130,3 +130,34 @@ by accident on the smallest possible evidence.
 - One end-to-end browser measurement is recorded, including whether the second
   visit hit the network
 - `pnpm verify` passes
+
+---
+
+## Amended 2026-09-10 by Task 2.10.4 — what the panel is handed, field by field
+
+The state union shipped. The panel takes a `BarSeriesView` **whole** — one prop,
+not six — and renders the member it is given.
+
+- **Six members**: `loading`, `loaded`, `partial`, `empty`, `refused`, `failed`.
+  `tsc` refuses a `switch` that forgets one, which is the mechanism rather than a
+  reminder.
+- **Both windows are on `series.coverage`** — `requested` and, on `loaded` and
+  `partial`, a non-null `covered`. The types are narrowed on those two members,
+  so _"we have data through 15:42"_ needs no null check the reader cannot see the
+  reason for. `partial` is the **normal** case for a window reaching towards now,
+  not the exceptional one.
+- **`refused` carries `message` and nothing else.** Show it verbatim: it is the
+  server's own sentence, written for a person, and it names the cap's two
+  numbers or the calendar's range. Do not re-word it, do not add a retry control
+  beside it, and do not look for a `requestId` on it — there is deliberately
+  none, because a refusal is not a failure the user is being told about.
+- **`securityStatus` is on all three answer members**, and it is the field §7
+  put on the envelope so a series for a security we no longer track can say so.
+  The panel is the first thing that can.
+- **`failed` carries `requestId`, `retryable` and `retrying`**, spelled exactly
+  as `SecuritiesView` spells them, so the copy rule and the control from Task
+  2.10.2 transfer unchanged. Two pages disagreeing about what a 503 means is the
+  outcome that decision exists to prevent.
+- **The feed comes off `series.provenance.sources`**, which is a list because a
+  stitched series may truthfully name two feeds. Today both parts report `sip`;
+  that is correct and it is not the steady state.

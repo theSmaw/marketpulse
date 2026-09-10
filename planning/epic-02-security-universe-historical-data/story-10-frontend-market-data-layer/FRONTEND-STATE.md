@@ -448,6 +448,34 @@ user pays for twice.
 > non-retryable failure states that trying again would produce the same answer,
 > rather than leaving the absent button to be inferred.
 
+> **Amended 2026-09-10, by Task 2.10.4 building `BarSeriesView`.** Two things
+> the mapping table above does not say, both found by reading the server rather
+> than by re-deciding anything.
+>
+> **On `GET /market-data/bars` there is no reachable `BAD_REQUEST` that is not a
+> refusal, so that row governs `/securities` and nothing on the series path.**
+> `parseSeriesRequest` produces five refusals — malformed symbol, malformed
+> timeframe, malformed window, a window outside the calendar, and the
+> 10,000-bar cap — and all five are one `400 BAD_REQUEST`. The machine-readable
+> `reason` is **logged and never sent**, so a client cannot subset them; it does
+> not need to, because all five are well-formed answers about the request, each
+> carrying a sentence written for a person, and none is a fault anybody can wait
+> out. The paragraph above is therefore right about where the fence goes and its
+> "a `BAD_REQUEST` this client did not recognise as a refusal" describes an
+> empty set here.
+>
+> **`NOT_FOUND` is a refusal too, on this endpoint.** A symbol we do not track is
+> an answer about the request rather than about the market or the server, it
+> carries its own sentence, and waiting does not change it. It joins `refused`
+> rather than acquiring a `retryable: false`, for the same reason the cap does.
+> The reversal trigger is a **control**: the first surface that offers an action
+> for an unknown security — Story 2.11's search — rather than a sentence, at
+> which point the two stop having the same shape and `refused` splits.
+>
+> Note what has **not** changed: no state per `API_ERROR_CODES` member. Two
+> codes reach one member and two reach another; the union is six wide and the
+> API can learn a fifth code without it moving.
+
 ### Reversal trigger
 
 - **The first code that is retryable only after a stated delay** — a
@@ -465,7 +493,7 @@ user pays for twice.
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **2.10.2** | §4 whole — the flag, the mapping, the two prohibitions, and the copy rule                                                                                                                                                        |
 | **2.10.3** | §3's "never compute the window here"; the cache key's shape (§2)                                                                                                                                                                 |
-| **2.10.4** | §1's four shape rules; the union with a _partial_ member; §4's flag on its failed member                                                                                                                                         |
+| **2.10.4** | §1's four shape rules; the union with a _partial_ member; §4's flag on its failed member. **Shipped 2026-09-10** — six members, `refused` outside the flag, and the amendment in §4                                              |
 | **2.10.5** | §2's design — bounded LRU, read-to-paint-never-to-skip, no clock, **keyed on the request as sent** — and the heap figure it owes. Its own file was drafted with a resolved-window key and carries a dated amendment reversing it |
 | **2.10.6** | Nothing decided here constrains the fixture backend; it serves the contract §3 sends                                                                                                                                             |
 | **2.10.7** | §3's URL rule — the symbol is a **path segment**, so this task declares `/securities/:symbol`; the panel states the resolved range back                                                                                          |

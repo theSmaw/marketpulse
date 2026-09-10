@@ -101,7 +101,8 @@
  * > address*. That is a diagnosis pointing at the wrong half of the system. The
  * > coherence check the paragraph is right to want is `toBarSeries`, and it
  * > belongs where the payload first becomes domain objects — Task 2.10.4's
- * > `market` module, which carries the obligation.
+ * > `market` module, which carries the obligation. **Discharged 2026-09-10:
+ * > `apps/frontend/src/market/bar-series-payload.ts`.**
  */
 
 import { TIMEFRAMES } from "./bar.js";
@@ -438,8 +439,10 @@ export interface BarSeriesResponse {
  *
  * The coherence check is still worth having and is not lost: it is what
  * `toBarSeries` does, and it belongs wherever the frontend first turns this
- * payload into domain objects. Task 2.10.4 owns that module and carries the
- * obligation.
+ * payload into domain objects. Task 2.10.4 owns that module and carried the
+ * obligation: `apps/frontend/src/market/bar-series-payload.ts`, since
+ * 2026-09-10, where a throw becomes a *failed* state rather than this
+ * predicate's reading.
  */
 export function isBarSeriesResponse(
   value: unknown,

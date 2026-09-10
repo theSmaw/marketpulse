@@ -243,6 +243,44 @@ export default tseslint.config(
               message:
                 "Node builtin in browser code. Vite externalises it and the build still exits 0, so this fails in the browser rather than in CI.",
             },
+
+            // --- The feature-module boundary (Task 2.10.4) ---
+            //
+            // PRODUCT_SPEC.md §26: a feature module exposes a domain-level API
+            // rather than reaching into another's internals.
+            // `apps/frontend/src/market/` is the first one and Epics 3 to 11
+            // add seven more, so this is the rule they all inherit — and it is
+            // a rule rather than a habit because a stated invariant that
+            // nothing checks quietly stops being true, which this repository
+            // has watched happen twice.
+            //
+            // A module's `index.ts` is its API; everything else under the
+            // directory is its business. The module's **own** files are not
+            // excluded and do not need to be: this rule matches the *import
+            // source string*, and a sibling inside `market/` is reached as
+            // `./bar-series-view.js`, which contains no `market/` at all.
+            // Routing those through the barrel would be an import cycle rather
+            // than a boundary.
+            //
+            // **It lives in this patterns array rather than in a block of its
+            // own, and that is load-bearing.** A second config object setting
+            // `no-restricted-imports` for the same files does not add to this
+            // one — flat config resolves a rule to the last configuration that
+            // matched, so it would silently *replace* the `node:*` group above
+            // and take the browser boundary out with it. Verified by
+            // reproducing it: with the rule in a separate block,
+            // `import "node:path"` in a frontend source file lints clean.
+            //
+            // Written against `market/` specifically rather than a generic
+            // `*/index.js` shape, because the second module does not exist and
+            // a rule generalised from one instance is a guess. The next module
+            // is one more entry here, and that is the moment to ask whether it
+            // is really the same rule.
+            {
+              group: ["**/market/*", "!**/market/index.js"],
+              message:
+                "Import the market module through its index (PRODUCT_SPEC.md \u00a726): a feature module exposes a domain-level API, and a deep import is a dependency on an internal that has no reason not to move.",
+            },
           ],
         },
       ],

@@ -178,3 +178,37 @@ mid-request leaves an error sitting on the previous page.
   from it rather than from the working number of 24
 - The refetch policy is written down with its reversal trigger
 - `pnpm verify` passes, including the React Compiler rules
+
+---
+
+## Amended 2026-09-10 by Task 2.10.4 — what the hook wraps, and the import it must use
+
+The union and both transitions exist. This task adds an effect around them and
+should add nothing else to them.
+
+- **The two pure functions are `toBarSeriesView(previous, result)` and
+  `toRetryingBarSeriesView(previous)`**, spelled exactly as `useSecurities`
+  spells its pair, and the hook is a thin `useEffect` and a `useCallback` over
+  them. `useSecurities` is the working example of the whole shape — supersession
+  through one `AbortController` ref, the identity check that discards an answer
+  from a request that had already resolved when the abort landed, and the
+  teardown that clears the ref as well as aborting.
+- **Return `{ view, retry }`, not a bare union.** The action does not travel on
+  the state: a function hung off the `failed` member would make the union
+  un-comparable, un-serialisable and awkward to construct in a story or a test,
+  and Epic 11 wants state a `WorkspaceCommand` can act on. `SecuritiesSource` is
+  the precedent.
+- **Import through `market/index.js`.** `eslint.config.mjs` now forbids any file
+  outside `src/market/` importing anything else under it — the module's API is
+  its barrel. If the hook lives **inside** the module (it should), it imports its
+  siblings directly and the rule does not apply, because the rule matches the
+  import source string and a sibling is `./bar-series-view.js`.
+- **The cache key is `barSeriesQuery(request)`**, which is already order-stable
+  for exactly this reason, and `market/index.ts` re-exports it. Do not invent a
+  second spelling of one request.
+- **`toDomainSeries` throws, and the collapse already catches it.** The hook must
+  not add a `try` of its own: `toBarSeriesView` owns the one place a coherence
+  failure becomes a state, and a second catch would be a second answer to the
+  same question. Note this for the cache too — **only a parsed series that
+  reached a state is worth keeping**, so cache the domain object rather than the
+  payload, and an incoherent answer caches nothing.
