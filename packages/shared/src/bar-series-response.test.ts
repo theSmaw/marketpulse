@@ -11,6 +11,22 @@ import { isBarSeriesResponse } from "./bar-series-response.js";
 // that refused either would turn this contract's own empty answer into
 // `api-client.ts`'s `unreadable-body`, which says *something that is not this
 // API is answering at this address*. That is the defect these tests exist for.
+//
+// **The fixtures here stay inline, and Task 2.10.6 decided that explicitly
+// rather than leaving it.** That task put a home for recorded response bodies
+// under `apps/frontend/src/fixtures/`, so three later stories do not each invent
+// one, and the obvious next thought is that this file should read from it. It
+// could not: `packages/shared` cannot import from `apps/frontend` — the
+// dependency runs the other way, and reversing it for a test fixture would make
+// the domain package depend on an application.
+//
+// It is also the right answer independently of that. This predicate is tested
+// against bodies chosen to probe **it** — an unknown feed slug, an empty
+// `sources`, a field of the wrong type — rather than against bodies a server
+// actually sends, and a recorded body is by definition none of those. What the
+// fixture home holds is *what the server produced*; what this file holds is
+// *what the guard must survive*. Two sets, two purposes, and neither is the
+// other's copy. What must not happen is a **third** set nobody knows about.
 
 /** A body shaped exactly as `GET /market-data/bars` serves one. */
 const SERIES_BODY = {

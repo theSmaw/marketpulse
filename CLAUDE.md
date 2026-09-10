@@ -201,6 +201,11 @@ apps/frontend/                 React + Vite
   public/staticwebapp.config.json   the DEPLOYED host's configuration — part of the artefact
   src/api-client.ts            the ONLY file in the application that calls fetch
   src/use-*.ts                 four hooks; three make network requests, one reads the clock
+  src/market/                  the FIRST feature module (§26); its index.ts is its API, and a
+                               lint rule forbids importing anything else under it
+  src/fixtures/                RECORDED bodies of GET /market-data/bars, plus the one shared
+                               `fetch` stub. Formatted, unlike the backend's vendor fixtures —
+                               .prettierignore says why. Outside src/market/ on purpose
   src/components/<Name>/       <Name>.tsx + .module.css + .stories.tsx, one component per file
   src/styles/                  tokens.css (achromatic) → market.css (meaning) → base.css,
                                plus type/a11y module layers reached only through `composes:`

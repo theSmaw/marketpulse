@@ -184,3 +184,47 @@ not six — and renders the member it is given.
 - **Nothing here needs a `try` or an error boundary for a bad answer.** Every
   failure, including a body whose numbers disagree with each other, is already a
   member of the union.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.6 — the fixture backend exists, and your tests should use it rather than invent bodies
+
+There is now one home for recorded response bodies:
+`apps/frontend/src/fixtures/`, outside `src/market/` because the module's lint
+boundary would make anything inside it unreachable from a component test or a
+story. Three things in it are yours:
+
+- **`stubBarSeries(name)`** — installs a `fetch` stub answering every request
+  with one of ten recorded bodies. `stubBarSeries("partial")` and render the
+  panel is the whole arrangement. Names: `full`, `partial`, `empty`, `stitched`,
+  `refusedCap`, `refusedCalendar`, `refusedUnknownSymbol`, `unavailable`,
+  `incoherent`, `unknownFeed`.
+- **`barSeriesFixtureView(name)`** — the same body as a `BarSeriesView`, built
+  through the real `toBarSeriesView`. This is what a story should hold. **Do not
+  hand-build a state**: a `partial` whose `covered` disagrees with its bars is a
+  state this layer cannot produce, and a panel tuned against it renders the real
+  one wrongly.
+- **`stubFetch(respond)`** — the general form, whose handler is given
+  `{ url, signal, index }`. Four test files were migrated onto it; do not write a
+  fifth copy.
+
+Two consequences for this task specifically.
+
+**The panel's facts can be asserted against real numbers.** `full` is 30 bars
+over exactly the half-hour asked for; `partial` is 60 bars whose `covered` stops
+at a session boundary inside a wider `requested`; `stitched` is 150 bars naming
+two provenance sources. Those are real NVDA prices from 2026-09-04 and 2026-09-08,
+so _"the window asked for against the window held"_ has something true to be
+checked against rather than a shape.
+
+**You no longer clear the series cache in your own test file.**
+`src/test-setup.ts` does it in the same `afterEach` as `cleanup()`. A file that
+clears it itself protects that file and nothing else, which is exactly the state
+`market/use-bar-series.test.ts` was in and no longer is.
+
+One thing the fixture set cannot give you, recorded rather than assumed:
+**`stitched.json`'s two sources name the same feed**, because both halves come
+from Alpaca's historical API, which is SIP on this plan. A series naming two
+_different_ feeds arrives with Epic 3's IEX socket. If this panel's provenance
+line is written as though two feeds are the interesting case, it is being written
+against something no server has yet sent — Story 2.14 owns that wording.

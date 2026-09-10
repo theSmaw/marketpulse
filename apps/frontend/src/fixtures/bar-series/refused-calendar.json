@@ -1,0 +1,5 @@
+{
+  "code": "BAD_REQUEST",
+  "message": "That window reaches 2023-09-04, outside the trading calendar this system covers — 2024-01-01 to 2028-12-31. Ask for a window inside it.",
+  "requestId": "6b779bbb-1b5e-45bc-8687-f36dfa1decf3"
+}

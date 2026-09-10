@@ -2,6 +2,8 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { API_TIMEOUT_MS } from "./api-client.js";
+import type { StubbedFetchCall } from "./fixtures/stub-fetch.js";
+import { neverAnswers, stubFetch } from "./fixtures/stub-fetch.js";
 import {
   HEALTH_POLL_INTERVAL_MS,
   useBackendHealth,
@@ -26,56 +28,25 @@ const HEALTHY_BODY = { status: "ok", version: "0.0.0", uptimeSeconds: 1.5 };
  * pair is: the deadline strictly below the interval. */
 const FAST = { intervalMs: 60, timeoutMs: 20 } as const;
 
-interface FetchCall {
-  readonly signal: AbortSignal | undefined;
-}
-
-const calls: FetchCall[] = [];
-
 /**
- * Stub `fetch` with a handler taking the zero-based call index, so a test can
- * answer differently on the first and second poll — which is what recovery
- * needs.
+ * Every request the current stub has seen, replaced by each {@link stub}.
+ *
+ * The shared helper hands back a live array per stub rather than accumulating
+ * into a module-level one, which is why nothing resets this in `afterEach` any
+ * more: a new stub is a new array. The handlers below read `index` off the call
+ * to answer the first and second poll differently, which is what recovery needs.
  */
-function stubFetch(
-  handler: (call: number, signal: AbortSignal | undefined) => Promise<Response>,
-): void {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn((_url: string, init?: RequestInit) => {
-      const index = calls.length;
-      calls.push({ signal: init?.signal ?? undefined });
-      return handler(index, init?.signal ?? undefined);
-    }),
-  );
+let calls: readonly StubbedFetchCall[] = [];
+
+/** Install a stub and remember what it sees. */
+function stub(handler: (call: StubbedFetchCall) => Promise<Response>): void {
+  ({ calls } = stubFetch(handler));
 }
 
 const json = (status: number, body: unknown): Promise<Response> =>
   Promise.resolve(new Response(JSON.stringify(body), { status }));
 
-/**
- * A request that never answers — the socket that accepts and does not reply,
- * which is what makes the deadline observable.
- *
- * It rejects when the signal it was handed aborts, because that is what a real
- * `fetch` does and it is the whole mechanism under test: without it the
- * deadline expires and nothing tells the client. The rejection value is
- * deliberately a plain `Error` rather than the signal's own `DOMException` —
- * the client reads which signal fired off the *signals*, so supplying a reason
- * for it to read would test the wrong mechanism.
- */
-const never = (
-  _call: number,
-  signal: AbortSignal | undefined,
-): Promise<Response> =>
-  new Promise<Response>((_resolve, reject) => {
-    signal?.addEventListener("abort", () => {
-      reject(new Error("aborted"));
-    });
-  });
-
 afterEach(() => {
-  calls.length = 0;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -93,7 +64,7 @@ describe("the polling interval", () => {
 
 describe("the three states", () => {
   it("reports healthy, with the time and body of the successful check", async () => {
-    stubFetch(() => json(200, HEALTHY_BODY));
+    stub(() => json(200, HEALTHY_BODY));
 
     const { result } = renderHook(() => useBackendHealth(FAST));
 
@@ -110,7 +81,7 @@ describe("the three states", () => {
   // A 200 that is not a health report: the static host answering `index.html`,
   // which this repository has measured twice.
   it("reports degraded / unreadable-body for a 200 that is not a health report", async () => {
-    stubFetch(() => json(200, { hello: "world" }));
+    stub(() => json(200, { hello: "world" }));
 
     const { result } = renderHook(() => useBackendHealth(FAST));
 
@@ -125,7 +96,7 @@ describe("the three states", () => {
   // quotable `requestId` — is deliberately not a distinction `BackendStatus`
   // has.
   it("reports degraded / not-ok-status for a non-2xx carrying an ApiError", async () => {
-    stubFetch(() =>
+    stub(() =>
       json(500, {
         code: "INTERNAL_ERROR",
         message: "something failed",
@@ -142,7 +113,7 @@ describe("the three states", () => {
   });
 
   it("reports degraded / not-ok-status for a non-2xx that is not an ApiError", async () => {
-    stubFetch(() =>
+    stub(() =>
       Promise.resolve(
         new Response("<html>502 Bad Gateway</html>", { status: 502 }),
       ),
@@ -159,7 +130,7 @@ describe("the three states", () => {
   // `TypeError: Failed to fetch` — a refused connection, a name that did not
   // resolve, or the browser-side CORS rejection, which names none of them.
   it("reports unreachable when nothing answers", async () => {
-    stubFetch(() => Promise.reject(new TypeError("Failed to fetch")));
+    stub(() => Promise.reject(new TypeError("Failed to fetch")));
 
     const { result } = renderHook(() => useBackendHealth(FAST));
 
@@ -174,7 +145,7 @@ describe("the three states", () => {
   // is not `degraded`: nothing arrived, and `degraded` is a judgement about an
   // answer that did.
   it("reports unreachable — not degraded — when the deadline expires", async () => {
-    stubFetch(never);
+    stub(neverAnswers);
 
     const { result } = renderHook(() => useBackendHealth(FAST));
 
@@ -188,7 +159,7 @@ describe("the three states", () => {
   // nothing has arrived — and `hasChecked` is what says the client has not
   // finished asking. No fourth state name.
   it("starts unreachable and unchecked", () => {
-    stubFetch(never);
+    stub(neverAnswers);
 
     const { result } = renderHook(() => useBackendHealth(FAST));
 
@@ -200,7 +171,7 @@ describe("the three states", () => {
 
 describe("the loop", () => {
   it("polls repeatedly", async () => {
-    stubFetch(() => json(200, HEALTHY_BODY));
+    stub(() => json(200, HEALTHY_BODY));
 
     renderHook(() => useBackendHealth(FAST));
 
@@ -212,8 +183,8 @@ describe("the loop", () => {
   // The acceptance criterion most likely to be met by accident: the last
   // successful check time has to survive the failure that made it interesting.
   it("keeps the last successful check time through a failure", async () => {
-    stubFetch((call) =>
-      call === 0
+    stub(({ index }) =>
+      index === 0
         ? json(200, HEALTHY_BODY)
         : Promise.reject(new TypeError("Failed to fetch")),
     );
@@ -235,8 +206,8 @@ describe("the loop", () => {
   // Recovery, with no reload and no remount: the same mounted hook goes back to
   // healthy on the next successful poll.
   it("returns to healthy after a failure without remounting", async () => {
-    stubFetch((call) =>
-      call === 0
+    stub(({ index }) =>
+      index === 0
         ? Promise.reject(new TypeError("Failed to fetch"))
         : json(200, HEALTHY_BODY),
     );
@@ -257,7 +228,7 @@ describe("the loop", () => {
   // comes back is `aborted`, and `aborted` is written nowhere because it is a
   // fact about this component's lifetime and not about the backend.
   it("aborts the in-flight request when it tears down", async () => {
-    stubFetch(never);
+    stub(neverAnswers);
 
     const { unmount } = renderHook(() => useBackendHealth(FAST));
 
@@ -272,7 +243,7 @@ describe("the loop", () => {
   });
 
   it("stops polling once it has torn down", async () => {
-    stubFetch(() => json(200, HEALTHY_BODY));
+    stub(() => json(200, HEALTHY_BODY));
 
     const { unmount } = renderHook(() => useBackendHealth(FAST));
 
@@ -309,7 +280,7 @@ describe("visibility", () => {
   });
 
   it("stops polling while the tab is hidden and catches up when it returns", async () => {
-    stubFetch(() => json(200, HEALTHY_BODY));
+    stub(() => json(200, HEALTHY_BODY));
 
     renderHook(() => useBackendHealth(FAST));
 

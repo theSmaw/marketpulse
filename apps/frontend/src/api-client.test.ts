@@ -7,6 +7,7 @@ import {
   getBarSeries,
   getHealth,
 } from "./api-client.js";
+import { BAR_SERIES_FIXTURES } from "./fixtures/bar-series.js";
 
 // The client's tests are the ones Task 1.11.5's `health-probe.test.ts` used to
 // carry, re-homed rather than deleted: the correlation id, the base URL and the
@@ -284,44 +285,13 @@ describe("apiRequest failure classification", () => {
 // `api-error` with a code a caller can branch on rather than being flattened
 // into "something went wrong".
 
-const SERIES_BODY = {
-  series: {
-    symbol: "NVDA",
-    timeframe: "1m",
-    bars: [
-      {
-        startsAt: "2026-09-04T13:30:00.000Z",
-        open: 171.02,
-        high: 171.48,
-        low: 170.9,
-        close: 171.31,
-        volume: 1_284_311,
-      },
-    ],
-    provenance: {
-      adjustment: "raw",
-      sources: [
-        {
-          provider: "alpaca",
-          feed: "sip",
-          retrievedAt: "2026-09-05T02:14:07.000Z",
-          barCount: 1,
-        },
-      ],
-    },
-    coverage: {
-      requested: {
-        start: "2026-09-04T13:30:00.000Z",
-        end: "2026-09-04T20:00:00.000Z",
-      },
-      covered: {
-        start: "2026-09-04T13:30:00.000Z",
-        end: "2026-09-04T13:31:00.000Z",
-      },
-    },
-  },
-  securityStatus: "active",
-};
+// **The bodies are recorded rather than written** (Task 2.10.6). Every one of
+// these came off the real endpoint over the real store, so no closed vocabulary
+// in them can be wrong — which is the exact defect an inline fixture in this
+// file would be free to have, and which `unreadable-body` would then report as
+// a stranger at the address. `fixtures/bar-series.ts` says how each was
+// recorded and holds each one to its label as it loads.
+const SERIES_BODY = BAR_SERIES_FIXTURES.full.body;
 
 const FIVE_SESSIONS = {
   symbol: "NVDA",
@@ -381,28 +351,7 @@ describe("getBarSeries", () => {
     // own empty answer into "something else is answering at this address".
     respondWith({
       status: 200,
-      body: {
-        ...SERIES_BODY,
-        series: {
-          ...SERIES_BODY.series,
-          bars: [],
-          provenance: {
-            adjustment: "raw",
-            sources: [
-              {
-                provider: "alpaca",
-                feed: "sip",
-                retrievedAt: "2026-09-05T02:14:07.000Z",
-                barCount: 0,
-              },
-            ],
-          },
-          coverage: {
-            requested: SERIES_BODY.series.coverage.requested,
-            covered: null,
-          },
-        },
-      },
+      body: BAR_SERIES_FIXTURES.empty.body,
     });
 
     await expect(getBarSeries(FIVE_SESSIONS)).resolves.toMatchObject({
@@ -417,13 +366,7 @@ describe("getBarSeries", () => {
     // and the message carries the number a person needs.
     respondWith({
       status: 400,
-      body: {
-        code: "BAD_REQUEST",
-        message:
-          "That window is 98,280 bars. The most a single response may carry " +
-          "is 10,000. Ask for a shorter window or a coarser timeframe.",
-        requestId: "0199c0de-1234-7000-8000-0123456789ab",
-      },
+      body: BAR_SERIES_FIXTURES.refusedCap.body,
       requestId: "0199c0de-1234-7000-8000-0123456789ab",
     });
 
@@ -455,13 +398,7 @@ describe("getBarSeries", () => {
     // a right one.
     respondWith({
       status: 400,
-      body: {
-        code: "BAD_REQUEST",
-        message:
-          "2016-01-04 is outside the trading calendar this system holds, " +
-          "which covers 2024-01-01 to 2028-12-31.",
-        requestId: "0199c0de-1234-7000-8000-0123456789ab",
-      },
+      body: BAR_SERIES_FIXTURES.refusedCalendar.body,
     });
 
     await expect(
@@ -487,23 +424,7 @@ describe("getBarSeries", () => {
     // open.
     respondWith({
       status: 200,
-      body: {
-        ...SERIES_BODY,
-        series: {
-          ...SERIES_BODY.series,
-          provenance: {
-            adjustment: "raw",
-            sources: [
-              {
-                provider: "alpaca",
-                feed: "nasdaq-basic",
-                retrievedAt: "2026-09-05T02:14:07.000Z",
-                barCount: 1,
-              },
-            ],
-          },
-        },
-      },
+      body: BAR_SERIES_FIXTURES.unknownFeed.body,
     });
 
     await expect(getBarSeries(FIVE_SESSIONS)).resolves.toMatchObject({

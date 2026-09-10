@@ -99,9 +99,15 @@ export default mergeConfig(
           "src/**/*.stories.tsx",
 
           // Test scaffolding that is not named `*.test.*`: the shared render
-          // helper and the `afterEach(cleanup)` file.
+          // helper, the `afterEach(cleanup)` file, and the fixture backend
+          // (Task 2.10.6) — the recorded bodies, the module that holds them to
+          // their labels, and the shared `fetch` stub. Same argument as the two
+          // above: they are what the tests are made of, not what they are
+          // about, and left in they would each report a coverage figure
+          // describing how thoroughly the suite exercised its own scaffolding.
           "src/test-render.tsx",
           "src/test-setup.ts",
+          "src/fixtures/**",
         ],
 
         // Nothing else is excluded, and one omission from that list is

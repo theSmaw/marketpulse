@@ -259,3 +259,30 @@ export function createSeriesCache(
  * is correct, because a reload is what a person does when they want to be sure.
  */
 export const barSeriesCache = createSeriesCache();
+
+/**
+ * Forget every held series. **Test scaffolding, and there is no product call
+ * site.**
+ *
+ * Exported from this module's `index.ts` when {@link barSeriesCache} itself
+ * deliberately is not, and the asymmetry is the point rather than a compromise.
+ * The invariant the header states is that *nothing outside this module can read
+ * a series without asking for one*; a function that can only **forget** cannot
+ * breach it. What it buys is the one thing the cache being module-level costs:
+ * `src/test-setup.ts` is where `afterEach(cleanup)` lives, it is outside
+ * `src/market/`, and the lint rule holding PRODUCT_SPEC §26's boundary means it
+ * can reach this module only through its API.
+ *
+ * The alternative — an exemption in `eslint.config.mjs` for one file — was
+ * rejected on the trap that config already documents: `no-restricted-imports`
+ * resolves to the last configuration that matched, so a second block for
+ * `test-setup.ts` would silently *replace* the `node:*` group and take the
+ * browser boundary out with it.
+ *
+ * A user asking for fresh data is asking the **server**, and this cache never
+ * answers without asking it — so if this ever acquires a product caller,
+ * something upstream has gone wrong rather than this having become useful.
+ */
+export function clearBarSeriesCache(): void {
+  barSeriesCache.clear();
+}

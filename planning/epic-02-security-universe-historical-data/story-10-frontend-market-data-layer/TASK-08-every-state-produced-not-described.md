@@ -221,3 +221,46 @@ The announcement question inherits the same shape: a refetch that lands on an
 identical series is the common case for a closed session's bars, and it produces
 the same sentence, which a live region passes over in silence. That is arguably
 correct here — nothing changed — but it must be decided rather than discovered.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.6 — every state now has a named cause on disk
+
+This task's title is _every state produced, not described_, and the fixture
+backend is what makes the producing cheap. `apps/frontend/src/fixtures/` holds
+ten recorded bodies of `GET /market-data/bars`, eight of them taken from the real
+endpoint over the real store, each with the state it collapses to asserted in
+`fixtures/bar-series.test.ts`:
+
+| Cause                                 | Fixture                | State                             |
+| ------------------------------------- | ---------------------- | --------------------------------- |
+| A complete answer                     | `full`                 | `loaded`                          |
+| A window past what the store holds    | `partial`              | `partial`                         |
+| A window with no prints in it         | `empty`                | `empty`                           |
+| History plus a live tail              | `stitched`             | `loaded`, two provenance sources  |
+| A window over the 10,000-bar cap      | `refusedCap`           | `refused`, naming 98,310          |
+| A window outside the trading calendar | `refusedCalendar`      | `refused`                         |
+| A symbol the universe does not hold   | `refusedUnknownSymbol` | `refused` — **the third refusal** |
+| The store unreachable                 | `unavailable`          | `failed`, **`retryable: true`**   |
+| Our own server contradicting itself   | `incoherent`           | `failed`, not retryable           |
+| A feed slug this bundle does not know | `unknownFeed`          | `failed`, via `unreadable-body`   |
+
+`stubBarSeries(name)` installs a `fetch` stub answering with any of them;
+`barSeriesFixtureView(name)` returns the state itself, built through the real
+`toBarSeriesView`, which is the form a story wants. **Constructing a state by
+hand is the thing to avoid**: a hand-built `partial` whose `covered` disagrees
+with its bars is unreachable in the real layer, and a component tuned against it
+renders the real one wrongly.
+
+Three states this task must produce that no recorded body can, because they are
+properties of a **transport** rather than of an answer: `loading` (use
+`neverAnswers` from `fixtures/stub-fetch.ts` — the socket that accepts and does
+not reply), `unreachable` (reject with `new TypeError("Failed to fetch")`), and
+`timeout` (`neverAnswers` again, past the deadline). All three are in
+`stub-fetch.ts` or one line away from it.
+
+And the one wording constraint that comes out of the recording rather than out of
+a decision: **`stitched.json`'s two sources name the same feed.** Both halves are
+Alpaca's historical API, which is SIP on this plan, so _"this chart is stitched
+from two feeds"_ is not a sentence anything can currently produce. The two-feed
+case arrives with Epic 3's IEX socket, and Story 2.14 owns it.

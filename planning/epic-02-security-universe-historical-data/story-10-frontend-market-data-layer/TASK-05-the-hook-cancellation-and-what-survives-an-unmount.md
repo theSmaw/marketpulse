@@ -504,3 +504,28 @@ history correctly and quickly, with every way it can go wrong already named and
 handled. The next task builds a stand-in server so the screens can be developed
 and tested without touching the real market data; the one after that puts a real
 price series in front of a person for the first time.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.6 — the reset's wiring is done, and the file that had it is no longer the only one protected
+
+This task recorded that `barSeriesCache.clear()` existed and that wiring it where
+`cleanup` is called was still Task 2.10.6's. It is now done, and two things about
+how differ from what was expected here.
+
+**It is reached through the module's API, not off the instance.**
+`src/test-setup.ts` sits outside `src/market/`, and the `no-restricted-imports`
+boundary means it can import only `index.ts` — where the cache is deliberately
+absent. So `clearBarSeriesCache()` is exported instead: it can forget and it
+cannot read, which leaves _nothing outside this module can read a series without
+asking for one_ exactly as true as it was. An ESLint exemption for one file was
+rejected on the trap that config already documents — a second block for the same
+files **replaces** the rule rather than adding to it, and would have taken the
+browser boundary out with it.
+
+**`market/use-bar-series.test.ts`'s own `beforeEach`/`afterEach` clears were
+removed.** They protected that file and nothing else, and leaving them in would
+have masked the substitution that proves the new line works.
+`market/series-cache-isolation.test.ts` is that proof: two tests over one request,
+2 passed with the line, **1 failed / 1 passed without it** — `expected 'loaded' to
+be 'loading'` — and the failing one passes alone.

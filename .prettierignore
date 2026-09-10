@@ -46,3 +46,12 @@ node_modules/
 # is a fixture that no longer proves the thing it was recorded to prove, which
 # is that a real error body is not JSON.
 apps/backend/src/fixtures/alpaca/
+
+# `apps/frontend/src/fixtures/bar-series/` is deliberately NOT listed, and that
+# is a decision rather than an omission (Task 2.10.6). Those bodies are recorded
+# too, but they are recordings of OUR OWN contract: JSON by construction, and
+# what makes them evidence is that the values came off the server rather than out
+# of somebody's head — which whitespace cannot change. The entry above exists
+# because a vendor's bytes are the claim; ours are not, so they stay in the
+# formatter's hands. The reversal trigger is the first fixture of ours whose
+# BYTES are the claim: a non-JSON body, or one recorded to prove an encoding.
