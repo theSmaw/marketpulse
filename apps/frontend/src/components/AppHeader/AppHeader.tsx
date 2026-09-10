@@ -2,6 +2,7 @@ import type { BackendDegradedCause, BackendStatus } from "@marketpulse/shared";
 import { NavLink } from "react-router";
 
 import { cx } from "../../cx.js";
+import { Icon } from "../Icon/Icon.js";
 import { BackendIndicator } from "../BackendIndicator/BackendIndicator.js";
 import { FeedProvenance } from "../FeedProvenance/FeedProvenance.js";
 import { MarketClock } from "../MarketClock/MarketClock.js";
@@ -63,12 +64,30 @@ import styles from "./AppHeader.module.css";
 // router's host, and neither renders anything to look at. The same rule is
 // written beside the check that enforces it, in `scripts/check-stories.mjs`.
 //
-// The identity here is entirely structural: no brand hue, no distinctive
-// typeface. What makes this read as the product rather than a default admin
-// panel is the warm ground, the 1px near-black hairline under the strip, the
-// uppercase letterspaced micro-labels and the 4px grid — see VISUAL-LANGUAGE.md
-// in Story 1.4's directory. Substituting a grey border looks like nothing in
-// isolation and loses the whole look.
+// **The identity is no longer entirely structural, and this component is where
+// that changed** (the 2026 refresh, ADR 0022). It used to say: no brand hue, no
+// distinctive typeface, and what makes this read as the product is the warm
+// ground, the near-black hairline and the letterspaced micro-labels. The
+// refresh gave the product three real faces and one accent colour, and this
+// header is the only place in the application where that accent appears at all
+// — the pulse mark and the 2px bar under the current tab, and nothing else. See
+// `brand.css` for the rule that keeps it there.
+//
+// The chrome is **two rows**, and the split is the refresh's one structural
+// change to it:
+//
+//   - a 56px masthead — mark, wordmark, and the four experiences as tabs; and
+//   - the status strip beneath it, carrying the three facts that fail
+//     independently.
+//
+// One row was tried first, and it is what the reference design does. It does
+// not survive contact with this product: the reference carries a single clock
+// chip on the right, and we have three labelled regions whose labels are the
+// thing that makes them unambiguous — `FeedProvenance`, `BackendIndicator` and
+// `MarketClock` each render a short status word, and a strip of three
+// unlabelled words is a strip nobody can read. Dropping the labels to fit was
+// the alternative, and it would have taken four browser specs with it, all of
+// which assert on exactly those three strings.
 
 export interface AppHeaderProps {
   /**
@@ -150,12 +169,68 @@ export function AppHeader({
 
   return (
     <header className={styles.header}>
-      {/* The product name is a `<p>`, not an `<h1>`, and Task 1.5.2 demoted it
-          deliberately: every route renders its own `<h1>`, and two on a page
-          leaves a screen reader user with no single answer to "what is this
-          page?". Promoting it back here would reintroduce the problem on every
-          route at once. */}
-      <p className={styles.productName}>MarketPulse</p>
+      <div className={styles.masthead}>
+        {/* The identity block. The product name is a `<p>`, not an `<h1>`, and
+            Task 1.5.2 demoted it deliberately: every route renders its own
+            `<h1>`, and two on a page leaves a screen reader user with no single
+            answer to "what is this page?". Promoting it back here would
+            reintroduce the problem on every route at once.
+
+            The mark beside it is an `Icon`, so it is `aria-hidden` and adds
+            nothing to the accessible name — the word "MarketPulse" is the name,
+            and the drawing is the same fact for people who read shapes faster
+            than words. The line under it is a descriptor rather than a tagline:
+            it says what kind of thing this is on a screen a stranger may have
+            been sent a link to. */}
+        <div className={styles.identity}>
+          <span className={styles.mark}>
+            <Icon name="pulse" />
+          </span>
+          <span className={styles.wordmarks}>
+            <p className={styles.productName}>MarketPulse</p>
+            <p className={styles.descriptor}>Market situational awareness</p>
+          </span>
+        </div>
+
+        {/*
+          A four-item navigation is a `<nav>` and four links. Reaching for a menu
+          primitive here would make this the second file importing
+          `@base-ui/react` and widen that seam for nothing.
+
+          NavLink sets `aria-current="page"` on the match itself, so the
+          accessible state and the visible one are the same fact rather than two,
+          and the stylesheet selects on the attribute. `end` on the landing route
+          stops `/` matching every path beneath it. There is no focus rule in the
+          stylesheet either: `base.css` carries one global `:focus-visible`
+          outline and a link declaring its own is answering a question the token
+          layer already answered.
+
+          Since the refresh these are **tabs**: full-height, with a 2px brand bar
+          under the current one. That bar is the accent's second and last
+          permitted appearance, and it is paired with a weight change rather than
+          being colour alone — which is `market.css`'s rule applied to the chrome,
+          where it matters just as much and is forgotten more often.
+        */}
+        <nav aria-label="Primary" className={styles.nav}>
+          {NAVIGATION.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === PATHS.overview}
+              /* `cx` around a single class, which looks redundant and is not: a
+                 CSS Module class is `string | undefined` under
+                 `noUncheckedIndexedAccess`, NavLink's `className` is
+                 `string | ((props) => string | undefined)`, and under
+                 `exactOptionalPropertyTypes` that mismatch is a hard TS2375
+                 rather than a lint warning. Every Base UI primitive taking a
+                 `className` has the same shape. */
+              className={cx(styles.navLink)}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+      </div>
 
       <div className={styles.status}>
         {/*
@@ -233,39 +308,6 @@ export function AppHeader({
           <MarketClock reading={clock} />
         </div>
       </div>
-
-      {/*
-        A four-item navigation is a `<nav>` and four links. Reaching for a menu
-        primitive here would make this the second file importing
-        `@base-ui/react` and widen that seam for nothing.
-
-        NavLink sets `aria-current="page"` on the match itself, so the
-        accessible state and the visible one are the same fact rather than two,
-        and the stylesheet selects on the attribute. `end` on the landing route
-        stops `/` matching every path beneath it. There is no focus rule in the
-        stylesheet either: `base.css` carries one global `:focus-visible`
-        outline and a link declaring its own is answering a question the token
-        layer already answered.
-      */}
-      <nav aria-label="Primary" className={styles.nav}>
-        {NAVIGATION.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === PATHS.overview}
-            /* `cx` around a single class, which looks redundant and is not: a
-               CSS Module class is `string | undefined` under
-               `noUncheckedIndexedAccess`, NavLink's `className` is
-               `string | ((props) => string | undefined)`, and under
-               `exactOptionalPropertyTypes` that mismatch is a hard TS2375
-               rather than a lint warning. Every Base UI primitive taking a
-               `className` has the same shape. */
-            className={cx(styles.navLink)}
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
     </header>
   );
 }

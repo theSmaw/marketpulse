@@ -27,6 +27,19 @@ body {
   color: var(--ink-primary);
 
   font-family: var(--font-sans);
+  /*
+   * Inter's default `calt` turns `->` into an arrow and `!=` into a glyph;
+   * neither is wanted in an interface where a hyphen followed by a
+   * greater-than is a hyphen followed by a greater-than.
+   */
+  font-feature-settings: "calt" 0;
+  /*
+   * Grayscale antialiasing on macOS. Stated rather than inherited: Inter at
+   * 13px with subpixel antialiasing renders visibly heavier than the weight
+   * asked for, which is how a 400 body ends up looking like a 500 and a 600
+   * heading stops separating from it.
+   */
+  -webkit-font-smoothing: antialiased;
   /* The dense size is the product's default; see tokens.css. */
   font-size: var(--font-size-dense);
   line-height: var(--line-height-dense);
@@ -44,6 +57,38 @@ body {
    * measurement is in Task 1.4.3's record.
    */
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Everything that names something is set in the display face, once, rather than
+ * in each component's stylesheet. A heading that inherits the body face is the
+ * silent failure here — it renders perfectly, in the wrong voice, and only a
+ * side-by-side comparison catches it.
+ *
+ * `h1`-`h6` and nothing else: a component that wants the display face on a
+ * non-heading element composes `type.module.css` instead, which is where the
+ * named type idioms live.
+ */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+/*
+ * The selection colour, and it is the one place the identity accent is allowed
+ * to land on a datum - because it is transient, it is the user's own doing, and
+ * a selection tinted the browser's default blue is the loudest un-designed
+ * thing left on the page.
+ */
+::selection {
+  background: var(--brand-wash);
+  color: var(--ink-primary);
 }
 
 /*

@@ -1,33 +1,44 @@
 /*
  * Design tokens — the foundational layer.
  *
- * Every value here comes from VISUAL-LANGUAGE.md in Story 1.4's planning
- * directory, which is the design input to this file. That document is a census
- * of computed styles from a real institutional application, not a set of
- * preferences, so **a divergence from it is a change to that document** rather
- * than a local adjustment here.
+ * ## What this file is, after the 2026 refresh
  *
- * Two rules govern what may be added:
+ * Every value here comes from `VISUAL-LANGUAGE.md` in Story 1.4's planning
+ * directory, which is the design input to this file and which the refresh
+ * rewrote rather than amended. **A divergence from it is a change to that
+ * document**, not a local adjustment here. ADR 0022 records what changed and
+ * what it cost.
  *
- *   1. No market meaning, and no colour with meaning. Price direction, the
- *      anomaly ramp and the feed-status colours live in `market.css`, layered
- *      over these primitives rather than beside them (Task 1.4.4). **This file
- *      is achromatic and should stay that way** — it is what makes "colour
- *      appears only where it carries market meaning" a property of the file
- *      layout rather than a habit.
- *   2. No value without a consumer. The spacing ladder below deliberately jumps
- *      from 24 to 40 with no 32, because that gap is what produces the airy
- *      separation between modules on an otherwise dense page. Filling it in
- *      because a ramp looks incomplete is the failure this file is written
- *      against. Control heights (48px/36px) are in VISUAL-LANGUAGE.md and are
- *      deliberately *not* here: nothing renders a control until Task 1.4.5.
+ * The refresh moved three things and kept the rest:
  *
- * The identity of this product is carried entirely by structure — there is no
- * brand hue and no distinctive typeface to fall back on. So the exact values
- * matter more than they usually would: `#f5f5f5` in place of `#f4f3ee` looks
- * like nothing in isolation and loses the warmth the whole look depends on,
- * and a light-grey rule in place of the near-black one produces a generic
- * admin panel.
+ *   1. **The ground went cool.** The warm `#f4f3ee` page is now a cool
+ *      near-white. That was not a preference — the warm ground existed to give
+ *      an achromatic interface *some* character, and the interface is no longer
+ *      achromatic: it has three real typefaces and an identity accent. A warm
+ *      ground under Inter and a crimson mark reads as two design languages
+ *      sharing a page.
+ *   2. **The near-black border stopped being the default.** It is still here,
+ *      as `--rule-strong`, and it is still the most distinctive idiom in the
+ *      language — but it now marks *structure* (the edge under the chrome, the
+ *      underline of a table head, the active tab) rather than wrapping every
+ *      card. A near-black box around every panel on a page with twelve panels
+ *      is a cage; on one panel it is a statement.
+ *   3. **Corners are square.** `--radius` was 2px and is now 0. See its comment.
+ *
+ * ## Two rules govern what may be added
+ *
+ *   1. **No market meaning, and no colour with meaning.** Price direction, the
+ *      anomaly ramp and the status colours live in `market.css`; the product's
+ *      identity accent lives in `brand.css`. This file is achromatic and should
+ *      stay that way — it is what makes "colour appears only where it carries
+ *      meaning" a property of the file layout rather than a habit. The refresh
+ *      added a *second* chromatic file rather than a chromatic token here, for
+ *      exactly that reason.
+ *   2. **No value without a consumer.** The spacing ladder below deliberately
+ *      jumps from 24 to 40 with no 32, because that gap is what produces the
+ *      airy separation between modules on an otherwise dense page. Filling it
+ *      in because a ramp looks incomplete is the failure this file is written
+ *      against.
  */
 
 /*
@@ -52,54 +63,85 @@
  */
 :root,
 [data-theme="light"] {
-  /* --- Surfaces. A ladder of three grounds, and it is warm. --- */
+  /*
+   * --- Surfaces. A ladder of three grounds, plus one inversion. ---
+   *
+   * The ladder is shallow on purpose: 4% of lightness separates the page from a
+   * panel, and the panel is told from the page by its hairline and its shadow
+   * rather than by a step in tone. A deeper ladder is how an interface ends up
+   * looking like a stack of grey boxes.
+   */
 
-  /* The application background. Warm, and noticeably not white. */
-  --surface-page: #f4f3ee;
+  /* The application background. Cool, and noticeably not white. */
+  --surface-page: #f6f7fa;
   /* Cards, modules, panels, table bodies — content sits here. */
   --surface-raised: #ffffff;
-  /* Table header rows, disabled fields, secondary strips. */
-  --surface-sunken: #f9f9f7;
+  /* Table header rows, disabled fields, chips, secondary strips. */
+  --surface-sunken: #f0f2f6;
 
-  /* --- Ink. Never pure black; the neutrals are warm, not blue-grey. --- */
+  /*
+   * The inversion, and it is the refresh's one new ground.
+   *
+   * There is exactly one thing in this interface that reverses out of the page:
+   * a *selected* control — the active filter chip in the reference design. It
+   * is near-black rather than the accent, because selection is not brand and an
+   * interface where the selected thing is crimson has spent its loudest colour
+   * on its least interesting statement.
+   */
+  --surface-inverse: #21242a;
+  --ink-inverse: #eef0f5;
 
-  --ink-primary: #1c1c1c;
-  --ink-secondary: #5a5d5c;
+  /* --- Ink. Never pure black; the neutrals are cool now, not warm. --- */
+
+  --ink-primary: #14171c;
+  --ink-secondary: #5b5e66;
   /* Fails contrast deliberately: disabled content must read as unavailable. */
-  --ink-disabled: #aaaaaa;
+  --ink-disabled: #9ba0aa;
 
   /*
    * --- Rules ---
    *
-   * The near-black hairline is the most distinctive idiom in this language and
-   * the easiest to soften by accident. It is the *primary* separator: section
-   * headings, tab strips, table headers and the bottom of a form field all sit
-   * on a 1px `--rule-hairline`. Reaching for the soft grey instead is the
-   * default instinct and it is wrong.
+   * Three weights, and choosing between them is the single most consequential
+   * styling decision in this language. In order of how much they say:
    *
-   * `--rule-soft` exists for *repeated* dividers — rows inside a long table —
-   * where near-black would stripe the page.
+   *   - `--rule-strong` is near-black and marks **structure**: the edge under
+   *     the application chrome, the underline beneath a table's head, the
+   *     2px bar under the current tab, the left edge of a callout. It is the
+   *     idiom that most says "instrument" rather than "admin panel", and it is
+   *     the easiest to soften by accident. It is *not* a card border.
+   *   - `--rule-hairline` is the ordinary border: panels, controls, inputs,
+   *     chips. This is the one to reach for by default.
+   *   - `--rule-soft` is for **repeated** dividers — rows inside a long table —
+   *     where even the hairline would stripe the page.
+   *
+   * Before the refresh `--rule-hairline` *was* the near-black, and every panel
+   * in the tree took it. The name kept its meaning (the ordinary 1px border)
+   * and changed its value, which is why nothing consuming it needed editing and
+   * why the structural cases had to be re-marked by hand.
    */
-  --rule-hairline: #1c1c1c;
-  --rule-soft: #d7d7d7;
+  --rule-strong: #14171c;
+  --rule-hairline: #e2e5ec;
+  --rule-soft: #eef0f4;
 
   /*
    * --- Elevation ---
    *
-   * Elevation here is ground contrast plus a hairline, not shadow: a raised
-   * module is `--surface-raised` on `--surface-page` with a 1px
-   * `--rule-hairline`. There is deliberately no `--elevation-1` shadow token,
-   * because defining one invites it to be used for cards, where it would
-   * quietly replace the idiom above.
+   * Two shadows, both nearly subliminal, and neither is a lift off the page.
    *
-   * The one shadow is for content that genuinely floats — popovers, dropdowns,
-   * dialogs — and it is nearly subliminal. Note its third layer: a 1px spread
-   * ring standing in for a border, so even the floating case keeps its
-   * hairline.
+   * `--elevation-panel` is a single hairline-scale shadow that stops a white
+   * panel from dissolving into a near-white ground. It replaces the "elevation
+   * is ground contrast plus a near-black hairline" idiom the pre-refresh file
+   * insisted on — that idiom worked because the hairline was near-black, and it
+   * does not survive the border going grey.
+   *
+   * `--elevation-floating` is for content that genuinely floats — popovers,
+   * dropdowns, dialogs. Note its third layer: a 1px spread ring standing in for
+   * a border, so even the floating case keeps its hairline.
    */
+  --elevation-panel: 0 1px 2px rgb(16 20 28 / 5%);
   --elevation-floating:
-    0 6px 14px rgb(0 0 0 / 8%), 0 1px 2px rgb(0 0 0 / 4%),
-    0 0 0 1px rgb(0 0 0 / 4%);
+    0 6px 14px rgb(16 20 28 / 8%), 0 1px 2px rgb(16 20 28 / 4%),
+    0 0 0 1px rgb(16 20 28 / 4%);
 }
 
 /*
@@ -111,29 +153,38 @@
  */
 :root {
   /*
-   * One radius. Not a scale, not per-component, and not 4 or 6 or 8. Buttons,
-   * inputs, cards, popovers and menus all take this value; the effect is
-   * "square with the corner knocked off", which is the intent. Circles (avatars
-   * and status dots) are the sole exception and do not need a token.
+   * Zero. Not a scale, not per-component, and not 2 or 4 or 8.
+   *
+   * The pre-refresh value was 2px — "square with the corner knocked off" — and
+   * the refresh took the last 2px off. A rounded corner is a softening gesture,
+   * and every trading and analytics interface worth copying has stopped making
+   * it: square corners read as a *grid*, which is what a dense table of figures
+   * is. The token stays rather than being deleted from every consumer, so that
+   * reversing this is one line.
+   *
+   * Circles — status dots, avatars — are the sole exception and are written as
+   * `50%` at the two places that need one.
    */
-  --radius: 2px;
+  --radius: 0;
 
-  /* Always 1px. A 2px border is a focus ring, not a border. */
+  /* Always 1px. A 2px border is a focus ring or a structural marker, not a
+     border. */
   --border-width: 1px;
 
   /*
-   * Focus cannot be a coloured ring, because the chrome has no accent colour.
-   * It is a 2px near-black outline with a 2px offset — the one deliberate
-   * exception to the 1px rule above, because a 1px ring against a 1px border is
-   * not a state change anybody can see. It is high contrast on all three
-   * grounds, and it does not depend on colour perception, which is one fewer
-   * thing for Epic 15's accessibility review to find.
+   * Focus is achromatic, and it stayed achromatic through a refresh that
+   * introduced an accent colour — which is a decision rather than an oversight.
+   * A crimson focus ring on a page where crimson means "this is MarketPulse"
+   * makes the accent mean two things, and the second one is invisible to anyone
+   * with a red-green deficiency. A 2px near-black outline with a 2px offset is
+   * high contrast on all four grounds and does not depend on colour perception
+   * at all.
    */
   --focus-width: 2px;
   --focus-offset: 2px;
 
   /*
-   * A 4px grid. These are the steps the reference actually uses, named by their
+   * A 4px grid. These are the steps the design actually uses, named by their
    * value rather than by position so that the 24-to-40 jump is visible in the
    * token names instead of being hidden behind `--space-6`/`--space-7`.
    */
@@ -146,102 +197,146 @@
   --space-40: 40px;
 
   /*
-   * The system stack. No webfont ships and none is fetched.
+   * --- Controls and layout ---
    *
-   * The known cost, recorded because it is a real loss rather than a neutral
-   * substitution: the reference leans on weight 300 for its headings and system
-   * stacks do not reliably have a 300, so a light heading would render at a
-   * different weight per operating system. Hence two weights below, and
-   * hierarchy carried by size and grey. If the light headings are ever judged
-   * essential the fix is contained — a self-hosted variable font, this token's
-   * value, and font files.
+   * Two control heights, and they are here rather than in a component because
+   * a button, an input, a select and a chip that disagree by 2px turn a toolbar
+   * into a ransom note. `VISUAL-LANGUAGE.md` held these as prose from Story 1.4
+   * and they became tokens the moment the first real control shipped.
    */
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --control-height: 36px;
+  --control-height-sm: 28px;
 
-  --font-weight-regular: 400;
-  --font-weight-strong: 600;
+  /* The chrome's height, read by the header itself and by every `position:
+     sticky` offset beneath it. Two readers, one fact. */
+  --app-header-height: 56px;
+
+  /* The measure the application is laid out within. Wide, because this product
+     is a dense table and a graph rather than an article. */
+  --content-max: 96rem;
 
   /*
-   * The second family, and it is the first change to this document's
-   * typography since Story 1.4 (Task 2.4.4).
+   * --- Type: three families, three jobs ---
    *
-   * VISUAL-LANGUAGE.md's decision 3 is "the system font stack, no webfont", and
-   * this does not reverse it: nothing is fetched, and the display and body faces
-   * are unchanged. What it adds is a *utility* face for the one category of
-   * string a proportional face genuinely damages — **a value a person is
-   * expected to transcribe or type back**. Two consumers, both on the securities
-   * page and both arriving in the same task:
+   * The refresh reversed Story 1.4's "system stack, no webfont" decision. The
+   * faces are self-hosted and latin-only; `fonts.css` holds the `@font-face`
+   * rules and the argument for hosting them ourselves.
    *
-   *   - the correlation id beside a failure (`Reference: 3f1c…`), which is a
-   *     UUID somebody is being asked to quote, and
-   *   - the command in the empty state (`pnpm universe`), which is a thing
-   *     somebody is being asked to run.
+   * Each family has a job, and the jobs do not overlap:
    *
-   * Neither is prose and neither is data in a column, so neither is served by
-   * the body face. `base.css` already sets `tabular-nums` globally, which fixes
-   * *column* alignment; it does nothing for `l` against `1` or `O` against `0`
-   * in a string with no column to align to, which is exactly what a mistyped
-   * UUID costs.
+   *   - `--font-display` is for anything that names something: page titles,
+   *     panel headings, the wordmark, the uppercase micro-label. It is the
+   *     face that carries the product's voice.
+   *   - `--font-sans` is for prose and for interface text — labels, buttons,
+   *     descriptions, the sentence explaining a failure.
+   *   - `--font-data` is for **figures and identifiers**: prices, changes,
+   *     volumes, tickers, timestamps, correlation ids, commands.
    *
-   * **The rule that comes with it: this is not for numbers in tables.** A price,
-   * a change, a volume and an anomaly score are all set in the body face with
-   * tabular figures, which is that document's Numerals section and is not
-   * negotiable here. Reaching for mono to make a column look technical is the
-   * failure this comment exists to prevent.
+   * The fallback stacks matter more than they look. A variable webfont is one
+   * network round trip away on a cold load, and `font-display: swap` means the
+   * fallback is what a user reads for that frame — so each stack names faces
+   * with comparable metrics rather than ending at a bare `sans-serif`.
    */
-  --font-mono:
-    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
-    monospace;
+  --font-display:
+    "Hanken Grotesk Variable", "Hanken Grotesk", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --font-sans:
+    "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /*
+   * The data face, and the rule that came with it is **the opposite of the one
+   * this file used to carry**.
+   *
+   * Task 2.4.4 added a monospace family for correlation ids and shell commands
+   * and wrote a rule beside it: "this is not for numbers in tables", because
+   * `tabular-nums` in the body face already fixes column alignment and reaching
+   * for mono to make a column look technical was the failure it feared.
+   *
+   * The refresh reverses that, and the reason it is not simply a change of
+   * taste: tabular figures make a column *align*, and a monospaced face makes a
+   * column **scan** — every glyph on the same rhythm, so a price, a volume and
+   * a timestamp in adjacent columns share one grid rather than three. This is
+   * the single strongest signal that a screen is an instrument, and every
+   * reference product in this category uses it. What survives from the old rule
+   * is its real content: mono is for *values*, never for prose. A sentence set
+   * in JetBrains Mono is a terminal, not a product.
+   */
+  --font-data:
+    "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular,
+    "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /*
+   * Four weights, and a variable font makes the middle two free.
+   *
+   * `--font-weight-medium` is the one to reach for on a data cell that needs to
+   * come forward without shouting — a last price against its own volume. Story
+   * 1.4's note that "hierarchy is carried by size and grey" was a consequence of
+   * having only two weights available; there are four now, and weight is the
+   * cheapest hierarchy there is.
+   */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-strong: 600;
+  --font-weight-bold: 700;
 
   /*
    * Size and line height are paired deliberately: they are never chosen
    * independently, and a size token without its line height is an invitation to
    * pick one by eye.
    *
-   * `--font-size-dense` is the product's default, not `--font-size-body`. 16px
-   * is a marketing page's body size; a dense analyst table is 14 with a 12px
-   * micro-label above it, and that is where this product actually lives.
+   * `--font-size-dense` is the product's default, not `--font-size-body`, and
+   * the refresh took it from 14px to 13px. 13/18 is the size a professional
+   * market interface actually sets its tables at; 16px is a marketing page's
+   * body size and 14px is the compromise between them. `--font-size-body` is
+   * still here for prose — a paragraph explaining a failure is read, not
+   * scanned, and reading wants the larger size.
    */
   --font-size-display: 40px;
-  --line-height-display: 48px;
+  --line-height-display: 44px;
   --font-size-heading: 24px;
-  --line-height-heading: 36px;
-  --font-size-subheading: 20px;
-  --line-height-subheading: 30px;
-  --font-size-body: 16px;
-  --line-height-body: 24px;
-  --font-size-dense: 14px;
-  --line-height-dense: 20px;
-  --font-size-micro: 12px;
+  --line-height-heading: 30px;
+  --font-size-subheading: 18px;
+  --line-height-subheading: 26px;
+  --font-size-body: 15px;
+  --line-height-body: 22px;
+  --font-size-dense: 13px;
+  --line-height-dense: 18px;
+  --font-size-micro: 11px;
   --line-height-micro: 16px;
+
+  /*
+   * The one figure size that is not a text size: a headline number in a metric
+   * strip. It exists because a 13px figure with an 11px label above it is a
+   * table cell, and a metric strip is the thing a person looks at *first*.
+   */
+  --font-size-metric: 20px;
+  --line-height-metric: 26px;
 
   /*
    * Micro-labels are uppercase and letterspaced — `MARKET FEED`, not
    * `Market feed`. This is the idiom that most says "institutional
    * application"; a sentence-case grey label does not read the same way.
+   *
+   * `--letter-spacing-tight` is its counterpart at the other end of the scale:
+   * display and heading sizes are set slightly negative, because a face
+   * designed for 13px text opens up at 24px and reads loose without it.
    */
   --letter-spacing-micro: 0.08em;
+  --letter-spacing-tight: -0.01em;
 
   /*
-   * --- Motion (Task 2.4.4) ---
+   * --- Motion ---
    *
-   * **VISUAL-LANGUAGE.md said nothing at all about motion**, which for a market
-   * application is the largest gap in it: a screen that updates by silently
-   * swapping text is technically correct and reads as dead, and that is test 4
-   * of *The bar*. This is the thin first cut and deliberately not a system —
-   * two durations and one easing, because the securities page is the first
-   * screen in this product where content arrives asynchronously and something
-   * has to happen when it does.
-   *
-   * **Epic 3 owns the full vocabulary**, and waiting is the decision rather than
-   * the deferral: the hard question in this product is what happens when *a
-   * number changes*, and the honest answer is that a value which fades or slides
-   * while an analyst is reading it is worse than one that changes instantly. A
-   * vocabulary guessed here, against a table that arrives once and then sits
-   * still, would be guessed against the easy case and then inherited by the hard
-   * one.
+   * The thin first cut and deliberately not a system — two durations and one
+   * easing. **Epic 3 owns the full vocabulary**, and waiting is the decision
+   * rather than the deferral: the hard question in this product is what happens
+   * when *a number changes*, and the honest answer is that a value which fades
+   * or slides while an analyst is reading it is worse than one that changes
+   * instantly. A vocabulary guessed here, against tables that arrive once and
+   * then sit still, would be guessed against the easy case and then inherited
+   * by the hard one.
    *
    *   - `quick` — a state change under the pointer. Fast enough that the
    *     interface feels attached to the cursor rather than animated.

@@ -2,10 +2,18 @@
  * Semantic market tokens — the vocabulary the product actually reaches for.
  *
  * tokens.css is structural and achromatic: grounds, ink, rules, geometry, type.
- * This file is the only place colour with meaning enters the interface, which
- * is a direct consequence of the "neutral chrome, no brand accent" decision in
- * VISUAL-LANGUAGE.md. There is no accent hue anywhere else, so every colour a
- * user sees is coming from this file and is saying something about the market.
+ * This file is the only place colour with **market** meaning enters the
+ * interface.
+ *
+ * **The 2026 refresh amended that sentence rather than this file.** It used to
+ * read "the only place colour enters the interface", full stop, and that was a
+ * direct consequence of the "neutral chrome, no brand accent" decision in
+ * VISUAL-LANGUAGE.md. The refresh introduced an identity accent, which lives in
+ * `brand.css` under a rule that keeps it off every datum — so the claim that
+ * survives is the one that was always doing the work: **every colour attached
+ * to a number is coming from this file, and is saying something about the
+ * market.** Nothing here resolves to a brand token, and nothing in `brand.css`
+ * resolves to one of these.
  *
  * --- The shape: exactly one indirection ---
  *
@@ -50,36 +58,44 @@
    */
 
   /*
-   * Positive green. **This is not the reference's `#498100`, and the change is
-   * the resolution Task 1.4.4 was required to make explicitly.**
+   * Positive green. **The 2026 refresh re-picked it, and the reason is the
+   * ground beneath it rather than the colour itself.**
    *
-   * `#498100` measures 4.27:1 on the warm page ground against a 4.5 threshold —
-   * it fails AA exactly where a price column sits — while passing at 4.75 on
-   * white and landing precisely on 4.50 on the sunken ground. The alternative
-   * resolution was to constrain positive values to white surfaces, which is a
-   * rule with no enforcement and one nobody will remember at the point they add
-   * a figure to a page-ground strip.
+   * Story 1.4 darkened the reference's `#498100` to `#427400` because that
+   * olive measured 4.27:1 on the *warm* page ground and failed AA exactly where
+   * a price column sits. The refresh replaced that ground with a cool near-
+   * white and replaced the type with three real faces, and the olive stopped
+   * belonging to either: it reads as a highlighter against a cool grey, and its
+   * 5.26:1 was always the thinnest margin in this file.
    *
-   * So the green darkens. This is the same hue scaled to 90% brightness, which
-   * keeps it recognisably the reference green: 5.07 on the page ground, 5.63 on
-   * white, 5.34 on sunken. Chosen with margin rather than at the first value
-   * that scrapes past 4.5, and deliberately close to the negative red's 5.31 so
-   * that neither direction of a price move shouts louder than the other.
+   * `#046a38` is an emerald from the same family as the refresh reference's
+   * `#005b2e`, and it measures 6.28 on the page ground, 6.72 on white and 6.00
+   * on sunken. Chosen with margin rather than at the first value that scrapes
+   * past 4.5, and deliberately close to the negative red's 6.03 so that neither
+   * direction of a price move shouts louder than the other.
    */
-  --palette-green-strong: #427400;
+  --palette-green-strong: #046a38;
 
-  /* Negative red, unchanged from the reference: 5.31 on the page ground, 5.90
-     on white. It passes everywhere it is used. */
-  --palette-red-strong: #c81219;
+  /* Negative red: 6.03 on the page ground, 6.46 on white, 5.76 on sunken. It
+     passes everywhere it is used, and it is paired with the green above rather
+     than picked beside it — the two are within 0.25 of each other, so a rise
+     and a fall carry the same visual weight.
+
+     It is **not** `--brand-ink`, which is a hair away from it in hue and lives
+     in `brand.css` under a rule that keeps it off every datum. See that file:
+     the separation is by scope, and it is the one place in this design language
+     where two colours are close enough that the rule is what keeps them
+     apart. */
+  --palette-red-strong: #ba1a1a;
 
   /*
    * The amber ramp, for anomaly intensity and for the stale-data marker.
    *
-   * **Amber is a fill colour and never text, at any size.** The reference amber
-   * `#dbaa35` measures 1.93 on the page ground and 2.14 on white; every value
-   * in this ramp is in the same territory. Text on an amber fill is
-   * `--ink-primary`, which measures 12.65 / 8.87 / 5.59 on the three steps
-   * below.
+   * **Amber is a fill colour and never text, at any size.** The mid amber
+   * `#e2b544` measures 1.79 on the page ground; every value in this ramp is in
+   * the same territory. Text on an amber fill is
+   * `--ink-primary`, which measures 13.33 / 9.35 / 5.89 on the three steps
+   * below (re-measured against the refreshed ink in ADR 0022).
    *
    * The ramp is monotone in *lightness*, not merely in hue, so intensity
    * survives desaturation. Measured contrast between adjacent steps: 1.43 and
@@ -91,10 +107,10 @@
   --palette-amber: #e2b544;
   --palette-amber-deep: #c08a12;
 
-  /* The neutral fill under a normal anomaly band. Warm, like every other
-     neutral here, and lighter than the palest amber so the ramp stays
-     monotone. */
-  --palette-neutral-pale: #eceae3;
+  /* The neutral fill under a normal anomaly band. Cool, like every other
+     neutral here since the refresh, and lighter than the palest amber so the
+     ramp stays monotone. */
+  --palette-neutral-pale: #e8eaef;
 }
 
 /*

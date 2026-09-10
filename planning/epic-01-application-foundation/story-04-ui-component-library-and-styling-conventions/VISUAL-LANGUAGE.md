@@ -1,16 +1,34 @@
 # Visual language — MarketPulse
 
-**Status:** Settled 2026-08-31
+**Status:** Settled 2026-08-31 · **refreshed 2026-09-10** ([ADR 0022](../../../docs/adr/0022-the-design-refresh-three-typefaces-an-identity-accent-and-what-a-token-change-certifies.md))
 **Story:** [1.4 UI Component Library & Styling Conventions](STORY.md)
-**Consumed by:** Tasks 1.4.3, 1.4.4, 1.4.5, 1.4.6 — and every screen from Epic 4 onward
+**Consumed by:** Tasks 1.4.3, 1.4.4, 1.4.5, 1.4.6 — and every screen since
 
-This is the design input to the token tasks. Task 1.4.3 turns it into CSS custom properties, Task 1.4.4 layers market meaning on top, Task 1.4.5 builds the first components from it, and Task 1.4.6 records the decision as ADR 0004. It is not itself a decision record — it is the description of the look those tasks are aiming at, written down so that "does this match?" has an answer other than someone's memory of a screenshot.
+This is the design input to the token layer. `tokens.css` turns it into CSS custom properties, `brand.css` and `market.css` layer the two kinds of colour over them, and the components in `src/components/` are built from it. It is not itself a decision record — it is the description of the look those files are aiming at, written down so that "does this match?" has an answer other than someone's memory of a screenshot.
 
 **Treat a divergence from this document as a change to this document**, not as a local judgement call in a component. That is the whole reason it exists: a design language that lives in individual files stops being one after about six of them.
 
+## What the 2026-09-10 refresh changed, and why this document was rewritten rather than amended
+
+Between 2026-08-31 and the refresh, three of the four decisions below were reversed. That is too much to carry as marginal notes — a reader following an amended document would have had to reconstruct the current language from a sequence of corrections — so the sections that describe **what the interface looks like today** were rewritten, and the sections that describe **how it got here** were kept intact and dated.
+
+The refresh's own recommendations were already written in this document on 2026-09-05, in [_Each decision against the bar_](#each-decision-against-the-bar-with-a-recommendation--2026-09-05). All three were taken. What actually changed:
+
+| Was (2026-08-31)                | Is (2026-09-10)                                                              |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| System font stack, no webfont   | **Three self-hosted variable faces** — display, sans, data                   |
+| No accent hue anywhere          | **One crimson accent, confined to four positions in the chrome**             |
+| Warm ground (`#f4f3ee`)         | **Cool ground** (`#f6f7fa`)                                                  |
+| Near-black border on every card | Near-black reserved for **structure**; panels take an ordinary grey hairline |
+| Radius 2px                      | **Radius 0** — square                                                        |
+| Default text size 14px          | **13px**                                                                     |
+| Mono for identifiers only       | **The data face carries every figure and identifier**                        |
+
+Decision 1 (light theme only) and decision 4 (colour is never the sole encoding) are unchanged.
+
 ## Intent, in one paragraph
 
-MarketPulse should read as an **internal application at a large financial institution** — the kind of dense, sober, desktop tool an analyst has open all day — rather than as a consumer product or a modern SaaS dashboard. Concretely that means: white and warm off-white grounds, near-black text, hairline rules doing the work that borders and shadows do elsewhere, corners that are almost square, generous whitespace around genuinely dense numeric content, and **no decoration that does not carry information**. The aesthetic is restraint. It is not minimalism as a style choice; it is the absence of anything competing with the numbers.
+MarketPulse should read as an **internal application at a large financial institution** — the kind of dense, sober, desktop tool an analyst has open all day — rather than as a consumer product or a modern SaaS dashboard. Concretely that means: white and cool off-white grounds, near-black text, hairline rules doing the work that borders and shadows do elsewhere, square corners, generous whitespace around genuinely dense numeric content, and **no decoration that does not carry information**. The aesthetic is restraint. It is not minimalism as a style choice; it is the absence of anything competing with the numbers.
 
 ## The bar — added 2026-09-05, and it outranks everything below it
 
@@ -33,22 +51,22 @@ Four tests, each of which can be applied to a screenshot by somebody who has nev
 
 ## The four decisions this document rests on
 
-**Three of the four below are now under review against the bar above**, because between them they remove almost every tool that makes an interface exciting. They were settled with the user on 2026-08-31 and **they are not reversed here** — reversing a decision the user took, in a document, without asking, is how a design language stops being one. What follows each is what it costs against the new bar and what is recommended.
+Settled with the user on 2026-08-31, before Task 1.4.3 began. Three were reversed on 2026-09-10 after the recommendations two sections below; each is shown in its current form with the reversal noted.
 
-Settled with the user on 2026-08-31, before Task 1.4.3 began, and each one is a constraint on everything below.
+1. **Light theme only in V1.** Unchanged. Built directly rather than derived from a dark one — see [_The dark-theme reversal_](#the-dark-theme-reversal) below. The `[data-theme]` mechanism ships and the second palette does not.
+2. ~~**Neutral chrome, no brand accent.**~~ → **One identity accent, scoped by file.** Reversed 2026-09-10. The chrome carries a crimson accent in **four positions and no others**; everything else is achromatic, and **colour attached to a number still means market meaning only**. See [_Colour, and the two rules about it_](#colour-and-the-two-rules-about-it).
+3. ~~**System font stack, no webfont.**~~ → **Three self-hosted variable faces.** Reversed 2026-09-10. Nothing is fetched from a third party; the files ship in the artefact.
+4. **Colour is never the sole encoding of anything.** Unchanged, and unconditional. It is an accessibility property rather than an aesthetic one and it survives any restyle.
 
-1. **Light theme only in V1.** Built directly rather than derived from a dark one. This **reversed** Story 1.4's original "dark theme is the primary theme" constraint — see [_The dark-theme reversal_](#the-dark-theme-reversal) below.
-2. **Neutral chrome, no brand accent.** The interface chrome is black, white and grey. **Colour appears only where it carries market meaning.**
-3. **System font stack, no webfont.** No font files ship, and none are fetched.
-4. **Colour is never the sole encoding of anything.** Inherited from Task 1.4.4's brief and promoted here, because decisions 2 and 3 make it load-bearing rather than an accessibility footnote.
+### What decisions 2 and 3 cost while they stood, and what replaced them
 
-### What decisions 2 and 3 cost, stated rather than discovered later
+Together they removed both of the usual carriers of visual identity — a brand hue and a distinctive typeface — and **what was left was structure**: the ground against white cards, the hairline rules, the 2px radius, the uppercase letterspaced micro-labels, the underline tab indicator, the right-aligned tabular numerals, and the whitespace around them. That worked, in the sense that the result was legibly institutional rather than generic. What it could not do was pass tests 3 and 4 of _The bar_, because a design with one channel has nothing to spend on a moment.
 
-Together they remove both of the usual carriers of visual identity — a brand hue and a distinctive typeface. **What is left is structure**, and the identity stands or falls on it: the warm ground against white cards, the hairline rules, the 2px radius, the uppercase letterspaced micro-labels, the underline tab indicator, the right-aligned tabular numerals, and the whitespace around them. Get the structure approximately right and the result is an institutional tool. Get it approximately wrong and the result is a generic admin panel, because there is nothing else holding it up.
-
-This is why the sections below specify geometry as precisely as they specify colour. The radius is one value and it is 2px; the separator is a 1px rule and it is near-black; the grid is 4px. Those are not defaults to be adjusted per component.
+The refresh added two channels and **kept every structural idiom in that list**. That is the thing to understand before changing anything here: the typography and the accent did not replace the structure, they joined it. Softening a hairline "now that there is a typeface" undoes both.
 
 ### Each decision against the bar, with a recommendation — 2026-09-05
+
+_Kept as written. All three recommendations were taken on 2026-09-10; the fourth was left with the user._
 
 **Decision 4 — colour is never the sole encoding — is kept unconditionally.** It is an accessibility property rather than an aesthetic one, it survives any restyle, and the measurement behind it stands: the two price directions differ by **1.05:1 in greyscale**, so hue is doing all the work and something else has to carry the meaning. Nothing about raising the visual bar touches it.
 
@@ -56,190 +74,215 @@ This is why the sections below specify geometry as precisely as they specify col
 
 **Decision 2 — neutral chrome, no brand accent — is under review, and it is reconcilable rather than binary.** Its purpose is that colour means something: an accent hue competing with the price and anomaly palettes would make the market colours ambiguous, which is a correctness problem rather than a taste one. But "no accent anywhere" is a stronger rule than that purpose needs. **Recommended: admit an accent that is confined to the chrome** — navigation, focus, selection, brand marks — and hold the market palette untouched, with the boundary written down and checked the way the semantic tokens already are.
 
-**Decision 1 — light theme only in V1 — is flagged rather than recommended, because it has already been reversed once at the user's instruction.** The case for revisiting is real: market practitioners overwhelmingly work in dark interfaces, a dark ground makes the price and anomaly palettes far more vivid, and it is what makes this kind of product photograph well for a portfolio. The case against is equally real — it doubles the surface every token, chart and canvas has to be correct in, and Epic 6's WebGL renderer reads its colours from these tokens. **This one is the user's to settle**, and the mechanism is already built: Task 1.4.3 made theming a `[data-theme]` attribute over one block of tokens, and proved a whole-page swap with eight values and no component change.
+**Decision 1 — light theme only in V1 — is flagged rather than recommended, because it has already been reversed once at the user's instruction.** The case for revisiting is real: market practitioners overwhelmingly work in dark interfaces, a dark ground makes the price and anomaly palettes far more vivid, and it is what makes this kind of product photograph well for a portfolio. The case against is equally real — it doubles the surface every token, chart and canvas has to be correct in, and Epic 6's WebGL renderer reads its colours from these tokens. **This one is the user's to settle**, and the mechanism is already built.
 
-**And one thing is missing rather than under review: there is nothing here about MOTION.** No durations, no easings, no opinion on what happens when a number changes, a panel opens or data arrives. For a live market application that is the largest single gap in this document — test 4 above is the one it currently fails outright — and it is not a token layer anybody has to reverse a decision to add.
+**And one thing is missing rather than under review: there is nothing here about MOTION.** _Answered on 2026-09-06 — see [Motion](#motion--added-2026-09-06-by-task-244)._
 
 ## Surfaces and elevation
 
-Three grounds, and the ladder is **warm**. Every neutral here has a slight yellow-red cast rather than being a pure grey or a blue-grey — that warmth is a large part of why the reference reads as institutional rather than as a developer tool, and it is the easiest thing to lose by substituting `#f5f5f5` for `#f4f3ee` because the difference looks like nothing in isolation.
+Four grounds. The ladder is **cool** and shallow: 4% of lightness separates the page from a panel, and the panel is told from the page by its hairline and its shadow rather than by a step in tone. A deeper ladder is how an interface ends up looking like a stack of grey boxes.
 
-| Role               | Value     | Where                                                        |
-| ------------------ | --------- | ------------------------------------------------------------ |
-| Page ground        | `#f4f3ee` | The application background. Warm, and noticeably not white   |
-| Raised surface     | `#ffffff` | Cards, modules, panels, table bodies — the content sits here |
-| Sunken / secondary | `#f9f9f7` | Table header rows, disabled fields, secondary strips         |
+| Role               | Value     | Where                                                                                      |
+| ------------------ | --------- | ------------------------------------------------------------------------------------------ |
+| Page ground        | `#f6f7fa` | The application background. Cool, and noticeably not white                                 |
+| Raised surface     | `#ffffff` | Cards, modules, panels, table bodies — the content sits here                               |
+| Sunken / secondary | `#f0f2f6` | Table header rows, chips, status strips, disabled fields                                   |
+| Inverse            | `#21242a` | The **one** thing that reverses out: a selected control. Ink on it is `#eef0f5` at 13.64:1 |
 
-**Elevation is ground contrast plus a hairline, not shadow.** A raised module is white on the warm page ground with a 1px rule; it is not a white box with a drop shadow. This is the light-theme mirror of a note Task 1.4.3 already carried in the opposite direction — the original text said elevation in a dark theme is surface lightness rather than shadow, and the reasoning survives the reversal intact. Only the direction flipped.
+**The warm ladder is gone and its loss is deliberate.** `#f4f3ee` existed to give an achromatic interface some character; the interface is no longer achromatic, and a warm ground under Inter and a crimson mark reads as two design languages sharing a page.
 
-Shadow exists but is nearly subliminal, and is reserved for content that genuinely floats above the page — a popover, a dropdown, a dialog. When used:
+**The inverse ground is near-black rather than the accent.** Selection is not brand, and an interface where the selected thing is crimson has spent its loudest colour on its least interesting statement.
+
+Elevation is **ground contrast, a hairline and a shadow you cannot quite see**:
 
 ```
-0 6px 14px rgba(0, 0, 0, 0.08),
-0 1px  2px rgba(0, 0, 0, 0.04),
-0 0    0 1px rgba(0, 0, 0, 0.04)
+--elevation-panel:    0 1px 2px rgb(16 20 28 / 5%)
+
+--elevation-floating: 0 6px 14px rgb(16 20 28 / 8%),
+                      0 1px  2px rgb(16 20 28 / 4%),
+                      0 0    0 1px rgb(16 20 28 / 4%)
 ```
 
-Note the third line: a 1px spread ring standing in for a border. Even the floating case keeps its hairline.
+The panel shadow is new, and it is a consequence of the border going grey: the pre-refresh idiom was "ground contrast plus a **near-black** hairline, never a shadow", and that idiom worked _because_ the hairline was near-black. Note the floating shadow's third line — a 1px spread ring standing in for a border. Even the floating case keeps its hairline.
 
-## Ink
+## Ink and rules
 
-| Role           | Value     | Notes                                                                   |
-| -------------- | --------- | ----------------------------------------------------------------------- |
-| Primary text   | `#1c1c1c` | Near-black, warm. **Never `#000000`** — pure black reads as harsh here  |
-| Secondary text | `#5a5d5c` | Labels, metadata, captions. Warm grey, not blue-grey                    |
-| Hairline rule  | `#1c1c1c` | The **primary separator**, at 1px. Yes, near-black — see below          |
-| Soft divider   | `#d7d7d7` | Where a near-black rule would be too loud: between rows in a long table |
-| Disabled text  | `#aaaaaa` | Fails contrast deliberately; disabled content must read as unavailable  |
+| Role           | Value     | Notes                                                                  |
+| -------------- | --------- | ---------------------------------------------------------------------- |
+| Primary text   | `#14171c` | Near-black, cool. **Never `#000000`** — pure black reads as harsh here |
+| Secondary text | `#5b5e66` | Labels, metadata, captions. 6.05:1 on the page ground                  |
+| Disabled text  | `#9ba0aa` | Fails contrast deliberately; disabled content must read as unavailable |
+| Inverse text   | `#eef0f5` | On the inverse ground only                                             |
 
-**The near-black hairline is the single most distinctive idiom here and the easiest to soften by accident.** A section heading, a tab strip, a table header, and the bottom of a form field are all separated by a 1px `#1c1c1c` rule. Reaching for a light grey border instead is the default instinct and it is wrong — it produces the generic admin panel described above. Light grey is for _repeated_ dividers inside a list, where near-black would stripe the page.
+**Three rule weights, and choosing between them is the most consequential styling decision in this language.**
+
+| Token             | Value     | For                                                                                                                                                  |
+| ----------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--rule-strong`   | `#14171c` | **Structure**: under the chrome, under a table head, over a group band, under a masthead, the 2px bar on the current tab, the left edge of a callout |
+| `--rule-hairline` | `#e2e5ec` | The **ordinary** border: panels, controls, inputs, chips. The default                                                                                |
+| `--rule-soft`     | `#eef0f4` | **Repeated** dividers — rows inside a long table — where the hairline would stripe                                                                   |
+
+**The near-black rule is still the single most distinctive idiom here and it is still the easiest to soften by accident**; what changed is where it belongs. Before the refresh it wrapped every panel, which works on a screen with one panel and reads as a cage on a screen with twelve. Reserved for structure it keeps its whole effect and lands where a reader is re-orienting.
+
+The trap this leaves, recorded because it has already caught two stylesheets: the token **name** `--rule-hairline` kept its meaning and changed its value, so a rule that wanted the near-black and says `--rule-hairline` now renders grey, and nothing complains.
 
 ## Geometry
 
-- **Radius: 2px.** One value. Not a scale, not per-component, and not 4 or 6 or 8. Applied to buttons, inputs, cards, popovers and menus alike. The effect is "square with the corner knocked off", which is the intent
-- **Border width: 1px.** Always. A 2px border is a focus ring, not a border — see below
-- **Circles** are the sole exception, for avatars and status dots only
+- **Radius: 0.** Square. Not a scale, not per-component. A rounded corner is a softening gesture, and square corners read as a _grid_, which is what a dense table of figures is. The token still exists, so reversing this is one line
+- **Border width: 1px.** Always. 2px is a focus ring or a structural marker, not a border
+- **Circles** are the sole exception, for status dots only, and are written as `50%` at the two places that need one
 - **Density is desktop-first.** PRODUCT_SPEC.md §3 gives substantial screen real estate, and this is analyst tooling. Rows are tight; the space goes _around_ content blocks rather than inside them
+- **The measure is 96rem**, centred. Wide, because this product is a dense table and a graph rather than an article
 
 ### Focus
 
-With no accent hue, focus cannot be a coloured ring. It is a **2px `#1c1c1c` outline with a 2px offset**, on every interactive element, and it is never removed. This is the one place the "1px always" rule is deliberately broken, because a 1px focus ring against a 1px border is not a state change anybody can see.
+Focus is **achromatic, and it stayed achromatic through a refresh that introduced an accent** — which is a decision rather than an oversight. A crimson focus ring on a page where crimson means "this is MarketPulse" makes the accent mean two things, and the second is invisible to anyone with a red-green deficiency.
 
-Two consequences worth knowing before they are rediscovered: a black focus ring is high contrast in every ground above, which is the reason it works at all; and it means focus visibility does not depend on colour perception, which is one fewer thing for Epic 15's accessibility review to find.
+It is a **2px `#14171c` outline with a 2px offset**, on every interactive element, declared once globally in `base.css`, and never removed. This is the one place the "1px always" rule is deliberately broken, because a 1px focus ring against a 1px border is not a state change anybody can see. It is high contrast on all four grounds, and it does not depend on colour perception — one fewer thing for Epic 15's accessibility review to find.
 
 ## Spacing
 
-A **4px grid**. The values actually used in the reference, in order of frequency:
+A **4px grid**:
 
 ```
 4   8   12   16   20   24   40
 ```
 
-Note the gap between 24 and 40 and the absence of 32 — the reference jumps. That gap is real and it is what produces the airy separation between modules on an otherwise dense page. Task 1.4.3 should keep the ladder short rather than filling it in; a complete ramp invented in advance is exactly what that task's brief warns against.
+Note the gap between 24 and 40 and the absence of 32 — the reference jumps. That gap is real and it is what produces the airy separation between modules on an otherwise dense page. Keep the ladder short rather than filling it in.
+
+**Control heights are tokens, not prose**, since the first real control shipped:
+
+| Token                 | Value | Use                                            |
+| --------------------- | ----- | ---------------------------------------------- |
+| `--control-height`    | 36px  | The default: buttons, inputs, selects          |
+| `--control-height-sm` | 28px  | Inline, toolbar, dense contexts                |
+| `--app-header-height` | 56px  | The masthead, and every sticky offset under it |
+
+A button, an input and a select that disagree by 2px turn a toolbar into a ransom note. That is what these are for.
 
 ## Typography
 
-**Stack:** system fonts, no webfont, no download.
+**Three faces, three jobs, self-hosted.** `fonts.css` declares them; nothing is fetched from a third party.
 
-```css
-font-family:
-  ui-sans-serif,
-  system-ui,
-  -apple-system,
-  "Segoe UI",
-  Roboto,
-  "Helvetica Neue",
-  Arial,
-  sans-serif;
-```
+| Token            | Face                    | For                                                                                                   |
+| ---------------- | ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| `--font-display` | Hanken Grotesk Variable | Anything that **names** something: titles, panel headings, the wordmark, micro-labels                 |
+| `--font-sans`    | Inter Variable          | **Prose and interface text**: labels, buttons, descriptions                                           |
+| `--font-data`    | JetBrains Mono Variable | **Figures and identifiers**: prices, changes, volumes, tickers, timestamps, correlation ids, commands |
 
-The reference uses a licensed humanist sans that cannot ship. A self-hosted open substitute was considered and rejected: it costs bytes, a binary in the repository and a hosting concern, and — see the divergence below — it would not have bought the thing it was wanted for.
+Each stack names real fallbacks with comparable metrics rather than ending at a bare `sans-serif`: a variable webfont is one round trip away on a cold load and `font-display: swap` means the fallback is what a user reads for that frame.
+
+Only **latin, upright, variable weight** is referenced — the packages' own stylesheets cover nine subsets and both slants, which is 1.9 MB of woff2 for an application whose entire text is English. Adding italics or a second subset is a `url()` in `fonts.css`, and forgetting one is silent: the browser synthesises an oblique and nobody notices until it is compared against the real thing.
 
 ### Scale
 
-Sizes and line heights, taken from the reference rather than invented:
-
 | Size | Line height | Role                                                    |
 | ---- | ----------- | ------------------------------------------------------- |
-| 40   | 48          | Display — a single headline figure, sparingly           |
-| 24   | 36          | Section heading                                         |
-| 20   | 30          | Subsection heading                                      |
-| 16   | 24          | Body                                                    |
-| 14   | 20          | **Dense content — tables, rows, the product's default** |
-| 12   | 16          | Micro-labels, metadata, captions                        |
+| 40   | 44          | Display — a single headline figure, sparingly           |
+| 24   | 30          | Page title                                              |
+| 18   | 26          | Panel and section heading                               |
+| 15   | 22          | **Prose** — a paragraph somebody reads to the end of    |
+| 13   | 18          | **Dense content — tables, rows, the product's default** |
+| 11   | 16          | Micro-labels, metadata, captions                        |
+| 20   | 26          | The metric figure — a headline number in a metric strip |
 
-14px is where this product actually lives. 16px is the reference site's body size because it is a marketing page; a dense analyst table is 14, and a 12px micro-label sits above it.
+13px is where this product actually lives, and the refresh moved it there from 14: 13/18 is the size a professional market interface sets its tables at. 15px stays for prose, because a page's opening sentence is read rather than scanned.
 
-### The weight-300 divergence, recorded because it is a real loss
+Four weights — 400, 500, 600, 700 — where there used to be two. **Weight is the cheapest hierarchy there is**, and 500 is the one to reach for on a data cell that should come forward without shouting.
 
-The reference leans hard on **weight 300** — headings are light, not bold, and that airiness is a genuine part of its character. **System stacks do not reliably have a 300**, so it renders as 400 on some platforms and as something else on others, and a heading whose weight changes by operating system is worse than a heading that never claimed to be light.
+Tracking: `-0.01em` at display and heading sizes (a face designed for 13px opens up at 24px and reads loose without it); `0.08em` on micro-labels.
 
-So the weights here are **400 and 600**, and hierarchy is carried by **size and grey** instead — which is how the reference gets most of its hierarchy anyway. This is the one deliberate, known departure from the target look, and it is the price of decision 3. If the light headings are later judged essential, the fix is a self-hosted variable font and it is a contained change: a `--font-sans` token value plus font files.
+### The weight-300 divergence — resolved 2026-09-10
 
-### The second family, added 2026-09-06 by Task 2.4.4
+_Recorded 2026-08-31:_ the reference leaned hard on weight 300, system stacks do not reliably have a 300, and so the weights were 400 and 600 with hierarchy carried by size and grey. The note ended: _"If the light headings are later judged essential, the fix is a self-hosted variable font and it is a contained change."_
 
-Decision 3 is "the system font stack, no webfont" and it is **not reversed**: nothing is
-fetched, and the display and body faces are unchanged. What was added is a **utility face**,
-`--font-mono`, from the system's own monospace stack.
+That is what happened. The faces are variable, every weight from 100 to 900 is available, and the fix was as contained as predicted — a token value and three font files. The refresh did **not** take the light headings: with a display face carrying the voice, bold headings against Inter body text separate better than light ones, and a 300-weight heading in a dense instrument reads as a marketing page.
 
-It exists for exactly one category of string: **a value a person is expected to transcribe or
-type back.** Its two consumers are a correlation id beside a failure and a shell command in an
-empty state — neither is prose and neither is data in a column, so neither is served by the
-body face. The Numerals section below fixes alignment _within a column_; it does nothing for
-`l` against `1` or `O` against `0` in a string that has no column to align to, which is
-precisely what a mistyped UUID costs.
+### The data face, and the rule that reversed
 
-**The rule that comes with it: this is not for numbers in tables.** A price, a change, a
-volume and an anomaly score are all set in the body face with tabular figures. Reaching for
-mono to make a column look technical is the failure this paragraph exists to prevent.
+_2026-09-06 (Task 2.4.4):_ a monospace family was added for one category of string — a value somebody is expected to transcribe or type back — with the rule **"this is not for numbers in tables"**, because tabular figures already fix column alignment and reaching for mono to make a column look technical was the failure that rule feared.
+
+_2026-09-10:_ **reversed.** Tabular figures make a column _align_; a monospaced face makes a column **scan** — every glyph on one rhythm, so a price, a volume and a timestamp in adjacent columns share one grid instead of three. This is the strongest single signal that a screen is an instrument. What survives of the old rule is its real content: **the data face is for values, never for prose.** A sentence set in JetBrains Mono is a terminal, not a product.
 
 ### Numerals
 
-**`font-variant-numeric: tabular-nums` is a token-level decision, not a per-component fix.** Every digit that appears in a column — price, change, percentage, volume, score — must occupy the same width, or the column jitters on every tick. Epic 3 updates these continuously, so a proportional figure set turns a live price column into visible noise.
+**`font-variant-numeric: tabular-nums` is a token-level decision, not a per-component fix**, and it is set on `body`. Every digit that appears in a column must occupy the same width, or the column jitters on every tick. Epic 3 updates these continuously.
 
 Numeric columns are **right-aligned**, always. A right-aligned tabular column aligns decimal points for free.
 
 ## Structural idioms
 
-These are what the screenshots show and the stylesheet does not. They are the identity.
+These are what a screenshot shows and a stylesheet does not. They are the identity, and the refresh kept every one of them.
 
-- **Micro-labels are uppercase, letterspaced, 12px and grey.** `ACCOUNT`, `NET WORTH`, `MARKET FEED`. This is the idiom that most says "institutional application"; a sentence-case grey label does not read the same way
-- **A selected tab is an underline**, never a filled pill, never a rounded background. The underline is the near-black hairline again
-- **Links are text.** With no accent hue they are distinguished by underline and weight, not by colour. A blue link would be the only hue in the chrome and would immediately become the thing the eye goes to
-- **Actions in a module sit bottom-right**, small, uppercase, and quiet — `VIEW DETAIL`, `VIEW ALL ACCOUNTS`. They are not primary buttons
-- **A large headline figure carries its fractional part smaller and raised**, and its currency symbol smaller still. This is a real typographic pattern in the reference and it is worth reproducing where a single number is the point of a module
-- **Modules are white cards on the warm ground**, laid out on a multi-width grid — a module spans one, two or three columns rather than being free-form
+- **Micro-labels are uppercase, letterspaced, 11px and grey.** `MARKET FEED`, `LAST CLOSE`, `SYMBOL`. This is the idiom that most says "institutional application"; a sentence-case grey label does not read the same way
+- **A selected tab is an underline**, never a filled pill, never a rounded background. It is a 2px bar in the accent, paired with a weight change so that colour is not the only encoding
+- **A panel's heading sits over a near-black rule.** This is the most common piece of structure in the product and the thing that makes a panel read as a readout rather than a card
+- **A table's head is sunken, uppercase and sits over the same rule**; groups inside it are banded with a sunken ground and a 2px rule above
+- **Links inside prose are text** — underline and weight, plus the accent. A link that is _only_ coloured is a link half the audience reads as plain text
+- **Actions are small, uppercase and quiet.** A control's label is set in the micro-label idiom, which is what makes these read as instrument controls rather than as web buttons
+- **A metric strip separates its figures with a vertical hairline**, not with whitespace: three figures separated by space alone read as one sentence broken up
+- **Modules are white panels on the cool ground**, laid out on a grid — a module spans one, two or three columns rather than being free-form
 
 ### Controls
 
-Two heights, and both are large by dense-UI standards because form fields in the reference are comfortable even when tables are tight:
+Two heights (see [Spacing](#spacing)), and three button variants:
 
-| Height | Use                                        |
-| ------ | ------------------------------------------ |
-| 48px   | Primary forms                              |
-| 36px   | Inline, toolbar, filter and dense contexts |
+| Variant     | Look                                  | For                                                                                   |
+| ----------- | ------------------------------------- | ------------------------------------------------------------------------------------- |
+| `primary`   | Filled `--brand-fill`, white label    | _The_ action on a screen. Two of them means there is no primary action                |
+| `secondary` | Hairline box on the raised ground     | Every ordinary action. The default                                                    |
+| `quiet`     | No border and no ground until hovered | Controls inside dense content, where a bordered box per row turns a table into a form |
 
-Two variants: **bordered** (a 1px box, 2px radius) and **underlined** (a bottom rule only, no box). The label sits _above_ the field, at micro-label size, always — never as a placeholder, which disappears on input.
+There is deliberately **no `danger` variant**: it would want red, red means price-down on every screen, and V1 is a read-only analytical tool with nothing to destroy.
 
-**Seven states, and the set is the specification:** Empty, Filled, Hover, Focus, Error, Disabled, Locked. `Locked` is distinct from `Disabled` — disabled is temporarily unavailable, locked is not editable by this user — and they look different. Task 1.4.5 builds against this list rather than against three states plus improvisation.
+**Input fields are not built yet**, and that is deliberate rather than an omission — Story 2.11 is the first screen with a search field, and a control designed against no consumer is a control designed against a guess. The 2026-08-31 specification for them still stands and is what that story builds against: label _above_ the field at micro-label size, never a placeholder; bordered or underlined; and **seven states — Empty, Filled, Hover, Focus, Error, Disabled, Locked** — where `Locked` (not editable by this user) is distinct from `Disabled` (temporarily unavailable) and looks different.
 
-## Colour, and the rule about it
+## Colour, and the two rules about it
 
-**Colour appears only where it carries market meaning.** Everything above is achromatic. The chromatic tokens are Task 1.4.4's subject; these are the starting values and their measured contrast.
+Colour lives in exactly two files, and **which file a colour is declared in is what defines its scope**.
 
-| Meaning         | Value     | on `#ffffff` | on `#f4f3ee` |
-| --------------- | --------- | ------------ | ------------ |
-| Positive        | `#498100` | 4.75         | **4.27**     |
-| Negative        | `#c81219` | 5.90         | 5.31         |
-| Caution / amber | `#dbaa35` | 2.14         | **1.93**     |
+### `market.css` — colour with market meaning
 
-Measured, not assumed, and two of those numbers are findings rather than confirmations.
+| Meaning      | Value                             | on `#ffffff` | on `#f6f7fa` | Notes                                       |
+| ------------ | --------------------------------- | ------------ | ------------ | ------------------------------------------- |
+| Positive     | `#046a38`                         | 6.72         | 6.28         | Emerald. Re-picked at the refresh           |
+| Negative     | `#ba1a1a`                         | 6.46         | 6.03         | Paired with the green, not picked beside it |
+| Anomaly ramp | `#f0dda4` · `#e2b544` · `#c08a12` | —            | —            | **Fills, never text, at any size**          |
+| Neutral fill | `#e8eaef`                         | —            | —            | Under a `normal` anomaly band               |
 
-- **The positive green fails AA on the warm page ground** — 4.27 against a 4.5 threshold. It passes on white cards. Task 1.4.4 must decide this explicitly: darken the green, or constrain positive values to white surfaces. Inheriting it silently is the failure mode
-- **The amber fails as text at any size** and is a fill-or-icon colour only. A 12px amber label on any of these grounds is unreadable
+The green and the red are within 0.25 of each other so that neither direction of a price move shouts louder than the other. Ink on the amber ramp is `--ink-primary` at 13.33 / 9.35 / 5.89.
 
-### The divergence Task 1.4.4 took, recorded here because this document is the reference
+### `brand.css` — the identity accent, and its scope is exhaustive
 
-**The positive green shipped is `#427400`, not the reference's `#498100`.** This document's own rule is that a divergence from it is a change to it, so the change is written down here rather than living only in the task record.
+| Token          | Value     | Notes                                                              |
+| -------------- | --------- | ------------------------------------------------------------------ |
+| `--brand-ink`  | `#a20000` | 8.28 on white, 7.73 on the page ground. **Text** colour            |
+| `--brand-fill` | `#d00000` | White ink on it measures 5.70. **Fill** colour, never a foreground |
+| `--brand-wash` | `#ffe9e5` | A tinted ground; ink on it stays achromatic                        |
 
-It is the same hue at 90% brightness — still recognisably the reference green — and it measures **5.63 on white, 5.07 on the warm page ground, 5.34 on sunken**. It was chosen with margin rather than at the first value that clears 4.5, and close to the negative red's 5.31 so that neither direction of a price move carries more visual weight. The alternative resolution, constraining positive values to white surfaces, was rejected as a rule with no enforcement.
+**The accent may appear in four places and nowhere else:** the mark beside the wordmark, the 2px bar under the current navigation tab, a primary button, and a link inside prose. **It never touches a datum** — not a price, a change, a volume, a ticker, a score or a status.
 
-The other two values ship unchanged. The amber's status is unchanged too, and Task 1.4.4 extended it into a three-step ramp — `#f0dda4`, `#e2b544`, `#c08a12` — for anomaly intensity, all of them fills, none of them text.
+That scope is not tidiness. The accent is a hair from `--price-negative`, and on a screen where a number can be red because the market fell, a second red meaning "MarketPulse" is a coin flip for the reader. The reference design breaks this rule in exactly one place — it sets the benchmark ETF's ticker in brand crimson — and on a day SPY is down that cell is red for two unrelated reasons at once.
 
-One measurement to carry into any future palette work, because it is the reason the redundant channel is not optional: under `grayscale(1)` the positive green and the negative red differ by **1.05:1**. They are the same tone. The hue is the whole of the difference, which is exactly what the rule below says cannot be relied on.
+**The reversal trigger is a fifth position.** At that point the rule needs a lint rule, or the accent needs a hue that cannot be confused with a price move.
 
-**And the rule that outranks all three values:** colour is never the sole encoding. A negative change is red **and** carries its sign; a positive one is green **and** carries its sign. Roughly one man in twelve has a red-green deficiency and this product's primary signal is direction of price movement. With a neutral chrome the redundant channel is doing _more_ work than it would in a colourful interface, not less, because there is no other colour on screen to contrast against.
+### The rule that outranks every value above
+
+**Colour is never the sole encoding.** A negative change is red **and** carries its sign **and** a glyph; a positive one is green and does the same. An anomaly band is a fill **and** a written band name. A feed status is a colour **and** a marker silhouette. The current tab is crimson **and** heavier **and** underlined.
+
+The measurement behind it, re-taken against the refreshed palette: under `grayscale(1)` the positive green and the negative red differ by **1.04:1**. They are the same tone. Hue is the whole of the difference, which is exactly what this rule says cannot be relied on. Roughly one man in twelve has a red-green deficiency and this product's primary signal is the direction of a price move.
+
+### The divergences taken, recorded here because this document is the reference
+
+**2026-09-06 (Task 1.4.4):** the reference's `#498100` measured 4.27 on the warm page ground — a fail against 4.5 exactly where a price column sits — so the green shipped as `#427400`, the same hue at 90% brightness. The alternative, constraining positive values to white surfaces, was rejected as a rule with no enforcement.
+
+**2026-09-10 (the refresh):** that olive was replaced by `#046a38`. Not because it failed — it measured 5.26 on the new ground — but because it belonged to the ground it was picked against: an olive reads as a highlighter against a cool grey, and 5.26 was always the thinnest margin in the file. The negative red moved from `#c81219` to `#ba1a1a` at the same time, to pair with it.
 
 ## Motion — added 2026-09-06 by Task 2.4.4
 
-**This document said nothing at all about motion until this section existed**, which for a
-live market application was the largest gap in it: it specifies colour, ink, geometry and
-spacing to the pixel, and had no opinion on what happens when a number changes or data
-arrives. That is why test 4 of _The bar_ — **does it feel alive?** — failed outright on every
-screen built before it.
+**This document said nothing at all about motion until this section existed**, which for a live market application was the largest gap in it: it specifies colour, ink, geometry and spacing to the pixel, and had no opinion on what happens when a number changes or data arrives. That is why test 4 of _The bar_ — **does it feel alive?** — failed outright on every screen built before it.
 
-What is here is a **thin first cut**, not a system, and the restraint is the decision rather
-than a shortfall.
+What is here is a **thin first cut**, not a system, and the restraint is the decision rather than a shortfall.
 
 | Token                      | Value                     | For                              |
 | -------------------------- | ------------------------- | -------------------------------- |
@@ -247,46 +290,31 @@ than a shortfall.
 | `--motion-duration-settle` | 240ms                     | content arriving                 |
 | `--motion-ease-standard`   | `cubic-bezier(0.2,0,0,1)` | both                             |
 
-One easing, and it is asymmetric on purpose: fast out of the gate and slow into rest, which
-reads as something coming to a stop rather than something being tweened.
+One easing, and it is asymmetric on purpose: fast out of the gate and slow into rest, which reads as something coming to a stop rather than something being tweened.
 
 ### Two rules, and the second is the one that will be argued with
 
-**`prefers-reduced-motion` is answered here, once, at the token layer** — the durations
-resolve to `0ms` under the preference, so a consumer that reads the tokens honours it by
-construction and a consumer that hard-codes `240ms` is the only way to get it wrong. A
-per-component media query is a thing each author has to remember and whose failure is silent:
-the animation simply plays for somebody who asked it not to. Zero rather than "smaller",
-because a transition of `0ms` still ends in the same final state and an animation of `0ms`
-does not run — nothing disappears and nothing is left half-played.
+**`prefers-reduced-motion` is answered here, once, at the token layer** — the durations resolve to `0ms` under the preference, so a consumer that reads the tokens honours it by construction and a consumer that hard-codes `240ms` is the only way to get it wrong. A per-component media query is a thing each author has to remember and whose failure is silent: the animation simply plays for somebody who asked it not to. Zero rather than "smaller", because a transition of `0ms` still ends in the same final state and an animation of `0ms` does not run — nothing disappears and nothing is left half-played.
 
-**Motion must never make a number harder to read.** A value that fades or slides while an
-analyst is reading it is worse than one that changes instantly. This is the constraint that
-makes a market application's motion vocabulary genuinely hard, and it is why the set above is
-deliberately small.
+**Motion must never make a number harder to read.** A value that fades or slides while an analyst is reading it is worse than one that changes instantly. This is the constraint that makes a market application's motion vocabulary genuinely hard, and it is why the set above is deliberately small.
 
 ### What is deliberately not decided here
 
-**Epic 3 owns the full vocabulary**, and waiting is the decision rather than a deferral. The
-hard question in this product is what should happen when a **price** changes on screen, and
-that has to be answered against real moving numbers. A vocabulary settled against the first
-screen that needed any — a table that arrives once and then sits still — would be a
-vocabulary designed for the easy case and then inherited by the hard one.
+**Epic 3 owns the full vocabulary**, and waiting is the decision rather than a deferral. The hard question in this product is what should happen when a **price** changes on screen, and that has to be answered against real moving numbers. A vocabulary settled against the first screen that needed any — a table that arrives once and then sits still — would be a vocabulary designed for the easy case and then inherited by the hard one.
 
-So: nothing here about a value updating, nothing about a row entering or leaving a live list,
-nothing about a chart redrawing, and no third duration. Add those against something that
-actually moves.
+So: nothing here about a value updating, nothing about a row entering or leaving a live list, nothing about a chart redrawing, and no third duration. Add those against something that actually moves.
 
 ## What this is not
 
 Stated explicitly, because each one is a thing somebody will otherwise add in good faith.
 
-- **No brand accent hue.** No blue links, no coloured primary button, no accent border. The reference has a saturated brand red; it is deliberately not reproduced, both because red already means price-down on every row of this product and because reproducing a recognisable brand asset is not the goal. The goal is the _class_ of application
-- **No webfont**, and no font files in the repository
+- **No second accent hue.** One crimson, four positions, chrome only. A colour proposed for anything that is neither market data nor one of those four positions is answered with grey
+- **No accent on a datum**, ever. That includes a "highlighted" row, a "featured" ticker and a brand-coloured benchmark
+- **No third-party font request.** The faces ship in the artefact; a `<link>` to a font CDN is a second origin in the critical path
 - **No dark theme in V1.** The mechanism is built so a second palette is a values-only swap; the palette is not
-- **No shadows as elevation.** Ground contrast and hairlines
-- **No radius scale.** 2px
-- **No colour in the chrome.** If a colour is proposed for something that is not market data, the answer is grey
+- **No shadows as elevation.** Ground contrast, a hairline, and a shadow you cannot quite see
+- **No radius scale.** Zero
+- **No icon beyond the closed set.** Adding one is an edit to `Icon.tsx`, which is the moment somebody asks whether the interface needs another symbol
 
 ## The dark-theme reversal
 
@@ -300,9 +328,10 @@ One thing genuinely improves. Task 1.4.3 flagged that `index.html` sets no `colo
 
 ## Sources
 
-Two, and they were treated differently.
+Three, and they were treated differently.
 
-- **A live institutional wealth-management site**, read through computed styles rather than by eye: every surface, ink, radius, shadow, spacing and type value in this document is a census of what that page actually renders, not an estimate from a screenshot
+- **A live institutional wealth-management site** (2026-08-31), read through computed styles rather than by eye: the surfaces, ink, radius, shadow, spacing and type values in the original version of this document were a census of what that page actually renders, not an estimate from a screenshot
 - **Four styleguide and application-mockup screenshots** supplied by the user, which carry what a marketing page cannot: the named palette with its positive/negative separation, the multi-width module grid, the control heights and the seven-state matrix, and the structural idioms above
+- **`story-10-design.html`** (2026-09-10), a Tailwind/Material mock of the Security Explorer supplied by the user and the input to the refresh. It is a **reference and not a specification**: three of its decisions were taken, one was narrowed and two were declined, and [ADR 0022](../../../docs/adr/0022-the-design-refresh-three-typefaces-an-identity-accent-and-what-a-token-change-certifies.md) says which is which and why
 
 The institution is deliberately not named here or anywhere else in this repository, at the user's instruction. Nothing in this document depends on knowing which one it is — the values are values, and the aesthetic is a class of application rather than a brand.

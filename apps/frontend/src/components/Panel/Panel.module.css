@@ -1,0 +1,95 @@
+/*
+ * A panel is four things: a raised ground, a hairline, a shadow that is barely
+ * there, and a near-black rule under its header. Only the last of those is
+ * distinctive, and it is the one most likely to be softened by a later author
+ * reaching for `--rule-hairline` because it is nearer to hand.
+ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--rule-hairline);
+  border-radius: var(--radius);
+  box-shadow: var(--elevation-panel);
+}
+
+/*
+ * `overflow: auto` and a `tabIndex` on the same element, set together by one
+ * prop — see `PanelProps.scrollable`. `min-height: 0` on the panel above is
+ * what makes this work inside a CSS grid: a grid item's default minimum size is
+ * its content, so without it the panel grows and the body never scrolls.
+ */
+.scrollable {
+  overflow: auto;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-16);
+
+  padding: var(--space-12) var(--space-16);
+
+  /*
+   * The structural rule, and the reason `--rule-strong` exists. A grey line
+   * here is a card; this line is a readout.
+   */
+  border-bottom: var(--border-width) solid var(--rule-strong);
+}
+
+.headings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.eyebrow {
+  composes: microLabel from "../../styles/type.module.css";
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+/*
+ * The display face and the tight tracking come from `base.css`'s heading rule,
+ * so this sets only what is specific to a panel: the size, and the fact that it
+ * does not carry the browser's heading margins.
+ *
+ * `--font-size-subheading` rather than `--font-size-heading`: the page's `h1`
+ * is the heading on the screen, and a panel that competes with it flattens the
+ * hierarchy the outline depends on.
+ */
+.title {
+  margin: 0;
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-subheading);
+}
+
+/*
+ * The header's right-hand end. It recedes — a count, a timestamp, a provenance
+ * line — and `align-items: flex-start` above keeps it on the title's line
+ * rather than centred against a two-line heading block.
+ */
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--ink-secondary);
+  text-align: right;
+}
+
+.body {
+  padding: var(--space-16);
+  min-height: 0;
+}
+
+/* A table, a chart, or a skeleton standing in for either: content that must
+   reach the panel's own edges, where padding would leave a white margin the
+   table's own row rules stop short of. */
+.flush {
+  padding: 0;
+}

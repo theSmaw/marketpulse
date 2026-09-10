@@ -1,3 +1,4 @@
+import { Button } from "../Button/Button.js";
 import { cx } from "../../cx.js";
 import styles from "./ErrorFallback.module.css";
 
@@ -102,9 +103,21 @@ export function ErrorFallback({
     >
       <p className={styles.title}>{title}</p>
       {detail !== undefined && <p className={styles.detail}>{detail}</p>}
-      <button type="button" className={styles.retry} onClick={onRetry}>
-        Try again
-      </button>
+      {/* `Button` since the 2026 refresh, where this was one of three
+          hand-styled retry controls in the tree. It stays a `<button>` and not
+          a link because it changes what is on this page rather than going
+          anywhere — that argument is unchanged; what moved is where the
+          styling lives. */}
+      <span className={styles.action}>
+        <Button
+          variant="secondary"
+          size="small"
+          icon="refresh"
+          onClick={onRetry}
+        >
+          Try again
+        </Button>
+      </span>
     </div>
   );
 }

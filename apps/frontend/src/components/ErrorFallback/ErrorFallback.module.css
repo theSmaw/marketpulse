@@ -40,30 +40,10 @@
 }
 
 /*
- * A real `<button>`, styled down to this language rather than left at the user
- * agent's. It is the only interactive control this component has, and it is a
+ * The button is `components/Button` since the 2026 refresh. It is still a
  * button rather than a link because it changes state on this page instead of
- * going anywhere — which is also why the fallback cannot be a static block.
- *
- * No `:focus-visible` rule. base.css carries one global outline and it applies
- * here like anywhere else; a component-level focus style would be a second
- * answer to a question the token layer already answered.
+ * going anywhere — which is also why this fallback cannot be a static block.
  */
-.retry {
-  padding: var(--space-4) var(--space-12);
-  background: var(--surface-raised);
-  border: var(--border-width) solid var(--rule-hairline);
-  border-radius: var(--radius);
-  font-family: inherit;
-  font-size: var(--font-size-dense);
-  line-height: var(--line-height-dense);
-  color: var(--ink-primary);
-  cursor: pointer;
-}
-
-.retry:hover {
-  background: var(--surface-sunken);
-}
 
 /*
  * The chrome's density. One row rather than three blocks, because the header
@@ -88,8 +68,13 @@
   line-height: var(--line-height-dense);
 }
 
-.compact .retry {
+/*
+ * The control is pushed to the end of the compact row by a wrapper rather than
+ * by a rule on the button itself, and that is `Button`'s API showing through:
+ * it takes no `className`, deliberately, so that a control cannot be restyled
+ * into something the workshop has never seen. Layout *around* a control is the
+ * consumer's business and this is what that looks like.
+ */
+.compact .action {
   margin-left: auto;
-  font-size: var(--font-size-micro);
-  line-height: var(--line-height-micro);
 }

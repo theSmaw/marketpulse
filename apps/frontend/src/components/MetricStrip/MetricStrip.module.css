@@ -1,0 +1,73 @@
+/*
+ * A row of labelled figures, and the layout is **the idiom this product already
+ * had in two places** rather than a new one: the figure large, the label small
+ * beneath it, on a grid that reflows rather than a flex row that wraps
+ * unevenly. `UniverseTable`'s summary strip established it and
+ * `BarSeriesPanel`'s price strip copied it, with the copy saying so in its own
+ * comment — which is what made this a component.
+ */
+
+.strip {
+  display: grid;
+  /*
+   * `auto-fit` with a floor rather than a fixed column count: a strip of three
+   * and a strip of six are the same component, and the number of metrics is a
+   * property of the data rather than of the layout. The 7rem floor is what
+   * stops a `234.76` and its `HIGH` label ending up on two lines.
+   */
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-12) var(--space-20);
+  margin: 0;
+}
+
+/*
+ * `column-reverse` rather than reordering the markup. A definition list is
+ * name-then-value and a screen reader reads document order, so the `<dt>` stays
+ * first in the source and the figure is lifted above it visually. This is the
+ * one idiom in this file that is genuinely easy to get wrong in a way nobody
+ * sees: swapping the elements looks identical and reads backwards.
+ */
+.metric {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.label {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+}
+
+/*
+ * `<dd>` carries a browser default margin of 40px on the left, which is the
+ * single most common way a description list ends up looking broken.
+ */
+.value {
+  composes: dataMetric from "../../styles/type.module.css";
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  margin: 0;
+  color: var(--ink-primary);
+}
+
+.detail {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  font-weight: var(--font-weight-regular);
+  letter-spacing: normal;
+  color: var(--ink-secondary);
+}
+
+/*
+ * The compact size steps the figure down to the subheading size. It is not the
+ * large size scaled: the label stays at the micro size in both, because a
+ * micro-label that shrinks stops being legible at exactly the point it is
+ * carrying the most meaning.
+ */
+.compact .value {
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-subheading);
+}

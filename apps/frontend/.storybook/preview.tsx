@@ -4,12 +4,18 @@ import { MemoryRouter } from "react-router";
 import { getTokens } from "../src/styles/tokens.js";
 
 // The token layer, in the same three side-effect imports main.tsx makes and in
-// the same order. The order runs outward — `tokens.css` declares the structural
-// custom properties, `market.css` layers the market semantics over them,
-// `base.css` consumes both at the element level — and it is not alphabetical.
+// the same order. The order runs outward — `fonts.css` declares the three
+// `@font-face` rules, `tokens.css` the structural custom properties,
+// `brand.css` the identity accent and `market.css` the market semantics over
+// them, and `base.css` consumes all four at the element level — and it is not
+// alphabetical. A workshop that loaded these in a different order, or short of
+// one of them, would review components against a design language the
+// application does not have.
 // A component rendered in the workshop against a different cascade than the one
 // the application uses is a workshop that lies.
+import "../src/styles/fonts.css";
 import "../src/styles/tokens.css";
+import "../src/styles/brand.css";
 import "../src/styles/market.css";
 import "../src/styles/base.css";
 

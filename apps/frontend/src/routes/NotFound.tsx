@@ -1,34 +1,35 @@
 import { Link } from "react-router";
 
-import { cx } from "../cx.js";
+import { linkClassName } from "../components/Button/Button.js";
+import { PageHeader } from "../components/PageHeader/PageHeader.js";
 import { PATHS } from "./paths.js";
 import styles from "./routes.module.css";
 
-// The not-found state, and it is a route rather than a fallback nobody looks
-// at. Two things follow from that.
+// The address that matched nothing.
 //
-// It says what happened and offers the way back, because an unknown URL is
-// almost always a mistyped address or a stale link and the user can act on
-// both. And it is deliberately **not** an error screen in Story 1.7's sense:
-// nothing failed here. The product's rule is that failures degrade locally and
-// stay labelled; this is not one, so it does not borrow the vocabulary of one —
-// no red, no status token, no apology.
+// It is a route like any other — the same masthead, the same rule — rather than
+// a full-page error, and that is PRODUCT_SPEC.md §36's rule reaching the
+// smallest case: a mistyped address is a normal product state, and collapsing
+// to a global error screen for one is exactly the reflex §36 forbids.
 //
-// It does not render the path it did not find. That would be echoing the URL
-// into the page, and the URL is user-controlled input.
+// The way back is a real `<Link>` carrying `Button`'s classes through
+// `linkClassName`, rather than a `<button>` with an `onClick` that navigates.
+// An anchor styled as a control keeps the anchor's semantics — middle-click,
+// copy link address, the status bar — and a button that navigates has none of
+// them. That export exists for exactly this case and says so.
 export function NotFound() {
   return (
-    <section className={styles.route}>
-      <p className={styles.label}>Not found</p>
-      <h1 className={styles.title}>No such page</h1>
-      <p className={styles.prose}>
-        That address does not match anything in MarketPulse. It may have been
-        mistyped, or it may be a link to something this application does not
-        have yet — most of it is still to be built.
+    <div className={styles.route}>
+      <PageHeader
+        eyebrow="Not found"
+        title="No such page"
+        description="That address does not match anything in MarketPulse. It may have been mistyped, or it may be a link to something this application does not have yet — most of it is still to be built."
+      />
+      <p className={styles.actions}>
+        <Link className={linkClassName("secondary")} to={PATHS.overview}>
+          Go to Market Overview
+        </Link>
       </p>
-      <Link className={cx(styles.back)} to={PATHS.overview}>
-        Go to Market Overview
-      </Link>
-    </section>
+    </div>
   );
 }

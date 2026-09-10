@@ -74,10 +74,19 @@
  * nesting. The width is the region's now — it was `max-width: 52rem` when these
  * modules sat directly on the page and nothing bounded them.
  */
+/*
+ * A module inside a region, and it is deliberately **not** a `Panel`.
+ *
+ * A panel inside a panel is two white grounds with two hairlines between them,
+ * which reads as a mistake however carefully it is spaced. A module recedes
+ * instead: the sunken ground, no shadow, and the near-black rule moved to its
+ * *top* edge rather than under its heading. Same vocabulary, one level quieter.
+ */
 .module {
-  padding: var(--space-20);
+  padding: var(--space-16);
   background: var(--surface-sunken);
   border: var(--border-width) solid var(--rule-hairline);
+  border-top: 2px solid var(--rule-strong);
   border-radius: var(--radius);
 }
 
@@ -88,10 +97,10 @@
   margin: 0 0 var(--space-12);
   font-size: var(--font-size-body);
   line-height: var(--line-height-body);
-  font-weight: var(--font-weight-strong);
 }
 
 .prose {
+  composes: prose from "../styles/type.module.css";
   margin: 0 0 var(--space-16);
   color: var(--ink-secondary);
 }
@@ -116,7 +125,10 @@
   text-transform: uppercase;
   font-weight: var(--font-weight-regular);
   text-align: left;
-  border-bottom: var(--border-width) solid var(--rule-hairline);
+  /* The structural rule: a table's head is the most common piece of structure
+     in this product, and a grey line under it is the difference between a
+     readout and a spreadsheet. */
+  border-bottom: var(--border-width) solid var(--rule-strong);
 }
 
 /* Numeric headings sit over right-aligned columns, so they are right-aligned

@@ -36,6 +36,17 @@ ground under white surfaces, near-black hairlines rather than grey borders, one
 2px radius, a 4px grid and right-aligned tabular numerals — which raises the
 cost of getting the token layer approximately right.
 
+> **Amendment, 2026-09-10 (the design refresh, [ADR 0022](0022-the-design-refresh-three-typefaces-an-identity-accent-and-what-a-token-change-certifies.md)).**
+> Three of those four visual constraints were reversed deliberately: there are now
+> three self-hosted typefaces, an identity accent, a cool ground and a zero radius.
+> **The two decisions this ADR is actually about did not move** — CSS Modules plus
+> custom properties, and the workshop — and the refresh is the evidence for them
+> rather than against: re-skinning the whole application was a change to four
+> stylesheets and a set of new components, with no build step, no library
+> migration and no component rewritten to accommodate it. What _is_ superseded is
+> the paragraph above's "entirely structural", and the claim in decision 4 that
+> follows from it.
+
 ## Decisions
 
 ### 1. CSS Modules plus CSS custom properties, not a styling library
@@ -139,6 +150,13 @@ over it, and it is the only place in the application where colour carries
 meaning. That split is a property of the visual direction rather than a habit:
 with no brand accent, colour appearing anywhere else would be colour that means
 nothing.
+
+> **Amendment, 2026-09-10 (ADR 0022).** There is a brand accent now, and the split
+> survived by gaining a third file rather than by weakening: `brand.css` holds the
+> identity accent under a rule that keeps it off every datum, so the claim that
+> matters — **every colour attached to a number comes from `market.css`** — is
+> still exactly true. The sentence above should be read as "with no brand accent
+> _in the data layer_".
 
 The semantic layer has **exactly one indirection**. `--price-negative`
 resolves to `--palette-red-strong`, never to a hex and never through a second

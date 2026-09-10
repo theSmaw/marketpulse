@@ -1,0 +1,44 @@
+/*
+ * Square, small, and set in the data face — which is the decision worth
+ * explaining. A badge nearly always carries a *value* ("24 securities",
+ * "1m bars", "PROXY"), and `type.module.css`'s `.dataCell` is the idiom for a
+ * value. Setting it in the body face instead makes a count read as a label,
+ * which is the opposite of what a badge is doing beside a heading.
+ */
+
+.badge {
+  composes: dataCell from "../../styles/type.module.css";
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+
+  /* Not `--control-height-sm`: a badge is not a control and must not line up
+     with one. It is sized by its own type, with the padding the reference
+     design uses for its counts. */
+  padding: 0 var(--space-8);
+  min-height: 20px;
+
+  border-radius: var(--radius);
+
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.neutral {
+  background: var(--surface-sunken);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The near-black inversion, and it is deliberately not the brand accent. A
+ * selected filter is not an advertisement for the product; spending the
+ * loudest colour in the language on it would leave nothing for the one action
+ * that actually is primary. See `brand.css` for the rule this follows.
+ */
+.selected {
+  background: var(--surface-inverse);
+  color: var(--ink-inverse);
+}

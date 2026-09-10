@@ -30,14 +30,14 @@
 }
 
 /*
- * The ticker, set as the panel's own name. `--font-mono` because a ticker is a
+ * The ticker, set as the panel's own name. `--font-data` because a ticker is a
  * short identifier read character by character rather than a word — the same
  * argument `.code` below carries, and the reason `BRK.B` and `BRKB` have to be
  * told apart at a glance.
  */
 .symbol {
   margin: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--font-size-subheading);
   line-height: var(--line-height-subheading);
   font-weight: var(--font-weight-strong);
@@ -53,12 +53,12 @@
 
 /*
  * A string somebody is expected to type or quote back — a path, a correlation
- * id. `--font-mono` for the token's own stated reason: `tabular-nums` fixes a
+ * id. `--font-data` for the token's own stated reason: `tabular-nums` fixes a
  * *column*, and does nothing for `l` against `1` in a UUID that has no column
  * to align to.
  */
 .code {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--font-size-dense);
 }
 
@@ -170,37 +170,16 @@
  * two rows of two on a narrow panel instead of four crushed ones.
  */
 .prices {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-  gap: var(--space-12) var(--space-20);
-  margin: 0;
   padding-top: var(--space-16);
   border-top: var(--border-width) solid var(--rule-soft);
 }
 
 /*
- * `column-reverse` rather than reordering the markup. A definition list is
- * name-then-value and a screen reader reads document order, so the `<dt>` stays
- * first in the source and the figure is lifted above it visually.
+ * The strip's own layout is `MetricStrip`'s since the 2026 refresh — the grid,
+ * the `column-reverse` that lifts each figure above its label, and the type.
+ * What stays here is the rule above it and the space under that, which are
+ * facts about this panel's stack rather than about a strip of figures.
  */
-.price {
-  display: flex;
-  flex-direction: column-reverse;
-  gap: var(--space-4);
-}
-
-.priceLabel {
-  composes: microLabel from "../../styles/type.module.css";
-  color: var(--ink-secondary);
-}
-
-.priceValue {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-subheading);
-  line-height: var(--line-height-subheading);
-  font-variant-numeric: tabular-nums;
-}
 
 /* --- The windows --- */
 
@@ -237,7 +216,7 @@
 
 .windowValue {
   margin: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--font-size-dense);
   line-height: var(--line-height-dense);
   font-variant-numeric: tabular-nums;
@@ -378,31 +357,9 @@
  * product state and carries neither. The shared thing is the control, not the
  * error language.
  */
-.retry {
-  padding: var(--space-4) var(--space-12);
-  background: var(--surface-raised);
-  border: var(--border-width) solid var(--rule-hairline);
-  border-radius: var(--radius);
-  font-family: inherit;
-  font-size: var(--font-size-dense);
-  line-height: var(--line-height-dense);
-  color: var(--ink-primary);
-  cursor: pointer;
-  /* On the hover, not on the resting state: a control that animates into place
-     is decoration, and one that acknowledges the pointer is feedback. Reduced
-     motion is answered once at the token layer. */
-  transition: background-color var(--motion-duration-quick)
-    var(--motion-ease-standard);
-}
-
-.retry:hover:not(:disabled) {
-  background: var(--surface-sunken);
-}
-
-.retry:disabled {
-  color: var(--ink-disabled);
-  cursor: default;
-}
+/* Extracted to `components/Button` by the 2026 refresh — the extraction the
+   note above predicted. The `:disabled` treatment travelled with it; the
+   argument about what must not travel is in `UniverseTable.module.css`. */
 
 /* --- Waiting --- */
 

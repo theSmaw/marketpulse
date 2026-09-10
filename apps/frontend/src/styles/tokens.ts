@@ -17,7 +17,7 @@
 // What that choice costs, stated rather than discovered later:
 //
 //   1. **Every value is a string.** `--space-4` reads as `"4px"` and
-//      `--surface-page` as `"#f4f3ee"`. Epic 6's Sigma.js/WebGL renderer wants
+//      `--surface-page` as `"#f6f7fa"`. Epic 6's Sigma.js/WebGL renderer wants
 //      numbers and packed colours, so it will need a parse layer. That layer is
 //      Epic 6's to write against real requirements; inventing it here would be
 //      guessing at them.
@@ -65,6 +65,17 @@ const TOKEN_NAMES = [
   "--ink-disabled",
   "--rule-hairline",
   "--rule-soft",
+  // Added by the 2026 refresh. `--rule-strong` is the near-black structural
+  // rule, which a canvas drawing its own axes will want; `--brand-ink` is here
+  // for a different reason and it is worth stating, because it has no
+  // JavaScript consumer at all. It is the **canary for `brand.css`**: that file
+  // is a third global stylesheet whose absence would otherwise be invisible —
+  // an accent that resolves to nothing renders as inherited ink, which looks
+  // like a design choice rather than a missing file. One name here turns that
+  // into a startup throw. See `readTokens` below for the message.
+  "--rule-strong",
+  // Identity — brand.css
+  "--brand-ink",
 
   // Market semantics — market.css
   "--price-positive",
@@ -101,8 +112,8 @@ export function readTokens(): Tokens {
     if (value === "") {
       throw new Error(
         `Design token ${name} resolved to nothing. Either the token stylesheet ` +
-          `has not been applied, or the token was removed from tokens.css or ` +
-          `market.css without being removed here.`,
+          `has not been applied, or the token was removed from tokens.css, ` +
+          `brand.css or market.css without being removed here.`,
       );
     }
 

@@ -8,6 +8,7 @@ import type {
   SecurityLastClose,
 } from "@marketpulse/shared";
 
+import { Button } from "../Button/Button.js";
 import { cx } from "../../cx.js";
 import type {
   SecuritiesFailure,
@@ -947,9 +948,10 @@ function FailedState({
         /*
          * **The first control in this product that re-asks a question.**
          *
-         * A real `<button>` styled down to this language, and a button rather
-         * than a link because it changes what is on this page instead of going
-         * anywhere — the same argument `ErrorFallback` makes for its own.
+         * A `Button` since the 2026 refresh — it was a hand-styled `<button>`
+         * in this file's own stylesheet, one of three such copies — and a
+         * button rather than a link because it changes what is on this page
+         * instead of going anywhere.
          *
          * It is deliberately **not** disabled while the retry is in flight. A
          * disabled button loses focus in every browser, which would take a
@@ -959,9 +961,9 @@ function FailedState({
          * word changes and the control stays where the user left it.
          */
         <p className={styles.actions}>
-          <button type="button" className={styles.retry} onClick={onRetry}>
+          <Button variant="secondary" icon="refresh" onClick={onRetry}>
             {retrying ? "Trying again…" : "Try again"}
-          </button>
+          </Button>
         </p>
       )}
       {/*
@@ -973,7 +975,7 @@ function FailedState({
        * user is already being told about. `null` when nothing arrived to carry
        * one, which is most of the `unreachable` cases.
        *
-       * It is set in `--font-mono` as of Task 2.4.4. A value somebody is being
+       * It is set in `--font-data` as of Task 2.4.4. A value somebody is being
        * asked to read back is the one string on this page a proportional face
        * genuinely damages, and the token's comment carries the argument.
        */}

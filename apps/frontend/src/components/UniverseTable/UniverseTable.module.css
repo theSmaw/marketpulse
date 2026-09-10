@@ -12,9 +12,12 @@
  *
  * --- What this page's identity actually rests on ---
  *
- * There is no brand hue and no distinctive typeface, so a table here is either
- * carried by structure or it is a default admin panel with data in it. The
- * three things doing the carrying, in order of how much they matter:
+ * The 2026 refresh gave the product three real typefaces and an identity
+ * accent, and it changed **nothing about this table**: the accent is chrome-only
+ * by rule (`brand.css`), so a table here is still either carried by structure or
+ * a default admin panel with data in it. What the refresh did add is the data
+ * face on the ticker and the figures, which is a fourth thing carrying it. The
+ * three that were already here, in order of how much they matter:
  *
  *   1. **The sector bands.** A near-black hairline above each group heading is
  *      the reference's primary separator, and eleven of them down a page is the
@@ -181,9 +184,13 @@
   composes: microLabel from "../../styles/type.module.css";
   padding: var(--space-8) var(--space-12);
   text-align: left;
+  background: var(--surface-sunken);
   color: var(--ink-secondary);
-  font-weight: var(--font-weight-regular);
-  border-bottom: var(--border-width) solid var(--rule-hairline);
+  font-weight: var(--font-weight-strong);
+  /* The structural rule (`--rule-strong`, the 2026 refresh). A table's head is
+     the most common piece of structure in this product, and a grey line under
+     it is the difference between an instrument's readout and a spreadsheet. */
+  border-bottom: var(--border-width) solid var(--rule-strong);
 }
 
 /*
@@ -227,17 +234,27 @@
  * chart.
  */
 .group {
-  padding: var(--space-12);
+  padding: var(--space-8) var(--space-12);
   /*
-   * The *page* ground rather than the sunken one, which is the warmest of the
-   * three and reads as the ground showing through the white table. The sunken
-   * grey is 1.03:1 against white and all but invisible at band size; the warm
-   * ground is what makes eleven of these read as the structure of the page
-   * rather than as eleven slightly-shaded rows.
+   * The **sunken** ground, and this is a reversal the 2026 refresh forced
+   * rather than a preference.
+   *
+   * The note that stood here said to use the *page* ground because it was the
+   * warmest of the three and the sunken grey was "1.03:1 against white and all
+   * but invisible at band size". Both halves stopped being true on the same
+   * day: the refresh made the page ground a cool near-white 1.5% off the panel
+   * it sits on, and moved the sunken ground down to a grey that reads clearly
+   * at band height. Keeping the old value would have left eleven bands that are
+   * *technically* tinted and invisible in practice — the exact failure the
+   * original note was written against, arriving through the note itself.
+   *
+   * The 2px near-black rule above each band is what does the separating now.
+   * That is the structural weight `tokens.css` reserves for exactly this: the
+   * boundary between one part of a readout and the next.
    */
-  background: var(--surface-page);
-  border-top: var(--border-width) solid var(--rule-hairline);
-  border-bottom: var(--border-width) solid var(--rule-soft);
+  background: var(--surface-sunken);
+  border-top: 2px solid var(--rule-strong);
+  border-bottom: var(--border-width) solid var(--rule-hairline);
   text-align: left;
   font-weight: var(--font-weight-regular);
 }
@@ -258,6 +275,7 @@ tbody:first-of-type .group {
 }
 
 .groupName {
+  font-family: var(--font-display);
   font-size: var(--font-size-dense);
   line-height: var(--line-height-dense);
   font-weight: var(--font-weight-strong);
@@ -281,6 +299,7 @@ tbody:first-of-type .group {
    answer, answered by alignment rather than by a chart. Primary ink, because it
    is the one figure in the band that is a measurement rather than a label. */
 .groupCount {
+  composes: dataCell from "../../styles/type.module.css";
   margin-left: auto;
   color: var(--ink-primary);
   font-size: var(--font-size-dense);
@@ -330,8 +349,16 @@ tbody:last-of-type .row:last-child {
  * to be re-declared rather than inherited — `--font-weight-strong` here is a
  * decision about emphasis and not a leftover from the element.
  */
+/*
+ * Set in the **data face** since the 2026 refresh, and a ticker is the clearest
+ * case for it in the product: `AAPL`, `BRK.B`, `XLK` are identifiers rather than
+ * words, and a column of them in a proportional face is a column with no rhythm
+ * — the eye has to re-measure each one. `type.module.css`'s `.dataCell` carries
+ * the face, the tabular figures and the tracking as one idiom.
+ */
 .symbol {
-  font-weight: var(--font-weight-strong);
+  composes: dataCell from "../../styles/type.module.css";
+  font-weight: var(--font-weight-bold);
   white-space: nowrap;
 }
 
@@ -382,6 +409,7 @@ tbody:last-of-type .row:last-child {
  * as a table rather than as 518 headlines.
  */
 .price {
+  composes: dataCell from "../../styles/type.module.css";
   color: var(--ink-primary);
 }
 
@@ -395,6 +423,7 @@ tbody:last-of-type .row:last-child {
  * nothing is already the loudest thing in the column.
  */
 .session {
+  composes: dataCell from "../../styles/type.module.css";
   display: block;
   color: var(--ink-secondary);
 }
@@ -429,10 +458,12 @@ tbody:last-of-type .row:last-child {
  * word and it stays that way.
  */
 .depth {
+  composes: dataCell from "../../styles/type.module.css";
   color: var(--ink-primary);
 }
 
 .from {
+  composes: dataCell from "../../styles/type.module.css";
   color: var(--ink-secondary);
 }
 
@@ -592,49 +623,26 @@ tbody:last-of-type .row:last-child {
 }
 
 /*
- * **The first control in this product that re-asks a question.**
+ * The retry control's styles used to be here — six declarations and a hover,
+ * one of three byte-identical copies in this tree. `components/Button` holds
+ * them now (the 2026 refresh, ADR 0022), which is what `BarSeriesPanel`'s copy
+ * predicted when it named three as the point where this repository extracts.
  *
- * A real `<button>`, styled down to this language rather than left at the user
- * agent's — the same treatment `ErrorFallback` gives its own, deliberately, so
- * that the product has one button rather than two. What is *not* borrowed from
- * that component is everything around it: no red rule, no `role="alert"`. A
- * service that is briefly unavailable is a product state (PRODUCT_SPEC.md §36)
- * and a render failure is not, and the two must not look alike.
- *
- * No `:focus-visible` rule. `base.css` carries one global outline and it applies
- * here like anywhere else; a component-level focus style would be a second
- * answer to a question the token layer already answered.
+ * What deliberately did **not** travel with them, recorded here because it is
+ * the thing an extraction loses: `ErrorFallback` carries a red rule and
+ * `role="alert"` because a render failure is what it reports. A service that is
+ * briefly unavailable is a product state (PRODUCT_SPEC.md §36) and carries
+ * neither. The shared thing is the control, not the error language.
  */
-.retry {
-  padding: var(--space-4) var(--space-12);
-  background: var(--surface-raised);
-  border: var(--border-width) solid var(--rule-hairline);
-  border-radius: var(--radius);
-  font-family: inherit;
-  font-size: var(--font-size-dense);
-  line-height: var(--line-height-dense);
-  color: var(--ink-primary);
-  cursor: pointer;
-  /* On the hover, not on the resting state: a control that animates into place
-     is decoration, and one that acknowledges the pointer is feedback. `quick`
-     because it is under the pointer — `settle` is for a state changing on its
-     own. Reduced motion is answered once at the token layer. */
-  transition: background-color var(--motion-duration-quick)
-    var(--motion-ease-standard);
-}
-
-.retry:hover {
-  background: var(--surface-sunken);
-}
 
 /*
  * A string somebody is expected to type back — a correlation id, or a command
- * to run. The one place on this page set in `--font-mono`, and the token's own
+ * to run. The one place on this page set in `--font-data`, and the token's own
  * comment carries the argument: `tabular-nums` fixes a *column*, and does
  * nothing for `l` against `1` in a UUID that has no column to align to.
  */
 .command {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: 0.92em;
   color: var(--ink-primary);
 }
