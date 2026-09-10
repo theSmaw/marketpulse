@@ -584,3 +584,42 @@ platform itself. Those are the best kind of decisions to discover you have made.
 There is no search box — you reach a security by typing its symbol into the
 address, or by reading the table underneath. There is no chart. There is no live
 price. Those are the next three stories, in that order.
+
+---
+
+## Amended 2026-09-10 by its own CI run — the browser suite runs against a store with no bars
+
+`pnpm e2e` passed locally and **failed three of four new tests on CI**, and the
+cause is a property of the pipeline this task did not know:
+
+**`verify.yml` runs `pnpm migrate` and `pnpm universe` and deliberately never
+`pnpm backfill`.** A backfill is metered and `verify` has no credentials on
+purpose — that is the same rule that keeps the whole gate free of network,
+database and secrets. So **CI's store holds 518 securities and zero bars**, and
+`sessions=5` there is a perfectly correct `empty`.
+
+The specs asserted `Holding N bars` unconditionally. Locally that is true;
+on CI it is not, and neither environment is wrong.
+
+**The fix, and the shape worth copying.** Every assertion is now either
+data-independent or branched on which answer arrived. A helper waits for _an
+answer_ — the coverage line **or** the empty state — because both are 200s and
+which one appears is a property of the environment rather than of the code. The
+market-time zone is asserted in both branches, because an empty answer still
+states the window it asked for.
+
+**Verified by substitution in both directions**, per the rule that a green run
+proves nothing on its own: `DEFAULT_SESSIONS` was temporarily set to 1, which
+produces a genuinely empty answer against the local store (`bars 0`,
+`covered: null`) — the spec passed. Restored to 5, which produces a populated
+one — the spec passed. The first draft fails the first of those.
+
+**The consequence, stated rather than left implicit:** the richest assertions in
+that file — the four prices, the two windows, the feed label — run on a
+developer's machine and in `pnpm e2e:deployed`, and **not in the CI gate**. The
+gate checks the wiring; the data is checked where there is data. That is an
+honest arrangement rather than a hole, but it is one a reader would otherwise
+have to infer from a passing run.
+
+This is a general fact about the browser suite rather than about this task, and
+Task 2.10.8 writes more of these specs — its own amendment carries the pointer.

@@ -1,3 +1,4 @@
+import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
@@ -28,16 +29,50 @@ import { expectNothingFailedToRender } from "../support/app.js";
 //     rendering what the API returned. Nothing in a browser can tell a correct
 //     series from a plausible one; that is the backend's database suite and the
 //     bar store's own checks.
-//   - **Not that the panel is complete.** The store is caught up nightly, so a
-//     named window is normally `partial` — the assertions below are written to
-//     pass in either state, because which one a run lands in is a property of
-//     when the backfill last ran rather than of the code.
+//   - **Not that there are any bars at all, and this is the constraint that
+//     shapes the whole file.** `verify.yml` runs `pnpm migrate` and
+//     `pnpm universe` and deliberately never `pnpm backfill`, because a backfill
+//     is metered and `verify` has no credentials on purpose. So **CI's store
+//     holds 518 securities and zero bars**, and `sessions=5` there is a correct
+//     `empty`. A developer's store and the deployed one hold bars and answer
+//     `partial`.
+//
+//     Both are right, and which one a run lands in is a property of the
+//     environment rather than of the code — so every assertion below is either
+//     **data-independent** or **branched on which answer arrived**. The first
+//     draft of this file asserted `Holding N bars` unconditionally, passed
+//     locally, and failed three of four tests on CI. That is the defect this
+//     note exists to prevent a second time.
+//
+//     The consequence worth stating: the richest assertions here — the prices,
+//     the two windows, the market-time zone — run on a developer's machine and
+//     in `pnpm e2e:deployed`, and **not** in the CI gate. The gate checks the
+//     wiring; the data is checked where there is data.
 //   - **Not accessibility.** `securities-route.spec.ts` runs axe over this whole
 //     document at three viewports, and this panel is on it — which is a wider
 //     claim than this repository made before and is still not a review.
 
 /** A security the curated universe always holds, and the spec's own default. */
 const SYMBOL = "NVDA";
+
+/**
+ * The panel has settled on an answer — **either** answer.
+ *
+ * A populated window says how much it holds; an empty one says there is nothing
+ * stored for it. Both are 200s, both are answers rather than failures, and which
+ * one appears depends on whether the store behind this run has been backfilled.
+ * Waiting for the union is what makes this file honest in both environments.
+ */
+function anAnswer(scope: Locator): Locator {
+  return scope
+    .getByText(/Holding .* bars/)
+    .or(scope.getByText(/No bars stored for this window/));
+}
+
+/** Did this run land on a store with bars in it? */
+async function hasBars(scope: Locator): Promise<boolean> {
+  return scope.getByText(/Holding .* bars/).isVisible();
+}
 
 test("a deep link renders one security's real bars, from a real request", async ({
   page,
@@ -51,30 +86,37 @@ test("a deep link renders one security's real bars, from a real request", async 
   // link to a security shareable before search exists.
   await expect(region.getByRole("heading", { name: SYMBOL })).toBeVisible();
 
-  // The panel's real answer: how much of the window we hold. It says so in
-  // every populated state — a complete answer says it holds all of it rather
-  // than saying nothing, because silence would make "we hold all of it" and
-  // "nobody checked" look identical.
-  await expect(region.getByText(/Holding .* bars/)).toBeVisible();
+  // The panel settles on an answer. Which one depends on the store behind this
+  // run — see the header; both are 200s and neither is a failure.
+  await expect(anAnswer(region)).toBeVisible();
 
-  // Both windows, which is the pair this whole story exists to keep honest.
-  // `exact` because the coverage sentence above also contains the words "asked
-  // for" — a substring match resolves to two elements and fails in strict mode,
-  // which is Playwright telling the truth rather than being awkward.
-  await expect(region.getByText("Asked for", { exact: true })).toBeVisible();
-  await expect(region.getByText("Held", { exact: true })).toBeVisible();
-
-  // Market time, with the zone named. A timestamp rendered in the browser's own
+  // Market time with the zone named, in **either** answer: an empty one still
+  // states the window it asked for. A timestamp rendered in the browser's own
   // zone is the same class of defect as a window resolved from its clock, and
   // the abbreviation is the only thing that makes it visible at all. The
   // runner's timezone is not New York, so this is a real check rather than a
   // coincidence.
   await expect(region.getByText(/E[DS]T/).first()).toBeVisible();
 
-  // The feed, in the shipped vocabulary rather than a slug — invariant 6 on the
-  // one series this page renders.
-  await expect(region.getByText("Market feed")).toBeVisible();
-  await expect(region.getByText("All US exchanges")).toBeVisible();
+  if (await hasBars(region)) {
+    // Both windows, which is the pair this whole story exists to keep honest.
+    // `exact` because the coverage sentence also contains the words "asked for"
+    // — a substring match resolves to two elements and fails in strict mode,
+    // which is Playwright telling the truth rather than being awkward.
+    await expect(region.getByText("Asked for", { exact: true })).toBeVisible();
+    await expect(region.getByText("Held", { exact: true })).toBeVisible();
+
+    // The four prices a session is summarised by.
+    for (const label of ["Open", "High", "Low", "Close"]) {
+      await expect(region.getByText(label, { exact: true })).toBeVisible();
+    }
+
+    // The feed, in the shipped vocabulary rather than a slug — invariant 6 on
+    // the one series this page renders. It comes off the series' provenance, so
+    // there is nothing to label when there are no bars.
+    await expect(region.getByText("Market feed")).toBeVisible();
+    await expect(region.getByText("All US exchanges")).toBeVisible();
+  }
 
   await expectNothingFailedToRender(page);
 });
@@ -89,7 +131,9 @@ test("the window is resolved by the server, never by the browser's clock", async
   });
 
   await page.goto(`/securities/${SYMBOL}`);
-  await expect(page.getByText(/Holding .* bars/)).toBeVisible();
+  await expect(
+    anAnswer(page.getByRole("region", { name: "Market data" })),
+  ).toBeVisible();
 
   // A browser in Singapore at 09:00 local is on the previous *market* date in
   // New York, so a client that computes "the last five sessions" itself is off
@@ -136,9 +180,10 @@ test("the panel draws nothing — the fence Story 2.12 inherits", async ({
   // is in the browser rather than in jsdom because a canvas that renders only
   // in a real engine would pass a jsdom check.
   await page.goto(`/securities/${SYMBOL}`);
-  await expect(page.getByText(/Holding .* bars/)).toBeVisible();
 
   const region = page.getByRole("region", { name: "Market data" });
+  await expect(anAnswer(region)).toBeVisible();
+
   await expect(region.locator("canvas")).toHaveCount(0);
   await expect(region.locator("svg")).toHaveCount(0);
 });

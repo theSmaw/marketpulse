@@ -468,3 +468,30 @@ the cached paint: the third view renders `loaded` in its first commit while a
 request is still in flight. That is the sequence to design the label against, and
 it is cheaper than anything the brief suggests — no throttling, no interception,
 two clicks in a browser.
+
+---
+
+## Amended 2026-09-10 by Task 2.10.7's CI run — the browser suite has a universe and no bars
+
+Before writing browser specs for this task's states, know what CI's store
+actually contains: **518 securities and zero bars.** `verify.yml` runs
+`pnpm migrate` and `pnpm universe` and deliberately never `pnpm backfill`,
+because a backfill is metered and the gate has no credentials on purpose.
+
+So on CI, every window is `empty` — a correct 200 — and locally and on the
+deployed store the same window is `partial`. **A spec that asserts on bars
+passes locally and fails the gate**, which is exactly what happened to three of
+Task 2.10.7's four new tests. `e2e/specs/security-series.spec.ts` carries the
+shape that fixes it: wait for _an answer_, then branch on which arrived.
+
+Two consequences for this task specifically, and the second is the useful one.
+
+**`partial` and `loaded` cannot be produced in the CI gate at all**, so their
+browser coverage is a developer's machine and `pnpm e2e:deployed`. Do not spend
+effort trying to make the gate assert them; do make sure the deployed check
+does.
+
+**`empty` is the one state CI produces for free**, on every route, without any
+interception — which makes it the cheapest browser assertion in this whole
+story and the one most worth making load-bearing. If the empty state's copy is
+wrong, the gate can catch it.
