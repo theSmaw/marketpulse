@@ -20,7 +20,8 @@ question differently. Say so plainly when reporting it.
 ## Work
 
 Produce `MARKET-DATA-API.md` in this directory — the subject document for this
-story, listed in `CLAUDE.md`'s _Where the record lives_ table by Task 2.9.10 — and
+story, listed in `CLAUDE.md`'s _Where the record lives_ table by the close task
+(2.9.10 when this was written; **2.9.11** since 2026-09-10) — and
 settle each of the following in it, with the alternatives and a **reversal trigger
 that is a condition rather than a story number**.
 

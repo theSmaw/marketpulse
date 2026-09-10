@@ -494,7 +494,7 @@ which is Task 2.9.6; and once it exists, **`/securities` should get it too** —
 that route has been able to produce this failure since Story 2.4 and answers a 500
 today only because the code did not exist. That is a live falsification of
 `database.ts`'s _"nothing in this application serves data yet"_, and it is on Task
-2.9.10's sweep list.
+the close task's sweep list (2.9.11 since 2026-09-10).
 
 `NOT_FOUND` and `BAD_REQUEST` cover every other row, which is `API_ERROR_CODES`'
 own test — a member is added when the server can be made to produce a failure the
@@ -597,7 +597,8 @@ amend live claims, leave historical records standing.
   timings are local and single-request; that task takes them properly and
   deployed.~~ **Taken — see §12**, which also carries what those readings
   falsified.
-- **The ADR.** Task 2.9.10.
+- **The ADR.** Task 2.9.11 — renumbered from 2.9.10 on 2026-09-10, when §12.5
+  put Task 2.9.10's compression work ahead of the close.
 
 ---
 
@@ -1191,8 +1192,19 @@ the single largest improvement available to this API and it is one dependency �
 but it interacts with §11's validator in a way that has to be got right (the
 `ETag` must be computed over the same representation the client validates, so
 plugin order is the whole of the work), and it is a change to shipped behaviour
-rather than a measurement. **The condition: the first screen that serves a
-minute series over a link**, which is Story 2.12 the moment it is deployed.
+rather than a measurement. ~~**The condition: the first screen that serves a
+minute series over a link**, which is Story 2.12 the moment it is deployed.~~
+
+> **The condition was met before it was written. Resolved 2026-09-10, the same
+> day: this is Task 2.9.10 rather than a trigger.** The screen that serves a
+> payload over a link is not Story 2.12's chart — it is `/securities`, which is
+> **already deployed, already rendered and already 190,736 bytes** on every cold
+> page load, measured at **1,153 ms** in §12.8. So it is a repair to something
+> shipped rather than work done ahead of a need, which is the distinction
+> `CLAUDE.md` draws when it says not to scaffold ahead of the current step.
+> Story 2.9's scope has owed the choice from the start — _"the encoding
+> matters. Measure it before choosing anything clever"_ — and this section is
+> the measuring.
 
 ### 12.6 The stitch costs under 20 ms, and §5's condition still does not fire
 

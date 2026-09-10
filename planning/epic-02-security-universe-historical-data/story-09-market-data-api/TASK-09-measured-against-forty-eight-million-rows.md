@@ -261,7 +261,7 @@ coverage }, securityStatus }`. Measured on the shipped shape rather than
   from the bar scan, so a surprise has an author
 - Any figure that falsifies a claim in `BARS.md`, `PROVIDER.md`, an ADR,
   `PRODUCT_SPEC.md` or `CLAUDE.md` is **swept the same day**, upward, by grepping
-  for the claim and amending the live sites — not deferred to Task 2.9.10
+  for the claim and amending the live sites — not deferred to the close task
 - `pnpm verify` passes
 
 ## Notes
@@ -359,7 +359,7 @@ fit inside (§12.2).
 | Story 2.9 `STORY.md`        | Criterion 5 marked taken                                                                                  |
 | Story 2.11 `STORY.md`       | Its live search-sizing argument told to use the uncompressed figure                                       |
 | Story 2.12 `STORY.md`       | Three things this changes about how the chart should be built                                             |
-| Task 2.9.10                 | What it inherits, and the one recommendation that is not this task's to take                              |
+| Task 2.9.11 (was 2.9.10)    | What it inherits, once Task 2.9.10 was added ahead of it                                                  |
 
 **Nothing falsifies `PRODUCT_SPEC.md`, an ADR or `CLAUDE.md`.** The nearest miss
 is `CLAUDE.md`'s note that the market socket is safe at a minimum replica count
@@ -372,8 +372,16 @@ available to this API — a megabyte against 164 kB — and it is one dependency
 It is not done here because this is a measurement task, because it changes
 shipped behaviour, and because its whole difficulty is ordering it against
 §11's validator so the `ETag` is computed over the representation the client
-actually validates. §12.5 states the condition; Task 2.9.10 is told to decide
-where it belongs rather than to inherit it silently.
+actually validates. §12.5 states the condition.
+
+> **Resolved 2026-09-10, later the same day: it is a task, not a condition.**
+> **Task 2.9.10 — Compress the wire** was added and the close renumbered to
+> 2.9.11. The argument that moved it out of "recommended" is that `/securities`
+> is **shipped and rendered today** at 190,736 bytes, so this is a repair rather
+> than scaffolding — and that this story's own scope has always owed it: _"a year
+> of minute bars is large enough that the encoding matters. Measure it before
+> choosing anything clever."_ The measuring was this task; the choosing is the
+> next one.
 
 ---
 
