@@ -23,6 +23,11 @@ type Specimen = Omit<TextFieldProps, "label" | "onValueChange">;
 // control designed against a guess", so the first thing anybody should be able
 // to do with the answer is see every state of it at once.
 //
+// The state set is the canvas's `TEXT FIELD — STATES` section, twelve panels,
+// mapped onto this component. Ten of the twelve are here as stories; `03 ·
+// FOCUS` is the token layer's and cannot be forced from a story, and `12 ·
+// LIVE` is `Interactive` below under a different name.
+//
 // **Every story here is static except `Interactive`.** A field is a controlled
 // input, so a story that let you type would need state, and state in eight
 // stories is eight places for the permutation grid to stop being a comparison.
@@ -79,6 +84,26 @@ const PERMUTATIONS: readonly {
       value: "NVDA NVDA NVDA NVDA",
       error: "A symbol is at most five characters.",
     },
+  },
+  {
+    name: "Warning",
+    props: {
+      icon: "magnifier",
+      value: "HALTD",
+      warning: "Symbol is valid but halted — data may be stale.",
+    },
+  },
+  {
+    name: "Valid",
+    props: { icon: "magnifier", value: "NVDA", valid: true },
+  },
+  {
+    name: "Read-only",
+    props: { value: "2026-09-04 16:00:00 EDT", readOnly: true },
+  },
+  {
+    name: "With affix",
+    props: { value: "225.76", prefix: "$", suffix: "USD" },
   },
   {
     name: "Disabled",
@@ -145,6 +170,67 @@ export const ErrorState: Story = {
     value: "NVDA NVDA NVDA NVDA NVDA NVDA",
     error: "A symbol is at most five characters.",
   },
+};
+
+/**
+ * Valid, with a caveat — the canvas's `06 · WARNING`. Nothing is wrong with
+ * what was typed, so the field is **not** `aria-invalid`; the dashed border is
+ * what tells it apart from the error above, and it survives greyscale.
+ */
+export const Warning: Story = {
+  args: {
+    value: "HALTD",
+    warning: "Symbol is valid but halted — data may be stale.",
+  },
+};
+
+/** Checked and good — the canvas's `08 · VALID`. The tick is achromatic on purpose. */
+export const Valid: Story = {
+  args: { value: "NVDA", valid: true },
+};
+
+/**
+ * A value you may read and select but not edit — the canvas's `09 · READ-ONLY`.
+ * **Not the `Locked` state Task 2.11.3 dropped**: that one was a permission and
+ * its trigger is authentication, which the product still excludes. This is a
+ * display state with no permission in it.
+ */
+export const ReadOnly: Story = {
+  args: {
+    label: "Session close",
+    value: "2026-09-04 16:00:00 EDT",
+    readOnly: true,
+  },
+  // Built rather than spread, because this story wants **no** icon and the
+  // shelf default has one. `exactOptionalPropertyTypes` is on, so "absent" and
+  // "present as `undefined`" are different types and `icon: undefined` is a
+  // `TS2375` — the same trap the permutation list below avoids by simply not
+  // listing `icon` on the entries that do not want one.
+  render: () => (
+    <TextField
+      label="Session close"
+      value="2026-09-04 16:00:00 EDT"
+      onValueChange={noop}
+      readOnly
+    />
+  ),
+};
+
+/** Fixed units inside the box — the canvas's `11 · WITH AFFIX`. They never scroll with the value. */
+export const WithAffix: Story = {
+  args: { label: "Last close", value: "225.76", prefix: "$", suffix: "USD" },
+  // No icon here either — see `ReadOnly` above for why it is built rather than
+  // spread.
+  render: () => (
+    <TextField
+      label="Last close"
+      value="225.76"
+      onValueChange={noop}
+      prefix="$"
+      suffix="USD"
+      hint="Previous session"
+    />
+  ),
 };
 
 export const Disabled: Story = {

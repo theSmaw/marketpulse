@@ -170,6 +170,118 @@ describe("TextField", () => {
     );
   });
 
+  // --- The four states added 2026-09-11 from the canvas's TEXT FIELD — STATES ---
+
+  // The distinction that matters and is easy to get wrong: a warning is not an
+  // error. The value is fine, so `aria-invalid` must stay absent — a field
+  // announced as invalid when nothing is wrong is worse than a silent one.
+  it("describes a warning without marking the field invalid", () => {
+    render(
+      <TextField
+        label="Symbol"
+        value="HALTD"
+        onValueChange={noop}
+        warning="Symbol is valid but halted."
+      />,
+    );
+
+    const input = screen.getByLabelText("Symbol");
+
+    expect(describedTextOf(input)).toBe("Symbol is valid but halted.");
+    expect(input.hasAttribute("aria-invalid")).toBe(false);
+  });
+
+  it("lets an error outrank a warning, and shows only one message", () => {
+    render(
+      <TextField
+        label="Symbol"
+        value="X"
+        onValueChange={noop}
+        warning="Symbol is valid but halted."
+        error="Unknown symbol."
+        valid
+      />,
+    );
+
+    const input = screen.getByLabelText("Symbol");
+
+    expect(describedTextOf(input)).toBe("Unknown symbol.");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(screen.queryByText("Symbol is valid but halted.")).toBeNull();
+  });
+
+  // `false` and absent are different answers. Absent means "never checked";
+  // `false` means "checked, and it passed".
+  it("says a validated field passed, rather than saying nothing", () => {
+    const { rerender } = render(
+      <TextField label="Symbol" value="NVDA" onValueChange={noop} />,
+    );
+
+    expect(screen.getByLabelText("Symbol").hasAttribute("aria-invalid")).toBe(
+      false,
+    );
+
+    rerender(
+      <TextField label="Symbol" value="NVDA" onValueChange={noop} valid />,
+    );
+
+    expect(screen.getByLabelText("Symbol").getAttribute("aria-invalid")).toBe(
+      "false",
+    );
+  });
+
+  it("makes a read-only field readable and selectable, not disabled", () => {
+    render(
+      <TextField
+        label="Session close"
+        value="2026-09-04 16:00:00 EDT"
+        onValueChange={noop}
+        readOnly
+      />,
+    );
+
+    const input = screen.getByLabelText<HTMLInputElement>("Session close");
+
+    expect(input.readOnly).toBe(true);
+    // The difference from `disabled`, asserted rather than described: a
+    // read-only field still takes focus, so its value can be selected and
+    // copied. A disabled one cannot.
+    expect(input.disabled).toBe(false);
+  });
+
+  it("offers no clear affordance on a read-only field", () => {
+    render(
+      <TextField
+        label="Session close"
+        value="2026-09-04 16:00:00 EDT"
+        onValueChange={noop}
+        onClear={noop}
+        readOnly
+      />,
+    );
+
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  // An affix is a unit. A unit that is visible and unspoken is a number read
+  // without it, so both ends reach the accessible description.
+  it("speaks its affixes as part of the field's description", () => {
+    render(
+      <TextField
+        label="Last close"
+        value="225.76"
+        onValueChange={noop}
+        prefix="$"
+        suffix="USD"
+        hint="Previous session"
+      />,
+    );
+
+    expect(describedTextOf(screen.getByLabelText("Last close"))).toBe(
+      "$ USD Previous session",
+    );
+  });
+
   it("announces a field in flight as busy", () => {
     render(<TextField label="Symbol" value="NV" onValueChange={noop} busy />);
 

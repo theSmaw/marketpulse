@@ -161,7 +161,45 @@ export interface TextFieldProps extends Omit<
    */
   readonly error?: string;
 
-  /** Temporarily unavailable. Distinct from the `Locked` state, which is not built — see the header. */
+  /**
+   * Valid, but with a caveat worth reading — the canvas's `06 · WARNING`. Its
+   * worked example is the one that makes the state worth having: *"Symbol is
+   * valid but halted — data may be stale."* Nothing is wrong with what the
+   * person typed, so the field is **not** marked `aria-invalid`; there is just
+   * something they should know.
+   *
+   * Drawn with a **dashed** border rather than a second hue, which is the
+   * language's own rule doing its job: the difference between an error and a
+   * warning is carried by the border's *shape* as well as its colour, so it
+   * survives `grayscale(1)`.
+   */
+  readonly warning?: string;
+
+  /**
+   * Checked and good — the canvas's `08 · VALID`. Draws a tick in the trailing
+   * slot and sets `aria-invalid="false"`, which is the only standard way to
+   * say "this was validated and passed" rather than "this was never checked".
+   *
+   * The tick is **achromatic**, and that is a deliberate divergence from the
+   * canvas — see the stylesheet. Green means price-up on every other screen in
+   * this product.
+   */
+  readonly valid?: boolean;
+
+  /**
+   * A value the person may see and select but not edit — the canvas's
+   * `09 · READ-ONLY`, whose worked example is a timestamp.
+   *
+   * **This is not the `Locked` state that Task 2.11.3 dropped**, and the
+   * distinction is worth keeping straight because the two look alike. `Locked`
+   * was *"not editable by this user"* — a permission, whose trigger is
+   * authentication, which `PRODUCT_SPEC.md` §37 still excludes. This is a
+   * display state with no permission in it: the value is simply not something
+   * anybody edits here. `Locked`'s trigger has **not** fired.
+   */
+  readonly readOnly?: boolean;
+
+  /** Temporarily unavailable. Distinct from `readOnly`, which stays legible and focusable. */
   readonly disabled?: boolean;
 
   /**
@@ -193,6 +231,16 @@ export interface TextFieldProps extends Omit<
    */
   readonly onClear?: () => void;
 
+  /**
+   * A fixed leading affix inside the box — the canvas's `11 · WITH AFFIX`, a
+   * `$` before a price. It never scrolls with the value, which is the whole
+   * point of it being an affix rather than typed text.
+   */
+  readonly prefix?: string;
+
+  /** A fixed trailing affix — `USD`, `%`, `bps`. Same rules as `prefix`. */
+  readonly suffix?: string;
+
   /** Control height. `medium` is 36px and matches `Button`; `small` is 28px. */
   readonly size?: TextFieldSize;
 
@@ -212,6 +260,11 @@ export function TextField({
   icon,
   hint,
   error,
+  warning,
+  valid = false,
+  readOnly = false,
+  prefix,
+  suffix,
   disabled = false,
   busy = false,
   surfaceOpen = false,
@@ -225,17 +278,35 @@ export function TextField({
   // broken label association that renders perfectly.
   const id = useId();
   const hintId = `${id}-hint`;
-  const errorId = `${id}-error`;
+  const messageId = `${id}-message`;
+  const prefixId = `${id}-prefix`;
+  const suffixId = `${id}-suffix`;
 
+  // Precedence, stated once: **error, then warning, then valid.** They are
+  // three additive props rather than one union because every call site has
+  // either a message or nothing, and a union would make the common case
+  // construct an object to say so — but they are not independent, and a field
+  // that was handed all three must pick one. Something wrong outranks
+  // something worth knowing, which outranks something confirmed fine.
   const invalid = error !== undefined;
-  const showClear = onClear !== undefined && value !== "" && !disabled;
+  const warned = !invalid && warning !== undefined;
+  const message = invalid ? error : warning;
+  const showValid = valid && !invalid && !warned;
 
-  // Described by whichever of the two exist, error first — the thing that is
-  // wrong is read before the thing that is merely useful. `undefined` rather
+  const showClear =
+    onClear !== undefined && value !== "" && !disabled && !readOnly;
+
+  // Described by whichever of these exist, the message first — the thing that
+  // is wrong, or worth knowing, is read before the thing that is merely useful. `undefined` rather
   // than an empty string when there is neither: `aria-describedby=""` points at
   // an element with no id and is a validity error, not an absence.
   const describedByIds = cx(
-    invalid ? errorId : undefined,
+    message === undefined ? undefined : messageId,
+    // The affixes carry meaning — `$`, `USD`, `%` — so they are described
+    // rather than `aria-hidden`. A unit that is visible and unspoken is a
+    // number read without its unit.
+    prefix === undefined ? undefined : prefixId,
+    suffix === undefined ? undefined : suffixId,
     hint === undefined ? undefined : hintId,
   );
   const describedBy = describedByIds === "" ? undefined : describedByIds;
@@ -269,10 +340,21 @@ export function TextField({
           a11y.focusRingHost,
           SIZE_CLASS[size],
           invalid ? styles.invalid : undefined,
+          warned ? styles.warned : undefined,
           disabled ? styles.disabledBox : undefined,
+          readOnly ? styles.readOnlyBox : undefined,
           surfaceOpen ? styles.open : undefined,
         )}
       >
+        {/* The leading affix sits outside the icon, hard against the box's
+            edge, with its own ground — so it reads as part of the control
+            rather than as the first character of the value. */}
+        {prefix === undefined ? undefined : (
+          <span className={cx(styles.affix, styles.affixStart)} id={prefixId}>
+            {prefix}
+          </span>
+        )}
+
         {icon === undefined ? undefined : (
           <span className={cx(styles.leading)}>
             <Icon name={icon} />
@@ -291,7 +373,12 @@ export function TextField({
           className={cx(styles.input, a11y.focusRingSource)}
           value={value}
           disabled={disabled}
-          aria-invalid={invalid ? true : undefined}
+          readOnly={readOnly}
+          // `false` rather than absent when the field has been checked and
+          // passed: absent means "never validated", and those are different
+          // things to anybody listening. A warning leaves it absent on
+          // purpose — nothing is wrong with the value.
+          aria-invalid={invalid ? true : showValid ? false : undefined}
           aria-describedby={describedBy}
           aria-busy={busy ? true : undefined}
           onChange={(event) => {
@@ -299,6 +386,23 @@ export function TextField({
           }}
           onKeyDown={handleKeyDown}
         />
+
+        {suffix === undefined ? undefined : (
+          <span className={cx(styles.affix)} id={suffixId}>
+            {suffix}
+          </span>
+        )}
+
+        {/*
+         * The validated tick. `aria-hidden` because `aria-invalid="false"` on
+         * the input already carries this to a screen reader, and a bare glyph
+         * read aloud is noise.
+         */}
+        {showValid ? (
+          <span className={cx(styles.validTick)} aria-hidden="true">
+            &#10003;
+          </span>
+        ) : undefined}
 
         {/*
          * The trailing slot, present only when there is something to clear.
@@ -364,17 +468,27 @@ export function TextField({
         ) : undefined}
       </div>
 
-      {invalid ? (
-        <p className={cx(styles.error)} id={errorId}>
+      {message === undefined ? undefined : (
+        <p
+          className={cx(styles.message, invalid ? styles.errorText : undefined)}
+          id={messageId}
+        >
           {/*
            * The glyph, because `market.css`'s rule is that colour is never the
            * sole encoding: under `grayscale(1)` this message is the same tone
            * as the hint it replaces.
+           *
+           * Error and warning share `alert` rather than the warning gaining a
+           * seventh icon. The set was closed at six on 2026-09-11 with the rule
+           * that the next addition needs its own argument in its own task, and
+           * this is not that argument: the two states are already told apart by
+           * the border's *shape* — dashed against solid — which is a
+           * non-colour encoding the glyph would only duplicate.
            */}
           <Icon name="alert" />
-          {error}
+          {message}
         </p>
-      ) : undefined}
+      )}
 
       {hint === undefined ? undefined : (
         <p className={cx(styles.hint)} id={hintId}>
