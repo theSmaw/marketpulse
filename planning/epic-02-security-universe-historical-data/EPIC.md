@@ -1,6 +1,8 @@
 # Epic 2 — Security Universe & Historical Market Data
 
-**Status:** In progress — Stories 2.1, 2.2, 2.3 and 2.4 complete (2026-09-06); Story 2.5 next. **Story 2.4 put the first real data on screen**: `/securities` renders the tracked universe on the deployed site, so the epic now has somewhere visible for every later story to land.
+**Status:** In progress — **Stories 2.1 to 2.11 complete (2026-09-11); Story 2.12 next.** Three stories remain: the price chart (2.12), the volume chart and window control (2.13), and the epic close (2.14).
+
+**Half the epic's exit criterion is met and demonstrable on the deployed site: a user can search for NVDA and open it.** Story 2.4 put the first real data on screen and Story 2.11 made the screen interactive — a search field that matches as you type, a per-security URL that deep-loads cold, and the Security Explorer shell holding §8.3's seven regions, two of them filled. The other half — inspect recent historical price and volume — is 2.12 and 2.13, and **both fill a region of that shell that already exists and already names them** rather than adding a panel.
 **Sequence:** 2 of 15 — follows Epic 1 (Application Foundation)
 **Spec references:** PRODUCT_SPEC.md §6 (initial market universe), §7.1 (Alpaca), §8.3 (Security Explorer), §30 (storage)
 

@@ -2,12 +2,20 @@
 
 **Subject document for** [Story 2.11 — Security Search & Selection](STORY.md)
 **Created:** 2026-09-11 by [Task 2.11.1](TASK-01-settle-search-selection-and-the-url.md)
-**Status:** the three open decisions are settled. §§1–5 are decided and are what
-Tasks 2.11.2 to 2.11.9 implement. **§6 was added 2026-09-11 by Task 2.11.9** and
-is a record rather than a decision: the numbered keyboard flow, what a listener
-is handed, and the five things the walk found and fixed. Task 2.11.10 finishes
-this file with what was found and adds it to `CLAUDE.md`'s _Where the record
-lives_ table.
+**Status: complete.** Finished 2026-09-11 by
+[Task 2.11.10](TASK-10-deployed-verify-document-and-adr.md), which closed Story
+2.11. The three open decisions are settled; §§1–5 are the decisions and are what
+Tasks 2.11.2 to 2.11.9 implemented; §§6–7 are records rather than decisions; §9 is
+what nothing checks. The decisions with reach beyond this story are also
+[ADR 0024](../../../docs/adr/0024-search-selection-and-the-security-explorer-shell.md),
+and this file is the detail behind it.
+
+**Two numbering notes, because pointers into this file exist elsewhere.** The
+keyboard flow was written as §6 by Task 2.11.9 beside an existing §6, and the
+close renumbered it: **the keyboard flow is §7**, _what this file hands each
+task_ is §8, and _what nothing checks_ is §9. Task files written before
+2026-09-11's close point at the old numbers and are left standing as records;
+`e2e/specs/search-keyboard.spec.ts` was corrected in the same change.
 
 This file exists for the reason Tasks 2.9.1 and 2.10.1 exist: this story is
 followed immediately by two chart stories and then by an epic that adds a symbol
@@ -16,9 +24,10 @@ control, and the first control in a product decides what the rest look like.** A
 decision taken once here is a decision six later screens inherit rather than
 re-take four different ways.
 
-**Nothing in this task is visible.** No field, no result, no pixel. The payoff is
-Task 2.11.4, which puts the first interactive control in this product on screen,
-and the shell in 2.11.7.
+**Nothing in Task 2.11.1 was visible.** No field, no result, no pixel — the
+payoff was Task 2.11.4, which put the first interactive control in this product
+on screen, and the shell in 2.11.7. **All of it is visible now**, deployed: a
+person can type `nv` and open NVDA.
 
 ---
 
@@ -66,6 +75,66 @@ both are findings other tasks read:
   `NVIDIA Corporation`. Acceptance criterion 1's third spelling therefore works
   through the name path and not the symbol path, which is worth knowing before
   somebody tries to satisfy it with symbol rules alone.
+
+### 0.1 Re-taken at the close, 2026-09-11 — what moved and what did not
+
+This repository's rule is **measure rather than cite**, and the sharpest reason
+for it is that _a figure that has moved looks exactly like a figure that was
+mis-recorded_. So the figures the rest of this file argues from were taken again
+at the close, against the same running pair.
+
+| Figure                          | At the close                                                  | Against                                   | Moved?                    |
+| ------------------------------- | ------------------------------------------------------------- | ----------------------------------------- | ------------------------- |
+| `GET /securities` on the wire   | **20,072 bytes**, `gzip`, `etag` present, `private, no-cache` | 20,072 at 2.11.1                          | **No**                    |
+| The same body uncompressed      | **190,736 bytes**; the `securities` array **88,679**          | the same                                  | **No**                    |
+| Per security, uncompressed      | **171.2 bytes**                                               | the same                                  | **No**                    |
+| Securities in the universe      | **518**, all `status: active`                                 | the same                                  | **No**                    |
+| The `kind` split                | **503 `equity` · 11 `sector_etf` · 4 `index_etf`**            | the same                                  | **No**                    |
+| Distinct `lastCloses[].session` | **one** — `2026-09-04`, and 518 of 518 carry a close          | the same                                  | **No**                    |
+| The shipped frontend JS chunk   | **421.93 kB raw · 134.48 kB gzip**                            | **376.45 / 122.26** at Story 2.10's close | **+45.48 kB · +12.22 kB** |
+| The stylesheet                  | **41.68 kB raw · 8.27 kB gzip**                               | not recorded before                       | first reading             |
+
+**The payload did not move, and that is the finding rather than the absence of
+one.** §2's whole argument is that client-side matching holds at ten times §6 of
+`PRODUCT_SPEC.md`'s ceiling; it rests on a number that has already moved twice in
+this epic's life, and it is stable across nine tasks of work on the screen that
+consumes it. Method: `curl -H 'Accept-Encoding: br, gzip'` for the wire, and
+`Buffer.byteLength` over the parsed body for the rest.
+
+**The bundle grew by 12.22 kB gzipped, +10.0%**, and that is the whole of this
+story on screen: a combobox with a result surface, an input primitive, a sixth
+icon, the Security Explorer shell with eight regions, the identity block, the
+band rail, the bulk collapse, and the announcement machinery behind two live
+sentences. For scale, `FRONTEND-STATE.md` §1 measured Redux + React-Redux at
+**+8.43 kB** and RTK Query at **+25.27 kB** — so this story cost about one and a
+half Reduxes and bought a screen rather than a state library. Method:
+`pnpm build`, then `gzip -c` over `apps/frontend/dist/assets/*.js`; the 122.26 kB
+baseline is `FRONTEND-STATE.md`'s, taken the same way on 2026-09-10, which is
+this story's own starting line rather than an older one.
+
+**Two figures are reconciled rather than re-measured, and both say so here so
+that nobody re-takes them looking for a third answer.**
+
+- **The matcher.** §0's table above reads 0.295 ms for `nv` and 0.58 ms over a
+  synthetic 5,000. Those are a **different implementation's** — a naive scan,
+  measured in the page before Task 2.11.2 wrote the ranked rules — and they are
+  kept as the historical record they are. The **shipped** rules measured
+  **0.101 ms** for `nv`, **0.040 ms** for `nvid`, **0.072 ms** for `a` and
+  **0.216 ms** over a synthetic 5,000. §2's slope argument is unaffected in
+  direction and stronger in magnitude: the shipped matcher is between two and
+  three times **faster** than the naive scan the decision was taken against, and
+  is still two orders of magnitude inside a 16.7 ms frame. Re-measure only if the
+  implementation stops being a linear scan.
+- **Rendering 518 rows.** Taken by Task 2.11.8 against a **production** build in
+  Chromium: `Collapse all` (530 rows → 12) costs **17, 19, 20, 44 ms**;
+  `Expand all` (12 → 530) costs **69, 76, 76, 87 ms**. The dev build reads 17–27
+  and 151–222 ms, which is why the production figures are the ones carried.
+  Virtualisation was declined with that measurement behind it. **`Expand all`
+  exceeds `PRODUCT_SPEC.md` §28's _no routine main-thread task >50 ms_**, which
+  is a real exception and is recorded as one: §28 is not amended, and the
+  argument — the work is neither new nor routine — now lives in
+  [`EPICS.md`](../../EPICS.md)'s Epic 14 entry, which is the epic that owns
+  performance, rather than only in the task file that found it.
 
 ---
 
@@ -338,7 +407,7 @@ argued from the field emptying — the argument is entirely about what the
 _address_ carries — and a query that survives Back is strictly friendlier than
 one that does not. What changes is the sentence Task 2.11.9 has to say out loud,
 which is now "Back **keeps** my search": a decision either way, but not the one
-this file predicted. **Said out loud 2026-09-11, in §6.1's numbered flow, step
+this file predicted. **Said out loud 2026-09-11, in §7.1's numbered flow, step
 8** — walked, kept, and not a defect.
 
 **And it is the answer to that task's own standing question.** TASK-05 warned
@@ -542,6 +611,29 @@ The deliverable is
 with an active combobox, the Explorer shell, a zero-bars shell, a search-state
 matrix, and its own decisions tab.
 
+**Read this section's scope first, because it narrowed while the story ran.**
+Since [ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md)
+the `Component library for MarketPulse` **design canvas is the source of truth**
+for this product's design language, and two of the screens this story built came
+from it rather than from the mock:
+
+- **The Security Explorer shell** — the grid map, the identity block's four
+  states, the placeholder treatment with its five sentences, and the three
+  viewports — is **section 07 of the canvas**, added 2026-09-11 through
+  `DesignSync`, which is ADR 0026's chain working as intended.
+- **The universe navigation control** — the band rail and `Collapse all` — is
+  **`Universe navigation.dc.html`**, a **second file** in the same project. It is
+  a second file rather than a ninth section because `DesignSync`'s `get_file`
+  caps a read at 256 KiB and the main canvas is already larger: it returns
+  exactly 262,144 bytes, truncated mid-attribute, so a read-modify-write of that
+  path can only publish a file with everything past the cap deleted. ADR 0026's
+  "the canvas is one file" bullet carries that as a dated amendment.
+
+So **the canvas is no longer one document**, and what follows adjudicates the
+**mock**. The mock's Explorer tab is a superseded reference: where it and the
+canvas disagree about the shell, the canvas won and the disagreement is not
+re-argued here.
+
 It is treated the way `VISUAL-LANGUAGE.md` treats its predecessor: **a reference
 and not a specification.** That precedent is explicit — of `story-10-design.html`,
 "three of its decisions were taken, one was narrowed and two were declined" — and
@@ -693,7 +785,7 @@ number invented to fill a card.
 
 ---
 
-## 6. Two constraints that are not decisions
+## 6. Two constraints that are not decisions, and one decision they force
 
 Recorded here because they are what a later reader will otherwise re-argue, and
 because the next four tasks read this file rather than the three documents these
@@ -755,9 +847,44 @@ more reason the combobox is a surface over the page rather than a filter on the
 table. The thing that would trip it is a filter on the table, which is what §5
 declines and §3's reversal trigger names.
 
+**Amended 2026-09-11 by Task 2.11.8, which built the control this predicted.**
+`Collapse all` and the band rail change which rows are on screen, and the summary
+line changed in the same commit: it gains `444 of 518 rows shown` when some band
+is shut and says nothing extra when none is. Search still leaves it
+byte-identical, which `SecurityExplorer.test.tsx` asserts, and the browser suite
+asserts the collapsed clause against `0 of 518 rows shown`.
+
+### One retry per failure per screen, and it belongs to the surface that owns the data
+
+**Decided 2026-09-11 by [Task 2.11.6](TASK-06-every-search-state-produced.md), and
+recorded here because it is a product-wide rule that was living in a component
+header.**
+
+Search and the tracked universe render from **the same fetch**. So a failed
+universe puts two explanations on one screen, and the naive reading of
+[`FRONTEND-STATE.md`](../story-10-frontend-market-data-layer/FRONTEND-STATE.md)
+§4 — a retryable failure offers a way to retry — produces **two `Try again`
+buttons for one event**, which asks a person to choose between two spellings of
+the same action.
+
+**The control belongs to the surface that owns the data.** The tracked universe
+owns the fetch, so the table offers the `Try again`; search states the fact and
+defers the control, and points at nothing — a sentence saying "use the button
+below" is a layout claim in a live region. §4's rule is honoured **in the words**,
+in both directions: a retryable failure says waiting may help, a permanent one
+says it will not, and that is the half of §4 that survives there being one
+button. A browser test asserts `toHaveCount(1)` on the page's `Try again`
+buttons.
+
+**Reversal trigger: the first screen where the two surfaces read _different_
+fetches.** At that point they are two failures rather than one, and each owes its
+own control. Epic 3's live feed is the likely first. Task 2.11.7's shell did
+**not** fire it — the table stays on both addresses (§1's amendment), so every
+route that can hold this failure still has the control on it.
+
 ---
 
-## 6. The keyboard flow, and what a listener hears — walked 2026-09-11 by Task 2.11.9
+## 7. The keyboard flow, and what a listener hears — walked 2026-09-11 by Task 2.11.9
 
 Everything in this section was **walked in Chromium against the running pair**,
 not read off the DOM. Where a figure appears it was taken; where a judgement
@@ -776,7 +903,7 @@ navigation does in a table with no data rows. Everything else — what is
 reachable, in what order, what is announced and at what rate, and whether focus
 can be seen — is a measurement.
 
-### 6.1 The numbered flow
+### 7.1 The numbered flow
 
 Focus after every transition is stated, because focus after a result is opened is
 the step most often left to chance and landing at the top of a new document is
@@ -785,9 +912,9 @@ not the same as landing on it.
 | #   | Key                      | What happens                                                                                           | Focus afterwards                                               |
 | --- | ------------------------ | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
 | 1   | `Tab` ×5 from the top    | past the four navigation links to the field. It is a control _over_ both surfaces, so it precedes both | the field, `aria-expanded="false"`                             |
-| 2   | type                     | the list opens on the **first** keystroke; the visible list updates on every one                       | **the field, throughout** — see 6.2                            |
+| 2   | type                     | the list opens on the **first** keystroke; the visible list updates on every one                       | **the field, throughout** — see 7.2                            |
 | 3   | `ArrowDown` / `ArrowUp`  | moves the active row and wraps at both ends; `aria-activedescendant` names it                          | still the field                                                |
-| 4   | `Enter`, list open       | opens the active result — `securityPath(symbol)`, pushed                                               | **still the field**, holding the query. See 6.3                |
+| 4   | `Enter`, list open       | opens the active result — `securityPath(symbol)`, pushed                                               | **still the field**, holding the query. See 7.3                |
 | 4a  | `Enter`, nothing matched | **nothing.** The address does not move                                                                 | the field                                                      |
 | 4b  | `Enter`, many matched    | opens the **first**, which is the one the sentence named                                               | the field                                                      |
 | 5   | `Escape`, list open      | closes the list and **keeps** the query                                                                | the field                                                      |
@@ -795,9 +922,9 @@ not the same as landing on it.
 | 6   | `Tab`, list open         | the list closes — no trap                                                                              | the field's own clear button, then onward through the page     |
 | 7   | `Shift`+`Tab`            | back to the field, with the query intact and the list reopened                                         | the field                                                      |
 | 8   | `Back`, from a security  | **the field keeps its query** — §3's amendment, and the friendlier of the two answers                  | wherever it was; nothing is stolen                             |
-| 9   | `Tab` on, past the field | eight region panels, `Collapse all`, twelve rail links, then the table's first band — **23 stops**     | each in turn, and **none of them behind the chrome** — see 6.4 |
+| 9   | `Tab` on, past the field | eight region panels, `Collapse all`, twelve rail links, then the table's first band — **23 stops**     | each in turn, and **none of them behind the chrome** — see 7.4 |
 
-### 6.2 Focus never enters the list, and that is the pattern rather than an accident
+### 7.2 Focus never enters the list, and that is the pattern rather than an accident
 
 This is an **active-descendant** combobox: focus stays in the input for the whole
 interaction and the "active" row is a pointer (`aria-activedescendant`) rather
@@ -810,7 +937,7 @@ The id it points at was checked to be **in the document** — a combobox pointin
 at an id that is not announces a row that does not exist, and renders identically
 to one that does.
 
-### 6.3 Focus after a result is opened: it stays in the field
+### 7.3 Focus after a result is opened: it stays in the field
 
 **Decided: focus stays where it was.** The route re-renders rather than
 re-mounting (Task 2.11.5), so the field is literally the same element, still
@@ -837,7 +964,7 @@ on what it costs: it would take the query away from a person mid-switch, it need
 a `tabIndex={-1}` on a heading that is otherwise not interactive, and it buys an
 announcement the page already makes.
 
-### 6.4 What the walk found, and what was fixed here
+### 7.4 What the walk found, and what was fixed here
 
 Five findings. The first is the largest and had stood since the chrome became
 sticky.
@@ -928,7 +1055,7 @@ would have been a second name for one thing.
 **5. The 400 ms announcement rate is wrong below its own threshold, and the fix
 is a second number rather than a bigger first one.** See §4's amendment below.
 
-### 6.5 What was listened to and left alone
+### 7.5 What was listened to and left alone
 
 - **The rail's arrival announces its subject.** A jump travels up to 16,069px and
   lands focus on the band's disclosure button, whose accessible name is
@@ -954,7 +1081,7 @@ is a second number rather than a bigger first one.** See §4's amendment below.
   after the last region and immediately before the links — so anybody tabbing
   toward the table meets it before meeting a single row. Left as it is.
 
-### 6.6 Two findings recorded and not acted on
+### 7.6 Two findings recorded and not acted on
 
 Both are real, both were measured, and neither is repaired here because the
 repair is worse than the finding.
@@ -997,23 +1124,23 @@ table admits no element between a `<tbody>` and its rows.
 
 ---
 
-## 7. What this file hands to each task that reads it
+## 8. What this file hands to each task that reads it
 
-| Task                                                                  | What it takes from here                                                                                                                                                                                                                                                                                                                                                                    |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [2.11.2](TASK-02-the-matcher.md) — the matcher                        | Client-side (§2). Prefix-aware rather than `includes()`, and the `nv` → `FRT`/`INVH`/`IVZ`/`KVUE`/`QQQ` finding to write a test against (§0). Returns shown **and** total (§5). No fuzzy dependency without amending §2. `status` is not a filter (§6) — **and, decided there, not a tie-break winner either: untracked ranks below tracked within a tier**                                |
-| [2.11.3](TASK-03-the-field-the-product-never-had.md) — the field      | Bordered, mono input face, hairline resting border with focus left to the token layer, a clear affordance and an `ESC` hint, **six** states not seven — `Locked` is dropped (§5)                                                                                                                                                                                                           |
-| [2.11.4](TASK-04-search-on-screen.md) — search on screen              | The field's home (§1). No new fetch (§2). No query in the address (§3). The 400 ms announcement debounce with the visible list updating per keystroke (§4). A row carrying a close **and** its change, with the session qualified on the surface (§5)                                                                                                                                      |
-| [2.11.5](TASK-05-client-side-navigation-and-the-table-as-a-way-in.md) | Selection is `securityPath(symbol)`, pushed, and Back returns to the list (§3). **Done 2026-09-11, and it measured the "empty field" half of that line to be false — see §3's amendment: the field keeps its query**                                                                                                                                                                       |
-| [2.11.6](TASK-06-every-search-state-produced.md) — every state        | Search unavailable is the universe fetch having failed, and the rest of the screen keeps working; there is no offline fallback (§5). The untracked state must be constructed (§6). **Done 2026-09-11**: the control takes `SecuritiesView` whole and is rendered in every state; it carries **no retry of its own** and no sentence pointing at the table, and §4 gained a fifth sentence  |
-| [2.11.7](TASK-07-the-security-explorer-shell.md) — the shell          | The field sits above whatever the table becomes (§1). Five placeholders name **epics**, not invented story numbers (§5). **Done 2026-09-11**: the table stays on both routes, last and full width (§1's amendment); the identity block is the fourth asynchronous surface and is silent (§4's amendment)                                                                                   |
-| [2.11.8](TASK-08-the-universe-table-past-500.md) — the table past 500 | A jump rail is taken in principle; a kind filter is not, because it moves the summary line and wants a query parameter (§§3, 5, 6)                                                                                                                                                                                                                                                         |
-| [2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)           | "Back **keeps** my search" is a decision to state, not a defect to find (§3, as amended 2026-09-11). The 400 ms rate is the thing to listen for (§4). **Done 2026-09-11**: the numbered flow and the pass are §6; focus after opening stays in the field and the arrival is announced by the panel's region; five findings fixed, two recorded; §4's rate trigger fired and gained a floor |
-| [2.11.10](TASK-10-deployed-verify-document-and-adr.md) — the close    | This file, finished with what was found, plus ADR 0024 and the `CLAUDE.md` table entry                                                                                                                                                                                                                                                                                                     |
+| Task                                                                  | What it takes from here                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [2.11.2](TASK-02-the-matcher.md) — the matcher                        | Client-side (§2). Prefix-aware rather than `includes()`, and the `nv` → `FRT`/`INVH`/`IVZ`/`KVUE`/`QQQ` finding to write a test against (§0). Returns shown **and** total (§5). No fuzzy dependency without amending §2. `status` is not a filter (§6) — **and, decided there, not a tie-break winner either: untracked ranks below tracked within a tier**                                                                   |
+| [2.11.3](TASK-03-the-field-the-product-never-had.md) — the field      | Bordered, mono input face, hairline resting border with focus left to the token layer, a clear affordance and an `ESC` hint, **six** states not seven — `Locked` is dropped (§5)                                                                                                                                                                                                                                              |
+| [2.11.4](TASK-04-search-on-screen.md) — search on screen              | The field's home (§1). No new fetch (§2). No query in the address (§3). The 400 ms announcement debounce with the visible list updating per keystroke (§4). A row carrying a close **and** its change, with the session qualified on the surface (§5)                                                                                                                                                                         |
+| [2.11.5](TASK-05-client-side-navigation-and-the-table-as-a-way-in.md) | Selection is `securityPath(symbol)`, pushed, and Back returns to the list (§3). **Done 2026-09-11, and it measured the "empty field" half of that line to be false — see §3's amendment: the field keeps its query**                                                                                                                                                                                                          |
+| [2.11.6](TASK-06-every-search-state-produced.md) — every state        | Search unavailable is the universe fetch having failed, and the rest of the screen keeps working; there is no offline fallback (§5). The untracked state must be constructed (§6). **Done 2026-09-11**: the control takes `SecuritiesView` whole and is rendered in every state; it carries **no retry of its own** and no sentence pointing at the table, and §4 gained a fifth sentence                                     |
+| [2.11.7](TASK-07-the-security-explorer-shell.md) — the shell          | The field sits above whatever the table becomes (§1). Five placeholders name **epics**, not invented story numbers (§5). **Done 2026-09-11**: the table stays on both routes, last and full width (§1's amendment); the identity block is the fourth asynchronous surface and is silent (§4's amendment)                                                                                                                      |
+| [2.11.8](TASK-08-the-universe-table-past-500.md) — the table past 500 | A jump rail is taken in principle; a kind filter is not, because it moves the summary line and wants a query parameter (§§3, 5, 6)                                                                                                                                                                                                                                                                                            |
+| [2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)           | "Back **keeps** my search" is a decision to state, not a defect to find (§3, as amended 2026-09-11). The 400 ms rate is the thing to listen for (§4). **Done 2026-09-11**: the numbered flow and the pass are §7; focus after opening stays in the field and the arrival is announced by the panel's region; five findings fixed, two recorded; §4's rate trigger fired and gained a floor                                    |
+| [2.11.10](TASK-10-deployed-verify-document-and-adr.md) — the close    | This file, finished with what was found, plus ADR 0024 and the `CLAUDE.md` table entry. **Done 2026-09-11**: the figures are re-taken in §0.1 (the payload has not moved; the bundle is +12.22 kB gzipped), the keyboard flow is §7 after a renumber, the retry rule and the canvas as the shell's design source are written down, and the upward sweep is listed in [`TASK-10`](TASK-10-deployed-verify-document-and-adr.md) |
 
 ---
 
-## 8. What nothing checks
+## 9. What nothing checks
 
 In the spirit of `CLAUDE.md`'s own list, because a stated invariant that nothing
 checks quietly stops being true:
@@ -1066,7 +1193,7 @@ checks quietly stops being true:
   quietly excluding a case. Re-measure: tab to the Tracked universe region and
   read `window.scrollY`.
 - **That the letterspaced micro-labels reaching an assistive technology in
-  capitals stays harmless** (§6.6). Nothing compares an accessible name against
+  capitals stays harmless** (§7.6). Nothing compares an accessible name against
   its own DOM text, and nothing could say which difference matters — an
   initialism a reader would spell is a defect and a shouted label is not.
   Re-measure with Chromium's accessibility tree, which is where it was found.
@@ -1093,3 +1220,50 @@ Two added 2026-09-11 by Task 2.11.7, and the first is the larger:
   `SecurityExplorer.tsx`'s six `filledBy` strings against `planning/EPICS.md`.
   Re-measure: grep the route for `filledBy="Epic` and read the epic list beside
   it.
+
+Three added 2026-09-11 by Task 2.11.8, all properties of the navigation control:
+
+- **That a jump lands where a person can see it.** The same class as the grid's
+  column count and for the same reason — jsdom computes no layout, so an element
+  scrolled to underneath a 133px sticky masthead looks identical to one scrolled
+  to correctly. It happened, it was caught by looking, and it is held by
+  `e2e/specs/universe-navigation.spec.ts` and nothing else. Re-measure: delete the
+  `stickyChromeHeight()` subtraction in `jumpToBand` and confirm test 2 of that
+  spec fails.
+- **That the rail's counts sum to every row in the table.** That property is what
+  makes "no band the control cannot reach" true, and it is therefore the thing
+  standing between a jump control and the `status` filter `UNIVERSE.md` §12.2
+  forbids. Held by one browser test. Re-measure: drop a group from `BandRail`'s
+  `groups.map` and confirm _an untracked security is still reachable through the
+  rail_ fails.
+- **That `initiallyCollapsed` stays unused by every route.** It is honest API and
+  nothing would go red if a route started seeding it — a page that arrives with
+  every band shut is the collapse-by-default Task 2.11.8 declined, reintroduced
+  through a prop. Re-measure: `grep -rn "initiallyCollapsed" apps/frontend/src`
+  finds it in the component and its stories and **nowhere under `src/routes/`**.
+
+Two added 2026-09-11 by Task 2.11.9, and they are **two mechanisms rather than
+one**:
+
+- **That no tab stop lands behind the sticky chrome.** The bullet above is about
+  the **rail's** jump, which is a `window.scrollTo`. The same class of defect on
+  **Tab** — where no jump control is involved at all and the scrolling is the
+  browser's own — was found, fixed with `scroll-padding-top`, and is held by
+  `e2e/specs/search-keyboard.spec.ts` at **two** viewports, because the 1440 case
+  stays green while 768 goes red. Re-measure: set `scroll-padding-top: 0` in
+  `base.css` and confirm the 768 test fails on three stops.
+- **That every control carrying an explanation is in the tab order.** Nothing
+  compares a component's `aria-describedby` against whether the described element
+  can be focused, and the failing combination — a correct, attached, visible
+  sentence on an unreachable control — renders and lints perfectly. Re-measure:
+  restore `disabled={disabled}` on `TextField`'s input and confirm exactly one
+  browser test fails, at `the search field is not reachable by Tab`.
+
+One added 2026-09-11 at the close, and it is a note about an instrument rather
+than about the product. **Playwright's `toBeDisabled()` treats a native
+`disabled` attribute and `aria-disabled="true"` as the same verdict**, so
+`securities-route.spec.ts`'s "search says it cannot answer" was green in **both**
+worlds — green when the control was unreachable with an unreadable explanation,
+and green now that it is neither. It is the right assertion for what that test is
+about and it is evidence of nothing else; a note beside it says so. Expect the
+same of any assertion that names a **state** rather than a **mechanism**.

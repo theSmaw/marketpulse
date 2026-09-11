@@ -689,6 +689,40 @@ of. Two exist, and neither was invented for the mechanism:
   queue tolerably; the number at which that stops being true is not known, and
   finding out is cheaper than guessing.
 
+#### Amended 2026-09-11 by Story 2.11 — **both triggers fired, both were answered, and a region is now paced by two numbers rather than by a judgement**
+
+Recorded here rather than left in Story 2.11's documents, because this section is
+where the next person adding a region will look.
+
+- **The first trigger fired**, and not the way it is written. Search's region
+  changes its text without a navigation and without a press — 400 ms after a
+  keystroke — which is the case this bullet predicted and called "actively
+  hostile" in its unbuilt form. It is not hostile because nothing is
+  _re-requested_: matching is a synchronous scan (`SEARCH-AND-SELECTION.md` §2)
+  and only the **sentence** waits.
+- **The second trigger fired twice**, and the two answers differ. The third
+  surface — search — was **permitted**, on the argument that it is definitionally
+  silent at the moment the other two speak. The fourth — the Security Explorer's
+  identity block — was permitted **and made silent**, because it fills at exactly
+  the moment the other two do and is a second _rendering_ of an event that
+  already has a sentence rather than a second event. The page holds three regions
+  and the count is asserted in `SecurityExplorer.test.tsx` and
+  `SecurityIdentity.test.tsx`.
+- **"At that point a region needs a rate" has a first implementation, and it is
+  two numbers rather than one.** A debounce answers _have they stopped?_ and
+  **cannot tell a pause from an ending**, so below its own threshold it speaks
+  once per keystroke — measured: typing `nvidia` at 500 ms/key produced **seven**
+  sentences. A floor (`SEARCH_ANNOUNCEMENT_MIN_GAP_MS`, 1,500 ms) answers _how
+  often may this speak at all?_, the wait is whichever is longer, and what lands
+  is the state **now** rather than the state that was pending. Seven became
+  three.
+
+  That pair lives in one component's hook today and is deliberately not promoted
+  to a policy here: it is paced by how long a screen reader takes to read one of
+  **these** sentences, and a socket's rate is paced by something else.
+  **Epic 3 owns the generalisation**, and it should inherit the pair rather than
+  rediscover the inversion — a bigger debounce is not the repair.
+
 ### What nothing checks
 
 **That a new asynchronously-filled surface follows this rule at all.** It is
@@ -696,3 +730,13 @@ enforced by two tests inside `BarSeriesPanel` and by nothing at the page level: 
 third region with an unnamed sentence would pass `pnpm verify` and the browser
 suite. Re-measure by adding a `role="status"` to any route and confirming that
 nothing goes red — which is the point.
+
+**Added 2026-09-11 by Story 2.11: nothing checks the count either.** The page-level
+gap above is wider than "an unnamed sentence". A **fourth** region added to a
+route that already holds three passes every level of this repository's testing,
+and the failure it causes — two polite regions updated in the same moment, queued
+in an order neither component controls — is the precise thing this section exists
+to prevent. What stands there instead is two route-level assertions on the number
+of regions, written by hand, on one route. Re-measure: add a second
+`role="status"` to `SecurityExplorer` and confirm the only red is the count
+assertion somebody thought to write.

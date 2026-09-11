@@ -213,3 +213,29 @@ that stops before its own x-axis does and say so.
 series is 10,000 bars, 2.43 MB of parsed heap, and 4.6–8.7 ms to parse against
 §28's 50 ms main-thread budget. The parse is not the problem; whatever you draw
 with is where that budget will actually go.
+
+## Amended 2026-09-11 by Story 2.11's close — **this story fills a region that already exists and already names it**
+
+Written before the Security Explorer shell existed, this file describes a chart
+arriving "on its own page". It is not; it is arriving into a **named, sized,
+already-placed region**, and the concrete defect is a chart dropped into a fresh
+panel beside the one that has been waiting for it since 2026-09-11.
+
+`SecurityExplorer.tsx` renders `PRODUCT_SPEC.md` §8.3's seven contents once, on a
+grid of spans. The **Price** region is the first of them and its placeholder
+reads, verbatim:
+
+> One security's minute bars, stated rather than drawn. The chart itself arrives
+> with Story 2.12.
+
+So this story's work is to **replace the contents of that region**, and the grid,
+the heading, the span and the region's landmark name are all inherited rather than
+chosen. The same is true of the reading of "its own page": the route is
+`/securities/:symbol`, the chart is one region of eight, and the tracked universe
+is still underneath it (`SEARCH-AND-SELECTION.md` §1's amendment).
+
+Two consequences worth having before the first line of it is drawn: the region is
+**full width** on the two-column grid and narrows with the viewport, so the chart's
+own breakpoints are the region's rather than the page's; and a green
+`pnpm verify` cannot see either fact, because nothing below `pnpm e2e` computes a
+layout (`CLAUDE.md`, _Frontend_).

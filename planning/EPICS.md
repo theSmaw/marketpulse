@@ -491,6 +491,24 @@ MarketPulse contains measurable evidence of frontend and streaming performance.
 
 Performance targets are reproducible and documented rather than claimed.
 
+### Measured exceptions this epic inherits, rather than re-finds
+
+Recorded here because a finding that lives only in the task file that took it is
+a finding somebody measures again from scratch.
+
+- **`Expand all` on the tracked universe costs 69–87 ms**, which exceeds
+  `PRODUCT_SPEC.md` §28's _no routine main-thread task >50 ms_. Taken 2026-09-11
+  by Task 2.11.8 against a **production** build in Chromium, four runs; the
+  reverse direction (`Collapse all`, 530 rows → 12) is 17–44 ms and the dev build
+  is 151–222 ms, which is why the production figures are the ones that count.
+  §28's target is **not amended** — it is right, and this is a measured exception
+  to it. The argument for accepting it is that the work is neither **new** (the
+  same 518 rows are built on every first paint and always have been) nor
+  **routine** (a deliberate press, once), and that virtualisation was declined
+  with this measurement behind it rather than in ignorance of it. What this epic
+  owes it is a re-take on the then-current universe and a decision, not a
+  rediscovery.
+
 ---
 
 # Epic 15 — Portfolio Release
@@ -521,6 +539,29 @@ Someone encountering MarketPulse for the first time can understand both the prod
 - Error-state polish
 - Accessibility review
 - Final UX polish
+
+### What the accessibility review already has waiting for it
+
+Two observations were measured on 2026-09-11 by Task 2.11.9 and deliberately not
+acted on, because both need **a person with VoiceOver or NVDA** rather than an
+accessibility tree — which is what this epic's review is and what nothing earlier
+in the sequence can be. `e2e/README.md`'s own words: a green axe run is not an
+accessibility review. Both are recorded with their reversal triggers in
+[`SEARCH-AND-SELECTION.md`](epic-02-security-universe-historical-data/story-11-security-search-and-selection/SEARCH-AND-SELECTION.md)
+§7.6.
+
+- **Letterspaced micro-labels reach an assistive technology in capitals**, because
+  an accessible name is computed from _rendered_ text. Chromium returns
+  `FIND A SECURITY`, `COLLAPSE ALL`, `JUMP TO A SECTOR`. Left alone on the
+  grounds that no meaning is lost and both available repairs are worse — an
+  `aria-label` is a second name nobody reviewing the screen can see. The trigger
+  is a name where the capitals change **what** is said rather than how: an
+  initialism a reader would spell, or a word a reader would stress.
+- **A table with twelve rowgroup headers and zero data rows keeps its seven
+  column headings.** With every band collapsed: 13 rows, 12 band headers, 0
+  `<td>`s. Whether that reads as a promise of content that is not there depends
+  on a real screen reader's table navigation, which an accessibility tree cannot
+  answer.
 
 ### Exit criteria
 
