@@ -182,6 +182,67 @@ for two tasks while the field was missing from three of them. Both belong in
 `a` and off the shown slice while the total still counts it. Reconcile rather
 than re-measure, unless the ranking rules have changed.
 
+## Amended 2026-09-11 by Task 2.11.7 — one conditional settled, three entries already carried up, and the ADR's subject grew
+
+**1. The conditional in the amendment above did not fire, and it can be struck
+rather than checked.** It reads: _"Task 2.11.7 may reach it sooner if the
+universe table leaves `/securities/:symbol` — that route would then hold a
+failure with no control on it at all."_ **The table did not leave.** It stays on
+both addresses, last and full width, and the decision is recorded with its
+alternatives and a reversal trigger in `SEARCH-AND-SELECTION.md` §1's amendment.
+So "one retry per failure per screen, and it belongs to the surface that owns the
+data" is still true and still has a control behind it on every route, and the
+trigger stays what it was: **the first screen where the two surfaces read
+different fetches**, which is Epic 3's live feed.
+
+**2. Three "what nothing checks" entries are already written and carried up.
+Verify them rather than re-deriving them** — the point of this list is that a
+correction recorded is not a correction propagated, and these were propagated the
+same day:
+
+- `SEARCH-AND-SELECTION.md` §8 gained **the grid's column count** and **the six
+  placeholder labels naming a plan the roadmap holds**, both with re-measure
+  one-liners.
+- `CLAUDE.md`'s _What `pnpm verify` does not cover_ gained the same two, and its
+  _Frontend_ section gained the trap behind the first: **nothing below `pnpm e2e`
+  can see a layout**, and a `span N` item wider than the explicit grid grows
+  implicit columns rather than being clamped. That one is the most dangerous of
+  the three and is written where a frontend author will meet it rather than only
+  in this story's documents.
+
+**3. `SEARCH-AND-SELECTION.md` has two more dated amendments to fold into its
+finished form**, and neither is a decision left open: §1's — the table's home —
+and §4's, which records that **the identity block is the fourth
+asynchronously-filled surface on this page and deliberately speaks not at all**.
+The second matters to the ADR because it is the first time `FRONTEND-STATE.md`
+§7's trigger fired and the answer was _silence_ rather than a fourth region.
+
+**4. The ADR's subject is larger than "the interactive layer".** ADR 0024 as
+scoped above covers matching, the URL, client-side navigation and the input
+idiom. Add the shell, because it is the decision with the longest reach in this
+story: **PRODUCT_SPEC.md §8.3's seven contents placed once**, on a grid of spans
+rather than named areas, with the identity block and the placeholder convention
+that four later epics will each add to. Four epics inherit that arrangement; an
+ADR that does not mention it leaves the most consequential thing this story did
+recorded only in a task file.
+
+**5. The design source for the shell is the canvas, not `2.11-design.html`.**
+Section 07 of the `Component library for MarketPulse` project — the grid map, the
+identity block's four states, the placeholder treatment with its five sentences,
+and the three viewports — was added on 2026-09-11 via `DesignSync`, which is ADR
+0026's chain working as intended. §5 of `SEARCH-AND-SELECTION.md` adjudicates the
+**mock**; the finished document should say plainly that the shell came from the
+canvas and the mock's Explorer tab is a superseded reference.
+
+**6. Two sweep candidates this task adds, both about what the next stories
+inherit.** Stories 2.12 and 2.13 no longer _add_ anything to this page — they
+**fill a region that already exists and already names them**. If either story's
+file or `EPIC.md` describes the work as putting a chart onto the Security
+Explorer, that is a live claim that has become false, and a chart dropped into a
+fresh panel beside the one waiting for it is the concrete defect. Also check
+`STORY.md`'s _What this story hands forward_: it hands forward a grid with five
+named vacancies, which is a larger handoff than it currently describes.
+
 ---
 
 ## Done when

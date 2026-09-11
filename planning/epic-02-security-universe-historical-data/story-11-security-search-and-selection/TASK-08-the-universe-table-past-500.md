@@ -147,6 +147,60 @@ Two more that are directly this task's:
 Nothing above changes what this task builds. It changes what can be seen while
 building it.
 
+## Amended 2026-09-11 by Task 2.11.7 — the table's home is settled, and the tab-order note above is now wrong
+
+**The table stays, on both addresses, last and full width**, inside the shell's
+grid as a `span 3` cell under all seven of PRODUCT_SPEC.md §8.3's regions. That
+answers the open question this task inherited from `TASK-07`, and it changes two
+things for the control built here.
+
+**1. Whatever this task adds goes into a cell of a grid, not onto a page with
+one panel above it.** `SecurityExplorer.module.css` holds the spans, and its
+hard-won rule applies to any layout change made here: **a `span N` item wider
+than the explicit grid is not clamped to it — it grows implicit columns.** A
+`span 3` region in a two-track grid produced `134px 134px 676px` and a visibly
+broken page at every width under 1184px, with `pnpm verify` and all 54 browser
+tests green, because **nothing below `pnpm e2e` can see a column.** If a jump
+rail changes how the universe region sits on that grid, restate its span at every
+breakpoint and assert the track count in
+`e2e/specs/security-explorer-shell.spec.ts`, which is the only instrument that
+can see it.
+
+**2. The skip-link argument above is weaker than it looks, and the numbers are
+now measured rather than reasoned about.** The "Added 2026-09-11 by Task 2.11.5"
+note below says the table is "518 tab stops between the search field and
+anything below it". **There is no longer anything below it.** Measured on
+`/securities/NVDA`, 2026-09-11, after the shell landed:
+
+|                                                         |         |
+| ------------------------------------------------------- | ------- |
+| Focusable elements on the page                          | **531** |
+| Tab stops from the search field to the first table link | **8**   |
+| Table links                                             | **518** |
+| **Tab stops after the last table link**                 | **0**   |
+
+So the cost a skip link would buy back is **nothing on this route** — the table
+is the last thing on the page, and a keyboard user who does not want it stops
+tabbing. What the eight intervening stops are is the other half of the change:
+`Region` renders a `Panel` with `scrollable`, which is `overflow: auto` **and**
+`tabIndex={0}` together (Task 1.13.4's WCAG 2.1.1 fix), so **every region is a
+tab stop** and the shell took the page from two of them to eight.
+
+That reframes this task's keyboard question rather than removing it. The rail is
+still worth building for _getting around_ 518 rows; it is no longer obviously the
+answer to _getting past_ them, because past them is the end of the document.
+Decide it on the measurement, and hand the eight region stops to
+[Task 2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md), which owns the
+walk and now has six more of them to walk than when it was written.
+
+**3. A sticky band header is now inside a scrolling box, and that is a different
+problem from a sticky header on a page.** The table sits inside a `Panel` that
+declares its own `overflow: auto`. `position: sticky` resolves against the
+nearest scrolling ancestor, so a band header made sticky here sticks to the
+**panel's** top edge and not the viewport's — which may be what is wanted, and is
+certainly not what "sticky band headers" means by default. Produce it and look at
+it; this is the class of thing that is invisible to every automated check.
+
 ---
 
 ## Notes
