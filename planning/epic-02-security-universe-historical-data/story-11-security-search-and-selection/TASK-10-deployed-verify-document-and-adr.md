@@ -84,7 +84,16 @@ at its price and volume — is Stories 2.12 and 2.13.
     after a navigation, and §7's "what nothing checks" paragraph gains the page-level
     gap that a fourth region would pass through unnoticed.
   - Any live claim that the only route to a second symbol is a document
-    navigation — 2.11.5 ended that, and it is asserted in more than one file.
+    navigation. **Amended 2026-09-11 by Task 2.11.4: 2.11.4 ended it, not
+    2.11.5** — search navigates client-side already (measured: the `window`
+    marker survives and there is one navigation entry). The claim is asserted in
+    more than one file and every one of them is live.
+  - **Two candidates on this list are already swept and should not be re-swept.**
+    `VISUAL-LANGUAGE.md`'s "input fields have never been built" was corrected by
+    Task 2.11.3, and `CLAUDE.md`'s "the React Compiler rules have never fired on
+    shipped code" by Task 2.11.4 — they fired twice, on the combobox, and both
+    were right. Check them rather than assume; the point of the list is that a
+    correction recorded is not a correction propagated.
   - **Count a duplicated sentence with a grep before correcting it**, and tell a
     live claim apart from a historical record. Story files record what was true
     when written; correcting those destroys the record.

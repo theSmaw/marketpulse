@@ -86,6 +86,17 @@ looks confident.
   harder to read.** A figure that fades or slides while an analyst is reading it
   is worse than one that changes instantly.
 
+  **Amended 2026-09-11 by Task 2.11.4: there is now a worked precedent for the
+  hard half of that constraint, and a warning.** The search surface animates
+  **once per opening and not once per render** — it re-renders on every keystroke
+  and the arrival must not replay, or every figure on it moves continuously while
+  somebody types. The mechanism is that React reconciles the same DOM node, and
+  it is pinned by a browser test rather than trusted. Any region here that
+  re-renders as its data updates has the same problem. The warning:
+  **motion cannot be measured from a backgrounded tab** — no frames are rendered,
+  so animations never advance, `currentTime` stays 0 and `animationstart` never
+  fires, and "it replays every time" looks exactly like "it never runs".
+
 ## Done when
 
 - `/securities/:symbol` renders an identity block, the market-data region, and
