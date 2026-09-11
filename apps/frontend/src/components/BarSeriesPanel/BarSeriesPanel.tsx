@@ -271,9 +271,8 @@ function Subject({
       )}
       {defaulted && (
         <p className={styles.defaulted}>
-          Showing a default security. Search arrives with Story 2.11; until
-          then, a security's page is reachable at{" "}
-          <code className={styles.code}>/securities/SYMBOL</code>.
+          Showing a default security. Search for another one above, or open one
+          directly at <code className={styles.code}>/securities/SYMBOL</code>.
         </p>
       )}
     </div>

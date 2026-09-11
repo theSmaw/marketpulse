@@ -18,6 +18,37 @@ another's name"_ is asserted in jsdom by request identity rather than in a
 browser. This task is what makes that browser assertion possible for the first
 time.
 
+## Amended 2026-09-11 by Task 2.11.4 — half of this is already done, and one criterion below was wrong
+
+**The premise above is now false for search, and it is the load-bearing half of
+it.** Task 2.11.4 navigates with `useNavigate()`, so opening a security from a
+search result is **already a client-side navigation**. Measured in a browser on
+2026-09-11: a marker set on `window` survives the transition and
+`performance.getEntriesByType("navigation")` stays at **one** entry. The module
+cache is therefore no longer torn down between symbols, and the condition this
+task was written to create **already exists** — which means the browser
+assertions it asks for can be written now rather than after more work.
+
+**What is genuinely left**, and it is less than this file describes:
+
+- **The table row as a way in.** Untouched, and still the real work — a `<tr>`
+  with an `onClick` is not operable by keyboard and announces nothing.
+- **The browser assertions.** Writable today; nothing here has ever asserted them.
+- **The supersede-don't-race check**, for the same reason.
+
+**One `Done when` criterion below contradicted a settled decision and has been
+corrected.** It read _"the return paints from cache with no request"_.
+`FRONTEND-STATE.md` §2 decided the opposite in as many words — the cache is
+**"read only to paint sooner and never to skip a request"** — because the
+browser's own HTTP cache revalidates each response with `If-None-Match` and the
+half a client cache is actually buying is the paint, not the byte. Measured
+2026-09-11 over search → NVDA → search → HSY → Back: the return **does** issue a
+request, which is the contract working rather than the cache failing.
+
+Implementing the old wording would have meant either breaking §2 or writing an
+assertion that cannot pass. The criterion now asserts what the design actually
+promises: the return paints **in the first commit** and revalidates behind it.
+
 ## What the user can see when this lands
 
 **The product stops reloading.** Opening a second security is instant rather than
@@ -67,10 +98,12 @@ that security — the table stops being a list you read and becomes a way in.
 ## Done when
 
 - Search results and table rows both open a security without a document load
+  (**search already does, since Task 2.11.4** — the remaining half is the table)
 - A row's target is reachable by keyboard and announces as a link
 - A browser spec asserts a symbol → symbol → back sequence, that the return
-  paints from cache with no request, and that no intermediate frame shows one
-  symbol's bars under another's name
+  **paints in the first commit from the cache while still revalidating** — never
+  that it skips the request, which `FRONTEND-STATE.md` §2 forbids — and that no
+  intermediate frame shows one symbol's bars under another's name
 - A rapid sequence of navigations lands on the last one
 - The deep-link path still works cold
 - `pnpm verify` and `pnpm e2e` pass

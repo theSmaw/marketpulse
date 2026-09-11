@@ -247,13 +247,13 @@ describe("BarSeriesPanel", () => {
         view={barSeriesFixtureView("partial")}
       />,
     );
-    expect(screen.getByText(/Search arrives with Story 2.11/)).toBeTruthy();
+    expect(screen.getByText(/Showing a default security/)).toBeTruthy();
     unmount();
 
     render(
       <BarSeriesPanel {...props} view={barSeriesFixtureView("partial")} />,
     );
-    expect(screen.queryByText(/Search arrives with Story 2.11/)).toBeNull();
+    expect(screen.queryByText(/Showing a default security/)).toBeNull();
   });
 
   // --- Task 2.10.8: the two marks that are not about the answer ---

@@ -18,6 +18,28 @@ only level that can see several of these defects — an axe pass is a floor and 
 accessibility coverage, and no stylesheet is applied in the test environment, so
 a browser is the only place contrast and focus visibility can be observed at all.
 
+## Amended 2026-09-11 by Task 2.11.4 — what the browser suite already covers
+
+Four of this task's assertions exist, so the work here is the **journey** rather
+than those pieces. `e2e/specs/securities-route.spec.ts` now covers:
+
+- **Search → open, by pointer.** Typing and clicking a result lands on
+  `/securities/NVDA`. This is half of "a browser spec covers search → open → the
+  security's page"; the other half is the page's own content, and the keyboard
+  version of the same flow is still owed.
+- **Axe over the open result surface**, which the three existing axe runs never
+  saw because they never type.
+- **The tab order**, asserting the field sits between the navigation and the
+  table's region.
+- **The arrival's motion**, and that it does not replay on every keystroke.
+
+What is untouched and is the substance of this task: the numbered keyboard flow
+walked end to end, **where focus lands after a result is opened**, Shift-Tab back
+into the control, Back from a security to the list, the failure journeys, and the
+screen-reader pass — which no automated check in this repository can stand in
+for. Arrow keys, Escape and the spoken sentence are proved at the component level
+only, where no screen reader exists and nothing is focused or blurred.
+
 ## What the user can see when this lands
 
 **Nothing new drawn** — and quite a lot fixed. Whatever the walk finds is fixed

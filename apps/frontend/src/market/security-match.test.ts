@@ -276,3 +276,76 @@ describe("the cap", () => {
     expect(result.total).toBe(25);
   });
 });
+
+// The emphasis offset (Task 2.11.4).
+//
+// This block exists because the obvious implementation in a component —
+// `name.toLowerCase().indexOf(query)` — is wrong rather than merely duplicated,
+// and the two agree on most rows, which is what makes it dangerous. Every case
+// below is one where they disagree, plus the boundary cases that keep the
+// offset valid for slicing.
+describe("where a row should draw its emphasis", () => {
+  const HSY = equity("HSY", "The Hershey Company");
+  const SYY = equity("SYY", "Sysco Corporation");
+
+  it("emphasises the symbol when the query is the whole symbol", () => {
+    const [match] = matchSecurities(UNIVERSE, "nvda").matches;
+
+    expect(match?.emphasis).toEqual({ field: "symbol", offset: 0, length: 4 });
+  });
+
+  it("emphasises only the typed prefix of a symbol", () => {
+    const [match] = matchSecurities(UNIVERSE, "nv").matches;
+
+    expect(match?.security.symbol).toBe("NVDA");
+    expect(match?.emphasis).toEqual({ field: "symbol", offset: 0, length: 2 });
+  });
+
+  it("emphasises in the name when the name is what matched", () => {
+    const [match] = matchSecurities(UNIVERSE, "nvid").matches;
+
+    expect(match?.tier).toBe("name-prefix");
+    expect(match?.emphasis).toEqual({ field: "name", offset: 0, length: 4 });
+  });
+
+  // The measured defect, in the two forms it was measured in. `indexOf` returns
+  // 1 for Hershey (the `he` of *The*) and 4 for Sysco (the `co` of Sys*co*);
+  // the matcher's word boundaries are 4 and 6. If either of these ever equals
+  // the `indexOf` answer, the offset has stopped coming from the matcher.
+  it("emphasises Hershey rather than the 'he' of 'The'", () => {
+    const [match] = matchSecurities([HSY], "he").matches;
+
+    expect(match?.emphasis.offset).toBe(4);
+    expect("The Hershey Company".toLowerCase().indexOf("he")).toBe(1);
+  });
+
+  it("emphasises Corporation rather than the 'co' of 'Sysco'", () => {
+    const [match] = matchSecurities([SYY], "co").matches;
+
+    expect(match?.emphasis.offset).toBe(6);
+    expect("Sysco Corporation".toLowerCase().indexOf("co")).toBe(3);
+  });
+
+  it("slices the security's own casing at the offset it reports", () => {
+    const [match] = matchSecurities([HSY], "he").matches;
+    const { offset, length } = match?.emphasis ?? { offset: 0, length: 0 };
+
+    expect(HSY.name.slice(offset, offset + length)).toBe("He");
+  });
+
+  // A multi-word query spans a space, so its length is the normalised query's
+  // and not a token's. `bank of` is 7 characters and must emphasise 7.
+  it("spans the whole of a multi-word query", () => {
+    const [match] = matchSecurities(UNIVERSE, "bank of").matches;
+    const { offset, length } = match?.emphasis ?? { offset: 0, length: 0 };
+
+    expect(BAC.name.slice(offset, offset + length)).toBe("Bank of");
+  });
+
+  it("reports a length the caller can slice after whitespace is collapsed", () => {
+    const [match] = matchSecurities(UNIVERSE, "  bank   of  ").matches;
+    const { offset, length } = match?.emphasis ?? { offset: 0, length: 0 };
+
+    expect(BAC.name.slice(offset, offset + length)).toBe("Bank of");
+  });
+});

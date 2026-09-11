@@ -225,6 +225,154 @@ for (const height of [720, 560, 480]) {
   });
 }
 
+// The open combobox is a separate axe subject from the loaded page, and until
+// Task 2.11.4 added this the gate had never seen it (Story 2.11).
+//
+// The three tests above load the route and never type, so the result surface is
+// closed for every one of them — which means a `listbox` with no accessible
+// name, an `option` outside a `listbox`, or an `aria-activedescendant` pointing
+// at an id that is not on the page would all have passed the "axe reads zero
+// violations" criterion while being exactly the kind of defect it exists to
+// catch. A combobox is mostly ARIA, and ARIA is mostly what axe is for.
+test("the open result surface has no axe violations", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto(SECURITIES);
+  await expectTheUniverseRendered(page);
+
+  const field = page.getByRole("combobox");
+  await field.fill("he");
+
+  // Typed rather than asserted into existence: the surface is what is being
+  // checked, so the check is worthless if it runs before the surface is there.
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await expect(field).toHaveAttribute("aria-expanded", "true");
+
+  await expectNoAxeViolations(page, "the securities route, search open");
+});
+
+// The same surface with **no closes at all**, which is the state that actually
+// carried a contrast defect into `main`.
+//
+// This exists because the check above caught that defect **by accident of the
+// CI database**, not by design. Every one of the 518 securities has a close in
+// the development database, so the "No close" text never rendered locally and
+// the surface passed; CI loads the universe without bars, so every row rendered
+// it at `--ink-disabled` — `#74777f`, **4.48:1** on the raised ground and
+// **4.05:1** on the sunken footer, against 1.4.3's 4.5:1 for text.
+//
+// An accident is not a check. If CI ever gains bars, the run above stops
+// covering this and nothing says so. Stubbing the join away makes the state
+// reachable from any machine.
+test("the result surface has no axe violations when nothing has a close", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.route(SECURITIES_ROUTE_PATTERN, async (route) => {
+    const response = await route.fetch();
+    const body: unknown = await response.json();
+    // `lastCloses` is a separate array on the wire, so emptying it is exactly
+    // the shape a partially-backfilled deployment produces — not a mangled
+    // body. The universe itself is untouched and still real.
+    const stripped = { ...(body as Record<string, unknown>), lastCloses: [] };
+    await route.fulfill({ response, json: stripped });
+  });
+
+  await page.goto(SECURITIES);
+  await expectTheUniverseRendered(page);
+  await page.getByRole("combobox").fill("he");
+
+  const rows = page.getByRole("option");
+  await expect(rows.first()).toBeVisible();
+  // The state is only under test if it is actually on screen.
+  await expect(rows.first()).toContainText("No close");
+
+  await expectNoAxeViolations(
+    page,
+    "the securities route, search open, no closes",
+  );
+});
+
+// The motion, and the constraint that outranks it.
+//
+// `VISUAL-LANGUAGE.md` gives content arriving one duration and one easing, and
+// the surface uses them. The rule that outranks the vocabulary is that **motion
+// must never make a number harder to read** — and a result surface is the one
+// place in this product where that is easy to violate by accident, because it
+// re-renders on every keystroke. If the animation restarted each time, every
+// figure on screen would fade and slide continuously while somebody typed.
+//
+// It does not restart, because React reconciles the same DOM node while the
+// surface stays open and a CSS animation only replays on a fresh element. That
+// is a claim about a framework's behaviour, which is exactly the kind of claim
+// worth pinning rather than reasoning about — and it cannot be measured from a
+// backgrounded tab, where no frames are rendered, animations never advance and
+// `animationstart` never fires.
+test("the surface animates once when it opens, and not again while typing", async ({
+  page,
+}) => {
+  await page.goto(SECURITIES);
+  await expectTheUniverseRendered(page);
+
+  const field = page.getByRole("combobox");
+  const readAnimation = async () =>
+    await page.evaluate(() => {
+      const surface =
+        document.querySelector('[role="listbox"]')?.parentElement ?? null;
+      if (surface === null) return null;
+      const [animation] = surface.getAnimations();
+      if (animation === undefined) return null;
+      return {
+        name: (animation as CSSAnimation).animationName,
+        state: animation.playState,
+        elapsed: Number(animation.currentTime ?? 0),
+      };
+    });
+
+  await field.fill("he");
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  const opening = await readAnimation();
+  expect(opening?.name).toMatch(/surfaceArrive/);
+
+  // Let it finish, then type on. `toPass` rather than a sleep: the duration is
+  // a token and a literal here would be a second spelling of it.
+  await expect(async () => {
+    expect((await readAnimation())?.state).toBe("finished");
+  }).toPass();
+
+  await field.fill("heal");
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  const during = await readAnimation();
+  expect(during?.state, "a further keystroke must not replay the arrival").toBe(
+    "finished",
+  );
+  expect(during?.elapsed).toBeGreaterThan(0);
+
+  await expectNothingFailedToRender(page);
+});
+
+// Selection by pointer, which the component tests structurally cannot prove.
+//
+// The row commits on `mousedown` because the input's blur closes the surface
+// and blur lands first — a `click` handler on a row that has already unmounted
+// never runs. In jsdom nothing takes focus and nothing blurs, so that ordering
+// does not exist there: a component test written as `fireEvent.click` against a
+// `click` handler passes, and the control still does nothing when a person uses
+// a mouse. A real browser is the only level that can tell the two apart, and
+// swapping the handler here turns this test red while the component suite goes
+// on reporting what it always reported.
+test("clicking a result opens that security", async ({ page }) => {
+  await page.goto(SECURITIES);
+  await expectTheUniverseRendered(page);
+
+  await page.getByRole("combobox").fill("nvid");
+  await page.getByRole("option").first().click();
+
+  await expect(page).toHaveURL(/\/securities\/NVDA$/);
+  await expectNothingFailedToRender(page);
+});
+
 test("the arrival is announced, by a live region that survives it", async ({
   page,
 }) => {
@@ -319,19 +467,25 @@ test("the whole table is reachable and operable by keyboard", async ({
   // wherever it is on the page. The question here is whether it is on screen.
   expect(await inViewport(), "the last row starts off screen").toBe(false);
 
-  // Tab from the top of the document. The stops are the four navigation links
-  // and then the region itself, which takes focus because `Region` carries
-  // `tabIndex={0}` — Task 1.13.4 put it there so a region that scrolls its own
-  // overflow is reachable, and it is what puts focus inside the page's content
-  // here.
+  // Tab from the top of the document. The stops are the four navigation links,
+  // then the **search field** — Story 2.11 put a control in the page's heading
+  // block, above both regions and inside neither — and then the region itself,
+  // which takes focus because `Region` carries `tabIndex={0}`. Task 1.13.4 put
+  // that there so a region that scrolls its own overflow is reachable, and it
+  // is what puts focus inside the page's content here.
+  //
+  // The search field's position in this order is the assertion, not an
+  // incidental: a control *over* both surfaces has to come before them, and if
+  // it ever moved inside the table's `Region` this expectation is what would
+  // notice.
   const stops: string[] = [];
-  for (let i = 0; i < 5; i += 1) {
+  for (let i = 0; i < 6; i += 1) {
     await page.keyboard.press("Tab");
     stops.push(
       await page.evaluate(() => document.activeElement?.tagName ?? "none"),
     );
   }
-  expect(stops).toEqual(["A", "A", "A", "A", "SECTION"]);
+  expect(stops).toEqual(["A", "A", "A", "A", "INPUT", "SECTION"]);
 
   // And from there the table can be moved through without a pointer.
   await page.keyboard.press("End");

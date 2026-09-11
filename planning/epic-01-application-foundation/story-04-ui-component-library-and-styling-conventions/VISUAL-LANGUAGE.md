@@ -260,6 +260,20 @@ Two things the field could not settle by itself, both recorded because the next 
 - The resting border is `--rule-hairline` and **not** the 2px near-black the design deliverable drew. A resting border of the focus ring's own weight and colour leaves a field with no visible focus state
 - **A composite control cannot use the global focus ring unaltered**, and that is the first escalation this layer has had. The element a browser focuses is the bare `<input>` inside the box, so the token's outline lands _inside_ the control. `a11y.module.css` now carries `focusRingHost`/`focusRingSource`, which hand the ring — the same three tokens, unchanged — from the focused element to the box that is the control. It is shared rather than local because Story 2.13's window control and Epic 8's picker meet the identical problem
 
+### The combobox and its result surface — added 2026-09-11 by Task 2.11.4
+
+The field's first real consumer, and the product's first interactive control. The canvas section is `03.1 · Security search`; what follows is the part of it that is language rather than screen, because the next three controls inherit it.
+
+**The surface is welded to the field, not floated near it.** It continues the field's focused border (`--rule-strong`) with no top edge of its own, squares the join by having `TextField`'s `surfaceOpen` flatten its lower corners, and carries the only shadow in this language so far. Two boxes stacked with a gap read as two things; this reads as one control that has opened.
+
+**Two row states that must not be confused, and one tone is not enough for both.** Hover is `--surface-page`. The active option — the one Enter opens — is a tone _and_ a 2px inset bar. This is not decoration: a person using a mouse and the keyboard together has a hovered row and an active row on screen at the same moment, and if the only difference is a shade, pressing Enter is a guess. It is also why the active row is not simply "the hovered row" — DOM focus never leaves the input, so the active row is a pointer (`aria-activedescendant`), and the drawing has to say which of the two the keyboard will act on.
+
+**Emphasis on a matched substring is weight and ink. Never colour, never a wash.** 700 on `--ink-primary` against the row's resting 400/500 on `--ink-secondary`. The crimson accent has four positions in the chrome and none of them is a datum, and a coloured background behind part of a company name is a colour-on-data decision that has had no argument made for it. This is the general rule stated in [The rule that outranks every value above](#the-rule-that-outranks-every-value-above) applied to text: **standing out is a job for weight and hierarchy**.
+
+One consequence worth carrying forward, because it is easy to get backwards: **emphasising inside a monospace identifier needs the _unmatched_ part to recede**, not the matched part to advance. A symbol is already set at `--ink-primary` 600, so 700 on the same ink is invisible at 13px; the tail drops to `--ink-secondary` 500 instead. A name is already secondary, so there the mark alone carries the step.
+
+**One divergence from the canvas, and it is a mechanism rather than a preference.** The canvas writes the surface's footer as `Closes as of 4 Sep`. The shipped footer reads `Closes as of 2026-09-04`, because `Intl.DateTimeFormat` is confined by a `no-restricted-syntax` rule to `packages/shared/src/market-time.ts` — and `UniverseTable` already renders a session as its ISO date. A second date idiom, hand-rolled to avoid the rule, would be worse than the longer string. The intent is adopted, the format is not.
+
 ## Colour, and the two rules about it
 
 Colour lives in exactly two files, and **which file a colour is declared in is what defines its scope**.

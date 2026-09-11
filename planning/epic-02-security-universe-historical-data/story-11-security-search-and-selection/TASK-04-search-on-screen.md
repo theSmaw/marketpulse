@@ -1,6 +1,6 @@
 # Task 2.11.4 — Search on screen: the combobox, and opening a security
 
-**Status:** Not started
+**Status:** Complete — 2026-09-11
 **Story:** [2.11 Security Search & Selection](STORY.md)
 **Depends on:** 2.11.2, 2.11.3
 
@@ -201,3 +201,136 @@ If the field turns out to need something the primitive from 2.11.3 does not
 have, change the primitive rather than special-casing it here. It has one
 consumer today and three more coming, and the moment to keep it a primitive is
 now.
+
+---
+
+## What was done, and what was found — 2026-09-11
+
+**It works: type `nvid`, press Enter, land on `/securities/NVDA`.** The epic's
+exit criterion, demonstrated in a browser against the real 518 and the real
+stored closes for session `2026-09-04`.
+
+### What shipped
+
+| Where                           | What                                                                                                            |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `market/security-match.ts`      | `MatchEmphasis` — `field`, `offset`, `length` — carried on every `SecurityMatch`                                |
+| `market/search-announcement.ts` | The four sentences and `SEARCH_ANNOUNCEMENT_DELAY_MS`, with one reader                                          |
+| `components/SecuritySearch/`    | The combobox, its result surface, the row, the footer and the live region — plus stories and 23 component tests |
+| `routes/SecurityExplorer.tsx`   | The control, in the page's heading block, navigating with `securityPath()`                                      |
+| Canvas `03.1 · Security search` | Seven artboards, drawn before the code and corrected to match it afterwards                                     |
+| `VISUAL-LANGUAGE.md`            | The combobox's language: the welded surface, the two row states, the emphasis rule, and one recorded divergence |
+
+### Five things found that were not in this file
+
+1. **`field` has to travel with the offset, not just the offset.** This file
+   asked for "one field on a value the matcher already computes". One is not
+   enough: a row also needs to know _which_ string to index into, and deriving
+   that from the tier in the component is the same mistake one level up — it
+   puts a matching rule inside a renderer. `MatchEmphasis` carries all three.
+
+2. **Emphasis inside a symbol needs the unmatched part to recede.** The obvious
+   implementation advances the match to weight 700, which against a symbol
+   already set at `--ink-primary` 600 is invisible at 13px. The tail drops to
+   `--ink-secondary` 500 instead. A name is already secondary, so there the mark
+   alone works — the two fields need opposite treatments for the same effect.
+
+3. **The React Compiler rules fired for the first time on shipped code, twice,
+   and both were right.** `CLAUDE.md` records that they had never fired and that
+   this was "evidence nothing has yet written the shape they dislike". The
+   announcement hook wrote a ref during render, then cleared the region with a
+   `setState` in an effect body; both were rejected. The repair in each case was
+   simpler than the thing it replaced — the sentence is derived every render and
+   only _saying_ it is deferred. **That paragraph in `CLAUDE.md` is now out of
+   date** and is the one thing here that sweeps upward.
+
+4. **The `composes:` trap is real and cost a build.** `.absent .price,
+.noChange { composes: … }` is a grouped descendant selector, which fails the
+   **build** rather than doing nothing, exactly as documented. Caught by
+   `pnpm verify`, not by tests.
+
+5. **The browser suite caught the tab order changing, which is the point of
+   it.** `securities-route.spec.ts` asserted the fifth stop was the table's
+   `SECTION`; it is now the search `INPUT`. The spec was updated to assert the
+   new order **as an assertion rather than an incidental** — a control over both
+   surfaces has to precede them, and if search ever moved inside the table's
+   `Region` this is what would notice.
+
+### One claim this task falsified, and swept the same day
+
+`BarSeriesPanel`'s defaulted-security sentence read _"Search arrives with Story
+2.11; until then, a security's page is reachable at `/securities/SYMBOL`"_.
+Search has arrived. The sentence now reads _"Search for another one above, or
+open one directly at `/securities/SYMBOL`"_, and the three tests asserting the
+old wording were moved onto the surviving half of it.
+
+### Four gaps found by auditing this file against what shipped — closed 2026-09-11
+
+The first pass reported this task complete while missing four of its own
+requirements. Recorded rather than quietly fixed, because the pattern is worth
+seeing: **three of the four were invisible to every gate**, and the fourth was a
+criterion in this file that the gate could not see.
+
+1. **Motion was not implemented at all.** _What the user can see when this
+   lands_ names it in as many words — 240 ms for content arriving, one
+   asymmetric easing, `prefers-reduced-motion` answered at the token layer — and
+   the first version shipped a surface that appeared instantly. It now uses the
+   vocabulary `UniverseTable`'s arrival established, with the durations read
+   from the tokens so reduced motion needs no rule of its own.
+
+2. **The animation had to be prevented from replaying on every keystroke**, and
+   that is the constraint that outranks the vocabulary rather than a detail of
+   it. The surface re-renders on each character; if the arrival replayed, every
+   figure on screen would fade and slide continuously while somebody typed —
+   **motion making a number harder to read**, which the story forbids. It does
+   not replay, because React reconciles the same node while the surface stays
+   open. That is a claim about a framework's behaviour, so it is pinned by a
+   browser test rather than reasoned about: keying the surface on the query
+   turns it red.
+
+3. **Selection by pointer was neither tested nor tried.** Enter was verified in
+   a browser and clicking never was. The row commits on `mousedown` because the
+   input's blur closes the surface first — and **jsdom cannot see that**: it
+   neither focuses nor blurs, so a `click`-handler version passes at the
+   component level and does nothing when a person uses a mouse. The browser
+   suite owns this half now, and swapping the handler turns it red while the
+   component suite goes on reporting what it always reported.
+
+4. **"The axe gate reads zero violations" was true of a page that never had the
+   surface open.** All three axe runs load the route and never type, so the
+   `listbox`, its `option`s and `aria-activedescendant` — which is most of what
+   this task built, and most of what axe is for — were never examined. A fourth
+   run now types first.
+
+Two smaller ones closed alongside: a row's own session date had a story but no
+test, and the pointer path had no wiring test.
+
+**One measurement in this session was wrong and is worth the warning.** Reading
+`getAnimations()` from a backgrounded tab reported the animation restarting on
+every keystroke. It was not: a throttled tab renders no frames, so animations
+never advance, `currentTime` stays 0, `playState` stays `running` and
+`animationstart` never fires. Every symptom of "it restarts" and "it never runs"
+looks identical there. **Motion cannot be measured from a background tab** — use
+the browser suite, which runs one in the foreground.
+
+### What a reader should not conclude from a green run
+
+- **The browser suite drives the combobox only as far as this task's own
+  criteria.** It types, opens the surface, runs axe over it, clicks a result
+  through to `/securities/NVDA`, and pins the arrival's motion. The **journey** —
+  the full keyboard set walked end to end, and a screen reader actually listened
+  to — remains [Task 2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)'s
+  and is not covered here. Arrow keys, Escape and the spoken sentence are proved
+  at the component level only, where no screen reader exists.
+- **Every state other than the happy path is still missing**, and is
+  [Task 2.11.6](TASK-06-every-search-state-produced.md)'s. The control renders
+  only when the universe has loaded; loading, unreachable and answered-badly
+  show nothing where the field is.
+- **`last-close.ts` now has two consumers and a near-duplicate.**
+  `UniverseTable/last-close.ts` and `BarSeriesPanel/series-facts.ts` both export
+  `formatPrice`, `changePercent`, `directionOf` and `formatChangePercent`, and
+  this component imports the first. That is two implementations of one idea with
+  a third consumer attached, and the extraction into `market/` is the obvious
+  next move. It was **not** done here because it would touch two components,
+  their tests and a story to relocate working code, and this task had a user in
+  it. The trigger is the next consumer.

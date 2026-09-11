@@ -22,6 +22,25 @@ than missing. And when the backend is unreachable, the search says so **without
 collapsing the page** — §36's rule, which this product has honoured on every
 screen so far and must not break on its first control.
 
+## Amended 2026-09-11 by Task 2.11.4 — three of these are settled or half-built
+
+Read before starting, so none of it is designed twice:
+
+- **The resting state is settled: the surface is absent.** This file left it open
+  ("whether the result surface is absent or is showing something useful"). It is
+  absent — `expanded` is false whenever the trimmed query is empty, so there is
+  no surface and no listbox in the DOM at all. What remains here is whether that
+  is the _right_ answer and whether anything should occupy the space.
+- **The stale-close and missing-close rows already have a story and a test**
+  (`MixedSessions` and `WithoutCloses`, plus two component tests). They were
+  built because the control could not render without answering them. What is
+  left is the rest of this list, not those two.
+- **The control is rendered only when the universe has loaded.** That is not a
+  designed state — it is the absence of one, and it is this task's to replace.
+  Today the field simply is not on the page while the universe is loading,
+  unreachable, or answered badly, which is the least honest of the available
+  answers and the reason this task exists.
+
 ## Work
 
 Every state below gets a **story** and, where it is behavioural, a **test**. The

@@ -296,7 +296,7 @@ describe("the market-data region", () => {
     renderAt(PATHS.securities);
 
     await waitFor(() => {
-      expect(screen.getByText(/Search arrives with Story 2.11/)).toBeTruthy();
+      expect(screen.getByText(/Showing a default security/)).toBeTruthy();
     });
   });
 

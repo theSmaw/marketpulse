@@ -1,9 +1,13 @@
+import { useNavigate } from "react-router";
+
 import { BarSeriesPanel } from "../components/BarSeriesPanel/BarSeriesPanel.js";
 import { PageHeader } from "../components/PageHeader/PageHeader.js";
 import { Region } from "../components/Region/Region.js";
+import { SecuritySearch } from "../components/SecuritySearch/SecuritySearch.js";
 import { UniverseTable } from "../components/UniverseTable/UniverseTable.js";
 import { useBarSeries } from "../market/index.js";
 import { useSecurities } from "../use-securities.js";
+import { securityPath } from "./paths.js";
 import { useSecuritySymbol } from "./use-security-symbol.js";
 import page from "./SecurityExplorer.module.css";
 
@@ -44,6 +48,7 @@ export function SecurityExplorer() {
   // that throws hits `Region`'s own boundary and leaves the request that
   // produced it alone — the same argument `App` makes for calling
   // `useBackendHealth` outside the header's boundary.
+  const navigate = useNavigate();
   const { view, retry } = useSecurities();
   const { symbol, fromAddress } = useSecuritySymbol();
 
@@ -109,6 +114,39 @@ export function SecurityExplorer() {
         title="Security Explorer"
         description="What is happening with one security — its bars, its last close, and the universe it belongs to."
       />
+
+      {/*
+       * Search, in the page's own heading block — above both regions and inside
+       * neither (`SEARCH-AND-SELECTION.md` §1).
+       *
+       * **Not inside the table's `Region`**, and that is a defect avoided
+       * rather than a layout preference: `Region` declares `overflow: auto`,
+       * and a control inside a scrollable container is how Task 1.13.4's
+       * `scrollable-region-focusable` class of defect gets reintroduced. It is
+       * also simply true that a control *over* two surfaces belongs to neither.
+       *
+       * **Rendered only when the universe has loaded**, because a matcher with
+       * nothing to match against is not a state this task decides. Every other
+       * state of this control — loading, unreachable, answered badly — is
+       * Task 2.11.6's, deliberately: this task is about the control working and
+       * that one is about it being honest, and combining them is how the second
+       * half gets shortened.
+       *
+       * Where the table ends up underneath is Task 2.11.7's; that the field
+       * sits above whatever it becomes is settled here.
+       */}
+      {view.state === "loaded" ? (
+        <SecuritySearch
+          universe={view.securities}
+          lastCloses={view.lastCloses}
+          onOpen={(symbol) => {
+            // The one spelling of this destination. `securityPath` is the only
+            // thing that builds one from `ROUTE_PATTERNS.security`, and a push
+            // rather than a replace is what keeps Back working.
+            void navigate(securityPath(symbol));
+          }}
+        />
+      ) : undefined}
 
       {/*
        * The series region, above the universe, because it is what this route is
