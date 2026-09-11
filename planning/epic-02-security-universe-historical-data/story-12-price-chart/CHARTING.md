@@ -779,3 +779,79 @@ epics.
 The decisions are recorded in **ADR 0027** at
 [Task 2.12.10](TASK-10-deployed-verify-document-and-adr.md), which is also where
 this document is reconciled against what was actually built.
+
+---
+
+## 10. What building the arithmetic found — added 2026-09-11 by Task 2.12.3
+
+[Task 2.12.3](TASK-03-scales-ticks-and-the-market-gap.md)'s brief says that if a
+decision there appears to force the shape of the component, that is a finding to
+record here rather than a licence to start drawing. Four did. None of them
+reverses a decision above; three of them are things a renderer would otherwise
+discover by being wrong.
+
+### 10.1 §6.2's visible space does not appear when the shortfall is not trading time
+
+**This is the one that changes what
+[Task 2.12.7](TASK-07-every-chart-state-drawn.md) is drawing.** §6.2 says the
+x-domain comes from `coverage.requested`, so a `partial` answer stops short of
+the right-hand edge and the difference becomes visible space. That is true — and
+it is true **only of a shortfall made of trading minutes**.
+
+The recorded `partial` fixture is the counter-example, and it is not a contrived
+one: it holds 60 bars covering Friday 15:00–16:00 ET against a window requested
+to Saturday 16:00 ET. On a **session-ordinal** axis that window has exactly 60
+slots in it, because Saturday contributes none — so the bars fill the frame and
+there is no space to draw.
+
+That is the ordinal axis being _more_ honest than a continuous one, not §6.2
+being broken: a shortfall made of a weekend is not a shortfall a chart should
+leave a hole for. But it means **`partial` is not a synonym for "the line stops
+early"**, and a task that builds `--chart-uncovered` against that fixture alone
+will build a treatment nothing exercises. The state that does show space is a
+window whose _trading_ minutes are uncovered — the ordinary one, since the free
+plan withholds the most recent ~15 minutes of a session in progress.
+
+### 10.2 The reserved anomaly-marker lane has 2.3 px of headroom at the compact height
+
+§7.1 and `VISUAL-LANGUAGE.md` put Epic 5's markers in a 16 px lane inside the
+plot's top padding, and 2.12.2 stated the pad as 10% of the data's extent. Those
+two are in different units and the arithmetic connecting them was not taken.
+
+It is: the padded domain is `1.2 ×` the extent, so the top pad is
+`plotHeight / 12` — **23.3 px at `--chart-height` (280) and 18.3 px at
+`--chart-height-compact` (220)**. Both clear 16 px, and the condition that ends
+that is **a plot shorter than 192 px**, which is below every height the density
+table defines. The pad is therefore spent, not spare, and
+`chart-value-axis.ts`'s constant carries the arithmetic beside it so a later
+tightening is a visible trade rather than a tidy-up.
+
+### 10.3 The density table splits into a flag and a pair of tokens, not a number
+
+§7.1's answer 11 is four breakpoints on the region's width carrying tick counts
+**and** plot heights **and** gutter widths. Only the first is arithmetic: the
+heights and the gutters are `tokens.css` values, and `CLAUDE.md`'s rule is that
+CSS is the source of truth for a token.
+
+So `chartDensity(regionWidth)` returns the counts and a `compact` **flag**, and
+the component reads the token pair the flag selects and hands the numbers to the
+scales. The consequence is that **the 600 px boundary is now spelled twice** —
+once in a media query, once in that module — and nothing can check they agree,
+because no stylesheet is applied in the test environment and jsdom computes no
+layout. It is the same class of gap as the Security Explorer's column count and
+it is recorded on `CLAUDE.md`'s list.
+
+### 10.4 `d3-array` was not needed, and the trigger has not fired
+
+§1 pre-approved 1,167 B of `d3-array` if this task disagreed with the decision to
+hand-build, and named the condition: _a hand-built axis producing ticks a
+reviewer calls wrong twice_. The nice-number selection is **28 lines**, it is
+verified against the recorded fixture rather than by eye, and the two failures
+the brief named by hand — a label past the last bar, and a tick every 7 minutes —
+are each a test. The dependency stays declined and the trigger stands unfired at
+zero.
+
+One thing was added that `d3` would not have supplied: **the step is floored at
+a cent**, because prices are rendered to two decimals and a finer step produces
+two gridlines carrying the same label. Choosing the step and rounding the label
+have to agree, which is the rule `directionOf` already follows for a percentage.

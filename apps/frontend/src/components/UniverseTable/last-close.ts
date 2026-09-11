@@ -1,7 +1,5 @@
 import type { MarketDate, SecurityLastClose } from "@marketpulse/shared";
 
-import type { PriceDirection } from "../PriceChange/PriceChange.js";
-
 // Turning two stored prices into the figures a row shows (Task 2.9.7).
 //
 // Pure functions over the wire records, beside the table that renders them, for
@@ -35,49 +33,15 @@ import type { PriceDirection } from "../PriceChange/PriceChange.js";
 // interesting once you are looking at one security, which is Story 2.11's page.
 //
 // **No colour decision.** `PriceChange` owns that, and it owns the rule that
-// colour is the redundant channel — this module produces the sign, the
-// direction and the glyph's input, and every one of those survives greyscale.
-
-/**
- * How many decimal places a price is shown to.
- *
- * Two, which is what US equities quote in and what every reader expects. The
- * store holds `numeric(18, 6)` and the extra four places are real — they matter
- * to a sub-dollar security and to Epic 5's arithmetic — so this is a *display*
- * decision and the value it rounds is never fed back into anything.
- */
-const PRICE_DECIMALS = 2;
-
-/**
- * The minus sign, U+2212, and not a hyphen.
- *
- * A hyphen-minus is a different width from the digits around it in most faces,
- * so a column of negative figures does not align with the positive ones —
- * which undoes exactly what `tabular-nums` was bought for (Task 1.4.3 measured
- * a 14.3 px spread). `PriceChange`'s own prop documentation already writes its
- * examples this way.
- */
-const MINUS = "−";
-
-/**
- * A price, as the column shows it.
- *
- * `toFixed` rather than `Intl.NumberFormat`, and that is a deliberate
- * restriction rather than an oversight: a locale-aware format would render
- * `1,234.56` for one reader and `1.234,56` for another, and this column's whole
- * mechanism is that 518 fixed-width figures line up under each other. It is
- * also `no-restricted-syntax`-adjacent territory — `market-time.ts` is the one
- * module in this workspace allowed to construct an `Intl` formatter, and that
- * rule exists because a formatter that reads the environment is a value that
- * differs between two machines rendering the same data.
- *
- * There is no grouping separator for the same reason: `1234.56` and `1,234.56`
- * are different widths, and at four figures the separator buys nothing in a
- * right-aligned tabular column.
- */
-export function formatPrice(price: number): string {
-  return price.toFixed(PRICE_DECIMALS);
-}
+// colour is the redundant channel — this module produces the figure, and the
+// direction and the glyph's input come from `market/price-format.ts`.
+//
+// **No spelling of a price or a percentage, since 2026-09-11.** `formatPrice`,
+// `formatChangePercent`, `directionOf` and the two constants behind them moved
+// to `market/price-format.ts` when Task 2.12.3's value axis became the third
+// consumer — which is the condition `series-facts.ts` wrote down for the move.
+// What is left here is the arithmetic that is about *this* subject: the change
+// between two sessions' closes, and the session a column of them shares.
 
 /**
  * The move since the session before, as a signed percentage.
@@ -96,37 +60,6 @@ export function changePercent(close: SecurityLastClose): number | null {
   const previous = close.previousClose;
   if (previous === null || previous === 0) return null;
   return ((close.close - previous) / previous) * 100;
-}
-
-/**
- * The percentage, formatted with its sign — `+0.84%`, `−1.24%`, `0.00%`.
- *
- * The sign is one of the three channels carrying direction (the glyph and the
- * spoken word are the others), so it is part of the string rather than
- * something the colour implies. A move that rounds to zero gets **no sign at
- * all**: `+0.00%` claims a direction the rounding threw away, and `−0.00%` is
- * worse.
- */
-export function formatChangePercent(percent: number): string {
-  const figure = `${Math.abs(percent).toFixed(PRICE_DECIMALS)}%`;
-  if (directionOf(percent) === "unchanged") return figure;
-  return `${percent > 0 ? "+" : MINUS}${figure}`;
-}
-
-/**
- * Which of `PriceChange`'s three directions a percentage is.
- *
- * **Decided on the rounded figure, not on the raw one**, and that is the whole
- * reason this is a function rather than `percent > 0`. A move of +0.001% is
- * `positive` by sign and renders as `0.00%`: an up arrow, a green tint and a
- * figure saying nothing moved, which is three channels disagreeing with each
- * other in the one component built so they cannot.
- */
-export function directionOf(percent: number): PriceDirection {
-  const rounded = Number(percent.toFixed(PRICE_DECIMALS));
-  if (rounded > 0) return "positive";
-  if (rounded < 0) return "negative";
-  return "unchanged";
 }
 
 /**

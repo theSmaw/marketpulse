@@ -11,6 +11,9 @@ import { cx } from "../../cx.js";
 import {
   SEARCH_ANNOUNCEMENT_DELAY_MS,
   SEARCH_ANNOUNCEMENT_MIN_GAP_MS,
+  directionOf,
+  formatChangePercent,
+  formatPrice,
   matchSecurities,
   searchAnnouncement,
 } from "../../market/index.js";
@@ -24,13 +27,7 @@ import { Badge } from "../Badge/Badge.js";
 import { Marker } from "../Marker/Marker.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import { TextField } from "../TextField/TextField.js";
-import {
-  changePercent,
-  commonSession,
-  directionOf,
-  formatChangePercent,
-  formatPrice,
-} from "../UniverseTable/last-close.js";
+import { changePercent, commonSession } from "../UniverseTable/last-close.js";
 import a11y from "../../styles/a11y.module.css";
 import styles from "./SecuritySearch.module.css";
 

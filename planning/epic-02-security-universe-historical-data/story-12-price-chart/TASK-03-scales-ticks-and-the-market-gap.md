@@ -1,6 +1,6 @@
 # Task 2.12.3 — Scales, ticks and the market gap, as functions with no DOM
 
-**Status:** Not started
+**Status:** Complete (2026-09-11)
 **Story:** [2.12 Price Chart](STORY.md)
 **Depends on:** 2.12.1
 
@@ -187,3 +187,187 @@ flat series — 2.12.2 answered what a flat _window_ looks like
 (`--price-unchanged-wash`, three states rather than two) and said nothing about
 what a flat _domain_ divides by, which is still the divide-by-zero this task
 owns.
+
+---
+
+## What was built — 2026-09-11
+
+Five modules in `src/market/`, all of them pure, none of them importing React,
+touching the DOM or reading a clock. They leave the module through `index.ts`
+and nothing else, which `eslint.config.mjs` enforces.
+
+| File                  | What it owns                                                            |
+| --------------------- | ----------------------------------------------------------------------- |
+| `chart-scale.ts`      | `linearScale` and the ordinal `slotScale`, **each with its inverse**    |
+| `chart-value-axis.ts` | The price domain, its padding, the flat case, and nice-number gridlines |
+| `chart-time-axis.ts`  | Sessions, slots, the market gap, bar placement, seams and the x labels  |
+| `chart-density.ts`    | `VISUAL-LANGUAGE.md`'s four region-width breakpoints                    |
+| `price-format.ts`     | The price and direction vocabulary, **moved** — see below               |
+
+**86 unit tests**, in five files beside their subjects. `pnpm verify` passes, and
+the browser suite was run as well because the move below touched eight shipped
+components: **81 browser tests pass**.
+
+### The decisions this task had left to take
+
+- **A scale is plain data and a pair of functions, not a closure.**
+  `FRONTEND-STATE.md` §1's rule 4 — the shapes this application passes around
+  stay describable — and it makes a scale printable in a test failure.
+- **Both directions were written together.** The brief's reason, restated because
+  it is the kind of instruction that reads as tidiness: an inverse written later
+  against a forward function written earlier is where an off-by-a-half-pixel
+  lives, and by the time Task 2.12.6 calls it the forward function will be on
+  screen and correct-looking.
+- **The inverse of the ordinal axis is a slot, not an instant** — 2.12.1's
+  amendment, implemented rather than re-taken. `nearestSlot` clamps, because a
+  pointer past the edge still means the nearest point; `scaleValue` does **not**,
+  because a mark above the domain belongs above the plot where the frame clips
+  it. Two opposite rules, stated as two functions.
+- **The price domain is taken over the bars' highs and lows, not their closes.**
+  The line is a line of closes, but a close always sits inside its own bar, the
+  panel beside the chart already prints **High** and **Low** for the same window,
+  and 2.12.5's envelope has to fit a frame that already exists. A frame excluding
+  a figure printed next to it is the product disagreeing with itself.
+- **A flat series gets a domain of ±0.5%**, floored at a cent so a zero price
+  cannot produce a zero-height one. The failure this prevents is specific: a
+  zero-height domain divides by zero, SVG draws `NaN` as _nothing_, and the
+  symptom is a correct, empty frame rather than an error.
+- **A one-slot axis puts its bar at the left edge.** `i / (n - 1)` is `0 / 0`
+  there, so the answer is chosen: a slot marks where its interval _begins_, and
+  the alternative would make a one-bar chart the only chart whose mark means
+  something else.
+- **A window starting mid-minute snaps back to the minute it is inside.**
+  Rounding the other way shifts every bar in the session one slot left, which is
+  a chart that is plausible and shifted rather than an error anybody sees.
+- **`1d` has no seams.** A seam marks a discontinuity _inside_ a run of slots; on
+  a daily axis every slot is already a session, so a rule between each pair is a
+  rule between every bar.
+- **An axis with no trading minute in it throws.** Only reachable through a
+  request this application does not make — the server resolves `sessions=N`
+  against the calendar — and the alternative is an empty frame, which is
+  indistinguishable from a security that did not trade.
+
+### The formatting move, which a trigger asked for
+
+`series-facts.ts`'s closing note named a condition — _the third consumer that
+formats a price or a percentage_ — and this task's value axis is it: every
+gridline is a price. Five values and the `PriceDirection` vocabulary moved out of
+`UniverseTable/last-close.ts` and `BarSeriesPanel/series-facts.ts` into
+`market/price-format.ts`, with their tests, and eight components now import them
+from the module. **`changePercent` did not move**, and the reason is in the new
+file's header: the two copies compute over two unrelated record types and one
+function over both would be a module named after a shape rather than a meaning.
+
+### What this leaves for the tasks after it
+
+- **Task 2.12.4** gets `timeAxis(coverage.requested, timeframe)` as one call, so
+  §6.2's rule is a line of code that already exists rather than one to remember.
+  It reads `--chart-gutter` and `--chart-height` and hands the numbers in; the
+  gutter is an **input to the scale**, so a line cannot run under its own labels.
+- **Task 2.12.5** gets `directionOf` in the same module, and a frame the
+  high–low envelope already fits inside.
+- **Task 2.12.6** gets `nearestSlot` and `unscaleValue`, written and round-tripped
+  here rather than retrofitted there.
+- **Task 2.12.7** gets a finding it would otherwise have built against the wrong
+  fixture — see [`CHARTING.md`](CHARTING.md) §10.1.
+- **Epic 9** gets `positionOfInstant`, including §3's rule 2: an instant between
+  sessions has no position and is placed on the seam, carrying its true timestamp.
+
+### One thing nothing checks, now recorded
+
+**`chartDensity`'s 600 px boundary and the stylesheet's media query must agree,
+and nothing compares them.** No stylesheet is applied in the test environment and
+jsdom computes no layout, so a module reading the breakpoint from CSS could not
+be tested at all. It is on `CLAUDE.md`'s _What `pnpm verify` does not cover_ list
+with the re-measure. Re-measure: change one of the two and confirm the chart
+switches its gutter at a width where it still draws five gridlines.
+
+---
+
+## For the people paying for this — what this week's work actually did
+
+**In one sentence: we built the maths a chart is made of, and nothing appeared on
+screen.** That is the honest headline, and it is deliberate rather than a slip.
+
+### What a stranger would see if they opened MarketPulse today
+
+Exactly what they saw yesterday. The Security Explorer, NVDA's real minute bars
+written out as facts, the tracked universe of 518 securities, the search box. The
+Price region still says what it will hold and which story brings it. **Nobody can
+see a chart yet — that is the next task, and it is the one worth watching.**
+
+### So why spend a task on something invisible?
+
+Because a chart is two different jobs wearing one coat, and they fail in
+different ways.
+
+The **drawing** is the easy half: lines, labels, colours. If it is wrong you can
+see it instantly.
+
+The **arithmetic** is the half that decides what the picture _means_ — where on
+the screen a 2:47 pm price belongs, which prices get a labelled line beside them,
+and what happens to the fourteen hours between Friday's close and Monday's open.
+If that is wrong, the chart still looks completely fine. It is a beautiful,
+confident picture of the wrong thing. For a product whose entire purpose is
+telling an analyst what is unusual, that is the worst possible failure, because
+it is a failure nobody catches by looking.
+
+So we built the arithmetic on its own, first, and tested it against **real
+recorded market data** rather than made-up numbers — 150 actual NVDA bars that
+happen to span a weekend _and_ Labor Day, which is precisely the case a chart
+gets wrong. Eighty-six tests now hold it. When the chart is drawn next, if it
+looks right it will be right, rather than the two being the same sentence.
+
+### The three problems that were genuinely hard, in plain terms
+
+**1. What do you do about the nights?** The market is open six and a half hours a
+day. If you draw time honestly across five days, two-thirds of the chart is blank
+— a picture that is mostly nothing. Every professional trading platform solves
+this by simply pushing Friday's last price up against Monday's first, and we do
+too. But that quietly hides something real: a night passed. So we draw a dashed
+line exactly where one day becomes the next, and the label there switches from a
+time to a date. The reader is told what the chart chose not to draw.
+
+**2. Which prices deserve a line beside them?** An analyst wants to see 231, 232,
+233 — round numbers they can hold in their head. Naive software divides the range
+into five and writes 230.83, 231.79, 232.75. There is a well-known library that
+solves this for about a kilobyte of download, and we had pre-approved buying it.
+We did not need it: the hand-written version is twenty-eight lines, it is checked
+against recorded bars rather than by eye, and it now does one thing the library
+would not have — it refuses to put two lines closer together than a penny, since
+both would carry the same label and the chart would appear to have drawn the same
+price twice.
+
+**3. What about a stock that did not move?** A price that never changes has a
+range of zero, and dividing by zero produces nonsense coordinates that browsers
+draw as _nothing at all_. You would get a perfect empty chart frame with no
+error — the product silently saying "no data" about a security we hold every
+minute of. A flat security now gets a small window either side of its price, and
+the line sits across the middle, which is what "nothing happened" should look
+like.
+
+### A finding worth knowing about, because it changes a later task
+
+We had a standing rule that when we hold less data than was asked for, the chart
+should leave visible empty space rather than stretching the line to fill the
+frame — because a stretched line _looks complete_ and quietly lies. Building this
+showed the rule has a limit we had not spotted: if the missing part is a weekend,
+there is correctly no space to leave, because a weekend was never trading time in
+the first place. That is the chart being more honest, not less — but it means the
+task that draws the "we only have part of this" treatment has to be tested
+against a gap in a _trading day_, not against the weekend example we had to hand.
+That is now written down where that task will read it, rather than discovered by
+shipping the wrong thing.
+
+### Where this sits on the road
+
+Story 2.12 is the first chart in MarketPulse and, in the story's own words, _the
+moment the product looks like the thing it is meant to be_ — it is the screen the
+five-minute demonstration runs through. Ten tasks; this was the third. The first
+two settled how we draw and what it looks like. **The fourth one draws it.**
+
+Everything built since the beginning of the epic is about to become visible in a
+single line: the database, the 518-security universe, the trading calendar, the
+market-data provider, the forty-eight million stored bars, the API, and the state
+layer all have to be right for that line to be correct. This task is the piece
+that decides whether it is correct, or merely convincing.

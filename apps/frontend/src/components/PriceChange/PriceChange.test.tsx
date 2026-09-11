@@ -15,8 +15,9 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { PRICE_DIRECTIONS, PriceChange } from "./PriceChange.js";
-import type { PriceDirection } from "./PriceChange.js";
+import { PRICE_DIRECTIONS } from "../../market/index.js";
+import type { PriceDirection } from "../../market/index.js";
+import { PriceChange } from "./PriceChange.js";
 
 const WORD: Readonly<Record<PriceDirection, string>> = {
   positive: "up",

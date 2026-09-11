@@ -7,7 +7,7 @@ import {
 import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactNode } from "react";
 
-import { PRICE_DIRECTIONS } from "../PriceChange/PriceChange.js";
+import { PRICE_DIRECTIONS } from "../../market/index.js";
 import { SecurityRow } from "./SecurityRow.js";
 import styles from "./SecurityRow.module.css";
 

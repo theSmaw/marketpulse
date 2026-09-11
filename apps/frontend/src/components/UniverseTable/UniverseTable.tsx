@@ -35,13 +35,12 @@ import {
   formatDepth,
   summariseCoverage,
 } from "./coverage.js";
+import { changePercent, commonSession } from "./last-close.js";
 import {
-  changePercent,
-  commonSession,
   directionOf,
   formatChangePercent,
   formatPrice,
-} from "./last-close.js";
+} from "../../market/index.js";
 import styles from "./UniverseTable.module.css";
 
 // The tracked universe, in all four of the states it can be in (Task 2.4.4).
