@@ -146,6 +146,27 @@ drawing its frame, axes and loading state immediately and filling in when the
 series lands, which §36 requires of you anyway. Design for that, not for a fast
 response.
 
+> **Amended 2026-09-11 by Task 2.12.1 — paragraph 1's premise expired the day it
+> was written, and its conclusion survives.** _"Nothing on the path compresses"_
+> and the 1,060,490-byte figure were true when Task 2.9.9 measured them on
+> 2026-09-10 and false by the end of that same day: **Task 2.9.10 registered
+> `@fastify/compress`.** §12.5's own title is marked false in place and the
+> re-taken figures are in §12.1 and §12.8 — which is this amendment's own
+> paragraph working, since it says to take figures from §12 rather than from
+> here.
+>
+> Live, deployed from the United Kingdom with the coding on: **a month of minute
+> bars is 154,480 bytes and ~1,210 ms**, not 1 MB and ~2.5 s; **five sessions is
+> 29,072 bytes and ~399 ms**; one session is 7,353 bytes and ~333 ms, against a
+> conditional floor of ~290 ms that is almost entirely the link.
+>
+> **The instruction is unchanged and was not weakened by this.** The default
+> window now comes in under §28's 500 ms on its own — [`CHARTING.md`](CHARTING.md)
+> §4 settles it at **5 sessions of `1m`** for that reason — but the chart still
+> paints its frame, axes and loading state immediately and fills the series in
+> when it lands, because Story 2.13's control will offer the month that still
+> costs 1.2 s and Epic 13's replay will ask for windows nobody has measured.
+
 **2. Criterion 5 has a head start.** The largest body this API can emit —
 9,750 bars at the cap — **parses in 2.8 ms** (§12.3), so `JSON.parse` is not what
 will break your 50 ms budget. Whatever does will be in the renderer.
