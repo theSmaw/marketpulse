@@ -161,3 +161,65 @@ break available: **make the seam count scale with bars instead of sessions.** It
 is a one-character change to a loop bound, it produces 9,750 dashed verticals at
 the cap, and it is much closer to the mistake somebody would actually make than
 9,750 candle groups are.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.3 — a new client-side cost surface, and a third component in the bundle delta
+
+Neither of these changes what this task expects to find. Both are things it will
+otherwise not point at.
+
+### The trading-calendar walk is now on the client too
+
+The Notes above already flag the daily series and quote Task 2.9.9: a `1d` series
+over the whole stored depth is dominated by a **20.6 ms trading-calendar walk on
+the server**, paid on every cache hit, and the repair is a `packages/shared`
+change to raise rather than absorb.
+
+**That walk now has a second caller, in the browser, on the main thread.**
+`timeAxis` builds the x-domain by calling `marketSessionsBetween` over the
+requested window, which steps **day by day** through the calendar — the same
+algorithm the server pays for, run inside a render.
+
+It is nowhere near a problem at this story's windows: the default is five
+sessions over seven calendar days, and even the `1m` cap of 10,000 bars is about
+twenty-five sessions. It becomes interesting at exactly the point the Notes
+already name — **a window control offering "1 year" or "max"**, which is Story
+2.13's — where a `1d` axis walks hundreds or thousands of calendar days.
+
+What this task owes, and it is cheap:
+
+- **Time `timeAxis` at the cap**, separately from the paint, so the figure exists
+  before 2.13 needs it. It is a pure function with no DOM in it, so this is the
+  one part of the chart measurable without a browser.
+- **Check whether it runs once per render or once per request.** A calendar walk
+  repeated on every pointer move is the shape of defect §28's word _routine_ is
+  about, and the repair — memoise on the request identity — belongs in
+  [Task 2.12.4](TASK-04-the-first-chart-in-marketpulse.md)'s component rather
+  than in the arithmetic.
+- **If it is material, raise it rather than absorb it**, the same way 2.9.9 did.
+  The two callers now share one algorithm, so a `packages/shared` repair would
+  pay twice — which strengthens the case that was already made once.
+
+### The bundle delta has three parts, not two
+
+2.12.2's amendment says to measure both halves — the JS and the eighteen custom
+properties in CSS. There is now a third: **five arithmetic modules in
+`src/market/`**, which are plain TypeScript with no dependency behind them and
+which the tree-shaker cannot drop, because the chart imports all of them.
+
+Say which of the three moved. A report attributing the whole delta to "the
+charting decision" is measuring `CHARTING.md` §1's prediction of **+279 B for one
+`<path>` and a scale** against something that is not that — the comparison that
+decided §1 was against Recharts' **+94,809 B**, and the arithmetic this story
+hand-built is precisely the part a library would have supplied.
+
+### One more instrument break worth having
+
+The Work section asks for a break that goes red, and 2.12.2 added a cheaper one.
+A third, cheaper still and closer to a real mistake: **build the axis from
+`series.bars` instead of from `coverage.requested`**. It is a one-argument change,
+it produces a `partial` chart that fills its frame and looks complete, and
+`market/chart-time-axis.test.ts` should go red on it — _comes from the requested
+window and not from the bars_. Confirm it does, because that test is the only
+thing standing between §6.2 and a chart that lies convincingly.

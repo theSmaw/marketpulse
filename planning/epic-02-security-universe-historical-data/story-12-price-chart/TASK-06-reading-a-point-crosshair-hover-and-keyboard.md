@@ -146,3 +146,69 @@ holds. The correction matters because
 [Task 2.12.9](TASK-09-measured-against-fifty-milliseconds.md) carries "~11 DOM
 nodes, flat in point count" as a prediction to measure against, and a reader
 arriving from here would otherwise import a figure that has moved.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.3 — the inverse is built, and it hands back a **slot**, which is not a bar
+
+The inverse exists, round-tripped against the forward function in the same
+commit, so the off-by-a-half-pixel the Work section warns about is already
+closed. What this task inherits, and one thing it now has to decide that no
+earlier amendment names.
+
+### What is built, and what to call
+
+- **`nearestSlot(slotScale, pixel)`** — the pointer's answer. It rounds and
+  **clamps**, deliberately: a pointer dragged past the plot's edge still means
+  the nearest point. `scaleValue` deliberately does not clamp, because a _mark_
+  outside the domain belongs outside the frame — two opposite rules, and they are
+  two functions rather than one with a flag.
+- **`unscaleSlot`** for a fractional position and **`unscaleValue`** for a price
+  off a pixel. Both are the exact inverses of what drew the marks, which is the
+  Work section's "nothing here re-derives a mapping from an element's bounding
+  box" satisfied by there being nothing to re-derive.
+- **`clampToRange`** for holding a crosshair inside the plot.
+
+### The gap: a slot is a position on the axis, a bar is a thing that traded
+
+The 2.12.1 amendment above says _"the inverse scale returns a bar index"_. **It
+returns a slot index**, and the difference is not pedantry — it is the case this
+task will otherwise meet as a crash or as a wrong reading.
+
+`placeBars(axis, bars)` returns `{ bar, slot }` pairs. Slot and array index
+coincide **only when every slot in the window has a bar in it**, which is true of
+the `loaded` fixture and is not true in general:
+
+- a **`partial`** answer covers the first _n_ slots of a longer axis — the normal
+  case, since the free plan withholds the most recent ~15 minutes;
+- a **minute with no prints** leaves a hole in the middle of a session, which the
+  store records as an absent row rather than a zero-volume bar.
+
+So `bars[nearestSlot(...)]` is wrong in both, and wrong quietly in the second:
+it reads a real bar, just not the one under the pointer, with everything after
+the hole shifted by one.
+
+**Two decisions this task owns, and it owns them because there is nowhere else
+for them:**
+
+1. **What the crosshair does over a slot with no bar.** Snap to the nearest
+   _placed_ bar, or show no reading at all. Both are defensible — the second is
+   more honest and the first is smoother — and the answer must be the same under
+   the pointer and under the arrow keys, because 2.12.2 settled that there is one
+   crosshair treatment for both inputs and two behaviours behind one appearance
+   would be worse than two appearances.
+2. **What the arrow keys step through.** Slots or placed bars. Stepping slots
+   means Right can land on nothing; stepping bars means the crosshair moves an
+   uneven distance on each press. Say which, and why.
+
+Whichever way both go, **the lookup belongs in `src/market/` beside the scale**,
+as a tested pure function — not inside the component. That is where every other
+piece of this arithmetic went and it is the only level that can test the hole
+case without a browser.
+
+### One thing that did not change
+
+The chart is still **one tab stop**, and nothing 2.12.3 built puts a per-bar
+element anywhere: `placeBars` returns data, not nodes. The 2.12.2 correction
+above — that the plot is two dozen elements, none of them per-bar — still holds
+and is still the clause doing the work.
