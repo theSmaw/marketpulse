@@ -1,4 +1,8 @@
-import type { Security, SecurityLastClose } from "@marketpulse/shared";
+import type {
+  Security,
+  SecurityCoverage,
+  SecurityLastClose,
+} from "@marketpulse/shared";
 import { SECTOR_LABELS } from "@marketpulse/shared";
 import type { KeyboardEvent } from "react";
 import { useEffect, useId, useMemo, useState } from "react";
@@ -9,8 +13,14 @@ import {
   matchSecurities,
   searchAnnouncement,
 } from "../../market/index.js";
-import type { MatchEmphasis, SecurityMatch } from "../../market/index.js";
+import type {
+  MatchEmphasis,
+  SearchCorpus,
+  SecurityMatch,
+} from "../../market/index.js";
+import type { SecuritiesView } from "../../use-securities.js";
 import { Badge } from "../Badge/Badge.js";
+import { Marker } from "../Marker/Marker.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import { TextField } from "../TextField/TextField.js";
 import {
@@ -24,7 +34,7 @@ import a11y from "../../styles/a11y.module.css";
 import styles from "./SecuritySearch.module.css";
 
 // The product's first interactive control (Task 2.11.4): type a symbol or a
-// name, open a security.
+// name, open a security. **In every state it can be in** (Task 2.11.6).
 //
 // Everything shipped before this is a page that loads, states something true
 // and sits still. So this file is also the precedent for every control after
@@ -44,7 +54,22 @@ import styles from "./SecuritySearch.module.css";
 // and an active row on screen simultaneously, and they must not be the same
 // drawing.
 //
-// ## What this component does not own
+// ## It takes the page's state, not a universe, and that changed here
+//
+// Until Task 2.11.6 this component took `universe` and `lastCloses` and the
+// route rendered it **only once the fetch had succeeded**. That is not a
+// designed state, it is the absence of one: while the universe was loading, or
+// unreachable, or answered badly, the field simply was not on the page — the
+// least honest of the available answers, and a thing a person cannot tell from
+// a product that has no search.
+//
+// So it takes `SecuritiesView` whole, for `UniverseTable`'s reason: the union
+// exists so the impossible combinations cannot be built, and handing a renderer
+// the pieces gives back the eight-way boolean space it removed. What this
+// component still cannot do is fetch anything, which is what keeps every state
+// below reviewable in the workshop with no backend running.
+//
+// ## What it does not own
 //
 // **Navigation.** It reports `onOpen(symbol)` and the route turns that into
 // `securityPath(symbol)`. The route pattern exists once in `ROUTE_PATTERNS`,
@@ -53,10 +78,12 @@ import styles from "./SecuritySearch.module.css";
 // path — as well as a component that cannot be rendered in a story without a
 // router around it.
 //
-// **Failure and empty states.** Task 2.11.6 owns every way the universe fetch
-// can fail and what search says while it is in flight. This component takes a
-// universe and renders the control working; it is deliberately not the place
-// that decides what "unavailable" looks like.
+// **The retry.** There is exactly one control on this screen that re-asks for
+// the universe and it belongs to the universe (`UniverseTable`). Search and the
+// table read the *same* fetch, so a failure already puts two explanations on
+// one screen; giving each of them its own *Try again* teaches a reader that
+// neither is the real one. This states the fact and defers the control — which
+// is why there is no `onRetry` in the props below.
 //
 // **The page's layout.** Task 2.11.7 owns the Security Explorer's shell. This
 // sits where `SEARCH-AND-SELECTION.md` §1 put it and rearranges nothing.
@@ -78,28 +105,33 @@ const KIND_WORDS: Readonly<Record<Security["kind"], string>> = {
   index_etf: "ETF",
 };
 
+/**
+ * What the field matches against when there is nothing to match against.
+ *
+ * Module constants rather than literals in the render, so the memo below keys
+ * on a stable identity in every non-loaded state and the matcher is not re-run
+ * on every keystroke against a new empty array.
+ */
+const NO_SECURITIES: readonly Security[] = [];
+const NO_CLOSES: ReadonlyMap<string, SecurityLastClose> = new Map();
+const NO_COVERAGE: ReadonlyMap<string, SecurityCoverage> = new Map();
+
 export interface SecuritySearchProps {
   /**
-   * The universe to match against — the one the page has already fetched.
-   * Matching is client-side (`SEARCH-AND-SELECTION.md` §2), so this component
-   * issues no request of its own.
+   * What this page knows about the universe, **whole**.
+   *
+   * Matching is client-side over the list the page has already fetched
+   * (`SEARCH-AND-SELECTION.md` §2), so this component issues no request of its
+   * own — and it renders the four states of that fetch rather than being
+   * rendered only in one of them.
    */
-  readonly universe: readonly Security[];
-  /**
-   * Last closes, keyed by symbol. A **separate** array in the wire format, so a
-   * result row is a join rather than a field read — and a symbol with no entry
-   * is a case this renders rather than assumes away.
-   */
-  readonly lastCloses: ReadonlyMap<string, SecurityLastClose>;
+  readonly view: SecuritiesView;
+
   /** Called with the symbol when a result is chosen. */
   readonly onOpen: (symbol: string) => void;
 }
 
-export function SecuritySearch({
-  universe,
-  lastCloses,
-  onOpen,
-}: SecuritySearchProps) {
+export function SecuritySearch({ view, onOpen }: SecuritySearchProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -107,6 +139,11 @@ export function SecuritySearch({
   const id = useId();
   const listboxId = `${id}-results`;
   const optionId = (index: number) => `${id}-option-${String(index)}`;
+
+  const loaded = view.state === "loaded";
+  const universe = loaded ? view.securities : NO_SECURITIES;
+  const lastCloses = loaded ? view.lastCloses : NO_CLOSES;
+  const coverage = loaded ? view.coverage : NO_COVERAGE;
 
   // Matching is a synchronous scan and is deliberately not debounced. `useMemo`
   // is here because the render also builds rows, not because the scan is slow.
@@ -121,11 +158,32 @@ export function SecuritySearch({
   // a session and every row carries its own.
   const surfaceSession = useMemo(() => commonSession(lastCloses), [lastCloses]);
 
-  const expanded = open && query.trim() !== "";
+  // What the field can do at all, which is a property of the fetch rather than
+  // of the query. `empty` and `failed` are both *there is nothing to search*
+  // and differ only in the sentence that says why.
+  const unavailable = view.state === "empty" || view.state === "failed";
+  const loading = view.state === "loading";
+
+  // **Two open-nesses, and conflating them is the likely defect.** `showing` is
+  // whether a surface is drawn — which includes the two states whose surface is
+  // a sentence rather than a list. `expanded` is the ARIA claim, and it is only
+  // true when the thing `aria-controls` points at exists and holds options: a
+  // combobox that says it is expanded over a listbox that is not in the
+  // document is a defect axe catches and a screen reader announces as a lie.
+  //
+  // What a listener gets in the sentence states is the live region below, which
+  // says the same thing and names its subject while doing it.
+  const showing = open && !unavailable && query.trim() !== "";
+  const expanded = showing && matches.length > 0;
   const activeIndex =
     matches.length === 0 ? -1 : Math.min(active, matches.length - 1);
 
-  const spoken = useAnnouncement(query, result);
+  const hint = hintFor(view);
+
+  const corpus: SearchCorpus = loading
+    ? { state: "loading" }
+    : { state: "ready", result };
+  const spoken = useAnnouncement(query, corpus);
 
   function choose(index: number) {
     const match = matches[index];
@@ -163,7 +221,7 @@ export function SecuritySearch({
         // `TextField`'s own Escape-to-clear from firing, so a second press
         // falls through to it and clears. Two behaviours, one key, and the
         // order is the one a person expects.
-        if (expanded) {
+        if (showing) {
           event.preventDefault();
           setOpen(false);
         }
@@ -198,8 +256,20 @@ export function SecuritySearch({
             setOpen(true);
           }}
           icon="magnifier"
-          placeholder="Search securities (e.g. AAPL)"
-          surfaceOpen={expanded}
+          placeholder={placeholderFor(view)}
+          // Spread rather than passed, because `exactOptionalPropertyTypes` is
+          // on and *absent* and *present as `undefined`* are different types.
+          // The loaded state has no hint at all, which is not the same as a
+          // hint whose value is nothing.
+          {...(hint === undefined ? {} : { hint })}
+          // **Disabled only where the control genuinely cannot answer**, and
+          // deliberately **not** while the universe is loading. A field that
+          // removes itself while its data loads is what shipped before this
+          // task; one that goes grey under a cursor mid-word is the same
+          // mistake with better manners. Loading accepts input and holds it.
+          disabled={unavailable}
+          busy={loading}
+          surfaceOpen={showing}
           autoComplete="off"
           spellCheck={false}
           role="combobox"
@@ -211,35 +281,22 @@ export function SecuritySearch({
             : {})}
         />
 
-        {expanded ? (
+        {showing ? (
           <div className={cx(styles.surface)}>
-            <ul
-              className={cx(styles.list)}
-              id={listboxId}
-              role="listbox"
-              aria-label="Search results"
-            >
-              {matches.map((match, index) => (
-                <ResultRow
-                  key={match.security.symbol}
-                  id={optionId(index)}
-                  match={match}
-                  lastClose={lastCloses.get(match.security.symbol)}
-                  surfaceSession={surfaceSession}
-                  active={index === activeIndex}
-                  onChoose={() => {
-                    choose(index);
-                  }}
-                  onPoint={() => {
-                    setActive(index);
-                  }}
-                />
-              ))}
-            </ul>
-            <Footer
-              shown={matches.length}
+            <SurfaceBody
+              query={query}
+              loading={loading}
+              matches={matches}
               total={total}
-              session={surfaceSession}
+              universeSize={universe.length}
+              lastCloses={lastCloses}
+              coverage={coverage}
+              surfaceSession={surfaceSession}
+              activeIndex={activeIndex}
+              listboxId={listboxId}
+              optionId={optionId}
+              onChoose={choose}
+              onPoint={setActive}
             />
           </div>
         ) : undefined}
@@ -259,6 +316,208 @@ export function SecuritySearch({
 }
 
 /**
+ * What the field says it is for, which is not the same sentence in every state.
+ *
+ * The placeholder is the one string a person reads before they read anything
+ * else, so a field that cannot answer must not invite a question. It is never
+ * the label — `TextField` refuses to let a placeholder stand in for one.
+ */
+function placeholderFor(view: SecuritiesView): string {
+  switch (view.state) {
+    case "loading":
+    case "loaded":
+      return "Search securities (e.g. AAPL)";
+    case "empty":
+      return "Nothing to search";
+    case "failed":
+      return "Search unavailable";
+  }
+}
+
+/**
+ * The line under the field: why this control is in the state it is in.
+ *
+ * `undefined` in the state where nothing needs saying, which is the loaded one
+ * — a working control explaining that it works is noise. Everything else here
+ * is one or two sentences and is associated with the input through
+ * `aria-describedby`, so it is read as part of the control rather than sitting
+ * near it.
+ *
+ * **The retryable distinction is carried by the words and not by a button**
+ * (see the header). `FRONTEND-STATE.md` §4's rule is that a retryable failure
+ * says waiting may help and a permanent one says it will not, in both
+ * directions and always — a failure that offers nothing and explains nothing
+ * leaves a reader waiting for a page that will never come good.
+ *
+ * **None of these repeats the table's own words**, and that is a constraint
+ * rather than a style note: both surfaces describe one failure, on one screen,
+ * at the same moment, so a sentence that opened with the table's opening clause
+ * would read as the same paragraph printed twice — and it is caught by nothing
+ * except a browser assertion tripping over two copies of a string, which is how
+ * this was found. Each of these leads with *what search can do about it*, which
+ * is the only thing search is entitled to say.
+ *
+ * **Nothing here offers the table as another way in.** The table's rows became
+ * links in Task 2.11.5, so "search is unavailable" is normally a degraded state
+ * with a working alternative on the same screen — but not from *this* cause:
+ * one fetch feeds both, so the state where search cannot answer is the state
+ * where there are no rows to click either. A sentence pointing at them would be
+ * pointing at an empty table.
+ */
+function hintFor(view: SecuritiesView): string | undefined {
+  switch (view.state) {
+    case "loaded":
+      return undefined;
+
+    case "loading":
+      return "Loading securities. Anything typed is kept and will match as soon as they arrive.";
+
+    case "empty":
+      return "Nothing to search: this service answered correctly and holds no securities.";
+
+    case "failed":
+      if (view.failure === "unreachable") {
+        return "Nothing to search yet: the tracked universe did not answer. A service starting up looks exactly like this, and the control that asks again is with the universe itself.";
+      }
+
+      return view.retryable
+        ? "Nothing to search yet: the tracked universe is temporarily unavailable. This is usually brief, and the control that asks again is with the universe itself."
+        : "Nothing to search: the tracked universe could not be read, and asking again would produce the same answer.";
+  }
+}
+
+interface SurfaceBodyProps {
+  readonly query: string;
+  readonly loading: boolean;
+  readonly matches: readonly SecurityMatch[];
+  readonly total: number;
+  readonly universeSize: number;
+  readonly lastCloses: ReadonlyMap<string, SecurityLastClose>;
+  readonly coverage: ReadonlyMap<string, SecurityCoverage>;
+  readonly surfaceSession: string | null;
+  readonly activeIndex: number;
+  readonly listboxId: string;
+  readonly optionId: (index: number) => string;
+  readonly onChoose: (index: number) => void;
+  readonly onPoint: (index: number) => void;
+}
+
+/**
+ * What is inside the surface: a list, or a sentence.
+ *
+ * **The two sentence states are the reason this is a function and not a
+ * `matches.map`.** Before Task 2.11.6 a query that matched nothing rendered an
+ * empty listbox with `0 matches` under it, which is a result surface reporting
+ * its own emptiness as a figure — and a universe that had not arrived rendered
+ * exactly the same thing, because an empty corpus matches nothing. The second
+ * of those is the one that matters: *"no matches for zzz"* is a claim about the
+ * market, and making it while the securities are still in flight is a lie about
+ * data we have not seen.
+ */
+function SurfaceBody({
+  query,
+  loading,
+  matches,
+  total,
+  universeSize,
+  lastCloses,
+  coverage,
+  surfaceSession,
+  activeIndex,
+  listboxId,
+  optionId,
+  onChoose,
+  onPoint,
+}: SurfaceBodyProps) {
+  if (loading) {
+    return (
+      <Note
+        // Dashed, which is this language's silhouette for *not yet* rather than
+        // for a state — the same one the panel's held answer uses. Not the
+        // amber square, which marks the one condition that needs somebody to go
+        // and look at something; this one needs nobody.
+        shape="dashed"
+        headline="Still loading securities."
+        detail={`“${query.trim()}” is kept and will match as soon as the tracked universe arrives.`}
+      />
+    );
+  }
+
+  if (matches.length === 0) {
+    return (
+      <Note
+        // A hollow ring: an answer with nothing in it, which is what the bar
+        // panel draws for a window it holds no bars in. No red, no alert and no
+        // apology — `zzz` is a reasonable thing to type and getting nothing
+        // back is a correct answer rather than a failure.
+        shape="ring"
+        headline={`No security matches “${query.trim()}”.`}
+        detail={`Search covers the ${String(universeSize)} securities MarketPulse holds, by symbol and by company name.`}
+      />
+    );
+  }
+
+  return (
+    <>
+      <ul
+        className={cx(styles.list)}
+        id={listboxId}
+        role="listbox"
+        aria-label="Search results"
+      >
+        {matches.map((match, index) => (
+          <ResultRow
+            key={match.security.symbol}
+            id={optionId(index)}
+            match={match}
+            lastClose={lastCloses.get(match.security.symbol)}
+            hasBars={coverage.has(match.security.symbol)}
+            surfaceSession={surfaceSession}
+            active={index === activeIndex}
+            onChoose={() => {
+              onChoose(index);
+            }}
+            onPoint={() => {
+              onPoint(index);
+            }}
+          />
+        ))}
+      </ul>
+      <Footer shown={matches.length} total={total} session={surfaceSession} />
+    </>
+  );
+}
+
+/**
+ * A surface whose content is a sentence.
+ *
+ * It is deliberately **not** a live region and carries no ARIA role at all: the
+ * component already has one region for this subject, and a second element
+ * announcing the same fact is how a listener hears one thing twice in an order
+ * nobody controls. What is written here is for the eye; the live region says it
+ * for the ear.
+ */
+function Note({
+  shape,
+  headline,
+  detail,
+}: {
+  readonly shape: "ring" | "dashed";
+  readonly headline: string;
+  readonly detail: string;
+}) {
+  return (
+    <div className={cx(styles.note)}>
+      <p className={cx(styles.noteHeadline)}>
+        <Marker shape={shape} />
+        <span>{headline}</span>
+      </p>
+      <p className={cx(styles.noteDetail)}>{detail}</p>
+    </div>
+  );
+}
+
+/**
  * The live region, and the only thing on this screen that waits.
  *
  * Four mechanical clauses inherited whole from `FRONTEND-STATE.md` §7 rather
@@ -268,12 +527,9 @@ export function SecuritySearch({
  * never `alert`, every sentence **names its subject**, and it is **silent on
  * arrival**.
  */
-function useAnnouncement(
-  query: string,
-  result: ReturnType<typeof matchSecurities>,
-) {
+function useAnnouncement(query: string, corpus: SearchCorpus) {
   // The sentence is derived every render; only *saying* it is deferred.
-  const sentence = searchAnnouncement(query, result);
+  const sentence = searchAnnouncement(query, corpus);
   const [spoken, setSpoken] = useState("");
 
   // `sentence` is a string, so this effect re-runs on exactly the keystrokes
@@ -306,6 +562,7 @@ interface ResultRowProps {
   readonly id: string;
   readonly match: SecurityMatch;
   readonly lastClose: SecurityLastClose | undefined;
+  readonly hasBars: boolean;
   readonly surfaceSession: string | null;
   readonly active: boolean;
   readonly onChoose: () => void;
@@ -316,6 +573,7 @@ function ResultRow({
   id,
   match,
   lastClose,
+  hasBars,
   surfaceSession,
   active,
   onChoose,
@@ -359,6 +617,15 @@ function ResultRow({
         <span className={cx(styles.meta)}>
           {sector}
           {ownSession === null ? undefined : ` · close ${ownSession}`}
+          {/*
+           * **Said before the click rather than discovered after it.** A
+           * security with no coverage record holds no bars at all, so opening
+           * it renders a panel with nothing in it — which reads as the product
+           * being broken unless the row said so first. It is not a failure and
+           * not an error: it is a security nobody has backfilled, and the
+           * words are the market-data layer's own rather than a second set.
+           */}
+          {hasBars ? undefined : " · no bars stored"}
         </span>
       </span>
 
@@ -456,6 +723,15 @@ function Emphasised({
  * It reads the `total` that travelled with the slice, which is the only thing
  * that stops it lying: the cap is the matcher's constant and this surface does
  * not spell a second one.
+ *
+ * **It is also the only thing standing between a correct demotion and a
+ * defect that looks identical** (Task 2.11.6). An untracked security loses a
+ * tie inside its tier, which over a crowded query pushes it off the shown slice
+ * while the total still counts it — measured on the real universe: untracked,
+ * `AAPL` falls from match 2 of 99 to match 50. On screen that is
+ * indistinguishable from the row having been filtered out, which is the one
+ * thing `UNIVERSE.md` §12.2 forbids. What makes the difference legible is this
+ * line refusing to claim the list is the whole answer.
  */
 function Footer({
   shown,

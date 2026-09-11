@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -313,5 +313,118 @@ describe("the market-data region", () => {
     expect(
       screen.getByText(/Charts arrive with Stories 2.12 and 2.13/),
     ).toBeTruthy();
+  });
+});
+
+// The page as a whole, in the states search can be in (Task 2.11.6).
+//
+// These are deliberately at the route rather than in `SecuritySearch.test.tsx`:
+// every one of them is a claim about **two surfaces at once** — that the field
+// and the table agree, that one failing leaves the other standing, that a
+// control over the page does not change what the page says about itself. A
+// component test cannot see any of that, because it can only see one component.
+
+describe("search, and the rest of the page around it", () => {
+  function loadedUniverse() {
+    stubFetch(() =>
+      json(200, {
+        securities: [NVDA, SPY, GILD],
+        coverage: [],
+        lastCloses: [],
+      }),
+    );
+  }
+
+  const field = () => screen.getByRole<HTMLInputElement>("combobox");
+
+  it("puts the field on the page before the universe arrives, rather than after", () => {
+    // Never settles, so this is the loading state and nothing else.
+    stubFetch(() => new Promise<Response>(() => undefined));
+    render();
+
+    // The control that used to appear only on success. A field that is absent
+    // while a page loads is indistinguishable from a product with no search.
+    expect(field().disabled).toBe(false);
+    expect(screen.getByLabelText("Find a security")).toBeTruthy();
+  });
+
+  it("keeps the field on the page when the universe cannot be read", async () => {
+    stubFetch(() => Promise.reject(new TypeError("Failed to fetch")));
+    render();
+
+    await waitFor(() => {
+      expect(screen.getByText("no response")).toBeTruthy();
+    });
+
+    // §36: the page degrades locally. Search says it cannot answer, the table
+    // says why and offers the retry, the heading and both regions are intact,
+    // and nothing collapsed to a global error screen.
+    expect(field().disabled).toBe(true);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("region", { name: "Market data" })).toBeTruthy();
+    expect(
+      screen.getByRole("region", { name: "Tracked universe" }),
+    ).toBeTruthy();
+  });
+
+  // The other half of that sentence, and the one a component test cannot make:
+  // the two surfaces read the same fetch, so exactly one control asks again.
+  it("offers one retry for one failure", async () => {
+    stubFetch(() => Promise.reject(new TypeError("Failed to fetch")));
+    render();
+
+    await waitFor(() => {
+      expect(screen.getByText("no response")).toBeTruthy();
+    });
+
+    expect(screen.getAllByRole("button", { name: /try again/i })).toHaveLength(
+      1,
+    );
+  });
+
+  // The market-data region fetches separately, so a universe that fails must
+  // not take the series with it. This is the "rest of the page survives" claim
+  // with something on the other side of it rather than an empty page.
+  it("leaves the series panel rendering when the universe fails", async () => {
+    stubEveryRequest((call) =>
+      call.url.includes("/market-data/bars")
+        ? Promise.resolve(barSeriesFixtureResponse("full"))
+        : Promise.reject(new TypeError("Failed to fetch")),
+    );
+    render();
+
+    await waitFor(() => {
+      expect(screen.getByText("no response")).toBeTruthy();
+    });
+    // The panel answered, and says so with a figure only a real body carries.
+    expect(screen.getByText("30 × 1m")).toBeTruthy();
+  });
+
+  // `SEARCH-AND-SELECTION.md` §6: the summary line says which of two numbers it
+  // is reporting, and **any control that changes what is on screen has to
+  // change that line in the same commit**. Search does not — it is a surface
+  // over the page rather than a filter on the table — and this is the assertion
+  // that would go red the day somebody wires the field to the rows.
+  it("does not make the summary line a lie by typing in the field", async () => {
+    loadedUniverse();
+    render();
+
+    await waitFor(() => {
+      expect(screen.getByRole("table")).toBeTruthy();
+    });
+
+    const summary = () => screen.getByText("securities tracked").parentElement;
+    const before = summary()?.textContent;
+
+    field().focus();
+    fireEvent.change(field(), { target: { value: "nv" } });
+
+    // One row matched out of three, and the sentence about the universe is
+    // still about the universe.
+    expect(screen.getAllByRole("option")).toHaveLength(1);
+    expect(summary()?.textContent).toBe(before);
+    expect(summary()?.textContent).toContain("2 securities tracked");
+    // The rows underneath are untouched too: the surface floats over them.
+    expect(screen.getAllByRole("row").length).toBeGreaterThan(3);
   });
 });

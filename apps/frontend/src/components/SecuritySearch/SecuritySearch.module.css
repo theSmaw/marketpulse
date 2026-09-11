@@ -222,3 +222,46 @@
 .session:only-child {
   margin-inline-end: auto;
 }
+
+/* The surface whose content is a sentence rather than a list (Task 2.11.6).
+ *
+ * Two states use it — a universe that has not arrived, and a query that matched
+ * nothing — and neither is a failure, so neither gets a colour. What tells them
+ * apart is the marker's **shape** and the words: a dashed square for *not yet*,
+ * a hollow ring for *an answer with nothing in it*. That is the same pair the
+ * bar panel draws, deliberately: one vocabulary for one meaning, across two
+ * surfaces a person sees on the same screen. */
+.note {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-12) var(--space-12) var(--space-12);
+}
+
+.noteHeadline {
+  /* `Marker` owns the geometry and never the colour, and a consumer that
+   * forgets this renders an **invisible** marker with no error and no warning.
+   * `CLAUDE.md` records it as a class of defect that has already happened
+   * once; the line below is what stops it happening here. */
+  --marker-color: var(--ink-secondary);
+
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-primary);
+}
+
+/* Indented to the headline's first word rather than to the marker, so the two
+ * lines read as one statement and the marker keeps its own column. The 8px is
+ * the gap above plus the marker's own width. */
+.noteDetail {
+  margin: 0;
+  padding-inline-start: calc(var(--space-8) + 9px);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+  color: var(--ink-secondary);
+}

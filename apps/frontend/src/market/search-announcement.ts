@@ -57,6 +57,24 @@ export const SEARCH_ANNOUNCEMENT_DELAY_MS = 400;
 const SUBJECT = "Security search";
 
 /**
+ * What there is to match against, which the sentence has to know before it can
+ * report a count (Task 2.11.6).
+ *
+ * Two members and not five. The states where the universe **could not be read**
+ * are deliberately not here and say nothing at all: the field is not typeable
+ * in any of them, so the region has nothing to announce, and the universe's own
+ * live region has already said it. Two polite regions reporting one fact in the
+ * same moment is how a listener learns to ignore both — which is
+ * `FRONTEND-STATE.md` §7's rule that a region belongs to a subject, applied to
+ * the case where the subject is somebody else's.
+ */
+export type SearchCorpus =
+  /** The universe is here, and this is what the query matched in it. */
+  | { readonly state: "ready"; readonly result: SecurityMatches }
+  /** The request is still in flight. Anything typed is held, not answered. */
+  | { readonly state: "loading" };
+
+/**
  * The sentence for a query and what it matched, or `null` when there is
  * nothing to say.
  *
@@ -69,12 +87,22 @@ const SUBJECT = "Security search";
  */
 export function searchAnnouncement(
   query: string,
-  { matches, total }: SecurityMatches,
+  corpus: SearchCorpus,
 ): string | null {
   const trimmed = query.trim();
   if (trimmed === "") return null;
 
   const quoted = `"${trimmed}"`;
+
+  // The corpus before the count, because a corpus that has not arrived answers
+  // every query with nothing and *"no matches"* would be a claim about the
+  // market rather than a fact about the request. This branch is the whole
+  // reason this function takes a state rather than a result.
+  if (corpus.state === "loading") {
+    return `${SUBJECT}: still loading securities. ${quoted} is kept.`;
+  }
+
+  const { matches, total } = corpus.result;
   if (total === 0) return `${SUBJECT}: no matches for ${quoted}.`;
 
   const top = matches[0];

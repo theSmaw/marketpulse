@@ -125,28 +125,30 @@ export function SecurityExplorer() {
        * `scrollable-region-focusable` class of defect gets reintroduced. It is
        * also simply true that a control *over* two surfaces belongs to neither.
        *
-       * **Rendered only when the universe has loaded**, because a matcher with
-       * nothing to match against is not a state this task decides. Every other
-       * state of this control — loading, unreachable, answered badly — is
-       * Task 2.11.6's, deliberately: this task is about the control working and
-       * that one is about it being honest, and combining them is how the second
-       * half gets shortened.
+       * **Rendered in every state of the universe fetch**, which is Task
+       * 2.11.6's whole subject. Until then it was rendered only once the fetch
+       * had succeeded — so while the universe was loading, unreachable or
+       * answered badly, the field simply was not on the page. That is not a
+       * designed state; it is the absence of one, and it is indistinguishable
+       * to a reader from a product with no search in it.
+       *
+       * It takes the view whole for `UniverseTable`'s reason, and takes no
+       * `onRetry`: one control on this screen re-asks for the universe and it
+       * is the table's, because both surfaces read the same fetch and two
+       * buttons doing one thing teach a reader that neither is the real one.
        *
        * Where the table ends up underneath is Task 2.11.7's; that the field
        * sits above whatever it becomes is settled here.
        */}
-      {view.state === "loaded" ? (
-        <SecuritySearch
-          universe={view.securities}
-          lastCloses={view.lastCloses}
-          onOpen={(symbol) => {
-            // The one spelling of this destination. `securityPath` is the only
-            // thing that builds one from `ROUTE_PATTERNS.security`, and a push
-            // rather than a replace is what keeps Back working.
-            void navigate(securityPath(symbol));
-          }}
-        />
-      ) : undefined}
+      <SecuritySearch
+        view={view}
+        onOpen={(symbol) => {
+          // The one spelling of this destination. `securityPath` is the only
+          // thing that builds one from `ROUTE_PATTERNS.security`, and a push
+          // rather than a replace is what keeps Back working.
+          void navigate(securityPath(symbol));
+        }}
+      />
 
       {/*
        * The series region, above the universe, because it is what this route is
