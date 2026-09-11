@@ -515,6 +515,30 @@ content and resolving it silently is how a design decision becomes an accident.
 | **Selection updates the path and nothing else; back/forward stay deterministic**                 | **Taken** — the same answer as §3, reached independently                                                                                                                                                                                                                                         |
 | **A sector jump rail over the grouped table**                                                    | **Taken in principle**, and it is [Task 2.11.8](TASK-08-the-universe-table-past-500.md)'s to design and build. This file records only that the trigger Story 2.4 wrote has fired and a control is the answer                                                                                     |
 
+#### Amended 2026-09-11 by Task 2.11.8 — the rail was built, and its detail settled three things this table left open
+
+The rail ships as a `<nav aria-labelledby>` above the table holding one link per
+band with its count, plus a **collapse** the deliverable also drew and this file
+did not adjudicate. Three details were decided in that task and belong beside
+the row above rather than only in its own record:
+
+- **The full sector name, not `TECH`.** The mock abbreviates all eleven.
+  Declined: `SECTOR_LABELS` exists precisely so nobody derives a display string
+  by transform — its own comment says `"Health Care"` and `"Healthcare"` are the
+  same slug and different words — so an abbreviation is a **twelfth vocabulary
+  for eleven things this product already names once**. Measured: twelve full
+  labels fit one row at 1710px, wrap to two at 1024 and four at 640, all of them
+  legible.
+- **`Collapse all` is taken**, which the table above does not cover because this
+  file recorded only the rail. It is the half of the control that actually makes
+  518 rows navigable: measured, the page goes from **20,402px to 2,273px** and
+  the focusable elements on it from **556 to 38**.
+- **A sticky band header is declined, and not on taste.** Measured in the
+  running page: a band given `position: sticky; top: 0` and scrolled 400px past
+  reported a viewport top of **−400px**. It does not stick, because the `Panel`
+  around the table declares `overflow: auto` and therefore _is_ the scrollport —
+  and it never scrolls, since it grows with its content while the page scrolls.
+
 ### Positions narrowed
 
 - **The result row's price — the one decision this task escalated to the user,

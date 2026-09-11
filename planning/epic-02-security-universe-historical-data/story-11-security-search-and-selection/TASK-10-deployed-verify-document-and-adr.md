@@ -243,6 +243,96 @@ fresh panel beside the one waiting for it is the concrete defect. Also check
 `STORY.md`'s _What this story hands forward_: it hands forward a grid with five
 named vacancies, which is a larger handoff than it currently describes.
 
+## Amended 2026-09-11 by Task 2.11.8 — one measurement taken, one sweep already done, one upward candidate that did not exist, and three entries for the verify list
+
+**1. The 518-row render figure this file asks for is taken. Reconcile rather
+than re-measure**, unless the table has stopped rebuilding its rows in one pass.
+Production build, Chromium, 2026-09-11: `Collapse all` (530 rows → 12) costs
+**17, 19, 20, 44 ms**; `Expand all` (12 → 530) costs **69, 76, 76, 87 ms**. The
+dev build is 17–27 ms and 151–222 ms, which is why the production figures are the
+ones to carry. Virtualisation was declined with that measurement behind it.
+
+**2. A new upward-sweep candidate, and it is the only one on this list that
+leaves the story.** `Expand all` at 69–87 ms **exceeds PRODUCT_SPEC.md §28's
+_no routine main-thread task >50 ms_**. The task's own argument is that it is
+neither new (the same work happens on every first paint and always has) nor
+routine (a deliberate press, once) — but that argument currently lives in one
+task file, which is exactly the shape of a finding that gets re-found. Carry it
+somewhere durable: **Epic 14 owns performance**, and a line in `EPICS.md`'s entry
+for it, or in `CLAUDE.md`, is what stops the next person measuring it from
+scratch. Do not quietly amend §28 — the target is right and this is a measured
+exception to it.
+
+**3. Story 2.4's reversal trigger is fired _and answered_, and the one live site
+is already swept. Verify rather than re-sweep.** The bullet above says the
+trigger "is recorded as unfired. It fired." Both halves are now stale: it fired
+**and a control answers it**. `grep -rn "jump between or collapse"` finds exactly
+one live site, `UniverseTable.tsx`'s `groupUniverse` doc comment, which carried
+the prediction in the present tense and now carries a dated amendment beside it
+rather than a rewrite. Story 2.4's own task files are **historical records of
+what was true when written** and must not be corrected.
+
+**4. The icon set is still six, and 2.11.8 added none.** The band disclosure is
+the existing `chevronRight` rotated a quarter turn in CSS — one drawing in two
+positions, on the argument that a seventh icon needs its own argument in its own
+task. So the "if it gained one" line above stays settled at six; check
+`ICON_NAMES`, as that bullet already says.
+
+**5. The ADR's design source has a second file, and ADR 0026 has a new dated
+amendment to reflect.** §5's amendment tells the finished document to say the
+shell came from **section 07 of the canvas** rather than from
+`2.11-design.html`. The same is true of this control and its file is different:
+**`Universe navigation.dc.html`**, a second file in the same project. It is
+second rather than a ninth section because `DesignSync`'s `get_file` caps a read
+at **256 KiB** and the main canvas is larger — it returns exactly 262,144 bytes,
+truncated mid-attribute, so a read-modify-write of that path can only publish a
+file with everything past the cap deleted. ADR 0026's "the canvas is one file"
+bullet carries that as a dated amendment. Two consequences for this close: the
+finished `SEARCH-AND-SELECTION.md` should name **both** canvas files as design
+sources, and ADR 0024 inherits a canvas that is no longer one document.
+
+**6. `SEARCH-AND-SELECTION.md` §5 has a fourth dated amendment to fold in**, and
+it settles three things the "sector jump rail — taken in principle" row left
+open: the **full sector name** rather than the mock's `TECH` (because
+`SECTOR_LABELS` exists so nobody derives a display string by transform);
+**`Collapse all`**, which the §5 row never covered because this file adjudicated
+only the rail; and **a sticky band header declined with a measurement** — set
+live and scrolled 400px past, a band's viewport top read **−400px**, because the
+`Panel` around the table is the scrollport and never scrolls.
+
+**7. One verify-list candidate above is partly discharged, and three new ones
+are owed.** The bullet naming "the summary line's truthfulness under filtering"
+is narrower now: there **is** a control that changes which rows are on screen,
+its clause is asserted at the component level as a sentence and in the browser
+against `0 of 518 rows shown`, and the other half — that search leaves the
+sentence byte-identical — was already asserted in `SecurityExplorer.test.tsx`.
+What is still unchecked, and belongs on the list with its one-liner:
+
+- **A jump that lands behind the sticky chrome is invisible below `pnpm e2e`**,
+  and it is the same class as the grid's column count: jsdom computes no layout,
+  so an element scrolled to underneath a 133px sticky masthead looks identical to
+  one scrolled to correctly. It happened, it was caught by looking, and it is now
+  held by **one spec** — `e2e/specs/universe-navigation.spec.ts` — whose red was
+  verified by restoring the break. Re-measure: delete the
+  `stickyChromeHeight()` subtraction in `jumpToBand` and confirm test 2 of that
+  spec fails.
+- **The rail's counts must sum to every row in the table.** That is the property
+  which makes "no band the control cannot reach" true, and therefore the thing
+  standing between a jump control and the `status` filter `UNIVERSE.md` §12.2
+  forbids. Held by one browser test. Re-measure: drop a group from `BandRail`'s
+  `groups.map` and confirm _an untracked security is still reachable through the
+  rail_ fails.
+- **`initiallyCollapsed` is honest API that no route uses**, and nothing would go
+  red if a route started seeding it — a page that arrives with bands already shut
+  is the collapse-by-default this task declined, reintroduced through a prop.
+  Re-measure: `grep -rn "initiallyCollapsed" apps/frontend/src` should find it in
+  the component and its stories and **nowhere under `src/routes/`**.
+
+**8. The tab-stop figures moved again**, which matters to this file only because
+`CLAUDE.md`'s _Current state_ is written from them: **556** focusable elements
+expanded, **38** with every band shut, and **23** stops from the search field to
+the first table link where 2.11.7 measured 8. `TASK-09` has the composition.
+
 ---
 
 ## Done when
