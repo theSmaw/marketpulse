@@ -163,6 +163,16 @@ const MARKET_PROXIES: Pick<UniverseGroup, "key" | "name" | "detail"> = {
  * which point groups need to become something you can jump between or collapse
  * — and that is a control, which this task is deliberately not adding.
  *
+ * **Fired and answered, 2026-09-11 by Task 2.11.8.** The sentence above is kept
+ * as the record of what was predicted; what is true now is that it happened.
+ * Measured at 518 securities: **eleven of the twelve bands are longer than one
+ * screen** and the page is 20,402px — so the grouping stayed and acquired both
+ * halves of what the trigger asked for, a rail that jumps between bands and a
+ * collapse on each. See `BandRail` for the design and the task file for the
+ * measurements. The trade this comment describes is therefore no longer a trade:
+ * grouping still answers "what does MarketPulse cover?", and "where is NVDA?"
+ * now has search *and* a way around the table.
+ *
  * **The order is `SECTORS`, not the group sizes.** Ordering by depth would put
  * the deepest sector first, which reads well exactly once and then reshuffles
  * the page the day a single security is added — a reader who knows Financials

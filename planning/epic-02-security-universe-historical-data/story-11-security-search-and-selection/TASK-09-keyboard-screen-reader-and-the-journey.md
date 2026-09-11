@@ -163,6 +163,88 @@ sentences.
 in it that survives a change of symbol wrongly. Task 2.11.5's trap was answered
 by not walking into it.
 
+## Amended 2026-09-11 by Task 2.11.8 — two new controls to walk, one inherited question already answered, and a shape no screen reader in this project has met
+
+The tracked universe gained a **band rail** (a `<nav>` of twelve jump links with
+their counts) and a **collapse** on every band heading, plus `Collapse all` /
+`Expand all`. Five consequences for this walk, and the second is an answer rather
+than a question.
+
+**1. The walk is fifteen stops longer, and the composition is measured rather
+than described.** Taken at 1440×900 on `/securities/NVDA`, 2026-09-11:
+
+|                                                         | 2.11.7 | Now     |
+| ------------------------------------------------------- | ------ | ------- |
+| Focusable elements on the page                          | 531    | **556** |
+| Tab stops from the search field to the first table link | 8      | **23**  |
+| Tab stops after the last table link                     | 0      | **0**   |
+
+The 23 in order: the field, then the **eight region panels**, then
+`Collapse all`, then the **twelve rail links**, then the Technology band's
+disclosure button, then `XLK`. Nothing in that is accidental — the rail is
+navigation and belongs in the tab order — but fifteen stops between a search
+field and the first row is a thing to **hear** before agreeing it is fine, which
+is the same judgement this file already owns for the six empty regions.
+
+**2. The skip-link question is answered. Do not re-derive it.** The note above
+asks this task to "measure how many Tab presses it takes to get past the table
+before deciding whether it needs one", and 2.11.7 corrected the premise. 2.11.8
+settles it: past the table is still the end of the document, and **`Collapse all`
+is the skip link** — one press takes the page from **556 focusable elements to
+38**, which is more than a skip link buys and leaves the reader where they were
+rather than past something. What is left for the walk is not _whether_ to add
+one; it is whether a keyboard user **discovers** that control, sitting as it does
+nine stops after the field and before the twelve links it belongs with.
+
+**3. Two controls owe the numbered flow their own steps**, and neither existed
+when the Work list below was written:
+
+- **A rail link**: Enter scrolls the band below the sticky chrome and moves
+  focus to that band's disclosure button. The landing position is asserted in
+  `e2e/specs/universe-navigation.spec.ts`; what no automated check can judge is
+  whether the **arrival announces its subject** — a screen reader user has just
+  travelled 11,933px and lands on a button, and what they hear is the whole
+  question.
+- **A band disclosure**: Space or Enter toggles it, `aria-expanded` changes,
+  focus stays on the button.
+
+**4. The thing to listen for hardest, because it is a decision 2.11.8 took that
+only this pass can confirm.** Collapsing a band changes the summary line above
+the table (`444 of 518 rows shown`) and **nothing announces it**. The argument
+is that `aria-expanded` is spoken at the moment the listener presses the control,
+about the thing they pressed, and that a `role="status"` re-reading the summary
+on top of that is two announcements of one action. A component test asserts the
+live region is byte-identical across a collapse, so the decision is enforced —
+but "enforced" and "right" are different claims and this is the pass that can
+tell them apart. If it is wrong, the fix belongs here.
+
+**5. A shape nothing in this project has met before: a `<table>` with twelve
+rowgroup headers and zero data rows.** With every band shut, the table's browse
+mode has headings and no cells. Three specific things to check, none of which
+axe can see — it passes at all three viewports in the collapsed state:
+
+- what a screen reader's table navigation does in a table with no data rows;
+- whether the column headings, which deliberately **stay** when the rows go,
+  read as a promise of content that is not there;
+- `aria-controls` on each band names the `<tbody>` that contains its own
+  trigger, which is a superset of the truth rather than a wrong answer (there is
+  nowhere else to put the id — a table admits no element between a `<tbody>` and
+  its rows). Worth hearing what a reader that implements "move to controlled
+  element" actually does with it.
+
+**6. The page now has two `navigation` landmarks** — the masthead's and the
+rail's — where it had one. Both are named, which is why `landmark-unique` is
+quiet. Listing landmarks is a thing screen reader users do to orient, so the pass
+should include what that list now sounds like.
+
+**7. Two accessible names were fixed in 2.11.8 and the fix was measured in
+jsdom, not in a screen reader.** The band heading was announcing itself as
+`TechnologyBenchmark XLK2securities`; explicit spaces now make it
+`Technology Benchmark XLK 74 securities`. Browsers and `dom-accessibility-api`
+compute names differently, so this pass is the first time a real engine reads
+either of them aloud. Confirm both, and the rail link's
+`Technology 74 securities` with them.
+
 ---
 
 ## What the user can see when this lands
