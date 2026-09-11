@@ -97,3 +97,43 @@ axis module or its measurement.
 The other fence is the volume chart. It inherits this axis and this frame, and
 deciding its bars here — before a price chart exists to place them under — is
 the mistake the story sequence was arranged to avoid.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.1 — what you are designing, and the list you are being asked for
+
+[`CHARTING.md`](CHARTING.md) settled the mechanism. Three of its answers change
+what this task is designing:
+
+- **It is a line of closes on a session-ordinal axis, hand-drawn in SVG.** Not a
+  candlestick chart, and not a library's chart with our colours on it. Every
+  pixel is a decision this task gets to take, which is the upside of §1 and also
+  the whole of its cost — **there are no defaults to fall back on.**
+- **The Work section's phrase _"a candle body or a directional line"_ is now just
+  the directional line.** There is no per-bar body to fill or hollow, so the
+  non-colour channel for direction attaches to the **window's** change — the
+  current-value reading and the headline — rather than to 1,950 marks. See
+  [Task 2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md)'s
+  amendment, which is where it is implemented.
+- **A high–low band is now a live design question**, because the line throws away
+  `high` and `low` and §5 keeps them as stated facts on the grounds that the plot
+  rounds them. Whether the band exists is 2.12.5's to decide; **what it looks
+  like if it does is this task's**, and it is cheaper to take a position on it
+  here than to retrofit one.
+
+**The eleven questions this task is being asked for are enumerated in
+[`CHARTING.md`](CHARTING.md) §7**, with what exists today beside them. That
+section is this task's input; it deliberately answers none of them. Two carry
+measurements already taken:
+
+- The up/down pair is **1.096:1** by luminance ratio — hue is the entire
+  difference. (`CLAUDE.md` records 1.04:1 by a greyscale-conversion method; same
+  substance.) Both inks clear **5:1** against both surfaces, so the floor is not
+  the issue.
+- `--rule-hairline` is **1.27:1** against `--surface-raised`, which is right for a
+  table rule and is an open question behind data.
+
+One thing this task no longer has to reserve room for in the way the Work section
+implies: **Epic 6's topology does not inherit this chart.** `PRODUCT_SPEC.md` §27
+commits it to Sigma.js/WebGL and `CHARTING.md`'s preamble says so. Epics 5, 8
+and 9 still do.

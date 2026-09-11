@@ -66,13 +66,38 @@ What a user still cannot do: see volume, or change the window. Story 2.13.
   in exchange for looking better, which is the one trade this repository does
   not make.
 
-- **Paint the frame immediately.** The measured reality is ~0.6 s for one
+- **Paint the frame immediately.** ~~The measured reality is ~0.6 s for one
   session and ~2.5 s for a month from the UK, with nothing on the path
-  compressing. §28's "visible feedback within 500 ms" is satisfied by the frame,
+  compressing.~~ §28's "visible feedback within 500 ms" is satisfied by the frame,
   the axes and the loading treatment being there before the series is — design
   for that, which §36 requires anyway. The loading treatment itself is 2.12.7's
   to finish; what this task owes is that the frame is not conditional on the
   data.
+
+  > **Amended 2026-09-11 by Task 2.12.1 — the struck figures are stale, the
+  > instruction is not.** `@fastify/compress` was registered by Task 2.9.10 on
+  > 2026-09-10, the same day the figures above were taken. Live, deployed from
+  > the UK: **the default window is 29,072 B and ~399 ms**, one session is
+  > ~333 ms, a month is 154,480 B and ~1,210 ms
+  > ([`CHARTING.md`](CHARTING.md) §4).
+  >
+  > **The instruction stands and is not weakened.** The default window now
+  > clears 500 ms on its own, which is exactly why this bullet matters: it would
+  > be easy to conclude the frame-first rule is no longer needed. It is —
+  > Story 2.13's control offers the month that still costs 1.2 s, and Epic 13's
+  > replay will ask for windows nobody has measured. **The frame is never
+  > conditional on the data.**
+
+- **The x-axis domain comes from `coverage.requested`, and this is the task that
+  decides it.** [`CHARTING.md`](CHARTING.md) §6.2 is emphatic about this and it
+  is easy to read as 2.12.7's problem because `partial` is the state that makes
+  it visible. It is not — it is a line of code in _this_ task, and getting it
+  wrong here means 2.12.7 retrofits the axis rather than drawing a state.
+
+  Derive the domain from the bars and a `partial` series silently rescales to
+  fill the frame and **looks complete**: no error, nothing red, and no test below
+  `pnpm e2e` able to see it. `loaded` is the one member where the two derivations
+  agree, so building against `loaded` alone will not reveal the difference.
 
 - **Verify the line against the store, not by eye** — acceptance criterion 1.
   A test that asserts the rendered marks correspond to the fixture's bars, and a

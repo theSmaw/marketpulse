@@ -74,3 +74,34 @@ an empty chart is a state, and it is that task's.
 The other fence is comparison. Reading two series at one instant is Epic 8's,
 and the shape of this readout should not foreclose it — one more reason the
 readout is a component with props rather than a string built inline.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.1 — **this task got more important, not just more defined**
+
+[`CHARTING.md`](CHARTING.md) §2 chose a line of closes over candlesticks, on the
+measurement that a candle would be **0.47 px wide** at the default window. The
+bars still carry open, high, low and close, and the plot no longer shows three of
+them.
+
+**So this readout is where a bar's four prices actually reach the user**, and
+that is a load-bearing role rather than a convenience. `CHARTING.md` §2 justifies
+the line decision partly _on the grounds that this readout exists_ — "OHLC
+reaches the user through the readout rather than the mark" — so a readout that
+ships showing only the close would retroactively make the series-type decision
+wrong.
+
+What that adds to the Work section above, which otherwise stands unchanged:
+
+- **The readout states all four prices**, plus the bar's market time and its
+  change. The Work section already said so; this amendment is why it is not
+  negotiable.
+- **The inverse scale returns a bar index, not an instant** — the axis is
+  ordinal ([Task 2.12.3](TASK-03-scales-ticks-and-the-market-gap.md)'s
+  amendment). "Nearest bar" is therefore `round()` on a fraction of the plot
+  width, which is simpler than the time-based nearest-neighbour search the
+  original bullet implies.
+- **The chart is one tab stop and the marks are not in the tab order**, which is
+  easy here and would not have been: the base chart is one `<path>`, so there is
+  no per-bar element that could accidentally become focusable. Keep it that way —
+  §1's element-count constraint and this are the same constraint.

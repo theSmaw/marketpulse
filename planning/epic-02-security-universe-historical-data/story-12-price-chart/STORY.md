@@ -307,7 +307,7 @@ body this API serves takes 2.8 ms.
 | [2.12.2](TASK-02-the-chart-on-the-canvas.md)                         | What it looks like, on the canvas, and the tokens it needs               | **In the workshop**           |
 | [2.12.3](TASK-03-scales-ticks-and-the-market-gap.md)                 | Scales, domains, ticks and sessions — as pure functions                  | No                            |
 | [2.12.4](TASK-04-the-first-chart-in-marketpulse.md)                  | The first chart in MarketPulse, in the region that named it              | **Yes — the payoff**          |
-| [2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md) | Open/high/low/close, and direction that survives greyscale               | **Yes**                       |
+| [2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md) | The high–low band, and direction that survives greyscale                 | **Yes**                       |
 | [2.12.6](TASK-06-reading-a-point-crosshair-hover-and-keyboard.md)    | Crosshair, readout, and the keyboard path to the same reading            | **Yes**                       |
 | [2.12.7](TASK-07-every-chart-state-drawn.md)                         | Every state from a recorded body, `partial` above all                    | **Yes**                       |
 | [2.12.8](TASK-08-the-text-alternative-and-the-screen-reader-walk.md) | A text alternative that says something true, and the walk that proves it | **Yes**                       |
@@ -317,3 +317,34 @@ body this API serves takes 2.8 ms.
 **The subject document is `CHARTING.md`**, not `PRICE-CHART.md`. Only a fraction
 of what this story settles is about price: Epic 5's markers, Epic 6's topology,
 Epic 8's comparisons and Epic 11's agent-opened charts all inherit it.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.1 — what the settled decisions did to the nine tasks below
+
+The task list was reviewed against [`CHARTING.md`](CHARTING.md) once the
+decisions existed. **No task was added, none was deleted, and the order is
+unchanged.** Seven were amended in place, each with a dated block at the foot of
+its own file. The two largest effects:
+
+- **2.12.3 got bigger, not smaller.** Its Notes anticipated _"if 2.12.1 chose a
+  library, this task is smaller"_. It chose **no library and no dependency**, so
+  that task now owns the scale, its inverse and nice-number tick selection
+  outright. Its amendment also settles that the arithmetic lives in the existing
+  **`market` module** — no second feature module, which collapses the most
+  dangerous item on 2.12.10's sweep list.
+- **2.12.5 got smaller and partly moved.** With a line chosen over candlesticks,
+  there is no per-bar body, so **per-bar open-against-close moved to 2.12.6's
+  readout** — which makes that readout load-bearing rather than a convenience,
+  since §2 justifies the line decision partly on its existing. What 2.12.5 keeps
+  is the **high–low band** and the non-colour direction encoding. Its amendment
+  says plainly that if it collapses further in practice it should be folded into
+  2.12.4 rather than padded.
+
+**The one ordering question that was genuinely open**, and the answer: 2.12.5 and
+2.12.6 are now independent of each other, and 2.12.6 carries more of the
+product's honesty about the four prices than 2.12.5 does — which is an argument
+for swapping them. It was **declined**: the readout naturally reads the high and
+the low that the band has already put on the plot, which mildly favours band
+first, and renumbering costs every reference in this directory for a marginal
+gain. Recorded so the question is not reopened as though it had been missed.

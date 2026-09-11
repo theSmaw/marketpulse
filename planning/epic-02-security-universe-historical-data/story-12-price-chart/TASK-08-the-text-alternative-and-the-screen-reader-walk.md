@@ -92,3 +92,35 @@ that was asked for.
 The second likeliest is a live region added here for the chart's reading, when
 2.12.6 already settled the rate. Two polite regions updated in the same moment
 are queued in an order neither component controls.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.1 — the conditional in the Work section is settled
+
+The Work section says _"what the marks are in the accessibility tree depends on
+what Task 2.12.1 chose."_ It chose **hand-built SVG**, and it chose it **largely
+for this task's benefit** — `CHARTING.md` §1 rejected the fastest library
+candidate because it paints to seven canvases, leaving nothing to describe. So
+the question does not collapse, it sharpens:
+
+- **There is a DOM, and the decision to expose or hide the marks is now a real
+  one that must be taken and stated.** The Work section's _"780 announced
+  elements is a defect"_ is close to unreachable in the base chart, because a
+  line of closes is **one `<path>`** rather than 780 elements — so the likely
+  answer is that the `<path>` is `aria-hidden` and the text alternative carries
+  everything. **Take that deliberately and say so**; arriving at it by noticing
+  there was only ever one element is not the same as deciding it.
+- **`role="img"` with a real label is the shape**, and the story's own warning
+  applies with force: `role="img"` labelled "price chart" is the failure mode,
+  not the solution.
+- **The likeliest miss named in the Notes is now sharper.** The text alternative
+  must be built from `coverage`, and `CHARTING.md` §6.2 makes the same point
+  about the axis: the window **asked for** and the window **covered** are
+  different, and `partial` is the normal case. A sentence saying "the price over
+  the last five sessions" when the data covers four and a half is the same defect
+  as an axis derived from the bars — stated in words instead of pixels.
+- **Contrast has more surfaces to measure than the Work section assumes**, and
+  §7 of `CHARTING.md` lists them: axis ink, tick-label ink, gridlines, the series
+  line, the crosshair, and — if 2.12.5 draws one — the high–low band, which sits
+  _behind_ the line and therefore changes the ground the line is measured
+  against.

@@ -225,9 +225,7 @@ repair is 1,167 B of `d3-array`, already priced.
 
 ---
 
-## 2. Decision 2 — a line of closes for V1. Candlesticks have a measured
-
-## threshold and do not meet it.
+## 2. Decision 2 — a line of closes for V1, and candlesticks have a measured threshold they do not meet
 
 ### What was measured
 
@@ -271,8 +269,17 @@ The bars carry all four prices and `PopulatedBarSeries` keeps them. A line of
 closes throws that away _visually_; it does not throw it away _from the product_:
 
 - **[Task 2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md)**
-  renders what a session did, with direction that survives greyscale — that is
-  where open-against-close lives.
+  renders the session's **extent** — a high–low band behind the close line, which
+  works at 0.47 px per bar because it is one filled area rather than thousands of
+  marks — and the direction encoding that survives greyscale.
+
+  > **Corrected 2026-09-11, the same day, while reviewing the task list against
+  > these decisions.** This bullet first read _"that is where open-against-close
+  > lives"_, and that over-promised 2.12.5: at 0.47 px per bar there is no body to
+  > fill or hollow, so **per-bar open-against-close is 2.12.6's readout**, below.
+  > What 2.12.5 draws is the high and the low, which a band can carry at any
+  > density.
+
 - **[Task 2.12.6](TASK-06-reading-a-point-crosshair-hover-and-keyboard.md)**'s
   crosshair readout gives **all four prices for the bar under the cursor or the
   focus ring**, which is how an analyst actually reads an individual bar — by
@@ -364,9 +371,7 @@ information and this axis can no longer represent it.
 
 ---
 
-## 4. Decision 4 — the chart opens at **5 sessions of `1m`**, unchanged, and now
-
-## with a reason
+## 4. Decision 4 — the chart opens at 5 sessions of `1m`, unchanged, and now with a reason
 
 ### First: a stale premise this task was handed, corrected
 
@@ -412,9 +417,7 @@ panel would have bars in it; it survives as the chart's default on its own merit
   for a window Story 2.13's control can offer deliberately. Opening there would
   spend the product's first impression on a spinner.
 
-### §28's 500 ms is satisfied by the frame, not by the response — and that rule
-
-### stands even though the default now meets it outright
+### §28's 500 ms is satisfied by the frame, not by the response, and that rule still stands
 
 This is recorded because it would otherwise be quietly lost now that 5 sessions
 comes in under 500 ms on its own. **It must not be.** Story 2.13's control will
@@ -509,9 +512,7 @@ progressive disclosure of the _exact_ figures — not deletion of them.
 Recorded here because the next seven tasks will read this file and not
 [`FRONTEND-STATE.md`](../story-10-frontend-market-data-layer/FRONTEND-STATE.md).
 
-### 6.1 A window is named and resolved by the **server**, never computed from the
-
-### browser's clock
+### 6.1 A window is named and resolved by the server, never computed from the browser's clock
 
 Send `sessions=N`. The server resolves it against the market date and reports
 what it meant in `coverage.requested`. `FRONTEND-STATE.md` §3 and
@@ -624,11 +625,32 @@ written. **`MARKET-DATA-API.md` already carries its own dated correction** —
 figures — so the subject document is not wrong. What was still standing was the
 **instruction to this story**, in `STORY.md` and in this task's own brief.
 
-**Both instruction sites have been given a dated amendment beside the stale
+**Every instruction site has been given a dated amendment beside the stale
 sentence rather than a rewrite**, per `CLAUDE.md`'s rule that story and task
-files record what was true when they were written: `STORY.md`'s Task 2.9.9
-amendment, and **this task's own brief**, whose Decision 4 bullet repeated the
-claim. This document's §4 carries the live figures.
+files record what was true when they were written. This document's §4 carries
+the live figures.
+
+There are **three**, and the third is the interesting one:
+
+1. `STORY.md`'s Task 2.9.9 amendment.
+2. **This task's own brief**, whose Decision 4 bullet repeated the claim.
+3. **[Task 2.12.4](TASK-04-the-first-chart-in-marketpulse.md)'s _Paint the frame
+   immediately_ bullet** — _"~0.6 s for one session and ~2.5 s for a month from
+   the UK, with nothing on the path compressing."_
+
+> **Amended 2026-09-11, later the same day.** This section originally said there
+> were two sites and that _"nothing else in the tree repeats the claim"_. **That
+> was wrong**, and it was found by reviewing the nine downstream task files
+> against these decisions rather than by the grep — because the grep was run, and
+> the third site **was in its output**. The claim was written from the two sites
+> that had been corrected rather than from what the output actually showed.
+>
+> This is precisely the failure `CLAUDE.md` names — _"recording a correction and
+> propagating it are two obligations"_ — occurring **inside the task that swept
+> the correction**, and one file away from the task whose own Notes warn about
+> it. It is recorded rather than quietly fixed because the lesson is not "run the
+> grep"; the grep ran. It is **read the grep's output to the end before writing
+> down what it found.**
 
 ### What the grep actually found, and why most of it is correct as it stands
 
