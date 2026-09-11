@@ -162,7 +162,7 @@
  * the data reads first.
  *
  * **They are deliberately not sticky, and that is a finding rather than an
- * omission.** A 101-row table wants its column headings pinned, and
+ * omission.** A 518-row table wants its column headings pinned, and
  * `position: sticky; top: 0` here is *inert* — measured in a browser rather
  * than reasoned about. `Region` declares `overflow: auto` so that a region
  * sized by the landing route's grid scrolls its own content, and an ancestor
@@ -318,15 +318,28 @@ tbody:first-of-type .group {
 }
 
 /*
- * Hover tracks the eye across four columns on a 101-row table, which is what it
- * is for rather than feedback — nothing here is clickable until Story 2.11.
- * It is the ground rather than the ink, because changing the ink of a row under
- * the pointer is a legibility change and this is a locator.
+ * Hover tracks the eye across four columns on a 518-row table, which is what it
+ * is for rather than feedback. It is the ground rather than the ink, because
+ * changing the ink of a row under the pointer is a legibility change and this
+ * is a locator.
  *
- * `:hover` only: no `:focus-within`, because there is nothing focusable in a
- * row yet. Story 2.11's click-through is what makes that a real state.
+ * **It is still a locator and not a click affordance**, which matters now that
+ * one cell in the row is a link (Task 2.11.5). A row that lights up under the
+ * pointer while only its first cell opens anything would be a lie told by the
+ * ground; what says "this opens" is the link's own underline, its chevron and
+ * the pointer, all of which appear over the symbol and nowhere else.
+ *
+ * `:focus-within` joined it at the same task, for the reason the line below it
+ * gives.
  */
-.row:hover {
+.row:hover,
+/*
+ * `:focus-within` was named in the note above as the state Story 2.11's
+ * click-through would make real, and this is it: a row reached by Tab is
+ * located exactly the way a row under the pointer is. Without it, keyboard
+ * navigation down a 518-row table shows a focus ring with no row behind it.
+ */
+.row:focus-within {
   background: var(--surface-sunken);
 }
 
@@ -360,6 +373,92 @@ tbody:last-of-type .row:last-child {
   composes: dataCell from "../../styles/type.module.css";
   font-weight: var(--font-weight-bold);
   white-space: nowrap;
+}
+
+/*
+ * The symbol cell is the row's **way in** (Task 2.11.5), so the cell gives its
+ * padding to the link inside it.
+ *
+ * Without this the target is the glyphs of a four-letter ticker and nothing
+ * else — roughly 34×17 px — and the cell's own padding is dead space around a
+ * control, which is the commonest way a table full of links ends up feeling
+ * imprecise. Padding on the link instead makes the whole cell the target while
+ * keeping the column's rhythm identical to every other cell's.
+ *
+ * ## Why the cell and not the row
+ *
+ * Both were available and this is the trade taken:
+ *
+ *   - **A `<tr onClick>` is not a link.** It is not in the tab order, Enter
+ *     does nothing, a screen reader announces a row of data with no indication
+ *     that anything can be opened, and there is no address to copy or
+ *     middle-click. Every one of those would have to be rebuilt by hand and
+ *     each rebuild is a chance to get it wrong.
+ *   - **A row-sized target fights selection.** Four of this table's seven
+ *     columns are text an analyst copies — the name, the industry, the close.
+ *     A drag across them on a clickable row is a navigation, and the reader
+ *     loses the page as the price of trying to copy a word off it.
+ *   - **A cell-sized target is unambiguous.** The symbol *is* the security's
+ *     identity in this product — it is the row header, the thing search matches
+ *     first, and the segment the address carries — so "click the symbol to open
+ *     the security" needs no explaining.
+ *
+ * The cost is a smaller target, and this rule is most of the answer to it.
+ */
+.symbolCell {
+  padding: 0;
+}
+
+/*
+ * The link fills the cell and inherits everything.
+ *
+ * `color: inherit` rather than a link colour is deliberate and it is the same
+ * rule the brand layer states: the crimson accent is confined to four positions
+ * in the chrome, and 518 crimson tickers would be a table shouting. The
+ * affordance is carried by the underline and the chevron on hover and focus —
+ * and by the pointer — rather than by ink, which also keeps the untracked row's
+ * receded ink working: `.untracked .symbol` still wins, because the link
+ * carries that class too.
+ */
+.symbolLink {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-12);
+  color: inherit;
+  text-decoration: none;
+}
+
+/*
+ * Hover and focus are the same drawing, because they are the same statement —
+ * *this is what will open*. The underline is offset so it does not cut through
+ * the descender-free capitals of a ticker.
+ *
+ * There is no `:focus-visible` ring declared here: focus is the token layer's
+ * job, one global rule, and a component declaring its own is answering a
+ * question already answered.
+ */
+.symbolLink:hover .symbolText,
+.symbolLink:focus-visible .symbolText {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/*
+ * The chevron is a **second** encoding of the same affordance and not a
+ * decoration on its own: it holds its space at all times, so nothing in the
+ * column reflows when a pointer crosses it, and it fades in rather than
+ * appearing. Reserving the space is what keeps a 518-row table still.
+ */
+.symbolChevron {
+  color: var(--ink-secondary);
+  opacity: 0;
+  transition: opacity var(--motion-duration-quick) var(--motion-ease-standard);
+}
+
+.symbolLink:hover .symbolChevron,
+.symbolLink:focus-visible .symbolChevron {
+  opacity: 1;
 }
 
 .industry {

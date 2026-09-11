@@ -59,6 +59,14 @@ looks confident.
   panel because it was the only way to find out what symbols exist. **That reason
   expires with this story.** Decide what happens to it — it stays, it moves to
   `/securities` only, it becomes something smaller and related — and record why.
+
+  **Amended 2026-09-11 by Task 2.11.5: the decision now has a second input, and
+  it points the other way from the first.** The table is no longer only a
+  directory — each row's symbol is a link, so it is a **way in**, and on
+  `/securities/:symbol` it is the only way to reach a second security without
+  using search. Removing it from that route removes a navigation affordance,
+  not just a list. Whatever is decided, say what a person on one security's page
+  uses to get to the next one.
   Note that `/securities` and `/securities/:symbol` currently render the same
   component and share an `<h1>`, deliberately; if that changes, `App.test.tsx`
   asserts every route has a distinct heading and the browser suite walks the
@@ -115,6 +123,32 @@ looks confident.
   written down**, not asserted: a stranger believing it is a real funded product;
   designed rather than defaulted; a moment worth showing somebody; and does it
   feel alive
+
+## Amended 2026-09-11 by Task 2.11.5 — this route no longer re-mounts, and that is a trap for a shell
+
+Until today, going from one security to another reloaded the document, so every
+component on this page was constructed fresh each time. That is over:
+`/securities` and `/securities/:symbol` are two `<Route>`s rendering the **same**
+module, and a client-side navigation between them **re-renders**
+`SecurityExplorer` rather than re-mounting it. Measured in Chromium — a marker
+set on `window` survives, `performance.getEntriesByType("navigation")` stays at
+one entry, and the search field keeps the query that was typed before the
+navigation.
+
+**A shell is exactly the kind of thing this bites.** Any state this task
+introduces — a collapsed region, a selected tab, a chosen comparison, a
+dismissed placeholder — survives a change of symbol **by default**. That is not
+something to opt into; it is something to deliberately reset or key on the symbol
+where it would otherwise be wrong. `useBarSeries` already does it correctly and
+is the worked example: it compares the request key during render and resets its
+view when the key changes, which is why the panel never shows one symbol's
+figures under another's name. A region that does not do the equivalent is that
+same defect, in a place nothing is asserting yet.
+
+The two states already known to survive are recorded in
+`SEARCH-AND-SELECTION.md` §3's amendment: the parsed-series cache, which wants
+it, and the search field's query, which is benign. Anything this task adds is the
+third, and it is the first one that has not been looked at.
 
 ## Notes
 

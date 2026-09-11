@@ -37,6 +37,7 @@ chromium`, ~554 MB, once per machine.
 | `specs/backend-failure-states.spec.ts` | the three states from named causes, and §36's "the rest still works"   |
 | `specs/backend-recovery.spec.ts`       | recovery across a real poll interval, with no page reload              |
 | `specs/securities-route.spec.ts`       | the first page whose content arrives over the network                  |
+| `specs/security-navigation.spec.ts`    | two securities in one page lifetime — the cache, and no second load    |
 | `specs/market-clock.spec.ts`           | the chrome's clock, and the one assertion below this level cannot make |
 | `support/`                             | locators, timings and the axe pass — not collected as tests            |
 | `playwright.deployed.config.ts`        | the post-deploy check's config — a second file, not a second project   |
@@ -391,6 +392,35 @@ below, because the thing that made them impossible is gone.
   server. Wait past it. It is deliberately not a `BackendStatus` member and must
   never become one.
 
+## A state produced by **holding a response open**, and why that is not a latency assertion
+
+`specs/security-navigation.spec.ts` (Task 2.11.5) needed states that exist only
+while the network has not answered: a held series painted from the cache before
+its own request returns, and the moment after a navigation when the new
+security's panel must show _nothing_ rather than the previous security's
+figures. Both are invisible against a fast local pair — a cache hit and a quick
+round trip look identical — so that file fulfils the **real** response after a
+delay and makes every assertion inside the window it opens.
+
+Two rules keep that honest, and they are the difference between producing a
+state and timing one.
+
+- **Nothing asserts a duration.** The delay is how the state is _made_; every
+  assertion is about what is on screen. "Not latency" above is intact.
+- **The interesting assertion is often an absence, and an absence needs a
+  distinguishable wrong answer.** That file's supersession test passed with
+  every line of cancellation deleted from `useBarSeries`, because a _wrong_
+  series renders as an answer too — the heading and "an answer" were both there
+  and both meaningless. It goes red only now that the superseded requests answer
+  **503**: a failure state carries a sentence and a retry control that no answer
+  has, on CI's empty store as much as on a backfilled one. Before trusting a
+  test like this, delete the thing it is about and watch it.
+
+One harness note that costs an afternoon otherwise: a held response that
+outlives its test fails that test from the route callback — `route.fetch: Test
+ended.` — **after** every assertion in it has passed. `page.unrouteAll({
+behavior: "ignoreErrors" })` in an `afterEach` is the fix.
+
 ## One assertion this level exists for: **it advances**
 
 `specs/market-clock.spec.ts` is worth reading before writing anything else that
@@ -521,7 +551,8 @@ In the same shape ADR 0010 states it for the tick.
 - **Not that the artefact it drove is the artefact that ships.** The dev server
   does not typecheck and does not bundle; `pnpm verify` is what covers that.
 - **Not coverage, and not that a journey exists for a behaviour.** There are
-  **five** spec files and 21 tests.
+  **ten** spec files and 51 tests (2026-09-11). Note the two figures above it
+  are Task 1.13.4's, taken on ten tests, and have not been re-taken since.
 
 ## Why there is no render-failure journey
 

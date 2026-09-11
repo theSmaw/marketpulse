@@ -8,8 +8,12 @@ import type {
   SecurityLastClose,
 } from "@marketpulse/shared";
 
+import { Link } from "react-router";
+
 import { Button } from "../Button/Button.js";
 import { cx } from "../../cx.js";
+import { Icon } from "../Icon/Icon.js";
+import { securityPath } from "../../routes/paths.js";
 import type {
   SecuritiesFailure,
   SecuritiesView,
@@ -362,9 +366,36 @@ function SecurityTableRow({
        * A `<th scope="row">`, so a screen reader announces the symbol before
        * each cell in the row — "Semiconductors" is heard as NVDA's industry
        * rather than as a bare word.
+       *
+       * **And, since Task 2.11.5, the row's way in.** The target is the symbol
+       * cell rather than the whole row, and the argument is in
+       * `UniverseTable.module.css` beside `.symbolLink`: the row is a bigger
+       * target and fights selection of the four columns an analyst copies, and
+       * a `<tr onClick>` is not a link in any sense a keyboard or a screen
+       * reader can use. It is a real `<a>` — reachable by Tab, activated by
+       * Enter, announced as a link, and offering the address on a
+       * middle-click — and it is a React Router `Link`, so opening a second
+       * security keeps the parsed-series cache this page's panel reads from.
+       *
+       * The destination is built with `securityPath()` and nowhere else; see
+       * `routes/paths.ts` for why a pattern is not a template. An **untracked**
+       * security is a link like any other, which is `UNIVERSE.md` §12.2's rule
+       * arriving at navigation: a security we stopped tracking is shown,
+       * marked, and still openable — its stored bars did not stop existing.
        */}
-      <th scope="row" className={cx(styles.cell, styles.symbol)}>
-        {security.symbol}
+      <th scope="row" className={cx(styles.cell, styles.symbolCell)}>
+        <Link
+          to={securityPath(security.symbol)}
+          className={cx(styles.symbolLink, styles.symbol)}
+        >
+          <span className={cx(styles.symbolText)}>{security.symbol}</span>
+          {/* Decoration, and `Icon` is already `aria-hidden`. The link's
+              accessible name stays the bare symbol, which is what a screen
+              reader user is navigating by. */}
+          <span className={cx(styles.symbolChevron)}>
+            <Icon name="chevronRight" />
+          </span>
+        </Link>
       </th>
       <td className={styles.cell}>
         {security.name}

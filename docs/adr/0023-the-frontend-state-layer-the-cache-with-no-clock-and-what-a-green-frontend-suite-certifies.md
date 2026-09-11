@@ -249,6 +249,20 @@ a listener unable to tell _nothing changed_ from _nothing happened_.
   interface links one security to another until Story 2.11, so the only route is
   a document navigation — which reloads the bundle and exercises no client-side
   transition. That property stays at the jsdom level, by identity, and says so.
+
+  > **Amended 2026-09-11 by Task 2.11.5.** The premise is no longer true and the
+  > conclusion is now only half true. Search navigates with `useNavigate()` and a
+  > row of the tracked universe is a React Router `Link`, so two securities are
+  > linked and the transition is client-side; `e2e/specs/security-navigation.spec.ts`
+  > asserts it in a browser, including that the return to a security paints its
+  > held series **before** the network answers and asks again anyway, and that no
+  > frame shows one symbol's bars under another's name. What stays at the jsdom
+  > level is narrower and was measured rather than assumed: the browser suite is
+  > **green with the identity guard removed**, because the effect teardown's abort
+  > alone supersedes a navigation that fast. The guard exists for an answer that
+  > had already _resolved_ when the abort landed, and that order cannot be timed
+  > deterministically from outside the page.
+
 - **Not that the prices are right.** Every assertion is about rendering what the
   API returned, over a corpus this repository recorded.
 

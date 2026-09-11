@@ -40,6 +40,33 @@ screen-reader pass — which no automated check in this repository can stand in
 for. Arrow keys, Escape and the spoken sentence are proved at the component level
 only, where no screen reader exists and nothing is focused or blurred.
 
+## Amended 2026-09-11 by Task 2.11.5 — two more pieces exist, and one bullet below was wrong
+
+`e2e/specs/security-navigation.spec.ts` adds two assertions this task would
+otherwise have written:
+
+- **A table row's symbol opens on Enter**, reached with `press` so the focus and
+  the key are the real path rather than a click wearing a keyboard's name. That
+  is the keyboard half of "open a security" for the **table**; the keyboard half
+  for the **search surface** — arrow keys and Enter, in a browser — is still
+  owed here.
+- **Back, walked in a browser**, though for the cache rather than for the
+  keyboard: the sequence symbol → symbol → Back is asserted end to end without a
+  document load.
+
+**And it corrected the "Back" bullet below**, which asserted the opposite of what
+the product does. See it — it is the one instruction in this file that would have
+sent the walk looking for a behaviour that is not there, or worse, "fixing" one
+that is correct.
+
+**One thing this task now inherits that did not exist when it was written:** the
+tracked universe is **518 links in the tab order**. Tabbing from the search field
+to anything below the table is 518 stops. Nothing about that is wrong — every
+one of them is a real destination and a skip link is the conventional answer —
+but it is a keyboard-walk finding waiting to happen, it is invisible to axe, and
+this is the task that owns it. Measure how many Tab presses it takes to get
+past the table before deciding whether it needs one.
+
 ## What the user can see when this lands
 
 **Nothing new drawn** — and quite a lot fixed. Whatever the walk finds is fixed
@@ -60,12 +87,27 @@ focused, a sentence announced with no subject in it.
   - Shift-Tab back into the control
   - The control reached from the table, and from a security's page
   - **Back, from an opened security to the list — added 2026-09-11 by Task
-    2.11.1.** The query is component state and does **not** survive it, so Back
-    lands on the list with an empty field. That is a decision taken with its
-    reasons (`SEARCH-AND-SELECTION.md` §3) and not a defect to file: state it in
-    the numbered flow, and if walking it makes a case that it is wrong, that is an
-    amendment to §3 rather than a fix here. This is also the step where the
-    third polite region must stay silent — arriving at a page is not a change.
+    2.11.1. ~~The query is component state and does not survive it, so Back lands
+    on the list with an empty field.~~ Corrected 2026-09-11 by Task 2.11.5:
+    the field KEEPS its query.** The original sentence followed from "the query
+    is component state" only while every navigation reloaded the bundle. It does
+    not now: `/securities` and `/securities/:symbol` are two `<Route>`s rendering
+    the **same** module, so React re-renders `SecurityExplorer` rather than
+    re-mounting it. Measured in Chromium — the field still reads `nvid` after
+    opening NVDA, after Back, and after a table-row click.
+
+    So the sentence to state in the numbered flow is **"Back keeps my search"**,
+    which is the friendlier of the two and was kept for that reason
+    (`SEARCH-AND-SELECTION.md` §3's dated amendment). It is still a decision to
+    say out loud rather than a defect to file, and if walking it makes a case
+    that it is wrong, that is still an amendment to §3 rather than a fix here.
+
+    This is also still the step where the third polite region must stay silent —
+    and the mechanism is now different and worth listening for. The region is not
+    unmounted and its sentence is not cleared, because the query that derived it
+    survived; nothing changes, so nothing is announced. **What to check is that
+    a screen reader does not re-read the retained sentence on arrival**, which is
+    the one way this could be worse than the empty field would have been.
 
 - **The screen-reader pass**, done with a real screen reader rather than inferred
   from the DOM. What is announced when the list opens, when the active option

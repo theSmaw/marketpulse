@@ -1,10 +1,12 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type {
   SecuritiesFailure,
   SecuritiesView,
 } from "../../use-securities.js";
+import { securityPath } from "../../routes/paths.js";
+import { renderWithContext } from "../../test-render.js";
 import { groupUniverse, summarise, UniverseTable } from "./UniverseTable.js";
 import { toMarketDate, toTicker } from "@marketpulse/shared";
 import type {
@@ -197,8 +199,74 @@ describe("summarise", () => {
 });
 
 describe("UniverseTable", () => {
+  // Task 2.11.5 — the table stops being a list you read and becomes a way in.
+  //
+  // Asserted by **role** rather than by tag or class: `getByRole("link")` is
+  // exactly the question "does a screen reader hear a link here?", which a
+  // `<tr onClick>` would fail while looking identical in a DOM snapshot. The
+  // `href` is asserted against `securityPath()` rather than a literal, so a
+  // change to the address shape moves one file and this stays true.
+  it("makes each row's symbol a link to that security", () => {
+    renderWithContext(
+      <UniverseTable onRetry={noop} view={loaded([equity(), ABBV])} />,
+    );
+
+    const link = screen.getByRole("link", { name: "NVDA" });
+    expect(link.getAttribute("href")).toBe(securityPath("NVDA"));
+    expect(screen.getByRole("link", { name: "ABBV" })).toBeTruthy();
+  });
+
+  // The link's accessible name is the bare symbol and nothing else. The chevron
+  // beside it is decoration — `Icon` renders `aria-hidden` — and a name with a
+  // trailing artefact is what a listener would hear read out 518 times. A
+  // string `name` on `getByRole` is matched **whole** rather than as a
+  // substring, which is what makes this an assertion rather than a formality;
+  // `textContent` beside it is the visible half of the same claim.
+  it("names the link with the symbol alone", () => {
+    renderWithContext(
+      <UniverseTable onRetry={noop} view={loaded([equity()])} />,
+    );
+
+    const link = screen.getByRole("link", { name: "NVDA" });
+    expect(link.textContent).toBe("NVDA");
+  });
+
+  // The row header is still the row header. Making the symbol a link must not
+  // cost the table the `<th scope="row">` a screen reader announces before each
+  // cell — which it would, had the cell been replaced by the link rather than
+  // filled with one.
+  it("keeps the symbol cell a row header with the link inside it", () => {
+    renderWithContext(
+      <UniverseTable onRetry={noop} view={loaded([equity()])} />,
+    );
+
+    const header = screen.getByRole("rowheader", { name: "NVDA" });
+    expect(within(header).getByRole("link")).toBeTruthy();
+  });
+
+  // `UNIVERSE.md` §12.2 at the point of navigation. A security we stopped
+  // tracking is shown and marked, and its stored bars did not stop existing —
+  // so it is openable like any other. A version that rendered untracked rows as
+  // plain text would be the `status` filter this table refuses, arriving
+  // through a door nobody was watching.
+  it("opens an untracked security like any other", () => {
+    renderWithContext(
+      <UniverseTable
+        onRetry={noop}
+        view={loaded([
+          equity({ symbol: toTicker("GILD"), status: "untracked" }),
+        ])}
+      />,
+    );
+
+    expect(screen.getByText("No longer tracked")).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "GILD" }).getAttribute("href"),
+    ).toBe(securityPath("GILD"));
+  });
+
   it("states the sector once per group rather than once per row", () => {
-    render(
+    renderWithContext(
       <UniverseTable onRetry={noop} view={loaded([XLK, equity(), ABBV])} />,
     );
 
@@ -213,7 +281,9 @@ describe("UniverseTable", () => {
   // The one domain fact on this page that comes from `SECTOR_ETFS` rather than
   // from the database: XLK is what Technology is measured against.
   it("names each sector's benchmark and how many rows it holds", () => {
-    render(<UniverseTable onRetry={noop} view={loaded([XLK, equity()])} />);
+    renderWithContext(
+      <UniverseTable onRetry={noop} view={loaded([XLK, equity()])} />,
+    );
 
     const band = screen.getByRole("rowheader", { name: /Technology/ });
     expect(within(band).getByText("Benchmark XLK")).toBeTruthy();
@@ -221,7 +291,7 @@ describe("UniverseTable", () => {
   });
 
   it("reports the tracked count and says that is what it is counting", () => {
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded([
@@ -242,13 +312,15 @@ describe("UniverseTable", () => {
   // clause is absent entirely when there is nothing to report — a permanent
   // "0 no longer tracked" would be a running commentary on a non-event.
   it("says nothing about untracked securities when there are none", () => {
-    render(<UniverseTable onRetry={noop} view={loaded([equity()])} />);
+    renderWithContext(
+      <UniverseTable onRetry={noop} view={loaded([equity()])} />,
+    );
 
     expect(screen.queryByText("no longer tracked")).toBeNull();
   });
 
   it("says how much history it holds, as a depth and a start", () => {
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded([equity()], [coverageFor("NVDA")])}
@@ -267,7 +339,7 @@ describe("UniverseTable", () => {
   // argument that removed the Sector column. A version repeating "minute" down
   // 518 rows would pass a looser assertion.
   it("names the timeframe once, in the column heading", () => {
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded([equity()], [coverageFor("NVDA")])}
@@ -288,7 +360,9 @@ describe("UniverseTable", () => {
   // count, and — the half that needs a test — a sentence rather than an em
   // dash a screen reader reads as nothing.
   it("renders a security with no bars as no history rather than as a zero", () => {
-    render(<UniverseTable onRetry={noop} view={loaded([equity()], [])} />);
+    renderWithContext(
+      <UniverseTable onRetry={noop} view={loaded([equity()], [])} />,
+    );
 
     const row = screen.getByRole("row", { name: /^NVDA / });
     expect(row.textContent).toContain("No history yet");
@@ -302,7 +376,7 @@ describe("UniverseTable", () => {
     // screen reader is handed rather than on two elements: the figure and its
     // direction are one claim, and a version that separated them would pass a
     // per-element assertion.
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded([equity()], [], [closeFor("NVDA", 230.36, 228.45)])}
@@ -324,7 +398,7 @@ describe("UniverseTable", () => {
     // see colour — no stylesheet is applied here — and that is the point: what
     // it *can* see is the sign and the word, which is exactly the encoding that
     // has to be there.
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded([equity()], [], [closeFor("NVDA", 319.97, 328.21)])}
@@ -340,7 +414,7 @@ describe("UniverseTable", () => {
     // The two channels agreeing. By raw sign this is a rise; rendered it is
     // `0.00%`, and an up arrow beside a figure saying nothing moved is the one
     // disagreement `PriceChange` exists to make impossible.
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded([equity()], [], [closeFor("NVDA", 230.36, 230.3598)])}
@@ -357,7 +431,7 @@ describe("UniverseTable", () => {
     // Two different absences, and they send a reader to different conclusions:
     // "we hold one session of this" is not "this security did not move". The
     // price is still shown, because we have it.
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded([equity()], [], [closeFor("NVDA", 230.36, null)])}
@@ -375,7 +449,9 @@ describe("UniverseTable", () => {
     // §36 again, and the half that needs a test: the em dash reads as nothing
     // to a screen reader, so the sentence is what is announced. A `0.00` here
     // would be an invented price.
-    render(<UniverseTable onRetry={noop} view={loaded([equity()], [], [])} />);
+    renderWithContext(
+      <UniverseTable onRetry={noop} view={loaded([equity()], [], [])} />,
+    );
 
     const row = screen.getByRole("row", { name: /^NVDA / });
     expect(row.textContent).toContain("No close yet");
@@ -387,7 +463,7 @@ describe("UniverseTable", () => {
     // the history cells. 518 identical dates under a heading that could carry
     // one is a column of repetition; the heading is where the claim goes while
     // it is true of everything.
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded(
@@ -412,7 +488,7 @@ describe("UniverseTable", () => {
     // than approximated. This state does not exist in the store today — 518 of
     // 518 share a session — and it is guaranteed to arrive, because a security
     // that stops printing keeps its history and stops extending it.
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded(
@@ -442,7 +518,7 @@ describe("UniverseTable", () => {
     // table of prices cannot get it from a column header until they land on a
     // cell. It is the one sentence keeping a stale number from being heard as a
     // live one.
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded([equity()], [], [closeFor("NVDA", 230.36, 228.45)])}
@@ -455,7 +531,7 @@ describe("UniverseTable", () => {
   });
 
   it("reports the store's scale in the summary rather than in every row", () => {
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded(
@@ -477,7 +553,7 @@ describe("UniverseTable", () => {
   // The figure comes back the moment it says something the count beside it does
   // not — which is the only case where comparing the two is the point.
   it("counts securities with history when some have none", () => {
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded([equity(), ABBV], [coverageFor("NVDA")])}
@@ -494,14 +570,16 @@ describe("UniverseTable", () => {
   // zeroes, because `0 with history · 0 minute bars` reads as a fault where
   // this reads as a fact.
   it("says the store is empty in words rather than in zeroes", () => {
-    render(<UniverseTable onRetry={noop} view={loaded([equity()], [])} />);
+    renderWithContext(
+      <UniverseTable onRetry={noop} view={loaded([equity()], [])} />,
+    );
 
     expect(screen.getByText("No market history stored yet")).toBeTruthy();
     expect(screen.queryByText("with history")).toBeNull();
   });
 
   it("marks an untracked security in words rather than by colour alone", () => {
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={loaded([
@@ -516,7 +594,9 @@ describe("UniverseTable", () => {
   });
 
   it("names the command that fixes an empty universe", () => {
-    render(<UniverseTable onRetry={noop} view={{ state: "empty" }} />);
+    renderWithContext(
+      <UniverseTable onRetry={noop} view={{ state: "empty" }} />,
+    );
 
     expect(screen.getByText("pnpm universe")).toBeTruthy();
     expect(screen.queryByRole("table")).toBeNull();
@@ -526,14 +606,14 @@ describe("UniverseTable", () => {
   // single "something went wrong" would send most of them to check a service
   // that is running perfectly.
   it("tells no response apart from an unexpected one", () => {
-    const { unmount } = render(
+    const { unmount } = renderWithContext(
       <UniverseTable onRetry={noop} view={failed("unreachable", null, true)} />,
     );
     expect(screen.getByText("no response")).toBeTruthy();
     expect(screen.queryByText(/Reference/)).toBeNull();
     unmount();
 
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={failed("answered-badly", "3f1c", false)}
@@ -549,7 +629,7 @@ describe("UniverseTable", () => {
   // "unexpected response" — which told a reader nothing would help at the exact
   // moment waiting was the whole answer.
   it("says a temporary failure is temporary, and offers a way to act on it", () => {
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={failed("answered-badly", "3f1c", true)}
@@ -567,7 +647,7 @@ describe("UniverseTable", () => {
   // for twice. The absence is stated rather than left to be inferred, which is
   // the half of the copy rule that is easy to drop.
   it("offers no retry for a failure that will not fix itself, and says why", () => {
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={failed("answered-badly", "3f1c", false)}
@@ -589,7 +669,7 @@ describe("UniverseTable", () => {
   // mechanism, because it is the outcome that would be regressed by somebody
   // "improving" a failure message with the thing that caused it.
   it("never puts an error code on screen", () => {
-    const { container } = render(
+    const { container } = renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={failed("answered-badly", "3f1c", true)}
@@ -602,7 +682,7 @@ describe("UniverseTable", () => {
 
   it("presses through to the caller, once per press", () => {
     let presses = 0;
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={() => {
           presses += 1;
@@ -622,7 +702,7 @@ describe("UniverseTable", () => {
   // user to the top of the document at the moment they acted. The hook is what
   // makes a second press safe.
   it("says a retry is in flight without taking the control away", () => {
-    render(
+    renderWithContext(
       <UniverseTable
         onRetry={noop}
         view={failed("answered-badly", "3f1c", true, true)}
@@ -639,7 +719,9 @@ describe("UniverseTable", () => {
   it("announces a retry, and announces the answer to it", () => {
     const view = failed("answered-badly", "3f1c", true);
 
-    const { rerender } = render(<UniverseTable onRetry={noop} view={view} />);
+    const { rerender } = renderWithContext(
+      <UniverseTable onRetry={noop} view={view} />,
+    );
     const announced = screen.getByRole("status").textContent;
 
     rerender(
@@ -677,7 +759,9 @@ describe("UniverseTable", () => {
         lastCloses: new Map(),
       },
     ] satisfies readonly SecuritiesView[]) {
-      const { unmount } = render(<UniverseTable onRetry={noop} view={view} />);
+      const { unmount } = renderWithContext(
+        <UniverseTable onRetry={noop} view={view} />,
+      );
 
       expect(
         screen.getByRole("status"),
@@ -692,7 +776,7 @@ describe("UniverseTable", () => {
   // `role="alert"` is what `ErrorFallback` carries — the one thing the browser
   // suite looks for on every route to decide that nothing failed to render.
   it("announces a failure politely and never as an alert", () => {
-    render(
+    renderWithContext(
       <UniverseTable onRetry={noop} view={failed("unreachable", null, true)} />,
     );
 
@@ -706,14 +790,16 @@ describe("UniverseTable", () => {
   // transition into it — see `announce` for why that is a decision rather than
   // an omission, and why the region is present anyway.
   it("announces nothing while loading, and is present to announce later", () => {
-    render(<UniverseTable onRetry={noop} view={{ state: "loading" }} />);
+    renderWithContext(
+      <UniverseTable onRetry={noop} view={{ state: "loading" }} />,
+    );
 
     expect(screen.getByRole("status").textContent).toBe("");
   });
 
   // The skeleton is decoration for a screen reader; the sentence is the answer.
   it("offers one sentence to a screen reader while loading, not seven bars", () => {
-    const { container } = render(
+    const { container } = renderWithContext(
       <UniverseTable onRetry={noop} view={{ state: "loading" }} />,
     );
 

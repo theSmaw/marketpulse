@@ -113,6 +113,21 @@ recorded market body to every visitor.
   and the table exactly as they were. §36: degrade locally, never collapse to a
   global error screen.
 
+  **Amended 2026-09-11 by Task 2.11.5 — that sentence now buys the user more
+  than it did, and the copy should know it.** The table's rows are links, so it
+  is a second way in rather than a list you can still read. "Search is
+  unavailable" is therefore a degraded state with a **working alternative on the
+  same screen**, which is a materially better thing to be able to say than "the
+  rest of the page still renders". Whether the copy points at it is a judgement
+  for this task — naming a fallback is kinder than implying a dead end, and
+  over-explaining an error is its own failure — but the option did not exist when
+  this file was written.
+
+  Note the one case where it is **not** an alternative: the universe fetch is
+  what feeds both, so the state where search is unavailable because the universe
+  could not be read is the state where there is no table either. A sentence
+  offering the table as a way out must not be rendered from that cause.
+
 Two further pieces of work that are about states rather than a state:
 
 - **The summary line must still be true** in every one of these. If filtering
