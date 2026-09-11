@@ -42,6 +42,34 @@
   border-end-end-radius: var(--radius);
   box-shadow: 0 10px 28px rgb(24 28 35 / 10%);
   overflow: hidden;
+
+  /* The first thing in this product that moves in response to a person, and it
+   * uses the vocabulary the table's arrival already established: one duration
+   * token, one asymmetric easing, `both`.
+   *
+   * **It runs once per opening, not once per keystroke.** This element mounts
+   * when the surface opens and stays mounted while the query changes under it,
+   * so typing does not re-trigger it. That is the whole reason the animation
+   * lives here and not on a row: rows are keyed by symbol and change identity
+   * on every keystroke, so animating them would have every figure on screen
+   * moving continuously while somebody types — which is precisely the rule that
+   * outranks the motion vocabulary, that **motion must never make a number
+   * harder to read**.
+   *
+   * It comes *down* from under the field rather than up from below, because it
+   * is emerging from the control rather than arriving on the page.
+   *
+   * Reduced motion needs no rule here: the duration token resolves to `0ms`
+   * under the preference and the surface is simply already open. */
+  animation: surfaceArrive var(--motion-duration-settle)
+    var(--motion-ease-standard) both;
+}
+
+@keyframes surfaceArrive {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--space-4) * -1));
+  }
 }
 
 .list {

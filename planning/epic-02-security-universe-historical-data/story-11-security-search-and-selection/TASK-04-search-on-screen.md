@@ -264,13 +264,64 @@ Search has arrived. The sentence now reads _"Search for another one above, or
 open one directly at `/securities/SYMBOL`"_, and the three tests asserting the
 old wording were moved onto the surviving half of it.
 
+### Four gaps found by auditing this file against what shipped — closed 2026-09-11
+
+The first pass reported this task complete while missing four of its own
+requirements. Recorded rather than quietly fixed, because the pattern is worth
+seeing: **three of the four were invisible to every gate**, and the fourth was a
+criterion in this file that the gate could not see.
+
+1. **Motion was not implemented at all.** _What the user can see when this
+   lands_ names it in as many words — 240 ms for content arriving, one
+   asymmetric easing, `prefers-reduced-motion` answered at the token layer — and
+   the first version shipped a surface that appeared instantly. It now uses the
+   vocabulary `UniverseTable`'s arrival established, with the durations read
+   from the tokens so reduced motion needs no rule of its own.
+
+2. **The animation had to be prevented from replaying on every keystroke**, and
+   that is the constraint that outranks the vocabulary rather than a detail of
+   it. The surface re-renders on each character; if the arrival replayed, every
+   figure on screen would fade and slide continuously while somebody typed —
+   **motion making a number harder to read**, which the story forbids. It does
+   not replay, because React reconciles the same node while the surface stays
+   open. That is a claim about a framework's behaviour, so it is pinned by a
+   browser test rather than reasoned about: keying the surface on the query
+   turns it red.
+
+3. **Selection by pointer was neither tested nor tried.** Enter was verified in
+   a browser and clicking never was. The row commits on `mousedown` because the
+   input's blur closes the surface first — and **jsdom cannot see that**: it
+   neither focuses nor blurs, so a `click`-handler version passes at the
+   component level and does nothing when a person uses a mouse. The browser
+   suite owns this half now, and swapping the handler turns it red while the
+   component suite goes on reporting what it always reported.
+
+4. **"The axe gate reads zero violations" was true of a page that never had the
+   surface open.** All three axe runs load the route and never type, so the
+   `listbox`, its `option`s and `aria-activedescendant` — which is most of what
+   this task built, and most of what axe is for — were never examined. A fourth
+   run now types first.
+
+Two smaller ones closed alongside: a row's own session date had a story but no
+test, and the pointer path had no wiring test.
+
+**One measurement in this session was wrong and is worth the warning.** Reading
+`getAnimations()` from a backgrounded tab reported the animation restarting on
+every keystroke. It was not: a throttled tab renders no frames, so animations
+never advance, `currentTime` stays 0, `playState` stays `running` and
+`animationstart` never fires. Every symptom of "it restarts" and "it never runs"
+looks identical there. **Motion cannot be measured from a background tab** — use
+the browser suite, which runs one in the foreground.
+
 ### What a reader should not conclude from a green run
 
-- **No e2e spec drives the combobox.** The keyboard and screen-reader journey
-  end-to-end is [Task 2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)'s
-  by design. What the browser suite certifies today is that the field exists, is
-  in the tab order in the right place, and that axe reads zero violations on the
-  route — not that search works in a browser. That was verified by hand.
+- **The browser suite drives the combobox only as far as this task's own
+  criteria.** It types, opens the surface, runs axe over it, clicks a result
+  through to `/securities/NVDA`, and pins the arrival's motion. The **journey** —
+  the full keyboard set walked end to end, and a screen reader actually listened
+  to — remains [Task 2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)'s
+  and is not covered here. Arrow keys, Escape and the spoken sentence are proved
+  at the component level only, where no screen reader exists.
 - **Every state other than the happy path is still missing**, and is
   [Task 2.11.6](TASK-06-every-search-state-produced.md)'s. The control renders
   only when the universe has loaded; loading, unreachable and answered-badly

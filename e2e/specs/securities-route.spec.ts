@@ -225,6 +225,112 @@ for (const height of [720, 560, 480]) {
   });
 }
 
+// The open combobox is a separate axe subject from the loaded page, and until
+// Task 2.11.4 added this the gate had never seen it (Story 2.11).
+//
+// The three tests above load the route and never type, so the result surface is
+// closed for every one of them — which means a `listbox` with no accessible
+// name, an `option` outside a `listbox`, or an `aria-activedescendant` pointing
+// at an id that is not on the page would all have passed the "axe reads zero
+// violations" criterion while being exactly the kind of defect it exists to
+// catch. A combobox is mostly ARIA, and ARIA is mostly what axe is for.
+test("the open result surface has no axe violations", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto(SECURITIES);
+  await expectTheUniverseRendered(page);
+
+  const field = page.getByRole("combobox");
+  await field.fill("he");
+
+  // Typed rather than asserted into existence: the surface is what is being
+  // checked, so the check is worthless if it runs before the surface is there.
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await expect(field).toHaveAttribute("aria-expanded", "true");
+
+  await expectNoAxeViolations(page, "the securities route, search open");
+});
+
+// The motion, and the constraint that outranks it.
+//
+// `VISUAL-LANGUAGE.md` gives content arriving one duration and one easing, and
+// the surface uses them. The rule that outranks the vocabulary is that **motion
+// must never make a number harder to read** — and a result surface is the one
+// place in this product where that is easy to violate by accident, because it
+// re-renders on every keystroke. If the animation restarted each time, every
+// figure on screen would fade and slide continuously while somebody typed.
+//
+// It does not restart, because React reconciles the same DOM node while the
+// surface stays open and a CSS animation only replays on a fresh element. That
+// is a claim about a framework's behaviour, which is exactly the kind of claim
+// worth pinning rather than reasoning about — and it cannot be measured from a
+// backgrounded tab, where no frames are rendered, animations never advance and
+// `animationstart` never fires.
+test("the surface animates once when it opens, and not again while typing", async ({
+  page,
+}) => {
+  await page.goto(SECURITIES);
+  await expectTheUniverseRendered(page);
+
+  const field = page.getByRole("combobox");
+  const readAnimation = async () =>
+    await page.evaluate(() => {
+      const surface =
+        document.querySelector('[role="listbox"]')?.parentElement ?? null;
+      if (surface === null) return null;
+      const [animation] = surface.getAnimations();
+      if (animation === undefined) return null;
+      return {
+        name: (animation as CSSAnimation).animationName,
+        state: animation.playState,
+        elapsed: Number(animation.currentTime ?? 0),
+      };
+    });
+
+  await field.fill("he");
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  const opening = await readAnimation();
+  expect(opening?.name).toMatch(/surfaceArrive/);
+
+  // Let it finish, then type on. `toPass` rather than a sleep: the duration is
+  // a token and a literal here would be a second spelling of it.
+  await expect(async () => {
+    expect((await readAnimation())?.state).toBe("finished");
+  }).toPass();
+
+  await field.fill("heal");
+  await expect(page.getByRole("option").first()).toBeVisible();
+
+  const during = await readAnimation();
+  expect(during?.state, "a further keystroke must not replay the arrival").toBe(
+    "finished",
+  );
+  expect(during?.elapsed).toBeGreaterThan(0);
+
+  await expectNothingFailedToRender(page);
+});
+
+// Selection by pointer, which the component tests structurally cannot prove.
+//
+// The row commits on `mousedown` because the input's blur closes the surface
+// and blur lands first — a `click` handler on a row that has already unmounted
+// never runs. In jsdom nothing takes focus and nothing blurs, so that ordering
+// does not exist there: a component test written as `fireEvent.click` against a
+// `click` handler passes, and the control still does nothing when a person uses
+// a mouse. A real browser is the only level that can tell the two apart, and
+// swapping the handler here turns this test red while the component suite goes
+// on reporting what it always reported.
+test("clicking a result opens that security", async ({ page }) => {
+  await page.goto(SECURITIES);
+  await expectTheUniverseRendered(page);
+
+  await page.getByRole("combobox").fill("nvid");
+  await page.getByRole("option").first().click();
+
+  await expect(page).toHaveURL(/\/securities\/NVDA$/);
+  await expectNothingFailedToRender(page);
+});
+
 test("the arrival is announced, by a live region that survives it", async ({
   page,
 }) => {

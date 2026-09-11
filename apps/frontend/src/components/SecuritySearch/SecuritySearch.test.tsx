@@ -356,6 +356,86 @@ describe("the keyboard", () => {
   });
 });
 
+describe("the pointer", () => {
+  // The row commits on `mousedown`, not `click`, because the input's blur
+  // closes the surface and blur lands **first** in a browser.
+  //
+  // These tests pin the wiring — that pressing a row reports the right symbol —
+  // and they are **not** what proves the ordering. jsdom neither focuses nor
+  // blurs, so the failure mode does not exist at this level. The browser suite
+  // owns that half (`securities-route.spec.ts`, "clicking a result opens that
+  // security"), which is where swapping this for a `click` handler goes red.
+  it("opens the row that was pressed", () => {
+    const onOpen = vi.fn();
+    const { field } = setUp(onOpen);
+
+    typeInto(field, "nv");
+    fireEvent.mouseDown(firstRow());
+
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith("NVDA");
+  });
+
+  it("opens the row under the pointer rather than the first one", () => {
+    const onOpen = vi.fn();
+    const { field } = setUp(onOpen);
+
+    typeInto(field, "nv");
+    const [, second] = options();
+    if (second === undefined) throw new Error("expected two rows");
+    fireEvent.mouseDown(second);
+
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith("NVR");
+  });
+
+  it("makes the hovered row the one Enter would open", () => {
+    const onOpen = vi.fn();
+    const { field } = setUp(onOpen);
+
+    typeInto(field, "nv");
+    const [, second] = options();
+    if (second === undefined) throw new Error("expected two rows");
+    fireEvent.mouseEnter(second);
+    press(field, "Enter");
+
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith("NVR");
+  });
+});
+
+describe("the session a close belongs to", () => {
+  it("names the session once on the surface when every row shares one", () => {
+    const { field } = setUp();
+
+    typeInto(field, "nv");
+
+    expect(screen.getByText(/Closes as of 2026-09-04/)).not.toBeNull();
+    expect(firstRow().textContent).not.toContain("close 2026-09-04");
+  });
+
+  // The case the uniform one cannot be trusted to cover: a row behind the
+  // surface's date has to say so, or the footer is lying about that row.
+  it("gives a row its own date when it is behind the surface's", () => {
+    render(
+      <SecuritySearch
+        universe={UNIVERSE}
+        lastCloses={
+          new Map([
+            ...CLOSES,
+            ["NVDA", close("NVDA", 228.45, 226.0, "2026-08-28")],
+          ])
+        }
+        onOpen={vi.fn()}
+      />,
+    );
+
+    typeInto(screen.getByRole<HTMLInputElement>("combobox"), "nv");
+
+    // The surface can no longer name one session, so it names none...
+    expect(screen.queryByText(/Closes as of/)).toBeNull();
+    // ...and the rows carry their own.
+    expect(firstRow().textContent).toContain("close 2026-08-28");
+  });
+});
+
 describe("what it says out loud", () => {
   it("says nothing on arrival, because nothing has happened", () => {
     setUp();
