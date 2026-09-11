@@ -138,3 +138,52 @@ than the subject.
 configuration — a new block _replaces_ rather than adds, and the failure is the
 browser boundary silently disappearing. Staying in `market` means **this story
 never goes near it**, which also collapses that item in Task 2.12.10's sweep.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.2 — four inputs this task was going to have to invent are now given
+
+[`CHARTING.md`](CHARTING.md) §7.1 and `VISUAL-LANGUAGE.md`'s _The chart_ section
+settle the instrument. Four of their positions are arithmetic rather than
+appearance, so they land here rather than on a renderer.
+
+- **The range is the plot's width, which is not the region's.** The value scale
+  sits in a **right-hand gutter** — `--chart-gutter`, 56px, and 46px below 600px
+  of region — so the horizontal range is `regionWidth - gutter`. A scale built
+  against the region width is wrong by 56px at every point, draws a line that
+  runs under its own labels, and **nothing goes red**: jsdom computes no layout
+  and the error is a plausible chart rather than a broken one. Take the gutter as
+  an input to the scale, not as padding a stylesheet applies afterwards.
+
+  (The gutter is on the right because that is where the latest price is. Labels
+  drawn _inside_ the plot were tried on the canvas and abandoned — at the
+  measured 1,019px region the topmost one sat on top of the series.)
+
+- **The price domain's padding is 10% at both ends, and the upper pad is not
+  free.** The Work section asks this task to say what the padding is and why; the
+  answer is given. Its top half is **Epic 5's anomaly-marker lane** — 16px inside
+  the plot's top padding, stated on the canvas so the markers do not arrive as a
+  retrofit. A later task that tightens the pad to make the line fill more of the
+  frame is spending a lane that has already been allocated, so the constant wants
+  a comment rather than just a value.
+
+- **The seam is a required tick, which changes the x problem's shape.** Every
+  session-boundary index gets a label — the date — and intraday ticks fall
+  _between_ them and carry the time. So x-tick selection is not one nice-number
+  problem over `[0, n)`; it is a fixed set from the calendar plus a
+  density-dependent choice inside each session. The fixed set comes from where
+  the bars change session, which this module already has to compute for §3's
+  ordinal positioning.
+
+- **The tick counts are decided, per region width, and the axis never
+  disappears.** ≥900px: 5 value gridlines, every seam labelled, plus intraday
+  ticks. 600–899: 4, seam labels only. 400–599: 3, seam **rules** stay and seam
+  labels reduce to first and last. <400: 3, first and last date. A plot with no
+  axis is a sparkline; this chart does not become one at any width.
+
+**What is still this task's to decide, unchanged.** The nice-number algorithm
+itself; the inverse; the single-bar series; and the **zero-height domain** on a
+flat series — 2.12.2 answered what a flat _window_ looks like
+(`--price-unchanged-wash`, three states rather than two) and said nothing about
+what a flat _domain_ divides by, which is still the divide-by-zero this task
+owns.

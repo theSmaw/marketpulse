@@ -124,3 +124,64 @@ the question does not collapse, it sharpens:
   line, the crosshair, and — if 2.12.5 draws one — the high–low band, which sits
   _behind_ the line and therefore changes the ground the line is measured
   against.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.2 — the contrast surfaces are enumerable now, and one of them has already been proved
+
+### The inks are landed, so "measure every new ink" is a finite list
+
+The Work section asks for a measured contrast figure on every ink the chart
+introduces. They exist, in `tokens.css` and `market.css`, each with its figure in
+the comment beside it. This task's job is therefore **re-measuring them in the
+composition** rather than discovering them:
+
+| Surface                                           | Recorded           |
+| ------------------------------------------------- | ------------------ |
+| `--chart-axis` on `--surface-raised`              | the structural ink |
+| `--chart-grid`                                    | 1.27:1             |
+| `--chart-grid` **where the wash passes under it** | **1.11:1**         |
+| `--chart-seam`                                    | 1.70:1             |
+| `--chart-reference`                               | 4.48:1             |
+| `--chart-crosshair`                               | 9.32:1             |
+| `--chart-uncovered`                               | 1.107:1            |
+| `--chart-series` over either wash                 | 14.87 / 14.68      |
+
+The third row is the one to look at rather than accept: it is a stated,
+deliberate weakening, and the recorded repair is **a darker grid, not a paler
+wash**. Confirm it is readable at all four breakpoints or fire that repair.
+
+Note what none of these are: a WCAG failure. A gridline behind data is not a
+control boundary and 1.4.11's 3:1 does not apply to it — which is why
+`--chart-seam` carries the same `#c4c6cf` that ADR 0026's exception _rejected_
+for an input boundary. `CHARTING.md` §7.1 records that collision so a reader who
+notices it does not read it as a mistake.
+
+### The greyscale proof exists and this task extends it rather than originates it
+
+`Foundations/Chart tokens` in Storybook already carries a **`Direction survives
+greyscale`** story: the same marks rendered up and down, and again under
+`grayscale(1)`. The washes are indistinguishable there and the geometry is not,
+which is the claim.
+
+What that story cannot do, and what this task still owes: the proof over the
+**finished chart with real data in place on the page**, including the axis, the
+labels, the crosshair and the states — and under a deuteranopia matrix as well as
+greyscale, which the workshop story does not apply. The Work section's framing
+holds; only its premise moves, because
+[Task 2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md) shrank
+and is no longer the only place the encoding has been read.
+
+### The accessibility-tree decision is sharper than the 2.12.1 amendment assumes
+
+That amendment says the likely answer is that "the base chart is one `<path>`" and
+therefore `aria-hidden` with the text alternative carrying everything. **The
+conclusion is right and the premise is not**: the plot is roughly two dozen
+elements once the frame, the grid, the seams, the reference, the wash and the
+crosshair are in it. Still nowhere near 780, and still none of it per-bar — but
+"there was only one element anyway" is not available as the reason. Take the
+decision on its merits and say so, which is what the amendment asks for.
+
+The measured 1.009:1 greyscale figure is also the strongest argument for the text
+alternative stating the **direction in words**: the sentence is the third channel,
+after geometry and hue, and it is the only one that works with the screen off.

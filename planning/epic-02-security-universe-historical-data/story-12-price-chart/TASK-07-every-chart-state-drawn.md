@@ -85,3 +85,45 @@ page are reachable rather than plausible.
 
 The fence is the text alternative and the screen-reader walk — 2.12.8's. This
 task makes each state _render_; that one makes each state _speak_.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.2 — `partial` has a drawn treatment; `stale` deliberately does not
+
+**`partial` is settled and this task implements it.** From the canvas and
+`VISUAL-LANGUAGE.md`'s _The chart_ section:
+
+- the requested-but-unheld span takes **`--chart-uncovered`** — 1.107:1, the
+  quietest mark in this language;
+- the coverage edge is a **dashed vertical** rule;
+- the series is **clipped** at that edge rather than drawn to the frame;
+- and the sentence beneath the plot carries the fact in words, unchanged and
+  un-abbreviated, as `CHARTING.md` §5 requires.
+
+The two constraints behind that shape, both of which a later tidy-up will be
+tempted to break: **it must not read as a failure** — so no hatching, no warning
+colour, no icon, and the wash is at the floor of visibility on purpose — and **it
+must not read as flat data**, which is what the clip prevents rather than the
+wash. Removing the clip and letting the line run to the frame is the defect this
+whole treatment exists to make impossible, and it renders perfectly.
+
+**`stale` was not settled and is still entirely this task's.** Worth stating
+plainly, because everything else on this page's visual vocabulary now has an
+answer somewhere and it would be reasonable to assume this one does too. It does
+not: 2.12.2 took no position on what a held series looks like while the next one
+loads. The constraints stand exactly as the Work section has them —
+`FRONTEND-STATE.md` §2's amendment, no dim, no blur, no fade, no skeleton over a
+price — and so does the reversal trigger: **a chart that redraws a held series in
+a second style is the thing that turns `stale` into a seventh union member**, and
+that is taken at §2 rather than here.
+
+The one hint available: `BarSeriesPanel` already answers this without colour, with
+a dashed marker and a travelling dashed rule above the figures rather than on
+them. A chart has the same problem and more room.
+
+**And one addition to the "two sentences must not use the same words" bullet.**
+That bullet counts the surfaces on this page as "up to three" after this task.
+It is now four — search, the tracked universe, the stated-facts block and the
+chart's own state — and the chart's coverage sentence and the facts block's
+coverage sentence describe _the same event on the same fetch_, which is the
+closest pair this page has ever had.
