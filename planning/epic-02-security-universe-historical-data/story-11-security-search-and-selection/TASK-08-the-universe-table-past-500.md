@@ -59,7 +59,10 @@ tracked universe stops being a page you scroll through to find out what is in it
     the index ETFs, which belong to no sector.
   - **`status` is not filtered.** An untracked security is shown and marked. A
     collapse-by-default that hides one is not a filter, but a jump control that
-    cannot reach one is close enough to matter — check it.
+    cannot reach one is close enough to matter — check it. **Added 2026-09-11 by
+    Task 2.11.5: an untracked security is also a link like any other**, and a
+    component test asserts it. A collapse that puts one out of the tab order
+    is the same failure arriving through the keyboard.
   - **The summary line says which of two numbers it is reporting**, and its
     fourth figure appears only when it is non-zero. Collapsing rows, filtering
     rows and jumping between bands must all leave it true.
@@ -78,6 +81,22 @@ tracked universe stops being a page you scroll through to find out what is in it
   neither owns** — a collapse set that search also has an opinion about is worth
   looking at squarely rather than putting in a module because it is convenient.
 
+  **Amended 2026-09-11 by Task 2.11.5 — "it now can" is too weak: it now DOES,
+  unless you stop it.** `/securities` and `/securities/:symbol` are two
+  `<Route>`s rendering the **same** module, so the route is re-rendered rather
+  than re-mounted on a navigation between securities, and component state in it
+  survives with no mechanism at all. Measured: the search field keeps its query
+  across open-a-security and Back. So the default is **persistence**, and the
+  decision to write down is whether that is right — not how to achieve it.
+  Persisting is probably correct for a collapse set and probably wrong for a
+  scroll position or a jump-rail "current band", and those are different answers
+  in the same control.
+
+  **This does not on its own reach the store's reversal trigger**, and it is
+  worth being precise about why: a collapse set that only this table reads is
+  state one feature owns, which is a module-level variable or a piece of `useState`
+  and nothing more. The trigger is two features needing to agree about it.
+
 ## Done when
 
 - The table is navigable at 518 securities without scrolling through it, at three
@@ -90,6 +109,15 @@ tracked universe stops being a page you scroll through to find out what is in it
 - Stories exist for the collapsed, expanded and filtered states; `pnpm stories`
   passes
 - The axe gate reads zero violations; `pnpm verify` passes
+
+**Added 2026-09-11 by Task 2.11.5 — a keyboard cost this control can pay off.**
+Every row's symbol is now a link, so the table is **518 tab stops** between the
+search field and anything below it. There is no skip link in this application
+(`styles/a11y.module.css` names one as the next thing that layer acquires). A
+jump rail is navigation and is in the tab order anyway; whether it can also serve
+as the way _past_ the table is a question this task is already in the right place
+to answer, and it is cheaper to answer here than as a finding in Task 2.11.9 —
+which owns the walk and has been told to measure it.
 
 ## Notes
 

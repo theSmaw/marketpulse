@@ -87,13 +87,32 @@ at its price and volume — is Stories 2.12 and 2.13.
     navigation. **Amended 2026-09-11 by Task 2.11.4: 2.11.4 ended it, not
     2.11.5** — search navigates client-side already (measured: the `window`
     marker survives and there is one navigation entry). The claim is asserted in
-    more than one file and every one of them is live.
+    more than one file and every one of them is live. **Amended again the same
+    day by Task 2.11.5: ADR 0023's copy is swept** — its "does not certify …
+    the only route is a document navigation" carries a dated amendment stating
+    the narrower thing that is still true. `STORY.md`'s own two copies are
+    **not** swept and are deliberately yours: they are this story's documents,
+    which is what a close sweeps.
   - **Two candidates on this list are already swept and should not be re-swept.**
     `VISUAL-LANGUAGE.md`'s "input fields have never been built" was corrected by
     Task 2.11.3, and `CLAUDE.md`'s "the React Compiler rules have never fired on
     shipped code" by Task 2.11.4 — they fired twice, on the combobox, and both
     were right. Check them rather than assume; the point of the list is that a
     correction recorded is not a correction propagated.
+  - **A third is swept, and the "if it gained one" above is settled: the icon set
+    is SIX.** `magnifier` was added by Task 2.11.3 for `TextField`, and
+    `VISUAL-LANGUAGE.md` §_No icon beyond the closed set_ already says six with
+    the date. Task 2.11.5 added **no** icon — the chevron on a table row's symbol
+    is the existing `chevronRight`. Verify the count rather than carrying this
+    line: `grep -c '"' apps/frontend/src/components/Icon/Icon.tsx` is not the
+    check; `ICON_NAMES` is.
+  - **`SEARCH-AND-SELECTION.md` §3's "Back returns to an empty field" was
+    falsified and swept on 2026-09-11 by Task 2.11.5** — the field keeps its
+    query, because the two routes render the same module and React re-renders
+    rather than re-mounts. §3 and §7's handoff row carry dated amendments and
+    `TASK-09`'s bullet was corrected. **What is left for the close is the
+    keyboard flow's own wording**, since 2.11.9 writes that sentence into this
+    document.
   - **Count a duplicated sentence with a grep before correcting it**, and tell a
     live claim apart from a historical record. Story files record what was true
     when written; correcting those destroys the record.
@@ -107,6 +126,17 @@ at its price and volume — is Stories 2.12 and 2.13.
   focus-order or announcement rule enforced by one component's tests and nothing
   else; the fixture bodies staying out of the bundle now that a second surface
   imports securities; and the summary line's truthfulness under filtering.
+
+  **One is already written and needs carrying up rather than re-deriving — added
+  2026-09-11 by Task 2.11.5.** `SEARCH-AND-SELECTION.md` §8 records that nothing
+  in `pnpm verify` can see whether a navigation stays client-side: jsdom has no
+  history and no bundle to reload, so swapping the table's `Link` for a plain
+  `<a href>` leaves **every** unit, component and integration test green while
+  the product silently goes back to reloading itself on every symbol. It is held
+  by `e2e/specs/security-navigation.spec.ts`, which gates a merge, and by nothing
+  else. That belongs in `CLAUDE.md`'s own list with its one-liner, because the
+  failure is invisible and the repair is a one-character import away from
+  happening by accident.
 
 ## Done when
 
