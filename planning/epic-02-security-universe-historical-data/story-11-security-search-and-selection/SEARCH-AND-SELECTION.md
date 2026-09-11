@@ -298,6 +298,36 @@ is the address bar churn above. **It is also a thing to say out loud in
 walkthrough**, because "Back loses my search" is a finding if it surprises
 somebody, and a decision if it was written down first.
 
+#### Amended 2026-09-11 by Task 2.11.5 — **the last row of that table is wrong, and it is wrong in the product's favour**
+
+The table was written against the product as it was: every route to a second
+symbol was a document navigation, which reloads the bundle and therefore
+re-mounts every component on the page. Under that assumption "Back loses my
+search" follows from "the query is component state" and needs no measurement.
+
+It no longer follows. `/securities` and `/securities/:symbol` are two `<Route>`s
+rendering the **same** route module, so a client-side navigation between them
+re-renders `SecurityExplorer` rather than re-mounting it, and the field's state
+survives. Measured in Chromium on 2026-09-11 over `/securities` → type `nvid` →
+Enter → `/securities/NVDA` → Back → click a table row: the field still reads
+`nvid` at every step, `performance.getEntriesByType("navigation")` stays at
+**one** entry, and a marker set on `window` survives the whole sequence.
+
+**The decision is unchanged and the behaviour is kept.** Nothing above was
+argued from the field emptying — the argument is entirely about what the
+_address_ carries — and a query that survives Back is strictly friendlier than
+one that does not. What changes is the sentence Task 2.11.9 has to say out loud,
+which is now "Back **keeps** my search": a decision either way, but not the one
+this file predicted.
+
+**And it is the answer to that task's own standing question.** TASK-05 warned
+that the first client-side navigation would leave component state that had been
+silently recreated on every page load alive for the first time, and said to go
+looking for the second candidate rather than assume there is none. The
+parsed-series cache was the first and wanted it. This field is the second, and
+it is benign: the query is not keyed on the symbol and nothing keyed on the
+symbol reads it.
+
 ### What this binds for Story 2.13
 
 **The query string is empty, and Story 2.13's window control puts the first real
@@ -598,11 +628,11 @@ declines and §3's reversal trigger names.
 | [2.11.2](TASK-02-the-matcher.md) — the matcher                        | Client-side (§2). Prefix-aware rather than `includes()`, and the `nv` → `FRT`/`INVH`/`IVZ`/`KVUE`/`QQQ` finding to write a test against (§0). Returns shown **and** total (§5). No fuzzy dependency without amending §2. `status` is not a filter (§6) — **and, decided there, not a tie-break winner either: untracked ranks below tracked within a tier** |
 | [2.11.3](TASK-03-the-field-the-product-never-had.md) — the field      | Bordered, mono input face, hairline resting border with focus left to the token layer, a clear affordance and an `ESC` hint, **six** states not seven — `Locked` is dropped (§5)                                                                                                                                                                            |
 | [2.11.4](TASK-04-search-on-screen.md) — search on screen              | The field's home (§1). No new fetch (§2). No query in the address (§3). The 400 ms announcement debounce with the visible list updating per keystroke (§4). A row carrying a close **and** its change, with the session qualified on the surface (§5)                                                                                                       |
-| [2.11.5](TASK-05-client-side-navigation-and-the-table-as-a-way-in.md) | Selection is `securityPath(symbol)`, pushed, and Back returns to an empty field (§3)                                                                                                                                                                                                                                                                        |
+| [2.11.5](TASK-05-client-side-navigation-and-the-table-as-a-way-in.md) | Selection is `securityPath(symbol)`, pushed, and Back returns to the list (§3). **Done 2026-09-11, and it measured the "empty field" half of that line to be false — see §3's amendment: the field keeps its query**                                                                                                                                        |
 | [2.11.6](TASK-06-every-search-state-produced.md) — every state        | Search unavailable is the universe fetch having failed, and the rest of the screen keeps working; there is no offline fallback (§5). The untracked state must be constructed (§6)                                                                                                                                                                           |
 | [2.11.7](TASK-07-the-security-explorer-shell.md) — the shell          | The field sits above whatever the table becomes (§1). Five placeholders name **epics**, not invented story numbers (§5)                                                                                                                                                                                                                                     |
 | [2.11.8](TASK-08-the-universe-table-past-500.md) — the table past 500 | A jump rail is taken in principle; a kind filter is not, because it moves the summary line and wants a query parameter (§§3, 5, 6)                                                                                                                                                                                                                          |
-| [2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)           | "Back loses my search" is a decision to state, not a defect to find (§3). The 400 ms rate is the thing to listen for (§4)                                                                                                                                                                                                                                   |
+| [2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)           | "Back **keeps** my search" is a decision to state, not a defect to find (§3, as amended 2026-09-11 — the sentence read the other way round until it was measured). The 400 ms rate is the thing to listen for (§4)                                                                                                                                          |
 | [2.11.10](TASK-10-deployed-verify-document-and-adr.md) — the close    | This file, finished with what was found, plus ADR 0024 and the `CLAUDE.md` table entry                                                                                                                                                                                                                                                                      |
 
 ---
@@ -625,6 +655,14 @@ checks quietly stops being true:
   from another is **invisible while the data is uniform**. Re-measure the
   uniformity rather than trusting it: it was one distinct value on 2026-09-11, and
   a partially-backfilled security is the condition that ends that.
+- **That a navigation between two securities stays client-side** (Task 2.11.5).
+  Nothing in `pnpm verify` can see it: jsdom has no history and no bundle to
+  reload, so a component test cannot tell a client-side navigation from a
+  document one at all, and swapping the table's `Link` for a plain `<a href>`
+  leaves every unit, component and integration test green. It is asserted in
+  `e2e/specs/security-navigation.spec.ts` — which does gate a merge — and by
+  nothing else. Re-measure: make that swap and confirm the browser suite goes
+  red on the navigation count while `pnpm verify` stays green.
 - **The masthead's remaining slack** (§1). 377px at 1280 is a measurement of the
   chrome as it is on 2026-09-11; nothing fails if a fifth nav item or a longer
   label eats it, and §1's second reversal trigger is written against exactly that.

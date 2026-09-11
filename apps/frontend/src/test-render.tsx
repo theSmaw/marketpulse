@@ -41,5 +41,17 @@ export function renderWithContext(
   ui: ReactNode,
   { at = PATHS.overview }: { at?: string } = {},
 ): RenderResult {
-  return render(<MemoryRouter initialEntries={[at]}>{ui}</MemoryRouter>);
+  // The context is Testing Library's `wrapper` rather than an element wrapped
+  // around `ui` here, and the difference is only visible through `rerender`
+  // (Task 2.11.5). `rerender(next)` replaces the **root** it was given, so a
+  // router written into that root is thrown away by the second render and the
+  // component under test throws `Cannot destructure property 'basename'` —
+  // from the rerender, several assertions after the one that read correctly.
+  // Passed as `wrapper`, Testing Library re-applies it on every render, which
+  // is what makes a rerender-based test mean what it says.
+  return render(ui, {
+    wrapper: ({ children }) => (
+      <MemoryRouter initialEntries={[at]}>{children}</MemoryRouter>
+    ),
+  });
 }
