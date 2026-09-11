@@ -29,6 +29,30 @@ source of truth for the visual language.** It is reached from the repository
 with the `DesignSync` tool, which reads it and can write to it, so the
 reconciliation is mechanical rather than a re-typing exercise.
 
+**Its address, added here 2026-09-11 because this ADR named the canvas without
+saying where it is:**
+
+```
+https://claude.ai/design/p/727b5b14-fe78-47c1-9d9c-fb84b6ce5280
+```
+
+The last path segment is the `projectId` every `DesignSync` method takes. Two
+things about reaching it that cost a session the first time and would cost the
+next one the same:
+
+- **It does not appear in `DesignSync`'s `list_projects`.** That method filters
+  to projects of type `PROJECT_TYPE_DESIGN_SYSTEM`, and this canvas is a
+  `PROJECT_TYPE_PROJECT`. `get_project` on the id above confirms it exists and
+  is writable; the listing simply does not include it. A reader who goes looking
+  for the canvas there finds an empty result and concludes it was never created,
+  which is the wrong conclusion and an easy one to reach. The type is immutable
+  at creation, so this is permanent rather than a setting somebody can correct.
+- **The canvas is one file**, `MarketPulse Design System.dc.html`, plus a
+  generated `support.js` and a `.thumbnail`. It is a single flowing document of
+  numbered sections rather than separate artboard files, so adding to it is a
+  read-modify-write of that one path and `finalize_plan` needs `deletes: []`
+  passed explicitly even when nothing is being deleted.
+
 The chain of authority is now:
 
 ```

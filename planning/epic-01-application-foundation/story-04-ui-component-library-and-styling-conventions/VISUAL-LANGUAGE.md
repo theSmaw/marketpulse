@@ -12,6 +12,8 @@ This is the design input to the token layer. `tokens.css` turns it into CSS cust
 
 **The `Component library for MarketPulse` design canvas is the source of truth.** It lives in Claude Design and is reached from this repository with the `DesignSync` tool; [ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md) records the decision and what it costs.
 
+**It is at `https://claude.ai/design/p/727b5b14-fe78-47c1-9d9c-fb84b6ce5280`** — added 2026-09-11, because naming the canvas without its address meant every session had to ask for it. The last path segment is the `projectId` that `DesignSync` takes. **Do not go looking for it in `list_projects`**: that method filters to design-system projects and this one is not, so it comes back absent rather than listed, which reads exactly like "the canvas does not exist". ADR 0026 has the rest of the mechanics.
+
 What that changes about how to read this file:
 
 - **Where this file and the canvas disagree, the canvas wins and this file is wrong** — which is the opposite of the rule above, and the rule above still holds for everything _downstream_: a component still may not diverge from this document. The chain is canvas → this document → `tokens.css` → components, and each link is a change to the next.
