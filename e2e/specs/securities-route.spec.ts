@@ -748,6 +748,89 @@ test("an empty universe names the command that fills it", async ({ page }) => {
   await expectNoAxeViolations(page, "the securities route, empty");
 });
 
+// Search, when the universe it searches is not there (Task 2.11.6).
+//
+// These are browser tests rather than component ones because what is being
+// asserted is the **page**: that one failure produces one explanation per
+// surface and exactly one control, and that a disabled control with a sentence
+// beside it clears the contrast floor. Neither is visible at a level with no
+// stylesheet.
+
+test("search says it cannot answer, and does not grow a second retry", async ({
+  page,
+}) => {
+  await page.route(SECURITIES_ROUTE_PATTERN, async (route) => {
+    await route.abort("connectionrefused");
+  });
+  await page.goto(SECURITIES);
+
+  // The field is on the page, labelled, and honest about what it can do. Before
+  // this task it was simply absent in this state, which a reader cannot tell
+  // from a product with no search in it.
+  const field = page.getByRole("combobox");
+  await expect(field).toBeVisible();
+  await expect(field).toBeDisabled();
+  // Its own words rather than the table's: two surfaces are describing one
+  // failure on one screen, and the strictness of this locator is what keeps
+  // them from being the same paragraph printed twice.
+  await expect(
+    page.getByText(
+      /Nothing to search yet: the tracked universe did not answer/,
+    ),
+  ).toBeVisible();
+
+  // **One failure, one control.** Both surfaces read the same fetch, so a
+  // second `Try again` would be a second way to do one thing.
+  await expect(page.getByRole("button", { name: /try again/i })).toHaveCount(1);
+
+  await expectNothingFailedToRender(page);
+  await expectNoAxeViolations(page, "the securities route, search unavailable");
+});
+
+test("a query typed before the universe arrives is kept, not answered", async ({
+  page,
+}) => {
+  // Held open rather than failed: the request never settles, so the page stays
+  // in the one state that cannot be reached by waiting.
+  await page.route(SECURITIES_ROUTE_PATTERN, async () => {
+    await new Promise(() => undefined);
+  });
+  await page.goto(SECURITIES);
+
+  const field = page.getByRole("combobox");
+  await expect(field).toBeEnabled();
+  await field.fill("nv");
+
+  // The defect this forbids: an empty corpus matches nothing, so "no matches"
+  // is reachable here and would be a claim about the market made from data
+  // nobody has seen.
+  await expect(page.getByText("Still loading securities.")).toBeVisible();
+  await expect(page.getByText(/No security matches/)).toHaveCount(0);
+  await expect(field).toHaveValue("nv");
+
+  await expectNothingFailedToRender(page);
+  await expectNoAxeViolations(page, "the securities route, universe loading");
+});
+
+test("a query that matches nothing is a sentence rather than an empty list", async ({
+  page,
+}) => {
+  await page.goto(SECURITIES);
+  await expectTheUniverseRendered(page);
+
+  await page.getByRole("combobox").fill("zzz");
+
+  await expect(page.getByText(/No security matches “zzz”/)).toBeVisible();
+  // No listbox at all, so the combobox is not claiming to be expanded over one.
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+  await expect(page.getByRole("combobox")).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+
+  await expectNoAxeViolations(page, "the securities route, no matches");
+});
+
 test("prefers-reduced-motion stops the table arriving", async ({ page }) => {
   // **The real preference, through the media query**, which is what this adds
   // over Task 2.4.4: that task proved the *mechanism* by overwriting the motion

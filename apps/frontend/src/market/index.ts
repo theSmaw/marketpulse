@@ -75,6 +75,7 @@ export {
   SEARCH_ANNOUNCEMENT_DELAY_MS,
   searchAnnouncement,
 } from "./search-announcement.js";
+export type { SearchCorpus } from "./search-announcement.js";
 export {
   MATCH_TIERS,
   SECURITY_MATCH_LIMIT,

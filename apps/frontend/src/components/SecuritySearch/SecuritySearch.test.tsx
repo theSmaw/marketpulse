@@ -2,12 +2,20 @@ import type {
   EquitySecurity,
   IndexEtfSecurity,
   Security,
+  SecurityCoverage,
   SecurityLastClose,
 } from "@marketpulse/shared";
 import { toMarketDate, toTicker } from "@marketpulse/shared";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  FIXTURE_SUBJECTS,
+  LOADING_UNIVERSE,
+  securitiesFixtureView,
+} from "../../fixtures/securities.js";
+import type { SecuritiesView } from "../../use-securities.js";
+import { toSecuritiesView } from "../../use-securities.js";
 import { SecuritySearch } from "./SecuritySearch.js";
 
 // What this file asserts, and what it deliberately does not.
@@ -98,11 +106,51 @@ function typeInto(field: HTMLElement, text: string) {
 const press = (field: HTMLElement, key: string) =>
   fireEvent.keyDown(field, { key });
 
-function setUp(onOpen: (symbol: string) => void = vi.fn()) {
-  render(
-    <SecuritySearch universe={UNIVERSE} lastCloses={CLOSES} onOpen={onOpen} />,
-  );
+/**
+ * A loaded universe, built **through the real transition** rather than as a
+ * literal.
+ *
+ * The body is invented and small on purpose — these are behaviour tests and a
+ * reader has to be able to hold the corpus in their head — but the *state* is
+ * the one `useSecurities` produces, because a hand-written `loaded` is a shape
+ * the application may not be able to reach. The state tests further down use
+ * the recorded 518 instead, where the point is the state rather than the
+ * behaviour.
+ */
+function loadedUniverse(
+  securities: readonly Security[] = UNIVERSE,
+  lastCloses: readonly SecurityLastClose[] = [...CLOSES.values()],
+  coverage: readonly SecurityCoverage[] = securities.map(barsFor),
+): SecuritiesView {
+  return toSecuritiesView(LOADING_UNIVERSE, {
+    outcome: "ok",
+    status: 200,
+    requestId: null,
+    data: { securities, coverage, lastCloses },
+  });
+}
+
+/** A coverage record, so the ordinary row is one that holds bars. */
+function barsFor(security: Security): SecurityCoverage {
+  return {
+    symbol: security.symbol,
+    timeframe: "1m",
+    start: "2025-09-08T13:30:00.000Z",
+    end: "2026-09-04T20:00:00.000Z",
+    barCount: 92_195,
+  };
+}
+
+function renderSearch(
+  view: SecuritiesView,
+  onOpen: (symbol: string) => void = vi.fn(),
+) {
+  render(<SecuritySearch view={view} onOpen={onOpen} />);
   return { field: screen.getByRole<HTMLInputElement>("combobox"), onOpen };
+}
+
+function setUp(onOpen: (symbol: string) => void = vi.fn()) {
+  return renderSearch(loadedUniverse(), onOpen);
 }
 
 const options = () => screen.queryAllByRole("option");
@@ -220,13 +268,7 @@ describe("the row's five facts", () => {
   });
 
   it("states a missing close instead of rendering an empty cell", () => {
-    render(
-      <SecuritySearch
-        universe={UNIVERSE}
-        lastCloses={new Map()}
-        onOpen={vi.fn()}
-      />,
-    );
+    renderSearch(loadedUniverse(UNIVERSE, []));
 
     typeInto(screen.getByRole<HTMLInputElement>("combobox"), "nvda");
 
@@ -251,13 +293,7 @@ describe("the surface's footer", () => {
         `Capital ${String(index)}`,
       ),
     );
-    render(
-      <SecuritySearch
-        universe={many}
-        lastCloses={new Map()}
-        onOpen={vi.fn()}
-      />,
-    );
+    renderSearch(loadedUniverse(many, []));
 
     typeInto(screen.getByRole<HTMLInputElement>("combobox"), "cap");
 
@@ -414,17 +450,11 @@ describe("the session a close belongs to", () => {
   // The case the uniform one cannot be trusted to cover: a row behind the
   // surface's date has to say so, or the footer is lying about that row.
   it("gives a row its own date when it is behind the surface's", () => {
-    render(
-      <SecuritySearch
-        universe={UNIVERSE}
-        lastCloses={
-          new Map([
-            ...CLOSES,
-            ["NVDA", close("NVDA", 228.45, 226.0, "2026-08-28")],
-          ])
-        }
-        onOpen={vi.fn()}
-      />,
+    renderSearch(
+      loadedUniverse(UNIVERSE, [
+        ...[...CLOSES.values()].filter((record) => record.symbol !== "NVDA"),
+        close("NVDA", 228.45, 226.0, "2026-08-28"),
+      ]),
     );
 
     typeInto(screen.getByRole<HTMLInputElement>("combobox"), "nv");
@@ -447,13 +477,7 @@ describe("what it says out loud", () => {
   // survives being queued behind the two regions already on this page.
   it("names its subject in the sentence it speaks", async () => {
     vi.useFakeTimers();
-    render(
-      <SecuritySearch
-        universe={UNIVERSE}
-        lastCloses={CLOSES}
-        onOpen={vi.fn()}
-      />,
-    );
+    renderSearch(loadedUniverse());
 
     typeInto(screen.getByRole<HTMLInputElement>("combobox"), "nv");
     await act(async () => {
@@ -468,13 +492,7 @@ describe("what it says out loud", () => {
 
   it("stays silent until the typing stops", async () => {
     vi.useFakeTimers();
-    render(
-      <SecuritySearch
-        universe={UNIVERSE}
-        lastCloses={CLOSES}
-        onOpen={vi.fn()}
-      />,
-    );
+    renderSearch(loadedUniverse());
 
     typeInto(screen.getByRole<HTMLInputElement>("combobox"), "nv");
     await act(async () => {
@@ -485,5 +503,267 @@ describe("what it says out loud", () => {
     expect(options()).toHaveLength(2);
     expect(screen.getByRole("status").textContent).toBe("");
     vi.useRealTimers();
+  });
+});
+
+// Everything below is Task 2.11.6: the states that are not a query and a
+// result. Each is produced from a **named cause** — a recorded body, a derived
+// one, a transport outcome — through the same transition the hook uses, rather
+// than by handing this component a state somebody typed.
+
+describe("a query that matches nothing", () => {
+  it("says so in a sentence rather than reporting zero", () => {
+    const { field } = setUp();
+
+    typeInto(field, "zzz");
+
+    expect(options()).toHaveLength(0);
+    // The words matter more than the absence: the surface used to render an
+    // empty listbox with `0 matches` under it, which reads as a failure.
+    expect(screen.getByText(/No security matches “zzz”/)).not.toBeNull();
+    expect(screen.queryByText("0 matches")).toBeNull();
+  });
+
+  it("says how large the corpus it searched was", () => {
+    const { field } = setUp();
+
+    typeInto(field, "zzz");
+
+    expect(
+      screen.getByText(
+        `Search covers the ${String(UNIVERSE.length)} securities MarketPulse holds, by symbol and by company name.`,
+      ),
+    ).not.toBeNull();
+  });
+});
+
+describe("while the universe is still loading", () => {
+  it("keeps the control usable and holds what was typed", () => {
+    const { field } = renderSearch(LOADING_UNIVERSE);
+
+    typeInto(field, "nv");
+
+    expect(field.disabled).toBe(false);
+    expect(field.value).toBe("nv");
+  });
+
+  // The defect this exists to forbid: an empty corpus matches nothing, so the
+  // no-matches sentence is *reachable* here and would be a claim about the
+  // market made from data nobody has seen.
+  it("never reports no matches against a universe it has not got", () => {
+    const { field } = renderSearch(LOADING_UNIVERSE);
+
+    typeInto(field, "nv");
+
+    expect(screen.queryByText(/No security matches/)).toBeNull();
+    expect(screen.getByText("Still loading securities.")).not.toBeNull();
+    expect(
+      screen.getByText(/“nv” is kept and will match as soon as/),
+    ).not.toBeNull();
+  });
+
+  it("says the same thing out loud, with its subject and the query", async () => {
+    vi.useFakeTimers();
+    const { field } = renderSearch(LOADING_UNIVERSE);
+
+    typeInto(field, "nv");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+
+    expect(screen.getByRole("status").textContent).toBe(
+      'Security search: still loading securities. "nv" is kept.',
+    );
+    vi.useRealTimers();
+  });
+});
+
+describe("when the universe could not be read", () => {
+  it("disables the field and says why, when waiting may help", () => {
+    const { field } = renderSearch(securitiesFixtureView("nothingAnswered"));
+
+    expect(field.disabled).toBe(true);
+    expect(
+      screen.getByText(/the tracked universe did not answer/),
+    ).not.toBeNull();
+    // Retryable, so the sentence says waiting may work — and points at the one
+    // control on the screen that asks again rather than growing a second one.
+    expect(
+      screen.getByText(/A service starting up looks exactly like this/),
+    ).not.toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("says waiting will not help when it will not", () => {
+    const { field } = renderSearch(securitiesFixtureView("notThisService"));
+
+    expect(field.disabled).toBe(true);
+    expect(
+      screen.getByText(/asking again would produce the same answer/),
+    ).not.toBeNull();
+  });
+
+  // The recorded 503: the one failure this client's contract calls retryable.
+  it("separates a service that answered badly from one that did not answer", () => {
+    renderSearch(securitiesFixtureView("unavailable"));
+
+    expect(
+      screen.getByText(/the tracked universe is temporarily unavailable/),
+    ).not.toBeNull();
+    expect(screen.queryByText(/did not answer/)).toBeNull();
+  });
+
+  // §36, in the small: search failing is not search disappearing.
+  it("is still on the page, labelled, in every one of them", () => {
+    renderSearch(securitiesFixtureView("nothingAnswered"));
+
+    expect(screen.getByLabelText("Find a security")).not.toBeNull();
+  });
+
+  it("offers no fallback that this cause has taken away", () => {
+    renderSearch(securitiesFixtureView("nothingAnswered"));
+
+    // One fetch feeds both surfaces, so the state where search cannot answer
+    // is the state where the table has no rows to click. A sentence pointing
+    // at it would be pointing at an empty table.
+    expect(screen.queryByText(/table/i)).toBeNull();
+  });
+});
+
+describe("when the service holds no securities", () => {
+  it("says the service answered and holds nothing, which is not a failure", () => {
+    const { field } = renderSearch(securitiesFixtureView("empty"));
+
+    expect(field.disabled).toBe(true);
+    expect(
+      screen.getByText(/answered correctly and holds no securities/),
+    ).not.toBeNull();
+  });
+});
+
+describe("an untracked security, against the real universe", () => {
+  it("is found by its own symbol and marked", () => {
+    const { field } = renderSearch(securitiesFixtureView("untracked"));
+
+    typeInto(field, FIXTURE_SUBJECTS.untracked.toLowerCase());
+
+    expect(options()).toHaveLength(1);
+    expect(firstRow().textContent).toContain("Untracked");
+  });
+
+  // The state this task exists for, and the one that looks like nothing.
+  //
+  // `status` is the first tie-break, so an untracked security ranks below a
+  // tracked one inside its tier: over a query with more matches than the cap it
+  // is pushed off the shown slice while the total still counts it. On screen
+  // that is indistinguishable from the row having been filtered out, which is
+  // the one thing `UNIVERSE.md` §12.2 forbids.
+  it("is counted in the total when the cap pushes it off the list", () => {
+    const { field } = renderSearch(securitiesFixtureView("untracked"));
+
+    typeInto(field, "a");
+
+    // Ten shown out of ninety-nine matched — measured against the recorded
+    // universe, where untracking AAPL moves it from match 2 to match 50.
+    expect(options()).toHaveLength(10);
+    expect(screen.getByText("showing 10 of 99")).not.toBeNull();
+
+    const shown = options().map((option) => option.textContent);
+    expect(shown.some((text) => text.includes("Apple Inc."))).toBe(false);
+    // It is off the slice and not out of the answer: the same universe, asked
+    // more precisely, still has it.
+    expect(screen.queryByText("Untracked")).toBeNull();
+  });
+
+  it("is still there when the query is precise enough to reach it", () => {
+    const { field } = renderSearch(securitiesFixtureView("untracked"));
+
+    typeInto(field, "aapl");
+
+    expect(firstRow().textContent).toContain("Apple Inc.");
+    expect(firstRow().textContent).toContain("Untracked");
+  });
+});
+
+describe("a partially backfilled universe", () => {
+  // All three of these are true facts that look like defects, and none is
+  // reachable from the store as it stands: every one of the 518 securities has
+  // bars, a close, and the same session.
+  it("says a security holds no bars before somebody opens it", () => {
+    const { field } = renderSearch(securitiesFixtureView("gaps"));
+
+    typeInto(field, "ad");
+
+    const row = options().find((option) =>
+      option.textContent.includes(FIXTURE_SUBJECTS.withoutBars),
+    );
+    expect(row?.textContent).toContain("no bars stored");
+  });
+
+  it("states a missing close rather than leaving the column blank", () => {
+    const { field } = renderSearch(securitiesFixtureView("gaps"));
+
+    typeInto(field, "ad");
+
+    const row = options().find((option) =>
+      option.textContent.includes(FIXTURE_SUBJECTS.withoutClose),
+    );
+    expect(row?.textContent).toContain("No close");
+  });
+
+  it("gives a row its own date when it is behind the rest, and says nothing on the surface", () => {
+    const { field } = renderSearch(securitiesFixtureView("gaps"));
+
+    typeInto(field, "ad");
+
+    // The closes no longer agree, so the surface names no session at all...
+    expect(screen.queryByText(/Closes as of/)).toBeNull();
+    // ...and the row that disagrees carries its own.
+    const row = options().find((option) =>
+      option.textContent.includes(FIXTURE_SUBJECTS.behindSession),
+    );
+    expect(row?.textContent).toContain("close 2026-08-28");
+  });
+
+  it("leaves the ordinary rows alone", () => {
+    const { field } = renderSearch(securitiesFixtureView("gaps"));
+
+    typeInto(field, "ad");
+
+    const row = options().find((option) => option.textContent.includes("ADP"));
+    expect(row?.textContent).not.toContain("no bars stored");
+    expect(row?.textContent).not.toContain("No close");
+  });
+});
+
+describe("the ARIA the states have to keep honest", () => {
+  // A combobox claiming to be expanded over a listbox that is not in the
+  // document is a lie a screen reader reads out and axe catches. The two
+  // sentence states have a surface and no listbox, so they are not expanded.
+  it("is not expanded when its surface is a sentence", () => {
+    const { field } = setUp();
+
+    typeInto(field, "zzz");
+
+    expect(field.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("is expanded when there is a listbox to point at", () => {
+    const { field } = setUp();
+
+    typeInto(field, "nv");
+
+    expect(field.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("listbox")).not.toBeNull();
+  });
+
+  it("opens no surface at all when the universe cannot be searched", () => {
+    const { field } = renderSearch(securitiesFixtureView("empty"));
+
+    fireEvent.focus(field);
+
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(field.getAttribute("aria-expanded")).toBe("false");
   });
 });

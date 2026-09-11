@@ -204,13 +204,20 @@ export type SecuritiesView =
 /**
  * Collapse one of the client's seven outcomes onto the four states.
  *
+ * **Exported for the fixture module and for no other reason** (Task 2.11.6).
+ * `fixtures/securities.ts` collapses recorded bodies through this function
+ * rather than hand-writing the states they produce, which is what makes a
+ * story's `failed` the state the application actually reaches rather than one
+ * somebody typed. Nothing in `src/components/` or `src/routes/` may call it:
+ * a component that transitions its own state is a component that fetches.
+ *
  * `aborted` is the fifth case and maps to **no state at all**: a torn-down
  * effect is not a fact about the service, so it leaves `loading` where it was
  * rather than rendering a failure the user caused by navigating away. The
  * caller filters it too; this branch exists so the union stays exhaustively
  * handled and a new outcome cannot be added silently.
  */
-function toSecuritiesView(
+export function toSecuritiesView(
   previous: SecuritiesView,
   result: ApiResult<SecuritiesResponse>,
 ): SecuritiesView {

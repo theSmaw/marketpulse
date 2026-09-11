@@ -417,6 +417,23 @@ the **query is quoted**, which is what makes consecutive sentences differ; the
 is about to press Enter needs to know what Enter will open — which is acceptance
 criterion 1, spoken.
 
+**Amended 2026-09-11 by [Task 2.11.6](TASK-06-every-search-state-produced.md)
+— there is a fifth sentence, and the reason for it is a defect this section
+could not see.** The four above are written against a corpus that has arrived.
+An empty universe matches nothing, so `Security search: no matches for "nv"` is
+**reachable while the securities are still in flight** — a claim about the
+market made from data nobody has seen, in the state the product spends its first
+few hundred milliseconds in. `searchAnnouncement` therefore takes a
+`SearchCorpus` (`ready` with a result, or `loading`) rather than a result, and
+checks the corpus **before** the count:
+
+> `Security search: still loading securities. "nv" is kept.`
+
+It keeps all four properties: subject first, query quoted, and silent when
+nothing has been typed. The states where the universe could not be **read** are
+deliberately not in that union and say nothing at all — the field is not
+typeable in any of them, and the universe's own region has already spoken.
+
 `role="status"`, never `alert`, and the four mechanical clauses of §7 are
 inherited whole rather than re-derived: a persistent region, rendered in every
 state, never unmounted, **silent on arrival**. Arriving at the Security Explorer
@@ -604,6 +621,19 @@ the local database, and Task 2.4.6 produced it against the deployed one. Whoever
 implements [Task 2.11.6](TASK-06-every-search-state-produced.md) should expect to
 construct it rather than find it.
 
+**Measured 2026-09-11 by Task 2.11.6, which constructed it.** The interaction
+this section describes in the abstract has a number on it now, taken against the
+recorded universe: for the query `a` — 99 matches, cap ten — an untracked `AAPL`
+**falls from match 2 to match 50** and off the shown slice entirely, while the
+total still counts it. That is the rule working, and on screen it is
+indistinguishable from the row having been filtered out, which is the one thing
+this section forbids. The two things that make the difference legible are the
+footer's `showing 10 of 99` and the fact that a more precise query reaches the
+row with its mark; both have tests. The fixture is
+`apps/frontend/src/fixtures/securities.ts`, and its derivation was checked
+against a body recorded off the real route with the store mutated — the two are
+identical.
+
 ### The summary line must not become a lie
 
 The line reads
@@ -623,17 +653,17 @@ declines and §3's reversal trigger names.
 
 ## 7. What this file hands to each task that reads it
 
-| Task                                                                  | What it takes from here                                                                                                                                                                                                                                                                                                                                     |
-| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [2.11.2](TASK-02-the-matcher.md) — the matcher                        | Client-side (§2). Prefix-aware rather than `includes()`, and the `nv` → `FRT`/`INVH`/`IVZ`/`KVUE`/`QQQ` finding to write a test against (§0). Returns shown **and** total (§5). No fuzzy dependency without amending §2. `status` is not a filter (§6) — **and, decided there, not a tie-break winner either: untracked ranks below tracked within a tier** |
-| [2.11.3](TASK-03-the-field-the-product-never-had.md) — the field      | Bordered, mono input face, hairline resting border with focus left to the token layer, a clear affordance and an `ESC` hint, **six** states not seven — `Locked` is dropped (§5)                                                                                                                                                                            |
-| [2.11.4](TASK-04-search-on-screen.md) — search on screen              | The field's home (§1). No new fetch (§2). No query in the address (§3). The 400 ms announcement debounce with the visible list updating per keystroke (§4). A row carrying a close **and** its change, with the session qualified on the surface (§5)                                                                                                       |
-| [2.11.5](TASK-05-client-side-navigation-and-the-table-as-a-way-in.md) | Selection is `securityPath(symbol)`, pushed, and Back returns to the list (§3). **Done 2026-09-11, and it measured the "empty field" half of that line to be false — see §3's amendment: the field keeps its query**                                                                                                                                        |
-| [2.11.6](TASK-06-every-search-state-produced.md) — every state        | Search unavailable is the universe fetch having failed, and the rest of the screen keeps working; there is no offline fallback (§5). The untracked state must be constructed (§6)                                                                                                                                                                           |
-| [2.11.7](TASK-07-the-security-explorer-shell.md) — the shell          | The field sits above whatever the table becomes (§1). Five placeholders name **epics**, not invented story numbers (§5)                                                                                                                                                                                                                                     |
-| [2.11.8](TASK-08-the-universe-table-past-500.md) — the table past 500 | A jump rail is taken in principle; a kind filter is not, because it moves the summary line and wants a query parameter (§§3, 5, 6)                                                                                                                                                                                                                          |
-| [2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)           | "Back **keeps** my search" is a decision to state, not a defect to find (§3, as amended 2026-09-11 — the sentence read the other way round until it was measured). The 400 ms rate is the thing to listen for (§4)                                                                                                                                          |
-| [2.11.10](TASK-10-deployed-verify-document-and-adr.md) — the close    | This file, finished with what was found, plus ADR 0024 and the `CLAUDE.md` table entry                                                                                                                                                                                                                                                                      |
+| Task                                                                  | What it takes from here                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [2.11.2](TASK-02-the-matcher.md) — the matcher                        | Client-side (§2). Prefix-aware rather than `includes()`, and the `nv` → `FRT`/`INVH`/`IVZ`/`KVUE`/`QQQ` finding to write a test against (§0). Returns shown **and** total (§5). No fuzzy dependency without amending §2. `status` is not a filter (§6) — **and, decided there, not a tie-break winner either: untracked ranks below tracked within a tier**                               |
+| [2.11.3](TASK-03-the-field-the-product-never-had.md) — the field      | Bordered, mono input face, hairline resting border with focus left to the token layer, a clear affordance and an `ESC` hint, **six** states not seven — `Locked` is dropped (§5)                                                                                                                                                                                                          |
+| [2.11.4](TASK-04-search-on-screen.md) — search on screen              | The field's home (§1). No new fetch (§2). No query in the address (§3). The 400 ms announcement debounce with the visible list updating per keystroke (§4). A row carrying a close **and** its change, with the session qualified on the surface (§5)                                                                                                                                     |
+| [2.11.5](TASK-05-client-side-navigation-and-the-table-as-a-way-in.md) | Selection is `securityPath(symbol)`, pushed, and Back returns to the list (§3). **Done 2026-09-11, and it measured the "empty field" half of that line to be false — see §3's amendment: the field keeps its query**                                                                                                                                                                      |
+| [2.11.6](TASK-06-every-search-state-produced.md) — every state        | Search unavailable is the universe fetch having failed, and the rest of the screen keeps working; there is no offline fallback (§5). The untracked state must be constructed (§6). **Done 2026-09-11**: the control takes `SecuritiesView` whole and is rendered in every state; it carries **no retry of its own** and no sentence pointing at the table, and §4 gained a fifth sentence |
+| [2.11.7](TASK-07-the-security-explorer-shell.md) — the shell          | The field sits above whatever the table becomes (§1). Five placeholders name **epics**, not invented story numbers (§5)                                                                                                                                                                                                                                                                   |
+| [2.11.8](TASK-08-the-universe-table-past-500.md) — the table past 500 | A jump rail is taken in principle; a kind filter is not, because it moves the summary line and wants a query parameter (§§3, 5, 6)                                                                                                                                                                                                                                                        |
+| [2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)           | "Back **keeps** my search" is a decision to state, not a defect to find (§3, as amended 2026-09-11 — the sentence read the other way round until it was measured). The 400 ms rate is the thing to listen for (§4)                                                                                                                                                                        |
+| [2.11.10](TASK-10-deployed-verify-document-and-adr.md) — the close    | This file, finished with what was found, plus ADR 0024 and the `CLAUDE.md` table entry                                                                                                                                                                                                                                                                                                    |
 
 ---
 
@@ -649,6 +679,20 @@ checks quietly stops being true:
 - **That the third live region stays silent on arrival** (§4). §7 already records
   that a new `role="status"` on any route goes red nowhere. This one is enforced
   by whatever test 2.11.4 writes and by nothing else.
+- **That two surfaces describing one failure do not use the same words**
+  (added 2026-09-11 by Task 2.11.6). Search and the tracked universe render from
+  the same fetch and describe the same event, and nothing anywhere refuses a
+  sentence that repeats the other's. It happened three times in one afternoon and
+  every one was caught by a `getByText` resolving to two or three elements rather
+  than by anybody reading the page — so it is checked only where a test happens
+  to assert on one of the strings. Re-measure: give the search's hint the table's
+  own `cause` sentence and watch which tests notice.
+- **That the search control is on the page in every state** (added the same day).
+  It was absent in three of them until this task, and `pnpm verify` stayed green
+  throughout — a component nobody renders raises nothing. Two browser assertions
+  and one route test stand there now, and nothing else does. Re-measure: wrap
+  `<SecuritySearch>` in `view.state === "loaded" ?` again and confirm exactly
+  three tests go red.
 - **That the result surface's session qualifier agrees with the closes beside it**
   (§5). The qualifier is rendered from `lastCloses[].session` and today all 518
   agree, so a bug in which the footer states one session while a row's close came
