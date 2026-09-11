@@ -122,6 +122,38 @@
    */
   --rule-strong: #14171c;
   --rule-hairline: #e2e5ec;
+
+  /*
+   * The boundary of an interactive control — an input's box, a select, a
+   * combobox. Added 2026-09-11 with `TextField`, and it is the one rule token
+   * whose value was set by a **measurement** rather than by eye.
+   *
+   * `--rule-hairline` is the right weight for a panel, whose job is to separate
+   * two regions a reader can already see. A control's border is doing something
+   * else: it is the only thing that says "you can type here". The raised fill
+   * on the page ground is 1.05:1, so the fill says nothing, and the label above
+   * says what the field is *for* rather than that it is a field.
+   *
+   * WCAG 1.4.11 asks 3:1 for visual information required to identify a user
+   * interface component, and a text input's boundary is that standard's own
+   * worked example. Measured against both grounds:
+   *
+   *   --rule-hairline  #e2e5ec   1.26:1 on white   1.18:1 on the page ground
+   *   the canvas's own #c4c6cf   1.70:1            1.59:1
+   *   this token       #74777f   4.48:1            4.18:1
+   *
+   * **Both the value this replaced and the value the design canvas specifies
+   * fail**, and the canvas's is only the less-wrong of the two. `#74777f` is
+   * taken from the canvas rather than invented — it is that file's own
+   * `--mp-ink-3`, used there for labels — which keeps the palette the design
+   * system's while the role is ours. `#878c97` is the lightest value that
+   * clears 3:1 on both grounds, if this ever needs to be quieter.
+   *
+   * **Nothing in `pnpm verify` can see this and neither can axe.** There is no
+   * axe rule for the boundary contrast of an input, so a reading of zero
+   * violations is not evidence this holds. Re-measure by hand.
+   */
+  --rule-control: #74777f;
   --rule-soft: #eef0f4;
 
   /*

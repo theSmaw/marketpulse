@@ -47,7 +47,14 @@
   padding: 0 var(--space-8);
 
   background: var(--surface-raised);
-  border: var(--border-width) solid var(--rule-hairline);
+  /*
+   * `--rule-control`, not `--rule-hairline`, and the difference is measured
+   * rather than a shade preference — see the token's own comment. A panel's
+   * border separates two regions a reader can already see; this border is the
+   * only thing that says "you can type here", and at a hairline it was 1.26:1
+   * against white.
+   */
+  border: var(--border-width) solid var(--rule-control);
   /*
    * The token, never a literal, and that is the whole instruction here.
    *
