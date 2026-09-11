@@ -250,6 +250,48 @@ test("the open result surface has no axe violations", async ({ page }) => {
   await expectNoAxeViolations(page, "the securities route, search open");
 });
 
+// The same surface with **no closes at all**, which is the state that actually
+// carried a contrast defect into `main`.
+//
+// This exists because the check above caught that defect **by accident of the
+// CI database**, not by design. Every one of the 518 securities has a close in
+// the development database, so the "No close" text never rendered locally and
+// the surface passed; CI loads the universe without bars, so every row rendered
+// it at `--ink-disabled` — `#74777f`, **4.48:1** on the raised ground and
+// **4.05:1** on the sunken footer, against 1.4.3's 4.5:1 for text.
+//
+// An accident is not a check. If CI ever gains bars, the run above stops
+// covering this and nothing says so. Stubbing the join away makes the state
+// reachable from any machine.
+test("the result surface has no axe violations when nothing has a close", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.route(SECURITIES_ROUTE_PATTERN, async (route) => {
+    const response = await route.fetch();
+    const body: unknown = await response.json();
+    // `lastCloses` is a separate array on the wire, so emptying it is exactly
+    // the shape a partially-backfilled deployment produces — not a mangled
+    // body. The universe itself is untouched and still real.
+    const stripped = { ...(body as Record<string, unknown>), lastCloses: [] };
+    await route.fulfill({ response, json: stripped });
+  });
+
+  await page.goto(SECURITIES);
+  await expectTheUniverseRendered(page);
+  await page.getByRole("combobox").fill("he");
+
+  const rows = page.getByRole("option");
+  await expect(rows.first()).toBeVisible();
+  // The state is only under test if it is actually on screen.
+  await expect(rows.first()).toContainText("No close");
+
+  await expectNoAxeViolations(
+    page,
+    "the securities route, search open, no closes",
+  );
+});
+
 // The motion, and the constraint that outranks it.
 //
 // `VISUAL-LANGUAGE.md` gives content arriving one duration and one easing, and

@@ -181,7 +181,23 @@
  * class, and it fails the **build** rather than doing nothing. */
 .noChange {
   composes: microLabel from "../../styles/type.module.css";
-  color: var(--ink-disabled);
+
+  /* `--ink-secondary`, **not** `--ink-disabled`, and this is a measured fix
+   * rather than a preference (2026-09-11).
+   *
+   * "No close" is a sentence a person has to read — a true statement about what
+   * this system holds — and not the label of a control that is switched off.
+   * `--ink-disabled` is `#74777f`, which measures **4.48:1** on the raised
+   * ground and **4.05:1** on the sunken footer, against WCAG 1.4.3's 4.5:1 for
+   * text. It is the same value ADR 0026 already records as failing this floor
+   * when the canvas proposed it for placeholder ink. `--ink-secondary` measures
+   * 9.32:1 and 8.42:1.
+   *
+   * **It shipped, and no local run could see it.** Every one of the 518
+   * securities has a close in the development database, so this class never
+   * rendered; CI loads the universe without bars, so every row rendered it and
+   * the axe check added by Task 2.11.4 failed there and only there. */
+  color: var(--ink-secondary);
 }
 
 .footer {
