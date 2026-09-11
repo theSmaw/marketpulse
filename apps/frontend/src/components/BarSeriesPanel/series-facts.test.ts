@@ -6,12 +6,9 @@ import type { PopulatedBarSeries } from "../../market/index.js";
 import {
   barSpan,
   changePercent,
-  directionOf,
-  formatChangePercent,
   formatCount,
   formatMarketInstant,
   formatMarketRange,
-  formatPrice,
   seriesPrices,
 } from "./series-facts.js";
 
@@ -123,25 +120,6 @@ describe("changePercent", () => {
   });
 });
 
-describe("formatChangePercent and directionOf", () => {
-  it("signs a move and names its direction", () => {
-    expect(formatChangePercent(1.914)).toBe("+1.91%");
-    expect(directionOf(1.914)).toBe("positive");
-    // U+2212 MINUS SIGN, not a hyphen: a hyphen is narrower than a digit in a
-    // tabular font and breaks the column `tabular-nums` exists to hold.
-    expect(formatChangePercent(-1.914)).toBe("−1.91%");
-    expect(directionOf(-1.914)).toBe("negative");
-  });
-
-  it("agrees with itself about a move that rounds to nothing", () => {
-    // +0.001% renders as `0.00%`, and calling that "up" would put an upward
-    // arrow beside a figure saying nothing moved — the panel contradicting
-    // itself in two channels at once.
-    expect(formatChangePercent(0.001)).toBe("0.00%");
-    expect(directionOf(0.001)).toBe("unchanged");
-  });
-});
-
 describe("formatMarketInstant", () => {
   it("renders a UTC instant in market time, with the zone named", () => {
     // 13:30Z is the 09:30 bar. The zone abbreviation is what makes that
@@ -186,9 +164,8 @@ describe("barSpan", () => {
   });
 });
 
-describe("formatPrice and formatCount", () => {
-  it("sets a price to two decimals and a count with separators", () => {
-    expect(formatPrice(230.3)).toBe("230.30");
+describe("formatCount", () => {
+  it("gives a count its separators, so 10,000 reads as a number", () => {
     expect(formatCount(10_000)).toBe("10,000");
   });
 });

@@ -390,3 +390,56 @@ answered **"not yet, and not from here"**, deliberately: `VISUAL-LANGUAGE.md`
 defers the motion vocabulary to Epic 3 against real moving numbers, and a chart
 that animates its own first paint is decoration. 2.12.10 carries that forward as
 the one test needing an argued answer rather than a verdict.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.3 — the task list was reviewed a third time, from the other side of an implementation
+
+The two reviews above were run against decisions. This one was run against code
+that exists, which is a different instrument: 2.12.1 and 2.12.2 could only ask
+what a decision implied, and this one could find out what building it actually
+produced.
+
+**No task was added, none was deleted, and the order is unchanged.** Six were
+amended in place — 2.12.4 and 2.12.7 in the implementing commit, and 2.12.5,
+2.12.6, 2.12.9 and 2.12.10 in the review after it. The three effects worth
+knowing without opening them:
+
+- **2.12.7 was pointed at the wrong fixture and now is not.** §6.2's rule — a
+  `partial` answer leaves visible space at the right-hand edge — holds **only
+  when the shortfall is made of trading minutes**. The recorded `partial`
+  fixture's shortfall is a weekend, and on a session-ordinal axis a weekend
+  contributes no slots, so those 60 bars correctly fill their frame and exercise
+  **none** of `--chart-uncovered`, the dashed coverage edge or the clip. A
+  treatment built and reviewed against that fixture alone would have been a
+  treatment nothing on screen had run. [`CHARTING.md`](CHARTING.md) §10.1.
+
+- **2.12.6 inherits a slot, not a bar, and that is a decision it now owns.** The
+  inverse is built and round-tripped, so the off-by-a-half-pixel is closed — but
+  2.12.1's amendment called the return value "a bar index" and it is an **axis
+  slot**. The two coincide only when every slot has a bar in it, which is false
+  for a `partial` answer and false for a minute with no prints. So `bars[slot]`
+  reads the wrong bar, silently, everywhere after a hole. That task now decides
+  what the crosshair does over an empty slot and what the arrow keys step
+  through, and the lookup goes in `src/market/` beside the scale.
+
+- **2.12.9 gained a cost surface that is genuinely new.** The trading-calendar
+  walk Task 2.9.9 measured at **20.6 ms on the server** now has a second caller,
+  in the browser, on the main thread: `timeAxis` steps day by day through the
+  calendar to build the x-domain. Irrelevant at this story's windows — five
+  sessions, or twenty-five at the `1m` cap — and it is exactly what Story 2.13's
+  "1 year" or "max" control would be the first thing to pay for. Time it now so
+  the figure exists before 2.13 needs it.
+
+**And one conditional the close was told to check, answered early.** 2.12.1
+collapsed the flat-config `no-restricted-imports` trap on the condition that
+2.12.3 created no second feature module, and instructed 2.12.10 to confirm rather
+than assume. **It created none** — all five arithmetic modules are in the
+existing `market` module. The entry is unfired rather than discharged, and
+2.12.10's amendment carries the one-line re-measure, because five new files under
+`src/market/` is precisely the change that makes somebody think the rule was
+checked.
+
+**Nothing in this review argues for a re-order.** The 2.12.5/2.12.6 swap has now
+been asked and declined twice and neither of this review's findings bears on it:
+2.12.6's slot-versus-bar decision is independent of 2.12.5 in both directions.

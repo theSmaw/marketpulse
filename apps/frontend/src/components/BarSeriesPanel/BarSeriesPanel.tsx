@@ -6,6 +6,11 @@ import { Button } from "../Button/Button.js";
 import { MetricStrip } from "../MetricStrip/MetricStrip.js";
 import { cx } from "../../cx.js";
 import type { BarSeriesView, PopulatedBarSeries } from "../../market/index.js";
+import {
+  directionOf,
+  formatChangePercent,
+  formatPrice,
+} from "../../market/index.js";
 import { Marker } from "../Marker/Marker.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import { announceSeries } from "./series-announcement.js";
@@ -13,12 +18,9 @@ import type { SeriesPrices } from "./series-facts.js";
 import {
   barSpan,
   changePercent,
-  directionOf,
-  formatChangePercent,
   formatCount,
   formatMarketInstant,
   formatMarketRange,
-  formatPrice,
   seriesPrices,
 } from "./series-facts.js";
 import styles from "./BarSeriesPanel.module.css";

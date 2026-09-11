@@ -60,6 +60,54 @@
 // know about the answer* without the file moving.
 
 export { toDomainSeries } from "./bar-series-payload.js";
+// The chart layer's arithmetic (Task 2.12.3). Scales, a price domain, ticks and
+// the market gap, all of it pure and none of it aware that a DOM exists —
+// `CHARTING.md` §1 chose hand-built SVG with no charting dependency, so this is
+// the whole of what a renderer is handed.
+export { chartDensity } from "./chart-density.js";
+export type { ChartDensity } from "./chart-density.js";
+export {
+  clampToRange,
+  linearScale,
+  nearestSlot,
+  scaleSlot,
+  scaleValue,
+  slotScale,
+  unscaleSlot,
+  unscaleValue,
+} from "./chart-scale.js";
+export type { LinearScale, SlotScale } from "./chart-scale.js";
+export {
+  formatSessionDate,
+  formatSessionTime,
+  placeBars,
+  positionOfInstant,
+  seamSlots,
+  timeAxis,
+  timeTicks,
+} from "./chart-time-axis.js";
+export type {
+  AxisPosition,
+  AxisSession,
+  PlacedBar,
+  TimeAxis,
+  TimeTick,
+  TimeTickOptions,
+} from "./chart-time-axis.js";
+export {
+  FLAT_DOMAIN_FRACTION,
+  PRICE_DOMAIN_PAD,
+  priceDomain,
+  valueTicks,
+} from "./chart-value-axis.js";
+export type { ValueTick } from "./chart-value-axis.js";
+export {
+  PRICE_DIRECTIONS,
+  directionOf,
+  formatChangePercent,
+  formatPrice,
+} from "./price-format.js";
+export type { PriceDirection } from "./price-format.js";
 export {
   BAR_SERIES_FAILURES,
   toBarSeriesView,

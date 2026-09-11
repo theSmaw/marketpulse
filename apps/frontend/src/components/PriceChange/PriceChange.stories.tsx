@@ -2,11 +2,9 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Fragment } from "react";
 
 import gridStyles from "../stories.module.css";
-import {
-  PRICE_DIRECTIONS,
-  PriceChange,
-  type PriceDirection,
-} from "./PriceChange.js";
+import { PRICE_DIRECTIONS } from "../../market/index.js";
+import type { PriceDirection } from "../../market/index.js";
+import { PriceChange } from "./PriceChange.js";
 
 // Three directions, three stories, and a fourth showing all of them at once.
 //

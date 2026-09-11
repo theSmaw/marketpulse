@@ -6,12 +6,12 @@ import type { SecuritiesView } from "../../use-securities.js";
 import { Badge } from "../Badge/Badge.js";
 import { Marker } from "../Marker/Marker.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
+import { changePercent } from "../UniverseTable/last-close.js";
 import {
-  changePercent,
   directionOf,
   formatChangePercent,
   formatPrice,
-} from "../UniverseTable/last-close.js";
+} from "../../market/index.js";
 import styles from "./SecurityIdentity.module.css";
 
 // Whose page this is (Task 2.11.7).

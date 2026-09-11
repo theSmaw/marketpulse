@@ -2,7 +2,6 @@ import type { Bar, TimeRange } from "@marketpulse/shared";
 import { marketWallClockAt } from "@marketpulse/shared";
 
 import type { PopulatedBarSeries } from "../../market/index.js";
-import type { PriceDirection } from "../PriceChange/PriceChange.js";
 
 // The arithmetic and the formatting behind the panel, with no JSX in it (Task
 // 2.10.7).
@@ -27,20 +26,6 @@ import type { PriceDirection } from "../PriceChange/PriceChange.js";
 // bar, and rendering it in the reader's own zone is the same class of defect as
 // resolving a window from the reader's clock — plausible, shifted, and visible
 // to nobody who is not looking for it.
-
-/** The two decimals every price in this product is shown to. */
-const PRICE_DECIMALS = 2;
-
-/**
- * U+2212 MINUS SIGN, not a hyphen.
- *
- * `last-close.ts` carries the same constant for the same reason: a hyphen is
- * narrower than a digit in a tabular font and breaks the column that
- * `font-variant-numeric: tabular-nums` exists to hold. **This is the second
- * copy**, and the third is where this repository extracts — see the note at the
- * bottom of this file, which says what would move and where.
- */
-const MINUS = "−";
 
 /**
  * The four prices a session is usually summarised by, over the bars we hold.
@@ -95,11 +80,6 @@ export function seriesPrices(series: PopulatedBarSeries): SeriesPrices {
   return { open: first.open, high, low, close };
 }
 
-/** A price, to the product's two decimals. */
-export function formatPrice(price: number): string {
-  return price.toFixed(PRICE_DECIMALS);
-}
-
 /**
  * The move across the bars we hold, as a percentage of where it opened.
  *
@@ -110,34 +90,6 @@ export function formatPrice(price: number): string {
 export function changePercent(prices: SeriesPrices): number | null {
   if (prices.open === 0) return null;
   return ((prices.close - prices.open) / prices.open) * 100;
-}
-
-/**
- * That move as a signed figure.
- *
- * The sign is on the number and the direction is a separate value, because
- * `PriceChange` takes both — the glyph and the sign carry the direction and the
- * colour is the redundancy, since the price palette differs by 1.05:1 in
- * greyscale and hue is the entire distinction.
- */
-export function formatChangePercent(percent: number): string {
-  const figure = `${Math.abs(percent).toFixed(PRICE_DECIMALS)}%`;
-  if (directionOf(percent) === "unchanged") return figure;
-  return `${percent > 0 ? "+" : MINUS}${figure}`;
-}
-
-/**
- * Which way, decided on the **rounded** figure.
- *
- * A move of +0.001% renders as `0.00%`, and calling that "up" puts an upward
- * arrow beside a figure that says nothing moved. The rounding and the direction
- * have to agree or the panel contradicts itself in two channels at once.
- */
-export function directionOf(percent: number): PriceDirection {
-  const rounded = Number(percent.toFixed(PRICE_DECIMALS));
-  if (rounded > 0) return "positive";
-  if (rounded < 0) return "negative";
-  return "unchanged";
 }
 
 /**
@@ -197,22 +149,20 @@ function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-// **The third copy is where this moves**, and this file holds two of them
-// already: `PRICE_DECIMALS`, `MINUS`, `formatPrice`, `changePercent`,
-// `formatChangePercent` and `directionOf` are near-twins of
-// `UniverseTable/last-close.ts`'s, and `pad` is a twin of `MarketClock`'s.
+// **The third copy moved, on 2026-09-11.** The note that stood here named the
+// condition — *the third consumer that formats a price or a percentage* — and
+// Task 2.12.3's value axis was it: every gridline on the price chart is a price.
+// `PRICE_DECIMALS`, `MINUS`, `formatPrice`, `formatChangePercent` and
+// `directionOf` are now in `market/price-format.ts`, which is where the note
+// said they would go and for the reason it gave: they are market vocabulary
+// rather than component furniture.
 //
-// They are deliberately **not** shared yet, and the reason is which way the
-// coupling would run rather than laziness. `last-close.ts` computes a change
-// between two *sessions'* closes from a `SecurityLastClose`; this computes a
-// move across the *bars of one window*. The formatting is identical today and
-// the subjects are not, so extracting now would produce a module named after a
-// shape rather than a meaning — and this repository has a rule about that: the
-// visually-hidden idiom moved at its third copy, and `Marker` took the geometry
-// off three components that were each remembering it.
+// **`changePercent` did not move, and that is the same judgement made again.**
+// The note called the two copies near-twins, and the formatting halves were.
+// This one computes a move across the bars of one window from a `SeriesPrices`;
+// `last-close.ts`'s computes a move between two sessions' closes from a
+// `SecurityLastClose`. One function over both would take a parameter type that
+// is the union of two unrelated records, which is a module named after a shape
+// rather than a meaning — the thing the note was avoiding in the first place.
 //
-// So the trigger is a condition rather than a story: **the third consumer that
-// formats a price or a percentage.** What moves then is these six values into
-// `src/market/` — they are market vocabulary, not component furniture — leaving
-// `seriesPrices`, `barSpan` and the two instant formatters here, because those
-// genuinely are about this panel's subject.
+// `pad` is still a twin of `MarketClock`'s and is still waiting for a third.

@@ -1,4 +1,5 @@
 import { cx } from "../../cx.js";
+import type { PriceDirection } from "../../market/index.js";
 import styles from "./PriceChange.module.css";
 
 // A signed price change, rendered so that the direction survives the colour
@@ -14,10 +15,13 @@ import styles from "./PriceChange.module.css";
 // `@marketpulse/shared`, unlike `AnomalyBand` and `FeedStatus`. A band name is
 // a decision the backend makes and reports; the direction of a move is
 // arithmetic on a number both sides already have.
-
-export const PRICE_DIRECTIONS = ["positive", "negative", "unchanged"] as const;
-
-export type PriceDirection = (typeof PRICE_DIRECTIONS)[number];
+//
+// **That argument is why they left this file on 2026-09-11.** `PriceDirection`
+// and `PRICE_DIRECTIONS` now live in `market/price-format.ts` beside
+// `directionOf`, which produces them: arithmetic on a market number is market
+// vocabulary, and a function in the market module returning a type owned by a
+// component was the coupling pointing the wrong way. What stays here is what
+// this component alone decides — the colour, the glyph and the spoken word.
 
 // The colour, and the glyph carrying the same information without it. Neither
 // is optional, and the pairing lives here rather than at each call site so that

@@ -181,3 +181,30 @@ conditional on the data" is a stronger instruction than it looks once the frame
 is this specific: the bottom rule, the gutter, the gridlines and the plot height
 are all computable from the region's width alone. Only the _labels_ need a
 domain. So the loading state is a real frame with an empty scale, not a box.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.3 — what is already built, so this task draws rather than derives
+
+All of the arithmetic is in `src/market/` and leaves it through `index.ts`. The
+three calls this task makes:
+
+- **`timeAxis(view.series.coverage.requested, timeframe)`** — the x-domain,
+  session-ordinal, weekends and holidays already absent. This _is_ §6.2's rule;
+  there is no separate line to remember. Then `placeBars(axis, series.bars)` for
+  the points and `seamSlots(axis)` for the dashed verticals.
+- **`priceDomain(series.bars)`** then `linearScale(domain, [plotHeight, 0])` — the
+  descending range is the ordinary case, and the flat series is already handled.
+- **`chartDensity(regionWidth)`** — tick counts, the label policy, and a
+  `compact` flag. **It does not return pixels**: read `--chart-gutter` /
+  `--chart-gutter-compact` and `--chart-height` / `--chart-height-compact`
+  through `styles/tokens.ts` and hand the numbers in, because CSS is the source
+  of truth for a token.
+
+**The gutter is an input to the horizontal range, not padding applied
+afterwards.** `slotScale(axis.slots, [0, regionWidth - gutter])`. A scale built
+against the region width draws a line that runs under its own labels, and
+nothing below `pnpm e2e` can see it.
+
+`formatPrice` for the value labels and the tick's own `label` for the time axis —
+both already formatted, and neither is a second spelling to write here.

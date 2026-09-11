@@ -2,10 +2,12 @@ import type { SecurityStatus } from "@marketpulse/shared";
 
 import type { BarSeriesView } from "../../market/index.js";
 import {
-  changePercent,
   directionOf,
   formatChangePercent,
   formatPrice,
+} from "../../market/index.js";
+import {
+  changePercent,
   formatCount,
   formatMarketInstant,
   formatMarketRange,

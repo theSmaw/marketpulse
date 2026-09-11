@@ -127,3 +127,29 @@ It is now four — search, the tracked universe, the stated-facts block and the
 chart's own state — and the chart's coverage sentence and the facts block's
 coverage sentence describe _the same event on the same fetch_, which is the
 closest pair this page has ever had.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.3 — `partial` is not a synonym for "the line stops early"
+
+[`CHARTING.md`](CHARTING.md) §10.1 records the finding in full; this is the half
+that changes what this task builds.
+
+§6.2's rule — the x-domain comes from `coverage.requested`, so a `partial` answer
+leaves visible space at the right-hand edge — holds **only when the shortfall is
+made of trading minutes**. The recorded `partial` fixture's is not: it holds 60
+bars covering Friday 15:00–16:00 ET against a window requested to Saturday 16:00
+ET, and on a session-ordinal axis that window has exactly 60 slots in it, because
+**Saturday contributes none**. The bars fill the frame, correctly.
+
+So `barSeriesFixtureView("partial")` **does not exercise `--chart-uncovered`, the
+dashed coverage edge, or the clip**, and a treatment built and reviewed against it
+alone is a treatment nothing on screen has run. Verified in
+`market/chart-time-axis.test.ts`, at _comes from the requested window and not from
+the bars_ and the test after it.
+
+The state that does show space is the ordinary one — a window reaching into a
+session in progress, which the free plan withholds the most recent ~15 minutes of.
+Either record a body for it or build the axis for one in the story, and **do not
+take a green render of the existing `partial` fixture as evidence the treatment
+works**.

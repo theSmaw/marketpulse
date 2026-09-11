@@ -262,3 +262,38 @@ this one ships a chart that is _right and says less than the data it drew from,
 in a way that is invisible to everyone who can see colour_. If in practice it
 turns out to be one `<path>` and a `<line>`, fold it into 2.12.4 **in that
 commit**, say so here, and do not renumber anything.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.3 — the frame the band would need already exists, and the flat case is decided
+
+Three things this task was going to have to reason about are now built and
+tested. None of them changes what it decides; all three change what it starts
+from.
+
+- **The frame already fits a band, because the price domain is taken over the
+  bars' `high` and `low` rather than their closes.** That was decided in 2.12.3
+  for three reasons, and the second of them is this task's: if the envelope ever
+  ships, it fits inside a frame that already exists rather than rescaling one.
+  So the `1d` version this task defers to Story 2.13 does not inherit a domain
+  problem — it inherits a domain that was already drawn wide enough.
+
+- **A flat window is decided all the way down now.** 2.12.2 gave it
+  `--price-unchanged-wash`; 2.12.3 gave the divide-by-zero underneath it an
+  answer, and the two together say what the picture actually is: the domain is
+  **±0.5% of the price**, so the line lands across the middle of the plot, the
+  reference rule lands on top of it, and **the directional fill has zero area**.
+  That is the third state rendering correctly rather than degenerately, and it is
+  the story this task owes — worth writing as a story precisely because "the fill
+  is not there" and "the fill failed to draw" are the same picture.
+
+- **`directionOf` is in the `market` module now**, alongside the rest of the
+  price vocabulary (`market/price-format.ts`). It is the same function; only its
+  address moved. This task imports it from `../../market/index.js` like the eight
+  components that already do, and does not write a second spelling of which way a
+  window went.
+
+**Nothing here makes the fold question any more or less live.** The standing
+instruction is unchanged: if this collapses to one `<path>` and a `<line>` in
+practice, fold it into [Task 2.12.4](TASK-04-the-first-chart-in-marketpulse.md)
+in that commit, say so, and renumber nothing.

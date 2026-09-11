@@ -211,3 +211,60 @@ chart does when it is first drawn.
 
 The other three were answered against the canvas. Answering them again against
 the built page is the point; a canvas is a drawing of a product.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.3 — the conditional on the most dangerous sweep item is answered, and one list entry is already made
+
+### "Confirm this rather than assuming it" — confirmed
+
+2.12.1's amendment collapses the flat-config trap on the condition that 2.12.3
+did not create a second feature module, and tells this task to **confirm rather
+than assume it**. It did not. All five arithmetic modules landed in the existing
+`src/market/` and leave it through the barrel that already has a
+`no-restricted-imports` pattern.
+
+**So the trap did not fire and nothing in `eslint.config.mjs` was touched by this
+story.** Two consequences for the close, and the second is the useful one:
+
+- _Frontend structure_ needs no change, and the entry stays on `CLAUDE.md`'s list
+  exactly as written — **it is not discharged, only unfired**. Epics 3 to 11 add
+  seven more feature modules and it stays the most dangerous entry there.
+- **Re-measure it anyway at the close**, because the re-measure is one line and
+  the failure is silent: `import path from "node:path"` in a frontend file that
+  also deep-imports `market/` must produce **two** errors, not one. This story
+  added five files under `src/market/` without touching the rule, which is
+  exactly the change that would make somebody think it had been checked.
+
+### One entry on the "What `pnpm verify` does not cover" list is already added
+
+2.12.2's amendment lists two entries this story owes that list — the greyscale
+encoding and the gutter subtraction. **A third was added on 2026-09-11 by
+2.12.3** and is already in `CLAUDE.md`, so do not add it twice and do not read
+its presence as evidence the other two were done:
+
+> **The chart's density breakpoints are spelled twice**, once as a media query in
+> the chart's stylesheet and once in `market/chart-density.ts`, and nothing
+> compares them.
+
+Note that entry has a live half this story has not built yet: **the CSS side of
+the duplication does not exist until [Task 2.12.4](TASK-04-the-first-chart-in-marketpulse.md)
+writes the media query.** The entry was written against the pair, so at the close
+confirm both halves exist and say the same number, rather than confirming the one
+that was there when it was written.
+
+### Two smaller reconciliations
+
+- **`CHARTING.md` gained a §10** — four findings from building the arithmetic.
+  §10.1 is the one to carry forward: §6.2's visible space appears only when the
+  shortfall is made of _trading_ minutes, which is amended onto
+  [Task 2.12.7](TASK-07-every-chart-state-drawn.md). When this task finishes
+  `CHARTING.md`, §10 is a record of what building found and should stay as one
+  rather than being merged into the decisions above it.
+- **The price vocabulary moved into the `market` module.** `formatPrice`,
+  `formatChangePercent`, `directionOf`, `PRICE_DIRECTIONS` and `PriceDirection`
+  left `UniverseTable/last-close.ts` and `BarSeriesPanel/series-facts.ts` for
+  `market/price-format.ts`, on the extraction trigger `series-facts.ts` had
+  written down. Nothing in a governing document names those paths, so there is
+  nothing to sweep — recorded here so the close does not go looking for a
+  correction that is not owed.
