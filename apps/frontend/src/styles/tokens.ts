@@ -87,6 +87,15 @@ const TOKEN_NAMES = [
   "--price-positive",
   "--price-negative",
   "--price-unchanged",
+  // The directional washes, added 2026-09-11 with the chart block below. They
+  // are here for the same reason the chart tokens are, and they carry one thing
+  // those do not: the pair is 1.009:1 apart in greyscale, so a consumer reading
+  // these for a canvas gets a fill that is decorative by construction and must
+  // supply direction some other way. That is written down beside them in
+  // market.css; a name here is where a future reader trips over it.
+  "--price-positive-wash",
+  "--price-negative-wash",
+  "--price-unchanged-wash",
   "--anomaly-normal",
   "--anomaly-elevated",
   "--anomaly-unusual",
@@ -95,6 +104,33 @@ const TOKEN_NAMES = [
   "--feed-stale",
   "--feed-disconnected",
   "--status-error",
+
+  // The chart — tokens.css, added 2026-09-11 by Task 2.12.2.
+  //
+  // Declared here ahead of a JavaScript consumer, deliberately, and the reason
+  // is the one `--rule-control` and `--brand-ink` above already carry: a token
+  // that is missing from the stylesheet should be a startup throw naming it
+  // rather than a mark that silently does not appear. `Marker` is the standing
+  // example of how that fails — a consumer that forgets `--marker-color`
+  // renders an invisible marker with correct DOM and a green `verify` — and a
+  // chart is fifteen such marks rather than one.
+  //
+  // The first real consumer is Task 2.12.4's component, which reads them
+  // through CSS rather than through here. The day one of them is needed as a
+  // string is Epic 6's parse layer or a canvas fallback; the names are ready
+  // and the values come back as strings, `"1.5px"` and `"280px"` included.
+  "--chart-axis",
+  "--chart-grid",
+  "--chart-seam",
+  "--chart-reference",
+  "--chart-series",
+  "--chart-crosshair",
+  "--chart-uncovered",
+  "--chart-series-width",
+  "--chart-height",
+  "--chart-height-compact",
+  "--chart-gutter",
+  "--chart-gutter-compact",
 
   // Authorship — agent.css. Added 2026-09-11 with the third colour scope.
   // No JavaScript consumer yet, and here for the canary reason `--brand-ink`

@@ -175,6 +175,85 @@
   --elevation-floating:
     0 6px 14px rgb(16 20 28 / 8%), 0 1px 2px rgb(16 20 28 / 4%),
     0 0 0 1px rgb(16 20 28 / 4%);
+
+  /*
+   * --- The chart (Task 2.12.2) ---
+   *
+   * The 2-D chart layer's ink. Every value here was taken on the
+   * `Price chart.dc.html` canvas and every argument for it is in
+   * `VISUAL-LANGUAGE.md`'s _The chart_ section; `CHARTING.md` settles the
+   * mechanism these dress, which is a hand-drawn SVG line of closes on a
+   * session-ordinal axis with no charting library. **There are no renderer
+   * defaults here to override** — each value below is a decision.
+   *
+   * The chart lands in three places and the split is the usual one. Its **ink**
+   * is here, in the theme block, because a dark palette would change all of it.
+   * Its **geometry** — the stroke width, the plot heights, the value gutter — is
+   * in the non-themeable block below, because a dark palette would change none
+   * of it. Its one **colour with market meaning**, the directional wash, is in
+   * `market.css` with the rest of the price vocabulary.
+   *
+   * Every value here is achromatic, which is what keeps it out of `market.css`:
+   * a plot's frame says nothing about the market.
+   *
+   * **Four of these equal a value already declared above and are still named
+   * separately.** That is the argument `--price-unchanged` and the `--service-*`
+   * trio already make in `market.css` rather than a duplication nobody noticed:
+   * a plot's baseline and a table head's underline are the same near-black for
+   * different reasons, and the day one of them softens the other must not
+   * follow. A reader tempted to collapse them should read this paragraph as the
+   * reason not to.
+   */
+
+  /* The one rule on the plot — a hairline along the bottom and nothing else. No
+     left spine, no right spine, no top, no box. Same value as `--rule-strong`
+     because it is the same structural idiom: under the chrome, under a table
+     head, over a group band, under a plot. A four-sided frame is the single most
+     default-looking thing a chart can do. */
+  --chart-axis: #181c23;
+
+  /* Value gridlines, horizontal only. 1.27:1 on white — and **1.11:1 where the
+     directional wash passes under one**, which is a real weakening and is the
+     one accepted here rather than discovered later. If a band ever makes these
+     unreadable the repair is a darker grid, not a paler wash: the wash is
+     already at the floor of visibility on purpose. */
+  --chart-grid: #e2e4ed;
+
+  /* The session boundary, drawn dashed and full plot height. The ordinal axis
+     puts Friday's last minute beside Monday's first and draws no gap, so this is
+     the one vertical rule on the plot and the only one there will ever be.
+     1.70:1 — deliberately louder than a value gridline, because it carries more.
+     Adopted from the canvas's own `--mp-line-strong`.
+
+     Note this is the value ADR 0026's exception rejected for an *input
+     boundary* at 1.70:1 against WCAG 1.4.11's 3:1. Nothing is being reversed:
+     1.4.11 is about identifying a control, and a gridline behind data is not
+     one. The floor that applies here is the one this whole section answers —
+     that no meaning rests on a mark alone — and the seam's meaning is also
+     carried by the tick label changing date. */
+  --chart-seam: #c4c6cf;
+
+  /* The dashed horizontal rule at the window's opening close. This is the
+     geometry that carries direction: the side of it the line finishes on is
+     whether the window rose or fell, and that reading survives greyscale, which
+     the wash's hue does not. 4.48:1. */
+  --chart-reference: #74777f;
+
+  /* The close line, and it is achromatic whether the window rose or fell.
+     Direction is not put on the one mark that is repeated 1,950 times. */
+  --chart-series: #181c23;
+
+  /* Quieter than the data it is pointing at. One treatment for the pointer and
+     for keyboard focus alike — see `VISUAL-LANGUAGE.md` for why the focused
+     point is a hollow disc rather than a second crosshair. */
+  --chart-crosshair: #43474f;
+
+  /* The span that was requested and is not held. `partial` is the normal case
+     here, so this is a product state rather than a fault: 1.107:1, the quietest
+     mark in this language, and it must not read as a failure. What stops it
+     reading as *flat data* is not this value but the clip — the series stops at
+     the coverage edge rather than being drawn to the frame. */
+  --chart-uncovered: #f2f3f9;
 }
 
 /*
@@ -432,6 +511,31 @@
   --motion-duration-quick: 120ms;
   --motion-duration-settle: 240ms;
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /*
+   * The plot's own geometry, including the stroke width, which is here rather
+   * than beside the series ink above because a dark theme changes the colour
+   * and not the weight.
+   *
+   * `--chart-series-width` was measured against both ends of the region's width
+   * range rather than chosen: at the 1,019px region a 1px stroke disappears
+   * against the grid, and at the 342px region a 2px stroke over 1,950 points is
+   * a solid mass. It is a real device pixel on a 2x display.
+   *
+   * The rest are tokens rather than component constants because
+   * Epic 8 overlays comparison series on these axes and Epic 5 hangs markers on
+   * them: two charts that disagree about how tall a plot is, or about where its
+   * value scale starts, are two charts that cannot be stacked.
+   *
+   * The compact pair applies below 600px **of region**, not of viewport. The
+   * Price region is 1,019px at a 1920 viewport and 342px at 390, and nothing
+   * below `pnpm e2e` can see either number.
+   */
+  --chart-series-width: 1.5px;
+  --chart-height: 280px;
+  --chart-height-compact: 220px;
+  --chart-gutter: 56px;
+  --chart-gutter-compact: 46px;
 }
 
 /*

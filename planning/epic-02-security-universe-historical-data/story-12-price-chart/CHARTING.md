@@ -568,6 +568,10 @@ Two further rules inherited whole:
 
 ## 7. The design surface — what is being asked of Task 2.12.2, not answered here
 
+> **Answered 2026-09-11 by Task 2.12.2.** This section is preserved as the
+> question it was. The answers, and the three things the canvas and this
+> repository each knew that the other did not, are in **§7.1** below.
+
 [ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md)
 fixes the chain: **canvas → `VISUAL-LANGUAGE.md` → `tokens.css` → components.**
 This document is the source of truth for the **mechanism**; the canvas is the
@@ -610,6 +614,78 @@ The list 2.12.2 is being asked for:
     change width. Story 1.4 measured a 14.3 px spread on this.
 11. **Density at the six measured region widths** — how many ticks, how much
     padding, and at what width the chart stops showing an axis at all.
+
+---
+
+## 7.1 The eleven answers — added 2026-09-11 by Task 2.12.2
+
+The section above was written to be answered elsewhere and it was: the positions
+were taken on **`Price chart.dc.html`**, a third file in the
+`Component library for MarketPulse` project, and the reasoning behind each one is
+in `VISUAL-LANGUAGE.md`'s _The chart_ section. This table is the index, so a
+reader of this document does not have to open three artefacts to find out what
+was decided.
+
+| §7's question                 | The answer                                                                                                                                                                                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1. Axis ink / tick-label ink  | **Two values.** `--chart-axis` is the structural near-black; tick labels are `--ink-secondary` at `--font-size-micro` in `--font-data`. The micro-label idiom's size and ink are adopted, its uppercase and letterspacing are **not** — a number has no case |
+| 2. Gridline weight and colour | `--chart-grid`, the hairline value, **horizontal only**, 1px. The 1.27:1 that §7 flagged as an open question behind data was kept                                                                                                                            |
+| 3. The plot's surface         | `--surface-raised`, unchanged. **No chart ground**, and no token for one                                                                                                                                                                                     |
+| 4. Series ink and weight      | `--chart-series` (near-black, never coloured by direction) at **1.5px**, measured against both ends of the region range                                                                                                                                      |
+| 5. The up/down pair           | The non-colour channel is **the reference rule and the side of it the line finishes on**. See below — this is the one that moved furthest from what §7 anticipated                                                                                           |
+| 6. The crosshair              | **One treatment for pointer and keyboard.** A `--chart-crosshair` vertical rule and a white disc with a near-black ring on the line                                                                                                                          |
+| 7. The `partial` region       | `--chart-uncovered` behind it, a dashed vertical at the coverage edge, and the series **clipped** there rather than drawn to the frame                                                                                                                       |
+| 8. The focus ring on a point  | **The existing global ring. No new token.** The disc is hollow so a near-black outline has something to sit outside of                                                                                                                                       |
+| 9. The session seam           | **Both** — a dashed vertical rule, and the tick label there changes to a date while everything between stays a time. It is the only vertical rule this chart draws                                                                                           |
+| 10. Tabular figures           | Yes, by construction: every figure is `--font-data`                                                                                                                                                                                                          |
+| 11. Density                   | Four breakpoints on the **region's** width, 280px/220px plot heights, 5→3 gridlines, and **the axis never disappears**                                                                                                                                       |
+
+### The three places the canvas and this repository met something the other did not know
+
+ADR 0026's exception is for a canvas value that fails a measured accessibility
+floor. **It did not fire here** — nothing was overridden — and these three are
+recorded because they are the same _shape_ of event and would otherwise read as
+unrecorded divergence.
+
+1. **`#c4c6cf` was adopted for the session seam**, and it is the value that
+   exception previously _rejected_ for an input boundary at 1.70:1 against WCAG
+   1.4.11's 3:1. Nothing is reversed: 1.4.11 is about identifying a control, and
+   a gridline behind data is not one. Worth stating plainly, because a reader who
+   finds the same hex on both sides of a recorded deviation will otherwise
+   conclude one of them is a mistake.
+2. **The washes are decorative by measurement, not by choice.**
+   `--price-positive-wash` and `--price-negative-wash` differ by **1.009:1 under
+   `grayscale(1)`** — the inks they are drawn from differ by 1.096:1, and washed
+   back to a fill they are the same colour. That is stronger than the 1.04:1
+   `CLAUDE.md` records for the inks. No floor was failed, because a decorative
+   fill has no floor; what the measurement forced is the ordering — geometry
+   first, hue second — rather than a different value.
+3. **The extent envelope was drawn and declined.** §2's amendment left the
+   high–low band as a live design question and gave 2.12.5 the decision. Drawing
+   it on the canvas settled the half this task owns and produced a finding worth
+   having before 2.12.5 starts: **at `1m` a bar's high and low sit within a few
+   hundredths of a percent of its close, so the envelope is a hairline around the
+   line and is effectively invisible.** It earns its space at `1d`, which Story
+   2.13's window control is what brings. If 2.12.5 ships it, it is
+   `--price-unchanged-wash`, beneath the directional fill, and off at `1m`.
+
+### One thing §7 asked for that the answer made unnecessary
+
+§7's question 5 says 2.12.2 "must supply the **shape, sign, glyph or word** that
+carries direction". It supplies none of those **on the plot**, and that is the
+answer rather than a gap: the plot carries direction as **position** — above or
+below a rule at the window's opening close — and the sign and the glyph are
+already on `PriceChange`, which `CHARTING.md` §5 moves into the chart's chrome as
+the current-value reading. Adding a fifth encoding to a mark that already has
+three would be noise.
+
+### What this did not decide
+
+The volume chart, which inherits this axis and this frame; motion, which
+`VISUAL-LANGUAGE.md` defers to Epic 3 against something that actually moves; and
+whether the extent band ships at all, which is 2.12.5's. **Nothing was drawn in
+the application** — the tokens exist, one Storybook specimen shows the marks, and
+Task 2.12.4 is still the first chart.
 
 ---
 

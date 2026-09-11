@@ -348,3 +348,45 @@ for swapping them. It was **declined**: the readout naturally reads the high and
 the low that the band has already put on the plot, which mildly favours band
 first, and renumbering costs every reference in this directory for a marginal
 gain. Recorded so the question is not reopened as though it had been missed.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.2 — the task list was reviewed a second time and did not move
+
+Task 2.12.1's review is above. The same review was run against
+[`CHARTING.md`](CHARTING.md) §7.1's answers once the instrument existed.
+**No task was added, none was deleted, and the order is unchanged.** Eight were
+amended in place, each with a dated block at the foot of its own file. The three
+effects worth knowing without opening them:
+
+- **2.12.5 shrank a second time and was re-examined rather than inherited.** Its
+  band half is discharged — drawn on the canvas, the high–low envelope is a
+  **hairline at `1m`** and does not ship at this story's windows — and its
+  direction half is now a settled mechanism to implement rather than a channel to
+  choose. It is kept as a task because its failure mode is the one 2.12.4's is
+  not: a chart that is right and says less than its data, invisibly to anyone who
+  can see colour. If it collapses to one `<path>` and a `<line>` in practice,
+  fold it into 2.12.4 in that commit and renumber nothing.
+
+  The ordering question 2.12.1 declined was reopened once, honestly: **its stated
+  reason has expired**, because the band no longer puts the high and the low on
+  the plot for 2.12.6's readout to read. The decision stands on the renumbering
+  cost alone, and that is recorded rather than papered over.
+
+- **2.12.3 got three inputs it was going to have to invent** — the scale's range
+  is the region width _minus the value gutter_, the price domain's padding is 10%
+  with its upper half already allocated to Epic 5, and the session seam is a
+  _required_ x-tick rather than a candidate.
+
+- **One prediction is falsified in shape.** 2.12.1's spike predicted "~11 DOM
+  nodes, flat in point count". The plot is roughly two dozen elements and the
+  seam count scales with **sessions**. Nothing scales with bars, which is the
+  clause §1's constraint was about — but 2.12.9 now measures against a corrected
+  figure rather than a stale one.
+
+**And one thing that is not a task and will be asked about at the close.** Test 4
+of the story's four — _does it feel alive?_ — was applied to the canvas and
+answered **"not yet, and not from here"**, deliberately: `VISUAL-LANGUAGE.md`
+defers the motion vocabulary to Epic 3 against real moving numbers, and a chart
+that animates its own first paint is decoration. 2.12.10 carries that forward as
+the one test needing an argued answer rather than a verdict.

@@ -164,3 +164,101 @@ practice, the right move is to fold it into
 and to say so. It is kept separate for now because "the chart is correct" and
 "the chart says what the data says" have failed independently before, and
 2.12.4 is already the largest task in the story.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.2 — smaller a second time, and the fold question was re-asked rather than inherited
+
+The amendment above ends by asking whether this is still a task and answering
+"yes, and it is worth checking rather than assuming". Task 2.12.2 changed both of
+its halves, so the question was asked again rather than treated as settled. **The
+answer is still yes, and the reasons have changed.**
+
+### The band was drawn, and it is declined at this story's windows
+
+§2's amendment left the high–low band as this task's decision and gave 2.12.2
+"what it looks like if it does". Drawing it on the canvas answered the other half
+by accident, which is the argument for drawing rather than specifying:
+
+> **At `1m` a bar's high and low sit within a few hundredths of a percent of its
+> close, so the envelope is a hairline around the line.** It was rendered at the
+> default window, at the measured region width, and it is effectively invisible.
+
+So the Work section's warning — "a series whose high and low hug the close draws
+a band nobody can see" — is not a risk to design around. It is the measured case,
+at the only timeframe this story serves. **The band does not ship at `1m`**, and
+the "we draw no band, and here is why" outcome the amendment above called
+acceptable is the one that was argued for and reached.
+
+It earns its space at `1d`, where a session's range is a real distance, and
+**Story 2.13's window control is what brings that timeframe**. If it ships then it
+is `--price-unchanged-wash`, beneath the directional fill — decided, so 2.13 does
+not re-take it.
+
+What this task still owes on the band: **a stated decision in the component**, not
+an absence. `CHARTING.md` §5 keeps High and Low as stated facts on the grounds
+that the plot rounds them; a chart that silently draws no band and a chart that
+decided not to are the same picture and different artefacts.
+
+### The direction channel is decided, and implementing it is the real remaining work
+
+2.12.2 settled it: a dashed `--chart-reference` rule at the **window's opening
+close**, the area between the line and that rule filled with
+`--price-positive-wash` / `--price-negative-wash` / `--price-unchanged-wash`, and
+**the side of the rule the line finishes on is the direction**.
+
+The measurement that forced that ordering, and it is stronger than the one this
+task was written against: **the two washes differ by 1.009:1 under
+`grayscale(1)`**. The inks they are drawn from differ by 1.096:1; washed back to
+a fill they are, for practical purposes, the same colour.
+
+Three consequences, and they are this task's whole content:
+
+1. **The rule and the fill are one mechanism and ship together.** The Work
+   section's "the second channel is a mechanism, not a note" now has a concrete
+   failure: a component that renders the tint without the reference rule has
+   shipped a chart whose direction is carried by 1.009:1. A consumer must not be
+   able to get one without the other, and
+   [Task 2.12.4](TASK-04-the-first-chart-in-marketpulse.md)'s amendment draws the
+   boundary from the other side for the same reason.
+2. **Three states, not two.** A window that closed where it opened takes the
+   neutral wash. This is also the case where
+   [Task 2.12.3](TASK-03-scales-ticks-and-the-market-gap.md)'s zero-height domain
+   and a zero-area fill meet, which is the "flat series" story with something
+   actually at stake in it.
+3. **The wash is dropped when a second series arrives.** One filled area cannot
+   serve _n_ series, so the tint is a single-series treatment — stated on the
+   canvas as what Epic 8 **displaces**. Encode that as a property of the
+   component rather than as a sentence, or Epic 8 discovers it by drawing mud.
+
+### `Marker` is not reached for, and that is now a statement
+
+The amendment above says the `--marker-color` trap is "less likely to apply" and
+asks for it to be said either way. **Nothing in this chart reaches for `Marker`.**
+The plot's only per-point mark is the crosshair's focused disc, which is
+[Task 2.12.6](TASK-06-reading-a-point-crosshair-hover-and-keyboard.md)'s and is a
+`<circle>` with its own stroke rather than a silhouette primitive. The trap does
+not fire in this story.
+
+### The ordering question, reopened once and closed for the right reason
+
+2.12.1 declined swapping this task with 2.12.6, on the ground that "the readout
+naturally reads the high and the low that the band has already put on the plot,
+which mildly favours band first". **That reason has expired** — the band is not
+on the plot at this story's windows, so it puts nothing there for the readout to
+read.
+
+The decision stands anyway, on the remaining ground alone: **renumbering costs
+every reference in this directory**, 2.12.6 and 2.12.7 both declare a dependency
+on this task, and the gain is marginal. Recorded so the question is not reopened
+a third time as though it had been missed — and recorded honestly, because a
+decision resting on a reason that has since become false is worth knowing about.
+
+### Is it still a task? Yes, and here is the line
+
+It is now **the smallest task in the story**, and it is kept separate because its
+failure mode is the one 2.12.4's is not: 2.12.4 ships a chart that is _wrong_,
+this one ships a chart that is _right and says less than the data it drew from,
+in a way that is invisible to everyone who can see colour_. If in practice it
+turns out to be one `<path>` and a `<line>`, fold it into 2.12.4 **in that
+commit**, say so here, and do not renumber anything.

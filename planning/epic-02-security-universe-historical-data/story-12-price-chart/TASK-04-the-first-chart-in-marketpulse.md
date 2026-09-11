@@ -131,3 +131,53 @@ has a task.
 
 **The window control is Story 2.13's.** The default window is a constant this
 chart reads, not a control it renders.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.2 — the instrument is decided, so this task implements rather than chooses
+
+The Work section says the chart is drawn "in whatever arrangement Task 2.12.1's
+decision 5 settled" and leaves its appearance open. It is no longer open:
+[`CHARTING.md`](CHARTING.md) §7.1 indexes the answers and
+`VISUAL-LANGUAGE.md`'s _The chart_ section carries the reasoning. The tokens are
+in `tokens.css`, `market.css` and `styles/tokens.ts` already.
+
+**What to build, as a list rather than as a search:**
+
+- **One rule, along the bottom.** `--chart-axis`. No left spine, no right spine,
+  no top, no surrounding box. The plot keeps `--surface-raised` — there is no
+  chart ground and no token for one.
+- **A right-hand gutter** of `--chart-gutter` (56px, 46px below 600px of region)
+  for the value scale. **Not labels inside the plot**: drawn that way on the
+  canvas at the measured 1,019px region, the topmost label sat on the series.
+- **`--chart-height` / `--chart-height-compact`** — 280px and 220px, switching at
+  600px **of region**.
+- **Horizontal gridlines only**, `--chart-grid`. The one vertical rule is the
+  **session seam**, `--chart-seam`, dashed, full plot height — and the tick label
+  there carries the date while everything between carries the time.
+- **The series** is `--chart-series` at `--chart-series-width`, achromatic,
+  whatever the window did.
+- **Axis labels** are `--font-data` at `--font-size-micro` in `--ink-secondary`.
+  The micro-label idiom's size and ink are adopted; its uppercase and
+  letterspacing are **not** — a number has no case.
+
+**Two boundaries this amendment draws, because both are now easy to cross by
+accident:**
+
+1. **The dashed reference rule and the directional wash are
+   [Task 2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md)'s**,
+   not this one's. They look like frame and they are not: they are the mechanism
+   that carries direction without colour, and 2.12.5's own fence is that the pair
+   is inseparable. Drawing the rule here and the fill there is how a chart ships
+   with a tint and no geometry under it.
+2. **`--chart-uncovered` and the dashed coverage edge are
+   [Task 2.12.7](TASK-07-every-chart-state-drawn.md)'s.** What _is_ this task's is
+   the x-domain coming from `coverage.requested` — which the Work section already
+   says, and which is still the line of code that decides whether 2.12.7 draws a
+   state or retrofits an axis.
+
+**And one thing the frame-first rule now has a shape for.** "The frame is never
+conditional on the data" is a stronger instruction than it looks once the frame
+is this specific: the bottom rule, the gutter, the gridlines and the plot height
+are all computable from the region's width alone. Only the _labels_ need a
+domain. So the loading state is a real frame with an empty scale, not a box.

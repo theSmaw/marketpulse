@@ -105,3 +105,44 @@ What that adds to the Work section above, which otherwise stands unchanged:
   easy here and would not have been: the base chart is one `<path>`, so there is
   no per-bar element that could accidentally become focusable. Keep it that way —
   §1's element-count constraint and this are the same constraint.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.2 — the form is settled, and one claim in the amendment above is now inaccurate
+
+The Work section's "in the form Task 2.12.2 settled" now has an answer.
+
+- **One crosshair, identical under the pointer and under keyboard focus.** A
+  vertical `--chart-crosshair` rule (`--ink-secondary`'s value, quieter than the
+  data it points at) and a **white disc with a near-black ring** on the line. Two
+  treatments were considered and declined: they are two things to keep correct
+  and a promise that the keyboard path is the lesser one.
+- **The focus ring is the existing global one and there is no new token.** The
+  disc is hollow _so that the ring can land on it_ — a near-black outline around
+  a near-black filled dot on a near-black line is invisible. `--focus-*` is
+  unchanged, and ADR 0026's declined box-shadow ring stays declined.
+- **The readout sits beside the plot, not over it.** Drawn on the canvas as a
+  panel carrying the bar's market timestamp, its four prices with the close
+  emphasised, and its change with a glyph and a sign. That satisfies the Work
+  section's "must not cover the mark it describes" by placement rather than by
+  collision-avoidance logic, which is the cheaper of the two by a long way and is
+  the one that survives a narrow region.
+
+### One claim above is now inaccurate, and correcting it does not change the conclusion
+
+The 2.12.1 amendment says: _"the base chart is one `<path>`, so there is no
+per-bar element that could accidentally become focusable."_
+
+**The first clause is no longer true.** The plot as 2.12.2 draws it carries
+roughly two dozen elements — an uncovered rect, the wash path, gridlines, the
+session seams, the reference rule, the series path, the coverage edge, the axis
+rule, the crosshair, its disc, and the labels.
+
+**The second clause is unaffected and is the one doing the work.** None of those
+scales with the _bar_ count: the seams scale with the number of **sessions** and
+the gridlines and labels are fixed per breakpoint. So there is still no per-bar
+element, the chart is still one tab stop, and §1's element-count constraint still
+holds. The correction matters because
+[Task 2.12.9](TASK-09-measured-against-fifty-milliseconds.md) carries "~11 DOM
+nodes, flat in point count" as a prediction to measure against, and a reader
+arriving from here would otherwise import a figure that has moved.

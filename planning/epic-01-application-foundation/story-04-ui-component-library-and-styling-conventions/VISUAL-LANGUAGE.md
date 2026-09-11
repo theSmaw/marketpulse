@@ -341,6 +341,111 @@ One easing, and it is asymmetric on purpose: fast out of the gate and slow into 
 
 So: nothing here about a value updating, nothing about a row entering or leaving a live list, nothing about a chart redrawing, and no third duration. Add those against something that actually moves.
 
+## The chart — added 2026-09-11 by Task 2.12.2
+
+This document had no chart vocabulary at all until this section existed, and the product's first data visualisation is the screen `PRODUCT_SPEC.md` §38's demonstration runs through. The positions below were taken on the design canvas — `Price chart.dc.html`, the third file in the `Component library for MarketPulse` project — and the canvas is the source of truth for them ([ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md)). What this section adds is the reasoning the canvas cannot carry.
+
+**The mechanism is settled elsewhere and is not reopened here.** [`CHARTING.md`](../../epic-02-security-universe-historical-data/story-12-price-chart/CHARTING.md) fixes a line of closes on a session-ordinal axis, hand-drawn in SVG with no library. The consequence for this document is that **there are no renderer defaults to diverge from** — every value below is a decision rather than an override.
+
+### The frame is one rule
+
+A near-black hairline along the **bottom** of the plot and nothing else: no left spine, no right spine, no top, no surrounding box. That is this language's existing structural idiom — `--rule-strong` under the chrome, under a table head, over a group band — doing the same job under a plot. A four-sided frame is the single most default-looking thing a chart can do.
+
+The plot keeps the panel's own ground. A sunken plot inside a raised panel is a box drawn in tone instead of ink, and it drags every hairline down with it: the gridline measures 1.27:1 on white and 1.15:1 on sunken.
+
+### The value scale sits on the right, in a gutter
+
+Right rather than left, because right is where the latest price is — the current value, the last point of the line and the scale all land in the same place. Labels drawn _inside_ the plot were tried first and abandoned: at the measured 1,019 px region the topmost label sat on top of the series.
+
+Every figure is in `--font-data` and therefore tabular by construction. Story 1.4 measured a 14.3 px spread on proportional numerals, and a y-axis that shimmers as values change width is the cheapest way to make a live chart feel broken.
+
+### Gridlines are horizontal. The one vertical rule is the session seam
+
+The ordinal axis puts Friday's last minute beside Monday's first and draws no gap, so nothing on the plot says a night passed. **The seam is where that fact is given back**: a dashed vertical rule at each session boundary, and the tick label there carries the date while everything between carries the time. It is the only vertical rule this chart draws.
+
+Dashed rather than solid, and that is load-bearing: a solid vertical near-black rule inside a plot reads as _data_ — a threshold, a marker, an event. Dashes say chrome. And the seam is deliberately **louder** than a value gridline (1.70:1 against 1.27:1) because it carries more.
+
+### The series line is achromatic, always
+
+`--chart-series` is the near-black, at 1.5 px, whether the window rose or fell. Direction is not put on the one mark that is repeated 1,950 times, because that is the mark where the encoding problem is worst and the reader's ability to resolve it is least. 1.5 px rather than 1 or 2 was taken against both ends of the region range: at 1,019 px a 1 px stroke disappears against the grid, and at 342 px a 2 px stroke over 1,950 points is a solid mass.
+
+### Direction without colour — the geometry is the first channel
+
+A dashed horizontal rule sits at the window's **opening close**, and the area between the line and that rule is filled. **The side of the rule the line finishes on is the direction, drawn as geometry.** The fill's tint says the same thing again in colour and says nothing the geometry has not already said.
+
+The measurement that forces that ordering, taken 2026-09-11:
+
+| Pair                                              | Luminance ratio | In `grayscale(1)` |
+| ------------------------------------------------- | --------------- | ----------------- |
+| `--price-positive` / `--price-negative` (ink)     | 1.096:1         | 1.04:1            |
+| `--price-positive-wash` / `--price-negative-wash` | 1.013:1         | **1.009:1**       |
+
+The washes are, for practical purposes, **the same colour**. That is a stronger version of the finding already recorded above under _The rule that outranks every value above_, and it is why the tint here is explicitly decorative: cover it and the chart still says which way the window went, because the line finishes above or below the reference, because the reading carries a glyph and a sign, and because the headline says so in words.
+
+**It is not an [ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md) exception.** A decorative fill has no contrast floor to fail, so nothing was overridden — the canvas value was adopted and a second channel was added beside it. The exception has still fired three times and not four.
+
+**A flat window gets the neutral wash.** Three states, not two, exactly as the price trio already is: `--price-unchanged` is achromatic on every screen in this product, and a window that closed where it opened is not a green one.
+
+**The identity accent stays off all of it.** `brand.css`'s crimson has four sanctioned positions in the chrome and a datum is not one of them; a crimson current-price line would be a fifth position and is a decision to escalate, not a detail to slip in.
+
+### Partial coverage is drawn as space
+
+The x-domain comes from what was _requested_, never from the bars held (`CHARTING.md` §6.2). The shortfall is therefore visible: a faintly sunken region at 1.107:1, a dashed vertical where the data stops, and the series **clipped** at that edge rather than drawn to the frame. It must not read as a failure — so no hatching, no warning colour, no icon — and it must not read as flat data, which is what the clip prevents.
+
+### One crosshair, for both inputs
+
+A vertical `--chart-crosshair` rule and a **white disc with a near-black ring** on the line, identical under the pointer and under keyboard focus. Two treatments would be two things to keep correct and a promise that the keyboard path is the lesser one.
+
+The disc is hollow so the focus ring can land on it. Focus here is the existing global 2 px near-black outline at 2 px offset and **no new token**: a near-black ring around a near-black filled dot on a near-black line is invisible, and a white disc gives the outline something to sit outside of. The canvas's box-shadow ring was already declined in ADR 0026 because it vanishes in forced-colors mode.
+
+### Density, and the chart never stops being a chart
+
+| Region width | Plot height | What it shows                                                                                       |
+| ------------ | ----------- | --------------------------------------------------------------------------------------------------- |
+| ≥ 900 px     | 280 px      | 5 value gridlines; every seam labelled with its date, plus midday ticks between them                |
+| 600 – 899 px | 280 px      | 4 gridlines; seam labels only — the midday ticks go first, because a date is worth more than a time |
+| 400 – 599 px | 220 px      | 3 gridlines; seam rules stay, seam _labels_ reduce to the first and last date                       |
+| < 400 px     | 220 px      | 3 gridlines, first and last date. **The axis never disappears**                                     |
+
+The breakpoints are the **region's**, not the page's: the Price region is 1,019 px at a 1920 viewport and 342 px at 390 (`CHARTING.md` §2). A plot with no axis is a sparkline, and a sparkline is a different product.
+
+### The tokens
+
+Achromatic, structural and geometric values in `tokens.css`; anything carrying market meaning in `market.css`. Several chart values equal a chrome value today and are **still separately named**, which is the argument `--price-unchanged` and the `--service-*` trio already make in `market.css`: two values that coincide for different reasons must be able to move apart.
+
+| Token                    | Value     | Notes                                                             |
+| ------------------------ | --------- | ----------------------------------------------------------------- |
+| `--chart-axis`           | `#181c23` | The one rule. Same value as `--rule-strong`                       |
+| `--chart-grid`           | `#e2e4ed` | 1.27:1 on white; **1.11:1 where a wash passes under one**         |
+| `--chart-seam`           | `#c4c6cf` | 1.70:1. The canvas's own `--mp-line-strong`, adopted here at last |
+| `--chart-reference`      | `#74777f` | 4.48:1. The dashed rule at the opening close                      |
+| `--chart-series`         | `#181c23` | The close line                                                    |
+| `--chart-series-width`   | `1.5px`   |                                                                   |
+| `--chart-crosshair`      | `#43474f` | 9.32:1 — quieter than the data it points at                       |
+| `--chart-uncovered`      | `#f2f3f9` | 1.107:1 — the quietest mark in this language, deliberately        |
+| `--chart-height`         | `280px`   |                                                                   |
+| `--chart-height-compact` | `220px`   |                                                                   |
+| `--chart-gutter`         | `56px`    | The value scale's width                                           |
+| `--chart-gutter-compact` | `46px`    |                                                                   |
+| `--price-positive-wash`  | `#e6f2ec` | 1.15:1 on white; near-black on it measures 14.87                  |
+| `--price-negative-wash`  | `#fbeae9` | 1.16:1 on white; near-black on it measures 14.68                  |
+| `--price-unchanged-wash` | `#eef0f6` | A window that closed where it opened                              |
+
+### What this section deliberately does not decide
+
+- **Whether the high–low extent band ships.** That is [Task 2.12.5](../../epic-02-security-universe-historical-data/story-12-price-chart/TASK-05-what-a-session-did-and-direction-without-colour.md)'s. What was decided here is what it looks like if it does — `--price-unchanged-wash`, beneath the directional fill — and one finding taken by drawing it: **at `1m` a bar's high and low sit within a few hundredths of a percent of its close, so the envelope is a hairline around the line and is effectively invisible.** It earns its space at `1d`, which Story 2.13's window control is what brings.
+- **Anything about motion.** The chart is on the list of things the Motion section above defers to Epic 3 on purpose, and a chart that animates its own first paint is decoration rather than a market moving.
+- **The volume chart.** It inherits this axis and this frame, and deciding its bars before a price chart exists to place them under is the mistake Story 2.12's sequence was arranged to avoid.
+
+### Room reserved for what arrives later
+
+Stated rather than drawn, because three retrofits cost more than three sentences.
+
+- **Epic 5's anomaly markers** — a 16 px lane inside the plot's _top_ padding, at the bar's x. Displaces nothing: the y-domain is already padded so the data never touches the frame, and the top half of that padding is the lane. It inherits the constraint that the amber ramp is a _fill behind a written band name_; on a plot there is no room for the name, so the marker carries the score as a number.
+- **Epic 8's comparison series** — the same axes, y switched to normalised percent change, a legend above the plot beside the reading. **It displaces the wash**: one filled area cannot serve _n_ series, so the directional tint is a single-series treatment and is dropped the moment a second series arrives. The second channel there is stroke pattern — the subject stays solid, comparators are dashed and dotted — which survives greyscale where _n_ hues do not.
+- **Epic 9's filing markers** — a 14 px lane _below_ the baseline and above the tick labels, outside the plot, because a filing is not a price. The gap between baseline and labels is reserved at 14 px from today rather than 6 px. The hard part is inherited from `CHARTING.md` §3: most 8-Ks land after the close, an ordinal axis has no position for an instant between sessions, and those markers sit on the seam carrying their true timestamp in the label.
+- **Epic 6's topology is not an inheritor of any of this.** `PRODUCT_SPEC.md` §27 commits it to Sigma.js/WebGL against a different problem.
+
 ## What this is not
 
 Stated explicitly, because each one is a thing somebody will otherwise add in good faith.
@@ -369,6 +474,7 @@ Three, and they were treated differently.
 
 - **A live institutional wealth-management site** (2026-08-31), read through computed styles rather than by eye: the surfaces, ink, radius, shadow, spacing and type values in the original version of this document were a census of what that page actually renders, not an estimate from a screenshot
 - **Four styleguide and application-mockup screenshots** supplied by the user, which carry what a marketing page cannot: the named palette with its positive/negative separation, the multi-width module grid, the control heights and the seven-state matrix, and the structural idioms above
+- **The `Component library for MarketPulse` design canvas**, which has been the **source of truth** rather than a source since 2026-09-11 ([ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md)) — and is therefore listed here as the thing this document now follows rather than as one input among three. It is three files: `MarketPulse Design System.dc.html`, `Universe navigation.dc.html` (Task 2.11.8) and `Price chart.dc.html` (Task 2.12.2)
 - **`story-10-design.html`** (2026-09-10), a Tailwind/Material mock of the Security Explorer supplied by the user and the input to the refresh. It is a **reference and not a specification**: three of its decisions were taken, one was narrowed and two were declined, and [ADR 0022](../../../docs/adr/0022-the-design-refresh-three-typefaces-an-identity-accent-and-what-a-token-change-certifies.md) says which is which and why
 
 The institution is deliberately not named here or anywhere else in this repository, at the user's instruction. Nothing in this document depends on knowing which one it is — the values are values, and the aesthetic is a class of application rather than a brand.

@@ -78,6 +78,19 @@ Two consequences for the next author:
   splitting the first file, which is a job with the same hazard in it and is not
   this task's.
 
+#### Amended 2026-09-11 by Task 2.12.2 — **the canvas is three files**
+
+The amendment above is a correct account of why the main canvas can no longer be
+read-modify-written and of the precedent it set. What has become false is its
+count: Task 2.12.2 added **`Price chart.dc.html`** as a third file, for the same
+mechanical reason and by the same route.
+
+So the pattern is now the arrangement rather than a departure from one, and the
+next author should expect to add a file rather than a section. What that costs is
+still what the amendment above said it costs — the whole language can no longer
+be read top to bottom in one place — and the ceiling that caused it is still the
+256 KiB `get_file` cap, which no number of new files removes.
+
 The chain of authority is now:
 
 ```

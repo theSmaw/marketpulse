@@ -145,3 +145,69 @@ immediately_. `CHARTING.md` §8 records the grep that found them and why the
 other sites are correct as they stand. **Re-run that grep at the close anyway** —
 the third site was missed on the first pass, which is the Notes section's own
 failure mode happening inside the task that warned about it.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.2 — five additions to the sweep, and one of the four tests has already been answered "not yet"
+
+### What 2.12.2 changed outside this story, which the close now has to reconcile
+
+- **`VISUAL-LANGUAGE.md` gained a _The chart_ section.** It is a design document
+  written _before_ the chart existed, which means every value in it is a claim
+  about something not yet built. **Reconcile it against what shipped** — the
+  breakpoint table, the tick counts, the plot heights and the reserved lanes are
+  all things an implementation can quietly diverge from with nothing going red.
+  Where the built chart is right and the document is wrong, the canvas is
+  upstream of both (ADR 0026), so the fix is a canvas edit first.
+- **`ADR 0026` carries a dated amendment** saying the canvas is three files. If
+  this story adds a fourth — a volume or comparison artboard — it needs another,
+  and the count in that amendment is exactly the kind of present-tense claim
+  `CLAUDE.md` says becomes false quietly.
+- **Eighteen tokens exist with, until 2.12.4, no consumer.** At the close, check
+  that every one of them is actually read by something. A `--chart-*` token that
+  survived the story unused is a value designed against no consumer, which is the
+  reason ADR 0026 declined `micro/10`.
+- **`Foundations/Chart tokens` is a Storybook surface with no component beside
+  it**, which exists because 2.12.2 had tokens and no chart. Once the chart has
+  its own stories, decide whether it stays. It is not obviously redundant — it is
+  the only place the marks are shown _as a language_ rather than as one chart,
+  which is the argument `Marker`'s own story makes — but it should be a decision
+  rather than a leftover.
+- **`CLAUDE.md`'s design-language paragraph** names "a six-component
+  building-block layer" and says nothing about a chart vocabulary. The `Icon` set
+  is still six and that sentence is still true; what is now missing is any mention
+  that the language has a chart layer at all.
+
+### Two entries this story owes the "What `pnpm verify` does not cover" list
+
+Both are the same class as the entries already there — a claim that is true today
+and checked by nothing — and both are properties of 2.12.2's decisions rather
+than of the component:
+
+- **That direction survives greyscale.** The two washes are **1.009:1** apart
+  under `grayscale(1)`; the entire encoding rests on the reference rule and the
+  side of it the line finishes on. Nothing in `verify` can see colour at all, and
+  axe has no rule for "is this fill load-bearing". Re-measure: delete the
+  reference rule and confirm the greyscale pair in `Foundations/Chart tokens`
+  becomes two identical pictures.
+- **That the value scale's gutter is subtracted from the scale's range.** A scale
+  built against the region width rather than the plot width draws a line that runs
+  under its own labels — a plausible chart, not a broken one, and invisible to
+  jsdom. Re-measure: remove the subtraction and confirm a browser spec, not a
+  component test, is what goes red.
+
+### Test 4 of the four already has an answer, and it is "no, and not from here"
+
+2.12.2 applied the four tests to the canvas and recorded three passes and one
+**deliberate** fail: **does it feel alive? Not yet.**
+
+That is not a defect to be repaired at this close. `VISUAL-LANGUAGE.md` defers the
+motion vocabulary to Epic 3 on purpose, against real moving numbers, and a chart
+that animates its own first paint is decoration rather than a market moving. So
+when this task applies the four tests to a screenshot of the deployed product,
+**test 4 is the one that needs an argued answer rather than a verdict** — and the
+honest form of it is what the product does when the data arrives, not what the
+chart does when it is first drawn.
+
+The other three were answered against the canvas. Answering them again against
+the built page is the point; a canvas is a drawing of a product.

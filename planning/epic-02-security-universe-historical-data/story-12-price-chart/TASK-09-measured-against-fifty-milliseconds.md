@@ -117,3 +117,47 @@ Two refinements to what to point it at:
   budget**, and it is the one the spike did **not** measure at all. The spike drew
   once; §28's word is _routine_. This is the genuinely unmeasured surface and it
   should get the most attention.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.2 — one prediction in the table above is falsified in **shape**, and the bundle figure grew a second half
+
+Neither finding threatens §1 or this task's expected outcome. Both are recorded
+because an unnoticed drift in a prediction is what makes a confirming measurement
+indistinguishable from one that was never taken.
+
+### "~11 DOM nodes, flat in point count" — the second clause is the one that survives
+
+2.12.2's instrument puts roughly **two dozen** elements in the plot: an uncovered
+rect, the wash path, the gridlines, the session seams, the reference rule, the
+series path, the coverage edge, the axis rule, the crosshair, its disc, and the
+axis labels.
+
+**And the count is not flat.** The seams scale with the number of **sessions** —
+four at the default window, twenty-four at the 9,750-bar cap — and the gridline
+and label counts step with the region's width. What _is_ flat in point count, and
+is the thing §1's constraint was actually about, is that **nothing scales with the
+bar count**: there is still no per-bar element. Re-take the figure and state it as
+"O(sessions + breakpoint), O(1) in bars" rather than as a number, because a number
+here was always going to drift.
+
+Two dozen elements is not a performance finding. It is a correction to a figure
+this task exists to measure against.
+
+### The bundle prediction is now half CSS, and the CSS half is not in `dist/assets/*.js`
+
++279 B was one `<path>` and a scale. The component will carry axes, ticks,
+formatting, a crosshair and states — **and 2.12.2 added eighteen custom
+properties plus twelve entries in `TOKEN_NAMES`**, which land in the CSS bundle
+and in the JS bundle respectively. Measure both and say which moved. A report
+that quotes only the JS delta is measuring the smaller half of what this story
+added.
+
+### One thing worth breaking on purpose, beyond the one already named
+
+The Work section says to verify the instrument by drawing one element per bar and
+confirming the trace goes over 50 ms. There is now a cheaper and more relevant
+break available: **make the seam count scale with bars instead of sessions.** It
+is a one-character change to a loop bound, it produces 9,750 dashed verticals at
+the cap, and it is much closer to the mistake somebody would actually make than
+9,750 candle groups are.
