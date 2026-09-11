@@ -76,3 +76,91 @@ chart that does not break when 2.13 hands it ten times the bars.
 The other fence is anomaly encoding. A session that was _unusual_ is Epic 5's
 score, not this chart's judgement — this task makes a session's **shape**
 legible and says nothing about whether it was strange.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.1 — the task these decisions changed most
+
+**Read this before the Work section above.**
+
+[`CHARTING.md`](CHARTING.md) §2 chose **a line of closes, not candlesticks**, and
+it took the `If it was a line for V1` branch of the Work section's first bullet.
+The measurement: the Price region is **923 px at 1440**, the default window is
+**1,950 bars**, so a candle is **0.47 px wide** — and 9,750 SVG candle groups was
+29,260 DOM nodes and a **296 ms** main-thread task. There is no window in this
+story's scope where a candle is legible.
+
+**So the per-bar half of this task is gone, and it did not go nowhere.**
+
+### What moved out
+
+**Per-bar open-against-close is now [Task 2.12.6](TASK-06-reading-a-point-crosshair-hover-and-keyboard.md)'s
+readout**, not a mark on the plot. That is where an analyst reads an individual
+bar's four prices — by pointing at it or arrowing to it — and at 0.47 px per bar
+it is the only place the reading can honestly happen.
+
+> `CHARTING.md` §2 says _"Task 2.12.5 renders what a session did, with direction
+> that survives greyscale — that is where open-against-close lives."_ **That
+> sentence over-promises this task** and has been corrected in place: at this
+> density, open-against-close lives in 2.12.6's readout. This task renders the
+> session's **extent**, not its open-to-close direction per bar.
+
+### What this task is now
+
+Two things, and both are real:
+
+1. **The high–low band.** The bars carry `high` and `low` and the line of closes
+   throws them away visually. A band between the session high and the low, behind
+   the close line, is **what a session did** at a density where a candle cannot
+   be — it works at 0.47 px per bar because it is a filled area rather than
+   thousands of marks, so it stays one `<path>` and does not reopen §1's
+   element-count constraint.
+
+   Decide it rather than assume it: a band that is too strong buries the line, and
+   a series whose high and low hug the close draws a band nobody can see. **"We
+   draw no band, and here is why"** is an acceptable outcome — but it has to be
+   argued against the alternative, because `CHARTING.md` §5 keeps High and Low as
+   _stated facts_ precisely on the grounds that the plot rounds them, and a band
+   is the one thing that would put them on the plot honestly.
+
+2. **Direction without colour, which is unchanged and is still the load-bearing
+   half.** What changed is _what_ is directional. There is no per-bar body to
+   fill or hollow, so the second channel attaches to the **window's** change —
+   the current-value reading, the headline, and whatever 2.12.2 settled — rather
+   than to 1,950 marks.
+
+   Measured 2026-09-11 by luminance ratio: `--price-positive` against
+   `--price-negative` is **1.096:1**, which is indistinguishable without hue.
+   (`CLAUDE.md` records 1.04:1 by a greyscale-conversion method; the substance is
+   the same and both are load-bearing.) Both inks clear **5:1** against both
+   surfaces, so the contrast floor is not the problem — telling the two apart from
+   each other is.
+
+### What this does to the Work section above
+
+- The first bullet's candlestick branch — body/wick geometry, minimum body
+  height, sub-pixel bar width — **does not apply.** The line branch does.
+- **The density bullet is largely discharged by §1 and §2 already.** The line is
+  one `<path>` at any point count (26.3 ms cold at 9,750 bars, no long task
+  measured), so the thinning/aggregating/switching decision it asks for is not
+  forced. What still needs saying in `CHARTING.md` is what the **band** does at
+  the densities Story 2.13 will hand it.
+- `Marker` and its `--marker-color` trap are **less likely to apply**, because
+  there is no per-bar mark to place. If nothing reaches for `Marker`, say so —
+  the trap is silent and the note exists so it is not tripped, not so it is used.
+- **Stories** still cover a rising, falling, flat and dense series. A flat series
+  is now more interesting than it was: it is the case where the band has zero
+  height and the line has a zero-height domain, which is
+  [Task 2.12.3](TASK-03-scales-ticks-and-the-market-gap.md)'s divide-by-zero case
+  seen from the other end.
+
+### Is this still a task?
+
+**Yes, and it is worth checking rather than assuming.** It is a smaller one than
+it was written to be — the band is one decision and one `<path>`, and the
+direction channel is mostly 2.12.2's answer being implemented. If it collapses in
+practice, the right move is to fold it into
+[Task 2.12.4](TASK-04-the-first-chart-in-marketpulse.md) rather than to pad it,
+and to say so. It is kept separate for now because "the chart is correct" and
+"the chart says what the data says" have failed independently before, and
+2.12.4 is already the largest task in the story.

@@ -78,3 +78,42 @@ server**, paid on every cache hit, and that the repair is a `packages/shared`
 change with its own argument — **raise it rather than absorb it**. It only
 becomes this product's problem when a window control offers "1 year" or "max",
 which is Story 2.13's.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.1 — you now have predictions, and a prediction is what makes a surprise legible
+
+`CHARTING.md` §0 and §1 measured the chosen approach in real Chromium before it
+was chosen. **This task's job is now partly to falsify those figures against the
+real component**, which is more useful than measuring in a vacuum — a spike
+drawing one `<path>` is not a chart with axes, gridlines, a crosshair and React
+around it.
+
+What 2.12.1 predicts, so a disagreement is visible rather than absorbed:
+
+| Prediction (spike, 2026-09-11)         |                         Figure |
+| -------------------------------------- | -----------------------------: |
+| Bundle cost of the decision, gzipped   | **+279 B**, ~0.2% of 134,210 B |
+| Cold first paint at 9,750 bars         |                    **26.3 ms** |
+| Longest main-thread task at 9,750 bars |            **none over 50 ms** |
+| DOM nodes in the plot                  |   **~11**, flat in point count |
+
+**So the expected outcome of this task is that it finds nothing** — and that is
+precisely why the Work section's warning about a break that does not go red
+matters more here than usual. A measurement that confirms a prediction and a
+measurement that was never actually taken produce the same report. **Verify the
+instrument by breaking the thing on purpose** — draw one element per bar and
+confirm the trace goes over 50 ms, which the spike measured at 9,750 SVG candle
+groups as 73.6 ms cold and up to **296 ms** observed.
+
+Two refinements to what to point it at:
+
+- **The bundle figure is a prediction about a spike, not about the component.**
+  +279 B was one `<path>` and a scale. The real component carries axes, ticks,
+  formatting, a crosshair and states. If it comes in at several kilobytes that is
+  not a falsification of §1 — the comparison that decided §1 was against
+  Recharts' **+94,809 B** — but say which number moved and why.
+- **Continuous pointer movement is still the case most likely to break the
+  budget**, and it is the one the spike did **not** measure at all. The spike drew
+  once; §28's word is _routine_. This is the genuinely unmeasured surface and it
+  should get the most attention.

@@ -106,3 +106,42 @@ document you remember writing it in.
 The second failure mode is calling the design bar met because the chart is
 correct. Correct and accessible is the floor. The four tests are about whether
 anybody would want to look at it.
+
+---
+
+## Amended 2026-09-11 by Task 2.12.1 — two sweep items collapse, and one is added
+
+**The most dangerous item on the sweep list does not fire for this story.** The
+Work section flags the `no-restricted-imports` trap — a second feature module's
+pattern replacing rather than adding to the browser boundary's, because ESLint
+flat config resolves to the last matching object. `CHARTING.md` §1 added **no
+dependency at all**, and
+[Task 2.12.3](TASK-03-scales-ticks-and-the-market-gap.md)'s amendment settles
+that the chart arithmetic lives in the **existing `market` module** rather than in
+a new `charts/` one. So:
+
+- **_Intended stack_ needs no change for a dependency**, because none was added.
+  It may still need one for what the chart layer _is_ — see the addition below.
+- **_Frontend structure_ needs no change**, and the flat-config trap is not
+  touched. **Confirm this rather than assuming it**: if 2.12.3 ended up creating a
+  module after all, the trap is live and it is the single most dangerous entry on
+  `CLAUDE.md`'s list.
+
+**One addition to the sweep, which is a live claim this story falsifies and the
+Work section does not name.** `CLAUDE.md`'s _Intended stack_ and
+`PRODUCT_SPEC.md` §27 both discuss rendering only in terms of **Sigma.js/WebGL
+for the topology**. After this story the product has a **second, separate
+rendering decision** — hand-built SVG for the 2-D chart layer — and nothing in
+either document says so. `CHARTING.md`'s preamble draws the line; the governing
+documents should carry a pointer to it, or the next reader will reasonably assume
+the topology's renderer is the product's renderer.
+
+**And what 2.12.1 already swept, so it is not swept twice.** The stale
+"nothing on the path compresses" premise was corrected on 2026-09-11 at
+**three** live instruction sites — [`STORY.md`](STORY.md)'s Task 2.9.9 amendment,
+[Task 2.12.1](TASK-01-settle-the-charting-decision.md)'s Decision 4 bullet, and
+[Task 2.12.4](TASK-04-the-first-chart-in-marketpulse.md)'s _Paint the frame
+immediately_. `CHARTING.md` §8 records the grep that found them and why the
+other sites are correct as they stand. **Re-run that grep at the close anyway** —
+the third site was missed on the first pass, which is the Notes section's own
+failure mode happening inside the task that warned about it.

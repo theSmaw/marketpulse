@@ -77,7 +77,64 @@ marks. If a decision here appears to force the shape of the component — it
 probably will, at least once — that is a finding to record in `CHARTING.md`
 rather than a licence to start drawing.
 
-If Task 2.12.1 chose a library, this task is **smaller and not empty**: whatever
+~~If Task 2.12.1 chose a library, this task is **smaller and not empty**: whatever
 the library's own scale does, the market gap, the session-aware ticks and the
 formatting are still ours, and they are still tested here rather than through a
-rendered chart.
+rendered chart.~~
+
+---
+
+## Amended 2026-09-11 by Task 2.12.1 — this task got **bigger**, and it inherits two settled answers
+
+The note above anticipated the wrong branch. [`CHARTING.md`](CHARTING.md) §1
+chose **hand-built SVG with no charting dependency — not even `d3-array`** — so
+nothing arrives with a scale already written. **This task now owns all of it**,
+and that was decided knowing the cost:
+
+- **`scaleLinear` and its inverse** are this task's, both directions, written
+  together rather than the inverse retrofitted for 2.12.6.
+- **Nice-number tick selection** is this task's. It is the one genuinely fiddly
+  piece and it is the reason `d3-array` was priced at all: **1,167 B gzipped**,
+  measured, and declined because a wrong tick fails _visibly_ — which is this
+  repository's own stated test for when to keep a library. **That price is
+  pre-approved if this task disagrees with it**, and §1's second reversal
+  trigger is the condition: _a hand-built axis producing ticks a reviewer calls
+  wrong twice._ Take it rather than grinding, and record that the trigger fired.
+
+**The x-axis is session-ordinal** (§3, settled — do not re-take it). Bar `i` sits
+at `i / (n - 1)` of the plot width; there is no gap between Friday's last bar and
+Monday's first. **The labels are real market timestamps** through
+`market-time.ts`. So the scale is ordinal and the formatting is temporal, and the
+tick _selection_ problem on this axis is "which bar indices get a label", not
+"which instants".
+
+Two consequences that belong to this task rather than to a renderer:
+
+- **The inverse on an ordinal axis is a bar index, not an instant.** Task
+  2.12.6's crosshair wants a bar; returning an instant and re-finding the bar is
+  the second spelling of the scale the Work section already warns about.
+- **Epic 9's filing markers need an instant-to-position function this task is
+  the natural home for**, including §3's rule 2: an instant falling _between_
+  sessions has no position, and is placed on the boundary carrying its true
+  timestamp. Building it now is speculative; **knowing the ordinal scale will be
+  asked for it** is what stops the inverse being written in a shape that cannot.
+
+### Where it lives — settled, because the default had a trap attached
+
+**The `market` module, as the Work section says, and this story creates no second
+feature module.** That was worth confirming rather than assuming, because
+`PRODUCT_SPEC.md` §26 names a `charts/` module and reaching for it here would be
+the natural move.
+
+It is the wrong move: the rendering lives in `src/components/<Name>/`, and what
+this task produces is arithmetic about **sessions and prices**, which is market
+domain. A `charts/` module would be a directory named after the consumer rather
+than the subject.
+
+**The reason it matters beyond tidiness** is the most dangerous entry on
+`CLAUDE.md`'s _What `pnpm verify` does not cover_ list: a second feature module's
+`no-restricted-imports` pattern must live **inside the browser boundary's own
+`patterns` array**, because ESLint flat config resolves to the **last** matching
+configuration — a new block _replaces_ rather than adds, and the failure is the
+browser boundary silently disappearing. Staying in `market` means **this story
+never goes near it**, which also collapses that item in Task 2.12.10's sweep.
