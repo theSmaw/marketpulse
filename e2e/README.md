@@ -37,6 +37,7 @@ chromium`, ~554 MB, once per machine.
 | `specs/backend-failure-states.spec.ts` | the three states from named causes, and §36's "the rest still works"   |
 | `specs/backend-recovery.spec.ts`       | recovery across a real poll interval, with no page reload              |
 | `specs/securities-route.spec.ts`       | the first page whose content arrives over the network                  |
+| `specs/search-keyboard.spec.ts`        | search → open → the security's page, by pointer and by keyboard alone  |
 | `specs/security-navigation.spec.ts`    | two securities in one page lifetime — the cache, and no second load    |
 | `specs/market-clock.spec.ts`           | the chrome's clock, and the one assertion below this level cannot make |
 | `support/`                             | locators, timings and the axe pass — not collected as tests            |
@@ -347,6 +348,36 @@ pair started by hand with the wrong value. The reason no cheaper level can:
 The last two are asserted in that spec, from Node, so the mechanism is a checked
 fact rather than a paragraph.
 
+## One thing this level can see that no other can: **where focus landed**
+
+`specs/search-keyboard.spec.ts` (Task 2.11.9) exists for two properties that
+are invisible everywhere else in this repository, and the first of them found a
+real WCAG 2.2 defect that had stood since the chrome became sticky.
+
+- **Whether a focused element can be seen.** The browser's scroll-into-view for
+  sequential focus navigation — the one it performs for every press of Tab —
+  knows nothing about a `position: sticky` header, so it parks the newly
+  focused element behind it. jsdom has no layout and no scroller, so an
+  obscured element renders identically to one in plain view; and **axe reads
+  zero violations through all of it**, because it judges a DOM and this is a
+  fact about where a scroller stopped. Measured before the repair: **one** stop
+  behind the chrome at 1440×900, **four** at 768×800 — including the universe's
+  `Collapse all`, which Task 2.11.8 calls the real skip link — and **two** at
+  390×780. It worsens as the viewport narrows, because the status strip wraps
+  to two rows at 768 and three at 390, so **the widest chrome is the one a
+  development machine never shows**. `base.css`'s `scroll-padding-top` is the
+  repair and `AppHeader` measures the number it needs.
+- **Whether a control is in the tab order at all.** A component test can assert
+  an attribute; only a browser presses Tab. A natively `disabled` input is not
+  focusable, so an `aria-describedby` sentence hanging off one — a description
+  is read _when a control is reached_ — is computed correctly, attached
+  correctly, on screen, and structurally unreachable. That is what search's
+  unavailable state shipped as until this spec walked it.
+
+The spec runs the first of those at **two viewports**, and that is not
+belt-and-braces: the break was verified by substitution, and the 1440 case
+stays green while the 768 case goes red on three stops.
+
 ## What a spec must not assert
 
 Story 1.9 measured this list at the component level. **A browser makes every
@@ -551,8 +582,9 @@ In the same shape ADR 0010 states it for the tick.
 - **Not that the artefact it drove is the artefact that ships.** The dev server
   does not typecheck and does not bundle; `pnpm verify` is what covers that.
 - **Not coverage, and not that a journey exists for a behaviour.** There are
-  **ten** spec files and 51 tests (2026-09-11). Note the two figures above it
-  are Task 1.13.4's, taken on ten tests, and have not been re-taken since.
+  **thirteen** spec files and 81 tests (2026-09-11, Task 2.11.9). Note the two
+  timing figures above are Task 1.13.4's, taken on ten tests, and have not been
+  re-taken since.
 
 ## Why there is no render-failure journey
 

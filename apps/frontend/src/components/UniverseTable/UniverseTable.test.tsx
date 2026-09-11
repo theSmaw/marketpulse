@@ -816,6 +816,26 @@ describe("UniverseTable", () => {
 // `e2e/README.md` names a `useId()` value as a thing a test must not assert on.
 // Asking for "the link named Technology 74 securities" is also the stronger
 // question — it is what a screen reader is handed.
+// **The table's own name** (Task 2.11.9).
+//
+// Measured with Chromium's accessibility tree: this table computed an
+// accessible name of `""`. Invisible to a reader browsing the page — the
+// `Region` around it is named — and the whole of what a screen reader's table
+// list has to go on, which on a page whose content *is* one table is the one
+// navigation aid that could go straight to it.
+describe("the table's accessible name", () => {
+  it("names itself, so a table list can find it", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={loaded([XLK])} />);
+
+    // By role and name, which is the query a table list is: a `<caption>` is
+    // what supplies it, and asserting the element rather than the name would
+    // pass on a caption that said nothing.
+    expect(
+      screen.getByRole("table", { name: "Tracked universe" }),
+    ).toBeTruthy();
+  });
+});
+
 describe("the band rail", () => {
   const twoSectors = () =>
     loaded([XLK, equity(), ABBV, SPY]) as SecuritiesView & { state: "loaded" };
@@ -1000,9 +1020,17 @@ describe("collapse all", () => {
     expect(screen.getByRole("link", { name: "NVDA" })).toBeTruthy();
   });
 
-  // The label is the control's feedback for a listener: pressing it keeps focus
-  // on the button, and a focused button whose accessible name changes is
-  // announced. Without that, this control's entire feedback would be visual.
+  // **This comment used to say the label was the control's feedback for a
+  // listener — that "a focused button whose accessible name changes is
+  // announced". Corrected 2026-09-11 by Task 2.11.9, which walked it.**
+  //
+  // An accessible name is read when a control is *reached*. One that changes
+  // under a listener already standing on it is not reliably re-read by
+  // anything, and what the walk actually heard when this button removed 518
+  // rows from the page was nothing at all. The label is still right — it is the
+  // same control saying which way it goes — but it is a thing a reader sees
+  // rather than a thing a listener is told, and the state below is what tells
+  // them.
   it("offers to collapse while anything is open", () => {
     renderWithContext(
       <UniverseTable
@@ -1013,6 +1041,44 @@ describe("collapse all", () => {
     );
 
     expect(screen.getByRole("button", { name: "Collapse all" })).toBeTruthy();
+  });
+
+  // **The half a name change cannot carry** (Task 2.11.9).
+  //
+  // Task 2.11.8 left the summary line out of the live region on the argument
+  // that `aria-expanded` is spoken at the moment the listener presses the
+  // control and about the thing they pressed. That argument is complete for a
+  // band's own disclosure and did not reach this control, because this control
+  // had no `aria-expanded` to speak. It has one now — the same mechanism the
+  // twelve bands use, rather than a fourth live region on a page
+  // `FRONTEND-STATE.md` §7 already counts three on.
+  it("says whether the bands are open, and not only what pressing it does", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={universe()} />);
+
+    const toggle = () =>
+      screen.getByRole("button", { name: /Collapse all|Expand all/ });
+
+    expect(toggle().getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.click(toggle());
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(toggle());
+    expect(toggle().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  // It carries no `aria-controls`, and that is a decision rather than an
+  // omission: there are twelve targets and no element containing all of them,
+  // so an id list here would be a promise about "move to controlled element"
+  // that nothing can keep.
+  it("promises no controlled element it does not have", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={universe()} />);
+
+    expect(
+      screen
+        .getByRole("button", { name: "Collapse all" })
+        .hasAttribute("aria-controls"),
+    ).toBe(false);
   });
 });
 

@@ -14,6 +14,13 @@ import {
   LOADING_UNIVERSE,
   securitiesFixtureView,
 } from "../../fixtures/securities.js";
+// The two numbers rather than two literals: a test that spells 400 and 1500
+// itself is a second copy of the decision, and would go green against a
+// constant somebody changed.
+import {
+  SEARCH_ANNOUNCEMENT_DELAY_MS,
+  SEARCH_ANNOUNCEMENT_MIN_GAP_MS,
+} from "../../market/index.js";
 import type { SecuritiesView } from "../../use-securities.js";
 import { toSecuritiesView } from "../../use-securities.js";
 import { SecuritySearch } from "./SecuritySearch.js";
@@ -504,6 +511,56 @@ describe("what it says out loud", () => {
     expect(screen.getByRole("status").textContent).toBe("");
     vi.useRealTimers();
   });
+
+  // **The floor, and the defect it answers** (Task 2.11.9).
+  //
+  // The debounce above works perfectly above its own threshold and inverts
+  // below it: an inter-key gap longer than 400 ms makes *every* keystroke look
+  // like the last one. Walked in Chromium, typing `nvidia` at two keys a
+  // second made this region speak **seven times**, six of them while the
+  // person was still typing — which is `SEARCH-AND-SELECTION.md` §4's own
+  // reversal trigger, fired by the pass it nominated.
+  //
+  // So a second number caps how often the region may speak at all, and this
+  // asserts the two properties that make it a repair rather than a longer
+  // wait: a keystroke inside the floor does **not** produce a second sentence,
+  // and what lands when the floor lifts is the state **now** rather than the
+  // one that was pending when it closed.
+  it("will not speak twice inside the floor, and says the current state when it does", async () => {
+    vi.useFakeTimers();
+    const { field } = renderSearch(loadedUniverse());
+
+    typeInto(field, "nv");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SEARCH_ANNOUNCEMENT_DELAY_MS);
+    });
+    expect(screen.getByRole("status").textContent).toBe(
+      'Security search: 2 matches for "nv". NVDA first.',
+    );
+
+    // A second query, settled by the debounce's own reckoning, and refused by
+    // the floor.
+    typeInto(field, "nvi");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SEARCH_ANNOUNCEMENT_DELAY_MS);
+    });
+    expect(screen.getByRole("status").textContent).toBe(
+      'Security search: 2 matches for "nv". NVDA first.',
+    );
+
+    // A third, typed while still inside the floor. When the floor lifts it is
+    // *this* one that is spoken — the sentence the person is waiting on, not
+    // the one they had already moved past.
+    typeInto(field, "nvid");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SEARCH_ANNOUNCEMENT_MIN_GAP_MS);
+    });
+    expect(screen.getByRole("status").textContent).toBe(
+      'Security search: 1 match for "nvid". NVDA.',
+    );
+
+    vi.useRealTimers();
+  });
 });
 
 // Everything below is Task 2.11.6: the states that are not a query and a
@@ -543,7 +600,8 @@ describe("while the universe is still loading", () => {
 
     typeInto(field, "nv");
 
-    expect(field.disabled).toBe(false);
+    expect(field.getAttribute("aria-disabled")).toBeNull();
+    expect(field.readOnly).toBe(false);
     expect(field.value).toBe("nv");
   });
 
@@ -579,10 +637,10 @@ describe("while the universe is still loading", () => {
 });
 
 describe("when the universe could not be read", () => {
-  it("disables the field and says why, when waiting may help", () => {
+  it("marks the field unavailable and says why, when waiting may help", () => {
     const { field } = renderSearch(securitiesFixtureView("nothingAnswered"));
 
-    expect(field.disabled).toBe(true);
+    expect(field.getAttribute("aria-disabled")).toBe("true");
     expect(
       screen.getByText(/the tracked universe did not answer/),
     ).not.toBeNull();
@@ -597,7 +655,7 @@ describe("when the universe could not be read", () => {
   it("says waiting will not help when it will not", () => {
     const { field } = renderSearch(securitiesFixtureView("notThisService"));
 
-    expect(field.disabled).toBe(true);
+    expect(field.getAttribute("aria-disabled")).toBe("true");
     expect(
       screen.getByText(/asking again would produce the same answer/),
     ).not.toBeNull();
@@ -620,6 +678,34 @@ describe("when the universe could not be read", () => {
     expect(screen.getByLabelText("Find a security")).not.toBeNull();
   });
 
+  // **The reason has to be reachable, not merely attached** (Task 2.11.9).
+  //
+  // This state hangs its explanation off the control with `aria-describedby`,
+  // and a description is read *when the control is reached*. The field used to
+  // be natively `disabled`, which is not focusable — measured in Chromium, the
+  // tab order in this state ran straight from the last navigation link to the
+  // first region, so the sentence was computed correctly, attached correctly,
+  // on screen, and structurally unreachable by the one person it was written
+  // for.
+  //
+  // jsdom cannot press Tab, so what is asserted here is the property that
+  // decides it: the input is not natively disabled, and the ids its
+  // description points at resolve to the sentence. The keyboard half is
+  // `e2e/specs/search-keyboard.spec.ts`.
+  it("leaves the reason reachable, by leaving the control in the tab order", () => {
+    const { field } = renderSearch(securitiesFixtureView("nothingAnswered"));
+
+    expect(field.disabled).toBe(false);
+
+    const described = (field.getAttribute("aria-describedby") ?? "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((id) => document.getElementById(id)?.textContent ?? "")
+      .join(" ");
+
+    expect(described).toMatch(/the tracked universe did not answer/);
+  });
+
   it("offers no fallback that this cause has taken away", () => {
     renderSearch(securitiesFixtureView("nothingAnswered"));
 
@@ -634,7 +720,7 @@ describe("when the service holds no securities", () => {
   it("says the service answered and holds nothing, which is not a failure", () => {
     const { field } = renderSearch(securitiesFixtureView("empty"));
 
-    expect(field.disabled).toBe(true);
+    expect(field.getAttribute("aria-disabled")).toBe("true");
     expect(
       screen.getByText(/answered correctly and holds no securities/),
     ).not.toBeNull();

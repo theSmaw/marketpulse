@@ -5,11 +5,12 @@ import type {
 } from "@marketpulse/shared";
 import { SECTOR_LABELS } from "@marketpulse/shared";
 import type { KeyboardEvent } from "react";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { cx } from "../../cx.js";
 import {
   SEARCH_ANNOUNCEMENT_DELAY_MS,
+  SEARCH_ANNOUNCEMENT_MIN_GAP_MS,
   matchSecurities,
   searchAnnouncement,
 } from "../../market/index.js";
@@ -532,10 +533,30 @@ function useAnnouncement(query: string, corpus: SearchCorpus) {
   const sentence = searchAnnouncement(query, corpus);
   const [spoken, setSpoken] = useState("");
 
+  // When the region last changed, so the floor below has something to measure
+  // against. A ref rather than state because reading it must not re-render —
+  // and written only inside the effect, which is what the React Compiler's
+  // `refs` rule rejected an earlier draft for doing during render.
+  const lastSpokenAt = useRef(0);
+
   // `sentence` is a string, so this effect re-runs on exactly the keystrokes
   // that change the answer and each run cancels the one before it. A burst of
   // typing therefore announces the state at the end of the burst rather than
   // the state 400 ms ago.
+  //
+  // **Two numbers, and they answer two different questions** (Task 2.11.9).
+  // The delay answers *have they stopped typing?* and is measured from the last
+  // keystroke. It works perfectly above its own threshold and inverts below it:
+  // an inter-key gap longer than 400 ms makes every keystroke look like the
+  // last one, and typing `nvidia` at two keys a second made this region speak
+  // **seven times** — six of them while the person was still typing. So the
+  // second number is a floor on how often the region may speak at all, and the
+  // wait is whichever of the two is longer.
+  //
+  // What lands when the wait ends is the sentence as it is **now**: the effect
+  // closes over the current `sentence`, and a keystroke during the wait
+  // cancels this timer and starts another. A floor therefore delays an
+  // announcement; it never queues a stale one.
   //
   // An earlier draft held the pending sentence in a ref written during render,
   // and another cleared the region with a `setState` in the effect body. The
@@ -544,9 +565,17 @@ function useAnnouncement(query: string, corpus: SearchCorpus) {
   // below avoids by deriving.
   useEffect(() => {
     if (sentence === null) return;
+
+    const sinceLast = Date.now() - lastSpokenAt.current;
+    const wait = Math.max(
+      SEARCH_ANNOUNCEMENT_DELAY_MS,
+      SEARCH_ANNOUNCEMENT_MIN_GAP_MS - sinceLast,
+    );
+
     const timer = setTimeout(() => {
+      lastSpokenAt.current = Date.now();
       setSpoken(sentence);
-    }, SEARCH_ANNOUNCEMENT_DELAY_MS);
+    }, wait);
     return () => {
       clearTimeout(timer);
     };

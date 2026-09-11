@@ -370,7 +370,14 @@ describe("search, and the rest of the page around it", () => {
     // §36: the page degrades locally. Search says it cannot answer, the table
     // says why and offers the retry, the heading and both regions are intact,
     // and nothing collapsed to a global error screen.
-    expect(field().disabled).toBe(true);
+    //
+    // `aria-disabled` rather than the native attribute since Task 2.11.9: the
+    // control stays in the tab order so that the sentence saying why it cannot
+    // answer — attached with `aria-describedby`, which is read *when a control
+    // is reached* — can be reached at all. `TextFieldProps.disabled` carries
+    // the walk that found it.
+    expect(field().getAttribute("aria-disabled")).toBe("true");
+    expect(field().disabled).toBe(false);
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByRole("region", { name: "Price" })).toBeTruthy();
     expect(

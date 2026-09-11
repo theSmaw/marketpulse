@@ -3,8 +3,11 @@
 **Subject document for** [Story 2.11 — Security Search & Selection](STORY.md)
 **Created:** 2026-09-11 by [Task 2.11.1](TASK-01-settle-search-selection-and-the-url.md)
 **Status:** the three open decisions are settled. §§1–5 are decided and are what
-Tasks 2.11.2 to 2.11.9 implement. Task 2.11.10 finishes this file with what was
-found and adds it to `CLAUDE.md`'s _Where the record lives_ table.
+Tasks 2.11.2 to 2.11.9 implement. **§6 was added 2026-09-11 by Task 2.11.9** and
+is a record rather than a decision: the numbered keyboard flow, what a listener
+is handed, and the five things the walk found and fixed. Task 2.11.10 finishes
+this file with what was found and adds it to `CLAUDE.md`'s _Where the record
+lives_ table.
 
 This file exists for the reason Tasks 2.9.1 and 2.10.1 exist: this story is
 followed immediately by two chart stories and then by an epic that adds a symbol
@@ -335,7 +338,8 @@ argued from the field emptying — the argument is entirely about what the
 _address_ carries — and a query that survives Back is strictly friendlier than
 one that does not. What changes is the sentence Task 2.11.9 has to say out loud,
 which is now "Back **keeps** my search": a decision either way, but not the one
-this file predicted.
+this file predicted. **Said out loud 2026-09-11, in §6.1's numbered flow, step
+8** — walked, kept, and not a defect.
 
 **And it is the answer to that task's own standing question.** TASK-05 warned
 that the first client-side navigation would leave component state that had been
@@ -475,8 +479,50 @@ The page therefore still holds exactly three live regions, and that count is
 asserted in `SecurityExplorer.test.tsx` and in `SecurityIdentity.test.tsx` and
 nowhere else.
 
+#### Amended 2026-09-11 by [Task 2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md) — **the rate was listened to, and 400 ms inverts below its own threshold**
+
+The reversal trigger below names this pass as the first real opportunity to find
+out whether 400 ms speaks over somebody or arrives late. It does both, depending
+on how fast they type — and the half that is wrong is wrong for exactly the
+listener this section was written for. Typing `nvidia` in Chromium, counting the
+distinct sentences the region held:
+
+| Cadence                   | Typing took | Sentences spoken | After the repair |
+| ------------------------- | ----------- | ---------------- | ---------------- |
+| fast typist, 90 ms/key    | 589 ms      | **1**            | 1                |
+| average, 160 ms/key       | 994 ms      | **1**            | 1                |
+| hunt-and-peck, 500 ms/key | 3,052 ms    | **7**            | **3**            |
+
+**A debounce answers _have they stopped?_ and cannot tell a pause from an
+ending.** Above its own threshold it is exactly right; below it, every keystroke
+looks like the last one, so a person typing one six-letter word heard the region
+speak seven times, six of them while they were still typing. Two keys a second
+is not an unusual rate for somebody navigating by ear.
+
+**No value of the delay fixes this**, and that is why the repair is a second
+number rather than a bigger first one: raising it to clear the slowest typist
+would make the fastest wait for a sentence they have already read. So
+`SEARCH_ANNOUNCEMENT_MIN_GAP_MS` — **1,500 ms** — caps how often the region may
+speak **at all**, independent of what tripped it, and the wait is whichever of
+the two is longer. What lands when the wait ends is the state **now** rather
+than the state that was pending when the floor closed, so a floor delays an
+announcement and never queues a stale one.
+
+1,500 ms is a judgement in the same way 400 is, and it is paced by the thing
+that actually matters: roughly how long a screen reader takes to read one of
+these sentences at a default rate. Speaking again before the previous sentence
+has finished is what turns an announcement into a backlog.
+
+**Both numbers are unchanged in meaning and neither is a request debounce.** The
+visible list still updates on every keystroke.
+
 ### Reversal trigger
 
+- **A person reporting a backlog, or a typing cadence that still produces one.**
+  This replaces the third trigger below rather than joining it: that one fired,
+  and the instrument is now sharper than "speaks over them or arrives late",
+  because the two cadences either side of the floor behave differently and can
+  be reported apart.
 - **A fourth asynchronously-filled surface on this screen that must speak**, or
   any surface that changes a region's text in the same moment as another. Epic 3's socket is the
   certain one and it lands one epic away; at that point regions need a rate
@@ -711,19 +757,259 @@ declines and §3's reversal trigger names.
 
 ---
 
+## 6. The keyboard flow, and what a listener hears — walked 2026-09-11 by Task 2.11.9
+
+Everything in this section was **walked in Chromium against the running pair**,
+not read off the DOM. Where a figure appears it was taken; where a judgement
+appears it was taken by a person after the walk, and the alternative it beat is
+stated beside it.
+
+**The instrument, stated plainly, because it changes what the claims are worth.**
+The keyboard half was walked with real key presses. The listening half was taken
+from **Chromium's own accessibility tree** — the computed role, accessible name,
+description and state of each element as focus reached it, plus every distinct
+sentence each live region held and when — which is the data an assistive
+technology is handed, and is **not the same thing as hearing it**. Two classes of
+finding below are therefore held at the confidence they deserve rather than
+asserted: how a given screen reader pronounces a name, and what its table
+navigation does in a table with no data rows. Everything else — what is
+reachable, in what order, what is announced and at what rate, and whether focus
+can be seen — is a measurement.
+
+### 6.1 The numbered flow
+
+Focus after every transition is stated, because focus after a result is opened is
+the step most often left to chance and landing at the top of a new document is
+not the same as landing on it.
+
+| #   | Key                      | What happens                                                                                           | Focus afterwards                                               |
+| --- | ------------------------ | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| 1   | `Tab` ×5 from the top    | past the four navigation links to the field. It is a control _over_ both surfaces, so it precedes both | the field, `aria-expanded="false"`                             |
+| 2   | type                     | the list opens on the **first** keystroke; the visible list updates on every one                       | **the field, throughout** — see 6.2                            |
+| 3   | `ArrowDown` / `ArrowUp`  | moves the active row and wraps at both ends; `aria-activedescendant` names it                          | still the field                                                |
+| 4   | `Enter`, list open       | opens the active result — `securityPath(symbol)`, pushed                                               | **still the field**, holding the query. See 6.3                |
+| 4a  | `Enter`, nothing matched | **nothing.** The address does not move                                                                 | the field                                                      |
+| 4b  | `Enter`, many matched    | opens the **first**, which is the one the sentence named                                               | the field                                                      |
+| 5   | `Escape`, list open      | closes the list and **keeps** the query                                                                | the field                                                      |
+| 5a  | `Escape` again           | clears the query. Two behaviours, one key, in the order a person expects                               | the field                                                      |
+| 6   | `Tab`, list open         | the list closes — no trap                                                                              | the field's own clear button, then onward through the page     |
+| 7   | `Shift`+`Tab`            | back to the field, with the query intact and the list reopened                                         | the field                                                      |
+| 8   | `Back`, from a security  | **the field keeps its query** — §3's amendment, and the friendlier of the two answers                  | wherever it was; nothing is stolen                             |
+| 9   | `Tab` on, past the field | eight region panels, `Collapse all`, twelve rail links, then the table's first band — **23 stops**     | each in turn, and **none of them behind the chrome** — see 6.4 |
+
+### 6.2 Focus never enters the list, and that is the pattern rather than an accident
+
+This is an **active-descendant** combobox: focus stays in the input for the whole
+interaction and the "active" row is a pointer (`aria-activedescendant`) rather
+than a focused element. The consequence a walk makes obvious and a DOM does not:
+**typing is never interrupted to look at a result.** A listener hears the row
+without leaving the field they are typing in, and `Backspace` still edits the
+query rather than doing something surprising.
+
+The id it points at was checked to be **in the document** — a combobox pointing
+at an id that is not announces a row that does not exist, and renders identically
+to one that does.
+
+### 6.3 Focus after a result is opened: it stays in the field
+
+**Decided: focus stays where it was.** The route re-renders rather than
+re-mounting (Task 2.11.5), so the field is literally the same element, still
+holding the query.
+
+The argument, and it is a product one: this control is a **symbol switcher** as
+much as a search box (§1), and the two things a person does after opening a
+security are _look at it_ and _open a different one_. Staying in the field costs
+the first nothing — one `Tab` reaches the page in reading order — and gives the
+second everything.
+
+**The objection it had to answer was silence**, because a listener who has just
+changed the whole subject of a page and heard nothing has been told the control
+did not work. It does not apply, and that was measured rather than assumed:
+opening `AMD` from `/securities` changed the **panel's** live region to
+`AMD: holding 390 bars, through 2026-09-04 16:00:00 EDT, …` within 300 ms of the
+keypress. The arrival announces itself, by the region that owns the subject that
+changed, naming it — which is exactly `FRONTEND-STATE.md` §7's rule doing the job
+it was written for. The identity block staying silent (§4's amendment) is what
+keeps that one sentence from being two.
+
+**The alternative was moving focus to the identity block**, and it was rejected
+on what it costs: it would take the query away from a person mid-switch, it needs
+a `tabIndex={-1}` on a heading that is otherwise not interactive, and it buys an
+announcement the page already makes.
+
+### 6.4 What the walk found, and what was fixed here
+
+Five findings. The first is the largest and had stood since the chrome became
+sticky.
+
+**1. Tab focus landed underneath the sticky chrome — WCAG 2.2 2.4.11, and axe
+read zero violations through all of it.** The browser's scroll-into-view for
+sequential focus navigation knows nothing about a sticky header, so it parks the
+newly-focused element behind it.
+
+| Viewport | Chrome | Occluded stops in the first 30                                 |
+| -------- | ------ | -------------------------------------------------------------- |
+| 1440×900 | 132px  | 1 — the Tracked universe region                                |
+| 768×800  | 180px  | 4 — Price, Abnormal-move, Tracked universe, **`Collapse all`** |
+| 390×780  | 208px  | 2 — Price, Tracked universe                                    |
+
+It **worsens as the viewport narrows**, because the status strip wraps to two
+rows at 768 and three at 390 — so the one instrument that could have caught it, a
+person tabbing through on a development machine, is the one looking at the
+narrowest chrome. `Collapse all` at 768 is the sharpest case: the control Task
+2.11.8 calls the real skip link, reached by keyboard, invisible.
+
+The repair is one declaration — `scroll-padding-top` on the scroll container, fed
+by the height `AppHeader` measures and publishes as `--sticky-chrome-height`. It
+cannot be a token: `--app-header-height` is the masthead only and the chrome's
+real height exists at three values decided by a media query. Held by
+`e2e/specs/search-keyboard.spec.ts` at two viewports, and the red was verified by
+restoring the break.
+
+**One residue, recorded rather than fixed.** The Tracked universe region is a
+tab stop on a panel 18,895px tall that **never scrolls** — `scrollHeight` and
+`clientHeight` are equal, because it is sized by its content. Focusing it lands
+somewhere that is not its heading both before and after the repair, and the next
+`Tab` (`Collapse all`) corrects it. The real answer is a `Region` that can say it
+does not scroll, which Task 1.13.4 deliberately declined to build — _"which of
+the four scrolls is a function of the viewport"_ — and that argument still holds
+for the other seven. **Reversal trigger: a second region on any route that is
+taller than the viewport and demonstrably cannot scroll.**
+
+**2. The unavailable field explained itself to nobody.** In the three states
+where search cannot answer, the reason is wired to the control with
+`aria-describedby` — which is read **when the control is reached** — and the
+control was natively `disabled`, which is not focusable. Measured: the tab order
+ran straight from the fourth navigation link to the first region. The sentence
+was computed correctly, attached correctly, on screen, and structurally
+unreachable by the one person it was written for.
+
+**Decided: the field stays in the tab order.** It renders `aria-disabled` and
+`readOnly` rather than `disabled`, in `TextField` and therefore for every control
+after it. `readOnly` alone was rejected on meaning — that prop is a display
+state, _a value nobody edits here_, and borrowing it would make what a listener
+hears say nothing about why. Leaving it was rejected because the alternative
+explanation on screen, the tracked universe's own failure block, is two stops
+further on and describes a different surface.
+
+Two consequences were followed rather than left: the state **stopped being
+inactive**, so WCAG 1.4.11's and 1.4.3's exemptions no longer reach it. The
+border rose from `--rule-soft` (**1.07:1** on the page) to `--rule-control`
+(**4.22:1**) and the value's ink from `--ink-disabled` (2.62:1 on white) to
+`--ink-secondary` (**6.49:1**). What still tells it apart from read-only is the
+lighter value and the cursor, both of which survive greyscale.
+
+**3. The bulk collapse removed 518 rows in silence.** Task 2.11.8's reason for
+leaving the summary line out of the live region is that `aria-expanded` is spoken
+at the moment the listener presses the control and about the thing they pressed.
+That is a complete argument for a band's own disclosure and **it did not reach
+this control, because this control had no `aria-expanded` to speak.** The label
+flipping `Collapse all` → `Expand all` is not a substitute: a name is read on
+arrival at a control, and one that changes under a listener already standing on
+it is not reliably re-read by anything. (A comment in `UniverseTable.test.tsx`
+claimed it was; it has been corrected with the measurement.)
+
+Fixed with the same mechanism the twelve bands use rather than a fourth live
+region, which also leaves §4's count of regions on this page where it is. It
+carries no `aria-controls`: twelve targets, no element containing all of them.
+
+**2.11.8's decision for a single band is confirmed rather than overturned.**
+Collapsing one band still announces only `collapsed`, and the summary line's
+`444 of 518 rows shown` is still not spoken. On the walk that reads correctly —
+one action, one announcement, about the thing that was pressed.
+
+**4. The tracked universe was a table with no name.** Chromium computed
+`""`. Invisible to a reader (the `Region` around it is named) and the whole of
+what a screen reader's table list has to go on — which on a page whose content
+_is_ one table is the one navigation aid that could go straight to it. A
+visually-hidden `<caption>` now carries the region's own words; a paraphrase
+would have been a second name for one thing.
+
+**5. The 400 ms announcement rate is wrong below its own threshold, and the fix
+is a second number rather than a bigger first one.** See §4's amendment below.
+
+### 6.5 What was listened to and left alone
+
+- **The rail's arrival announces its subject.** A jump travels up to 16,069px and
+  lands focus on the band's disclosure button, whose accessible name is
+  `Energy Benchmark XLE 22 securities` — the band, its benchmark and its size. A
+  listener knows where they are from the landing itself, so the arrival needs no
+  sentence of its own. It also lands at exactly `top: 132`, the chrome's bottom
+  edge, because Task 2.11.8 measured the chrome and subtracted it.
+- **The landmark list reads as a contents page**, which is what a listener
+  orienting on a strange screen uses: banner, main, `Primary` navigation, then
+  the seven §8.3 regions in reading order, `Tracked universe`, and
+  `Jump to a sector`. Two navigations, both named, which is why `landmark-unique`
+  is quiet.
+- **Eight region panels in the tab order, six of them holding nothing
+  focusable.** Heard, and left. Tabbing onto a named landmark that holds only a
+  heading and a sentence is how a keyboard user reaches content they would
+  otherwise have to scroll to, and it is `Region`'s deliberate
+  `scrollable-region-focusable` fix rather than an accident. What made it
+  tolerable rather than merely defensible is finding 1: they are now all
+  **visible** when reached, which they were not.
+- **`Collapse all` sits nine stops after the field**, before the twelve links it
+  belongs with, and Task 2.11.8 asked whether a keyboard user discovers it.
+  Walked: it is the **first** thing in the rail's own header, reached immediately
+  after the last region and immediately before the links — so anybody tabbing
+  toward the table meets it before meeting a single row. Left as it is.
+
+### 6.6 Two findings recorded and not acted on
+
+Both are real, both were measured, and neither is repaired here because the
+repair is worse than the finding.
+
+**Accessible names are computed from _rendered_ text, so this language's
+letterspaced micro-labels reach an assistive technology in capitals.** Chromium
+returns `FIND A SECURITY` for the field, `COLLAPSE ALL` for the bulk toggle,
+`JUMP TO A SECTOR` for the rail, and `Technology BENCHMARK XLK 74 securities` for
+a band. `CLAUDE.md` already records the DOM-versus-rendered-text split for
+_asserting_ on these words; that it reaches the **accessible name** is the same
+fact one layer further on. It is left alone on the grounds that no meaning is
+lost — the words are the words — and that the only repairs available are an
+`aria-label`, which `UniverseTable`'s rail already argues against by name (_"a
+second name nobody reviewing the screen can see is a name that drifts from the
+visible one"_), or abandoning a typographic idiom the canvas owns.
+**Reversal trigger: a name where the capitals change what is said rather than how
+— an initialism a reader would spell, or a word a reader would stress.**
+
+**This is also the first real engine to read Task 2.11.8's two repaired names,
+and it disagrees with the jsdom measurement.** That task recorded the band as
+`Technology Benchmark XLK 74 securities`; Chromium says
+`Technology BENCHMARK XLK 74 securities`. The repair itself — the explicit spaces
+that turned `TechnologyBenchmark XLK2securities` into words — is **confirmed
+correct**; it is only the case that differs, for the reason above. The rail
+link's `Technology 74 securities` is confirmed exactly as recorded, because
+nothing in it is letterspaced.
+
+**A table with twelve rowgroup headers and zero data rows keeps its seven column
+headings.** With every band shut: 13 rows, 12 band headers, **0 `<td>`s**, and
+the seven column headings still there. Whether that reads as a promise of content
+that is not there depends on a real screen reader's table navigation, which the
+accessibility tree cannot answer — so it is written down as an open observation
+rather than settled by inference. The argument for keeping the headings is that
+the bands are one keystroke from reopening and a table whose columns vanish and
+return is worse than one that is briefly empty. **Reversal trigger: a person
+reporting that the collapsed table reads as broken.** Note `aria-controls` on each
+band names the `<tbody>` that contains its own trigger — a superset of the truth
+rather than a wrong answer, and there is nowhere else to put the id, because a
+table admits no element between a `<tbody>` and its rows.
+
+---
+
 ## 7. What this file hands to each task that reads it
 
-| Task                                                                  | What it takes from here                                                                                                                                                                                                                                                                                                                                                                   |
-| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [2.11.2](TASK-02-the-matcher.md) — the matcher                        | Client-side (§2). Prefix-aware rather than `includes()`, and the `nv` → `FRT`/`INVH`/`IVZ`/`KVUE`/`QQQ` finding to write a test against (§0). Returns shown **and** total (§5). No fuzzy dependency without amending §2. `status` is not a filter (§6) — **and, decided there, not a tie-break winner either: untracked ranks below tracked within a tier**                               |
-| [2.11.3](TASK-03-the-field-the-product-never-had.md) — the field      | Bordered, mono input face, hairline resting border with focus left to the token layer, a clear affordance and an `ESC` hint, **six** states not seven — `Locked` is dropped (§5)                                                                                                                                                                                                          |
-| [2.11.4](TASK-04-search-on-screen.md) — search on screen              | The field's home (§1). No new fetch (§2). No query in the address (§3). The 400 ms announcement debounce with the visible list updating per keystroke (§4). A row carrying a close **and** its change, with the session qualified on the surface (§5)                                                                                                                                     |
-| [2.11.5](TASK-05-client-side-navigation-and-the-table-as-a-way-in.md) | Selection is `securityPath(symbol)`, pushed, and Back returns to the list (§3). **Done 2026-09-11, and it measured the "empty field" half of that line to be false — see §3's amendment: the field keeps its query**                                                                                                                                                                      |
-| [2.11.6](TASK-06-every-search-state-produced.md) — every state        | Search unavailable is the universe fetch having failed, and the rest of the screen keeps working; there is no offline fallback (§5). The untracked state must be constructed (§6). **Done 2026-09-11**: the control takes `SecuritiesView` whole and is rendered in every state; it carries **no retry of its own** and no sentence pointing at the table, and §4 gained a fifth sentence |
-| [2.11.7](TASK-07-the-security-explorer-shell.md) — the shell          | The field sits above whatever the table becomes (§1). Five placeholders name **epics**, not invented story numbers (§5). **Done 2026-09-11**: the table stays on both routes, last and full width (§1's amendment); the identity block is the fourth asynchronous surface and is silent (§4's amendment)                                                                                  |
-| [2.11.8](TASK-08-the-universe-table-past-500.md) — the table past 500 | A jump rail is taken in principle; a kind filter is not, because it moves the summary line and wants a query parameter (§§3, 5, 6)                                                                                                                                                                                                                                                        |
-| [2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)           | "Back **keeps** my search" is a decision to state, not a defect to find (§3, as amended 2026-09-11 — the sentence read the other way round until it was measured). The 400 ms rate is the thing to listen for (§4)                                                                                                                                                                        |
-| [2.11.10](TASK-10-deployed-verify-document-and-adr.md) — the close    | This file, finished with what was found, plus ADR 0024 and the `CLAUDE.md` table entry                                                                                                                                                                                                                                                                                                    |
+| Task                                                                  | What it takes from here                                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [2.11.2](TASK-02-the-matcher.md) — the matcher                        | Client-side (§2). Prefix-aware rather than `includes()`, and the `nv` → `FRT`/`INVH`/`IVZ`/`KVUE`/`QQQ` finding to write a test against (§0). Returns shown **and** total (§5). No fuzzy dependency without amending §2. `status` is not a filter (§6) — **and, decided there, not a tie-break winner either: untracked ranks below tracked within a tier**                                |
+| [2.11.3](TASK-03-the-field-the-product-never-had.md) — the field      | Bordered, mono input face, hairline resting border with focus left to the token layer, a clear affordance and an `ESC` hint, **six** states not seven — `Locked` is dropped (§5)                                                                                                                                                                                                           |
+| [2.11.4](TASK-04-search-on-screen.md) — search on screen              | The field's home (§1). No new fetch (§2). No query in the address (§3). The 400 ms announcement debounce with the visible list updating per keystroke (§4). A row carrying a close **and** its change, with the session qualified on the surface (§5)                                                                                                                                      |
+| [2.11.5](TASK-05-client-side-navigation-and-the-table-as-a-way-in.md) | Selection is `securityPath(symbol)`, pushed, and Back returns to the list (§3). **Done 2026-09-11, and it measured the "empty field" half of that line to be false — see §3's amendment: the field keeps its query**                                                                                                                                                                       |
+| [2.11.6](TASK-06-every-search-state-produced.md) — every state        | Search unavailable is the universe fetch having failed, and the rest of the screen keeps working; there is no offline fallback (§5). The untracked state must be constructed (§6). **Done 2026-09-11**: the control takes `SecuritiesView` whole and is rendered in every state; it carries **no retry of its own** and no sentence pointing at the table, and §4 gained a fifth sentence  |
+| [2.11.7](TASK-07-the-security-explorer-shell.md) — the shell          | The field sits above whatever the table becomes (§1). Five placeholders name **epics**, not invented story numbers (§5). **Done 2026-09-11**: the table stays on both routes, last and full width (§1's amendment); the identity block is the fourth asynchronous surface and is silent (§4's amendment)                                                                                   |
+| [2.11.8](TASK-08-the-universe-table-past-500.md) — the table past 500 | A jump rail is taken in principle; a kind filter is not, because it moves the summary line and wants a query parameter (§§3, 5, 6)                                                                                                                                                                                                                                                         |
+| [2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)           | "Back **keeps** my search" is a decision to state, not a defect to find (§3, as amended 2026-09-11). The 400 ms rate is the thing to listen for (§4). **Done 2026-09-11**: the numbered flow and the pass are §6; focus after opening stays in the field and the arrival is announced by the panel's region; five findings fixed, two recorded; §4's rate trigger fired and gained a floor |
+| [2.11.10](TASK-10-deployed-verify-document-and-adr.md) — the close    | This file, finished with what was found, plus ADR 0024 and the `CLAUDE.md` table entry                                                                                                                                                                                                                                                                                                     |
 
 ---
 
@@ -734,8 +1020,12 @@ checks quietly stops being true:
 
 - **That the address stays clean while a query is being typed** (§3). Nothing in
   `pnpm verify` reads the address bar during a keystroke. It is a browser
-  assertion and belongs in [Task 2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)'s
-  journey: type into the field, and assert `page.url()` has not changed.
+  assertion and it is **still owed** after Task 2.11.9: that task's journey
+  asserts the address at the ends of the flow — unchanged before `Enter`, the
+  security's path after it, and back to `/securities` on `Back` — which catches a
+  query pushed as a _destination_ and would not catch one replaced per keystroke
+  and tidied up afterwards. Re-measure by writing it: type into the field, and
+  assert `page.url()` between keystrokes.
 - **That the third live region stays silent on arrival** (§4). §7 already records
   that a new `role="status"` on any route goes red nowhere. This one is enforced
   by whatever test 2.11.4 writes and by nothing else.
@@ -767,6 +1057,19 @@ checks quietly stops being true:
   `e2e/specs/security-navigation.spec.ts` — which does gate a merge — and by
   nothing else. Re-measure: make that swap and confirm the browser suite goes
   red on the navigation count while `pnpm verify` stays green.
+- **That a `Region` taller than the viewport lands focus anywhere useful**
+  (added 2026-09-11 by Task 2.11.9). `scroll-padding-top` fixed every ordinary
+  tab stop and cannot help this one: the browser does not scroll a target it
+  already considers in view, and an 18,895px panel on a 900px viewport always
+  is. The next `Tab` corrects it, so the spec asserts the property that matters
+  — nothing **short** is obscured — and says so in its own predicate rather than
+  quietly excluding a case. Re-measure: tab to the Tracked universe region and
+  read `window.scrollY`.
+- **That the letterspaced micro-labels reaching an assistive technology in
+  capitals stays harmless** (§6.6). Nothing compares an accessible name against
+  its own DOM text, and nothing could say which difference matters — an
+  initialism a reader would spell is a defect and a shouted label is not.
+  Re-measure with Chromium's accessibility tree, which is where it was found.
 - **The masthead's remaining slack** (§1). 377px at 1280 is a measurement of the
   chrome as it is on 2026-09-11; nothing fails if a fifth nav item or a longer
   label eats it, and §1's second reversal trigger is written against exactly that.

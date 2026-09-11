@@ -18,6 +18,30 @@ html {
    * made. Task 1.4.3's brief calls this out specifically.
    */
   color-scheme: light;
+
+  /*
+   * The top of the viewport the application's chrome is sitting over, so that
+   * **nothing the browser scrolls to lands underneath it** — Tab in
+   * particular, whose scroll-into-view is the one nobody writes and therefore
+   * the one nobody corrects.
+   *
+   * Measured before this line existed (Task 2.11.9, Chromium, 2026-09-11):
+   * tabbing from the top of `/securities/NVDA` put **one** stop behind the
+   * chrome at 1440×900, **four** at 768×800 — including `Collapse all`, which
+   * Task 2.11.8 calls the real skip link — and **two** at 390×780. It worsens
+   * as the viewport narrows, because the status strip wraps to two rows at 768
+   * and three at 390, so the widest chrome is the one a development machine
+   * never shows. WCAG 2.2 2.4.11; axe reads zero violations through all of it,
+   * because this is a fact about where a scroller stopped rather than about a
+   * DOM.
+   *
+   * The value is published by `AppHeader`, which measures the element — see
+   * `useStickyChromeHeight` for why it cannot be a token. The fallback is `0`
+   * and means *nobody has said*: the workshop mounts components with no chrome
+   * at all, and reserving a chrome's height there would leave every scrolled-to
+   * element a header below where it belongs.
+   */
+  scroll-padding-top: var(--sticky-chrome-height, 0px);
 }
 
 body {
