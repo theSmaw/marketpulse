@@ -67,20 +67,34 @@ that layer is right while it is still cheap to change.
 
 ## Open decisions — settle with the user
 
-1. **Where search lives.** A dedicated route, a persistent control in the chrome, or both.
+**All three are settled. Amended 2026-09-11 (Task 2.11.1 took them; swept here
+during Task 2.11.2, which found this section still reading as open).** They are
+left below as written because they are the question this story was asked, and
+the answers with their alternatives and reversal triggers are in
+[`SEARCH-AND-SELECTION.md`](SEARCH-AND-SELECTION.md) §§1–3:
+
+1. **On the page**, one field above the tracked universe; the chrome is not
+   touched (§1)
+2. **Client-side**, over the universe the screen already fetches; no request per
+   keystroke and no `search` parameter on `GET /securities` (§2)
+3. **The path names the subject and the query never carries the search** — not
+   even transiently (§3)
+
+4. **Where search lives.** A dedicated route, a persistent control in the chrome, or both.
    A persistent control is how an analyst tool usually behaves and it makes symbol
    switching cheap, which is what Epic 5 onward wants; a route is simpler and does not
    touch `AppHeader`, which currently has a deliberate three-region status strip
-2. **Client-side or server-side matching.** 100 securities fit in the browser and give
+5. **Client-side or server-side matching.** 100 securities fit in the browser and give
    instant results with no request per keystroke; the architecture is meant to expand to
    500, which still fits. Server-side is the general answer and costs a round trip per
    keystroke unless debounced
-3. **The URL shape** for a selected security, since it is user-visible and shared
+6. **The URL shape** for a selected security, since it is user-visible and shared
 
 ## Design surface
 
 This is the epic's first real design work: a search affordance, a result row that carries
-four facts without becoming a table, the Security Explorer's layout under §8.3, and the
+five facts without becoming a table (**four when this was written; the user added the close
+and its change on 2026-09-11 — `SEARCH-AND-SELECTION.md` §5**), the Security Explorer's layout under §8.3, and the
 empty and unavailable states. It should read as the dense, sober analyst tooling
 `VISUAL-LANGUAGE.md` describes — the identity is structural, and a search box is where a
 generic admin panel usually announces itself.
