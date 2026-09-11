@@ -109,9 +109,30 @@
   border-color: var(--brand-ink);
 }
 
+/*
+ * `--rule-control`, not `--rule-hairline`, and it was `--rule-hairline` until
+ * 2026-09-11 — swept here after the same defect was measured on `TextField`.
+ *
+ * A secondary button is a raised fill on the page ground, which is 1.05:1, so
+ * the fill identifies nothing; what says "this is a control" is the box. At a
+ * hairline that box measured **1.26:1**, against the 3:1 WCAG 1.4.11 asks for
+ * visual information required to identify a user interface component.
+ *
+ * The case is a little stronger in this language than it would be elsewhere,
+ * and a little weaker than it first looks, so both halves are recorded. The
+ * label uses the micro-label idiom deliberately — see the `.button` rule — and
+ * that idiom is *also* how this product draws static labels: `MARKET FEED`,
+ * `SYMBOL`, `OPEN`/`HIGH`/`LOW`. So a control and a caption share a type
+ * treatment. They do not share an ink, though: this is `--ink-primary` where a
+ * static micro-label is `--ink-secondary`. The boundary was therefore doing
+ * most of the work of saying "control", not all of it.
+ *
+ * This one rule covers every ordinary action in the product, including the two
+ * places a `<Link>` borrows these classes through `linkClassName`.
+ */
 .secondary {
   background: var(--surface-raised);
-  border-color: var(--rule-hairline);
+  border-color: var(--rule-control);
   color: var(--ink-primary);
 }
 
