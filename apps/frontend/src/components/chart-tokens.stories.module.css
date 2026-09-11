@@ -1,0 +1,171 @@
+/*
+ * Workshop furniture for the chart-token specimen, and the one stylesheet in
+ * this tree that is allowed to draw a chart before Task 2.12.4 does.
+ *
+ * That exception is narrow and stated: the specimen draws **marks**, not a
+ * component. There is no axis module, no scale, no state union and no data —
+ * one hand-written SVG with five straight lines in it, whose whole job is to
+ * show what `--chart-grid` looks like beside `--chart-seam` at the weights the
+ * language declares. A `ChartTokens.tsx` that rendered a real series would be
+ * Task 2.12.4 arriving without its states, which is the fence Task 2.12.2's
+ * brief draws.
+ *
+ * It is imported only by a `*.stories.tsx`, so none of it is in the application
+ * bundle — the same property `stories.module.css` beside it has.
+ */
+
+.swatches {
+  display: grid;
+  grid-template-columns: max-content max-content max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-8) var(--space-20);
+  max-width: 56rem;
+}
+
+/* The chip. A border on every one of them, because four of these values are
+   pale enough that a chip with no edge has no size against the raised
+   surface. */
+.chip {
+  width: var(--space-40);
+  height: var(--space-20);
+  border: var(--border-width) solid var(--rule-hairline);
+  border-radius: var(--radius);
+  align-self: center;
+}
+
+.name {
+  font-family: var(--font-data);
+  font-size: var(--font-size-dense);
+  font-weight: var(--font-weight-medium);
+}
+
+.value {
+  font-family: var(--font-data);
+  font-size: var(--font-size-dense);
+  color: var(--ink-secondary);
+}
+
+.why {
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-secondary);
+}
+
+/* --- The marks, drawn at the weights the tokens declare --- */
+
+/*
+ * The specimen's own box.
+ *
+ * It is sized by aspect ratio rather than by `--chart-height`, and that is the
+ * one place this file deliberately does not read the token it is displaying: a
+ * plot stretched to a fixed height distorts every mark in it, and the focused
+ * point — a circle — becomes an ellipse. The height token is shown as a value
+ * in the `Geometry` story, which is where a reader can actually check it. A
+ * specimen is not the plot.
+ */
+.plot {
+  display: block;
+  width: 100%;
+  max-width: 56rem;
+  aspect-ratio: 480 / 128;
+  background: var(--surface-raised);
+}
+
+.grid {
+  stroke: var(--chart-grid);
+  stroke-width: var(--border-width);
+}
+
+.seam {
+  stroke: var(--chart-seam);
+  stroke-width: var(--border-width);
+  stroke-dasharray: 3 4;
+}
+
+.reference {
+  stroke: var(--chart-reference);
+  stroke-width: var(--border-width);
+  stroke-dasharray: 2 4;
+}
+
+.axis {
+  stroke: var(--chart-axis);
+  stroke-width: var(--border-width);
+}
+
+.series {
+  fill: none;
+  stroke: var(--chart-series);
+  stroke-width: var(--chart-series-width);
+  stroke-linejoin: round;
+}
+
+.crosshair {
+  stroke: var(--chart-crosshair);
+  stroke-width: var(--border-width);
+}
+
+.point {
+  fill: var(--surface-raised);
+  stroke: var(--chart-series);
+  stroke-width: 2;
+}
+
+.uncovered {
+  fill: var(--chart-uncovered);
+}
+
+/* The edge where the held data stops. Dashed, and the series is clipped at it
+   rather than drawn to the frame — which is the mark that stops an unheld span
+   reading as flat data. */
+.coverageEdge {
+  stroke: var(--chart-reference);
+  stroke-width: var(--border-width);
+  stroke-dasharray: 2 3;
+}
+
+.washPositive {
+  fill: var(--price-positive-wash);
+}
+
+.washNegative {
+  fill: var(--price-negative-wash);
+}
+
+.washUnchanged {
+  fill: var(--price-unchanged-wash);
+}
+
+/*
+ * The greyscale proof, and it is the only reason this file has a filter in it.
+ *
+ * `market.css` records that the two washes differ by 1.009:1 under
+ * `grayscale(1)`. A reviewer should be able to see that rather than read it,
+ * and a browser is the only level that can — no stylesheet is applied in the
+ * test environment, so nothing below `pnpm e2e` can see any of this.
+ */
+.greyscale {
+  filter: grayscale(1);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-16);
+  max-width: 56rem;
+}
+
+.pairLabel {
+  composes: microLabel from "../styles/type.module.css";
+  color: var(--ink-secondary);
+  display: block;
+  margin-bottom: var(--space-4);
+}
+
+.geometry {
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-8) var(--space-20);
+  max-width: 56rem;
+}

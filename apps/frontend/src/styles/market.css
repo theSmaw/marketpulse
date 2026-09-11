@@ -111,6 +111,37 @@
      neutral here since the refresh, and lighter than the palest amber so the
      ramp stays monotone. */
   --palette-neutral-pale: #e8eaef;
+
+  /*
+   * --- The washes (Task 2.12.2) ---
+   *
+   * Three fills, for the one filled area on the price chart: the region between
+   * the close line and a dashed rule at the window's opening close. They are
+   * palette entries rather than opacities on the inks above because a fill at
+   * 8% of `--palette-red-strong` is a different colour on every ground it lands
+   * on, and this product has four.
+   *
+   * **These are the weakest colours in this file and they are meant to be.**
+   * Measured 2026-09-11: `#e6f2ec` is 1.15:1 on white and `#fbeae9` is 1.16:1,
+   * and the near-black series line over either measures 14.87 and 14.68 — so
+   * the data is never harder to read for sitting on one. The gridline that
+   * passes under a wash drops from 1.27:1 to 1.11:1, which is the one cost
+   * accepted here; the repair, if it is ever needed, is a darker grid rather
+   * than a paler wash.
+   *
+   * **And the measurement that decides how they may be used**, which is the
+   * whole reason this comment is long: under `grayscale(1)` the two of them
+   * differ by **1.009:1**. The inks they are drawn from differ by 1.096:1, and
+   * washed back to a fill they are for practical purposes *the same colour* —
+   * a harder version of the finding the rule at the top of this file already
+   * records. So the wash is never the thing that says which way a window went.
+   * The geometry says it (the line finishes above or below
+   * `--chart-reference`), the reading says it (a glyph and a sign), and the
+   * headline says it in words. Cover the tint entirely and nothing is lost.
+   */
+  --palette-green-wash: #e6f2ec;
+  --palette-red-wash: #fbeae9;
+  --palette-neutral-wash: #eef0f6;
 }
 
 /*
@@ -137,6 +168,23 @@
   --price-positive: var(--palette-green-strong);
   --price-negative: var(--palette-red-strong);
   --price-unchanged: var(--ink-secondary);
+
+  /*
+   * The same three states as a **fill**, for the price chart's directional area
+   * (Task 2.12.2). Three rather than two for the reason the trio above is three:
+   * a window that closed where it opened did not go up, and tinting it green
+   * would say it did.
+   *
+   * The unchanged member is the one place these differ in shape from the inks
+   * above. `--price-unchanged` resolves to `--ink-secondary` because an
+   * unchanged price is not a coloured state and needs no second definition of a
+   * neutral that already exists; there is no comparable neutral *fill* in
+   * `tokens.css` at the weight a wash needs, so this one gets a palette entry.
+   * It is also what the high–low extent band uses if Task 2.12.5 ships one.
+   */
+  --price-positive-wash: var(--palette-green-wash);
+  --price-negative-wash: var(--palette-red-wash);
+  --price-unchanged-wash: var(--palette-neutral-wash);
 
   /*
    * --- Anomaly intensity ---

@@ -1,6 +1,6 @@
 # Task 2.12.2 — The chart on the design canvas, and the tokens it needs
 
-**Status:** Not started
+**Status:** Complete — 2026-09-11
 **Story:** [2.12 Price Chart](STORY.md)
 **Depends on:** 2.12.1
 
@@ -137,3 +137,139 @@ One thing this task no longer has to reserve room for in the way the Work sectio
 implies: **Epic 6's topology does not inherit this chart.** `PRODUCT_SPEC.md` §27
 commits it to Sigma.js/WebGL and `CHARTING.md`'s preamble says so. Epics 5, 8
 and 9 still do.
+
+---
+
+## What was done — 2026-09-11
+
+**Nothing was drawn in the application, and the fence held.** There is no chart
+component, no axis module and no scale; `BarSeriesPanel` still states its facts
+and draws nothing, and `e2e/specs/security-series.spec.ts` still asserts that.
+Task 2.12.4 is still the first chart in MarketPulse.
+
+What exists now:
+
+- **`Price chart.dc.html`**, a third file in the `Component library for
+MarketPulse` project — the canvas is the source of truth for the language
+  (ADR 0026) and this is where the chart's positions were taken. Nine numbered
+  sections, and the specimens in it are **drawn** rather than described: a
+  1,950-point synthetic series at the measured 1,019 px region width, the same
+  chart at 480 px and 342 px, the crosshair, the partial state, and the
+  greyscale pair.
+- **`VISUAL-LANGUAGE.md` gained a _The chart_ section.** It had no chart
+  vocabulary at all before today.
+- **Eighteen tokens**, in the chain and in order: `tokens.css` for the ink and
+  the geometry, `market.css` for the three washes, and every one of them in
+  `styles/tokens.ts`'s declared set, so a token removed from a stylesheet is a
+  startup throw naming itself rather than a mark that silently does not appear.
+- **One Storybook surface**, `Foundations/Chart tokens`, with five stories. It
+  reads its values back through `getTokens()` rather than restating them, so it
+  is a live reading of the stylesheet rather than a second copy of it.
+- **`CHARTING.md` §7.1**, answering that section's eleven questions with an
+  index rather than a re-argument, plus the three places the canvas and this
+  repository each knew something the other did not.
+- **ADR 0026 carries a dated amendment**: the canvas is three files, not two.
+
+### The two things drawing it changed
+
+Both were found by rendering, not by reasoning, and both would have shipped as
+defects.
+
+1. **Value labels cannot sit inside the plot.** They were drawn there first —
+   the argument was that a left-hand gutter of numbers is the shape of every
+   default chart ever rendered, and that the 342 px region cannot spare 56 px.
+   At the 1,019 px region the topmost label sat **on top of the series**. The
+   repair is a gutter on the **right**, which keeps the current value, the last
+   point of the line and the value scale in one place.
+2. **The high–low envelope is invisible at `1m`.** §2's amendment left the
+   extent band as a live question for Task 2.12.5. Drawn at the default window,
+   a bar's high and low sit within a few hundredths of a percent of its close, so
+   the envelope is a hairline around the line. That is now written down before
+   2.12.5 starts rather than discovered inside it.
+
+### The measurement that decided the largest question
+
+`--price-positive-wash` against `--price-negative-wash`, under `grayscale(1)`:
+**1.009:1**. The inks they are drawn from differ by 1.096:1; washed back to a
+fill they are, for practical purposes, the same colour. So the plot carries
+direction as **geometry** — the side of a dashed rule at the window's opening
+close that the line finishes on — and the tint says the same thing again in
+colour and says nothing the geometry has not already said. Cover it and the chart
+still reads.
+
+**ADR 0026's exception did not fire.** A decorative fill has no contrast floor to
+fail, so nothing was overridden; the measurement forced an ordering rather than a
+different value. The exception has still fired three times and not four.
+
+### `pnpm verify`
+
+Passes. Note what that does **not** mean here, which is nearly everything: no
+stylesheet is applied in the test environment, so `getTokens()` throws there and
+colour assertions are structurally impossible. Every value in this task was
+checked in a browser by a person looking at it, and that is the only level that
+can.
+
+---
+
+## For the stakeholders — what this actually was, in plain terms
+
+**Nothing new appeared in MarketPulse today, and that was the plan.**
+
+Here is the situation this task was built to avoid. The next task but one draws
+the product's first chart — the thing a demo audience looks at longest, and the
+screen the whole five-minute demonstration runs through. The fastest way to get
+a chart on screen is to draw one and then try to make it look right afterwards.
+That reliably produces a chart that looks like every other chart: a box with
+some lines in it, wearing whatever a drawing library thought was sensible, with
+our colours substituted. It is the single easiest way for this product to look
+like a scaffold rather than a funded piece of software.
+
+So the decision was taken first, deliberately, and separately.
+
+**What was actually decided.** Everything about how a MarketPulse chart looks: a
+single dark rule along the bottom instead of a box around the whole thing; where
+the price scale sits and why it sits on the right; how faint the horizontal
+guide lines are; what a night between two trading days looks like on a chart
+that otherwise hides it; how thick the price line is; what happens when we only
+have part of the data we asked for; and what the chart does when you point at a
+particular minute.
+
+**And one thing that matters more than any of it.** Roughly one man in twelve
+cannot reliably tell red from green. Our product's single most important signal
+is whether a price went up or down. We measured our green and our red converted
+to grey and they are — this is not an approximation — **the same shade**. So the
+chart does not rely on colour to say which way a price went. It draws a faint
+dotted line at the price the window opened at, and the price line finishes above
+it or below it. That works for everybody, in every light, on every screen, and
+in a black-and-white printout. The colour is still there, doing a second job on
+top, and if you deleted it the chart would lose nothing it needs.
+
+**Why this unlocks progress.** Three later pieces of the product all hang off
+this chart: the markers that will flag unusual activity (Epic 5), the ability to
+lay two companies' prices over each other (Epic 8), and the markers showing when
+a company filed something with the regulator (Epic 9). Each of those needs
+somewhere to go. Deciding that now cost three paragraphs; discovering it later
+would have cost three redesigns of a chart already on screen. Every one of them
+now has a stated place, and one of them — the comparison view — has a stated
+**cost** written down too, because the coloured shading cannot survive more than
+one company on the same chart and somebody would otherwise find that out the
+hard way.
+
+**Where it lives.** In the shared design canvas, which since yesterday is the
+official source of truth for how this product looks — so a designer and the code
+cannot drift apart again. You can see the decisions as finished pictures rather
+than as a description of pictures.
+
+**What is still not possible.** You cannot see a chart in MarketPulse. That is
+Task 2.12.4, and it is next but one. You also still cannot change the time
+window or see trading volume — Story 2.13.
+
+**Two things were caught by drawing rather than by thinking**, which is the
+argument for doing it this way rather than writing a specification. The price
+labels were originally going to sit inside the chart; drawn at full size, the
+top one landed on top of the price line. And a feature we were considering — a
+shaded band showing each minute's high and low — turns out to be invisible at
+minute-by-minute detail, because a share price barely moves inside sixty
+seconds. It becomes worth having when we add longer time windows. Both of those
+are now decisions on the record instead of surprises waiting inside the next
+three tasks.
