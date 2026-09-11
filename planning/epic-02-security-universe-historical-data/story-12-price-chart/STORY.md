@@ -239,3 +239,60 @@ Two consequences worth having before the first line of it is drawn: the region i
 own breakpoints are the region's rather than the page's; and a green
 `pnpm verify` cannot see either fact, because nothing below `pnpm e2e` computes a
 layout (`CLAUDE.md`, _Frontend_).
+
+---
+
+## Tasks — added 2026-09-11
+
+Ten tasks, sequential. The shape follows Stories 2.9, 2.10 and 2.11: **the
+decisions are settled first and ship nothing** (2.12.1, 2.12.2), the arithmetic
+that needs no screen is built and tested on its own (2.12.3), and the chart
+lands as early as the dependency graph allows rather than at the end.
+
+**Seven of the ten change something a person can see, and the first of those is
+fourth.** That is the same arrangement Story 2.11 used and for the same reason:
+a run of tasks with nothing on screen is how a product stops being demonstrable,
+and this is the story the demonstration runs through.
+
+**2.12.1 and 2.12.2 are split because they are different decisions.** The first
+is the mechanism — library or hand-built, series type, the market gap — measured
+the way Story 1.5 measured the router. The second is the instrument: what the
+chart looks like, taken on the design canvas that has been the source of truth
+since ADR 0026, with its tokens landed in the chain the ADR fixes. Drawing first
+and styling second is how a chart ends up wearing a renderer's defaults with our
+colours substituted, which is test 2 of the four failed exactly.
+
+**2.12.4 is the payoff and 2.12.7 is what makes it honest.** They are split on
+purpose, as 2.11.4 and 2.11.6 were. The first is about a correct series in a
+correct frame; the second is about every way the answer can be something other
+than a full one — `partial` above all, which is the normal case here and the
+state a charting library will not expect.
+
+**2.12.4 also takes down a fence deliberately.** `BarSeriesPanel` states that it
+draws nothing and `e2e/specs/security-series.spec.ts` asserts it — no `<canvas>`,
+no `<svg>` in the Price region. Story 2.10 built that fence so this story would
+take the charting decision against a data layer already known to be right. The
+spec changes first, in the same commit, with a reason.
+
+**2.12.8 and 2.12.9 are the two criteria a green `pnpm verify` cannot see.** A
+text alternative that says something true, a tab stop that does not land behind
+the sticky chrome, contrast, greyscale — and a renderer's cost against §28's
+50 ms, which is where that budget will actually go, since parsing the largest
+body this API serves takes 2.8 ms.
+
+| Task                                                                 | What it does                                                             | Visible?                      |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------- |
+| [2.12.1](TASK-01-settle-the-charting-decision.md)                    | Library or hand-built, series type, the market gap, the default window   | No                            |
+| [2.12.2](TASK-02-the-chart-on-the-canvas.md)                         | What it looks like, on the canvas, and the tokens it needs               | **In the workshop**           |
+| [2.12.3](TASK-03-scales-ticks-and-the-market-gap.md)                 | Scales, domains, ticks and sessions — as pure functions                  | No                            |
+| [2.12.4](TASK-04-the-first-chart-in-marketpulse.md)                  | The first chart in MarketPulse, in the region that named it              | **Yes — the payoff**          |
+| [2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md) | Open/high/low/close, and direction that survives greyscale               | **Yes**                       |
+| [2.12.6](TASK-06-reading-a-point-crosshair-hover-and-keyboard.md)    | Crosshair, readout, and the keyboard path to the same reading            | **Yes**                       |
+| [2.12.7](TASK-07-every-chart-state-drawn.md)                         | Every state from a recorded body, `partial` above all                    | **Yes**                       |
+| [2.12.8](TASK-08-the-text-alternative-and-the-screen-reader-walk.md) | A text alternative that says something true, and the walk that proves it | **Yes**                       |
+| [2.12.9](TASK-09-measured-against-fifty-milliseconds.md)             | The render cost at the cap, and the bundle cost of the decision          | No, unless it finds something |
+| [2.12.10](TASK-10-deployed-verify-document-and-adr.md)               | Deployed, the four tests applied, `CHARTING.md`, ADR 0027                | **Yes — deployed**            |
+
+**The subject document is `CHARTING.md`**, not `PRICE-CHART.md`. Only a fraction
+of what this story settles is about price: Epic 5's markers, Epic 6's topology,
+Epic 8's comparisons and Epic 11's agent-opened charts all inherit it.
