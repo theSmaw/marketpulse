@@ -33,17 +33,36 @@ recorded market body to every visitor.
 
 - **No query.** The resting state. Whether the result surface is absent or is
   showing something useful was a design decision; implement it and say in the
-  header which it was.
+  header which it was. **Narrowed 2026-09-11 by Task 2.11.2: the matcher returns
+  nothing for an empty or whitespace-only query**, deliberately — the whole
+  universe is already on screen underneath — so if this state shows something, it
+  comes from somewhere other than the matcher and the header says where.
 - **Query, no matches.** Not an error. `zzz` is a reasonable thing to type, and
   the copy must not read like a failure.
 - **Query, one match.** The case where pressing Enter obviously works.
 - **Query, many matches.**
 - **More matches than shown.** The matcher returns the shown slice and the true
   total (2.11.2); this is where "N more matches" becomes a sentence a person
-  reads, and it must say what to do about it.
+  reads, and it must say what to do about it. **Reachable from real data — added
+  2026-09-11 by Task 2.11.2**: the cap is **ten** (`SECURITY_MATCH_LIMIT`) and
+  typing `a` against the real universe matches **99**. So unlike the two close
+  states below, this one needs no constructed fixture, and the story should use
+  the real query rather than a made-up one.
 - **An untracked security in the results.** Shown and marked, unmistakably, never
   hidden. This is the state that reintroduces a real schema-level failure if it
   is got wrong, so it is produced with a named fixture rather than trusted.
+
+  **One interaction to produce deliberately — added 2026-09-11 by Task 2.11.2.**
+  `status` is not a filter, but it **is** the first tie-break: an untracked
+  security ranks below a tracked one in the same tier (`SEARCH-AND-SELECTION.md`
+  §6's dated amendment). With more matches than the cap, that demotion can push
+  an untracked security off the _shown_ slice while the `total` still counts it —
+  which is correct behaviour and indistinguishable on screen from the thing this
+  state exists to forbid. Produce it: a query with more than ten matches, one of
+  them untracked, and check that what the surface says about the total is what
+  makes the difference legible. It is unreachable from real data twice over —
+  all 518 securities are `active` today.
+
 - **A symbol with no stored bars.** It exists in the universe and has nothing
   behind it — a first-class answer. The market-data layer already has the
   vocabulary for this and **the words must not be reinvented**: read
@@ -94,7 +113,10 @@ Two further pieces of work that are about states rather than a state:
 - Each state is produced from a **named cause** — a fixture, a stubbed response,
   an empty universe — rather than by setting a prop by hand where the real cause
   is reachable
-- The untracked case and the no-stored-bars case have tests naming them
+- The untracked case and the no-stored-bars case have tests naming them,
+  including an untracked security demoted past the cap
+- The capped state is produced from the real query that reaches it (`a`, 99
+  matches) rather than from an invented one
 - The stale-close and missing-close rows are produced from a fixture, since real
   data cannot reach either today
 - A failing search leaves the panel and the table rendering

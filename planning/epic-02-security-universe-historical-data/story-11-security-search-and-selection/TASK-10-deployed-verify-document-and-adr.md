@@ -35,6 +35,13 @@ at its price and volume — is Stories 2.12 and 2.13.
 - **Take the measurements this story owes**, rather than citing any:
   - The universe payload as a browser receives it, re-taken — the client-side
     matching decision rests on it and the figure has already moved twice
+  - **Not the matcher's, which is taken — added 2026-09-11 by Task 2.11.2.** The
+    shipped rules measured **0.101 ms** for `nv`, **0.040 ms** for `nvid`,
+    **0.072 ms** for `a` and **0.216 ms** over a synthetic 5,000, against §0's
+    0.295 ms and 0.58 ms for the naive scan. Both sets are true and they are
+    **different implementations**, so §0's figures are a historical record and
+    §2's slope argument should cite the shipped ones. Reconcile rather than
+    re-measure, unless the implementation has stopped being a linear scan.
   - The bundle, before and after this story, since it added a control and
     possibly an icon
   - Whatever figure Task 2.11.8 recorded about rendering 518 rows

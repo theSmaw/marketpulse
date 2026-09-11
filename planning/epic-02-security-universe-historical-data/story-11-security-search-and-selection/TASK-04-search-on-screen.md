@@ -31,6 +31,30 @@ What a user still cannot do afterwards: see a chart. That is Stories 2.12 and
 
 ## Work
 
+- **The matcher is built and this is its shipped API — added 2026-09-11 by Task
+  2.11.2.** Import it from `market/index.ts`; nothing here re-implements a rule
+  it already holds.
+
+  ```ts
+  matchSecurities(universe, query, limit = SECURITY_MATCH_LIMIT)
+    => { matches: readonly { security: Security; tier: MatchTier }[]; total: number }
+  ```
+
+  Four consequences this task inherits rather than decides:
+  - **`SECURITY_MATCH_LIMIT` is ten**, and it is exported. Do not spell a second
+    cap here — the surface's footer and the spoken sentence both read the `total`
+    that travels with the slice, which is what stops either from lying.
+  - **An empty or whitespace-only query matches nothing**, deliberately, so the
+    resting state's surface cannot be "whatever the matcher returns". Whatever
+    that state shows comes from somewhere else or it shows nothing; 2.11.6 owns
+    producing it either way.
+  - **`tier` says which field matched** — `symbol-exact`, `symbol-prefix`,
+    `name-prefix`, `name-word-prefix` — which is what a row needs before it
+    decides where to put any emphasis. See the highlighting bullet below.
+  - **The order is total** (tier, then status, then symbol), so the top match is
+    deterministic and "NVDA first" in §4's sentence is a fact rather than a
+    coincidence of array order.
+
 - **The combobox, built to the pattern rather than to a resemblance of it.**
   `role="combobox"` on the input, a listbox of options, `aria-expanded`,
   `aria-controls`, and active-descendant rather than moving DOM focus into the
@@ -82,6 +106,24 @@ What a user still cannot do afterwards: see a chart. That is Stories 2.12 and
   decision that needed an argument, and if it did not get one, bolding is the
   conventional answer.
 
+  **Amended 2026-09-11 by Task 2.11.2, and this is a measured defect rather than
+  a caution: the offset to emphasise must come from the matcher, and a
+  `name.indexOf(query)` in the row highlights the wrong characters.** The matcher
+  matches at a **word boundary**; `indexOf` finds the first occurrence anywhere.
+  Measured over the real universe across 1,718 plausible queries, the two
+  disagree on **67** matched rows. Typing `he` matches `HSY` through
+  **He**rshey and a naive highlighter bolds the `he` of **T-h-e**; typing `co`
+  matches `SYY` through **Co**rporation and a naive highlighter bolds the `co` of
+  Sys**co**. Both look deliberate and neither is the reason the row is in the
+  list.
+
+  So: **add the offset to `SecurityMatch` in `security-match.ts`** — it is one
+  field on a value the matcher already computes — rather than re-deriving the
+  word-boundary rule in a component. Re-deriving it is precisely what Task
+  2.11.2 exists to prevent, and a second implementation of a rule is the thing
+  that drifts. A symbol-tier match emphasises in the symbol; a name-tier match
+  emphasises in the name at that offset. There is a test to write either way.
+
 - **Selection is a navigation to `securityPath(symbol)`, and nothing else.** The
   route pattern exists in `ROUTE_PATTERNS`, `securityPath()` is the only thing
   that builds a destination from it, and `use-security-symbol.ts` is the one
@@ -104,9 +146,12 @@ What a user still cannot do afterwards: see a chart. That is Stories 2.12 and
   settled differently, and the distinction is the whole point
   (`SEARCH-AND-SELECTION.md` §4):
   - **The visible result list updates on every keystroke. It is not debounced.**
-    There is no request to debounce — matching is a **0.295 ms** synchronous scan
-    over data the page already holds — and debouncing it would make the list lag
-    behind a person's typing for nothing. This is the likely defect: an
+    There is no request to debounce — matching is a **0.101 ms** synchronous scan
+    over data the page already holds (re-measured 2026-09-11 by Task 2.11.2 over
+    the real 518 under the shipped rules; §0's 0.295 ms was the naive scan, and
+    the rules are cheaper because a symbol prefix answers before the name is
+    touched) — and debouncing it would make the list lag behind a person's typing
+    for nothing. This is the likely defect: an
     "announcement debounce" implemented one layer too low.
   - **Only the spoken sentence waits, and it waits 400 ms** after the last
     keystroke. One named constant with one reader, not a magic number in a hook.
@@ -131,6 +176,8 @@ What a user still cannot do afterwards: see a chart. That is Stories 2.12 and
 - A result row carries its close and change, joined from `lastCloses` by symbol,
   with the session qualified on the surface and on any row that differs — and the
   visible list updates per keystroke while only the announcement waits 400 ms
+- Any emphasis on a matched substring is drawn at the matcher's offset, not at
+  an `indexOf` — 67 real rows distinguish the two
 - Enter with one match opens it; Enter with none does nothing
 - The control is a real combobox: roles, `aria-expanded`, active descendant, and
   Escape behaviour

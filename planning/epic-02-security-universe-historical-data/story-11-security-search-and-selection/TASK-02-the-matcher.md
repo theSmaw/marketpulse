@@ -189,6 +189,19 @@ is already on screen underneath the result surface; a listbox that opens with
 - **The one open decision this task owned is settled**: an untracked security
   **ranks below** a tracked one within the same tier, and is never omitted.
   `SEARCH-AND-SELECTION.md` §6 carries a dated amendment saying so.
+- **A finding handed to Task 2.11.4: the matcher owes an offset, and nothing has
+  a consumer for it yet.** Emphasising the matched substring in a result row needs
+  to know _where_ it matched, and a `name.indexOf(query)` in the row is not that:
+  the matcher matches at a **word boundary** and `indexOf` finds the first
+  occurrence anywhere. Measured over the real universe across 1,718 plausible
+  queries, the two disagree on **67** matched rows — `he` matches `HSY` through
+  **He**rshey while `indexOf` bolds the `he` of **T-h-e**; `co` matches `SYY`
+  through **Co**rporation while `indexOf` bolds the `co` of Sys**co**. The field
+  was **not** added here, because nothing renders yet and this repository's rule
+  is not to scaffold ahead of the step that needs it; the alternative it forecloses
+  is the one that matters, and 2.11.4 is amended to say so: **the offset is added
+  to `SecurityMatch`, not re-derived in a component.** A second implementation of
+  the word-boundary rule is exactly what this task exists to prevent.
 - **No fuzzy-matching dependency was added**, and the test table made no case for
   one. `§2`'s rule — that would be an amendment to that file rather than a
   dependency added here — did not need to be invoked.
