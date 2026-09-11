@@ -1,0 +1,108 @@
+# Task 2.12.10 — Deployed, verified, documented, and the four tests applied
+
+**Status:** Not started
+**Story:** [2.12 Price Chart](STORY.md)
+**Depends on:** 2.12.8, 2.12.9
+
+## Objective
+
+Close the story: see the chart working on the deployed site, finish
+`CHARTING.md`, write the ADR, sweep what this story falsified **upward**, and
+apply the story's design bar to a screenshot of what was actually built.
+
+## What the user can see when this lands
+
+**The chart, live**, at the deployed address, on a cold load, from a link. Up to
+now it has been true on a development machine.
+
+And the epic's exit criterion is half a story from met: a user can search for
+NVDA, open it, and inspect its recent historical **price**. Volume and the window
+are 2.13.
+
+## Work
+
+- **Deploy and check it deployed, honestly.** The frontend's upload is not
+  atomic and the window _opens_ at the second the deploy step reports success,
+  so poll for coherence rather than checking once. A deployed check runs after a
+  merge and gates nothing — its output is a rollback decision.
+
+- **Apply the four tests to a screenshot**, which the story states as an
+  acceptance criterion rather than as polish: would a stranger believe this is a
+  real funded product; does it look designed rather than defaulted; is there a
+  moment in it worth showing somebody; does it feel alive. **If the answer to
+  any is no, the story is not finished** — and "we will polish it in Epic 15" is
+  not available, because Epic 15 is a release epic and polish deferred is polish
+  never.
+
+  Take the screenshot at the three viewports, in the region's real width, with
+  real data — not in the workshop, where a component looks better than it does
+  in place.
+
+- **Finish `CHARTING.md`.** It is the subject document for how this product
+  draws, and Epics 5, 6, 8, 9 and 11 are its readers. By the close it holds the
+  five decisions, the measurements behind them, what the wrapper's props are and
+  why, the axis and the market gap, the states, the accessibility findings and
+  the performance figures.
+
+- **Write the ADR — 0027**, next in sequence, never renumbered. Its subject is
+  the charting decision and **what a green check does and does not certify**,
+  which is this repository's ADR shape. Add it to
+  [`docs/adr/README.md`](../../../docs/adr/README.md)'s index, which currently
+  claims 0001–0026.
+
+- **Sweep upward, the same day.** `CLAUDE.md`'s rule: falsification travels up,
+  and a story close sweeps only that story's own documents unless somebody
+  makes it sweep further. Concretely, at least:
+  - `CLAUDE.md`'s **Current state** paragraph, which says today that a user
+    **cannot see a chart of anything** and names this story. It is a live claim
+    and becomes false the moment 2.12.4 merges.
+  - The **Where the record lives** table gains `CHARTING.md`.
+  - The **Intended stack** and **Frontend structure** sections, if the decision
+    added a dependency or a second feature module. A second feature module also
+    fires the `no-restricted-imports` trap recorded under _What `pnpm verify`
+    does not cover_ — **the market module's pattern must live inside the browser
+    boundary's own `patterns` array**, because flat config resolves to the last
+    matching object and a new block _replaces_ rather than adds. That is the
+    most dangerous entry on that list and this is the first story since it was
+    written that is likely to touch it.
+  - The **What `pnpm verify` does not cover** list, which this story will add to
+    — a chart is layout, colour and timing, and none of those are visible below
+    `pnpm e2e`. Each entry states how to re-measure it.
+  - This story's `STORY.md`, the [`EPIC.md`](../EPIC.md) status line, and
+    `planning/EPICS.md` if anything moved.
+  - `README.md`, if what a person can do with a running copy has changed —
+    it has.
+
+- **Historical records are left standing.** Amend live claims; give an ADR a
+  dated amendment rather than a rewrite; leave story files recording what was
+  true when written. And count a duplicated sentence with a grep before
+  correcting it.
+
+- **Hand Story 2.13 what it needs**, in writing: the axis it inherits, the
+  density decision, the seam Story 2.14 renders, and the daily-series calendar
+  walk that its window control will be the first thing to pay for.
+
+## Done when
+
+- The chart is verified working on the deployed site, on a cold load and from a
+  deep link
+- Screenshots at three viewports exist and the four tests are applied to them in
+  writing, with a verdict
+- `CHARTING.md` is complete and linked from `CLAUDE.md`'s record table
+- ADR 0027 exists and is in the ADR index
+- Every live claim this story falsified is corrected, and the historical records
+  are not
+- `STORY.md` and `EPIC.md` reflect what is true
+- `pnpm verify`, `pnpm e2e` and `pnpm e2e:deployed` pass
+
+## Notes
+
+The failure mode of a close task is recording the correction and not propagating
+it. `CLAUDE.md` records the day that happened: for a day, two documents recorded
+that `PRODUCT_SPEC.md` §7.1's feed claim was false while §7.1 itself, `README.md`,
+two ADRs and an invariant went on asserting it. Grep for the claim, not for the
+document you remember writing it in.
+
+The second failure mode is calling the design bar met because the chart is
+correct. Correct and accessible is the floor. The four tests are about whether
+anybody would want to look at it.
