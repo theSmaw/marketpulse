@@ -33,6 +33,14 @@ export const Mark: Story = { args: { name: "pulse" } };
 export const ArrowRight: Story = { args: { name: "arrowRight" } };
 export const Alert: Story = { args: { name: "alert" } };
 
+// The sixth, added 2026-09-11 for `TextField` and the only member added since
+// the refresh closed the set. It has a story of its own rather than living only
+// in the grid below because it is the one glyph in the set drawn from a
+// different source — the canonical 24x24 magnifier every mainstream set ships —
+// and "does it sit at the same optical weight as the other five?" is the
+// question its addition has to answer.
+export const Magnifier: Story = { args: { name: "magnifier" } };
+
 export const AllPermutations: Story = {
   parameters: { controls: { disable: true } },
   render: () => (

@@ -145,11 +145,29 @@ promise, and the first person to import a sixth glyph does it without a decision
 icon here is an edit to a file, which is a moment where somebody asks whether the
 interface needs another symbol.
 
+> **Amended 2026-09-11 (Task 2.11.3).** The union is **six**, not five. The mechanism
+> above did exactly what it was built to do: the sixth glyph — `magnifier`, for the
+> product's first input field — required an argument in Task 2.11.1 and an edit here
+> rather than an import, and the argument is recorded in
+> [`SEARCH-AND-SELECTION.md`](../../planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/SEARCH-AND-SELECTION.md)
+> §5. The decision this section records is unchanged; only the count is. The set is now
+> six and the seventh needs its own argument in its own task rather than citing that one.
+
 ### 5. What was taken from the reference, and what was declined
 
 **Taken:** the three-face typography, the crimson identity, the tabbed masthead, the
 sunken status strip, the square corners, the cool ground, the dense 13px table with its
 sunken head and banded groups, the data face on tickers and figures.
+
+> **Amended 2026-09-11.** "The square corners" is now **3px**, adopting the value in the
+> `Component library for MarketPulse` design canvas. The decision this section records —
+> one radius token, not a scale, not per-component — is unchanged, and so is its
+> argument: square corners read as a grid. What moved is the value, and it moved on a
+> measurement rather than a preference. At 3px the dense universe table is visually
+> identical, because nothing in it is a rounded rectangle; the radius reaches controls,
+> chips and panels only. The reversal mechanism this ADR's token design built in — keep
+> the token rather than deleting it from every consumer — is what made the change one
+> line and fifteen stylesheets, and it is the part to preserve.
 
 **Narrowed:** the crimson, to the four chrome positions above (decision 2).
 

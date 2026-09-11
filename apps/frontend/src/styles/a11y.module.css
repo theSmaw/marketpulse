@@ -53,3 +53,50 @@
   white-space: nowrap;
   border: 0;
 }
+
+/*
+ * --- Handing a focus ring from a control to the box that draws it ---
+ *
+ * The first escalation to this layer, and it arrived exactly where
+ * `VISUAL-LANGUAGE.md` said an escalation rather than a local override would be
+ * required: `TextField`, the product's first composite control.
+ *
+ * **The problem, measured rather than reasoned about.** `base.css` puts one
+ * global `:focus-visible` outline on every interactive element, and for five
+ * stories every interactive element in this application *was* the control — a
+ * button, a link. A field is not: the thing a browser focuses is a bare
+ * `<input>` sitting inside a bordered box, beside an icon and a chip. So the
+ * token's 2px near-black lands **inside** the field, around the text and
+ * nothing else, and the control a person sees is not the thing that looks
+ * focused.
+ *
+ * **What this is not.** It is not a second focus treatment, and that
+ * distinction is the whole reason it is here and not in
+ * `TextField.module.css`. The values below are the same three tokens the global
+ * rule uses, in the same combination; all that moves is *which element* draws
+ * them. A component that wanted a different ring would still be answering a
+ * question the token layer has already answered.
+ *
+ * **Why it is shared on the day it has one consumer.** Every composite control
+ * after this one meets the identical problem — Story 2.13's window control,
+ * Epic 8's comparison picker, Epic 11's symbol switcher — and the failure mode
+ * of leaving it in the first one is that each of the others solves it again,
+ * slightly differently, in its own stylesheet. That is the shape a design
+ * language loses focus consistency through.
+ *
+ * **Two classes, not one, because a composite has more than one focusable
+ * thing in it.** Only the element marked as the source hands its ring over; the
+ * clear button inside the same field keeps the ordinary global one, which is
+ * correct — it is its own control and the ring should be around it and not
+ * around the whole field.
+ */
+.focusRingHost:has(> .focusRingSource:focus-visible) {
+  outline: var(--focus-width) solid var(--ink-primary);
+  outline-offset: var(--focus-offset);
+}
+
+/* The only place in this application a focus outline is removed, and it is
+   removed onto the element above rather than removed. */
+.focusRingSource:focus-visible {
+  outline: none;
+}

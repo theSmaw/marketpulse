@@ -65,6 +65,12 @@ const TOKEN_NAMES = [
   "--ink-disabled",
   "--rule-hairline",
   "--rule-soft",
+  // Added 2026-09-11 with `TextField`. No JavaScript consumer either, and it is
+  // here for the same canary reason as `--brand-ink` below: it is the one rule
+  // token whose value is a measured accessibility floor rather than a shade, so
+  // a stylesheet that lost it would silently drop every input boundary back to
+  // something that reads as a design choice and measures 1.26:1.
+  "--rule-control",
   // Added by the 2026 refresh. `--rule-strong` is the near-black structural
   // rule, which a canvas drawing its own axes will want; `--brand-ink` is here
   // for a different reason and it is worth stating, because it has no

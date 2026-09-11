@@ -54,7 +54,7 @@ Anomaly detection is deterministic and deliberately interpretable: price percent
 
 What a user can see today: five routes, a status strip reporting the market feed, backend health and the market clock, the tracked universe with its coverage **and a real last close and change for all 518 securities**, and at `/securities/:symbol` **one security's real minute bars** — stated as facts rather than drawn, with the window asked for above the window held, and an honest sentence for every way that can go wrong. There are still no charts and no live data.
 
-**All of it wears a refreshed design language** (2026-09-10, ADR 0022): three self-hosted typefaces with distinct jobs, a crimson identity accent confined to four positions in the chrome, a cool ground, square corners, and a six-component building-block layer — `Icon`, `Button`, `Badge`, `Panel`, `PageHeader`, `MetricStrip` — each extracted from something the tree was already doing three times.
+**All of it wears a refreshed design language** (2026-09-10, ADR 0022): three self-hosted typefaces with distinct jobs, a crimson identity accent confined to four positions in the chrome, a cool ground, near-square corners (`--radius` was 0 at the refresh and is 3px since 2026-09-11), and a six-component building-block layer — `Icon`, `Button`, `Badge`, `Panel`, `PageHeader`, `MetricStrip` — each extracted from something the tree was already doing three times.
 
 For anything more specific than this paragraph — what was measured, what was rejected, what a green check does and does not certify — read the record rather than asking here.
 
@@ -112,7 +112,7 @@ This is not in conflict with "dense, sober, institutional" — that describes a 
 
 **Visual quality is an acceptance criterion on the story that builds the screen, not polish deferred to a later epic** — polish deferred is polish never, and there is no design-review epic. Correct and accessible is the floor, not the goal.
 
-`VISUAL-LANGUAGE.md` holds the design language and its open questions; it was **rewritten by the 2026 design refresh** (ADR 0022), which gave the product three self-hosted typefaces, a crimson identity accent scoped to four positions in the chrome, a cool ground and square corners. Two things from it that are settled and load-bearing: **colour is never the sole encoding of anything** (the price palette differs by 1.04:1 in greyscale, so hue is the entire difference — shape, sign, glyph or word must carry it), and **standing out, like receding, is a job for weight and hierarchy, never for ink outside the contrast floor**. Both have caught real defects.
+`VISUAL-LANGUAGE.md` holds the design language and its open questions; it was **rewritten by the 2026 design refresh** (ADR 0022), which gave the product three self-hosted typefaces, a crimson identity accent scoped to four positions in the chrome, a cool ground and square corners — the last of which moved to 3px on 2026-09-11 when the design canvas was adopted. Two things from it that are settled and load-bearing: **colour is never the sole encoding of anything** (the price palette differs by 1.04:1 in greyscale, so hue is the entire difference — shape, sign, glyph or word must carry it), and **standing out, like receding, is a job for weight and hierarchy, never for ink outside the contrast floor**. Both have caught real defects.
 
 ## Commands
 

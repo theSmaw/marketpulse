@@ -28,7 +28,7 @@ Decision 1 (light theme only) and decision 4 (colour is never the sole encoding)
 
 ## Intent, in one paragraph
 
-MarketPulse should read as an **internal application at a large financial institution** — the kind of dense, sober, desktop tool an analyst has open all day — rather than as a consumer product or a modern SaaS dashboard. Concretely that means: white and cool off-white grounds, near-black text, hairline rules doing the work that borders and shadows do elsewhere, square corners, generous whitespace around genuinely dense numeric content, and **no decoration that does not carry information**. The aesthetic is restraint. It is not minimalism as a style choice; it is the absence of anything competing with the numbers.
+MarketPulse should read as an **internal application at a large financial institution** — the kind of dense, sober, desktop tool an analyst has open all day — rather than as a consumer product or a modern SaaS dashboard. Concretely that means: white and cool off-white grounds, near-black text, hairline rules doing the work that borders and shadows do elsewhere, near-square corners, generous whitespace around genuinely dense numeric content, and **no decoration that does not carry information**. The aesthetic is restraint. It is not minimalism as a style choice; it is the absence of anything competing with the numbers.
 
 ## The bar — added 2026-09-05, and it outranks everything below it
 
@@ -128,7 +128,7 @@ The trap this leaves, recorded because it has already caught two stylesheets: th
 
 ## Geometry
 
-- **Radius: 0.** Square. Not a scale, not per-component. A rounded corner is a softening gesture, and square corners read as a _grid_, which is what a dense table of figures is. The token still exists, so reversing this is one line
+- **Radius: 3px** since 2026-09-11, adopting the value in the `Component library for MarketPulse` design canvas. It was 2px before the 2026 refresh and 0 from the refresh until then, and the argument for zero is worth keeping because it is still the argument: a rounded corner is a softening gesture, and square corners read as a _grid_, which is what a dense table of figures is. **What decided the move is a measurement rather than a preference** — at 3px the dense table is visually unchanged, because nothing in it is a rounded rectangle. The radius reaches controls, chips and panels only, so the grid reading survives and the hardest edge comes off the things a person touches. Still one value, not a scale, not per-component. See ADR 0022's dated amendment
 - **Border width: 1px.** Always. 2px is a focus ring or a structural marker, not a border
 - **Circles** are the sole exception, for status dots only, and are written as `50%` at the two places that need one
 - **Density is desktop-first.** PRODUCT_SPEC.md §3 gives substantial screen real estate, and this is analyst tooling. Rows are tight; the space goes _around_ content blocks rather than inside them
@@ -235,7 +235,18 @@ Two heights (see [Spacing](#spacing)), and three button variants:
 
 There is deliberately **no `danger` variant**: it would want red, red means price-down on every screen, and V1 is a read-only analytical tool with nothing to destroy.
 
-**Input fields are not built yet**, and that is deliberate rather than an omission — Story 2.11 is the first screen with a search field, and a control designed against no consumer is a control designed against a guess. The 2026-08-31 specification for them still stands and is what that story builds against: label _above_ the field at micro-label size, never a placeholder; bordered or underlined; and **seven states — Empty, Filled, Hover, Focus, Error, Disabled, Locked** — where `Locked` (not editable by this user) is distinct from `Disabled` (temporarily unavailable) and looks different.
+**Input fields were not built until 2026-09-11**, and that was deliberate rather than an omission — Story 2.11 is the first screen with a search field, and a control designed against no consumer is a control designed against a guess. The 2026-08-31 specification for them was: label _above_ the field at micro-label size, never a placeholder; bordered or underlined; and **seven states — Empty, Filled, Hover, Focus, Error, Disabled, Locked** — where `Locked` (not editable by this user) is distinct from `Disabled` (temporarily unavailable) and looks different.
+
+**Built 2026-09-11 by Task 2.11.3 as `TextField`, and the specification was implemented with three changes**, each argued in the component's own header and in [`SEARCH-AND-SELECTION.md`](../../epic-02-security-universe-historical-data/story-11-security-search-and-selection/SEARCH-AND-SELECTION.md) §5:
+
+- **Bordered**, not underlined. An underline on a page of hairline-bordered panels reads as a form field on a document and has no resting silhouette
+- **Six states, not seven.** `Locked` is **dropped** until authentication exists: §37 excludes it, so the state has no consumer, and a state drawn against no consumer is exactly the guess that deferred fields in the first place. The trigger for the seventh is **the first field a person can see and may not edit**. Two states were added instead, for this consumer and every later one: _searching_ and _surface open_
+- **The input text is set in `--font-data`**, the monospace face, because what a person types into the first consumer is predominantly a ticker. It is the single detail that most makes a field read as a command line rather than as a web form, and the cost — a typed company name is also in mono — was accepted rather than overlooked
+
+Two things the field could not settle by itself, both recorded because the next control meets them:
+
+- The resting border is `--rule-hairline` and **not** the 2px near-black the design deliverable drew. A resting border of the focus ring's own weight and colour leaves a field with no visible focus state
+- **A composite control cannot use the global focus ring unaltered**, and that is the first escalation this layer has had. The element a browser focuses is the bare `<input>` inside the box, so the token's outline lands _inside_ the control. `a11y.module.css` now carries `focusRingHost`/`focusRingSource`, which hand the ring — the same three tokens, unchanged — from the focused element to the box that is the control. It is shared rather than local because Story 2.13's window control and Epic 8's picker meet the identical problem
 
 ## Colour, and the two rules about it
 
@@ -308,13 +319,13 @@ So: nothing here about a value updating, nothing about a row entering or leaving
 
 Stated explicitly, because each one is a thing somebody will otherwise add in good faith.
 
-- **No second accent hue.** One crimson, four positions, chrome only. A colour proposed for anything that is neither market data nor one of those four positions is answered with grey
+- **No second _identity_ accent.** One crimson, four positions, chrome only. **Narrowed 2026-09-11 by [ADR 0025](../../../docs/adr/0025-the-agent-hue-a-second-accent-and-what-authorship-colour-certifies.md)**, which adopted the design canvas's agent hue: colour with **domain meaning** lives in its own scope, and there are now three such scopes — identity (`brand.css`), market meaning (`market.css`) and **authorship**, which is what the agent hue carries. A colour proposed for anything that is none of those is still answered with grey. The agent hue's token lands with its first consumer in Epic 10, never encodes confidence, never touches a datum, and is never the sole encoding
 - **No accent on a datum**, ever. That includes a "highlighted" row, a "featured" ticker and a brand-coloured benchmark
 - **No third-party font request.** The faces ship in the artefact; a `<link>` to a font CDN is a second origin in the critical path
 - **No dark theme in V1.** The mechanism is built so a second palette is a values-only swap; the palette is not
 - **No shadows as elevation.** Ground contrast, a hairline, and a shadow you cannot quite see
-- **No radius scale.** Zero
-- **No icon beyond the closed set.** Adding one is an edit to `Icon.tsx`, which is the moment somebody asks whether the interface needs another symbol
+- **No radius scale.** One value, `--radius`, and it is 3px. A second radius — a "large" for panels, a "small" for chips — is the thing this forbids, not a non-zero value
+- **No icon beyond the closed set.** Adding one is an edit to `Icon.tsx`, which is the moment somebody asks whether the interface needs another symbol. That moment has happened once: the set was five from the refresh until **2026-09-11**, when Task 2.11.3 added `magnifier` for `TextField`. It is **six**, and the seventh needs its own argument in its own task rather than citing that one
 
 ## The dark-theme reversal
 

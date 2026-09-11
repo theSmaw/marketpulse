@@ -1,0 +1,451 @@
+/*
+ * The first input in this design language, and the stylesheet is where four of
+ * its decisions actually live. The component header argues them; this file is
+ * where they are true.
+ *
+ * Note what is absent, as in `Button.module.css` and for the same reason:
+ * **there is no `:focus` rule anywhere below.** `base.css` carries one global
+ * `:focus-visible` outline — 2px near-black at 2px offset — and a control that
+ * declares its own is answering a question the token layer already answered.
+ * It is also why the resting border is a hairline rather than the 2px
+ * near-black the design deliverable drew: a resting border of the focus ring's
+ * own weight and colour leaves the field with no visible focus state at all.
+ */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* The field is sized by whatever contains it. A control that decided its own
+     width would have to be overridden at every call site. */
+  width: 100%;
+}
+
+/*
+ * The label, above the field, at micro-label size. This is the idiom that makes
+ * a control read as an instrument rather than as a web form, and it is the
+ * whole reason a placeholder is never allowed to stand in for it.
+ */
+.label {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+}
+
+/*
+ * The box. Bordered rather than underlined — an underline on a page of
+ * hairline-bordered panels reads as a form field on a document, and it has no
+ * resting silhouette until it is focused.
+ */
+.box {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+
+  height: var(--control-height);
+  padding: 0 var(--space-8);
+
+  background: var(--surface-raised);
+  /*
+   * `--rule-control`, not `--rule-hairline`, and the difference is measured
+   * rather than a shade preference — see the token's own comment. A panel's
+   * border separates two regions a reader can already see; this border is the
+   * only thing that says "you can type here", and at a hairline it was 1.26:1
+   * against white.
+   */
+  border: var(--border-width) solid var(--rule-control);
+  /*
+   * The token, never a literal, and that is the whole instruction here.
+   *
+   * This carried a comment arguing for zero — "a rounded search field is the
+   * single most likely way a screen announces itself as a generic web app" —
+   * written on 2026-09-11 and amended the same day, when the design canvas was
+   * adopted and `--radius` moved to 3px. The argument was not wrong and the
+   * field did not change: reading the token rather than writing `0` is what
+   * meant this file needed no edit at all. Keep it that way.
+   */
+  border-radius: var(--radius);
+
+  transition: border-color var(--motion-duration-quick)
+    var(--motion-ease-standard);
+}
+
+/* The same hover idiom as `Button`'s secondary: the border steps up to the
+   structural near-black for a moment. It costs no colour and it is a stronger
+   signal than a ground change on a surface that is already white. */
+.box:hover:not(.disabledBox) {
+  border-color: var(--rule-strong);
+}
+
+/*
+ * Something is open directly beneath — a result surface, later a calendar. The
+ * field becomes the head of it and holds the hover border permanently, so the
+ * pair reads as one object rather than as a box with a box under it.
+ */
+.open {
+  border-color: var(--rule-strong);
+}
+
+.invalid {
+  border-color: var(--status-error);
+}
+
+/*
+ * Valid, with something worth knowing — "symbol is halted, data may be stale".
+ *
+ * **Dashed, and the dash is the encoding rather than a decoration.** A warning
+ * drawn only in a second hue would be the exact thing `market.css` forbids:
+ * under `grayscale(1)` it would be indistinguishable from the error above it.
+ * A dashed border is a difference in *shape*, so it survives. It is also why
+ * the message beside it needs no seventh icon.
+ *
+ * The colour stays `--rule-control` — the ordinary control boundary — because
+ * nothing is wrong with the value. It is the line style that says "read the
+ * sentence underneath".
+ */
+.warned {
+  border-color: var(--rule-control);
+  border-style: dashed;
+}
+
+/*
+ * A value you may read and select but not edit. **Not `disabled`**, and the
+ * difference is the whole reason it is a separate state: this text stays
+ * legible, this box stays focusable, and the value is still selectable and
+ * copyable.
+ *
+ * Sunken ground, and the border stays `--rule-control` rather than dropping to
+ * the hairline the design canvas specifies. A read-only input is **not** an
+ * inactive control — it takes focus and its text can be selected — so WCAG
+ * 1.4.11's exemption for inactive components does not reach it, and its
+ * boundary owes the same 3:1 an editable one does.
+ */
+.readOnlyBox {
+  background: var(--surface-sunken);
+}
+
+.disabledBox {
+  background: var(--surface-sunken);
+  border-color: var(--rule-soft);
+}
+
+/* --- Sizes. Two, and they match `Button`'s exactly, which is the whole point
+   of `--control-height` existing: a field and a button 2px different in height
+   turn a toolbar into a ransom note. --- */
+.medium {
+  height: var(--control-height);
+}
+
+.small {
+  height: var(--control-height-sm);
+  padding: 0 var(--space-4);
+}
+
+.leading {
+  display: inline-flex;
+  color: var(--ink-secondary);
+  /* Sized by the input's type, not the label's — see `Icon`, which is 1em and
+     takes no size prop. */
+  font-size: var(--font-size-dense);
+}
+
+/*
+ * The input itself, set in the **data face**.
+ *
+ * This is the single detail that most makes the field read as a command line
+ * rather than as a web form: `--font-data` is the face for "figures and
+ * identifiers: tickers", and a ticker is what a person types into the first
+ * consumer. The cost is accepted rather than overlooked — a typed company name
+ * is in mono too.
+ *
+ * `.dataCell` rather than three hand-copied declarations, so the day the data
+ * idiom gains a fourth this field is not the thing that silently stopped
+ * matching.
+ */
+.input {
+  composes: dataCell from "../../styles/type.module.css";
+
+  flex: 1;
+  min-width: 0;
+
+  /* The user agent's own box, removed. The `.box` above is the control. */
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-primary);
+
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  font-weight: var(--font-weight-medium);
+}
+
+/*
+ * The placeholder is a hint about *format*, never the label.
+ *
+ * **It was `--ink-disabled` and that failed, measured on 2026-09-11.**
+ * Placeholder text is text: WCAG 1.4.3 wants 4.5:1 for it at this size, and
+ * `--ink-disabled` is **2.62:1** on white. The design canvas's own value,
+ * `#74777f`, is 4.48:1 — closer, and still under. `--ink-secondary` is 6.49:1
+ * and already in the language, so no token was invented for this.
+ *
+ * The obvious objection to a placeholder that dark is that it starts to read
+ * as a value. Two things answer it, and the second is the canvas's: the weight
+ * drops to regular where a value is medium, and **the face changes to
+ * `--font-sans` where a value is `--font-data`**. A hint and a figure are then
+ * different in three ways at once, and the field visibly stops being a hint
+ * the moment somebody types.
+ */
+.input::placeholder {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-regular);
+  color: var(--ink-secondary);
+  /* Some engines apply their own opacity on top of the colour. */
+  opacity: 1;
+}
+
+.input:disabled {
+  color: var(--ink-disabled);
+  cursor: not-allowed;
+}
+
+/*
+ * --- Affixes ---
+ *
+ * A fixed `$` or `USD` inside the box. The canvas's rule for them is the
+ * useful one and it is a behaviour rather than a look: **affixes never scroll
+ * with the value.** They are siblings of the input rather than content inside
+ * it, which is what makes that true by construction — a `$` typed into the
+ * field would scroll away with a long number, and a `$` beside it cannot.
+ *
+ * `flex-shrink: 0` for the same reason the icon has it: the input is the only
+ * thing in this row that may compress.
+ */
+.affix {
+  display: inline-flex;
+  align-items: center;
+  align-self: stretch;
+  flex-shrink: 0;
+
+  padding: 0 var(--space-8);
+
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The leading affix takes a ground and a divider, the trailing one does not.
+ * That asymmetry is the canvas's and it is right: a prefix sits where the eye
+ * starts and has to be told apart from the value, while a suffix is already
+ * after it. The negative margin pulls it back onto the box's own edge, past
+ * the padding the row carries for everything else.
+ */
+.affixStart {
+  margin-left: calc(-1 * var(--space-8));
+  background: var(--surface-sunken);
+  border-right: var(--border-width) solid var(--rule-hairline);
+}
+
+/*
+ * --- The validated tick ---
+ *
+ * **Achromatic, and that is a deliberate divergence from the design canvas**,
+ * which draws this in its `--mp-up` green. In this product green is not
+ * "good" — `market.css` spends it on `--price-positive`, on every screen, and
+ * a green tick inside a field on a market page is a second meaning for the one
+ * colour a reader has already learnt. The canvas's own note beside this state
+ * is "glyph + colour, never colour alone", and dropping the colour leaves the
+ * half that was carrying the meaning anyway.
+ */
+.validTick {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+
+  font-family: var(--font-data);
+  font-size: var(--font-size-dense);
+  line-height: 1;
+  color: var(--ink-primary);
+}
+
+/*
+ * The trailing slot: the `Esc` chip and the clear button, present only when
+ * there is something to clear.
+ *
+ * There is deliberately **no reserved width** for it, and the component's
+ * markup carries the measurement that argues why: the slot can only appear as
+ * the value goes from nothing to one character, so the input is empty at the
+ * moment it narrows and nothing a person is reading moves. A permanent
+ * `min-width` would buy nothing and cost a strip of dead space in every field
+ * that is merely capable of being cleared.
+ */
+.trailing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  flex-shrink: 0;
+}
+
+/*
+ * The `Esc` chip. The micro-label idiom doing a job rather than decorating one:
+ * it says what the escape hatch is without a tooltip, and the component makes
+ * it true by handling the key itself.
+ */
+.escHint {
+  composes: microLabel from "../../styles/type.module.css";
+
+  padding: 0 var(--space-4);
+  border: var(--border-width) solid var(--rule-hairline);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  color: var(--ink-secondary);
+  font-family: var(--font-data);
+}
+
+/*
+ * A control inside a control, so it is smaller than the thing containing it and
+ * has no ground of its own until it is hovered — `Button`'s `quiet` idiom, at a
+ * size `Button` deliberately does not offer.
+ */
+.clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 18px;
+  height: 18px;
+  padding: 0;
+
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-secondary);
+
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+
+  transition:
+    background-color var(--motion-duration-quick) var(--motion-ease-standard),
+    color var(--motion-duration-quick) var(--motion-ease-standard);
+}
+
+.clear:hover {
+  background: var(--surface-sunken);
+  color: var(--ink-primary);
+}
+
+/*
+ * --- Busy ---
+ *
+ * An indeterminate sweep along the inside bottom edge. Absolutely positioned
+ * inside the border box, so it takes no space and can move nothing: the whole
+ * constraint on this state is that a field which becomes busy while somebody is
+ * reading it must look identical apart from this 2px line.
+ *
+ * It is also the one deliberately *alive* thing in the control, and it is safe
+ * to be so because it is not a number. `DESIGN-BRIEF.md` §10's constraint —
+ * motion must never make a figure harder to read — is why the sweep is on the
+ * chrome rather than on the value.
+ */
+.busyTrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+
+.busyTrack::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  background: var(--rule-strong);
+  animation: sweep 1100ms var(--motion-ease-standard) infinite;
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(350%);
+  }
+}
+
+/*
+ * The per-component reduced-motion block `tokens.css` warns about having to
+ * remember — and this is the case its warning exempts rather than covers. The
+ * token durations are for *transitions*, where 0ms still ends in the final
+ * state; an indeterminate loop has no final state, so setting its duration to
+ * zero would delete the affordance rather than still it. The still form is a
+ * full-width rule: the field still says "something is happening", it just does
+ * not move while saying it.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .busyTrack::after {
+    width: 100%;
+    animation: none;
+    background: var(--ink-secondary);
+  }
+}
+
+/* --- The two lines under the field --- */
+
+/*
+ * The hint — a count, a format, a unit. Micro size and the data face, and
+ * **deliberately not `microLabel`**: that idiom uppercases, and the first
+ * consumer's hint is a sentence with a count and a quoted query in it. An
+ * uppercased sentence is a label pretending to be prose. The face is the data
+ * one because what this line carries is nearly always a figure.
+ */
+.hint {
+  margin: 0;
+
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The error line. It carries the `alert` glyph as well as the hue, because
+ * `market.css`'s rule is that colour is never the sole encoding of anything —
+ * under `grayscale(1)` this message and the hint above it are the same tone.
+ */
+.message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+
+  margin: 0;
+
+  /* The interface face and not the data one: this is a sentence a person
+     reads, and `--font-data` is explicitly not for prose. */
+  font-family: var(--font-sans);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  font-weight: var(--font-weight-medium);
+
+  /* The warning's colour. Secondary ink, not a second hue — the dashed border
+     above is what distinguishes it, and a warning amber here would be a third
+     meaning for the colour `market.css` already spends on "elevated". */
+  color: var(--ink-secondary);
+}
+
+.errorText {
+  color: var(--status-error);
+}
