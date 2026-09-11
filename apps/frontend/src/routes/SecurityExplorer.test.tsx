@@ -103,7 +103,13 @@ describe("SecurityExplorer", () => {
     }
 
     expect(screen.getByRole("rowheader", { name: "NVDA" })).toBeTruthy();
-    expect(screen.getByText("NVIDIA Corporation")).toBeTruthy();
+    // `getAllByText`, and the plural is the assertion: since Task 2.11.7 the
+    // company name is on this screen twice — once in the identity block naming
+    // the page's subject, once in the row for it in the table. That is a
+    // *subject* stated twice, which the self-describing-surface rule requires;
+    // it is not two surfaces describing one event in the same words, which is
+    // the thing that is forbidden.
+    expect(screen.getAllByText("NVIDIA Corporation").length).toBeGreaterThan(0);
     expect(screen.getByText("Semiconductors")).toBeTruthy();
     expect(screen.getByText("Company")).toBeTruthy();
 
@@ -271,7 +277,12 @@ describe("the market-data region", () => {
     renderAt("/securities/AMD");
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "AMD" })).toBeTruthy();
+      // Two headings carry this symbol and both are correct: the identity
+      // block's `h2` says whose page this is, and the panel's `h3` says whose
+      // bars these are. A panel that stopped naming its own subject would be
+      // wrong in the workshop and wrong the day it appears beside a second
+      // security's panel.
+      expect(screen.getAllByRole("heading", { name: "AMD" })).toHaveLength(2);
     });
 
     // The window is **named and never resolved here**, which is the property
@@ -308,10 +319,10 @@ describe("the market-data region", () => {
     // says the charts are a story away — a panel of numbers where a reader
     // expects a chart looks unfinished unless it says so.
     await waitFor(() => {
-      expect(screen.getByRole("region", { name: "Market data" })).toBeTruthy();
+      expect(screen.getByRole("region", { name: "Price" })).toBeTruthy();
     });
     expect(
-      screen.getByText(/Charts arrive with Stories 2.12 and 2.13/),
+      screen.getByText(/The chart itself arrives with Story 2.12/),
     ).toBeTruthy();
   });
 });
@@ -361,7 +372,7 @@ describe("search, and the rest of the page around it", () => {
     // and nothing collapsed to a global error screen.
     expect(field().disabled).toBe(true);
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByRole("region", { name: "Market data" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Price" })).toBeTruthy();
     expect(
       screen.getByRole("region", { name: "Tracked universe" }),
     ).toBeTruthy();
@@ -426,5 +437,145 @@ describe("search, and the rest of the page around it", () => {
     expect(summary()?.textContent).toContain("2 securities tracked");
     // The rows underneath are untouched too: the surface floats over them.
     expect(screen.getAllByRole("row").length).toBeGreaterThan(3);
+  });
+});
+
+// The shell (Task 2.11.7) — the grid PRODUCT_SPEC.md §8.3's seven contents sit
+// on, and the two things about it that nothing else would catch.
+describe("the Security Explorer shell", () => {
+  /** §8.3's seven contents, in the reading order the grid holds them. */
+  const REGIONS = [
+    "Price",
+    "Abnormal-move indicators",
+    "Volume",
+    "Relative performance",
+    "Connected securities",
+    "Relevant filings",
+    "Anomaly history",
+    "Tracked universe",
+  ] as const;
+
+  it("renders §8.3's seven contents plus the universe, each a named landmark", async () => {
+    stubFetch(() =>
+      json(200, { securities: [NVDA, SPY], coverage: [], lastCloses: [] }),
+    );
+    render();
+
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: "Price" })).toBeTruthy();
+    });
+
+    for (const name of REGIONS) {
+      expect(screen.getByRole("region", { name })).toBeTruthy();
+    }
+
+    // Named, every one of them, which is what makes them `region` landmarks at
+    // all: a `<section>` without an accessible name is not a landmark, and
+    // several unnamed ones are what axe reports as `landmark-unique`.
+    expect(screen.getAllByRole("region")).toHaveLength(REGIONS.length);
+  });
+
+  it("names the epic that fills every empty region", async () => {
+    stubFetch(() =>
+      json(200, { securities: [NVDA, SPY], coverage: [], lastCloses: [] }),
+    );
+    render();
+
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: "Price" })).toBeTruthy();
+    });
+
+    // Six placeholders — the five later epics own, plus Story 2.13's volume —
+    // and each says who fills it. Story 1.5's convention, and the reason it is
+    // asserted here rather than trusted: a placeholder whose label is dropped
+    // renders a dashed box with nothing in it, which reads as broken and goes
+    // red nowhere.
+    expect(screen.getAllByText(/^Filled by /)).toHaveLength(6);
+
+    for (const plan of [
+      "Filled by Story 2.13 — Volume Chart",
+      "Filled by Epic 6 — Market Topology",
+      "Filled by Epic 9 — Corporate Filing Evidence",
+    ]) {
+      expect(screen.getByText(plan)).toBeTruthy();
+    }
+
+    // Epic 5 fills three of them, which is why this one is `getAllBy`.
+    expect(
+      screen.getAllByText("Filled by Epic 5 — Anomaly Detection"),
+    ).toHaveLength(3);
+  });
+
+  it("gives every region its own sentence", async () => {
+    stubFetch(() =>
+      json(200, { securities: [NVDA, SPY], coverage: [], lastCloses: [] }),
+    );
+    render();
+
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: "Price" })).toBeTruthy();
+    });
+
+    // Task 2.11.6's rule, learned three times in one afternoon: two surfaces
+    // describing one screen must not open on the same clause. Eight regions
+    // arrived at once here, and the cheap check is exactly this — a locator
+    // that resolves to two nodes means two surfaces are saying one thing.
+    for (const opening of [
+      "One security's minute bars",
+      "How unusual this security's behaviour",
+      "Traded volume across the same window",
+      "This security measured against",
+      "Which securities move with this one",
+      "Primary-source evidence from SEC EDGAR",
+      "Every earlier occasion this security",
+      "The securities MarketPulse follows",
+    ]) {
+      expect(screen.getAllByText(new RegExp(opening))).toHaveLength(1);
+    }
+  });
+
+  it("names the security above the grid, from the universe rather than the address", async () => {
+    stubFetch(() =>
+      json(200, {
+        securities: [NVDA, SPY],
+        coverage: [],
+        lastCloses: [],
+      }),
+    );
+    renderWithContext(
+      <Routes>
+        <Route path={ROUTE_PATTERNS.security} element={<SecurityExplorer />} />
+      </Routes>,
+      { at: "/securities/SPY" },
+    );
+
+    await waitFor(() => {
+      // The name is on screen twice — the identity block and the table row —
+      // which is the subject being stated by two surfaces rather than one
+      // event being described by two.
+      expect(screen.getAllByText("SPDR S&P 500 ETF Trust")).toHaveLength(2);
+    });
+
+    // A market proxy belongs to no sector, and the classification line omits
+    // that rather than printing "no sector" for a thing sectors do not apply
+    // to. `NYSEARCA` is the exchange, which is the part that is never null.
+    expect(screen.getByText(/NYSEARCA/)).toBeTruthy();
+  });
+
+  it("keeps the identity block silent — the page's third live region is search's", async () => {
+    stubFetch(() =>
+      json(200, { securities: [NVDA, SPY], coverage: [], lastCloses: [] }),
+    );
+    render();
+
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: "Price" })).toBeTruthy();
+    });
+
+    // `FRONTEND-STATE.md` §7's trigger fires on a fourth asynchronously-filled
+    // surface, and `SEARCH-AND-SELECTION.md` §4 records why this one is allowed
+    // to fill without speaking. Nothing else in the tree refuses a fourth
+    // `role="status"`, so this is where that decision is held.
+    expect(screen.getAllByRole("status")).toHaveLength(3);
   });
 });

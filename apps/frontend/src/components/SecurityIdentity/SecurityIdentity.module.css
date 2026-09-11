@@ -1,0 +1,217 @@
+/*
+ * The band that says whose page this is. It is not a panel and not a cell: it
+ * spans the whole measure, above the grid, separated from it by the same
+ * near-black rule that sits under every panel heading in this product.
+ *
+ * That rule is the reason this reads as part of the instrument rather than as a
+ * card floating above one. `tokens.css` reserves `--rule-strong` for structure,
+ * and the structure it is marking here is "everything below belongs to the
+ * thing named above".
+ */
+
+.identity {
+  --marker-color: var(--ink-disabled);
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-24);
+
+  padding-bottom: var(--space-20);
+  border-bottom: var(--border-width) solid var(--rule-strong);
+
+  /*
+   * **Once, on mount, and never again** — which is a mechanism rather than an
+   * intention. React reconciles this same DOM node across a change of symbol
+   * (Task 2.11.5 measured that this route no longer re-mounts), so a CSS
+   * animation declared here plays on the first frame the page exists and is
+   * never replayed by a re-render or by a navigation.
+   *
+   * That is the property this needs, because the constraint that outranks
+   * "it must feel alive" is that **motion must never make a number harder to
+   * read**. An analyst switching from NVDA to AMD gets the new close instantly,
+   * with no fade and no slide; only the first arrival of the block itself
+   * moves. Task 2.11.4 met the other half of this — a surface that re-animates
+   * on every keystroke — and this is the same mechanism used on purpose.
+   *
+   * `prefers-reduced-motion` is answered once at the token layer: the duration
+   * becomes 0ms and the block simply appears.
+   */
+  animation: identity-arrives var(--motion-duration-settle)
+    var(--motion-ease-standard);
+}
+
+@keyframes identity-arrives {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.subject {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+/*
+ * The symbol, at display size and in the data face — a ticker is an identifier,
+ * which is exactly what `--font-data` is for.
+ *
+ * `h2` and not `h1`: the page's `h1` is the route's name, every route renders
+ * exactly one, and `PageHeader` owns it. A second `h1` here would leave a
+ * screen-reader user with two answers to "what is this page?".
+ */
+.symbol {
+  composes: dataCell from "../../styles/type.module.css";
+
+  margin: 0;
+  font-size: var(--font-size-display);
+  line-height: var(--line-height-display);
+  font-weight: var(--font-weight-strong);
+  color: var(--ink-primary);
+}
+
+/* A symbol we hold no profile for. Still printed at full size — it is still
+   what the address names — but in secondary ink, so the page does not assert a
+   security it cannot describe. */
+.unresolved {
+  color: var(--ink-secondary);
+}
+
+.name {
+  margin: 0;
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-subheading);
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-primary);
+}
+
+.classification {
+  composes: microLabel from "../../styles/type.module.css";
+
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+.absence {
+  composes: prose from "../../styles/type.module.css";
+
+  /* The measure a sentence is read at. Without it this line runs the full width
+     of a 1440px screen, which is the one thing that reliably stops a paragraph
+     being read. */
+  max-width: 62ch;
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+/* --- The close, right-aligned --- */
+
+.close {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-4);
+  text-align: right;
+}
+
+.closeLabel {
+  composes: microLabel from "../../styles/type.module.css";
+
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+.figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+  margin: 0;
+}
+
+.price {
+  composes: dataCell from "../../styles/type.module.css";
+
+  font-size: var(--font-size-display);
+  line-height: var(--line-height-display);
+  font-weight: var(--font-weight-strong);
+  color: var(--ink-primary);
+}
+
+/*
+ * `--ink-secondary`, **not** `--ink-disabled`, and this is measured rather than
+ * a preference — `SecuritySearch` took the same decision the same day and for
+ * the same reason. `--ink-disabled` is `#74777f`: **4.48:1** on the raised
+ * ground, against WCAG 1.4.3's 4.5:1 for text. "None stored" is a true
+ * statement about what we hold that a person has to read, not a greyed-out
+ * control, so it is text and the floor applies. It is told apart from a figure
+ * by being set smaller and by saying words instead of digits, which is weight
+ * and hierarchy doing the job — never ink outside the contrast floor.
+ *
+ * The browser suite is the only level that can see this: no stylesheet is
+ * applied in the component tests, so `getTokens()` throws there and a contrast
+ * assertion is structurally impossible.
+ */
+.noClose {
+  composes: dataCell from "../../styles/type.module.css";
+
+  margin: 0;
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-display);
+  color: var(--ink-secondary);
+}
+
+/* Two absences with different meanings, both said in words rather than drawn
+   in a lighter grey: "no previous session" is not "no close". Secondary ink for
+   `.noClose`'s reason — both are sentences. */
+.noChange {
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The qualifier, and it is the reason the figure above it is honest. It carries
+ * the session the close came from and how much history is behind it — set in
+ * the data face because both halves are values.
+ */
+.qualifier {
+  composes: dataCell from "../../styles/type.module.css";
+
+  margin: 0;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+/*
+ * Below the grid's own one-column breakpoint the block stacks and the close
+ * moves to the left edge with everything else. It does not stay right-aligned
+ * once it has wrapped: a figure pushed to the right of a narrow screen with its
+ * label floating above it reads as a table cell that lost its table.
+ *
+ * **48rem, the same number `SecurityExplorer.module.css` uses**, and the first
+ * draft used 40rem — which was found by looking at the page at 640px, where the
+ * block had already wrapped and the close was still hard right with the label
+ * indented above it. A block that reflows at one width inside a page that
+ * reflows at another has two designs in it.
+ */
+@media (width < 48rem) {
+  .close {
+    align-items: flex-start;
+    text-align: left;
+  }
+}

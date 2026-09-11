@@ -1,9 +1,9 @@
 /*
- * The route's own layout, and it is one rule: a column of regions under the
- * masthead.
+ * The route's layout: a column of blocks under the masthead, and inside it the
+ * grid PRODUCT_SPEC.md §8.3's seven contents sit on.
  *
- * The measure is `App.module.css`'s now — `--content-max` on `<main>` — where
- * it used to be a `max-width: 76rem` here. That was the last place in the tree
+ * The measure is `App.module.css`'s — `--content-max` on `<main>` — where it
+ * used to be a `max-width: 76rem` here. That was the last place in the tree
  * where one route decided how wide the application was, and it is the sort of
  * thing that goes unnoticed until a second route picks a different number.
  */
@@ -12,4 +12,120 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-24);
+}
+
+/*
+ * ## The grid, and why it is three columns of equal width rather than named areas
+ *
+ * Every region declares only **how many columns it spans**, and the flow places
+ * it. That is the property Task 2.11.7 exists to buy: Epics 5, 6 and 9 each add
+ * a region to this page, and with `grid-template-areas` every one of those
+ * additions is an edit to three templates — one per viewport — with the
+ * opportunity to get two of them wrong. With spans it is a component and a
+ * number.
+ *
+ * `minmax(0, 1fr)` and not `1fr`: a grid track's default minimum is
+ * `auto`, which is the content's min-content width, so a single unbreakable
+ * figure or a wide table inside a region would push the column past its share
+ * and overflow the page rather than scroll inside its own box. `Region` already
+ * declares `overflow: auto`; this is what lets it do its job.
+ */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-16);
+  align-items: start;
+}
+
+/*
+ * ## How a region says how wide it is
+ *
+ * A `<div>` around each `Region`, carrying one of two classes or neither. It is
+ * a wrapper element, which is the cost, and it buys the property this grid is
+ * for: **the width of a region is stated at the place the region is placed**,
+ * in the route, next to the sentence saying what fills it.
+ *
+ * The alternative — `.grid > :nth-child(3)` — needs no wrapper and is a trap
+ * for exactly the change this file exists to make cheap: Epic 5 inserts a
+ * region and every index after it silently means a different panel, with
+ * nothing red anywhere.
+ *
+ * **A span wider than the grid is not clamped — it grows an implicit column**,
+ * and that was measured in Chromium rather than read off the spec (2026-09-11).
+ * The first draft declared the spans once and changed only
+ * `grid-template-columns` per viewport, on the belief that `span 3` in a
+ * two-track grid resolves to two. It does not: the computed tracks came back
+ * `134px 134px 676px` — two starved columns and one implicit one holding the
+ * universe table — and the page read as a broken layout at every width below
+ * 1184px while `pnpm verify` and the whole browser suite stayed green, because
+ * nothing anywhere asserts on a column width.
+ *
+ * So each narrow arrangement restates the spans. Two extra lines per breakpoint,
+ * and they are the lines that make the rule above true.
+ */
+.wide {
+  grid-column: span 2;
+}
+
+.full {
+  grid-column: span 3;
+}
+
+/*
+ * ## The three widths, and the one rule that does not change
+ *
+ * **The reading order is fixed at every viewport.** Columns are a visual
+ * grouping laid over a fixed DOM sequence — price, volume, abnormal move,
+ * relative performance, connected securities, filings, anomaly history,
+ * universe — and never a re-ordering, so a keyboard user and a screen reader
+ * meet the same page a pointer does.
+ *
+ * Written widest-first with `width <` queries rather than `min-width`, so the
+ * three-column arrangement is the declaration and the narrower ones are
+ * corrections to it. The alternative reads as though the phone layout were the
+ * design and the desktop an enhancement, which is backwards for an application
+ * whose persona "works primarily on desktop with substantial screen real
+ * estate" (§3).
+ */
+
+/*
+ * Two columns, and **the wide pair stops being wide** — which is the opposite
+ * of the obvious arrangement and was chosen by looking at both.
+ *
+ * Seven regions in two columns leave exactly one hole wherever the spans fall.
+ * Leaving `.wide` at two tracks puts that hole immediately beside the
+ * abnormal-move region, a third of the way down the page, where it reads as a
+ * panel that failed to render. Collapsing the pair to one track moves the hole
+ * to the last placeholder row, directly above the full-width universe, where it
+ * reads as the end of a list.
+ *
+ * The property price and volume actually need survives it: they are still the
+ * same width as each other and still vertically adjacent, now stacked in the
+ * left track rather than across the page.
+ */
+@media (width < 74rem) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wide {
+    grid-column: span 1;
+  }
+
+  .full {
+    grid-column: span 2;
+  }
+}
+
+/* One column. Every span collapses to it, stated rather than assumed — see
+   above for what assuming it costs. */
+@media (width < 48rem) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wide,
+  .full {
+    grid-column: span 1;
+  }
 }

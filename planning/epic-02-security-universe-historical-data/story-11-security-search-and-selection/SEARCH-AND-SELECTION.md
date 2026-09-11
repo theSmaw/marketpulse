@@ -156,6 +156,23 @@ because it was the only way to find out what symbols exist, and that reason
 expires with this story. Where the table goes in the shell's grid is 2.11.7's
 decision; that the field sits above whatever it becomes is this one's.
 
+**Answered 2026-09-11 by [Task 2.11.7](TASK-07-the-security-explorer-shell.md):
+the table stays, on both addresses, last and full width.** The reason it was
+there has expired and two others have taken its place, neither of which search
+retires. Since [Task 2.11.5](TASK-05-client-side-navigation-and-the-table-as-a-way-in.md)
+every symbol in it is a link, so on `/securities/:symbol` it is **the only way to
+reach a second security without typing one**; and it owns the single control that
+re-asks for the universe, which this file's own §5 copy points at by name — _"the
+control that asks again is with the universe itself"_. Moving it to `/securities`
+alone would leave that sentence grammatical and false on the other route, and
+would make a failed universe a dead end there. The cost is a long page and it is
+paid deliberately: the table is under all seven of §8.3's regions, so nothing a
+reader came for is below it.
+
+**Reversal trigger**: the first region that must sit _below_ the table, or a
+second control on that screen that re-asks for the universe — either frees the
+copy dependency this decision turns on.
+
 ### Reversal trigger
 
 - **The first screen other than the Security Explorer that has to change which
@@ -439,10 +456,29 @@ inherited whole rather than re-derived: a persistent region, rendered in every
 state, never unmounted, **silent on arrival**. Arriving at the Security Explorer
 with an empty field says nothing, because nothing has happened.
 
+#### Amended 2026-09-11 by [Task 2.11.7](TASK-07-the-security-explorer-shell.md) — **the fourth surface exists, and the answer was to let it fill without speaking**
+
+The Security Explorer's identity block fills from the universe fetch, so the
+trigger below fired on the very next task. It is **permitted, and it renders no
+`role="status"` and no `aria-live` at all.**
+
+The argument that admitted the third region is explicitly **not** available to
+it: search speaks only 400 ms after a keystroke, and the identity block fills at
+exactly the moment the other two do. So the alternative — a fourth polite region
+queued against the universe's and the panel's, in an order no component controls
+— is the precise failure §7 exists to prevent. What makes silence correct rather
+than lazy is that **the universe's own region has already spoken for this
+fetch**: the identity block is a second _rendering_ of an event that already has
+a sentence, not a second event.
+
+The page therefore still holds exactly three live regions, and that count is
+asserted in `SecurityExplorer.test.tsx` and in `SecurityIdentity.test.tsx` and
+nowhere else.
+
 ### Reversal trigger
 
-- **A fourth asynchronously-filled surface on this screen**, or any surface that
-  changes a region's text in the same moment as another. Epic 3's socket is the
+- **A fourth asynchronously-filled surface on this screen that must speak**, or
+  any surface that changes a region's text in the same moment as another. Epic 3's socket is the
   certain one and it lands one epic away; at that point regions need a rate
   rather than a per-surface judgement, and §7's own words are that "the
   announcement stops being of the _change_ and becomes of the _state_".
@@ -660,7 +696,7 @@ declines and §3's reversal trigger names.
 | [2.11.4](TASK-04-search-on-screen.md) — search on screen              | The field's home (§1). No new fetch (§2). No query in the address (§3). The 400 ms announcement debounce with the visible list updating per keystroke (§4). A row carrying a close **and** its change, with the session qualified on the surface (§5)                                                                                                                                     |
 | [2.11.5](TASK-05-client-side-navigation-and-the-table-as-a-way-in.md) | Selection is `securityPath(symbol)`, pushed, and Back returns to the list (§3). **Done 2026-09-11, and it measured the "empty field" half of that line to be false — see §3's amendment: the field keeps its query**                                                                                                                                                                      |
 | [2.11.6](TASK-06-every-search-state-produced.md) — every state        | Search unavailable is the universe fetch having failed, and the rest of the screen keeps working; there is no offline fallback (§5). The untracked state must be constructed (§6). **Done 2026-09-11**: the control takes `SecuritiesView` whole and is rendered in every state; it carries **no retry of its own** and no sentence pointing at the table, and §4 gained a fifth sentence |
-| [2.11.7](TASK-07-the-security-explorer-shell.md) — the shell          | The field sits above whatever the table becomes (§1). Five placeholders name **epics**, not invented story numbers (§5)                                                                                                                                                                                                                                                                   |
+| [2.11.7](TASK-07-the-security-explorer-shell.md) — the shell          | The field sits above whatever the table becomes (§1). Five placeholders name **epics**, not invented story numbers (§5). **Done 2026-09-11**: the table stays on both routes, last and full width (§1's amendment); the identity block is the fourth asynchronous surface and is silent (§4's amendment)                                                                                  |
 | [2.11.8](TASK-08-the-universe-table-past-500.md) — the table past 500 | A jump rail is taken in principle; a kind filter is not, because it moves the summary line and wants a query parameter (§§3, 5, 6)                                                                                                                                                                                                                                                        |
 | [2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)           | "Back **keeps** my search" is a decision to state, not a defect to find (§3, as amended 2026-09-11 — the sentence read the other way round until it was measured). The 400 ms rate is the thing to listen for (§4)                                                                                                                                                                        |
 | [2.11.10](TASK-10-deployed-verify-document-and-adr.md) — the close    | This file, finished with what was found, plus ADR 0024 and the `CLAUDE.md` table entry                                                                                                                                                                                                                                                                                                    |
@@ -710,3 +746,23 @@ checks quietly stops being true:
 - **The masthead's remaining slack** (§1). 377px at 1280 is a measurement of the
   chrome as it is on 2026-09-11; nothing fails if a fifth nav item or a longer
   label eats it, and §1's second reversal trigger is written against exactly that.
+
+Two added 2026-09-11 by Task 2.11.7, and the first is the larger:
+
+- **That the Security Explorer's grid has the number of columns it claims.**
+  Nothing below `pnpm e2e` can see a column: jsdom applies no stylesheet and
+  computes no layout, so a grid whose spans invert passes every unit, component
+  and integration test in this repository. It happened — a `span 3` item in a
+  two-track grid **grows an implicit third column rather than being clamped**,
+  the computed tracks came back `134px 134px 676px`, and the page was visibly
+  broken at every width under 1184px with `pnpm verify` and all 54 browser tests
+  green. It was found by opening the page. `e2e/specs/security-explorer-shell.spec.ts`
+  stands there now, and its red was verified by restoring the break. Re-measure:
+  delete the `.full` override inside the two-column media query and confirm test
+  2 of that spec fails.
+- **That the six placeholder labels still name a plan the roadmap holds.** An
+  epic that ships without filling its region leaves a sentence that was true when
+  it was written and is false afterwards, and nothing compares
+  `SecurityExplorer.tsx`'s six `filledBy` strings against `planning/EPICS.md`.
+  Re-measure: grep the route for `filledBy="Epic` and read the epic list beside
+  it.

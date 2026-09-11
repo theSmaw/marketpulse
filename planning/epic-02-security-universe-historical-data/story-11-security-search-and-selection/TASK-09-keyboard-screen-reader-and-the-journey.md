@@ -110,6 +110,59 @@ while the universe is in flight. It is the only one of the five a person hears
 while something else on the page is also arriving, so it is the one worth
 listening to with the other two regions live.
 
+## Amended 2026-09-11 by Task 2.11.7 — the page this walk crosses is a different page, and the "518 tab stops" note above is wrong
+
+The Security Explorer is now §8.3's shell: an identity block, seven regions on a
+grid, and the tracked universe last. Three consequences for the walk, and the
+second is a correction rather than an addition.
+
+**1. The page went from two focusable regions to eight.** `Region` renders a
+`Panel` with `scrollable`, which is `overflow: auto` **and** `tabIndex={0}`
+together — Task 1.13.4's fix for `scrollable-region-focusable`, applied to every
+region rather than the ones currently overflowing. So each of the shell's seven
+regions is a tab stop, and **six of them contain nothing focusable at all**: a
+heading, a sentence, and a dashed placeholder. Tabbing onto a named landmark that
+holds no control is not a defect — it is how a keyboard user reaches content they
+would otherwise have to scroll to — but six of them in a row between a search
+field and a table is a thing to _hear_ before deciding it is fine. This is the
+task that owns that judgement, and nothing automated can make it.
+
+**2. The inherited note above is false in its premise. Corrected, with the
+measurement.** It reads: "the tracked universe is **518 links in the tab order**.
+Tabbing from the search field to anything below the table is 518 stops."
+**There is nothing below the table.** Measured on `/securities/NVDA`,
+2026-09-11:
+
+|                                                         |                           |
+| ------------------------------------------------------- | ------------------------- |
+| Focusable elements on the page                          | **531**                   |
+| Tab stops from the search field to the first table link | **8** (the eight regions) |
+| Table links                                             | **518**                   |
+| **Tab stops after the last table link**                 | **0**                     |
+
+A skip link would therefore buy back **nothing on this route**, because past the
+table is the end of the document. Walk it before agreeing with that — the
+argument for one may survive on a different route, or on the grounds that
+reaching the end of the document is itself the problem — but do not walk it
+looking for the cost the original note describes, because that cost is gone.
+[Task 2.11.8](TASK-08-the-universe-table-past-500.md) has the same correction and
+is asked to decide whether its rail is also the way past.
+
+**3. The journey's destination is richer, and is worth asserting as such.** "Search
+→ open → the security's page" used to land on a heading and a panel of numbers.
+It now lands on an **identity block naming the company** — symbol, name,
+`SECTOR · INDUSTRY · EXCHANGE`, and the last session close with its grain stated.
+That is the sentence the criterion is really about, and it is what a screen reader
+should be heard to reach after a result is opened. Note the block is deliberately
+**silent** — it carries no `role="status"`
+(`SEARCH-AND-SELECTION.md` §4's amendment) — so what to listen for is that
+nothing is announced by it, and that the page still speaks exactly three
+sentences.
+
+**One thing not to re-find:** the shell holds **no state**, so there is nothing
+in it that survives a change of symbol wrongly. Task 2.11.5's trap was answered
+by not walking into it.
+
 ---
 
 ## What the user can see when this lands

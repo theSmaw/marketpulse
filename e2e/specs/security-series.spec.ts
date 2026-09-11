@@ -83,7 +83,7 @@ test("a deep link renders one security's real bars, from a real request", async 
 }) => {
   await page.goto(`/securities/${SYMBOL}`);
 
-  const region = page.getByRole("region", { name: "Market data" });
+  const region = page.getByRole("region", { name: "Price" });
   await expect(region).toBeVisible();
 
   // The symbol comes from the **address**, which is the property that makes a
@@ -136,7 +136,7 @@ test("the window is resolved by the server, never by the browser's clock", async
 
   await page.goto(`/securities/${SYMBOL}`);
   await expect(
-    anAnswer(page.getByRole("region", { name: "Market data" })),
+    anAnswer(page.getByRole("region", { name: "Price" })),
   ).toBeVisible();
 
   // A browser in Singapore at 09:00 local is on the previous *market* date in
@@ -160,7 +160,7 @@ test("a symbol the universe does not hold is a sentence, not a crash", async ({
   // waiting cannot make an untracked security tracked.
   await page.goto("/securities/ZZZZ");
 
-  const region = page.getByRole("region", { name: "Market data" });
+  const region = page.getByRole("region", { name: "Price" });
   await expect(region.getByRole("heading", { name: "ZZZZ" })).toBeVisible();
   await expect(
     readable(region, /ZZZZ is not a security this system tracks/),
@@ -185,7 +185,7 @@ test("the panel draws nothing — the fence Story 2.12 inherits", async ({
   // in a real engine would pass a jsdom check.
   await page.goto(`/securities/${SYMBOL}`);
 
-  const region = page.getByRole("region", { name: "Market data" });
+  const region = page.getByRole("region", { name: "Price" });
   await expect(anAnswer(region)).toBeVisible();
 
   await expect(region.locator("canvas")).toHaveCount(0);
