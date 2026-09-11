@@ -138,6 +138,52 @@ at its price and volume — is Stories 2.12 and 2.13.
   failure is invisible and the repair is a one-character import away from
   happening by accident.
 
+## Amended 2026-09-11 by Task 2.11.6 — one decision to carry into the document, two entries to carry up, and two sites already swept
+
+**A decision this story took that is recorded only in a component header and a
+task file, and that the document and the ADR owe a home:**
+
+> **One retry per failure per screen, and it belongs to the surface that owns
+> the data.** Search and the tracked universe render from the same fetch, so a
+> failure puts two explanations on one screen. Search states the fact and defers
+> the control; the table offers the `Try again`. `FRONTEND-STATE.md` §4's rule —
+> a retryable failure says waiting may help, a permanent one says it will not —
+> is honoured in the **words**, in both directions, which is the half that
+> survives there being one button. A browser test asserts
+> `toHaveCount(1)` on the page's `Try again` buttons.
+
+Its reversal trigger is **the first screen where the two surfaces read different
+fetches**, at which point they are two failures rather than one and each owes its
+own control. Epic 3's live feed is the likely first, and Task 2.11.7 may reach it
+sooner if the universe table leaves `/securities/:symbol` — that route would then
+hold a failure with no control on it at all, which is the trigger firing with
+nothing to fire it.
+
+**Two "what nothing checks" entries are already written and should be carried up
+rather than re-derived.** `SEARCH-AND-SELECTION.md` §8 gained them on 2026-09-11:
+that nothing refuses a sentence duplicating another surface's (found three times
+in one afternoon, every time by a locator matching two nodes), and that nothing
+notices a control being absent from a state entirely — `pnpm verify` was green
+for two tasks while the field was missing from three of them. Both belong in
+`CLAUDE.md`'s own list with their re-measure one-liners.
+
+**Two sites are already swept and must not be re-swept — verify instead.**
+
+- `CLAUDE.md`'s bundle-leak entry now names `fixtures/securities/` and carries a
+  second re-measure one-liner (`grep -o "Agilent Technologies"`). The claim it
+  amends was about bar timestamps only, and the securities body is by far the
+  larger thing that must not ship.
+- `CLAUDE.md`'s repository map described `src/fixtures/` as the recorded bodies
+  of `GET /market-data/bars`. That became false the moment this task landed and
+  was corrected the same day.
+
+**One measurement this story owes is taken and is `SEARCH-AND-SELECTION.md`
+§6's**: untracked, `AAPL` falls from match 2 of 99 to **match 50** for the query
+`a` and off the shown slice while the total still counts it. Reconcile rather
+than re-measure, unless the ranking rules have changed.
+
+---
+
 ## Done when
 
 - The deployed site serves a per-security URL cold, checked by polling rather

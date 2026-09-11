@@ -119,6 +119,36 @@ as the way _past_ the table is a question this task is already in the right plac
 to answer, and it is cheaper to answer here than as a finding in Task 2.11.9 —
 which owns the walk and has been told to measure it.
 
+## Amended 2026-09-11 by Task 2.11.6 — the real 518 can be put in a story now, which is this task's whole problem
+
+**`apps/frontend/src/fixtures/securities.ts` holds the recorded `GET /securities`
+body**, and it collapses it through the real `toSecuritiesView`. That matters
+here more than anywhere else in the story, because this task is about a table at
+**518 rows** and `UniverseTable.stories.tsx` currently builds its states from a
+hand-written universe of a dozen securities with the view object typed out as a
+literal. Grouping, a jump rail and a collapse are all things whose only
+interesting property is how they behave **at scale**, and a workshop that shows
+twelve rows in eleven bands cannot show it. `securitiesFixtureView("full")` is
+one call and no backend.
+
+Two more that are directly this task's:
+
+- **`securitiesFixtureView("untracked")` puts an untracked security in the real
+  universe**, which is what the "a jump control that cannot reach an untracked
+  row is close enough to a filter to matter" bullet above needs in order to be
+  checked rather than reasoned about.
+- **The summary line already has a test, and it is not the one this task owes.**
+  `SecurityExplorer.test.tsx` asserts that typing into search leaves the summary
+  sentence byte-identical — search is a surface over the page rather than a
+  filter on it. This task's is the other half: a control that genuinely changes
+  which rows are on screen has to change that line in the same commit. Write it
+  as an assertion about the **sentence**, the way the existing one is.
+
+Nothing above changes what this task builds. It changes what can be seen while
+building it.
+
+---
+
 ## Notes
 
 The measurement worth taking rather than assuming: **is the table now large

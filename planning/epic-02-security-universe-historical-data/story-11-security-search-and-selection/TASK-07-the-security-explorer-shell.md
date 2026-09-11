@@ -150,6 +150,47 @@ The two states already known to survive are recorded in
 it, and the search field's query, which is benign. Anything this task adds is the
 third, and it is the first one that has not been looked at.
 
+## Amended 2026-09-11 by Task 2.11.6 — search is on the page in every state now, and one of its sentences points at the table
+
+Three things this task inherits, and the second is the expensive one.
+
+**1. The field is no longer gated on a successful fetch.** `SecuritySearch`
+takes `SecuritiesView` whole and `SecurityExplorer` renders it unconditionally;
+it is disabled with a reason when the universe cannot be read, live and holding
+what was typed while the universe loads. **Do not re-gate it.** The
+`view.state === "loaded" ? … : undefined` this task's grid work would naturally
+reach for is the exact defect 2.11.6 removed, and it goes red in three places —
+one route test and two browser specs.
+
+**2. Search's failed-state copy assumes the tracked universe is on the same
+screen, and this task may move it.** The sentence reads:
+
+> Nothing to search yet: the tracked universe did not answer. A service starting
+> up looks exactly like this, and **the control that asks again is with the
+> universe itself**.
+
+That clause exists because both surfaces read one fetch and a second _Try again_
+would teach a reader that neither is real (2.11.6's record, and a browser test
+asserts `toHaveCount(1)`). It is **true only while the table is on the same
+screen as the field**. So "where the universe table goes" is no longer only a
+navigation decision: if the table leaves `/securities/:symbol`, that route loses
+the only control that re-asks for the universe, and this task owns the
+consequence — either the copy changes on that route, or search grows the retry
+that was deliberately not built, or the table stays. Decide it deliberately;
+nothing will fail if it is missed, because the sentence stays grammatical while
+becoming false.
+
+**3. Five new regions meet a copy rule that was learned the hard way.** Two
+surfaces describing one failure on one screen **must not open with the same
+clause** — it happened three times in one afternoon in 2.11.6, every time caught
+by a test locator resolving to two or three nodes rather than by anybody reading
+the page. This shell adds five regions to a screen that already has three
+surfaces with sentences in them. Each one's empty and failed states owe wording
+that is theirs, and the cheap check is a locator: if `getByText` finds more than
+one node, two surfaces are saying the same thing.
+
+---
+
 ## Notes
 
 The fence is charts. This shell has a region for a price chart and it stays

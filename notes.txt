@@ -11,15 +11,19 @@ Be sure to reference @planning/PRODUCT_SPEC.md so you understand the product tha
 stakeholders want to see as much incremental progress as possible on the UI.
 
 
-let's implement @planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/TASK-02-the-matcher.md
+Using our Claude Design project, I want to create design artifacts (if we don't have them
+  already) for the work required in @planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/TASK-06-every-search-state-produced.md.
+  Once these are ready,
+
+let's implement @planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/TASK-06-every-search-state-produced.md
 Be sure to reference @planning/PRODUCT_SPEC.md so you understand the product that we are building.
 When you are done with the task, add to that task's documentation a layman's, non-technical description of the work you
 did and how it contributed to the product we are building. Let that layman know why you made the decisions that you did.
 e.g. give our stakeholders a status report on how their product is coming along and how your implementation of the task
 unlocks progress towards a user-facing product.
 
-Do reference @planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/2.11.8-design.html
-and @planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/2.11.8-design-brief.md
+Do reference @planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/2.11-design.html
+and @planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/DESIGN-BRIEF.md
 for our design approach.
 
 
@@ -35,7 +39,7 @@ in a .md file in the same directory.
 Do we need to amend, add, delete or re-order any tasks in
 @planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection
  based on our implementation of
-@planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/TASK-02-the-matcher.md?
+@planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/TASK-06-every-search-state-produced.md?
 
 
 
@@ -43,4 +47,6 @@ for gpt design task:
 
 create a brief for our UX and design team so that they can deliver the design updates and artifacts for the attached story,
 referencing the attached product spec
+
+
 

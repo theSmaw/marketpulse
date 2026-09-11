@@ -67,6 +67,51 @@ but it is a keyboard-walk finding waiting to happen, it is invisible to axe, and
 this is the task that owns it. Measure how many Tab presses it takes to get
 past the table before deciding whether it needs one.
 
+## Amended 2026-09-11 by Task 2.11.6 — one bullet below is done, and one finding is handed to this task to settle
+
+**The failure journey is written.** The _"Add the one this story introduces:
+with the backend unreachable, the control says so and the rest of the screen
+stays usable"_ bullet in Work is discharged — `securities-route.spec.ts` now
+holds three specs that did not exist when this file was written, each with an
+axe run against a state the gate had never seen:
+
+- search unavailable (the universe fetch refused), asserting the field is
+  present, disabled, says why, and that the page carries **one** `Try again`
+  rather than two;
+- a query typed while the universe is still loading, asserting the field is
+  live, the query is kept, and that nothing says "no matches";
+- a query that matches nothing, asserting the sentence, the absence of a
+  `listbox` and `aria-expanded="false"`.
+
+What is still owed here is the keyboard and screen-reader half of those states,
+which is the next paragraph.
+
+**A finding this task should settle rather than inherit silently: in three of
+the eight states the field is `disabled`, and a disabled input is not
+focusable.** Its reason — _"Nothing to search yet: the tracked universe did not
+answer…"_ — is wired to the control through `aria-describedby`, which is read
+**when the control is reached**. It cannot be reached. So the sentence is on
+screen and legible by browsing, and it is never announced as part of the
+control, for the one user who most needs to be told why tabbing past a search
+box was the right thing to do.
+
+That is a real question with more than one defensible answer — `readOnly`
+instead of `disabled`, which stays focusable and is a state `TextField` already
+has; the sentence moving to a region that is read on arrival; or leaving it,
+because the tracked universe's own failure block is in the tab order two stops
+later and says more. It was not settled in 2.11.6 because **the walk is the only
+thing that can settle it**, and guessing at it from the DOM is exactly what this
+task exists not to do. Whatever is decided goes into
+`SEARCH-AND-SELECTION.md` with its reason.
+
+**And the live region has a fifth sentence to listen for.** `Security search:
+still loading securities. "nv" is kept.` — spoken 400 ms after a keystroke made
+while the universe is in flight. It is the only one of the five a person hears
+while something else on the page is also arriving, so it is the one worth
+listening to with the other two regions live.
+
+---
+
 ## What the user can see when this lands
 
 **Nothing new drawn** — and quite a lot fixed. Whatever the walk finds is fixed

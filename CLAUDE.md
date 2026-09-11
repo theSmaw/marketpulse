@@ -211,9 +211,12 @@ apps/frontend/                 React + Vite
   src/use-*.ts                 four hooks; three make network requests, one reads the clock
   src/market/                  the FIRST feature module (§26); its index.ts is its API, and a
                                lint rule forbids importing anything else under it
-  src/fixtures/                RECORDED bodies of GET /market-data/bars, plus the one shared
-                               `fetch` stub. Formatted, unlike the backend's vendor fixtures —
-                               .prettierignore says why. Outside src/market/ on purpose
+  src/fixtures/                RECORDED bodies of BOTH requests this application makes —
+                               GET /market-data/bars and GET /securities — plus the one shared
+                               `fetch` stub. Each has a module collapsing its bodies through the
+                               REAL transition, so a story holds a state the app can reach rather
+                               than one somebody typed. Formatted, unlike the backend's vendor
+                               fixtures — .prettierignore says why. Outside src/market/ on purpose
   src/components/<Name>/       <Name>.tsx + .module.css + .stories.tsx, one component per file
   src/styles/                  fonts.css (three self-hosted faces) → tokens.css (achromatic)
                                → brand.css (the identity accent, chrome only) → market.css
