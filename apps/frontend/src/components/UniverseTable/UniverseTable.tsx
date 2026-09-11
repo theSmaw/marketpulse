@@ -8,8 +8,18 @@ import type {
   SecurityLastClose,
 } from "@marketpulse/shared";
 
+import { useId, useState } from "react";
 import { Link } from "react-router";
 
+import {
+  allCollapsed,
+  bandButtonId,
+  bandRowsId,
+  collapseAll,
+  expandAll,
+  rowsShown,
+  toggleBand,
+} from "./bands.js";
 import { Button } from "../Button/Button.js";
 import { cx } from "../../cx.js";
 import { Icon } from "../Icon/Icon.js";
@@ -244,10 +254,21 @@ function SummaryLine({
   securities,
   groups,
   coverage,
+  shown,
 }: {
   readonly securities: readonly Security[];
   readonly groups: readonly UniverseGroup[];
   readonly coverage: ReadonlyMap<string, SecurityCoverage>;
+  /**
+   * How many rows are on screen right now — see the `rows shown` clause below.
+   *
+   * It is passed in rather than derived here because this component is handed
+   * the *universe*, and how much of it is visible is a property of a control
+   * that lives one level up. Deriving it from `groups` would mean this
+   * component reading the collapse set, which is the thing it must not need to
+   * know in order to state a fact about the universe.
+   */
+  readonly shown: number;
 }) {
   const { tracked, noLongerTracked, etfs } = summarise(securities);
   const held = summariseCoverage(coverage);
@@ -311,6 +332,39 @@ function SummaryLine({
             </span>
           )}
         </>
+      )}
+
+      {/*
+       * **The one clause on this line that is about the screen rather than
+       * about the universe** (Task 2.11.8).
+       *
+       * Every figure above it is a claim about what MarketPulse holds, and
+       * collapsing a band unholds nothing — `518 securities tracked` stays 518
+       * with every band shut, because it is still true. What a collapse does
+       * change is *which rows are on screen*, and this task's own instruction
+       * is that a control which changes that owes this line an amendment in the
+       * same commit. So the amendment says exactly that and nothing else, in
+       * its own words, last.
+       *
+       * **It appears only when it is not the whole number**, which is the same
+       * asymmetry the `no longer tracked` clause and the `all with history`
+       * clause above already have. A line reading `518 of 518 rows shown` at
+       * rest is two identical figures a centimetre apart, and two identical
+       * figures read as a mistake rather than as the good news they are.
+       *
+       * It is deliberately **not** in the live region. `aria-expanded` on the
+       * band's own button is what tells a listener the band shut, spoken at the
+       * moment they pressed it and about the thing they pressed; a `role=status`
+       * re-reading the whole summary on top of that is two announcements of one
+       * action. See `Announcement` for why that region reports the *fetch* and
+       * nothing else.
+       */}
+      {shown !== securities.length && (
+        <span className={styles.figure}>
+          <span className={styles.figureValue}>{shown}</span> of{" "}
+          <span className={styles.figureValue}>{securities.length}</span> rows
+          shown
+        </span>
       )}
     </p>
   );
@@ -665,10 +719,12 @@ function UniverseRows({
   securities,
   coverage,
   lastCloses,
+  initiallyCollapsed,
 }: {
   readonly securities: readonly Security[];
   readonly coverage: ReadonlyMap<string, SecurityCoverage>;
   readonly lastCloses: ReadonlyMap<string, SecurityLastClose>;
+  readonly initiallyCollapsed: readonly string[];
 }) {
   const groups = groupUniverse(securities);
 
@@ -676,12 +732,75 @@ function UniverseRows({
   // the response, and the heading and every cell have to agree about it.
   const session = commonSession(lastCloses);
 
+  /*
+   * Which bands are shut (Task 2.11.8).
+   *
+   * ## It lives here, and that is the reversal trigger **not** firing
+   *
+   * `FRONTEND-STATE.md`'s trigger for adding a store is *the first piece of
+   * state two features must agree about that neither owns*. This is not that:
+   * the collapse set is read by this table and by nothing else, and search —
+   * the one other feature on this screen — has no opinion about it, because
+   * search is a surface over the page rather than a filter on it. State one
+   * feature owns is a `useState` and nothing more, and saying so is worth more
+   * than the alternative of quietly putting it in a module because it would be
+   * convenient there later.
+   *
+   * ## It survives a navigation, and that is the default rather than a mechanism
+   *
+   * `/securities` and `/securities/:symbol` are two `<Route>`s rendering the
+   * same module, so opening a security re-renders this component instead of
+   * re-mounting it and the set simply stays (measured in Chromium, Task
+   * 2.11.5). That is the right answer here and is worth stating as a decision:
+   * a collapse is an arrangement of the page a reader made on purpose, and
+   * throwing it away because they looked at a security would be a page undoing
+   * their work. It is emphatically **not** the right answer for everything a
+   * control like this could hold — a scroll position or a "current band" would
+   * be wrong to keep — which is why the only thing kept is the set.
+   *
+   * ## Seeded, so the workshop can review the shut state
+   *
+   * There is no other way to put a component into a state and look at it beside
+   * the others; `AllBandsCollapsed` in the stories is the consumer, and the
+   * route passes nothing. The seed is read once, which is what `useState`'s
+   * initialiser means — changing the prop later does not reopen a band the
+   * reader has shut.
+   */
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
+    () => new Set(initiallyCollapsed),
+  );
+
+  /*
+   * One opaque prefix per rendered table, so the band ids are unique on a page
+   * that holds more than one. The workshop's permutation grid renders eleven of
+   * these tables, and eleven `id="band-technology"`s is a `duplicate-id`
+   * violation on a tree that gates on axe.
+   *
+   * Nothing asserts on this value — `e2e/README.md` names a `useId()` result as
+   * a thing a test must not assert on — which is why every instrument for this
+   * control reaches it by role and accessible name instead.
+   */
+  const ids = useId();
+
+  const shown = rowsShown(groups, collapsed);
+  const everythingShut = allCollapsed(groups, collapsed);
+
   return (
     <>
       <SummaryLine
         securities={securities}
         groups={groups}
         coverage={coverage}
+        shown={shown}
+      />
+
+      <BandRail
+        groups={groups}
+        ids={ids}
+        everythingShut={everythingShut}
+        onToggleAll={() => {
+          setCollapsed(everythingShut ? expandAll() : collapseAll(groups));
+        }}
       />
 
       {/*
@@ -776,63 +895,354 @@ function UniverseRows({
             </tr>
           </thead>
 
-          {groups.map((group) => (
-            <tbody key={group.key}>
-              <tr>
-                {/*
-                 * `rowgroup`, not `colgroup`: this heading labels the rows
-                 * beneath it inside its own `<tbody>`, which is what a
-                 * rowgroup is. `colgroup` would claim it heads a span of
-                 * *columns*, which is the reading axe reported as
-                 * inconclusive on the first run of the accessibility check
-                 * — it could not find data cells for a column header that
-                 * heads no columns.
-                 */}
-                <th scope="rowgroup" colSpan={7} className={styles.group}>
-                  {/* An inner flex box rather than a flex `<th>`: a table cell
-                      given `display: flex` stops being a table cell, and a
-                      `colspan` that no longer spans is the kind of breakage
-                      that only shows up at one viewport width. */}
-                  <span className={styles.groupBand}>
-                    <span className={styles.groupName}>{group.name}</span>
-                    <span className={styles.groupDetail}>
-                      {group.benchmark === null
-                        ? group.detail
-                        : `Benchmark ${group.benchmark}`}
-                    </span>
+          {groups.map((group) => {
+            const shut = collapsed.has(group.key);
+
+            return (
+              /*
+               * `id` on the `<tbody>` rather than on a wrapper around the rows,
+               * because there is nowhere else to put it: the rows a band
+               * controls and the heading that controls them are the same row
+               * group, and a table may not have an element between a `<tbody>`
+               * and its `<tr>`s. So `aria-controls` names a region that
+               * contains its own trigger, which is a superset of the truth
+               * rather than a wrong answer, and it always resolves — the
+               * `<tbody>` survives the collapse holding just its heading.
+               */
+              <tbody key={group.key} id={bandRowsId(ids, group.key)}>
+                <tr>
+                  {/*
+                   * `rowgroup`, not `colgroup`: this heading labels the rows
+                   * beneath it inside its own `<tbody>`, which is what a
+                   * rowgroup is. `colgroup` would claim it heads a span of
+                   * *columns*, which is the reading axe reported as
+                   * inconclusive on the first run of the accessibility check
+                   * — it could not find data cells for a column header that
+                   * heads no columns.
+                   */}
+                  <th scope="rowgroup" colSpan={7} className={styles.group}>
                     {/*
-                     * The count, and the unit is present for a listener and
-                     * absent for a reader. Measured: the band's accessible
-                     * name reads `Technology Benchmark XLK 13`, so a bare
-                     * figure arrives at the end of a heard sentence with
-                     * nothing saying what it counts. On screen the column of
-                     * figures says it by alignment, which is the whole reason
-                     * the number is right-aligned and tabular — so this is the
-                     * third channel `PriceChange` established rather than a
-                     * second copy of anything.
+                     * The band's own layout, and since Task 2.11.8 it is a
+                     * `<button>` rather than a `<span>` — an inner element
+                     * rather than the `<th>` itself, because a table cell given
+                     * `display: flex` stops being a table cell and a `colspan`
+                     * that no longer spans is the kind of breakage that only
+                     * shows up at one viewport width.
+                     *
+                     * **A bare `<button>` and not a `Button`, and that is not a
+                     * fourth hand-styled copy of one.** `Button` is a bounded
+                     * control with a height, a padding and three variants; this
+                     * is a full-bleed row of a table that became pressable.
+                     * What changed here is that the band's existing layout got
+                     * a `type="button"` and a disclosure state — nothing about
+                     * it was drawn twice.
                      */}
-                    <span className={styles.groupCount}>
-                      {group.securities.length}
-                      <span className={styles.visuallyHidden}> securities</span>
-                    </span>
-                  </span>
-                </th>
-              </tr>
-              {group.securities.map((security) => (
-                <SecurityTableRow
-                  key={security.symbol}
-                  security={security}
-                  coverage={coverage.get(security.symbol)}
-                  lastClose={lastCloses.get(security.symbol)}
-                  session={session}
-                />
-              ))}
-            </tbody>
-          ))}
+                    <button
+                      type="button"
+                      id={bandButtonId(ids, group.key)}
+                      className={styles.groupBand}
+                      aria-expanded={!shut}
+                      aria-controls={bandRowsId(ids, group.key)}
+                      onClick={() => {
+                        setCollapsed(toggleBand(collapsed, group.key));
+                      }}
+                    >
+                      {/*
+                       * The existing `chevronRight`, rotated a quarter turn
+                       * when the band is open. The icon set closed at six and
+                       * the rule is that the next addition needs its own
+                       * argument in its own task; a disclosure that rotates is
+                       * the idiom anyway, and one drawing in two positions
+                       * cannot drift the way two drawings can.
+                       */}
+                      <span
+                        className={cx(
+                          styles.groupChevron,
+                          shut ? undefined : styles.groupChevronOpen,
+                        )}
+                      >
+                        <Icon name="chevronRight" />
+                      </span>
+                      <span className={styles.groupName}>{group.name}</span>{" "}
+                      <span className={styles.groupDetail}>
+                        {group.benchmark === null
+                          ? group.detail
+                          : `Benchmark ${group.benchmark}`}
+                      </span>{" "}
+                      {/*
+                       * The count, and the unit is present for a listener and
+                       * absent for a reader. Measured: the band's accessible
+                       * name reads `Technology Benchmark XLK 13`, so a bare
+                       * figure arrives at the end of a heard sentence with
+                       * nothing saying what it counts. On screen the column of
+                       * figures says it by alignment, which is the whole reason
+                       * the number is right-aligned and tabular — so this is the
+                       * third channel `PriceChange` established rather than a
+                       * second copy of anything.
+                       */}
+                      {/*
+                       * **The spaces are load-bearing rather than formatting**,
+                       * and the reason is `e2e/README.md`'s `Backend
+                       * servicehealthy` trap arriving in a place where it would
+                       * be *heard*. These parts are flex children with no
+                       * literal whitespace between them, and an accessible name
+                       * is a concatenation: measured in jsdom before these
+                       * `{" "}`s existed, this band announced itself as
+                       * `TechnologyBenchmark XLK2securities`. The space is
+                       * invisible on screen and is the whole difference to a
+                       * listener.
+                       */}
+                      <span className={styles.groupCount}>
+                        {group.securities.length}{" "}
+                        <span className={styles.visuallyHidden}>
+                          securities
+                        </span>
+                      </span>
+                    </button>
+                  </th>
+                </tr>
+                {/*
+                 * A shut band renders no rows at all rather than hiding them.
+                 *
+                 * The alternative — keeping 518 rows in the DOM under `hidden`
+                 * — buys nothing a reader or a listener can tell apart, and
+                 * costs the one thing collapse is actually good for on a page
+                 * this size: a hidden row is still a row the browser built,
+                 * laid out and has to keep. The measurement behind that is in
+                 * the task's notes.
+                 */}
+                {!shut &&
+                  group.securities.map((security) => (
+                    <SecurityTableRow
+                      key={security.symbol}
+                      security={security}
+                      coverage={coverage.get(security.symbol)}
+                      lastClose={lastCloses.get(security.symbol)}
+                      session={session}
+                    />
+                  ))}
+              </tbody>
+            );
+          })}
         </table>
       </div>
     </>
   );
+}
+
+/**
+ * The band rail — **the answer to the reversal trigger Story 2.4 wrote**
+ * (Task 2.11.8).
+ *
+ * ## What it is for, measured rather than asserted
+ *
+ * Grouping by sector was the right call and it has a cost that only shows up at
+ * scale. Measured in Chromium at 1710×981 against the real store on
+ * 2026-09-11: the page is **20,309px tall — 20.7 screens** — eleven of the
+ * twelve bands are longer than one screen and six are longer than two, and the
+ * longest (Industrials, 84 rows) runs for **3.0 screens** on its own. Scrolling
+ * is not a way of getting around that; it is the absence of one.
+ *
+ * So the rail is a row of the table's own structure, stated once, above it: the
+ * twelve bands with their counts, each one a jump. Between them and the
+ * collapse control beside them, the 518-row table becomes a thing with a
+ * contents page.
+ *
+ * ## Links, and their default prevented
+ *
+ * They are real `<a href="#…">`s — announced as links, offering the address on
+ * a middle-click, activated by Enter with no handler of our own — and the
+ * navigation is prevented so that twelve jumps are not twelve entries in the
+ * back stack. That is `SEARCH-AND-SELECTION.md` §3's argument arriving
+ * somewhere it was not written for: *the back button must not walk keystrokes*
+ * is the same objection as *the back button must not walk jumps*, and a
+ * fragment naming a sector band is no more a shareable state than a half-typed
+ * query is.
+ *
+ * ## The jump moves focus, and lands on a control
+ *
+ * A jump that only scrolls is a jump a keyboard user cannot take — the page
+ * moves and their focus does not, so the next Tab returns them to where they
+ * were. The target is the band's **disclosure button**, which is already
+ * focusable and is the most useful thing to be standing on when you arrive:
+ * the next thing a reader can do is shut the band they just reached, and Tab
+ * from there walks its rows.
+ *
+ * ## The full sector name, not `TECH`
+ *
+ * The design deliverable abbreviated all eleven. Declined: `SECTOR_LABELS`
+ * exists precisely so nobody derives a display string by transform — "Health
+ * Care" and "Healthcare" are the same slug and different words — and an
+ * abbreviation is a second vocabulary for eleven things this product already
+ * names once. Twelve full labels wrap to two lines at every width this is
+ * reviewed at, and that is the cheaper cost.
+ */
+function BandRail({
+  groups,
+  ids,
+  everythingShut,
+  onToggleAll,
+}: {
+  readonly groups: readonly UniverseGroup[];
+  readonly ids: string;
+  readonly everythingShut: boolean;
+  readonly onToggleAll: () => void;
+}) {
+  const labelId = `${ids}-rail-label`;
+
+  return (
+    // Named by the element a reader can see rather than by an `aria-label`,
+    // which is `Button`'s `iconOnly` argument applied to a landmark: a second
+    // name nobody reviewing the screen can see is a name that drifts from the
+    // visible one with no way to notice.
+    <nav className={styles.rail} aria-labelledby={labelId}>
+      <div className={styles.railHead}>
+        <span className={styles.railLabel} id={labelId}>
+          Jump to a sector
+        </span>
+        {/*
+         * **The real skip link, and it is one keystroke rather than a jump.**
+         *
+         * Task 2.11.5 worried that 518 tab stops wanted a way past them, and
+         * Task 2.11.7 measured that there is nothing after the table to skip
+         * to. What a keyboard user actually wants on this page is for the table
+         * to be *short*, which is what this does: twelve bands and no rows.
+         *
+         * Not disabled in either direction and never absent — it is the same
+         * control saying which way it goes, for `FailedState`'s reason. A
+         * control that disappears at one end of its own range is a control a
+         * reader has to hunt for.
+         */}
+        <Button variant="secondary" size="small" onClick={onToggleAll}>
+          {everythingShut ? "Expand all" : "Collapse all"}
+        </Button>
+      </div>
+      <ul className={styles.railList}>
+        {groups.map((group) => (
+          <li key={group.key}>
+            <a
+              className={cx(
+                styles.railLink,
+                // The market proxies are not a sector — they are the four
+                // whole-market ETFs, which belong to none — so the band recedes
+                // rather than sitting among eleven peers. It is still in the
+                // rail, because a control that cannot reach a band is a filter
+                // wearing a different hat.
+                group.benchmark === null ? styles.railLinkAside : undefined,
+              )}
+              href={`#${bandButtonId(ids, group.key)}`}
+              onClick={(event) => {
+                event.preventDefault();
+                jumpToBand(bandButtonId(ids, group.key));
+              }}
+            >
+              {group.name}{" "}
+              <span className={styles.railCount}>
+                {group.securities.length}{" "}
+                {/*
+                 * The same split the band count makes: the unit is heard and
+                 * not seen, because on screen the figure sits beside a name in
+                 * a row of figures and says what it counts by being there. The
+                 * space before it is load-bearing for the same reason it is on
+                 * the band — see there.
+                 */}
+                <span className={styles.visuallyHidden}>securities</span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+/**
+ * Take a reader to a band: scroll it into view, clear the chrome, then put
+ * focus on its control.
+ *
+ * ## The middle step is the one this task was warned about, and it was real
+ *
+ * TASK-08's own brief says *an element scrolled to by focus can land underneath
+ * a sticky band, which is invisible to every automated check and obvious to
+ * anyone using Tab*. Measured in Chromium before this line existed: a jump to
+ * Industrials put the band's top at viewport y=**0**, and the application's
+ * masthead is `position: sticky` and **133px tall** at 1710px — so the band and
+ * its first four rows were behind it, on a page that had just scrolled 11,933px
+ * to reach them. Focus was on an element nobody could see.
+ *
+ * ## Why the chrome is measured rather than tokenised
+ *
+ * `--app-header-height` is 56px and is the **masthead** only; the sticky header
+ * also carries the status strip, which wraps to two rows at 768px and three at
+ * 390px. So the number this needs exists at three different values and is
+ * decided by a media query in another component's stylesheet — a token would be
+ * a second copy of it, checked by nothing, wrong at two viewports the first time
+ * the strip's contents change.
+ *
+ * Reading the element is a DOM reach and is the honest version of the same
+ * fact. It also degrades exactly right: in the workshop there is no `<header>`
+ * and no chrome to clear, so the offset is zero and the band goes to the top.
+ *
+ * ## The order, and `preventScroll`
+ *
+ * Focusing an element scrolls it into view **its own way** — the minimum
+ * movement that makes it visible, which lands a band at the *bottom* edge with
+ * its rows off screen below. Scrolling deliberately and then refusing the
+ * second scroll is what puts the band where a reader can read down it.
+ *
+ * A `null` target is a band that is not on the page, which cannot happen from
+ * the rail — the links are built from the rendered groups — and is not worth an
+ * error path nothing can reach.
+ */
+function jumpToBand(id: string): void {
+  const target = document.getElementById(id);
+  if (target === null) return;
+
+  // **One scroll, to a position computed once**, rather than `scrollIntoView`
+  // followed by a correction. Two scrolls were tried and are measurably not
+  // equivalent: `scrollIntoView({ block: "start" })` does not reliably leave
+  // the element's top at exactly zero — in Playwright's Chromium at 1440×900 it
+  // landed 2px short, so the correction subtracted the chrome from the wrong
+  // origin and put the band a pixel behind it. Adding the element's current
+  // offset to the page's own scroll is arithmetic with no engine behaviour in
+  // it.
+  //
+  // The page is the scroller and that was measured rather than assumed: the
+  // `Panel` around this table declares `overflow: auto`, but it grows with its
+  // content — `scrollHeight` and `clientHeight` both read 18,764px — so it is a
+  // scrollport that never scrolls. Which is also why a sticky band header does
+  // nothing here; see the task's record.
+  const top = target.getBoundingClientRect().top + window.scrollY;
+  window.scrollTo({ top: top - stickyChromeHeight() });
+  target.focus({ preventScroll: true });
+}
+
+/**
+ * How much of the top of the viewport the application's own chrome is sitting
+ * over.
+ *
+ * `<header>` rather than a class name, because the thing being asked about is
+ * the page's banner landmark and there is exactly one — and because a class
+ * name from another component's CSS Module is not reachable from here anyway.
+ *
+ * The `position` check is not defensive padding: it is the whole question. A
+ * header that is not sticky occludes nothing, and subtracting its height would
+ * scroll the band *past* the top of the viewport.
+ */
+function stickyChromeHeight(): number {
+  const header = document.querySelector("header");
+  if (header === null) return 0;
+
+  const { position } = getComputedStyle(header);
+  if (position !== "sticky" && position !== "fixed") return 0;
+
+  // Rounded **up**, and it is a one-pixel decision with a measurement behind
+  // it. The header's height is fractional at some zoom levels and browsers snap
+  // a scroll offset to whole device pixels, so the exact value leaves the band
+  // a pixel behind the chrome — measured at 131 against a 132px header, which
+  // went red in `universe-navigation.spec.ts` and is invisible to a reader. A
+  // pixel of air below the chrome is the harmless direction to be wrong in.
+  return Math.ceil(header.getBoundingClientRect().height);
 }
 
 /**
@@ -1260,14 +1670,32 @@ function describeHistory(withHistory: number, rows: number): string {
  * thing here not to tidy away: it has to survive every transition the `switch`
  * makes, and folding it into a branch is how it stops doing that.
  */
-export function UniverseTable({ view, onRetry }: UniverseTableProps) {
+export function UniverseTable({
+  view,
+  onRetry,
+  initiallyCollapsed = NOTHING_COLLAPSED,
+}: UniverseTableProps) {
   return (
     <>
       <Announcement view={view} />
-      <StateBody view={view} onRetry={onRetry} />
+      <StateBody
+        view={view}
+        onRetry={onRetry}
+        initiallyCollapsed={initiallyCollapsed}
+      />
     </>
   );
 }
+
+/**
+ * The default: every band open.
+ *
+ * A module constant rather than a `[]` in the parameter list, because a fresh
+ * literal on every render is a new object identity — harmless here, since the
+ * seed is read once, and exactly the kind of thing that stops being harmless
+ * the day somebody makes it a dependency.
+ */
+const NOTHING_COLLAPSED: readonly string[] = [];
 
 export interface UniverseTableProps {
   /**
@@ -1290,9 +1718,29 @@ export interface UniverseTableProps {
    * would be a component that could not be reviewed in the workshop.
    */
   readonly onRetry: () => void;
+
+  /**
+   * Which sector bands start shut. Defaults to none.
+   *
+   * **The route passes nothing, and the workshop is why this exists**: a
+   * collapse is component state, and there is no other way to put this table
+   * into its shut arrangement and review it beside the open one. That is the
+   * same argument `BarSeriesPanel`'s `defaulted` makes, and it is worth being
+   * explicit that the prop is honest rather than a test seam — a second screen
+   * showing the universe as a contents page would pass every band here on its
+   * first render.
+   *
+   * Read **once**. A band a reader has opened does not shut again because this
+   * prop still names it.
+   */
+  readonly initiallyCollapsed?: readonly string[];
 }
 
-function StateBody({ view, onRetry }: UniverseTableProps) {
+function StateBody({
+  view,
+  onRetry,
+  initiallyCollapsed = NOTHING_COLLAPSED,
+}: UniverseTableProps) {
   switch (view.state) {
     case "loading":
       return <LoadingState />;
@@ -1303,6 +1751,7 @@ function StateBody({ view, onRetry }: UniverseTableProps) {
           securities={view.securities}
           coverage={view.coverage}
           lastCloses={view.lastCloses}
+          initiallyCollapsed={initiallyCollapsed}
         />
       );
 

@@ -88,6 +88,119 @@
   font-weight: var(--font-weight-strong);
 }
 
+/* --- The band rail (Task 2.11.8) --- */
+
+/*
+ * A row of the table's own structure, above it: the twelve bands with their
+ * counts, each one a jump, and the control that shuts them all beside.
+ *
+ * ## Why it sits on a rule rather than in a box
+ *
+ * The obvious drawing is a bordered strip — a toolbar over a table. It was
+ * rejected for what it would say: a panel inside a panel reads as a second
+ * instrument, and this is not one. It is the table telling you what is in it.
+ * So the whole treatment is a hairline above it and space around it, which is
+ * the same thing the summary line does directly above and makes the three
+ * blocks read as one header rather than as three widgets stacked.
+ */
+.rail {
+  margin-bottom: var(--space-16);
+  padding-top: var(--space-12);
+  border-top: var(--border-width) solid var(--rule-hairline);
+}
+
+.railHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+  /* The control is 28px and the label is 16px of micro-label, so the row's
+     height is the control's. `align-items: center` rather than `baseline` for
+     exactly that reason: a baseline here would hang the button off the label's
+     text and leave it a pixel or two proud of the rule below. */
+  margin-bottom: var(--space-8);
+}
+
+/*
+ * The label, and it is a real element rather than an `aria-label` on the
+ * landmark because the nav's accessible name points at it — one name, visible,
+ * with nothing to drift from.
+ */
+.railLabel {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+}
+
+.railList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * One band. A hairline box with the sector's name and its count — deliberately
+ * the same silhouette as the input field and the chips elsewhere in this
+ * language rather than a new one, because a rail of twelve unfamiliar shapes
+ * is a rail a reader has to learn.
+ *
+ * `--rule-control` and not `--rule-hairline`: this is a control, and WCAG
+ * 1.4.11 wants 3:1 to identify one. The hairline measures 1.32:1 on the panel
+ * ground and the control rule measures 4.48:1 — the same deviation from the
+ * canvas ADR 0026 records for the input boundary, for the same reason, and it
+ * is why the field and the rail agree with each other rather than each picking
+ * a line.
+ */
+.railLink {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  padding: var(--space-4) var(--space-8);
+
+  border: var(--border-width) solid var(--rule-control);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+
+  color: var(--ink-primary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+/* Hover and focus are the same statement — *this is where you will land* — so
+   they are the same drawing, which is `.symbolLink`'s rule one block down.
+   The ring itself is the token layer's job and is not declared here. */
+.railLink:hover {
+  border-color: var(--rule-strong);
+}
+
+/*
+ * The market proxies. Not a sector — four whole-market ETFs, which belong to
+ * none — so the band recedes to the sunken ground rather than sitting among
+ * eleven peers. It is still a link, and still reachable by Tab: a control that
+ * cannot reach a band is a filter wearing a different hat.
+ */
+.railLinkAside {
+  background: var(--surface-sunken);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The count, and it is the reason to press the link rather than decoration. A
+ * rail of twelve identical-looking names is a table of contents; a rail that
+ * says Industrials is 84 and Energy is 22 is telling a reader what they are
+ * about to get.
+ */
+.railCount {
+  composes: dataCell from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+}
+
 /* --- The table --- */
 
 .table {
@@ -259,13 +372,58 @@
   font-weight: var(--font-weight-regular);
 }
 
-/* The band's own layout. It is a child of the cell rather than the cell itself
-   because a `<th>` given `display: flex` stops being a table cell and its
-   `colspan` stops spanning. */
+/*
+ * The band's own layout. It is a child of the cell rather than the cell itself
+ * because a `<th>` given `display: flex` stops being a table cell and its
+ * `colspan` stops spanning.
+ *
+ * **Since Task 2.11.8 it is a `<button>`**, so it has to unset what a button
+ * brings with it — the agent stylesheet's border, background, padding, font and
+ * centred text — and then be the full width of its cell, because a control that
+ * is pressable only where its text happens to fall is a control that reads as
+ * pressable everywhere and is not.
+ *
+ * `cursor: pointer` is deliberate and is the one place this file disagrees with
+ * the platform default for a button. The band does not look like a control at
+ * rest — it looks like the structural heading it has always been — and the
+ * pointer is what says it is one before anybody clicks to find out.
+ */
 .groupBand {
   display: flex;
   align-items: baseline;
   gap: var(--space-12);
+
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/*
+ * The disclosure, and the whole open/shut drawing.
+ *
+ * One icon in two positions rather than two icons: the set closed at six and
+ * the rule is that a seventh needs its own argument in its own task. A rotation
+ * also cannot drift the way a pair of drawings can.
+ *
+ * It is **not** the only encoding of the state — `aria-expanded` carries it for
+ * a listener and the rows themselves carry it for everybody — which is what
+ * lets it be this quiet.
+ */
+.groupChevron {
+  display: inline-flex;
+  color: var(--ink-secondary);
+  transition: transform var(--motion-duration-quick) var(--motion-ease-standard);
+}
+
+.groupChevronOpen {
+  transform: rotate(90deg);
 }
 
 /* The first group sits directly under the column headings, which already carry

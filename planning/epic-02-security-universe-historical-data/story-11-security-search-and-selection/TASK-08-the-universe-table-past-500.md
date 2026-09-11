@@ -1,6 +1,6 @@
 # Task 2.11.8 — The universe table past 500: a control on it at last
 
-**Status:** Not started
+**Status:** Complete — 2026-09-11
 **Story:** [2.11 Security Search & Selection](STORY.md)
 **Depends on:** 2.11.6, 2.11.7
 
@@ -213,3 +213,305 @@ otherwise, and if it does, that measurement is the finding and the work belongs
 to Epic 14, which owns performance. Record the number either way; a claim about
 render cost with no figure behind it is exactly what `CLAUDE.md` asks not to
 carry forward.
+
+---
+
+# What was built — 2026-09-11
+
+## The design deliverable
+
+**`Universe navigation.dc.html`, in the `Component library for MarketPulse`
+design canvas** — <https://claude.ai/design/p/727b5b14-fe78-47c1-9d9c-fb84b6ce5280>.
+Eight sections: the measurement the trigger fired on, the rail, the band open
+and shut, the whole universe on one screen, the summary line in its three forms,
+four things declined with their reasons, the keyboard walk, and what grouping
+does under an active query.
+
+**It is a second file rather than a ninth section of the existing canvas, and
+that was forced rather than chosen.** `DesignSync`'s `get_file` caps a read at
+256 KiB and `MarketPulse Design System.dc.html` is larger than that — it comes
+back as exactly 262,144 bytes, truncated mid-attribute — so a read-modify-write
+of that path can only publish a file with everything past the cap deleted. ADR
+0026's "the canvas is one file" bullet carries a dated amendment saying so.
+
+## The control
+
+**A band rail and a collapse**, both inside the tracked-universe region, above
+the table:
+
+- **The rail** is a `<nav>` named by a visible label, holding one link per band —
+  eleven sectors in `SECTORS` order and the market proxies last — each with its
+  row count. A link scrolls its band to just under the sticky chrome and **moves
+  focus to that band's disclosure button**.
+- **Each band heading is now a disclosure**: a `<button>` with `aria-expanded`
+  and `aria-controls`, carrying the existing `chevronRight` rotated a quarter
+  turn when open. A shut band renders no rows at all.
+- **`Collapse all` / `Expand all`** sits at the rail's right end — one control
+  saying which way it goes, never disabled and never absent.
+- **The summary line gained one clause**, `N of 518 rows shown`, which appears
+  only when N is not the whole number.
+
+## What was measured, and where each number came from
+
+Chromium, against the local pair serving the real database, 2026-09-11. The
+performance figures are from the **production build** (`vite build` +
+`vite preview`) because a dev-build figure would overstate the cost by roughly
+two; both are given where they differ.
+
+| Measurement                                | Reading                                                 |
+| ------------------------------------------ | ------------------------------------------------------- |
+| The page, expanded, at 1710×981            | **20,402px — 20.8 screens**                             |
+| The page, every band shut                  | **2,273px** — **9.0× shorter**                          |
+| Bands longer than one screen               | **11 of 12**; six are longer than two                   |
+| The longest band                           | **Industrials, 84 rows, 2,976px — 3.0 screens**         |
+| Focusable elements, expanded               | **556**                                                 |
+| Focusable elements, every band shut        | **38**                                                  |
+| `Collapse all` (530 rows → 12), production | **17, 19, 20, 44 ms**                                   |
+| `Expand all` (12 rows → 530), production   | **69, 76, 76, 87 ms**                                   |
+| The same pair in the dev build             | **17–27 ms** and **151–222 ms**                         |
+| A sticky band header, scrolled 400px past  | viewport top **−400px** — it does not stick at all      |
+| The sticky masthead                        | **133px** at 1710px, taller at the two narrow viewports |
+| The rail at three viewports                | one row at 1710, two at 1024, four at 640               |
+
+## The four findings
+
+**1. A sticky band header does nothing here, and the cause is structural.**
+The task asked for this to be produced and looked at. It was, by setting
+`position: sticky; top: 0` on a live band and scrolling 400px past it: the
+band's viewport top came back **−400px**. The table sits inside a `Panel` that
+declares `overflow: auto`, so the _panel_ is the nearest scrollport — and the
+panel never scrolls, because it grows with its content (`scrollHeight` and
+`clientHeight` both read 18,764px) while the **page** scrolls. Sticky resolves
+against a box that is never offset from itself. Making it work would mean giving
+the panel a height and a scrollbar of its own, which puts a second scrolling
+region on a page whose whole shape is _the table is last and the document ends_.
+Declined, with the measurement.
+
+**2. The jump landed behind the chrome, exactly as this task warned.** The brief
+says _an element scrolled to by focus can land underneath a sticky band, which
+is invisible to every automated check and obvious to anyone using Tab_. It did:
+a jump to Industrials put the band's top at viewport **y=0** with the masthead
+133px tall over it, after an 11,933px scroll, with focus on an element nobody
+could see. `jumpToBand` now computes one scroll position and subtracts the
+sticky chrome's measured height. **The chrome is read rather than tokenised**
+because `--app-header-height` is the masthead only (56px) and the status strip
+beneath it wraps at two more breakpoints — a token would be a second copy of a
+number that lives in another component's media queries, wrong at two viewports
+the first time the strip's contents change. It also degrades exactly right: in
+the workshop there is no `<header>`, so the offset is zero.
+`e2e/specs/universe-navigation.spec.ts` asserts the landing against the header's
+own box, and **the break was verified red** by removing the subtraction — one
+test failed and only that one.
+
+**3. Two accessible names were being concatenated without spaces**, and one of
+them pre-dates this task. Measured in jsdom: the band heading announced itself
+as `TechnologyBenchmark XLK2securities` and the new rail link as
+`Technology 2securities`. This is `e2e/README.md`'s `Backend servicehealthy`
+trap arriving in a place where it would be **heard** rather than merely
+mis-asserted on — the parts are flex children with no literal whitespace between
+them, and an accessible name is a concatenation. Explicit `{" "}` text nodes fix
+both; four component tests assert the names whole. Note that the comment in
+`UniverseTable.tsx` claiming the band read `Technology Benchmark XLK 13` was
+therefore describing a browser's computation and not jsdom's — the markup now
+makes both right, so the claim is true rather than engine-dependent.
+
+**4. Building 518 rows is a >50ms main-thread task, and the figure is recorded
+rather than acted on.** `Expand all` costs **69–87 ms** in the production build,
+against PRODUCT_SPEC.md §28's _no routine main-thread task >50 ms_.
+`Collapse all` costs 17–44 ms. Two things about that:
+
+- **It is not new and it is not routine.** The same work happens on every first
+  paint of this page and always has; what changed is that there is now a control
+  that repeats it, which is how it became measurable at all. It is a deliberate
+  user action, once, not a per-frame or per-update cost.
+- **Virtualisation stays out of scope**, which is this repository's rule about
+  not building infrastructure before the iteration that needs it — and collapse
+  is the cheaper answer to the same problem, because a shut band renders no rows.
+  If a later measurement says otherwise, that measurement is the finding and the
+  work belongs to **Epic 14**, which owns performance.
+
+## Decisions, with their alternatives
+
+**Expanded is the default; collapsed is never the arrival state.** An untracked
+security is shown, marked and findable (`UNIVERSE.md` §12.2), and a
+collapse-by-default hides one behind a control nobody has pressed yet. The rail
+reaches every band including the market proxies, and a browser test asserts the
+property that makes that true: **the rail's counts sum to exactly the number of
+rows in the table**, so there is no band the control cannot get to.
+
+**The full sector name in the rail, not `TECH`.** The design deliverable
+abbreviated all eleven. `SECTOR_LABELS` exists precisely so nobody derives a
+display string by transform, so an abbreviation is a twelfth vocabulary for
+eleven things already named once. Twelve full labels wrap to two lines at 1024
+and four at 640 — measured, legible, and the cheaper cost.
+
+**The collapse set is `useState` in the table, and that is the store's reversal
+trigger _not_ firing.** `FRONTEND-STATE.md`'s trigger is _the first piece of
+state two features must agree about that neither owns_. This is read by the
+table and by nothing else; search has no opinion about it, because search is a
+surface over the page rather than a filter on it.
+
+**It survives a navigation, and that is the default rather than a mechanism.**
+`/securities` and `/securities/:symbol` render the same module, so opening a
+security re-renders rather than re-mounts and the set stays. That is the right
+answer for a collapse — an arrangement a reader made on purpose — and would be
+the wrong one for a scroll position or a "current band", which is why the set is
+the only thing kept.
+
+**Nothing new goes in the live region.** `aria-expanded` on the band's own
+button is spoken at the moment a listener presses it, about the thing they
+pressed. A `role="status"` re-reading the summary on top of that is two
+announcements of one action; a component test asserts the announcement is
+byte-identical across a collapse.
+
+**Grouping under an active query: nothing changes, and the state is produced
+rather than described.** Search opens a result surface over the page; the table
+underneath is untouched. So the brief's worry — _eleven sector bands holding one
+row each is worse than a flat list of eleven_ — cannot arise, because no query
+ever reduces a band to one row. The two controls answer two different questions:
+search is for a person who knows the symbol, the rail for a person who does not
+know what to type.
+
+**One deviation from the Done-when list, stated rather than glossed.** It asks
+for stories covering the collapsed, expanded and **filtered** states.
+`AllBandsCollapsed`, `OneBandCollapsed`, `TheRealUniverse` and
+`TheRealUniverseWithUntracked` exist and `pnpm stories` passes — but there is no
+_filtered_ story, because `UniverseTable` has no query to be filtered by: the
+field lives on the route. That state is produced in the browser instead, where
+both surfaces exist, by `an active query changes the result surface and leaves
+the table alone`.
+
+**And the kind-filter chips stay declined**, per `SEARCH-AND-SELECTION.md` §5.
+The grouping work made no case for one: with collapse, 518 rows already reduce
+to twelve.
+
+## What nothing checks
+
+- **That the rail is worth pressing.** Twelve reachable links is not the same as
+  a reader finding their way around 518 rows. That judgement is a person looking
+  at the page, and this task's is that the collapsed table — the whole universe
+  as twelve rows under a live column header — is the state worth showing
+  somebody.
+- **That `initiallyCollapsed` stays workshop-only.** It is honest API and the
+  route passes nothing; nothing would go red if a route started seeding it.
+- **That the expand cost stays where it is.** There is no performance gate in
+  this repository and this task did not add one. Re-measure by timing a
+  `MutationObserver` around the `Expand all` click in the production build.
+
+## Gates
+
+`pnpm verify` green. `pnpm e2e` green — **69 browser tests**, including nine new
+ones in `e2e/specs/universe-navigation.spec.ts`, three of them whole-document axe
+runs over the **collapsed** table at 1440, 1024 and 640px. That last set was the
+one real risk: a `<th scope="rowgroup">` whose row group has lost its data cells
+is a new shape for `th-has-data-cells` to judge, and it did not become a
+violation — the table's one pre-existing `incomplete` is unchanged.
+
+The bundle re-measure both fixture rules name still finds nothing:
+`grep -o "Agilent Technologies" apps/frontend/dist/assets/*.js` → 0.
+
+---
+
+# For the stakeholders — what this actually did
+
+## The problem, in one sentence
+
+MarketPulse follows 518 companies, and the page listing them was **twenty
+screens long**.
+
+## What that was like
+
+The list is organised by sector, which is the right way round — it answers "what
+does this product actually cover?" rather than "where is one particular
+company?". But at 518 companies the organisation stopped helping. Eleven of the
+twelve sector groups were longer than a full screen. Industrials alone ran for
+three screens. Finding Technology meant scrolling past Health Care and
+Financials; finding out how much the product covered in total meant scrolling
+past everything.
+
+We knew this was coming. When the list was first built we wrote down the exact
+condition that would break it — _"at 500 securities a single sector group is
+longer than a screen"_ — and said that when it happened, the groups would need
+to become something you could jump between or fold away. This task is that
+condition arriving and being dealt with.
+
+## What we built
+
+**Two things, both sitting just above the list.**
+
+**A row of sector links**, each one showing how many companies are in it —
+`Technology 74`, `Industrials 84`, `Energy 22`. Click one and the page takes you
+straight to that section. The counts are on the links deliberately: a row of
+eleven identical-looking names is a table of contents, but a row that tells you
+Industrials is 84 companies and Energy is 22 is telling you something about the
+market before you have gone anywhere.
+
+**A fold.** Every sector heading can now be clicked shut, and one button at the
+top shuts all of them at once. Press it and the twenty-screen page becomes
+**twelve lines on a single screen** — the whole tracked universe as a contents
+page. We measured it: the page goes from 20,402 pixels tall to 2,273, nine times
+shorter.
+
+That second state is the one worth showing someone. It is the clearest answer
+this product has ever given to "what does MarketPulse cover?" — eleven sectors,
+their benchmark funds, and how many companies are in each, all visible at once
+without moving.
+
+## Three choices worth explaining
+
+**We did not build the obvious thing.** The usual answer to a long table is a
+sector heading that "sticks" to the top of the screen as you scroll past it. We
+tried it in the live page and it did nothing at all — for a structural reason
+about how the panel around the table is built, not a styling one. Rather than
+guess, we measured it, wrote down why it cannot work here, and spent the effort
+on the fold instead, which solves the same problem better. A sticky heading
+helps you know where you are; a fold means you do not have to go there.
+
+**We caught a real defect by walking it with a keyboard.** The first version of
+the sector links scrolled to the right place and dropped you **underneath the
+application's own header bar** — the section you asked for was hidden behind the
+navigation, and for anyone using a keyboard rather than a mouse, the cursor was
+sitting on something invisible. This is the kind of fault no automated check
+catches and anyone actually using the page hits immediately. It is fixed, and
+there is now a browser test that fails if it ever comes back. We deliberately
+broke it again to confirm the test does its job.
+
+**We fixed something a screen-reader user would have heard.** Each sector
+heading reads out its name, its benchmark fund and its size. Those three facts
+were running together without spaces — a listener heard
+"TechnologyBenchmarkXLK74securities". Invisible on screen, wrong in the ear. It
+is now spaced properly, and four tests check the exact wording.
+
+**We declined a filter, on purpose.** The original design sketch put buttons
+above the table to show only companies, or only funds. We left it out for a
+specific reason: a filter changes which rows exist, so it also needs to change
+the summary sentence above the table and it needs to be shareable in a link —
+two decisions that belong to a task that owns both. It is also no longer
+obviously needed: with the fold, 518 rows already come down to twelve. If the
+case comes back, it comes back as a proper feature rather than as three buttons.
+
+## The one number we are watching
+
+Opening every sector again takes about **70–90 milliseconds** of browser work.
+Our own performance target says no routine task should exceed 50. It is not a
+new cost — the page has always done that work when it first loads — and it only
+happens when somebody deliberately presses a button, so it is not degrading
+anything today. But we wrote the figure down rather than waving at it, and the
+team that owns performance now has a measured starting point instead of a
+hunch. The usual industrial fix (rendering only the rows currently on screen) is
+deliberately **not** built yet: folding a sector away already achieves the same
+thing, and this project does not add machinery before something needs it.
+
+## Where this leaves the product
+
+The Security Explorer now has all three ways of getting to a company that it
+needs: **type its name** (search, built two tasks ago), **click it in the list**
+(built one task before that), and **navigate the market by sector** (this task).
+That was the last piece of "finding a security" — the story can close.
+
+What comes next is what a person sees once they have arrived. The next two
+pieces of work draw the price chart and the volume chart for whichever company
+they picked. The data behind both is already stored — 47.7 million minute-by-
+minute price bars across all 518 companies — and the page currently states those
+numbers as text. Turning them into charts is the immediate next step, and the
+screen those charts land on is finished and waiting for them.

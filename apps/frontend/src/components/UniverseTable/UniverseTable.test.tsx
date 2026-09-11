@@ -807,3 +807,284 @@ describe("UniverseTable", () => {
     expect(container.querySelectorAll("[aria-hidden='true']")).toHaveLength(1);
   });
 });
+
+// The band rail and the collapse (Task 2.11.8).
+//
+// Everything here is reached by **role and accessible name** rather than by the
+// ids the control is built on. That is not a style preference: the ids carry a
+// `useId()` prefix so that two of these tables on one page do not collide, and
+// `e2e/README.md` names a `useId()` value as a thing a test must not assert on.
+// Asking for "the link named Technology 74 securities" is also the stronger
+// question — it is what a screen reader is handed.
+describe("the band rail", () => {
+  const twoSectors = () =>
+    loaded([XLK, equity(), ABBV, SPY]) as SecuritiesView & { state: "loaded" };
+
+  it("offers one link per band, with its count", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={twoSectors()} />);
+
+    const rail = screen.getByRole("navigation", { name: "Jump to a sector" });
+    const links = within(rail).getAllByRole("link");
+
+    // Two sectors and the proxies, in `SECTORS` order with the proxies last —
+    // the same order the bands themselves are in, because a contents page in a
+    // different order from its contents is worse than none.
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Technology 2 securities",
+      "Health Care 1 securities",
+      "Market proxies 1 securities",
+    ]);
+  });
+
+  // The unit is heard and not seen: on screen the figure sits beside a name and
+  // says what it counts by being there, and a bare number at the end of a
+  // spoken sentence does not. The same split the band heading already makes.
+  it("names each link so the count has a unit when it is heard", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={twoSectors()} />);
+
+    expect(
+      screen.getByRole("link", { name: "Technology 2 securities" }),
+    ).toBeTruthy();
+  });
+
+  // The landmark is named by an element on the page rather than by an
+  // `aria-label`, which is `Button`'s `iconOnly` argument applied to a
+  // landmark: a second name nobody reviewing the screen can see is a name that
+  // drifts from the visible one with no way to notice.
+  it("is named by the label a reader can see", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={twoSectors()} />);
+
+    const rail = screen.getByRole("navigation", { name: "Jump to a sector" });
+    const label = screen.getByText("Jump to a sector");
+
+    expect(rail.getAttribute("aria-labelledby")).toBe(label.id);
+  });
+
+  // The market proxies are in the rail. A jump control that cannot reach a band
+  // is close enough to a filter to matter, and this is the band most likely to
+  // be dropped by an implementation that thinks in sectors.
+  it("reaches the band that is not a sector", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={twoSectors()} />);
+
+    expect(
+      screen.getByRole("link", { name: "Market proxies 1 securities" }),
+    ).toBeTruthy();
+  });
+
+  // And it reaches a band holding a security we have stopped tracking, which is
+  // the check TASK-08 asked for by name. `groupUniverse` filters on nothing, so
+  // the rail is built from every band there is.
+  it("reaches a band holding an untracked security", () => {
+    renderWithContext(
+      <UniverseTable
+        onRetry={noop}
+        view={loaded([
+          equity({ symbol: toTicker("GILD"), status: "untracked" }),
+        ])}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Technology 1 securities" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "GILD" })).toBeTruthy();
+  });
+});
+
+describe("collapsing a band", () => {
+  const universe = () => loaded([XLK, equity(), ABBV, SPY]);
+
+  // The disclosure is a real button with a real state, which is what a screen
+  // reader announces when it is pressed. Nothing else on this page reports the
+  // collapse, on purpose — see the summary line's clause for why a live region
+  // would be a second announcement of one action.
+  it("is a disclosure that reports its own state", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={universe()} />);
+
+    const band = screen.getByRole("button", {
+      name: "Technology Benchmark XLK 2 securities",
+    });
+    expect(band.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.click(band);
+    expect(band.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("removes that band's rows and leaves every other band alone", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={universe()} />);
+
+    expect(screen.getByRole("link", { name: "NVDA" })).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Technology Benchmark XLK 2 securities",
+      }),
+    );
+
+    expect(screen.queryByRole("link", { name: "NVDA" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "XLK" })).toBeNull();
+    // Health Care is untouched, which is the half of this that a `collapseAll`
+    // masquerading as a toggle would quietly break.
+    expect(screen.getByRole("link", { name: "ABBV" })).toBeTruthy();
+  });
+
+  // The heading survives the collapse, and it has to: it is both the label for
+  // the row group and the only way back to the rows.
+  it("keeps the band heading and its count", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={universe()} />);
+
+    const band = screen.getByRole("button", {
+      name: "Technology Benchmark XLK 2 securities",
+    });
+    fireEvent.click(band);
+
+    expect(
+      screen.getByRole("button", {
+        name: "Technology Benchmark XLK 2 securities",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("names the rows it controls, and that element is still there when they are not", () => {
+    const { container } = renderWithContext(
+      <UniverseTable onRetry={noop} view={universe()} />,
+    );
+
+    const band = screen.getByRole("button", {
+      name: "Technology Benchmark XLK 2 securities",
+    });
+    const controls = band.getAttribute("aria-controls");
+    expect(controls).not.toBeNull();
+
+    fireEvent.click(band);
+
+    // An `aria-controls` pointing at nothing is worse than none at all, and the
+    // collapse is exactly the moment it could start doing so.
+    expect(container.querySelector(`#${CSS.escape(controls ?? "")}`)).not.toBe(
+      null,
+    );
+  });
+
+  // Starting shut is reachable, which is what the workshop needs in order to
+  // review the state at all. The route passes nothing.
+  it("can start with a band already shut", () => {
+    renderWithContext(
+      <UniverseTable
+        onRetry={noop}
+        view={universe()}
+        initiallyCollapsed={["technology"]}
+      />,
+    );
+
+    expect(screen.queryByRole("link", { name: "NVDA" })).toBeNull();
+    expect(screen.getByRole("link", { name: "ABBV" })).toBeTruthy();
+  });
+});
+
+describe("collapse all", () => {
+  const universe = () => loaded([XLK, equity(), ABBV, SPY]);
+
+  it("shuts every band and then offers to open them again", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={universe()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
+
+    expect(screen.queryByRole("link", { name: "NVDA" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "ABBV" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "SPY" })).toBeNull();
+
+    // The same control saying which way it goes. It is never disabled and never
+    // absent — a control that disappears at one end of its own range is a
+    // control a reader has to hunt for.
+    fireEvent.click(screen.getByRole("button", { name: "Expand all" }));
+    expect(screen.getByRole("link", { name: "NVDA" })).toBeTruthy();
+  });
+
+  // The label is the control's feedback for a listener: pressing it keeps focus
+  // on the button, and a focused button whose accessible name changes is
+  // announced. Without that, this control's entire feedback would be visual.
+  it("offers to collapse while anything is open", () => {
+    renderWithContext(
+      <UniverseTable
+        onRetry={noop}
+        view={universe()}
+        initiallyCollapsed={["technology", "health_care"]}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Collapse all" })).toBeTruthy();
+  });
+});
+
+// **The sentence this task owes**, and it is written as an assertion about the
+// sentence for the reason `SecurityExplorer.test.tsx`'s is: a control that
+// genuinely changes which rows are on screen has to change the line above them
+// in the same commit, and the way to be sure is to read the line.
+//
+// The other half of the pair lives in that file and says the opposite about
+// search — typing leaves this sentence byte-identical, because search is a
+// surface over the page rather than a filter on it.
+describe("the summary line, when rows are hidden", () => {
+  const universe = () => loaded([XLK, equity(), ABBV, SPY]);
+
+  const sentence = () =>
+    screen.getByText("securities tracked").closest("p")?.textContent;
+
+  it("says nothing about rows while every one of them is on screen", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={universe()} />);
+
+    // The asymmetry the `no longer tracked` and `all with history` clauses
+    // already have: a line reading `4 of 4 rows shown` at rest is two identical
+    // figures a centimetre apart, which reads as a mistake.
+    expect(sentence()).not.toContain("rows shown");
+  });
+
+  it("reports how many rows are left when a band is shut", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={universe()} />);
+
+    const before = sentence();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Technology Benchmark XLK 2 securities",
+      }),
+    );
+
+    expect(sentence()).not.toBe(before);
+    expect(sentence()).toContain("2 of 4 rows shown");
+  });
+
+  it("reports zero when everything is shut, rather than dropping the clause", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={universe()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
+
+    expect(sentence()).toContain("0 of 4 rows shown");
+  });
+
+  // Collapsing hides rows; it does not untrack a security. Every figure that is
+  // a claim about the universe has to survive a control that is a claim about
+  // the screen.
+  it("leaves every other figure exactly where it was", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={universe()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
+
+    expect(sentence()).toContain("4 securities tracked");
+    expect(sentence()).toContain("2 sectors");
+  });
+
+  // And the live region is not one of the things that moves. `aria-expanded` on
+  // the button is spoken at the moment a listener presses it, about the thing
+  // they pressed; a `role=status` re-reading the summary on top of that is two
+  // announcements of one action.
+  it("does not re-announce the page when a band is shut", () => {
+    renderWithContext(<UniverseTable onRetry={noop} view={universe()} />);
+
+    const announced = screen.getByRole("status").textContent;
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
+
+    expect(screen.getByRole("status").textContent).toBe(announced);
+  });
+});

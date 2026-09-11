@@ -1,4 +1,4 @@
-import { toMarketDate, toTicker } from "@marketpulse/shared";
+import { SECTORS, toMarketDate, toTicker } from "@marketpulse/shared";
 import type {
   Security,
   SecurityCoverage,
@@ -6,6 +6,7 @@ import type {
 } from "@marketpulse/shared";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
+import { securitiesFixtureView } from "../../fixtures/securities.js";
 import type { SecuritiesView } from "../../use-securities.js";
 import gridStyles from "../stories.module.css";
 import { UniverseTable } from "./UniverseTable.js";
@@ -239,6 +240,75 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Loaded: Story = {};
+
+/**
+ * ## The real universe — 518 securities in twelve bands
+ *
+ * **The band rail and the collapse are the only things in this table whose
+ * interesting property is how they behave at scale**, and a workshop showing
+ * twelve rows in eleven bands cannot show it: eleven jump links over a table
+ * that fits on one screen is a control with nothing to do. So these three
+ * stories come from `securitiesFixtureView("full")` — the recorded
+ * `GET /securities` body, collapsed through the real `toSecuritiesView` — and
+ * the hand-written specimen above stays for everything else.
+ *
+ * That split is deliberate rather than an unfinished migration. The stories
+ * that review a *cell* — a close from an earlier session, one stored session,
+ * a security with no bars — want a specimen small enough that all six rows can
+ * be read at once, and three of six being exceptions is the point of them. The
+ * stories that review a *control* want the 20,309px page it was built for.
+ */
+export const TheRealUniverse: Story = {
+  args: { view: securitiesFixtureView("full") },
+};
+
+/**
+ * Every band shut: the whole tracked universe as twelve rows.
+ *
+ * **This is the state the control exists to produce.** Measured in Chromium
+ * against the production build on 2026-09-11, the page goes from **20,402px to
+ * 2,273px** — nine times shorter — and "what does MarketPulse cover?" becomes a
+ * question answered in one look rather than in twenty screens of scrolling.
+ *
+ * The summary line's last clause is the thing to check here: it reads `0 of 518
+ * rows shown`, and it is the half of this task that a control changing what is
+ * on screen owes the sentence above it.
+ */
+export const AllBandsCollapsed: Story = {
+  args: {
+    view: securitiesFixtureView("full"),
+    initiallyCollapsed: [...SECTORS, "market-proxies"],
+  },
+};
+
+/**
+ * One band shut and the rest open — the ordinary use, and the one that shows
+ * the summary line's clause carrying a figure rather than a zero.
+ *
+ * Technology is the band to shut, because it is where the flagship demo lives
+ * and it is 74 of the 518.
+ */
+export const OneBandCollapsed: Story = {
+  args: {
+    view: securitiesFixtureView("full"),
+    initiallyCollapsed: ["technology"],
+  },
+};
+
+/**
+ * The real universe with one security we have stopped tracking.
+ *
+ * **The check this story exists for is not visual**: TASK-08 asks whether a
+ * jump control can reach an untracked row, on the argument that a control which
+ * cannot is close enough to a filter to matter. It can — the rail is built from
+ * the rendered groups and `groupUniverse` filters on nothing — and the untracked
+ * security sits in its own sector's band, marked, as a link like any other.
+ *
+ * `securitiesFixtureView("untracked")` untracks AAPL, which is in Technology.
+ */
+export const TheRealUniverseWithUntracked: Story = {
+  args: { view: securitiesFixtureView("untracked") },
+};
 
 /** Acceptance criterion 6, and the only place it can be reviewed: the deployed
  *  table is 518 rows and every one of them is active. */

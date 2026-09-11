@@ -53,6 +53,31 @@ next one the same:
   read-modify-write of that one path and `finalize_plan` needs `deletes: []`
   passed explicitly even when nothing is being deleted.
 
+#### Amended 2026-09-11 by Task 2.11.8 — **the one-file rule has hit a mechanical ceiling, and the canvas is now two files**
+
+The bullet above is still the right description of how the canvas was built and
+is no longer a description of how to add to it. `DesignSync`'s `get_file` caps a
+read at **256 KiB**, and `MarketPulse Design System.dc.html` is larger than that:
+a read of it returns exactly **262,144 bytes** and stops mid-attribute. So a
+read-modify-write of that path is no longer possible — the only version of the
+file available to write back is a truncated one, and publishing it would destroy
+everything past the cap.
+
+Task 2.11.8 therefore added its design as a **second file in the same project**,
+`Universe navigation.dc.html`, rather than as a ninth section of the first. That
+is a departure from the bullet above and is recorded rather than quietly done.
+
+Two consequences for the next author:
+
+- **Check the size before planning an edit to the main canvas.** A `get_file`
+  that returns 262,144 bytes exactly is a truncation, not a file that happens to
+  be that size. Nothing in the tool says so.
+- **The chain of authority is unchanged.** A second file is still the canvas;
+  what it costs is the property the single document had — that the whole
+  language could be read top to bottom in one place. Restoring that would mean
+  splitting the first file, which is a job with the same hazard in it and is not
+  this task's.
+
 The chain of authority is now:
 
 ```
