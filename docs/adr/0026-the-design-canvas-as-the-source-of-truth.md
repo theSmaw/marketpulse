@@ -1,0 +1,140 @@
+# 0026 — The design canvas as the source of truth, and what a reconciled token layer certifies
+
+**Status:** Accepted
+**Date:** 2026-09-11
+**Supersedes, in part:** [0022](0022-the-design-refresh-three-typefaces-an-identity-accent-and-what-a-token-change-certifies.md) — its three-face typography, its palette values, its 36px control height, and its standing as the origin of the language. Its _decisions_ about how the language is structured are unchanged and still govern.
+
+## Context
+
+Until 2026-09-11 the design language originated in this repository.
+`VISUAL-LANGUAGE.md` was written first, `tokens.css` implemented it, and an
+external mock was explicitly **a reference and not a specification** — ADR 0022
+says so of `story-10-design.html`, and `SEARCH-AND-SELECTION.md` §5 says it
+again of `2.11-design.html`. Both times the repository took some positions,
+narrowed others and declined the rest, and recorded which was which.
+
+That arrangement has a failure mode, and it showed up twice in two days. A mock
+arrives, the disagreements are adjudicated one at a time by whoever is
+implementing, and the two artefacts drift — so "what does the product look
+like?" has two answers, and the one people _design against_ is not the one that
+ships.
+
+The user's instruction on 2026-09-11: **the two systems should be the same, and
+the canvas is the source of truth.**
+
+## Decision
+
+**`Component library for MarketPulse` — the Claude Design project — is the
+source of truth for the visual language.** It is reached from the repository
+with the `DesignSync` tool, which reads it and can write to it, so the
+reconciliation is mechanical rather than a re-typing exercise.
+
+The chain of authority is now:
+
+```
+the canvas  →  VISUAL-LANGUAGE.md  →  tokens.css  →  components
+```
+
+Each link is a change to the next, and **the first link reverses a rule that
+has held since Story 1.4**: where `VISUAL-LANGUAGE.md` and the canvas disagree,
+the document is wrong. Downstream the old rule is unchanged — a component still
+may not diverge from the document.
+
+### The one standing exception
+
+**Where a canvas value fails a measured accessibility floor, the intent is
+adopted and the value is not.** The deviation is recorded with its measurement
+beside the token that carries it.
+
+This is not a licence to re-litigate values by taste. It is narrow, it is
+arithmetic, and it has fired three times already:
+
+| Canvas                            | Measured                                             | Shipped instead                                                                                                              |
+| --------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Input boundary `#c4c6cf`          | 1.70:1 — WCAG 1.4.11 wants 3:1 to identify a control | `--rule-control: #74777f`, 4.48:1, taken from the canvas's own `--mp-ink-3`                                                  |
+| Placeholder `#74777f`             | 4.48:1 — 1.4.3 wants 4.5:1 for text                  | `--ink-secondary`, 6.49:1, plus a face and weight change so a hint cannot read as a value                                    |
+| Validated tick in `--mp-up` green | Passes contrast; **fails meaning**                   | Achromatic. Green is `--price-positive` on every screen in this product, and a second meaning for it is worse than no colour |
+
+The third is the one worth noticing: it is not a contrast failure. It is the
+canvas proposing a colour that is already spoken for _in this product_, which
+the canvas has no way to know.
+
+### What was reconciled
+
+|                             | Was                              | Now                                                 |
+| --------------------------- | -------------------------------- | --------------------------------------------------- |
+| Page ground                 | `#f6f7fa`                        | `#f8f9ff`                                           |
+| Sunken ground               | `#f0f2f6`                        | `#f2f3f9`                                           |
+| Primary ink                 | `#14171c`                        | `#181c23`                                           |
+| Secondary ink               | `#5b5e66`                        | `#43474f` (8.87:1 on the page ground, up from 6.05) |
+| Disabled ink                | `#9ba0aa`                        | `#74777f`                                           |
+| Hairline                    | `#e2e5ec`                        | `#e2e4ed`                                           |
+| Price up / down             | `#046a38` / `#ba1a1a`            | `#0f7b50` / `#c5221f`                               |
+| Radius                      | `0`                              | `3px`                                               |
+| Control height              | 36px                             | 34px                                                |
+| Display / subheading / body | 40 / 18 / 15                     | 28 / 16 / 13                                        |
+| Faces                       | three (Hanken, Inter, JetBrains) | **two** (Hanken, JetBrains), three roles            |
+| Authorship colour           | deferred by ADR 0025             | landed as `agent.css`                               |
+
+## Alternatives
+
+**Keep the repository as the origin and treat the canvas as a reference, as
+before.** Rejected by instruction, and the instruction is right about the
+failure: two adjudications in two days produced a set of per-decision outcomes
+that nobody could read off either artefact. The cost of rejecting it is real
+and is recorded under Consequences.
+
+**Generate `tokens.css` from the canvas mechanically.** Attractive and
+premature. The canvas's `:root` is a flat list of eighteen values with names
+from a different vocabulary — `--mp-line-strong`, `--mp-signal` — and the
+mapping onto this product's _roles_ is the part that needs judgement, as the
+three deviations above show. A generator would have shipped a 1.70:1 input
+boundary. Revisit when the mapping has been stable for an epic.
+
+**Adopt only the colours and keep the type scale.** Rejected as the worst of
+both: it is exactly the per-decision drift this ADR exists to end.
+
+## Consequences
+
+- **The repository can no longer settle a visual question by argument alone.**
+  A better idea now goes into the canvas first. That is the point, and it is
+  also the cost — the arguments in `VISUAL-LANGUAGE.md` are what stop a value
+  being "fixed" by the next reader, and the canvas carries values without them.
+  The document therefore keeps its reasoning and loses its authority, which is
+  an unusual split and has to be stated in the file itself. It is.
+- **Prose got denser.** `--font-size-body` is 13px, the same as
+  `--font-size-dense`. The distinction the repo drew between reading and
+  scanning is kept in **leading** — 13/20 against 13/18 — because at one size
+  that is the half of the argument that survives.
+- **Inter is gone**, with its `@fontsource-variable` dependency. Two faces,
+  three role tokens; `--font-display` and `--font-sans` resolve to the same
+  stack and are deliberately not collapsed, so a third face returning is a
+  value change rather than an audit.
+- **`agent.css` is a fourth global stylesheet** and the import order in
+  `main.tsx` and `.storybook/preview.tsx` now has six entries. ADR 0025's
+  deferral of the token was overridden and carries a dated amendment saying so.
+- **Nothing in `pnpm verify` checks any of this.** No stylesheet is applied in
+  the test environment, so `getTokens()` throws there and colour assertions are
+  structurally impossible; axe has no rule for the boundary contrast of an
+  input, and none for whether a value matches a canvas. The reconciliation is
+  checked by a person reading both.
+
+## What this ADR does not certify
+
+**That the two systems are now the same.** Three things are known to differ and
+are not defects to be found later:
+
+1. **The anomaly ramp.** The canvas shows a single achromatic `ANOMALY 91`
+   chip; this product has a four-band amber scale with an argued reason —
+   amber rather than red, because red is price-down and an extreme anomaly on a
+   security moving sharply _up_ would read as a fall. The canvas has no graded
+   scale to be the source of truth _for_, so the ramp was left alone. **The
+   canvas owes this section**, and until it has one this is the largest
+   unreconciled area.
+2. **The focus treatment.** The canvas draws `outline: none` with a 3px
+   box-shadow ring. Declined: a box-shadow ring disappears in forced-colors
+   mode, and one global `:focus-visible` is a decision this repository escalated
+   to the token layer rather than route around the day before.
+3. **`--font-size-micro`.** The canvas names both `label/11` and `micro/10`;
+   this product declares only the first, because nothing has a consumer for a
+   10px step. Adding it would be a token designed against no consumer.

@@ -10,22 +10,24 @@ import { App } from "./App.js";
 import { reportRenderError } from "./report-error.js";
 import { getTokens } from "./styles/tokens.js";
 
-// The token layer, as five side-effect imports rather than bindings: the
+// The token layer, as six side-effect imports rather than bindings: the
 // bundler extracts them into `dist/assets/*.css` and adds the `<link>` to the
 // emitted index.html. Nothing here reads a value from any of them.
 //
 // Order matters and is not alphabetical. It runs outward:
 //
-//   1. `fonts.css`   — the three `@font-face` rules. First because a family
+//   1. `fonts.css`   — the two `@font-face` rules. First because a family
 //                      referenced before it is declared is a family the browser
 //                      resolves to a fallback, silently and permanently.
 //   2. `tokens.css`  — the structural custom properties. Achromatic.
 //   3. `brand.css`   — the identity accent, layered over them.
 //   4. `market.css`  — the semantic market colours, layered over them.
-//   5. `base.css`    — consumes all four at the element level.
+//   5. `agent.css`   — authorship colour: who produced this claim. Added
+//      2026-09-11 with ADR 0025; the third and last colour scope.
+//   6. `base.css`    — consumes all five at the element level.
 //
 // A custom property referenced before it is declared resolves to nothing, so
-// the declarations have to reach the cascade first. All five are imported here
+// the declarations have to reach the cascade first. All six are imported here
 // rather than chained through one another so that the order is visible in the
 // file that owns it.
 //
@@ -37,6 +39,7 @@ import "./styles/fonts.css";
 import "./styles/tokens.css";
 import "./styles/brand.css";
 import "./styles/market.css";
+import "./styles/agent.css";
 import "./styles/base.css";
 
 // Fail fast if the token layer did not reach the browser. `getTokens()` throws

@@ -74,7 +74,7 @@
    * past 4.5, and deliberately close to the negative red's 6.03 so that neither
    * direction of a price move shouts louder than the other.
    */
-  --palette-green-strong: #046a38;
+  --palette-green-strong: #0f7b50;
 
   /* Negative red: 6.03 on the page ground, 6.46 on white, 5.76 on sunken. It
      passes everywhere it is used, and it is paired with the green above rather
@@ -86,7 +86,7 @@
      the separation is by scope, and it is the one place in this design language
      where two colours are close enough that the rule is what keeps them
      apart. */
-  --palette-red-strong: #ba1a1a;
+  --palette-red-strong: #c5221f;
 
   /*
    * The amber ramp, for anomaly intensity and for the stale-data marker.
