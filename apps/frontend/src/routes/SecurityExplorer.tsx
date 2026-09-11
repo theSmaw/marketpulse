@@ -3,6 +3,8 @@ import { useNavigate } from "react-router";
 import { BarSeriesPanel } from "../components/BarSeriesPanel/BarSeriesPanel.js";
 import { PageHeader } from "../components/PageHeader/PageHeader.js";
 import { Region } from "../components/Region/Region.js";
+import { RegionPlaceholder } from "../components/RegionPlaceholder/RegionPlaceholder.js";
+import { SecurityIdentity } from "../components/SecurityIdentity/SecurityIdentity.js";
 import { SecuritySearch } from "../components/SecuritySearch/SecuritySearch.js";
 import { UniverseTable } from "../components/UniverseTable/UniverseTable.js";
 import { useBarSeries } from "../market/index.js";
@@ -27,10 +29,22 @@ import page from "./SecurityExplorer.module.css";
 // names a security without typing a URL — and click-through from the table
 // below.
 //
-// The page serves both addresses and renders the same two regions for each.
+// The page serves both addresses and renders the same shell for each.
 // `/securities` shows a default security and says so; `/securities/AMD` shows
-// that one. The universe table stays underneath in both, because until search
-// ships it is the only way to find out what symbols exist.
+// that one.
+//
+// **Task 2.11.7 turned it into the screen §8.3 describes**: an identity block,
+// then a grid carrying §8.3's seven contents — two of them real or one story
+// away, five of them honest placeholders naming the epic that fills them — and
+// the tracked universe last and full width. The grid was decided once, now,
+// while there are two real regions on it, because four separate epics add to
+// this page and deciding it four times is how a screen stops being one.
+//
+// **This route re-renders rather than re-mounts** when a person moves between
+// two securities (measured in Chromium, Task 2.11.5), so any state a region
+// introduces survives a change of symbol by default. Nothing in this shell
+// holds state — that is why — and a region that acquires some owes the reset
+// `useBarSeries` already does.
 
 /**
  * How many trading sessions the panel asks for by default.
@@ -151,51 +165,160 @@ export function SecurityExplorer() {
       />
 
       {/*
-       * The series region, above the universe, because it is what this route is
-       * named for: §8.3 asks *"what is happening with this security?"*, and the
-       * table below answers *"which securities are there?"* — a supporting
-       * question until Story 2.11 turns it into navigation.
+       * **Whose page this is** (Task 2.11.7). Above the grid and spanning it,
+       * because it is not one of §8.3's seven contents — it is the subject all
+       * seven are about.
        *
-       * `filledBy` says what the region holds **and what it deliberately does
-       * not**, which is Story 1.5's convention taken one step further than the
-       * table needed. A panel of numbers where a reader expects a chart looks
-       * unfinished unless it says the chart is a story away; saying so is the
-       * difference between a fence and an omission.
+       * It fills from the same fetch the table below does and carries **no
+       * live region of its own**: `SEARCH-AND-SELECTION.md` §4 spent this
+       * page's third `role="status"` on search, on an argument this surface
+       * cannot borrow (search speaks 400ms after a keystroke; this fills at
+       * exactly the moment the other two do). The decision is recorded there
+       * rather than left as a consequence of a layout.
        */}
-      <Region
-        name="Market data"
-        filledBy="One security's minute bars, stated rather than drawn. Charts arrive with Stories 2.12 and 2.13."
-      >
-        <BarSeriesPanel
-          view={series.view}
-          symbol={symbol}
-          onRetry={series.retry}
-          defaulted={!fromAddress}
-        />
-      </Region>
+      <SecurityIdentity symbol={symbol} view={view} />
 
       {/*
-       * Inside `Region` so the table inherits the landmark, the heading and the
-       * error boundary rather than acquiring three near-copies of them.
+       * **The grid PRODUCT_SPEC.md §8.3's seven contents sit on**, decided once
+       * here while there are two real regions on it rather than four times as
+       * Epics 5, 6 and 9 each add one. Adding a region later is placing it in
+       * `SecurityExplorer.module.css`'s `grid-template`, not reflowing a page.
        *
-       * `filledBy` is where "there are no prices yet" is said, which is Story
-       * 1.5's convention that a region names what fills it and when. A page of
-       * securities with no prices looks broken unless it says why it is not.
+       * The reading order is fixed and the columns are laid over it: price,
+       * volume, abnormal move, relative performance, connected securities,
+       * filings, anomaly history. A keyboard and a screen reader therefore meet
+       * the same sequence a mouse does at every one of the three viewports.
        */}
-      <Region
-        name="Tracked universe"
-        filledBy="The securities MarketPulse follows, with each one's last stored close. Live prices arrive with the market feed in Epic 3."
-      >
+      <div className={page.grid}>
         {/*
-         * `retry` is passed down rather than the table asking for the universe
-         * itself. The same reason the hook is called here: a component that
-         * fetches is a component the workshop cannot render, and every one of
-         * this table's states is reviewable with no backend running precisely
-         * because the only thing it does with the network is take a callback
-         * for it (Task 2.10.2).
+         * The series region, first and two columns wide, because it is what
+         * this route is named for.
+         *
+         * `filledBy` says what the region holds **and what it deliberately does
+         * not**, which is Story 1.5's convention taken one step further than
+         * the table needed. A panel of numbers where a reader expects a chart
+         * looks unfinished unless it says the chart is a story away; saying so
+         * is the difference between a fence and an omission.
+         *
+         * **The fence is charts.** Story 2.12 owns the charting decision and
+         * should take it against a data layer already known to be right — a
+         * sparkline slipped in here is that decision taken in the wrong place
+         * by the wrong task.
          */}
-        <UniverseTable view={view} onRetry={retry} />
-      </Region>
+        <div className={page.wide}>
+          <Region
+            name="Price"
+            filledBy="One security's minute bars, stated rather than drawn. The chart itself arrives with Story 2.12."
+          >
+            <BarSeriesPanel
+              view={series.view}
+              symbol={symbol}
+              onRetry={series.retry}
+              defaulted={!fromAddress}
+            />
+          </Region>
+        </div>
+
+        {/*
+         * Epic 5's rail begins here, and the three regions that answer "how
+         * unusual is this?" share a column for that reason rather than landing
+         * in three unrelated corners of the page.
+         */}
+        <Region
+          name="Abnormal-move indicators"
+          filledBy="How unusual this security's behaviour is right now, scored 0–100 with the reason beside it."
+        >
+          <RegionPlaceholder filledBy="Epic 5 — Anomaly Detection" />
+        </Region>
+
+        {/*
+         * Directly under the price and at the same width, which is the one
+         * adjacency in §8.3 that is not a preference: the two share an x-axis,
+         * and a volume chart at a different width from the price above it
+         * cannot be read against it.
+         *
+         * It names a **story** rather than an epic, unlike the five below —
+         * Story 2.13 is in this epic's committed scope, where an invented
+         * story number is what `SEARCH-AND-SELECTION.md` §5 warns against.
+         */}
+        <div className={page.wide}>
+          <Region
+            name="Volume"
+            filledBy="Traded volume across the same window as the price above it, which is why it sits directly beneath at the same width."
+          >
+            <RegionPlaceholder filledBy="Story 2.13 — Volume Chart" />
+          </Region>
+        </div>
+
+        <Region
+          name="Relative performance"
+          filledBy="This security measured against its sector proxy and the broad market, so a move can be told apart from a tide."
+        >
+          <RegionPlaceholder filledBy="Epic 5 — Anomaly Detection" />
+        </Region>
+
+        <Region
+          name="Connected securities"
+          filledBy="Which securities move with this one, and the evidence for saying so."
+        >
+          <RegionPlaceholder filledBy="Epic 6 — Market Topology" />
+        </Region>
+
+        <Region
+          name="Relevant filings"
+          filledBy="Primary-source evidence from SEC EDGAR — 8-K, 10-Q, 10-K — filed around the days this security moved."
+        >
+          <RegionPlaceholder filledBy="Epic 9 — Corporate Filing Evidence" />
+        </Region>
+
+        <Region
+          name="Anomaly history"
+          filledBy="Every earlier occasion this security behaved unusually, so today can be read against its own past."
+        >
+          <RegionPlaceholder filledBy="Epic 5 — Anomaly Detection" />
+        </Region>
+
+        {/*
+         * **The universe table stays, on both addresses, last and full width**
+         * — Task 2.11.7's one open decision, and it was taken against three
+         * inputs rather than against tidiness.
+         *
+         * It was underneath this page because it was the only way to find out
+         * what symbols exist, and search retires that reason. What search does
+         * **not** retire is the other two things it became. Since Task 2.11.5
+         * every symbol in it is a link, so it is **a way in** — on
+         * `/securities/:symbol` the only way to reach a second security without
+         * typing one. And it owns the single control that re-asks for the
+         * universe, which `SecuritySearch`'s failed-state copy points at by
+         * name: *"the control that asks again is with the universe itself"*.
+         * Moving the table to `/securities` alone would leave that sentence
+         * grammatical and false on this route, and would make a failed universe
+         * a dead end here.
+         *
+         * The cost is a long page, and it is paid deliberately: the table is
+         * **last**, under all seven regions, so nothing a reader came for is
+         * below it. Task 2.11.8 owns making 518 rows navigable.
+         *
+         * `filledBy` is where "there are no prices yet" is said, which is Story
+         * 1.5's convention that a region names what fills it and when.
+         */}
+        <div className={page.full}>
+          <Region
+            name="Tracked universe"
+            filledBy="The securities MarketPulse follows, with each one's last stored close. Live prices arrive with the market feed in Epic 3."
+          >
+            {/*
+             * `retry` is passed down rather than the table asking for the
+             * universe itself. The same reason the hook is called here: a
+             * component that fetches is a component the workshop cannot render,
+             * and every one of this table's states is reviewable with no backend
+             * running precisely because the only thing it does with the network
+             * is take a callback for it (Task 2.10.2).
+             */}
+            <UniverseTable view={view} onRetry={retry} />
+          </Region>
+        </div>
+      </div>
     </div>
   );
 }

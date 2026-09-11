@@ -1,0 +1,40 @@
+/*
+ * A dashed field on the sunken ground, with one micro-label centred in it.
+ *
+ * Everything here is a token. The height is the one value that is a judgement:
+ * it is large enough that five of these on a grid read as *cells of a layout*
+ * rather than as captions, and small enough that a page of seven regions still
+ * fits a laptop screen without the two real ones being pushed off it.
+ */
+
+.placeholder {
+  /* The primitive draws its silhouette in `--marker-color` and renders nothing
+     visible without one. See `CLAUDE.md`'s list of what `pnpm verify` does not
+     cover — this is the property it names. */
+  --marker-color: var(--ink-disabled);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+
+  min-height: 96px;
+  padding: var(--space-16);
+
+  background: var(--surface-page);
+  border: var(--border-width) dashed var(--rule-control);
+  border-radius: var(--radius);
+
+  text-align: center;
+}
+
+.label {
+  /* The product's micro-label idiom — 11px, uppercase, letterspaced — and
+     deliberately not the data face. This is a label, not a value; the canvas
+     draws it in mono, and `dataCell`'s tighter tracking would fight
+     `microLabel`'s looser one if both were composed here. */
+  composes: microLabel from "../../styles/type.module.css";
+
+  margin: 0;
+  color: var(--ink-secondary);
+}

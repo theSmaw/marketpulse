@@ -63,7 +63,7 @@ const THIRD = "MSFT";
 
 /** The panel, by the region that holds it. */
 function panel(page: Page) {
-  return page.getByRole("region", { name: "Market data" });
+  return page.getByRole("region", { name: "Price" });
 }
 
 /**
