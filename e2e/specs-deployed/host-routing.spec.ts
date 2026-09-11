@@ -76,6 +76,45 @@ for (const { path, heading } of DEEP_LINKS) {
   });
 }
 
+test("a PER-SECURITY url deep-loads cold, which is Story 2.11's acceptance criterion 2", async ({
+  page,
+}) => {
+  // **The criterion this test exists for is a property of the HOST, not of the
+  // application** — which is why it is here rather than in the local suite.
+  // `/securities/NVDA` matches no file in the artefact, so the page a user
+  // pasting this link receives is `index.html` served by
+  // `staticwebapp.config.json`'s `navigationFallback`. The local dev server and
+  // `vite preview` both answer it 200 whatever that file says, so neither can
+  // tell a configured host from an unconfigured one.
+  //
+  // It is a **separate** test from the table above rather than a fifth row,
+  // because a parameterised path is a different question from a declared one:
+  // the four above are addresses `PATHS` names and the artefact could
+  // conceivably have been built with, and this one can only ever arrive through
+  // the fallback. A host could answer every declared route and 404 this.
+  const response = await page.goto("/securities/NVDA");
+
+  expect(response, "no response for /securities/NVDA").not.toBeNull();
+  expect(response?.status(), "/securities/NVDA status").toBe(200);
+  expect(
+    response?.request().redirectedFrom(),
+    "/securities/NVDA was reached through a redirect, so the address a person " +
+      "pasted is not the address that answered",
+  ).toBeNull();
+
+  // The route rendered, and the symbol in the path is the subject of the page
+  // rather than a segment the router discarded. The identity block names it —
+  // asserted as a heading rather than as text anywhere, because the symbol also
+  // appears in the table below and in the panel's own subject line.
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Security Explorer" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "NVDA" }),
+  ).toBeVisible();
+  await expectNothingFailedToRender(page);
+});
+
 test("an address that matches nothing renders the not-found ROUTE", async ({
   page,
 }) => {

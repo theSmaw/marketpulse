@@ -1,6 +1,8 @@
 # Story 2.11 — Security Search & Selection
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-11.** All ten tasks are done and the record is
+[`SEARCH-AND-SELECTION.md`](SEARCH-AND-SELECTION.md) and
+[ADR 0024](../../../docs/adr/0024-search-selection-and-the-security-explorer-shell.md).
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.10
 **Epic scope covered:** Security search/select
@@ -128,6 +130,25 @@ is not available, because Epic 15 is a release epic and polish deferred is polis
 The Security Explorer shell every later epic adds a region to, and the selection interaction
 Epics 4 and 6 reuse.
 
+**Amended 2026-09-11 at the close — it is a larger handoff than that sentence, and the
+larger part is the part a later story can get wrong.**
+
+- **A grid with five named vacancies, not a shell to add regions to.** §8.3's seven contents
+  are placed **once**, on a grid of spans, and each empty region already says in a sentence
+  what it will hold and which epic brings it. Stories 2.12 and 2.13 and Epics 5, 6 and 9
+  therefore **fill a region that exists**; they do not add a panel. A chart dropped into a
+  fresh panel beside the one that has been waiting for it is the concrete defect, and both
+  chart stories now carry a dated amendment saying so.
+- **An input idiom every later control inherits**, including the one that is least obvious:
+  a disabled control renders `aria-disabled` + `readOnly` and **stays in the tab order**,
+  because a description hung off an unreachable control is unreachable. The contrast
+  obligations follow the decision, since the state is no longer inactive.
+- **A live region paced by two numbers rather than one**, which Epic 3's socket is the first
+  consumer of that is not a person typing.
+- **An empty query string**, deliberately, for Story 2.13's window control.
+- **One `Try again` per screen**, owned by the surface that owns the fetch, with the trigger
+  written against the first screen whose two surfaces read different fetches.
+
 ---
 
 ## Amended 2026-09-06, after Story 2.4 closed — the list exists, and this file contradicts itself above
@@ -228,6 +249,17 @@ its first commit if the user has been there before.
   name"_ is asserted in jsdom by request identity rather than in a browser. **Your
   click-through is what makes that browser assertion possible for the first
   time**, and it is worth adding when you add it.
+
+  **Done 2026-09-11 by Task 2.11.5, and the premise above is now false rather than
+  pending.** Search navigates with `useNavigate()` and every symbol in the table is a
+  `Link`, so a route to a second symbol is a client-side transition: measured in Chromium,
+  `performance.getEntriesByType("navigation")` stays at **one** entry across a whole
+  search-open-Back-click sequence and a marker set on `window` survives it. The browser
+  assertion this paragraph asked for exists — `e2e/specs/security-navigation.spec.ts` — and
+  it asserts more than was asked: that the return to a security paints its held series
+  **before** the network answers and asks again anyway, and that no frame shows one symbol's
+  bars under another's name. ADR 0023's copy of this claim carries its own dated amendment.
+
 - **The rate at which a live region speaks.** `/securities` now has **two**
   polite regions — the universe table's and the panel's — and the rule is one
   region per subject, with every sentence naming its subject
@@ -274,6 +306,14 @@ is what puts the cache in the condition it was designed for and what makes the
 browser assertion Story 2.10 could not write — _the panel never shows one
 symbol's bars under another's name_ — possible for the first time.
 
+**Done 2026-09-11, and it was a behaviour change to the whole page's lifetime.** The
+sentence above is kept as what was predicted; what is true now is that module-level state
+survives a symbol change for the first time, which is what the cache's two bounds were
+written for, and that **any module-level state added after this one has to be audited for
+whether it should survive one**. The second candidate was found rather than assumed: the
+search field's query, which is benign because it is not keyed on the symbol and nothing
+keyed on the symbol reads it.
+
 **2.11.7 is the expensive-to-retrofit one.** Four later epics add a region to the
 Security Explorer; the grid, the identity block and the placeholder treatment are
 decided once here, while there are two real regions to decide them against.
@@ -296,3 +336,61 @@ chart, including a sparkline in a result row or in the shell (2.12 and 2.13); th
 window control and its calendar vocabulary (2.13); provenance as a product-wide
 requirement (2.14); selection from the overview (Epic 4) or the topology graph
 (Epic 6); and comparing two securities (Epics 8 and 11).
+
+---
+
+## Closed 2026-09-11 by [Task 2.11.10](TASK-10-deployed-verify-document-and-adr.md)
+
+### The acceptance criteria, and what holds each
+
+| #   | Criterion                                                          | Held by                                                                                                                                                                                                                                            |
+| --- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `nvda`, `NVDA` or `nvid` behaves sensibly and opens the security   | `security-match.test.ts` for the rules, `e2e/specs/security-navigation.spec.ts` for the opening. Checked on the deployed site: `nv` returns **NVDA then NVR**                                                                                      |
+| 2   | **A per-security URL deep-loads cold in the deployed environment** | `e2e/specs-deployed/host-routing.spec.ts`, a test added at this close, and its **red was verified** by pointing it at another route. Previously held by four declared routes and by nobody for a parameterised one                                 |
+| 3   | Operable by keyboard alone, announcing itself correctly            | `SEARCH-AND-SELECTION.md` §7's walk, `e2e/specs/search-keyboard.spec.ts` at two viewports. **The listening half was taken from Chromium's accessibility tree, not from a screen reader reading aloud**, and two observations are handed to Epic 15 |
+| 4   | Every state renders, including an unreachable backend              | Task 2.11.6's state set, rendered from recorded bodies collapsed through the real transition                                                                                                                                                       |
+| 5   | Stories per state, `pnpm stories` passes, axe at zero              | `pnpm verify`; the deployed axe run reads **0 violations, 46 passes, 2 inconclusive** on `/securities`                                                                                                                                             |
+| 6   | A browser journey covers search → open → the security's page       | `e2e/specs/search-keyboard.spec.ts` and `security-navigation.spec.ts`                                                                                                                                                                              |
+| 7   | `pnpm verify` passes                                               | Green: 650 backend tests, 562 frontend tests, 14 process tests                                                                                                                                                                                     |
+
+`pnpm e2e:deployed` is **16 tests, all passing**, against the live pair.
+
+### The four tests of the bar, applied to the deployed screens
+
+Applied to `/securities/NVDA` at 1440×900 as the deployed site serves it, not to a
+local build.
+
+- **Would a stranger believe this is a real funded product?** Yes. The thing that
+  earns it is that every number is qualified: `230.36 · 2026-09-04 · from a
+stored daily bar` beside a panel reading `Holding 1,170 bars, through
+2026-09-09 16:00:00 EDT — less than the window asked for`. Products that are
+  faking it round the edges off; this one names its own limits in the data face.
+- **Does it look designed rather than defaulted?** Yes. Square corners
+  throughout, hairline rules, the crimson accent confined to the masthead, the
+  monospace face on every figure and on the search input, and letterspaced
+  micro-labels doing the work a heavier heading would do badly.
+- **Is there a moment in it worth showing somebody?** Yes, and it is the search:
+  typing `nv` opens a surface where the matched prefix is **bolded inside the
+  ticker** — `NV`DA, `NV`R — with each row carrying its close, its change and its
+  sector, and a footer stating `CLOSES AS OF 2026-09-04 · 2 MATCHES`. It reads as
+  an instrument rather than a web form.
+- **Does it feel alive?** Partly, and this is the honest answer rather than the
+  flattering one. The market clock ticks and the feed and backend indicators are
+  live, and the result surface reacts on every keystroke. But **nothing on this
+  page moves because the market moved** — there is no live feed until Epic 3 and
+  no chart until Story 2.12, and the four empty regions are visibly waiting. The
+  page is alive to a person; it is not yet alive to the market.
+
+### One thing seen on the deployed screens and deliberately not repaired here
+
+The identity block reads `230.36` for NVDA from `2026-09-04` while the Price
+panel four regions down reads `223.70` through `2026-09-09`. Both are correct and
+both are labelled — the first is the last stored **daily** bar and the second the
+last stored **minute** bar, and the deployed store is further ahead in minutes
+than in daily closes. It is two true numbers for one security on one screen, and
+the only thing standing between that and a reader's confusion is the qualifier
+beside each. **Story 2.14 owns provenance and partial states product-wide** and
+is the right place to decide whether one screen may state two closes; a local
+repair here would be a judgement about provenance taken in the wrong story. Note
+it is invisible locally, where every `lastCloses[].session` and the last minute
+bar agree at `2026-09-04`.

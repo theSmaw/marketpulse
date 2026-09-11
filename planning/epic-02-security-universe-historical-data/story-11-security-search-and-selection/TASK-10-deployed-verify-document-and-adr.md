@@ -1,6 +1,6 @@
 # Task 2.11.10 — Deployed, verified, documented: the record and the ADR
 
-**Status:** Not started
+**Status:** Complete — 2026-09-11
 **Story:** [2.11 Security Search & Selection](STORY.md)
 **Depends on:** 2.11.9
 
@@ -476,3 +476,87 @@ figure that was mis-recorded. And **a measurement that falsifies a governing
 document is swept the same day**: the failure mode this project has already had
 is recording a correction and not propagating it, so the sweep is a grep and a
 list of corrected sites rather than an intention.
+
+---
+
+## What was done — 2026-09-11
+
+### The deployed check, and the criterion that had no instrument
+
+`pnpm e2e:deployed` against the live pair: **16 tests, all passing**, with the
+pre-flight reporting the artefact coherent (a document and two assets served
+together) before any test ran — which is the polling-for-coherence this file asks
+for, and it is a step of the check rather than something done beside it.
+
+**Acceptance criterion 2 had no instrument and now has one.**
+`host-routing.spec.ts` deep-loaded four **declared** routes cold and nothing
+deep-loaded a **parameterised** one — and they are different questions: the four
+are addresses `PATHS` names, and `/securities/NVDA` can only ever arrive through
+`staticwebapp.config.json`'s `navigationFallback`. A host could answer every
+declared route and 404 this one. The new test asserts the 200, that it is not a
+redirect, that the route rendered, and that the **symbol in the path is the
+subject of the page** — and **its red was verified** by pointing it at
+`/investigations`, where it failed on the symbol rather than passing vacuously.
+
+### The measurements, re-taken rather than cited
+
+In [`SEARCH-AND-SELECTION.md`](SEARCH-AND-SELECTION.md) §0.1. The short version:
+**the universe payload has not moved** (20,072 bytes gzipped, 190,736
+uncompressed, 518 securities, one distinct close session), which is the figure
+§2's whole argument rests on and which had already moved twice; the **bundle is
+421.93 kB raw / 134.48 kB gzipped**, against Story 2.10's close at 376.45 /
+122.26 — **+12.22 kB gzipped, +10.0%** for the whole of this story's interactive
+layer, about one and a half Reduxes. The matcher's figures and the 518-row render
+figures were **reconciled rather than re-measured**, as this file instructs, and
+§0.1 says which are historical and which are shipped.
+
+### Sites corrected, each named
+
+The sweep travels upward. What a measurement here invalidated was a premise
+elsewhere, and each of these was found by grep and corrected in this change:
+
+| Site                                             | What was corrected                                                                                                                                                                                                      |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CLAUDE.md` _Current state_                      | Story 2.11 added; "Stories 2.11 to 2.14 remain" → 2.12 to 2.14; _what a user can see today_ rewritten around a screen a person can now **use**                                                                          |
+| `CLAUDE.md` _Where the record lives_             | a row for `SEARCH-AND-SELECTION.md`; the ADR index line read "0001–0023" and now reads 0001–0026                                                                                                                        |
+| `CLAUDE.md` _What `pnpm verify` does not cover_  | **five** entries added, each with a re-measure one-liner — client-side navigation, a jump behind the chrome, two surfaces sharing words, a control absent from a state, and the rail's counts with `initiallyCollapsed` |
+| `FRONTEND-STATE.md` §7                           | both reversal triggers are recorded as **fired and answered**; the announcement pair is written down with Epic 3 named as the owner of generalising it; _what nothing checks_ gains the count of regions                |
+| `planning/EPICS.md`, Epic 14                     | the `Expand all` 69–87 ms exception to `PRODUCT_SPEC.md` §28, with its measurement and the argument for accepting it. §28 is **not** amended                                                                            |
+| `planning/EPICS.md`, Epic 15                     | the two accessibility observations that need a real screen reader, with their reversal triggers                                                                                                                         |
+| `story-12-price-chart/STORY.md`                  | a dated amendment: it fills a region that exists and names it, not "its own page"                                                                                                                                       |
+| `story-13-volume-chart-and-time-window/STORY.md` | the same, plus the empty query string it inherits deliberately                                                                                                                                                          |
+| `epic-02/EPIC.md`                                | the Status line still read "Story 2.5 next"                                                                                                                                                                             |
+| `STORY.md` (this story's)                        | two live copies of _every route to a second symbol is a document navigation_, both given dated amendments; _What this story hands forward_ expanded from one sentence to the five things it actually hands              |
+| `UniverseTable.tsx`                              | why `stickyChromeHeight()` measures rather than reading `--sticky-chrome-height` — one fact, two readers, and the reason now written on both sides                                                                      |
+| `e2e/specs/search-keyboard.spec.ts`              | two pointers into `SEARCH-AND-SELECTION.md` §6, which the renumber below moved to §7                                                                                                                                    |
+| `docs/adr/README.md`                             | ADR 0024 added; the "0024 is deliberately absent" note rewritten as the record of a gap that closed rather than a gap that is open                                                                                      |
+
+**Four candidates on this file's list were already swept and were verified rather
+than re-swept**, which is what those bullets ask for: `VISUAL-LANGUAGE.md`'s
+input-field claim and its icon count (it says **six**, dated, and `ICON_NAMES`
+has six members); `UniverseTable.tsx`'s grouping trigger, which carries a dated
+amendment beside the prediction rather than a rewrite; and ADR 0023's
+document-navigation bullet, which carries its own.
+
+### One defect in this file's own subject document, found and repaired
+
+`SEARCH-AND-SELECTION.md` had **two sections numbered 6** — Task 2.11.9 wrote the
+keyboard flow as §6 beside the existing one — which is exactly the trap this
+repository refuses elsewhere, because two live pointers in the tree read `§6` and
+meant different sections. The keyboard flow is now **§7**, _what this file hands
+each task_ is §8, and _what nothing checks_ is §9; the two `e2e` pointers were
+corrected, the document's header records the renumber so older pointers resolve,
+and task files written before the close are left standing as the records they
+are.
+
+### What this close did not do
+
+- **No screen reader was used.** Criterion 3's pass is Chromium's accessibility
+  tree — the data an assistive technology is handed — and that is stated in the
+  ADR's _what a green run does not certify_ rather than glossed. Epic 15 owns the
+  review and now has the two observations in its own entry.
+- **Nothing was repaired on the deployed screens.** One thing was seen and
+  deliberately left: the identity block's `230.36 · 2026-09-04` beside the
+  panel's `223.70 · through 2026-09-09`, which is two true, labelled numbers for
+  one security because the deployed store is further ahead in minutes than in
+  daily closes. `STORY.md`'s close records it and Story 2.14 owns the decision.

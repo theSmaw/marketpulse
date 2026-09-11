@@ -178,3 +178,24 @@ request while one is in flight is the cheapest way to observe a **superseded**
 answer in a real browser. Today that property is asserted in jsdom by request
 identity, because there is no client-side route from one request to another —
 see Story 2.11's amendment for the other half of the same gap.
+
+## Amended 2026-09-11 by Story 2.11's close — **both halves of this story land in places that already exist**
+
+Two corrections to this file's framing, neither of which changes its scope.
+
+**The volume chart fills a named region, it does not add a panel.**
+`SecurityExplorer.tsx` places `PRODUCT_SPEC.md` §8.3's seven contents once, and
+the **Volume** region's placeholder already names this story by number:
+
+> Traded volume across the same window as the price above it, which is why it
+> sits directly beneath at the same width.
+
+"Directly beneath at the same width" is therefore already true in the grid —
+this story inherits the alignment rather than establishing it, and the concrete
+defect is a second panel beside the region that has been holding the space.
+
+**The window control arrives into an empty query string, deliberately.**
+`SEARCH-AND-SELECTION.md` §3 decided that a search query never reaches the
+address, precisely so that this story's `?sessions=5` (or an absolute range) is
+the **first** occupant of the query string with no precedent to argue with. That
+is a handover, not a coincidence.

@@ -29,7 +29,7 @@ import { SECURITIES_ROUTE_PATTERN } from "../support/pair.js";
 //     announcement needs — a persistent region, a sentence that names its
 //     subject, an `aria-expanded` that flips on the control that was pressed.
 //     What that sounds like was judged against Chromium's accessibility tree by
-//     a person and is recorded in `SEARCH-AND-SELECTION.md` §6. No instrument
+//     a person and is recorded in `SEARCH-AND-SELECTION.md` §7. No instrument
 //     here can hear anything.
 //   - **Not accessibility.** `securities-route.spec.ts` and
 //     `security-explorer-shell.spec.ts` run axe over this document at three
@@ -181,7 +181,7 @@ test("the same journey by keyboard alone", async ({ page }) => {
   // 5. **Where focus lands, which is the step most often left to chance.**
   //
   // It stays in the field, and that is a decision rather than what happened to
-  // occur — `SEARCH-AND-SELECTION.md` §6 states it with its alternatives. The
+  // occur — `SEARCH-AND-SELECTION.md` §7 states it with its alternatives. The
   // route re-renders rather than re-mounting, so the field is the same element
   // it was, still holding the query. A person who opened the wrong security is
   // one keystroke from trying again; a person who moved on presses Tab and gets

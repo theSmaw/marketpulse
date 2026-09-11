@@ -1282,6 +1282,21 @@ function jumpToBand(id: string): void {
  * The `position` check is not defensive padding: it is the whole question. A
  * header that is not sticky occludes nothing, and subtracting its height would
  * scroll the band *past* the top of the viewport.
+ *
+ * **Why this measures rather than reading `--sticky-chrome-height`, which
+ * `AppHeader` publishes from the same element** — recorded 2026-09-11 at Story
+ * 2.11's close, because two readers of one fact with no link between them is the
+ * shape this repository normally refuses. The custom property exists for
+ * `base.css`'s `scroll-padding-top`, which is the browser's own
+ * scroll-into-view and reaches every ordinary tab stop. It cannot serve this
+ * call: `window.scrollTo` ignores `scroll-padding` entirely, so a programmatic
+ * jump has to do the subtraction itself whatever the property says. Reading it
+ * anyway would trade a `getBoundingClientRect()` for a `getComputedStyle()` on
+ * the root plus a `parseFloat` of a string this component does not own, and
+ * would go silently wrong in exactly the case the `position` check exists for —
+ * a story or a test where no `AppHeader` is mounted and the property is simply
+ * absent. The fact still has **one source**: the element. See
+ * `useStickyChromeHeight`, which reached this from the other side.
  */
 function stickyChromeHeight(): number {
   const header = document.querySelector("header");
