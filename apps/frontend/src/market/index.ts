@@ -72,11 +72,16 @@ export type {
   PopulatedBarSeries,
 } from "./bar-series-view.js";
 export {
+  SEARCH_ANNOUNCEMENT_DELAY_MS,
+  searchAnnouncement,
+} from "./search-announcement.js";
+export {
   MATCH_TIERS,
   SECURITY_MATCH_LIMIT,
   matchSecurities,
 } from "./security-match.js";
 export type {
+  MatchEmphasis,
   MatchTier,
   SecurityMatch,
   SecurityMatches,

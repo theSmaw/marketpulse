@@ -1,0 +1,180 @@
+/* The search control and its result surface (Task 2.11.4).
+ *
+ * Drawn from the `Component library for MarketPulse` canvas, section 03.1 —
+ * which is the source of truth for the language (ADR 0026). Two values in here
+ * come from the canvas and are worth naming because they are the ones a later
+ * reader would otherwise "tidy":
+ *
+ * - **The active row is a tone AND an inset bar.** Hover and active are on
+ *   screen at the same time for anyone using a mouse and the keyboard
+ *   together, so a single tone cannot distinguish them.
+ * - **The matched characters are emphasised with weight and ink, never
+ *   colour.** The crimson identity accent is confined to four positions in the
+ *   chrome and never touches a datum, and a background wash on a number is a
+ *   colour-on-data decision nobody has argued for.
+ */
+
+.search {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* The surface is positioned against this rather than against the page, so the
+ * list stays welded to the field when the page scrolls under it. */
+.anchor {
+  position: relative;
+  max-width: 620px;
+}
+
+.surface {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  z-index: 20;
+  background: var(--surface-raised);
+  /* The field's focused border continues into the surface, so the control and
+   * its results read as one object rather than two stacked boxes. The top edge
+   * is omitted for the same reason — `TextField`'s `surfaceOpen` squares its
+   * own bottom corners to meet this. */
+  border: 1px solid var(--rule-strong);
+  border-top: 0;
+  border-end-start-radius: var(--radius);
+  border-end-end-radius: var(--radius);
+  box-shadow: 0 10px 28px rgb(24 28 35 / 10%);
+  overflow: hidden;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* Ten rows, which is the matcher's cap — so the common case never scrolls
+   * and the footer's count is never contradicted by a cut-off row. */
+  max-height: 440px;
+  overflow-y: auto;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) auto 54px 84px 78px;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: 44px;
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--surface-sunken);
+  cursor: pointer;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row:hover {
+  background: var(--surface-page);
+}
+
+/* Tone and shape together — see the header. */
+.active,
+.active:hover {
+  background: #e7e8ef;
+  box-shadow: inset 2px 0 0 var(--rule-strong);
+}
+
+.symbol {
+  composes: dataCell from "../../styles/type.module.css";
+  font-weight: var(--font-weight-strong);
+  color: var(--ink-primary);
+}
+
+/* The unmatched tail of a symbol that *is* what matched. Without this the
+ * emphasis inside a symbol is a 600-against-700 weight step on identical ink,
+ * which is invisible at 13px. Only the symbol needs it — a name is already set
+ * in secondary ink, so `.mark` alone carries the step there. */
+.symbolRest {
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-secondary);
+}
+
+.identity {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.name {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  color: var(--ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The emphasis. Weight plus an ink step, and nothing else. */
+.mark {
+  font-weight: var(--font-weight-bold);
+  color: var(--ink-primary);
+}
+
+.meta {
+  composes: microLabel from "../../styles/type.module.css";
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag {
+  display: flex;
+  align-items: center;
+}
+
+.kind {
+  composes: microLabel from "../../styles/type.module.css";
+}
+
+/* Close and change are **columns**, not a stack. Stacked, two figures of
+ * different kinds share a baseline-less block and the eye cannot scan either
+ * one down the list, which is the whole point of a right-aligned number. */
+.close,
+.change {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.price {
+  composes: dataCell from "../../styles/type.module.css";
+  color: var(--ink-primary);
+}
+
+/* A missing join is stated, never blank.
+ *
+ * One class rather than the `.absent .price, .noChange` grouping this started
+ * as: `composes:` is legal only in a rule whose selector is a single local
+ * class, and it fails the **build** rather than doing nothing. */
+.noChange {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-disabled);
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-12);
+  align-items: center;
+  margin: 0;
+  padding: var(--space-8) var(--space-12);
+  background: var(--surface-sunken);
+  border-top: 1px solid var(--rule-hairline);
+}
+
+.session,
+.count {
+  composes: microLabel from "../../styles/type.module.css";
+}
+
+/* The footer names the session once. When it cannot — the stored closes do not
+ * share one — it says nothing rather than picking one, and every row carries
+ * its own instead. */
+.session:only-child {
+  margin-inline-end: auto;
+}

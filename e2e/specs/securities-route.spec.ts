@@ -319,19 +319,25 @@ test("the whole table is reachable and operable by keyboard", async ({
   // wherever it is on the page. The question here is whether it is on screen.
   expect(await inViewport(), "the last row starts off screen").toBe(false);
 
-  // Tab from the top of the document. The stops are the four navigation links
-  // and then the region itself, which takes focus because `Region` carries
-  // `tabIndex={0}` — Task 1.13.4 put it there so a region that scrolls its own
-  // overflow is reachable, and it is what puts focus inside the page's content
-  // here.
+  // Tab from the top of the document. The stops are the four navigation links,
+  // then the **search field** — Story 2.11 put a control in the page's heading
+  // block, above both regions and inside neither — and then the region itself,
+  // which takes focus because `Region` carries `tabIndex={0}`. Task 1.13.4 put
+  // that there so a region that scrolls its own overflow is reachable, and it
+  // is what puts focus inside the page's content here.
+  //
+  // The search field's position in this order is the assertion, not an
+  // incidental: a control *over* both surfaces has to come before them, and if
+  // it ever moved inside the table's `Region` this expectation is what would
+  // notice.
   const stops: string[] = [];
-  for (let i = 0; i < 5; i += 1) {
+  for (let i = 0; i < 6; i += 1) {
     await page.keyboard.press("Tab");
     stops.push(
       await page.evaluate(() => document.activeElement?.tagName ?? "none"),
     );
   }
-  expect(stops).toEqual(["A", "A", "A", "A", "SECTION"]);
+  expect(stops).toEqual(["A", "A", "A", "A", "INPUT", "SECTION"]);
 
   // And from there the table can be moved through without a pointer.
   await page.keyboard.press("End");

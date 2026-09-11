@@ -1,6 +1,6 @@
 # Task 2.11.4 — Search on screen: the combobox, and opening a security
 
-**Status:** Not started
+**Status:** Complete — 2026-09-11
 **Story:** [2.11 Security Search & Selection](STORY.md)
 **Depends on:** 2.11.2, 2.11.3
 
@@ -201,3 +201,85 @@ If the field turns out to need something the primitive from 2.11.3 does not
 have, change the primitive rather than special-casing it here. It has one
 consumer today and three more coming, and the moment to keep it a primitive is
 now.
+
+---
+
+## What was done, and what was found — 2026-09-11
+
+**It works: type `nvid`, press Enter, land on `/securities/NVDA`.** The epic's
+exit criterion, demonstrated in a browser against the real 518 and the real
+stored closes for session `2026-09-04`.
+
+### What shipped
+
+| Where                           | What                                                                                                            |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `market/security-match.ts`      | `MatchEmphasis` — `field`, `offset`, `length` — carried on every `SecurityMatch`                                |
+| `market/search-announcement.ts` | The four sentences and `SEARCH_ANNOUNCEMENT_DELAY_MS`, with one reader                                          |
+| `components/SecuritySearch/`    | The combobox, its result surface, the row, the footer and the live region — plus stories and 23 component tests |
+| `routes/SecurityExplorer.tsx`   | The control, in the page's heading block, navigating with `securityPath()`                                      |
+| Canvas `03.1 · Security search` | Seven artboards, drawn before the code and corrected to match it afterwards                                     |
+| `VISUAL-LANGUAGE.md`            | The combobox's language: the welded surface, the two row states, the emphasis rule, and one recorded divergence |
+
+### Five things found that were not in this file
+
+1. **`field` has to travel with the offset, not just the offset.** This file
+   asked for "one field on a value the matcher already computes". One is not
+   enough: a row also needs to know _which_ string to index into, and deriving
+   that from the tier in the component is the same mistake one level up — it
+   puts a matching rule inside a renderer. `MatchEmphasis` carries all three.
+
+2. **Emphasis inside a symbol needs the unmatched part to recede.** The obvious
+   implementation advances the match to weight 700, which against a symbol
+   already set at `--ink-primary` 600 is invisible at 13px. The tail drops to
+   `--ink-secondary` 500 instead. A name is already secondary, so there the mark
+   alone works — the two fields need opposite treatments for the same effect.
+
+3. **The React Compiler rules fired for the first time on shipped code, twice,
+   and both were right.** `CLAUDE.md` records that they had never fired and that
+   this was "evidence nothing has yet written the shape they dislike". The
+   announcement hook wrote a ref during render, then cleared the region with a
+   `setState` in an effect body; both were rejected. The repair in each case was
+   simpler than the thing it replaced — the sentence is derived every render and
+   only _saying_ it is deferred. **That paragraph in `CLAUDE.md` is now out of
+   date** and is the one thing here that sweeps upward.
+
+4. **The `composes:` trap is real and cost a build.** `.absent .price,
+.noChange { composes: … }` is a grouped descendant selector, which fails the
+   **build** rather than doing nothing, exactly as documented. Caught by
+   `pnpm verify`, not by tests.
+
+5. **The browser suite caught the tab order changing, which is the point of
+   it.** `securities-route.spec.ts` asserted the fifth stop was the table's
+   `SECTION`; it is now the search `INPUT`. The spec was updated to assert the
+   new order **as an assertion rather than an incidental** — a control over both
+   surfaces has to precede them, and if search ever moved inside the table's
+   `Region` this is what would notice.
+
+### One claim this task falsified, and swept the same day
+
+`BarSeriesPanel`'s defaulted-security sentence read _"Search arrives with Story
+2.11; until then, a security's page is reachable at `/securities/SYMBOL`"_.
+Search has arrived. The sentence now reads _"Search for another one above, or
+open one directly at `/securities/SYMBOL`"_, and the three tests asserting the
+old wording were moved onto the surviving half of it.
+
+### What a reader should not conclude from a green run
+
+- **No e2e spec drives the combobox.** The keyboard and screen-reader journey
+  end-to-end is [Task 2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md)'s
+  by design. What the browser suite certifies today is that the field exists, is
+  in the tab order in the right place, and that axe reads zero violations on the
+  route — not that search works in a browser. That was verified by hand.
+- **Every state other than the happy path is still missing**, and is
+  [Task 2.11.6](TASK-06-every-search-state-produced.md)'s. The control renders
+  only when the universe has loaded; loading, unreachable and answered-badly
+  show nothing where the field is.
+- **`last-close.ts` now has two consumers and a near-duplicate.**
+  `UniverseTable/last-close.ts` and `BarSeriesPanel/series-facts.ts` both export
+  `formatPrice`, `changePercent`, `directionOf` and `formatChangePercent`, and
+  this component imports the first. That is two implementations of one idea with
+  a third consumer attached, and the extraction into `market/` is the obvious
+  next move. It was **not** done here because it would touch two components,
+  their tests and a story to relocate working code, and this task had a user in
+  it. The trigger is the next consumer.
