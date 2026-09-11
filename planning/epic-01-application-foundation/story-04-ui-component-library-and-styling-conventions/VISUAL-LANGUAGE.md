@@ -1,12 +1,22 @@
 # Visual language — MarketPulse
 
-**Status:** Settled 2026-08-31 · **refreshed 2026-09-10** ([ADR 0022](../../../docs/adr/0022-the-design-refresh-three-typefaces-an-identity-accent-and-what-a-token-change-certifies.md))
+**Status:** Settled 2026-08-31 · **refreshed 2026-09-10** ([ADR 0022](../../../docs/adr/0022-the-design-refresh-three-typefaces-an-identity-accent-and-what-a-token-change-certifies.md)) · **reconciled to the design canvas 2026-09-11** ([ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md))
 **Story:** [1.4 UI Component Library & Styling Conventions](STORY.md)
 **Consumed by:** Tasks 1.4.3, 1.4.4, 1.4.5, 1.4.6 — and every screen since
 
 This is the design input to the token layer. `tokens.css` turns it into CSS custom properties, `brand.css` and `market.css` layer the two kinds of colour over them, and the components in `src/components/` are built from it. It is not itself a decision record — it is the description of the look those files are aiming at, written down so that "does this match?" has an answer other than someone's memory of a screenshot.
 
 **Treat a divergence from this document as a change to this document**, not as a local judgement call in a component. That is the whole reason it exists: a design language that lives in individual files stops being one after about six of them.
+
+## This document is no longer the origin of the language — added 2026-09-11
+
+**The `Component library for MarketPulse` design canvas is the source of truth.** It lives in Claude Design and is reached from this repository with the `DesignSync` tool; [ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md) records the decision and what it costs.
+
+What that changes about how to read this file:
+
+- **Where this file and the canvas disagree, the canvas wins and this file is wrong** — which is the opposite of the rule above, and the rule above still holds for everything _downstream_: a component still may not diverge from this document. The chain is canvas → this document → `tokens.css` → components, and each link is a change to the next.
+- **There is one standing exception, and it is the only one.** Where a canvas value fails a measured accessibility floor, the _intent_ is adopted and the value is not, and the deviation is recorded with its measurement beside the token. This has happened three times already — the input boundary, the placeholder ink, and the validated tick's green. Each is written up where it lives rather than here.
+- **This file keeps its arguments.** The canvas carries values; it does not carry the reasoning for them, and a value with no argument is the thing that gets "fixed" by the next person. Everything below that explains _why_ is still load-bearing, including the parts whose numbers have since moved.
 
 ## What the 2026-09-10 refresh changed, and why this document was rewritten rather than amended
 
@@ -16,9 +26,9 @@ The refresh's own recommendations were already written in this document on 2026-
 
 | Was (2026-08-31)                | Is (2026-09-10)                                                              |
 | ------------------------------- | ---------------------------------------------------------------------------- |
-| System font stack, no webfont   | **Three self-hosted variable faces** — display, sans, data                   |
+| System font stack, no webfont   | **Two self-hosted variable faces**, three roles — display, sans, data        |
 | No accent hue anywhere          | **One crimson accent, confined to four positions in the chrome**             |
-| Warm ground (`#f4f3ee`)         | **Cool ground** (`#f6f7fa`)                                                  |
+| Warm ground (`#f4f3ee`)         | **Cool ground** (`#f8f9ff`)                                                  |
 | Near-black border on every card | Near-black reserved for **structure**; panels take an ordinary grey hairline |
 | Radius 2px                      | **Radius 0** — square                                                        |
 | Default text size 14px          | **13px**                                                                     |
@@ -84,9 +94,9 @@ Four grounds. The ladder is **cool** and shallow: 4% of lightness separates the 
 
 | Role               | Value     | Where                                                                                      |
 | ------------------ | --------- | ------------------------------------------------------------------------------------------ |
-| Page ground        | `#f6f7fa` | The application background. Cool, and noticeably not white                                 |
+| Page ground        | `#f8f9ff` | The application background. Cool, and noticeably not white                                 |
 | Raised surface     | `#ffffff` | Cards, modules, panels, table bodies — the content sits here                               |
-| Sunken / secondary | `#f0f2f6` | Table header rows, chips, status strips, disabled fields                                   |
+| Sunken / secondary | `#f2f3f9` | Table header rows, chips, status strips, disabled fields                                   |
 | Inverse            | `#21242a` | The **one** thing that reverses out: a selected control. Ink on it is `#eef0f5` at 13.64:1 |
 
 **The warm ladder is gone and its loss is deliberate.** `#f4f3ee` existed to give an achromatic interface some character; the interface is no longer achromatic, and a warm ground under Inter and a crimson mark reads as two design languages sharing a page.
@@ -107,19 +117,19 @@ The panel shadow is new, and it is a consequence of the border going grey: the p
 
 ## Ink and rules
 
-| Role           | Value     | Notes                                                                  |
-| -------------- | --------- | ---------------------------------------------------------------------- |
-| Primary text   | `#14171c` | Near-black, cool. **Never `#000000`** — pure black reads as harsh here |
-| Secondary text | `#5b5e66` | Labels, metadata, captions. 6.05:1 on the page ground                  |
-| Disabled text  | `#9ba0aa` | Fails contrast deliberately; disabled content must read as unavailable |
-| Inverse text   | `#eef0f5` | On the inverse ground only                                             |
+| Role           | Value     | Notes                                                                                                            |
+| -------------- | --------- | ---------------------------------------------------------------------------------------------------------------- |
+| Primary text   | `#181c23` | Near-black, cool. **Never `#000000`** — pure black reads as harsh here                                           |
+| Secondary text | `#43474f` | Labels, metadata, captions. 8.87:1 on the page ground                                                            |
+| Disabled text  | `#74777f` | 4.26:1 on the page ground — under the floor deliberately, and only ever on disabled content, which 1.4.3 exempts |
+| Inverse text   | `#eef0f5` | On the inverse ground only                                                                                       |
 
 **Three rule weights, and choosing between them is the most consequential styling decision in this language.**
 
 | Token             | Value     | For                                                                                                                                                  |
 | ----------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--rule-strong`   | `#14171c` | **Structure**: under the chrome, under a table head, over a group band, under a masthead, the 2px bar on the current tab, the left edge of a callout |
-| `--rule-hairline` | `#e2e5ec` | The **ordinary** border: panels, controls, inputs, chips. The default                                                                                |
+| `--rule-strong`   | `#181c23` | **Structure**: under the chrome, under a table head, over a group band, under a masthead, the 2px bar on the current tab, the left edge of a callout |
+| `--rule-hairline` | `#e2e4ed` | The **ordinary** border: panels, controls, inputs, chips. The default                                                                                |
 | `--rule-soft`     | `#eef0f4` | **Repeated** dividers — rows inside a long table — where the hairline would stripe                                                                   |
 
 **The near-black rule is still the single most distinctive idiom here and it is still the easiest to soften by accident**; what changed is where it belongs. Before the refresh it wrapped every panel, which works on a screen with one panel and reads as a cage on a screen with twelve. Reserved for structure it keeps its whole effect and lands where a reader is re-orienting.
@@ -138,7 +148,7 @@ The trap this leaves, recorded because it has already caught two stylesheets: th
 
 Focus is **achromatic, and it stayed achromatic through a refresh that introduced an accent** — which is a decision rather than an oversight. A crimson focus ring on a page where crimson means "this is MarketPulse" makes the accent mean two things, and the second is invisible to anyone with a red-green deficiency.
 
-It is a **2px `#14171c` outline with a 2px offset**, on every interactive element, declared once globally in `base.css`, and never removed. This is the one place the "1px always" rule is deliberately broken, because a 1px focus ring against a 1px border is not a state change anybody can see. It is high contrast on all four grounds, and it does not depend on colour perception — one fewer thing for Epic 15's accessibility review to find.
+It is a **2px `#181c23` outline with a 2px offset**, on every interactive element, declared once globally in `base.css`, and never removed. This is the one place the "1px always" rule is deliberately broken, because a 1px focus ring against a 1px border is not a state change anybody can see. It is high contrast on all four grounds, and it does not depend on colour perception — one fewer thing for Epic 15's accessibility review to find.
 
 ## Spacing
 
@@ -154,7 +164,7 @@ Note the gap between 24 and 40 and the absence of 32 — the reference jumps. Th
 
 | Token                 | Value | Use                                            |
 | --------------------- | ----- | ---------------------------------------------- |
-| `--control-height`    | 36px  | The default: buttons, inputs, selects          |
+| `--control-height`    | 34px  | The default: buttons, inputs, selects          |
 | `--control-height-sm` | 28px  | Inline, toolbar, dense contexts                |
 | `--app-header-height` | 56px  | The masthead, and every sticky offset under it |
 
@@ -162,12 +172,12 @@ A button, an input and a select that disagree by 2px turn a toolbar into a ranso
 
 ## Typography
 
-**Three faces, three jobs, self-hosted.** `fonts.css` declares them; nothing is fetched from a third party.
+**Two faces, three jobs, self-hosted.** `fonts.css` declares them; nothing is fetched from a third party. `--font-display` and `--font-sans` resolve to the same stack since 2026-09-11 — both tokens are kept, because the roles are still three and a third face returning should be a value change rather than an audit.
 
 | Token            | Face                    | For                                                                                                   |
 | ---------------- | ----------------------- | ----------------------------------------------------------------------------------------------------- |
 | `--font-display` | Hanken Grotesk Variable | Anything that **names** something: titles, panel headings, the wordmark, micro-labels                 |
-| `--font-sans`    | Inter Variable          | **Prose and interface text**: labels, buttons, descriptions                                           |
+| `--font-sans`    | Hanken Grotesk Variable | **Prose and interface text**: labels, buttons, descriptions                                           |
 | `--font-data`    | JetBrains Mono Variable | **Figures and identifiers**: prices, changes, volumes, tickers, timestamps, correlation ids, commands |
 
 Each stack names real fallbacks with comparable metrics rather than ending at a bare `sans-serif`: a variable webfont is one round trip away on a cold load and `font-display: swap` means the fallback is what a user reads for that frame.
@@ -254,12 +264,12 @@ Colour lives in exactly two files, and **which file a colour is declared in is w
 
 ### `market.css` — colour with market meaning
 
-| Meaning      | Value                             | on `#ffffff` | on `#f6f7fa` | Notes                                       |
-| ------------ | --------------------------------- | ------------ | ------------ | ------------------------------------------- |
-| Positive     | `#046a38`                         | 6.72         | 6.28         | Emerald. Re-picked at the refresh           |
-| Negative     | `#ba1a1a`                         | 6.46         | 6.03         | Paired with the green, not picked beside it |
-| Anomaly ramp | `#f0dda4` · `#e2b544` · `#c08a12` | —            | —            | **Fills, never text, at any size**          |
-| Neutral fill | `#e8eaef`                         | —            | —            | Under a `normal` anomaly band               |
+| Meaning      | Value                             | on `#ffffff` | on `#f8f9ff` | Notes                              |
+| ------------ | --------------------------------- | ------------ | ------------ | ---------------------------------- |
+| Positive     | `#0f7b50`                         | 5.29         | 5.03         | From the design canvas, 2026-09-11 |
+| Negative     | `#c5221f`                         | 5.80         | 5.52         | From the design canvas, 2026-09-11 |
+| Anomaly ramp | `#f0dda4` · `#e2b544` · `#c08a12` | —            | —            | **Fills, never text, at any size** |
+| Neutral fill | `#e8eaef`                         | —            | —            | Under a `normal` anomaly band      |
 
 The green and the red are within 0.25 of each other so that neither direction of a price move shouts louder than the other. Ink on the amber ramp is `--ink-primary` at 13.33 / 9.35 / 5.89.
 

@@ -74,11 +74,11 @@
    */
 
   /* The application background. Cool, and noticeably not white. */
-  --surface-page: #f6f7fa;
+  --surface-page: #f8f9ff;
   /* Cards, modules, panels, table bodies — content sits here. */
   --surface-raised: #ffffff;
   /* Table header rows, disabled fields, chips, secondary strips. */
-  --surface-sunken: #f0f2f6;
+  --surface-sunken: #f2f3f9;
 
   /*
    * The inversion, and it is the refresh's one new ground.
@@ -89,15 +89,15 @@
    * interface where the selected thing is crimson has spent its loudest colour
    * on its least interesting statement.
    */
-  --surface-inverse: #21242a;
+  --surface-inverse: #181c23;
   --ink-inverse: #eef0f5;
 
   /* --- Ink. Never pure black; the neutrals are cool now, not warm. --- */
 
-  --ink-primary: #14171c;
-  --ink-secondary: #5b5e66;
+  --ink-primary: #181c23;
+  --ink-secondary: #43474f;
   /* Fails contrast deliberately: disabled content must read as unavailable. */
-  --ink-disabled: #9ba0aa;
+  --ink-disabled: #74777f;
 
   /*
    * --- Rules ---
@@ -120,8 +120,8 @@
    * and changed its value, which is why nothing consuming it needed editing and
    * why the structural cases had to be re-marked by hand.
    */
-  --rule-strong: #14171c;
-  --rule-hairline: #e2e5ec;
+  --rule-strong: #181c23;
+  --rule-hairline: #e2e4ed;
 
   /*
    * The boundary of an interactive control — an input's box, a select, a
@@ -138,7 +138,7 @@
    * interface component, and a text input's boundary is that standard's own
    * worked example. Measured against both grounds:
    *
-   *   --rule-hairline  #e2e5ec   1.26:1 on white   1.18:1 on the page ground
+   *   the hairline then #e2e5ec   1.26:1 on white   1.18:1 on the page ground
    *   the canvas's own #c4c6cf   1.70:1            1.59:1
    *   this token       #74777f   4.48:1            4.18:1
    *
@@ -250,7 +250,7 @@
    * into a ransom note. `VISUAL-LANGUAGE.md` held these as prose from Story 1.4
    * and they became tokens the moment the first real control shipped.
    */
-  --control-height: 36px;
+  --control-height: 34px;
   --control-height-sm: 28px;
 
   /* The chrome's height, read by the header itself and by every `position:
@@ -287,9 +287,21 @@
     "Hanken Grotesk Variable", "Hanken Grotesk", ui-sans-serif, system-ui,
     -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
+  /*
+   * **Two faces, three roles, since 2026-09-11.** This was Inter until the
+   * design canvas became the source of truth, and the canvas sets interface
+   * text in Hanken Grotesk — the same face as `--font-display`. So the two
+   * tokens now resolve to the same stack.
+   *
+   * They are deliberately **not collapsed into one name.** The roles are still
+   * three and every consumer states which one it means, so the day a third
+   * face returns it is a value change here rather than an audit of every
+   * `font-family` in the tree. That is the same argument that kept `--radius`
+   * when it was zero, and it is the reason that change cost one line.
+   */
   --font-sans:
-    "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    "Hanken Grotesk Variable", "Hanken Grotesk", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
   /*
    * The data face, and the rule that came with it is **the opposite of the one
@@ -332,21 +344,45 @@
    * independently, and a size token without its line height is an invitation to
    * pick one by eye.
    *
-   * `--font-size-dense` is the product's default, not `--font-size-body`, and
-   * the refresh took it from 14px to 13px. 13/18 is the size a professional
-   * market interface actually sets its tables at; 16px is a marketing page's
-   * body size and 14px is the compromise between them. `--font-size-body` is
-   * still here for prose — a paragraph explaining a failure is read, not
-   * scanned, and reading wants the larger size.
+   * `--font-size-dense` is the product's default. The refresh took it from
+   * 14px to 13px: 13/18 is the size a professional market interface actually
+   * sets its tables at; 16px is a marketing page's body size and 14px is the
+   * compromise between them. **`--font-size-body` was 15px for prose until
+   * 2026-09-11 and is now the same 13px** — see the note below for what
+   * replaced the size difference.
    */
-  --font-size-display: 40px;
-  --line-height-display: 44px;
+  /*
+   * **Re-taken from the design canvas on 2026-09-11**, when it became the
+   * source of truth. Its TYPE SCALE panel names six steps — display/28,
+   * title/16, body/13, label/11, micro/10, numeric/13 — and the product is
+   * measurably denser as a result: the display size loses 12px and body loses
+   * two.
+   *
+   * Three notes on the mapping, because it is not one-to-one:
+   *
+   *   1. **`--font-size-body` is now 13px, the same as `--font-size-dense`.**
+   *      The canvas collapses the two. The distinction the repo drew between
+   *      them was real — `.prose` exists because "a table's size is too small
+   *      for a paragraph anybody reads to the end of" — so it is **kept, in
+   *      leading rather than in size**: 13/20 for prose against 13/18 for a
+   *      dense cell. Same step, more air, which is the ordinary typographic
+   *      answer and costs the canvas nothing.
+   *   2. **`--font-size-micro` stays 11px**, because that *is* the canvas's
+   *      `label/11`. The canvas also names a `micro/10` below it, and nothing
+   *      in this product has a consumer for one yet, so it is not declared —
+   *      the standing rule against a token designed against no consumer.
+   *   3. **`--font-size-metric` stays 20px.** The canvas's only headline figure
+   *      is 52px in a single hero position, which is not what a metric strip
+   *      is. Re-take this one when a screen actually wants that figure.
+   */
+  --font-size-display: 28px;
+  --line-height-display: 32px;
   --font-size-heading: 24px;
-  --line-height-heading: 30px;
-  --font-size-subheading: 18px;
-  --line-height-subheading: 26px;
-  --font-size-body: 15px;
-  --line-height-body: 22px;
+  --line-height-heading: 26px;
+  --font-size-subheading: 16px;
+  --line-height-subheading: 22px;
+  --font-size-body: 13px;
+  --line-height-body: 20px;
   --font-size-dense: 13px;
   --line-height-dense: 18px;
   --font-size-micro: 11px;

@@ -105,11 +105,20 @@
  * A paragraph that is *read* rather than scanned — the sentence explaining a
  * failure, the description under a region heading, the copy in an empty state.
  *
- * It exists because the product's default size is 13px, which is a table's size
- * and is too small for a paragraph anybody is expected to read to the end of.
- * The failure mode without it is that prose inherits the dense default and
+ * It existed because the product's default size is 13px, which is a table's
+ * size and is too small for a paragraph anybody is expected to read to the end
+ * of. The failure mode without it is that prose inherits the dense default and
  * every explanatory sentence in the product is set at the size of a data cell —
  * which is what happened before the refresh, in nine files.
+ *
+ * **Since 2026-09-11 the size is the same and the leading is not.** The design
+ * canvas became the source of truth and it collapses body onto 13px, so this
+ * class no longer steps the size up. It steps the *air* up instead — 13/20
+ * against a dense cell's 13/18 — which is the ordinary typographic answer to
+ * "this is read rather than scanned" and is the half of the original argument
+ * that survives at one size. The class still earns its place: without it,
+ * prose gets a table's leading, and a paragraph set at 18px leading is the
+ * thing that makes a screen feel like a spreadsheet.
  *
  * Colour is deliberately not here. Some prose is secondary and some is not, and
  * a class that decided would be a class every consumer had to override.

@@ -1,0 +1,59 @@
+/*
+ * Colour that says **who produced this claim** — the third colour scope, after
+ * identity (`brand.css`) and market meaning (`market.css`).
+ *
+ * ## Why it exists
+ *
+ * `PRODUCT_SPEC.md` §35: *"Every generated conclusion should be
+ * distinguishable from an observed fact."* Nothing in the token layer answered
+ * that until now, because nothing shipped is AI-authored — Epic 10 is the
+ * first thing that generates a conclusion. The requirement had quietly become
+ * a preference.
+ *
+ * The argument, the alternatives and the four constraints are
+ * [ADR 0025](../../../../docs/adr/0025-the-agent-hue-a-second-accent-and-what-authorship-colour-certifies.md).
+ * They are not repeated here; what is repeated is the one that gets dropped:
+ *
+ * **Colour is never the sole encoding.** Under `grayscale(1)` a reader must
+ * still be able to tell a generated claim from an observed fact, so anything
+ * wearing these tokens carries a mark, a word or a border treatment as well.
+ * The tint is a *fill behind a written label*, exactly as the anomaly ramp is.
+ *
+ * ## Why the file is here before its consumer
+ *
+ * ADR 0025 deliberately deferred the token to Epic 10, on the repository's
+ * standing rule that a thing designed against no consumer is designed against
+ * a guess. **That was overridden on 2026-09-11**, when the design canvas
+ * became the source of truth for the whole language: the canvas declares
+ * `--mp-agent` and `--mp-agent-tint`, and a token layer that is meant to be
+ * the canvas in CSS form cannot omit two of its values and still be that. The
+ * ADR carries a dated amendment saying so.
+ *
+ * What Epic 10 still owes, and the deferral was protecting: the non-colour
+ * encoding that travels with these, and a re-measurement in place rather than
+ * in the abstract.
+ *
+ * ## Two values, not one, and the reason is contrast
+ *
+ * The same shape as `brand.css`'s two crimsons. `--agent-fill` is the surface
+ * and the mark; `--agent-ink` is the text, and it is darker because the fill
+ * is not readable as text on the tint. Measured 2026-09-11 against the canvas's
+ * own pairings:
+ *
+ *   --agent-fill  #3a57c9  on `--surface-raised`  6.20:1   (needs 3:1 as a UI fill)
+ *   --agent-ink   #2f46a6  on `--agent-wash`      7.05:1   (needs 4.5:1 as text)
+ *
+ * Both clear their floors with room. Re-measure rather than citing this, and
+ * note that neither `pnpm verify` nor axe can see either number.
+ */
+
+:root {
+  /* The surface and the mark. The canvas's `--mp-agent`. */
+  --agent-fill: #3a57c9;
+
+  /* Text on the wash below. Darker than the fill for the reason above. */
+  --agent-ink: #2f46a6;
+
+  /* The fill behind a written label — the canvas's `--mp-agent-tint`. */
+  --agent-wash: #e9edfb;
+}

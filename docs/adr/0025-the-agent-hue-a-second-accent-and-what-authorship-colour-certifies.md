@@ -63,11 +63,24 @@ Four constraints, which are the decision rather than the detail:
 
 **The token does not land yet.** The decision is recorded here; the custom property
 arrives in its own file — a third colour scope beside `brand.css` and `market.css` —
-**with its first consumer in Epic 10**. This follows the repository's standing rule that a
-thing designed against no consumer is designed against a guess, which dropped the
-`Locked` field state on the same day this was decided. It also means the two checks that
-matter cannot be faked in advance: the contrast measurement and the greyscale check both
-need something real on a screen.
+**with its first consumer in Epic 10**.
+
+> **Amended 2026-09-11, later the same day: the token landed early, and the deferral
+> above was overridden rather than satisfied.** The design canvas became the source of
+> truth for the whole language, and it declares `--mp-agent` and `--mp-agent-tint`. A
+> token layer meant to be that canvas expressed in CSS cannot omit two of its values and
+> still be it. `apps/frontend/src/styles/agent.css` now exists with `--agent-fill`,
+> `--agent-ink` and `--agent-wash`, measured at 6.20:1 and 7.05:1 against their grounds.
+>
+> The decision this ADR records is unchanged, and so are its four constraints. What the
+> deferral was protecting is still owed by Epic 10 and is **not** discharged by the
+> token existing: the non-colour encoding that has to travel with the hue, and a
+> measurement taken in place rather than in the abstract. A file of three values is not
+> a design for a finding card. This follows the repository's standing rule that a
+> thing designed against no consumer is designed against a guess, which dropped the
+> `Locked` field state on the same day this was decided. It also means the two checks that
+> matter cannot be faked in advance: the contrast measurement and the greyscale check both
+> need something real on a screen.
 
 ## Alternatives
 

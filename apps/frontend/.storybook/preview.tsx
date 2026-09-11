@@ -17,6 +17,7 @@ import "../src/styles/fonts.css";
 import "../src/styles/tokens.css";
 import "../src/styles/brand.css";
 import "../src/styles/market.css";
+import "../src/styles/agent.css";
 import "../src/styles/base.css";
 
 // index.html sets `data-theme="light"` on <html>; the workshop's iframe has its

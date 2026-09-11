@@ -95,6 +95,15 @@ const TOKEN_NAMES = [
   "--feed-stale",
   "--feed-disconnected",
   "--status-error",
+
+  // Authorship — agent.css. Added 2026-09-11 with the third colour scope.
+  // No JavaScript consumer yet, and here for the canary reason `--brand-ink`
+  // is: `agent.css` is a fourth global stylesheet whose absence would render
+  // as inherited ink, which looks like a design choice rather than a missing
+  // file. One name here turns that into a startup throw.
+  "--agent-fill",
+  "--agent-ink",
+  "--agent-wash",
 ] as const;
 
 export type TokenName = (typeof TOKEN_NAMES)[number];
@@ -119,7 +128,7 @@ export function readTokens(): Tokens {
       throw new Error(
         `Design token ${name} resolved to nothing. Either the token stylesheet ` +
           `has not been applied, or the token was removed from tokens.css, ` +
-          `brand.css or market.css without being removed here.`,
+          `brand.css, market.css or agent.css without being removed here.`,
       );
     }
 
