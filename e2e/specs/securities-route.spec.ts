@@ -769,6 +769,15 @@ test("search says it cannot answer, and does not grow a second retry", async ({
   // from a product with no search in it.
   const field = page.getByRole("combobox");
   await expect(field).toBeVisible();
+  // **`toBeDisabled()` does not say which mechanism, and that is worth knowing
+  // before trusting this line** (Task 2.11.9). Playwright treats a native
+  // `disabled` attribute and `aria-disabled="true"` as the same verdict, so
+  // this assertion was green when the field was natively disabled — and
+  // therefore **unreachable by keyboard, with its explanation unreadable** —
+  // and it is green now that it is neither. It is the right assertion for what
+  // this test is about (the control is honest about what it can do) and it is
+  // not evidence of anything else. The reachability is asserted where it
+  // belongs, in `search-keyboard.spec.ts`, by pressing Tab.
   await expect(field).toBeDisabled();
   // Its own words rather than the table's: two surfaces are describing one
   // failure on one screen, and the strictness of this locator is what keeps
