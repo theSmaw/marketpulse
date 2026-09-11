@@ -42,3 +42,11 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0021](0021-the-market-data-wire-the-grain-of-provenance-and-what-a-cached-response-certifies.md)          | The market-data wire, the grain of provenance, and what a cached response certifies        | Accepted |
 | [0022](0022-the-design-refresh-three-typefaces-an-identity-accent-and-what-a-token-change-certifies.md)    | The design refresh: three typefaces, an identity accent, and what a token change certifies | Accepted |
 | [0023](0023-the-frontend-state-layer-the-cache-with-no-clock-and-what-a-green-frontend-suite-certifies.md) | The frontend state layer: a cache with no clock, and what a green frontend suite certifies | Accepted |
+| [0025](0025-the-agent-hue-a-second-accent-and-what-authorship-colour-certifies.md)                         | The agent hue: a second accent, and what an authorship colour certifies                    | Accepted |
+
+**0024 is deliberately absent, not missing.** It is reserved by
+[Task 2.11.10](../../planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/TASK-10-deployed-verify-document-and-adr.md)
+for search and selection, which is in flight; three planning documents already cite it by
+number. Numbers are never reused and never renumbered, so 0025 was written into the gap
+rather than taking 0024 from a story that had already claimed it. Expect the row above it
+to fill in when Story 2.11 closes.

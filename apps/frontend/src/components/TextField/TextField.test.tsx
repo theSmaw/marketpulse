@@ -4,7 +4,7 @@
 // **Not colour, and not because it is discouraged.** No stylesheet is applied
 // in this environment at all, so `getTokens()` throws here and every class
 // name is a hashed string with no rule behind it. The error state's hue, the
-// hairline border, the square corners and the reserved trailing slot are
+// hairline border, the corner radius and the reserved trailing slot are
 // structurally invisible to this file — a browser is the only level that can
 // see any of them, and the workshop is where they are reviewed.
 //

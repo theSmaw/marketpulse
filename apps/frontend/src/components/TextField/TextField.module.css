@@ -48,10 +48,16 @@
 
   background: var(--surface-raised);
   border: var(--border-width) solid var(--rule-hairline);
-  /* Square, stated rather than left as an absence somebody helpfully "fixes".
-     `--radius` is 0 everywhere in this language, and a rounded search field is
-     the single most likely way a screen announces itself as a generic web
-     app. */
+  /*
+   * The token, never a literal, and that is the whole instruction here.
+   *
+   * This carried a comment arguing for zero — "a rounded search field is the
+   * single most likely way a screen announces itself as a generic web app" —
+   * written on 2026-09-11 and amended the same day, when the design canvas was
+   * adopted and `--radius` moved to 3px. The argument was not wrong and the
+   * field did not change: reading the token rather than writing `0` is what
+   * meant this file needed no edit at all. Keep it that way.
+   */
   border-radius: var(--radius);
 
   transition: border-color var(--motion-duration-quick)

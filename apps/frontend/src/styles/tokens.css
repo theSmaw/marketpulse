@@ -23,7 +23,8 @@
  *      underline of a table head, the active tab) rather than wrapping every
  *      card. A near-black box around every panel on a page with twelve panels
  *      is a cage; on one panel it is a statement.
- *   3. **Corners are square.** `--radius` was 2px and is now 0. See its comment.
+ *   3. **Corners are nearly square.** `--radius` was 2px, became 0 at the
+ *      refresh, and is 3px since 2026-09-11. See its comment.
  *
  * ## Two rules govern what may be added
  *
@@ -153,19 +154,32 @@
  */
 :root {
   /*
-   * Zero. Not a scale, not per-component, and not 2 or 4 or 8.
+   * 3px. One value, not a scale, not per-component.
    *
-   * The pre-refresh value was 2px — "square with the corner knocked off" — and
-   * the refresh took the last 2px off. A rounded corner is a softening gesture,
-   * and every trading and analytics interface worth copying has stopped making
-   * it: square corners read as a *grid*, which is what a dense table of figures
-   * is. The token stays rather than being deleted from every consumer, so that
-   * reversing this is one line.
+   * **The history is the argument, and it is worth keeping in full**, because
+   * this token has now moved twice and each move was a decision rather than a
+   * preference. It was 2px before the 2026 refresh — "square with the corner
+   * knocked off" — and the refresh took the last 2px off on the ground that a
+   * rounded corner is a softening gesture and that square corners read as a
+   * *grid*, which is what a dense table of figures is.
+   *
+   * **Moved to 3px on 2026-09-11**, adopting the value in the
+   * `Component library for MarketPulse` design canvas. The zero was not wrong;
+   * it was one reading of the same intent, and the canvas is the other. What
+   * decided it is that 3px is still a grid at a glance — the silhouette of a
+   * dense table does not change — while taking the hardest edge off controls
+   * that a person touches. See ADR 0022's dated amendment.
+   *
+   * **The reversal mechanism is the part that mattered**, and the pre-refresh
+   * author built it on purpose: the token stayed rather than being deleted from
+   * every consumer, so this change was one line and fifteen stylesheets
+   * followed. Keep it that way. A component that writes its own corner is what
+   * makes the next move cost a day instead of a minute.
    *
    * Circles — status dots, avatars — are the sole exception and are written as
    * `50%` at the two places that need one.
    */
-  --radius: 0;
+  --radius: 3px;
 
   /* Always 1px. A 2px border is a focus ring or a structural marker, not a
      border. */

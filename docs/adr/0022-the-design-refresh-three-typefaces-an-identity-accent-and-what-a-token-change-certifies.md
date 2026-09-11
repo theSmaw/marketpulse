@@ -159,6 +159,16 @@ interface needs another symbol.
 sunken status strip, the square corners, the cool ground, the dense 13px table with its
 sunken head and banded groups, the data face on tickers and figures.
 
+> **Amended 2026-09-11.** "The square corners" is now **3px**, adopting the value in the
+> `Component library for MarketPulse` design canvas. The decision this section records —
+> one radius token, not a scale, not per-component — is unchanged, and so is its
+> argument: square corners read as a grid. What moved is the value, and it moved on a
+> measurement rather than a preference. At 3px the dense universe table is visually
+> identical, because nothing in it is a rounded rectangle; the radius reaches controls,
+> chips and panels only. The reversal mechanism this ADR's token design built in — keep
+> the token rather than deleting it from every consumer — is what made the change one
+> line and fifteen stylesheets, and it is the part to preserve.
+
 **Narrowed:** the crimson, to the four chrome positions above (decision 2).
 
 **Declined, with reasons:**
