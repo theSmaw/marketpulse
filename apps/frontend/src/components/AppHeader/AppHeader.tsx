@@ -1,4 +1,6 @@
 import type { BackendDegradedCause, BackendStatus } from "@marketpulse/shared";
+import type { RefObject } from "react";
+import { useEffect, useRef } from "react";
 import { NavLink } from "react-router";
 
 import { cx } from "../../cx.js";
@@ -166,9 +168,10 @@ export function AppHeader({
   // `use-market-clock.ts`, and the paragraph above for why the call site is
   // here and not in `App`.
   const clock = useMarketClock();
+  const header = useStickyChromeHeight();
 
   return (
-    <header className={styles.header}>
+    <header className={styles.header} ref={header}>
       <div className={styles.masthead}>
         {/* The identity block. The product name is a `<p>`, not an `<h1>`, and
             Task 1.5.2 demoted it deliberately: every route renders its own
@@ -310,4 +313,110 @@ export function AppHeader({
       </div>
     </header>
   );
+}
+
+/**
+ * Publish how much of the top of the viewport this chrome is sitting over, as
+ * `--sticky-chrome-height` on the document element.
+ *
+ * ## Why this exists at all: focus scrolled under the chrome (Task 2.11.9)
+ *
+ * A sticky header occludes the top of the viewport, and the browser's own
+ * scroll-into-view — the one it performs for **sequential focus navigation**,
+ * which is to say for every press of Tab — knows nothing about it. It scrolls
+ * the newly-focused element to the top of the *scrollport* and stops, which on
+ * this application puts the element, its heading and its focus ring behind the
+ * chrome. Measured in Chromium on 2026-09-11, tabbing from the top of
+ * `/securities/NVDA`:
+ *
+ * | Viewport | Chrome  | Occluded stops in the first 30                                    |
+ * | -------- | ------- | ----------------------------------------------------------------- |
+ * | 1440×900 | 132px   | 1 — the Tracked universe region                                   |
+ * | 768×800  | 180px   | 4 — Price, Abnormal-move, Tracked universe, **`Collapse all`**    |
+ * | 390×780  | 208px   | 2 — Price, Tracked universe                                       |
+ *
+ * It gets **worse as the viewport narrows**, because the status strip wraps to
+ * two rows at 768 and three at 390 — so the one instrument that could have
+ * caught it, a person tabbing through on a development machine, is the one
+ * looking at the widest chrome. `Collapse all` at 768 is the sharpest case: the
+ * control Task 2.11.8 calls the real skip link, reached by keyboard, invisible.
+ *
+ * This is WCAG 2.2's 2.4.11 *Focus Not Obscured (Minimum)*, and axe reads zero
+ * violations through all of it — it judges a DOM, and this is a fact about
+ * where a scroller stopped.
+ *
+ * ## The repair is one CSS declaration, and this is the number it needs
+ *
+ * `base.css` sets `scroll-padding-top` on the scroll container, which is the
+ * standard way to tell every scroll-into-view in a document that the top N
+ * pixels are spoken for. It applies to focus navigation, to fragment links and
+ * to `scrollIntoView()` alike, so it is one mechanism rather than a correction
+ * at each call site.
+ *
+ * What it cannot be is a constant. `--app-header-height` is **56px and is the
+ * masthead only**; the chrome also carries the status strip, which wraps at two
+ * breakpoints — so the number exists at three values and is decided by a media
+ * query in this component's own stylesheet. A token would be a second copy of
+ * it, checked by nothing and wrong at two viewports the first time the strip's
+ * contents change. `UniverseTable`'s `stickyChromeHeight()` reached the same
+ * conclusion from the other side and measures the element; this measures the
+ * same element and publishes it, so the fact has one source and two readers
+ * rather than two definitions.
+ *
+ * A `ResizeObserver` rather than a one-off read, because the height changes
+ * without a re-render of this component: a viewport crossing 768px rewraps the
+ * strip, and so does a font that loads late.
+ *
+ * It is deliberately tolerant of not being the page's chrome. In the workshop
+ * this header is rendered inside a story with no sticky positioning, and the
+ * `position` check is the whole question rather than defensive padding — a
+ * header that is not sticky occludes nothing, and reserving its height would
+ * leave every scrolled-to element a chrome's height below where it belongs.
+ */
+function useStickyChromeHeight(): RefObject<HTMLElement | null> {
+  const ref = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (element === null) return;
+
+    const root = document.documentElement;
+    const publish = () => {
+      const { position } = getComputedStyle(element);
+      const sticky = position === "sticky" || position === "fixed";
+      // Rounded up, for `stickyChromeHeight()`'s reason: the height is
+      // fractional at some zoom levels and a pixel short is a pixel of the
+      // focus ring behind the chrome.
+      const height = sticky
+        ? Math.ceil(element.getBoundingClientRect().height)
+        : 0;
+      root.style.setProperty("--sticky-chrome-height", `${String(height)}px`);
+    };
+
+    publish();
+
+    // **Feature-detected rather than assumed**, and it is not defensive
+    // padding: `ResizeObserver` does not exist in jsdom, so an unguarded `new
+    // ResizeObserver` takes all fourteen of this component's own tests down
+    // with a `ReferenceError` — which is how this line came to be written. The
+    // fallback is exactly right rather than merely safe: an environment with no
+    // observer is an environment with no layout either, `position` reads as
+    // nothing, and the one-off publish above resolves to `0px`, which is the
+    // truth there.
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(publish);
+    observer?.observe(element);
+
+    return () => {
+      observer?.disconnect();
+      // Removed rather than zeroed, so the fallback in `base.css` is what
+      // applies when there is no chrome — one answer for "nobody has said",
+      // rather than a stale zero that looks like a measurement.
+      root.style.removeProperty("--sticky-chrome-height");
+    };
+  }, []);
+
+  return ref;
 }

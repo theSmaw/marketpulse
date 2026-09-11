@@ -827,6 +827,25 @@ function UniverseRows({
       <div className={styles.entering}>
         <table className={styles.table}>
           {/*
+           * **The table's own name** (Task 2.11.9).
+           *
+           * Measured with Chromium's accessibility tree: this table computed
+           * an accessible name of `""`. Inside a named `region` that is
+           * invisible to a reader browsing the page, but a screen reader's
+           * table list — VoiceOver's rotor, NVDA's elements list — is a list
+           * of tables and nothing else, and an unnamed one appears there as
+           * *table, 519 rows, 7 columns*. On a page whose whole content is one
+           * table, that is the one navigation aid that could take a listener
+           * straight to it and does not.
+           *
+           * Visually hidden rather than drawn: the `Panel` above already
+           * renders the heading a reader sees, and a second copy of it above
+           * the column headings is a line that says nothing new. The two
+           * therefore carry the same words on purpose — a caption that
+           * paraphrased the region would be a second name for one thing.
+           */}
+          <caption className={styles.visuallyHidden}>Tracked universe</caption>
+          {/*
            * The column proportions, declared once rather than repeated on a
            * heading and a cell. Without them the table's slack all collects in
            * front of the last column, which is the "stretched to fit" look a
@@ -1123,7 +1142,32 @@ function BandRail({
          * control that disappears at one end of its own range is a control a
          * reader has to hunt for.
          */}
-        <Button variant="secondary" size="small" onClick={onToggleAll}>
+        <Button
+          variant="secondary"
+          size="small"
+          onClick={onToggleAll}
+          // **The state, because the label alone is inaudible** (Task 2.11.9).
+          //
+          // Walked in Chromium: pressing this removed **518 rows** from the
+          // page and announced *nothing*. Task 2.11.8's reason for leaving the
+          // summary line out of the live region is that `aria-expanded` is
+          // spoken at the moment the listener presses the control and about
+          // the thing they pressed — which is a complete argument for a band's
+          // own disclosure and does not reach this control, because this
+          // control had no `aria-expanded` to speak. The name flipping from
+          // `Collapse all` to `Expand all` is not a substitute: it is read on
+          // arrival at a control, and a name that changes under a listener who
+          // is already on it is not reliably re-read by anything.
+          //
+          // So it gets the same mechanism the twelve bands have rather than a
+          // live region of its own, which also keeps `FRONTEND-STATE.md` §7's
+          // count of regions on this page where it is. It carries no
+          // `aria-controls`: there are twelve targets and no element that
+          // contains all of them, and an id list naming twelve `<tbody>`s is
+          // a promise about "move to controlled element" that nothing here can
+          // keep.
+          aria-expanded={!everythingShut}
+        >
           {everythingShut ? "Expand all" : "Collapse all"}
         </Button>
       </div>

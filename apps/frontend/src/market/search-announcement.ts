@@ -50,8 +50,63 @@ import type { SecurityMatches } from "./security-match.js";
  * `SEARCH-AND-SELECTION.md` §4 says out loud rather than dressing up; the
  * reversal trigger is a person reporting that it speaks over them or arrives
  * late.
+ *
+ * **That trigger fired at Task 2.11.9 and the answer was a second number, not
+ * a different first one.** 400 is unchanged and is still right for every
+ * cadence above its own threshold; what it cannot do is tell a pause from an
+ * ending, so below that threshold it speaks once per keystroke. See
+ * `SEARCH_ANNOUNCEMENT_MIN_GAP_MS` for the measurement and the repair.
  */
 export const SEARCH_ANNOUNCEMENT_DELAY_MS = 400;
+
+/**
+ * The shortest gap allowed between two spoken sentences, in milliseconds.
+ *
+ * ## The defect this exists to answer, measured rather than reasoned about
+ *
+ * [Task 2.11.9](../../../../planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/TASK-09-keyboard-screen-reader-and-the-journey.md)
+ * was told by `SEARCH-AND-SELECTION.md` §4 to go and find out whether 400 ms is
+ * right in practice, and it is not — for exactly the listener it was written
+ * for. Typing `nvidia` in Chromium on 2026-09-11, counting the distinct
+ * sentences the region held:
+ *
+ * | Cadence                    | Typing took | Sentences spoken |
+ * | -------------------------- | ----------- | ---------------- |
+ * | fast typist, 90 ms/key     | 589 ms      | **1**            |
+ * | average, 160 ms/key        | 994 ms      | **1**            |
+ * | hunt-and-peck, 500 ms/key  | 3,052 ms    | **7**            |
+ *
+ * The debounce works perfectly above its own threshold and inverts below it: an
+ * inter-key gap longer than 400 ms means **every keystroke looks like the last
+ * one**, so a person typing one six-letter word heard the region speak seven
+ * times, six of them while they were still typing. Two keys a second is not an
+ * unusual rate for somebody navigating by ear.
+ *
+ * **No value of the delay fixes this**, which is why the repair is a second
+ * number rather than a bigger first one. A debounce answers *have they
+ * stopped?* and cannot tell a pause from an ending; raising it to clear the
+ * slowest typist would make the fastest one wait for a sentence they have
+ * already read.
+ *
+ * ## What this number is instead
+ *
+ * A floor on **how often the region may speak at all**, independent of what
+ * tripped it. Combined with the delay above: a sentence lands 400 ms after the
+ * last keystroke, or when the floor lifts, whichever is later — and what it
+ * says is the state at that moment rather than the state that was pending when
+ * the timer started. So the slow typist above hears the *current* answer about
+ * twice while typing rather than six stale ones, and nothing changes for the
+ * two cadences that were already right.
+ *
+ * 1,500 ms, and it is a judgement in the same way 400 is. It is roughly how
+ * long a screen reader takes to read one of these sentences at a default rate,
+ * which is the honest thing to pace a region by: speaking again before the
+ * previous sentence has finished is what produces a queue rather than an
+ * announcement. The reversal trigger is the same as the delay's and is now a
+ * sharper instrument — a person reporting a backlog, or a cadence that still
+ * produces one.
+ */
+export const SEARCH_ANNOUNCEMENT_MIN_GAP_MS = 1500;
 
 /** The subject every sentence opens with. */
 const SUBJECT = "Security search";

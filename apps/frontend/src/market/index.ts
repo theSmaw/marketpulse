@@ -73,6 +73,7 @@ export type {
 } from "./bar-series-view.js";
 export {
   SEARCH_ANNOUNCEMENT_DELAY_MS,
+  SEARCH_ANNOUNCEMENT_MIN_GAP_MS,
   searchAnnouncement,
 } from "./search-announcement.js";
 export type { SearchCorpus } from "./search-announcement.js";

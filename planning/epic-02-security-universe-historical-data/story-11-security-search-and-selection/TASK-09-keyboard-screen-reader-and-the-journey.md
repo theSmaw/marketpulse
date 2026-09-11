@@ -1,6 +1,6 @@
 # Task 2.11.9 — Keyboard, screen reader, and the journey a browser walks
 
-**Status:** Not started
+**Status:** Done — 2026-09-11
 **Story:** [2.11 Security Search & Selection](STORY.md)
 **Depends on:** 2.11.8
 
@@ -344,3 +344,230 @@ as accessibility coverage, a `useId()` value or a DOM snapshot containing one, o
 latency without a large n. And a break that does not go red is not evidence a
 check works — when a check is added here, verify the substitution by breaking the
 thing it is about.
+
+---
+
+## What was done — 2026-09-11
+
+### The short version
+
+The flow was walked in a real browser, end to end, by keyboard. **Five defects
+were found and every one of them is fixed here rather than filed.** Four of the
+five are invisible to `pnpm verify`, and three are invisible to axe as well —
+they are facts about where a scroller stopped, what is in the tab order, and how
+often a region speaks, none of which a DOM assertion can see.
+
+The record with its measurements, its alternatives and its reversal triggers is
+[`SEARCH-AND-SELECTION.md` §6](SEARCH-AND-SELECTION.md); this file says what
+changed and what it cost.
+
+### The instrument, stated plainly
+
+The keyboard half was walked with real key presses in Chromium against the
+running pair. The listening half was taken from **Chromium's own accessibility
+tree** — role, accessible name, description and state as focus reached each
+element, plus every distinct sentence each live region held and when. That is the
+data an assistive technology is handed, and it is **not the same as hearing it**.
+
+Two classes of finding are therefore held at the confidence they deserve rather
+than asserted: how a given screen reader pronounces a name (§6.6), and what its
+table navigation does in a table with no data rows (§6.6). Both are written down
+as open observations with reversal triggers instead of being settled by
+inference. Everything else below is a measurement.
+
+### The five findings, and what each one cost to fix
+
+| #   | What the walk found                                                       | Repair                                                                  |
+| --- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 1   | Tab focus landed **behind the sticky chrome** — WCAG 2.2 2.4.11           | one CSS declaration, fed by a height `AppHeader` measures and publishes |
+| 2   | The unavailable field's reason was **attached to an unreachable control** | `TextField` keeps a disabled field in the tab order, product-wide       |
+| 3   | `Collapse all` removed **518 rows in silence**                            | `aria-expanded`, the same mechanism the twelve bands use                |
+| 4   | The tracked universe was a **table with no accessible name**              | a visually-hidden `<caption>`                                           |
+| 5   | The 400 ms announcement rate **inverts below its own threshold**          | a second number: a floor on how often the region may speak at all       |
+
+**Finding 1 is the largest and it had stood since the chrome became sticky.** The
+browser's scroll-into-view for sequential focus navigation — the one it performs
+for every press of Tab — knows nothing about a `position: sticky` header. Before
+the repair: **one** occluded stop at 1440×900, **four** at 768×800 including
+`Collapse all`, and **two** at 390×780. It worsens as the viewport narrows,
+because the status strip wraps to two rows at 768 and three at 390 — so the one
+instrument that could have caught it, a person tabbing on a development machine,
+is the one looking at the narrowest chrome.
+
+**Finding 5 is the one this file was told to go looking for**, and it is the
+clearest example of why a walk is not a reading. `SEARCH-AND-SELECTION.md` §4
+nominated this pass as the first real opportunity to find out whether 400 ms is
+right in practice. Typing `nvidia` at a hunt-and-peck cadence made the region
+speak **seven times**, six of them while the person was still typing; at 90 and
+160 ms/key it spoke once, correctly. A debounce cannot tell a pause from an
+ending, and no value of it can — so the repair is a floor rather than a bigger
+delay, and the slow cadence now hears **three** current sentences instead of
+seven stale ones.
+
+### Two decisions this task was handed and took
+
+**Focus after a result is opened: it stays in the field** (§6.3). The route
+re-renders rather than re-mounting, so the field is the same element still
+holding the query, and this control is a symbol switcher as much as a search box.
+The objection it had to answer was silence — and it does not apply, measured:
+opening `AMD` changes the **panel's** live region to name `AMD` within 300 ms of
+the keypress. The arrival announces itself, by the region that owns the subject
+that changed. Moving focus to the identity block was rejected because it takes
+the query away mid-switch and buys an announcement the page already makes.
+
+**The disabled field stays focusable** (§6.2 of this list, §6.4 finding 2). Task
+2.11.6 handed this one over explicitly, with three defensible answers. `readOnly`
+alone was rejected on meaning: that prop is a display state — _a value nobody
+edits here_ — and borrowing it would make what a listener hears say nothing about
+why. Leaving it was rejected because the other explanation on screen is two stops
+further on and describes a different surface. So the field renders `aria-disabled`
+and `readOnly`, in `TextField` and therefore for every control after it.
+
+**Its consequences were followed rather than left.** The state stopped being
+inactive, so WCAG 1.4.11's and 1.4.3's exemptions stopped reaching it: the border
+rose from 1.07:1 to **4.22:1** and the value's ink from 2.62:1 to **6.49:1**.
+
+### What was heard and deliberately left alone
+
+- **2.11.8's single-band decision is confirmed, not overturned.** Collapsing one
+  band still announces only `collapsed` and the summary line is still not spoken.
+  One action, one announcement, about the thing that was pressed.
+- **Eight region tab stops, six holding nothing focusable.** Left. It is how a
+  keyboard user reaches content they would otherwise scroll to, and finding 1 is
+  what made it tolerable rather than merely defensible: they are now **visible**
+  when reached.
+- **`Collapse all`'s discoverability**, which 2.11.8 asked about. It is the first
+  thing in the rail's header, so anybody tabbing toward the table meets it before
+  a single row.
+- **The rail's arrival.** A jump travels up to 16,069px and lands on a button
+  named `Energy Benchmark XLE 22 securities` — the band, its benchmark and its
+  size. The landing names its own subject, so it needs no sentence.
+
+### One residue, recorded rather than fixed
+
+The Tracked universe region is a tab stop on a panel 18,895px tall that **never
+scrolls**. Focusing it lands somewhere that is not its heading, before the repair
+and after it, and the next Tab corrects it. The real answer is a `Region` that
+can say it does not scroll — which Task 1.13.4 deliberately declined to build,
+and that argument still holds for the other seven. Reversal trigger in §6.4.
+
+### What now stands where nothing stood
+
+`e2e/specs/search-keyboard.spec.ts` — 11 tests, and **every one of the four
+repairs was verified by restoring the break**:
+
+- removing `scroll-padding-top` takes the 768 case red on three stops and leaves
+  the 1440 case green, which is why it runs at two viewports;
+- restoring the native `disabled` attribute fails at `the search field is not
+reachable by Tab`;
+- removing `aria-expanded` from the bulk toggle fails on the attribute;
+- removing the `<caption>` fails on the table's name.
+
+The floor's own test goes red when `SEARCH_ANNOUNCEMENT_MIN_GAP_MS` is set to 0.
+
+The browser suite is now **13 spec files and 81 tests**, all green, with the axe
+gate at zero violations through every state the repairs touched.
+
+---
+
+## For the stakeholders — what this task actually did, in plain words
+
+**Nothing new was drawn. A great deal was made usable.**
+
+Up to now, every piece of MarketPulse has been built for somebody using a mouse
+and looking at a screen. This task was the first time anybody sat down and used
+the product the way a substantial number of professional analysts actually do —
+**entirely from the keyboard, and listening rather than looking.** It is
+deliberately scheduled here, as its own piece of work rather than as a tidy-up at
+the end, because the search box is the first genuinely interactive control we
+have built and whatever we settle on it is the pattern every control after it
+copies. Getting it wrong once is cheap; getting it wrong and then copying it into
+the charts, the comparison picker and the AI workspace is not.
+
+**Five real problems turned up, and all five are fixed.**
+
+1. **Things you tab to were hiding behind the header.** The bar across the top of
+   MarketPulse stays put when you scroll — deliberately, because it reports the
+   market clock and whether the data feed is alive, and a status that scrolls away
+   is a status nobody sees. But when you move through the page with the Tab key,
+   the browser scrolls things to the very top of the window and does not know
+   about that bar. So the thing you had just selected was sitting _underneath_ it,
+   invisible, while the keyboard thought it was showing you something. It got
+   worse on smaller screens — four items were affected on a laptop-sized window
+   and only one on a large monitor, which is precisely why nobody had noticed:
+   the machines we develop on show the problem least. One line of code fixed it
+   everywhere, permanently, for every part of the product we build from now on.
+
+2. **When search was broken, it explained itself to nobody.** If the service
+   holding our list of companies cannot be reached, the search box greys out and a
+   sentence appears underneath saying why, and offering the one thing that might
+   help. That sentence is read aloud to a screen-reader user _when they land on
+   the box_ — and a greyed-out box cannot be landed on. So the explanation was
+   perfectly written, correctly attached, visible on screen, and could not be
+   reached by the one person who most needed it: somebody who cannot see the
+   screen and needs to be told why tabbing past a search box was the right thing
+   to do. The box now stays reachable, still refuses to take typing it cannot use,
+   and reads its reason out. We fixed this in the shared building block, so every
+   input we ever build inherits the correct behaviour.
+
+3. **A button that removed 518 rows of the page did it in total silence.** The
+   tracked-universe table has a control that folds all twelve sectors shut at
+   once — it is how a keyboard user gets past 518 rows in one keystroke. Pressing
+   it changed the page dramatically and announced nothing at all. It now says
+   whether the sectors are open or shut, using exactly the same mechanism the
+   individual sector headings already use, so there is one idiom rather than two.
+
+4. **The main table had no name.** Screen readers offer a "list all the tables on
+   this page" shortcut, which is how somebody jumps straight to the data. Ours
+   appeared in that list as an anonymous table. It now carries its name.
+
+5. **The spoken summary was talking over people.** After you type, a short
+   sentence is read aloud — "Security search: 1 match for nvid. NVDA." — timed to
+   arrive just after you stop typing. We set that delay by judgement, wrote down
+   that it was a judgement, and said this was the task that would find out whether
+   it was right. **It was right for fast typists and badly wrong for slow ones.**
+   Anyone typing slower than about two keys a second was interrupted after
+   _every single letter_ — six interruptions while typing one six-letter word.
+   And slow, deliberate typing is exactly what somebody navigating by ear does.
+   No amount of adjusting the delay fixes this, because a delay cannot tell a
+   pause from a finish. So we added a second rule — a cap on how often the
+   sentence may be spoken at all — and the slow typist now hears three useful
+   sentences instead of seven useless ones, while nothing changes for anyone else.
+
+**Two things were found, measured, written down, and deliberately not changed.**
+Our headings are set in small, letterspaced capitals, and it turns out browsers
+pass those through to screen readers as capitals too. No meaning is lost — the
+words are still the words — and the only available fixes are worse than the
+problem, so we recorded the exact condition under which we would revisit it.
+Likewise, when every sector is folded shut the table keeps its column headings
+above no rows; we cannot tell from the outside whether that reads as a broken
+promise, so we wrote down what we would need to hear before changing it. Guessing
+is what this task exists not to do.
+
+**Why any of this is worth doing now rather than at the end.**
+
+The honest commercial answer: accessibility work deferred is accessibility work
+that does not happen, and the cost of it rises with every screen that copies the
+wrong pattern. Four of the five problems above were in **shared** pieces — the
+header, the input, the panel — so fixing them now fixes them for the price chart
+in the next story, the volume chart after that, the market overview in Epic 4 and
+the AI workspace in Epic 11. Fixing them in Epic 15 would have meant fixing them
+in nine places and re-testing nine screens.
+
+There is a quality argument alongside it. Three of these five defects were
+completely invisible to our automated checks, and one was invisible to the
+industry-standard accessibility scanner as well. The product had a green tick
+against all of them. **That is the point of a human walking the product**, and it
+is the same reason this repository keeps insisting on measuring rather than
+citing: the check that passes is not the same as the thing that works.
+
+**What a customer can do today that they could not yesterday:** find a company by
+typing part of its name or ticker, choose it with the arrow keys, open it with
+Enter, hear what they have opened, and get back — without touching a mouse, and
+without anything they select disappearing behind the header. That is the first
+half of this epic's promise delivered to everybody rather than to most people.
+
+**What they still cannot do:** see a price chart. The security's page states its
+numbers in words and figures and deliberately draws nothing. That is the next
+story, and it will be built on a search-and-selection layer that has now been
+used in anger rather than merely tested.

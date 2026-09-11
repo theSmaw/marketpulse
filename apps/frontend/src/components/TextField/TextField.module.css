@@ -125,9 +125,28 @@
   background: var(--surface-sunken);
 }
 
+/*
+ * Unavailable: the control cannot answer right now.
+ *
+ * **Its border rose from `--rule-soft` to `--rule-control` at Task 2.11.9, and
+ * the reason is that this state stopped being inactive.** It used to render a
+ * natively `disabled` input, and WCAG 1.4.11's exemption for the boundaries of
+ * *inactive* components covered a hairline measured at **1.07:1** against the
+ * page. The field is now `aria-disabled` and focusable — see
+ * `TextFieldProps.disabled` for the walk that decided it — so the exemption no
+ * longer reaches it and the boundary owes the same 3:1 an editable one does.
+ * `--rule-control` is **4.22:1** on the page ground and 3.93:1 on the sunken
+ * one, both measured 2026-09-11.
+ *
+ * What still tells it apart from `.readOnlyBox`, which now shares its ground
+ * and its border: the value is lighter (see `.input[aria-disabled]` below) and
+ * the cursor says the control will not take what you type. Those are the two
+ * differences that survive greyscale, which is the rule this language holds
+ * everywhere — a state is never told apart by hue alone.
+ */
 .disabledBox {
   background: var(--surface-sunken);
-  border-color: var(--rule-soft);
+  border-color: var(--rule-control);
 }
 
 /* --- Sizes. Two, and they match `Button`'s exactly, which is the whole point
@@ -205,8 +224,24 @@
   opacity: 1;
 }
 
-.input:disabled {
-  color: var(--ink-disabled);
+/*
+ * The value in an unavailable field.
+ *
+ * `[aria-disabled]` rather than `:disabled`, because since Task 2.11.9 the
+ * attribute is the ARIA one — a natively disabled input is not focusable, and
+ * a field whose whole job in that state is to carry the reason it cannot
+ * answer has to be reachable for the reason to be read.
+ *
+ * **`--ink-secondary` rather than `--ink-disabled`, for the same reason the
+ * border moved.** The placeholder note above already measured
+ * `--ink-disabled` at 2.62:1 on white and rejected it for text; it survived
+ * here only on 1.4.3's exemption for text in an *inactive* component, and this
+ * component is no longer inactive. `--ink-secondary` is **6.49:1**, and it is
+ * still visibly lighter than a read-only field's `--ink-primary`, which is
+ * what keeps the two states apart.
+ */
+.input[aria-disabled="true"] {
+  color: var(--ink-secondary);
   cursor: not-allowed;
 }
 

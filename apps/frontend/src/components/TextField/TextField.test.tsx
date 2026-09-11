@@ -152,22 +152,55 @@ describe("TextField", () => {
     ).toBe(false);
   });
 
-  // Only the attribute, and the omission is deliberate rather than lazy: the
+  // Only the attributes, and the omission is deliberate rather than lazy: the
   // obvious second half — fire a change and assert nothing was reported —
   // **passes for the wrong reason and then fails.** `fireEvent.change`
   // dispatches on the node directly rather than simulating a person, so jsdom
-  // delivers the event to a disabled input that no browser would, and the
+  // delivers the event to a read-only input that no browser would, and the
   // assertion measures the test library rather than the control. The real
-  // guarantee is the user agent's, and the attribute is the whole of what this
-  // component owes it.
-  it("disables the input", () => {
+  // guarantee is the user agent's, and the attributes are the whole of what
+  // this component owes it.
+  //
+  // **The assertion inverted at Task 2.11.9 and that is the point of it.** It
+  // used to read `input.disabled === true`; an unavailable field now renders
+  // `aria-disabled` and `readOnly` instead, so that it stays in the tab order
+  // and the sentence saying why it cannot answer — attached with
+  // `aria-describedby`, which is read *when a control is reached* — can be
+  // reached at all. `TextFieldProps.disabled` carries the walk that found it.
+  it("marks the input unavailable without removing it from the tab order", () => {
     render(
       <TextField label="Symbol" value="NVDA" onValueChange={noop} disabled />,
     );
 
-    expect(screen.getByLabelText<HTMLInputElement>("Symbol").disabled).toBe(
-      true,
+    const input = screen.getByLabelText<HTMLInputElement>("Symbol");
+
+    expect(input.getAttribute("aria-disabled")).toBe("true");
+    // What actually stops the value changing. An `aria-disabled` input is an
+    // ordinary editable one as far as the user agent is concerned.
+    expect(input.readOnly).toBe(true);
+    // The whole reason for the pair: a natively disabled input is not
+    // focusable, and an unreachable control cannot have its reason read.
+    expect(input.disabled).toBe(false);
+  });
+
+  // Escape empties a clearable field, and must not empty one nobody is
+  // editing. The native attribute used to make this true for free by refusing
+  // the keystroke; `readOnly` does not, so the guard is the component's.
+  it("ignores Escape in an unavailable field", () => {
+    const onClear = vi.fn();
+    render(
+      <TextField
+        label="Symbol"
+        value="NVDA"
+        onValueChange={noop}
+        onClear={onClear}
+        disabled
+      />,
     );
+
+    fireEvent.keyDown(screen.getByLabelText("Symbol"), { key: "Escape" });
+
+    expect(onClear).not.toHaveBeenCalled();
   });
 
   // --- The four states added 2026-09-11 from the canvas's TEXT FIELD — STATES ---

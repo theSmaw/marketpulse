@@ -199,7 +199,39 @@ export interface TextFieldProps extends Omit<
    */
   readonly readOnly?: boolean;
 
-  /** Temporarily unavailable. Distinct from `readOnly`, which stays legible and focusable. */
+  /**
+   * Temporarily unavailable: the control cannot answer, and says why.
+   *
+   * **It stays in the tab order, and that is a decision this component took
+   * for the whole product** (Task 2.11.9). It renders `aria-disabled` and
+   * `readOnly` rather than the native `disabled` attribute, which is the
+   * difference between a control a listener is told about and one that is not
+   * there.
+   *
+   * The walk that produced it: with the universe unreachable, `SecuritySearch`
+   * disables the field and hangs the reason off it with `aria-describedby` —
+   * *"Nothing to search yet: the tracked universe did not answer…"*. A
+   * description is read **when the control is reached**, and a natively
+   * disabled input cannot be reached. Measured in Chromium on 2026-09-11, the
+   * tab order in that state ran straight from the fourth navigation link to
+   * the first region: the sentence was computed correctly, attached correctly,
+   * on screen, and structurally unreachable — for the one person who most
+   * needs to be told why tabbing past a search box was the right thing to do.
+   *
+   * Three answers were available and this is why this one. **`readOnly`
+   * alone** was rejected on meaning rather than mechanics: the prop above is a
+   * display state — *a value nobody edits here* — and borrowing it for *this
+   * control cannot answer* would give one prop two jobs and make the state a
+   * listener hears ("read only") say nothing about why. **Leaving it** was
+   * rejected because the alternative explanation on screen, the tracked
+   * universe's own failure block, is two stops further on and describes a
+   * different surface. So: the field keeps the grey, keeps the reason, and
+   * keeps its place in the order.
+   *
+   * The distinction from `readOnly` is therefore no longer focusability —
+   * both are focusable now — it is what is announced and whether the value is
+   * something anybody was ever meant to edit.
+   */
   readonly disabled?: boolean;
 
   /**
@@ -312,6 +344,13 @@ export function TextField({
   const describedBy = describedByIds === "" ? undefined : describedByIds;
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    // **Nothing happens in an unavailable field, and this guard is what the
+    // native attribute used to do for free.** Since Task 2.11.9 the input is
+    // `aria-disabled` and `readOnly` rather than `disabled`, so it receives
+    // keystrokes — `readOnly` stops them reaching the value, and this stops
+    // Escape emptying a field the person is not editing.
+    if (disabled) return;
+
     // The consumer first, and unconditionally: a combobox closing its surface
     // on Escape must not be pre-empted by the field emptying itself, and it is
     // the consumer that knows which of the two should happen.
@@ -372,8 +411,13 @@ export function TextField({
           type="text"
           className={cx(styles.input, a11y.focusRingSource)}
           value={value}
-          disabled={disabled}
-          readOnly={readOnly}
+          // **`aria-disabled` rather than `disabled`** — see the prop's own
+          // documentation for the walk that decided it. `readOnly` alongside
+          // is what actually stops the value changing, since an
+          // `aria-disabled` input is an ordinary editable one as far as the
+          // user agent is concerned.
+          aria-disabled={disabled ? true : undefined}
+          readOnly={readOnly || disabled}
           // `false` rather than absent when the field has been checked and
           // passed: absent means "never validated", and those are different
           // things to anybody listening. A warning leaves it absent on

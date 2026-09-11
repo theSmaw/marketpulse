@@ -333,6 +333,124 @@ What is still unchecked, and belongs on the list with its one-liner:
 expanded, **38** with every band shut, and **23** stops from the search field to
 the first table link where 2.11.7 measured 8. `TASK-09` has the composition.
 
+## Amended 2026-09-11 by Task 2.11.9 — the keyboard flow is written, the ADR's subject grew twice more, and six entries are already carried up
+
+The walk is done and its record is
+[`SEARCH-AND-SELECTION.md` §6](SEARCH-AND-SELECTION.md). Seven consequences for
+this close, and only two of them are new work.
+
+**1. "The keyboard flow from 2.11.9" is written. Fold it in rather than
+deriving it.** §6 holds the numbered flow with focus stated after every
+transition, the two decisions this task was handed and took, the five findings
+and the two that were deliberately not acted on. What the finished document owes
+it is a **home for §6.6**, which is the only part that is neither a decision nor
+a repair: two open observations with reversal triggers — accessible names
+reaching an assistive technology in capitals, and a table with twelve rowgroup
+headers and zero data rows. Neither belongs in an ADR, because neither is a
+decision; both belong in the subject document's "what nothing checks", and one
+of them is already there.
+
+**2. Two decisions with product-wide reach belong in ADR 0024**, and they are
+larger than the story that produced them:
+
+- **A disabled control stays in the tab order.** `TextField` renders
+  `aria-disabled` + `readOnly` rather than the native attribute, because a
+  description hung off a control with `aria-describedby` is read **when the
+  control is reached** and a natively disabled one cannot be. This is now the
+  contract every control after it inherits, which is the same argument §1 makes
+  for why the first control decides what the rest look like. **And the
+  consequence has to travel with the decision**: the state stops being
+  _inactive_, so WCAG 1.4.11's and 1.4.3's exemptions stop covering its border
+  and its ink — both were moved, with the measurements beside them.
+- **An announcement rate is two numbers, not one.** A debounce answers _have
+  they stopped?_ and **cannot tell a pause from an ending**, so below its own
+  threshold it speaks once per keystroke; a floor answers _how often may this
+  speak at all?_. Epic 3's socket is where a live region first has to be paced
+  by something other than a person's typing, and it should inherit the pair
+  rather than rediscover the inversion.
+
+**3. `FRONTEND-STATE.md` §7 is an upward-sweep candidate it did not have
+before.** §7 governs live regions and treats a rate as a per-surface judgement;
+§4's own reversal trigger says that at some point "regions need a rate rather
+than a per-surface judgement". The floor is the first piece of an actual rate
+policy and it lives in one component's hook. Carry it, or record deliberately
+that Epic 3 owns it — but do not leave a mechanism that paces a region recorded
+only in this story.
+
+**4. Two mechanisms now measure the same fact, and the close should decide
+whether that is a duplication or a seam.** `AppHeader`'s `useStickyChromeHeight`
+publishes the chrome's height as `--sticky-chrome-height` for
+`base.css`'s `scroll-padding-top`; `UniverseTable`'s `stickyChromeHeight()`
+measures the same element for `jumpToBand`. Both were written against the same
+argument — that the number exists at three values and cannot be a token — and
+both are correct. They are not redundant today (`window.scrollTo` ignores
+`scroll-padding`), but they are two readers of one fact with no link between
+them, which is the shape this repository normally refuses. Either the second
+reads the first's custom property, or the reason it does not is written down.
+
+**5. Item 7's first verify-list bullet above is narrower than it now reads.** It
+says a jump landing behind the sticky chrome is held by one spec. Still true of
+**the rail's** jump. What changed is that the same class of defect on **Tab** —
+which no jump control is involved in — was found, fixed and is held by
+`e2e/specs/search-keyboard.spec.ts` at two viewports. Carry both, and note they
+are two mechanisms rather than one (item 4).
+
+**6. Six entries are already carried up and must be verified rather than
+re-derived** — the point of this list is that a correction recorded is not a
+correction propagated, and these were propagated the same day:
+
+- `CLAUDE.md`'s _Frontend_ section gained **two traps**: that a sticky header
+  occludes focus and the browser's own scroll-into-view does not know it, and
+  that a natively `disabled` control is not focusable so anything
+  `aria-describedby` hangs off it is unreachable. Both are written where a
+  frontend author meets them rather than only in this story's documents.
+- `CLAUDE.md`'s _What `pnpm verify` does not cover_ gained **three**, each with a
+  re-measure one-liner: that no tab stop lands behind the chrome, that every
+  control carrying an explanation is in the tab order, and that a control which
+  changes the page announces that it did.
+- `SEARCH-AND-SELECTION.md` §8 gained **two**: that a `Region` taller than the
+  viewport lands focus anywhere useful, and that the capitals finding stays
+  harmless.
+- `e2e/README.md` gained a section on the two properties this level alone can
+  see, and its spec table and test count are re-taken — **thirteen files, 81
+  tests**.
+- `UniverseTable.test.tsx` carried a comment claiming a focused button's
+  changing accessible name is announced. **It is not**, and the comment is
+  corrected with the measurement rather than deleted.
+- `SEARCH-AND-SELECTION.md` §4's rate is amended with the cadence table and §3's
+  Back row points at §6.1's step 8, where the sentence it predicted wrongly is
+  finally said out loud.
+
+**7. One inherited question is answered and one figure is unchanged.** Task
+2.11.8's item 4 — _"the thing to listen for hardest"_ — is **confirmed rather
+than overturned**: collapsing a single band still announces only `collapsed` and
+the summary line is still not spoken, and that reads correctly on the walk. What
+2.11.8's argument did **not** cover is `Collapse all`, which had no
+`aria-expanded` to speak and removed 518 rows in silence; it has one now. The
+tab-stop figures in item 8 are unchanged at **556 / 38 / 23**.
+
+**One trap this close should not walk into, because it was found here.**
+Playwright's `toBeDisabled()` treats a native `disabled` attribute and
+`aria-disabled="true"` as the same verdict. `securities-route.spec.ts`'s
+"search says it cannot answer" was therefore **green in both worlds** — green
+when the control was unreachable with an unreadable explanation, and green now
+that it is neither. It is the right assertion for what that test is about and it
+is evidence of nothing else; a note beside it now says so. Expect the same of
+any assertion that names a state rather than a mechanism.
+
+**No task is added, re-ordered or deleted, and one gap is handed forward with a
+named owner.** Acceptance criterion 3 says the control "announces itself
+correctly to a screen reader", and the pass was taken from Chromium's
+accessibility tree — the data an assistive technology is handed — rather than
+from a screen reader reading aloud. That is stated plainly in §6 and in
+`TASK-09` rather than glossed. Everything mechanically checkable was checked and
+five defects were fixed; what is left needs a person with VoiceOver or NVDA, and
+**Epic 15 already owns the accessibility review** (`e2e/README.md`: "a green axe
+run is not one"). Adding an eleventh task here would be adding one nobody in
+this loop can execute, which is how a task becomes permanently deferred. So the
+two observations in §6.6 are carried into that epic's entry instead, which is
+this close's job under _the upward sweep_.
+
 ---
 
 ## Done when
