@@ -145,6 +145,14 @@ promise, and the first person to import a sixth glyph does it without a decision
 icon here is an edit to a file, which is a moment where somebody asks whether the
 interface needs another symbol.
 
+> **Amended 2026-09-11 (Task 2.11.3).** The union is **six**, not five. The mechanism
+> above did exactly what it was built to do: the sixth glyph — `magnifier`, for the
+> product's first input field — required an argument in Task 2.11.1 and an edit here
+> rather than an import, and the argument is recorded in
+> [`SEARCH-AND-SELECTION.md`](../../planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/SEARCH-AND-SELECTION.md)
+> §5. The decision this section records is unchanged; only the count is. The set is now
+> six and the seventh needs its own argument in its own task rather than citing that one.
+
 ### 5. What was taken from the reference, and what was declined
 
 **Taken:** the three-face typography, the crimson identity, the tabbed masthead, the

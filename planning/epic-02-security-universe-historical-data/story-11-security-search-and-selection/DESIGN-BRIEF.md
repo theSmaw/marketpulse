@@ -80,6 +80,13 @@ primitive rather than inline.
 about whether the interface needs another symbol — make it consciously, in the deliverable,
 rather than assuming it.
 
+> **Answered, and this paragraph is left as the question it was.** The deliverable used a
+> magnifying glass, Task 2.11.1 took the position deliberately
+> ([`SEARCH-AND-SELECTION.md`](SEARCH-AND-SELECTION.md) §5) and **Task 2.11.3 added it on
+> 2026-09-11**. The set has **six** members; the sixth is named `magnifier` rather than
+> `search`, because `Icon.tsx`'s rule is that a symbol is named for what it is and not for
+> what a consumer uses it for. The seventh needs its own argument in its own task.
+
 **Three things it is easy to break by accident:**
 
 - **`status` is not filtered.** An `untracked` security is shown and marked, never hidden. A

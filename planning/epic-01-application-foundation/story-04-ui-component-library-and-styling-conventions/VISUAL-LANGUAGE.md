@@ -235,7 +235,18 @@ Two heights (see [Spacing](#spacing)), and three button variants:
 
 There is deliberately **no `danger` variant**: it would want red, red means price-down on every screen, and V1 is a read-only analytical tool with nothing to destroy.
 
-**Input fields are not built yet**, and that is deliberate rather than an omission — Story 2.11 is the first screen with a search field, and a control designed against no consumer is a control designed against a guess. The 2026-08-31 specification for them still stands and is what that story builds against: label _above_ the field at micro-label size, never a placeholder; bordered or underlined; and **seven states — Empty, Filled, Hover, Focus, Error, Disabled, Locked** — where `Locked` (not editable by this user) is distinct from `Disabled` (temporarily unavailable) and looks different.
+**Input fields were not built until 2026-09-11**, and that was deliberate rather than an omission — Story 2.11 is the first screen with a search field, and a control designed against no consumer is a control designed against a guess. The 2026-08-31 specification for them was: label _above_ the field at micro-label size, never a placeholder; bordered or underlined; and **seven states — Empty, Filled, Hover, Focus, Error, Disabled, Locked** — where `Locked` (not editable by this user) is distinct from `Disabled` (temporarily unavailable) and looks different.
+
+**Built 2026-09-11 by Task 2.11.3 as `TextField`, and the specification was implemented with three changes**, each argued in the component's own header and in [`SEARCH-AND-SELECTION.md`](../../epic-02-security-universe-historical-data/story-11-security-search-and-selection/SEARCH-AND-SELECTION.md) §5:
+
+- **Bordered**, not underlined. An underline on a page of hairline-bordered panels reads as a form field on a document and has no resting silhouette
+- **Six states, not seven.** `Locked` is **dropped** until authentication exists: §37 excludes it, so the state has no consumer, and a state drawn against no consumer is exactly the guess that deferred fields in the first place. The trigger for the seventh is **the first field a person can see and may not edit**. Two states were added instead, for this consumer and every later one: _searching_ and _surface open_
+- **The input text is set in `--font-data`**, the monospace face, because what a person types into the first consumer is predominantly a ticker. It is the single detail that most makes a field read as a command line rather than as a web form, and the cost — a typed company name is also in mono — was accepted rather than overlooked
+
+Two things the field could not settle by itself, both recorded because the next control meets them:
+
+- The resting border is `--rule-hairline` and **not** the 2px near-black the design deliverable drew. A resting border of the focus ring's own weight and colour leaves a field with no visible focus state
+- **A composite control cannot use the global focus ring unaltered**, and that is the first escalation this layer has had. The element a browser focuses is the bare `<input>` inside the box, so the token's outline lands _inside_ the control. `a11y.module.css` now carries `focusRingHost`/`focusRingSource`, which hand the ring — the same three tokens, unchanged — from the focused element to the box that is the control. It is shared rather than local because Story 2.13's window control and Epic 8's picker meet the identical problem
 
 ## Colour, and the two rules about it
 
@@ -314,7 +325,7 @@ Stated explicitly, because each one is a thing somebody will otherwise add in go
 - **No dark theme in V1.** The mechanism is built so a second palette is a values-only swap; the palette is not
 - **No shadows as elevation.** Ground contrast, a hairline, and a shadow you cannot quite see
 - **No radius scale.** Zero
-- **No icon beyond the closed set.** Adding one is an edit to `Icon.tsx`, which is the moment somebody asks whether the interface needs another symbol
+- **No icon beyond the closed set.** Adding one is an edit to `Icon.tsx`, which is the moment somebody asks whether the interface needs another symbol. That moment has happened once: the set was five from the refresh until **2026-09-11**, when Task 2.11.3 added `magnifier` for `TextField`. It is **six**, and the seventh needs its own argument in its own task rather than citing that one
 
 ## The dark-theme reversal
 

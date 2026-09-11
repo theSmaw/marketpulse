@@ -1,7 +1,7 @@
 import { cx } from "../../cx.js";
 import styles from "./Icon.module.css";
 
-// The icon set — five drawings, inline, and a closed union.
+// The icon set — six drawings, inline, and a closed union.
 //
 // ## Why not an icon font, and why not a package
 //
@@ -17,6 +17,15 @@ import styles from "./Icon.module.css";
 // and therefore a moment where somebody asks whether the interface needs
 // another symbol. An interface that grows icons without that moment ends up
 // with three arrows that mean different things.
+//
+// That moment has happened exactly once. The set was closed at **five** from
+// the 2026 refresh until 2026-09-11, when Task 2.11.1 argued for a sixth —
+// `magnifier`, for the product's first input field — on the ground that a
+// search affordance has to be recognisable at a glance on a dense screen, and
+// that the micro-label above a field reads as a section heading rather than as
+// "you can type here". `SEARCH-AND-SELECTION.md` §5 carries the argument. **The
+// set is now six, and the seventh needs its own argument in its own task rather
+// than citing that one.**
 //
 // ## Every icon is decorative, and that is not configurable
 //
@@ -56,6 +65,7 @@ export const ICON_NAMES = [
   "arrowRight",
   "refresh",
   "alert",
+  "magnifier",
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
@@ -79,6 +89,7 @@ const PATHS: Readonly<Record<IconName, string>> = {
   arrowRight: "M4 12h15m0 0l-6-6m6 6l-6 6",
   refresh: "M20 11a8 8 0 10-2.3 5.7M20 5v6h-6",
   alert: "M12 8v5m0 3.5v.5M12 3L2 20h20L12 3z",
+  magnifier: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
 };
 
 export function Icon({ name }: IconProps) {

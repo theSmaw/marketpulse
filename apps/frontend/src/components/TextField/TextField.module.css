@@ -1,0 +1,317 @@
+/*
+ * The first input in this design language, and the stylesheet is where four of
+ * its decisions actually live. The component header argues them; this file is
+ * where they are true.
+ *
+ * Note what is absent, as in `Button.module.css` and for the same reason:
+ * **there is no `:focus` rule anywhere below.** `base.css` carries one global
+ * `:focus-visible` outline — 2px near-black at 2px offset — and a control that
+ * declares its own is answering a question the token layer already answered.
+ * It is also why the resting border is a hairline rather than the 2px
+ * near-black the design deliverable drew: a resting border of the focus ring's
+ * own weight and colour leaves the field with no visible focus state at all.
+ */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* The field is sized by whatever contains it. A control that decided its own
+     width would have to be overridden at every call site. */
+  width: 100%;
+}
+
+/*
+ * The label, above the field, at micro-label size. This is the idiom that makes
+ * a control read as an instrument rather than as a web form, and it is the
+ * whole reason a placeholder is never allowed to stand in for it.
+ */
+.label {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+}
+
+/*
+ * The box. Bordered rather than underlined — an underline on a page of
+ * hairline-bordered panels reads as a form field on a document, and it has no
+ * resting silhouette until it is focused.
+ */
+.box {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+
+  height: var(--control-height);
+  padding: 0 var(--space-8);
+
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--rule-hairline);
+  /* Square, stated rather than left as an absence somebody helpfully "fixes".
+     `--radius` is 0 everywhere in this language, and a rounded search field is
+     the single most likely way a screen announces itself as a generic web
+     app. */
+  border-radius: var(--radius);
+
+  transition: border-color var(--motion-duration-quick)
+    var(--motion-ease-standard);
+}
+
+/* The same hover idiom as `Button`'s secondary: the border steps up to the
+   structural near-black for a moment. It costs no colour and it is a stronger
+   signal than a ground change on a surface that is already white. */
+.box:hover:not(.disabledBox) {
+  border-color: var(--rule-strong);
+}
+
+/*
+ * Something is open directly beneath — a result surface, later a calendar. The
+ * field becomes the head of it and holds the hover border permanently, so the
+ * pair reads as one object rather than as a box with a box under it.
+ */
+.open {
+  border-color: var(--rule-strong);
+}
+
+.invalid {
+  border-color: var(--status-error);
+}
+
+.disabledBox {
+  background: var(--surface-sunken);
+  border-color: var(--rule-soft);
+}
+
+/* --- Sizes. Two, and they match `Button`'s exactly, which is the whole point
+   of `--control-height` existing: a field and a button 2px different in height
+   turn a toolbar into a ransom note. --- */
+.medium {
+  height: var(--control-height);
+}
+
+.small {
+  height: var(--control-height-sm);
+  padding: 0 var(--space-4);
+}
+
+.leading {
+  display: inline-flex;
+  color: var(--ink-secondary);
+  /* Sized by the input's type, not the label's — see `Icon`, which is 1em and
+     takes no size prop. */
+  font-size: var(--font-size-dense);
+}
+
+/*
+ * The input itself, set in the **data face**.
+ *
+ * This is the single detail that most makes the field read as a command line
+ * rather than as a web form: `--font-data` is the face for "figures and
+ * identifiers: tickers", and a ticker is what a person types into the first
+ * consumer. The cost is accepted rather than overlooked — a typed company name
+ * is in mono too.
+ *
+ * `.dataCell` rather than three hand-copied declarations, so the day the data
+ * idiom gains a fourth this field is not the thing that silently stopped
+ * matching.
+ */
+.input {
+  composes: dataCell from "../../styles/type.module.css";
+
+  flex: 1;
+  min-width: 0;
+
+  /* The user agent's own box, removed. The `.box` above is the control. */
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-primary);
+
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  font-weight: var(--font-weight-medium);
+}
+
+/* The placeholder is a hint about *format*, never the label, and it is drawn
+   at the disabled ink so it can never be mistaken for a value that is there. */
+.input::placeholder {
+  color: var(--ink-disabled);
+  /* Some engines apply their own opacity on top of the colour. */
+  opacity: 1;
+}
+
+.input:disabled {
+  color: var(--ink-disabled);
+  cursor: not-allowed;
+}
+
+/*
+ * The trailing slot: the `Esc` chip and the clear button, present only when
+ * there is something to clear.
+ *
+ * There is deliberately **no reserved width** for it, and the component's
+ * markup carries the measurement that argues why: the slot can only appear as
+ * the value goes from nothing to one character, so the input is empty at the
+ * moment it narrows and nothing a person is reading moves. A permanent
+ * `min-width` would buy nothing and cost a strip of dead space in every field
+ * that is merely capable of being cleared.
+ */
+.trailing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  flex-shrink: 0;
+}
+
+/*
+ * The `Esc` chip. The micro-label idiom doing a job rather than decorating one:
+ * it says what the escape hatch is without a tooltip, and the component makes
+ * it true by handling the key itself.
+ */
+.escHint {
+  composes: microLabel from "../../styles/type.module.css";
+
+  padding: 0 var(--space-4);
+  border: var(--border-width) solid var(--rule-hairline);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  color: var(--ink-secondary);
+  font-family: var(--font-data);
+}
+
+/*
+ * A control inside a control, so it is smaller than the thing containing it and
+ * has no ground of its own until it is hovered — `Button`'s `quiet` idiom, at a
+ * size `Button` deliberately does not offer.
+ */
+.clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 18px;
+  height: 18px;
+  padding: 0;
+
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-secondary);
+
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+
+  transition:
+    background-color var(--motion-duration-quick) var(--motion-ease-standard),
+    color var(--motion-duration-quick) var(--motion-ease-standard);
+}
+
+.clear:hover {
+  background: var(--surface-sunken);
+  color: var(--ink-primary);
+}
+
+/*
+ * --- Busy ---
+ *
+ * An indeterminate sweep along the inside bottom edge. Absolutely positioned
+ * inside the border box, so it takes no space and can move nothing: the whole
+ * constraint on this state is that a field which becomes busy while somebody is
+ * reading it must look identical apart from this 2px line.
+ *
+ * It is also the one deliberately *alive* thing in the control, and it is safe
+ * to be so because it is not a number. `DESIGN-BRIEF.md` §10's constraint —
+ * motion must never make a figure harder to read — is why the sweep is on the
+ * chrome rather than on the value.
+ */
+.busyTrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+
+.busyTrack::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  background: var(--rule-strong);
+  animation: sweep 1100ms var(--motion-ease-standard) infinite;
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(350%);
+  }
+}
+
+/*
+ * The per-component reduced-motion block `tokens.css` warns about having to
+ * remember — and this is the case its warning exempts rather than covers. The
+ * token durations are for *transitions*, where 0ms still ends in the final
+ * state; an indeterminate loop has no final state, so setting its duration to
+ * zero would delete the affordance rather than still it. The still form is a
+ * full-width rule: the field still says "something is happening", it just does
+ * not move while saying it.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .busyTrack::after {
+    width: 100%;
+    animation: none;
+    background: var(--ink-secondary);
+  }
+}
+
+/* --- The two lines under the field --- */
+
+/*
+ * The hint — a count, a format, a unit. Micro size and the data face, and
+ * **deliberately not `microLabel`**: that idiom uppercases, and the first
+ * consumer's hint is a sentence with a count and a quoted query in it. An
+ * uppercased sentence is a label pretending to be prose. The face is the data
+ * one because what this line carries is nearly always a figure.
+ */
+.hint {
+  margin: 0;
+
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The error line. It carries the `alert` glyph as well as the hue, because
+ * `market.css`'s rule is that colour is never the sole encoding of anything —
+ * under `grayscale(1)` this message and the hint above it are the same tone.
+ */
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+
+  margin: 0;
+
+  /* The interface face and not the data one: this is a sentence a person
+     reads, and `--font-data` is explicitly not for prose. */
+  font-family: var(--font-sans);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  font-weight: var(--font-weight-medium);
+  color: var(--status-error);
+}
