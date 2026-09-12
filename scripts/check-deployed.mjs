@@ -374,6 +374,35 @@ export function reportDeployed(
     return;
   }
 
+  // **Before the two-halves diagnosis, because this failure is neither half.**
+  //
+  // Added 2026-09-12, on the first live run of the freshness probe. It failed
+  // correctly — the deployed daily store was four sessions behind — and this
+  // function printed *"The frontend half of the deployed environment is not
+  // answering correctly"* directly above a line reading `✓ frontend`.
+  //
+  // That is the failure mode this repository writes down most often: a message
+  // that names the wrong thing is worse than no message, because a reader acts
+  // on it. The check grew a third subject and its diagnosis still knew two.
+  if (backend.ok && frontend.ok) {
+    console.error(
+      "Both halves are up and the artefact is coherent. **The deployment itself\n" +
+        "succeeded.** What failed is the AGE of the data behind it: the store is\n" +
+        "further behind the trading calendar than the ceiling allows.\n" +
+        "\n" +
+        "This is not a rollback signal. Rolling back the code would not move a bar,\n" +
+        "and the previous revision reads the same store. The repair is a backfill:\n" +
+        "the line above names the dispatch, and `pnpm bars:check --timeframe 1d`\n" +
+        "says what is missing before you spend the quota.\n" +
+        "\n" +
+        "If the store is current and this is still red, the ceiling in\n" +
+        "MAX_SESSIONS_BEHIND is wrong rather than the data — it is a judgement\n" +
+        "about a daily schedule and BARS.md \u00a78.18 records what it was chosen\n" +
+        "against.\n",
+    );
+    return;
+  }
+
   console.error(
     `The ${backend.ok ? "frontend" : "backend"} half of the deployed environment is not ` +
       "answering correctly.\n" +
