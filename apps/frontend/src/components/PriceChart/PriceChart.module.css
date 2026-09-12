@@ -280,3 +280,12 @@
   stroke-width: 1;
   stroke-dasharray: 6 3;
 }
+
+/*
+ * The text alternative (Task 2.12.8). Off screen and in the accessibility tree,
+ * which is the whole of what it is for — see `chart-alternative.ts` for why the
+ * sentence is a sibling of the picture rather than a name on it.
+ */
+.visuallyHidden {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}

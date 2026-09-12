@@ -484,3 +484,98 @@ bars, 990 slots, `partial`. Measure the routine case on **that**, and keep
 `dense` for the density ceiling. A trace taken only on `dense` measures the
 densest series this product opens at with the fewest elements it ever draws,
 which is neither end of anything.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.8 — the calendar walk gained a **second caller inside one render**, and the pointer path gained work
+
+Three things, and the first two are additions to what this task measures rather
+than corrections to it. The first is the one that matters: 2.12.8 is the only
+task in this story that added cost to a surface the amendments above already name
+as the unmeasured one.
+
+### The trading-calendar walk now runs **twice per render of `PriceChart`**
+
+2.12.3's amendment records that `timeAxis` — which steps **day by day** through
+the trading calendar, the same algorithm Task 2.9.9 measured at **20.6 ms** on the
+server over the whole stored depth — gained a caller in the browser, on the main
+thread, inside a render. 2.12.4's amendment answers the question it left open:
+**once per render, unmemoised, and the React Compiler is not installed**, so there
+is no auto-memoisation to rescue it.
+
+**`chart-alternative.ts` is a second call in the same render.** The text
+alternative's coverage clause has to count the axis's own slots, and it derives
+its own axis rather than reading the frame's — deliberately, because the frame's
+coverage is in **pixels**, which are zero everywhere below a browser, so a
+sentence built from them would be empty in exactly the environment that tests it.
+`CHARTING.md` §15.3 carries that argument and `CLAUDE.md`'s gap list carries the
+consequence: the two agree only by both calling `timeAxis` and
+`positionOfInstant`.
+
+What this task owes because of it:
+
+- **Time `timeAxis` at the cap and then double it**, which is the honest figure
+  for a render today. The 2.12.3 amendment asked for the single figure and it is
+  still the right measurement; what has changed is the multiplier.
+- **Say whether the second call is worth removing, and measure before answering.**
+  There are three shapes and none is obviously right: leave it (two walks of five
+  sessions is nothing at this story's windows), have `chartFrame` return the axis
+  it already built and hand it to the alternative (one walk, but it makes the
+  sentence depend on the frame, which is the coupling §15.3 avoided on purpose),
+  or memoise `timeAxis` itself on the window (which pays for **all three** callers
+  including the server's, and is the `packages/shared` repair 2.9.9 already argued
+  for once).
+- **It is not on the pointer path**, and that is measured rather than assumed:
+  `PriceChart.test.tsx` counts `chartFrame` calls across forty arrow presses and
+  expects zero, and the alternative sits in the same render body, so it runs zero
+  times too. The cost is per **answer** and per **resize**, not per move.
+
+The window where this stops being free is the one the Notes already name and
+2.12.3's amendment repeats: **a `1d` window offering "1 year" or "max"**, which is
+Story 2.13's. It is now two walks of hundreds of calendar days rather than one.
+
+### The readout is rendered **twice per pointer move**, which lands on the one surface this task is pointed at
+
+The Work section says continuous pointer movement is the case most likely to
+produce a _routine_ long task and is the genuinely unmeasured surface. 2.12.8 put
+work there, and it is small, constant in the bar count, and worth measuring rather
+than waving through.
+
+The reserved-height repair (`CHARTING.md` §15.4) makes the readout a one-cell grid
+holding **two** rows: the live reading and a hidden reading of the last bar that
+sizes the row. `ChartReading` re-renders on every pointer move and neither row is
+memoised, so per move the component now:
+
+- renders **two** `BarFigures` subtrees instead of one — roughly **40 elements
+  reconciled rather than 20**, all of them constant in the bar count;
+- runs `formatBarInstant` **twice**, which is two `Intl.DateTimeFormat.formatToParts`
+  calls rather than one. The formatters themselves are module-cached in
+  `packages/shared/src/market-time.ts`, so this is a format call and not a
+  constructor — but it is the only `Intl` work anywhere on the pointer path, and
+  `CALENDAR.md` §6 is the reason to look at it rather than assume it.
+
+**The hidden row's output never changes**, so React reconciles it and touches no
+DOM. That is the reason to expect this to measure as nothing, and it is exactly
+the reason the Work section's warning applies: a confirming measurement and one
+never taken produce the same report. Measure the pointer path **with and without
+the sizer** — commenting it out is a two-line change — so the delta is a number
+rather than an argument.
+
+### The prediction table, corrected a fifth time, and a new break worth having
+
+| Row                      | What 2.12.8 did to it                                                                                                                                             |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DOM nodes in the plot    | **+1 outside the SVG** — one visually hidden `<p>`. Nothing was added to the drawing                                                                              |
+| DOM nodes in the readout | **roughly doubled**, to ~40, half of them `visibility: hidden`. Constant in bars, and on the pointer path                                                         |
+| Shape                    | **Unmoved**: `O(sessions + breakpoint)`, `O(1)` in bars. The alternative's own cost is `O(sessions)` through `timeAxis`, which is the same term the frame carries |
+| Bundle cost              | One new module, `chart-alternative.ts`, plus one CSS rule. No token, no dependency. Attribute it separately from the five arithmetic modules                      |
+
+**A new instrument break, and it is the cheapest on any of these lists.** Move
+`ChartReading`'s `useState` up into `PriceChart` — the repair 2.12.6 took
+structurally and 2.12.4's amendment warned would be undone by a well-meant "lift
+state up". It puts **two** calendar walks and a 1,950-point path build on every
+pointer move, which is the shape §28's word _routine_ is about. `PriceChart.test.tsx`'s
+_recomputes the frame zero times across forty arrow presses_ should go red, and so
+should the trace. Confirm both: a break that reddens only the unit test has not
+shown that the trace can see it, which is this story's own recorded lesson about a
+break being loud in the wrong dimension.

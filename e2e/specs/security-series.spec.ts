@@ -118,8 +118,20 @@ test("a deep link renders one security's real bars, from a real request", async 
     // The feed, in the shipped vocabulary rather than a slug — invariant 6 on
     // the one series this page renders. It comes off the series' provenance, so
     // there is nothing to label when there are no bars.
-    await expect(region.getByText("Market feed")).toBeVisible();
-    await expect(region.getByText("All US exchanges")).toBeVisible();
+    //
+    // **`exact` on both since Task 2.12.8**, and the reason is the rule about
+    // two surfaces using one set of words rather than an awkward locator: the
+    // chart's text alternative names the feed too, because a picture-reader is
+    // owed the provenance the label carries, and it names it in the *shipped*
+    // vocabulary — which is the one part of that sentence that cannot be
+    // re-worded to avoid the collision. So the label is matched as the whole of
+    // an element's text, which the alternative's own sentence is not.
+    await expect(
+      region.getByText("Market feed", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      region.getByText("All US exchanges", { exact: true }),
+    ).toBeVisible();
   }
 
   await expectNothingFailedToRender(page);

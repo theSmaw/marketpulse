@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { cx } from "../../cx.js";
 import type { BarSeriesView } from "../../market/index.js";
 import { chartDensity } from "../../market/index.js";
+import { chartAlternative } from "./chart-alternative.js";
 import type { ChartSubject, PlotBox } from "./chart-geometry.js";
 import { chartFrame } from "./chart-geometry.js";
 import { ChartReading } from "./ChartReading.js";
@@ -190,6 +191,12 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
   const belowId = `${id}-below`;
   const coveredId = `${id}-covered`;
 
+  // The text alternative's own id, which is what makes one string reachable two
+  // ways: the paragraph a document reader meets where the picture is, and the
+  // description the reading layer's `role="img"` points at. `chart-alternative.ts`
+  // carries the argument for both halves.
+  const alternativeId = `${id}-alt`;
+
   const density = chartDensity(regionWidth);
   const frame = chartFrame(plot, density, chartSubject(view));
 
@@ -202,6 +209,8 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
     frame.coverage.uncovered.length > 0 && frame.coverage.covered !== null
       ? `url(#${coveredId})`
       : undefined;
+
+  const alternative = chartAlternative(view, symbol);
 
   // Two states have no window to draw an axis for: a refusal is an answer about
   // the *request* and a failure never got one. A frame under either would be a
@@ -221,8 +230,15 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
          * puts an SVG in the tab order. The picture is not the evidence here —
          * the stated facts beneath it are, every one of them checkable against
          * the store — so a `role="img"` with a name invented for it would be a
-         * promise this task has not earned. Task 2.12.8 owns the text
-         * alternative and the screen-reader walk that proves it.
+         * promise Task 2.12.4 had not earned.
+         *
+         * **Task 2.12.8 confirmed it rather than reversing it**, and where the
+         * description went instead is the paragraph below: the picture already
+         * has an element in the tree — the reading layer's own `role="img"`,
+         * which is focusable because reading a point is a thing a person does —
+         * so what was missing was never a role, it was a description. Two
+         * elements claiming to be the same image would have been the
+         * two-surfaces-one-sentence defect with a role on it.
          */}
         <svg
           className={styles.canvas}
@@ -431,7 +447,44 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
        * were tried on the canvas and abandoned — at the measured 1,019px region
        * the topmost one sat on the series.
        */}
-      <div className={styles.gutter}>
+      {/*
+       * **The text alternative, in the picture's own place in reading order**
+       * (Task 2.12.8).
+       *
+       * A sibling rather than a `role="img"` name on the `<svg>` above, and the
+       * argument for that shape — including the answer to the objection against
+       * it — is in `chart-alternative.ts`. Two things about it are structural
+       * rather than stylistic: it is **not** a live region, because the rate
+       * this page announces at was settled by Task 2.12.6 and a fourth polite
+       * region driven by a request landing would be queued against the panel's
+       * own; and it is rendered in every state that draws a frame, so `empty`
+       * and `loading` say what they are rather than reading as a chart that
+       * failed to load.
+       */}
+      {alternative !== null && (
+        <p className={styles.visuallyHidden} id={alternativeId}>
+          {alternative}
+        </p>
+      )}
+
+      {/*
+       * **The value scale and the time axis are hidden from the accessibility
+       * tree, deliberately** (Task 2.12.8).
+       *
+       * They are labels *on a picture* rather than facts: both are sampled and
+       * niced, so the scale has no tick at the true high and six labels across
+       * 1,950 bars have none at the first instant — `CHARTING.md` §5's
+       * distinction between drawing a fact and stating one. Read aloud in
+       * document order they are a dozen bare numbers and times with no subject
+       * between them, immediately before a paragraph that states the same range
+       * in words and a facts block that states every figure exactly.
+       *
+       * Nothing is lost by hiding them, and that is the test this decision had
+       * to pass rather than a claim about noise: the alternative carries the
+       * window and the high and the low, and `BarSeriesPanel` carries the four
+       * prices, both windows and the bar count. What goes is the sampling.
+       */}
+      <div aria-hidden="true" className={styles.gutter}>
         {frame.gridlines.map(
           (gridline) =>
             gridline.label !== null && (
@@ -456,7 +509,7 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
        * labels for Epic 9's filing markers, and reserving it from today is
        * three sentences against a retrofit.
        */}
-      <div className={styles.axis}>
+      <div aria-hidden="true" className={styles.axis}>
         {frame.ticks.map((tick) => (
           <span
             className={cx(
@@ -492,6 +545,7 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
        * does not render at all while somebody reads the chart.
        */}
       <ChartReading
+        describedBy={alternative === null ? undefined : alternativeId}
         plot={plot}
         readings={frame.readings}
         slots={frame.slots}

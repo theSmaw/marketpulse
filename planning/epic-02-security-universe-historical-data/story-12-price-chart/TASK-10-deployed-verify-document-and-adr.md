@@ -514,3 +514,84 @@ rule**, and it is the item most likely to be got wrong by a second plot:
 And note the volume bars are **fills**, which is what §14.5's one-pixel finding
 was about: the measurement error was invisible for three tasks because every mark
 before it was a stroke.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.8 — three sweep items already fired, the screenshots have a precondition again, and the handover gains a fifth item
+
+### Already swept, so do not sweep twice
+
+All three under `CLAUDE.md`'s same-day rule, in 2.12.8's own commit:
+
+- **`CLAUDE.md`'s _Current state_** gained a paragraph — the chart can be read
+  with the screen off, what the sentence says, and that the walk found a defect.
+  The Price-region paragraphs from 2.12.4, 2.12.5 and 2.12.7 are unchanged and
+  correct. **What this task still owes is the story-level close**, which is the
+  paragraph those four become once 2.12.9 has measured and the chart is on the
+  deployed site.
+- **The `verify`-gap list moved in both directions and the net is zero.**
+  §14.5's measurement was struck through and kept — it is a browser assertion now
+  (§15.7) — and one entry was added: the alternative's coverage clause and the
+  uncovered wash agree only by both calling `timeAxis` and `positionOfInstant`.
+  **Read the list rather than counting it**; a close that reports "one added" or
+  "one removed" has read half of it.
+- **`VISUAL-LANGUAGE.md`'s `--chart-readout-height` row.** It said the token was
+  the reading strip's reserved row _whether or not it holds a reading_, which
+  2.12.8 falsified: it is the row's **floor**, and the reservation is a hidden
+  reading in the same cell. Corrected the same day.
+
+### One thing the canvas and the document may now disagree about, which is ADR 0026's own procedure
+
+`Price reading.dc.html` §01 specifies the strip as a reserved row, and it is
+drawn at one width. The **intent** is unchanged and was met; the **mechanism** is
+not what a single reserved height implies, because no single height is correct at
+more than one width (`CHARTING.md` §15.4). ADR 0026's chain is canvas →
+`VISUAL-LANGUAGE.md` → `tokens.css` → components, and where the document and the
+canvas disagree the document is wrong — so **this is a canvas edit to consider at
+the close**, not a component to change back. It is a note rather than a finding:
+the canvas draws one width and cannot express "as tall as a reading is here", so
+the honest resolution may be a sentence on the artboard rather than a new value.
+
+### The screenshots have a precondition again, and it is different from 2.12.7's
+
+2.12.7's amendment discharged _"take the screenshots after 2.12.7"_. **Take them
+after 2.12.8 as well**, and the reason is not cosmetic: the readout's resting
+height changed at two of the three review viewports — 20px to 36px at 1024, 40px
+to 54px at 390 — so every screenshot taken before this task is of a page that is
+now a line taller below the chart. At 1440 nothing moved.
+
+While taking them, **look at the strip at rest at the narrow sizes**. A row sized
+by a hidden two-line reading is a row with visible empty space under a one-line
+invitation, and whether that reads as _reserved_ or as _a gap_ is a judgement for
+test 2 — _does it look designed rather than defaulted?_ — that only a person
+looking at the screenshot can make. The alternative was measured and rejected
+(§15.4); if the screenshot says it looks wrong, the finding belongs in
+`CHARTING.md` §15.4 beside the measurement rather than as a silent revert.
+
+### The four tests gain nothing and test 4's answer is unchanged
+
+2.12.2's amendment records test 4 — _does it feel alive?_ — as a deliberate "not
+yet", deferred to Epic 3's motion vocabulary against real moving numbers. Nothing
+in 2.12.8 changes that, and the text alternative is not an answer to it: a
+sentence read aloud is not motion. Answer it the way that amendment says, against
+what the product does when data arrives.
+
+### The handover to Story 2.13 gains a fifth item, and it is a code path no test has run
+
+2.12.7's amendment added the coverage rule as the fourth. The fifth:
+
+> **`chart-alternative.ts` has `1d` branches that nothing has ever executed.**
+> `intervalWord` and `slotWord` each carry one — _"trading session"_ and
+> _"sessions"_ against `1m`'s _"minute of trading"_ and _"trading minutes"_ — and
+> **all fourteen recorded bodies are `1m`**, so no test in this repository
+> reaches either. They are written, they typecheck, and they are unverified
+> English. Story 2.13's window control is the first thing that will produce a
+> `1d` series, and it should record a body at `1d` for the same reason 2.12.5
+> recorded `dense` and 2.12.7 recorded `uncovered`: a state a story cannot render
+> is a state nobody reviews.
+
+And one sentence for 2.13 to read before it changes the window, because it is the
+cheapest possible regression: **the alternative says what window was asked for.**
+A control that changes the window changes that sentence, and the failure mode is
+the one this task's own Notes name — a clause that was true when written, left
+standing.

@@ -205,6 +205,120 @@ describe("with a measurement", () => {
   });
 });
 
+// **What the picture puts in the accessibility tree** (Task 2.12.8).
+//
+// Three properties, and the reason they are here rather than in the browser is
+// that every one of them is a fact about a DOM: what is exposed, what is
+// hidden, and what the description on the one focusable element resolves to. A
+// browser adds nothing to any of them, and `chart-alternative.test.ts` already
+// owns the words.
+//
+// **Asserted as the concatenation a screen reader is handed**, never as a
+// single element's text — `CLAUDE.md`'s rule, and it is load-bearing here
+// because the alternative and the arrow-key hint are two elements that reach a
+// listener as one description.
+describe("what a screen reader is handed", () => {
+  /** Everything the accessibility tree keeps, in order, as one string. */
+  function exposedText(container: HTMLElement): string {
+    const clone = container.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll("[aria-hidden='true']").forEach((hidden) => {
+      hidden.remove();
+    });
+    return clone.textContent.replace(/\s+/gu, " ").trim();
+  }
+
+  it("states the chart in words where the picture is", () => {
+    measureEverythingAt(800, 280);
+
+    const { container } = render(
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("uncovered")} />,
+    );
+
+    // The sentence, and it is the coverage clause that matters: a listener is
+    // told how much of the frame the line occupies, which is the fact that
+    // reaches a sighted reader as a change of ground and has no other channel.
+    expect(exposedText(container)).toContain(
+      "The line covers the first 780 of 990 trading minutes in the window",
+    );
+  });
+
+  it("keeps the sampled axis and value scale out of it", () => {
+    measureEverythingAt(800, 280);
+
+    const { container } = render(
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("dense")} />,
+    );
+
+    // The scale is niced and the time labels are sampled, so neither states an
+    // exact figure — read aloud they are a dozen bare numbers with no subject
+    // between them, immediately before a paragraph that gives the range in
+    // words. What has to be true is that hiding them loses nothing: the high
+    // and the low are in the sentence above, and every exact figure is in the
+    // panel below.
+    const exposed = exposedText(container);
+    const labels = [
+      ...container.querySelectorAll("div[aria-hidden='true'] > span"),
+    ]
+      .map((span) => span.textContent)
+      .filter((text) => text !== "");
+
+    expect(labels.length).toBeGreaterThan(0);
+    for (const label of labels) expect(exposed).not.toContain(label);
+
+    expect(exposed).toContain("The highest price on it is 234.76");
+    expect(exposed).toContain("and the lowest 215.10");
+  });
+
+  it("points the chart's one tab stop at the alternative and then at the hint", () => {
+    measureEverythingAt(800, 280);
+
+    const { container } = render(
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("dense")} />,
+    );
+
+    // Resolved through the document, which is the half that can silently be
+    // wrong: an `aria-describedby` naming an id that is not here describes
+    // nothing and renders identically to one that works.
+    const described = screen
+      .getByRole("img", { name: "NVDA price chart" })
+      .getAttribute("aria-describedby");
+    expect(described).not.toBeNull();
+
+    const resolved = (described ?? "")
+      .split(/\s+/u)
+      .map(
+        (id) =>
+          container.querySelector(`#${CSS.escape(id)}`)?.textContent ?? "",
+      )
+      .join(" ");
+
+    // What they have arrived at, then what the keys do with it — in that order,
+    // because a listener who is told how to operate something before being told
+    // what it is has to hold the instruction until the subject arrives.
+    expect(resolved).toContain(
+      "NVDA price chart: a line of 1,950 closing prices",
+    );
+    expect(resolved.indexOf("a line of 1,950")).toBeLessThan(
+      resolved.indexOf("left and right arrow keys"),
+    );
+  });
+
+  it("says what an empty answer is, rather than leaving a chart-shaped silence", () => {
+    measureEverythingAt(800, 280);
+
+    const { container } = render(
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("empty")} />,
+    );
+
+    // No reading layer here — there is nothing to read — so the paragraph is
+    // the whole of what a listener gets from the picture, and a chart with no
+    // description in this state would be indistinguishable from one that failed
+    // to load.
+    expect(exposedText(container)).toContain("no line is drawn");
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+});
+
 // **The uncovered treatment reaches the DOM** (Task 2.12.7).
 //
 // The split with the other two levels is the usual one and it is worth stating,

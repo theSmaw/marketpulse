@@ -782,3 +782,71 @@ first was the wash's own colour being locally wrong. Both were failures of
 _opacity of the instrument_ rather than of coverage: a simulation cannot tell you
 the encoding answered the right question, and a test that counts elements cannot
 tell you one of them is painted over another.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.8 — the task list was reviewed an eighth time, from the other side of a chart that can be read aloud
+
+Two tasks remain — [2.12.9](TASK-09-measured-against-fifty-milliseconds.md) and
+[2.12.10](TASK-10-deployed-verify-document-and-adr.md) — and neither moves.
+What changed underneath them is worth three notes.
+
+### Acceptance criterion 2 is now met in both halves, and criterion 3 is met with a caveat it always had
+
+Criterion 2 — _readable and operable without a mouse, and conveys direction
+without colour_ — was half-met by 2.12.6 (operable) and half by 2.12.5
+(direction). It is now met as a **reading**: the keyboard walk is held at three
+viewports rather than two, zero stops land behind the sticky chrome, and the
+greyscale and deuteranopia proof was taken over the assembled page rather than
+over the mark in a workshop. `CHARTING.md` §15.5 and §15.6.
+
+Criterion 3 — _axe reports no violations_ — passes, and the caveat is this
+repository's standing one rather than a new reservation: an axe pass is a gate,
+not accessibility coverage. The evidence is the walk; axe is what stops it
+regressing.
+
+### 2.12.9 inherits two things it did not have, and the first paragraph of this section was wrong
+
+**Written before the walk finished and corrected the same day**, because it said
+the additions were small and one of them lands on the exact surface 2.12.9 calls
+its most important and least measured. The shape is unchanged — nothing 2.12.8
+added scales with the bar count — and "unaffected in shape" was doing work it
+should not have been asked to do.
+
+- **The trading-calendar walk now runs twice per render of `PriceChart`.** The
+  alternative's coverage clause derives its own axis rather than reading the
+  frame's, deliberately, because the frame's coverage is in pixels and pixels are
+  zero everywhere below a browser. So `timeAxis` — the day-by-day walk 2.12.3 and
+  2.12.4 spent two amendments on — has two callers in one render. It is free at
+  this story's five sessions and it is **not** on the pointer path; it is Story
+  2.13's "1 year" window that pays for it, twice instead of once.
+- **The readout renders twice per pointer move.** The reserved-height repair puts
+  a hidden reading in the same grid cell, so continuous pointer movement now
+  reconciles roughly forty elements rather than twenty and runs `formatBarInstant`
+  — the only `Intl` work on that path — twice. Constant in bars, expected to
+  measure as nothing, and therefore exactly the case 2.12.9's own warning about a
+  confirming measurement is about. It is amended there with the way to get a
+  number instead of an argument.
+
+### 2.12.10 inherits one entry struck from `CLAUDE.md`, one added, and one code path nothing has run
+
+§14.5's measurement became a browser assertion (§15.7) and left the gap list;
+the alternative's coverage clause and the wash agreeing only by both calling
+`timeAxis` joined it. The story close should read the list rather than the
+count: the two changes are in opposite directions and the net is zero.
+
+Two more, both amended onto 2.12.10 rather than left here. The screenshots have
+a precondition again — the readout's resting height moved at two of the three
+review viewports, so anything taken before 2.12.8 is of a page a line shorter.
+And `chart-alternative.ts` carries `1d` branches **no test has ever executed**,
+because all fourteen recorded bodies are `1m`; Story 2.13's window control is
+the first thing that reaches them, and it should record a `1d` body for the
+reason 2.12.5 recorded `dense`.
+
+### No task is added, deleted or re-ordered
+
+Reviewed and stated rather than assumed. Nothing 2.12.8 found needs a task of
+its own: the defect it turned up was repaired inside it, the performance
+consequences belong to 2.12.9 by its own charter, and the sweep consequences
+belong to 2.12.10 by its. 2.12.9 before 2.12.10 is unchanged and still right —
+the close reports the figures, so it cannot precede them.
