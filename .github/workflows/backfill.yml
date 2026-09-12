@@ -32,8 +32,10 @@
 # So: the backfill runs from a runner, which is inside Azure and an order of
 # magnitude closer to the database. **It is still an operator's command rather
 # than part of a deploy** — `workflow_dispatch` only, never `push`, never
-# `workflow_run`, and no `schedule:`. Open decision 4's substance is unchanged;
-# only the machine moved.
+# `workflow_run`. (That sentence ended "and no `schedule:`" when it was written;
+# the block below reverses it with its reason, and the clause is corrected here
+# rather than left contradicting the file it is in.) Open decision 4's substance
+# is unchanged; only the machine moved.
 #
 # ## What it deliberately does NOT do
 #
@@ -56,6 +58,29 @@
 # over five trading days, so a long weekend or a missed night is absorbed rather
 # than becoming a gap, and on a day with nothing new it plans **zero requests**
 # and finishes in seconds.
+#
+# ## It runs BOTH timeframes, and the day it did not is worth keeping
+#
+# Until 2026-09-12 the scheduled run was `--sessions 10` with **no
+# `--timeframe`**, and `backfill.ts` defaults to `1m`. So the nightly job only
+# ever filled minute bars. The daily table was filled once by hand, to
+# `--to 2026-09-04`, and nothing moved it for eight days — while
+# `routes/securities.ts` went on reading its last close at `CLOSE_TIMEFRAME =
+# "1d"` and reporting coverage at `REPORTED_TIMEFRAME = "1m"`.
+#
+# `BARS.md` §8.13 found it, chose not to repair it there, and wrote the
+# condition: **the first screen whose correctness depends on a daily close being
+# current.** Story 2.12's price chart is that screen and it shipped on
+# 2026-09-12 — a minute chart running to Friday's close, beside an identity
+# block reading a Friday-before figure 4.6% away from it. The trigger fired and
+# was reported by a person looking at the page, which is the second time this
+# story's staleness has been caught that way rather than by an instrument.
+#
+# Two things were wrong and both are fixed here: the job filled one timeframe,
+# and **the report was pointed past the other** — `pnpm bars:check` was
+# hard-coded to `--timeframe 1m`, so the one instrument that reports staleness
+# honestly was asked only about the timeframe that is never stale. It now runs
+# for both. A gap that no report mentions is a gap nobody finds.
 #
 # **Small N is load-bearing and is not a rounding-down.** See the over-fetch note
 # below: a catch-up asks only for sessions NEWER than the frontier, which
@@ -232,9 +257,15 @@ jobs:
 
       - name: Fill the store
         env:
-          # A scheduled run supplies no inputs, so the catch-up default lives
-          # here. Ten sessions: see the header on why this number is small.
-          BACKFILL_ARGS: ${{ inputs.args || '--sessions 10' }}
+          # A scheduled run supplies no inputs and must keep **both**
+          # timeframes current, so its default is TWO passes rather than one
+          # argument string — see the loop below. A dispatch supplies exactly
+          # one argument string and is run exactly as given, because an operator
+          # resuming from the ledger is naming a range and must not have a
+          # second pass invented for them.
+          #
+          # Ten sessions: see the header on why this number is small.
+          BACKFILL_ARGS: ${{ inputs.args }}
         run: |
           set -euo pipefail
 
@@ -266,7 +297,18 @@ jobs:
           echo "::add-mask::$DATABASE_PASSWORD"
           export DATABASE_PASSWORD
 
-          echo "pnpm backfill $BACKFILL_ARGS"
+          # **Daily first, and that ordering is the repair rather than a
+          # detail.** The `1d` pass is ~518 symbols over ten sessions and takes
+          # minutes; the `1m` pass is the heavy one and, in steady state, plans
+          # zero requests and exits. Putting the small starved pass first means
+          # that if the deadline below is ever reached, the pass that is
+          # sacrificed is the one that was already current.
+          if [ -n "${BACKFILL_ARGS:-}" ]; then
+            passes=("$BACKFILL_ARGS")
+          else
+            passes=("--timeframe 1d --sessions 10" "--sessions 10")
+          fi
+
           started=$(date -u +%s)
           status=0
 
@@ -290,12 +332,41 @@ jobs:
           # `BACKFILL_REQUEST_DEADLINE_MS` (180 s), so a graceful stop always has
           # room to finish before anything is killed.
           #
-          # `$BACKFILL_ARGS` is deliberately unquoted: it is a list of arguments
-          # rather than one argument. It comes from a `workflow_dispatch` input,
-          # which only somebody with write access to this repository can supply.
-          # shellcheck disable=SC2086
-          timeout --signal=INT --kill-after=300 17400 \
-            pnpm backfill $BACKFILL_ARGS || status=$?
+          # **ONE deadline shared across every pass, not one each.** Two passes
+          # at 4h50m apiece would be 9h40m against a 5h30m job backstop, which
+          # is the `timeout-minutes` failure this whole block exists to avoid —
+          # a cancelled job, killed `always()` steps, and a red X that says
+          # nothing about where to resume.
+          deadline=$(( started + 17400 ))
+
+          for pass in "${passes[@]}"; do
+            remaining=$(( deadline - $(date -u +%s) ))
+
+            # A graceful stop exits 0, so without this check a pass that used
+            # the whole budget would be followed by one given no time at all —
+            # which would look like a pass that ran and found nothing.
+            if [ "$remaining" -lt 60 ]; then
+              echo "::warning::no budget left for: pnpm backfill $pass. Every session stored is stored; dispatch again with an explicit range."
+              status=124
+              break
+            fi
+
+            echo "pnpm backfill $pass"
+
+            # `$pass` is deliberately unquoted: it is a list of arguments rather
+            # than one argument. It is either this file's own literal or a
+            # `workflow_dispatch` input, which only somebody with write access
+            # to this repository can supply.
+            # shellcheck disable=SC2086
+            timeout --signal=INT --kill-after=300 "$remaining" \
+              pnpm backfill $pass || status=$?
+
+            # The first failing pass stops the run. Continuing would spend
+            # quota against a store whose state is already not what the ledger
+            # says, and the operator's next move is to read the ledger either
+            # way.
+            if [ "$status" != "0" ]; then break; fi
+          done
 
           elapsed=$(( $(date -u +%s) - started ))
           echo "backfill exit $status after ${elapsed}s"
@@ -353,7 +424,11 @@ jobs:
             echo "## Deployed bar store"
             echo
             echo '```'
-            pnpm bars:check --timeframe 1m 2>&1 | tail -40 || true
+            for timeframe in 1d 1m; do
+              echo "--- $timeframe ---"
+              pnpm bars:check --timeframe "$timeframe" 2>&1 | tail -40 || true
+              echo
+            done
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
