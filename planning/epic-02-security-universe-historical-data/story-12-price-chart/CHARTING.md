@@ -1376,3 +1376,253 @@ is already four sessions short of the default window; the recording is what keep
 that reviewable afterwards and in CI. And CI itself exercises the other end of
 the same treatment for free: `verify.yml` runs no backfill, so every chart there
 is `empty`, which is coverage zero.
+
+---
+
+## 15. What the walk found — added 2026-09-12 by Task 2.12.8
+
+[Task 2.12.8](TASK-08-the-text-alternative-and-the-screen-reader-walk.md) is the
+task that reads the finished chart rather than building a new mark on it: a text
+alternative that says something true, and then the page walked by keyboard, by
+screen reader, under greyscale and under a colour-vision simulation, at three
+viewports.
+
+Six things came out of it. One is a decision the story deliberately left open;
+one is a clause nobody had written because the picture had only just learned to
+say it; one is a defect the walk found that no level below a browser could see
+and that the one browser spec holding the property could not see either, because
+it ran at the one width where it could not fail; two are confirmations of figures
+that were recorded in isolation and are now confirmed in the composition; and the
+last is an entry leaving `CLAUDE.md`'s gap list by being made mechanical.
+
+### 15.1 The alternative is a sibling of the picture, not a name on it
+
+[Task 2.12.4](TASK-04-the-first-chart-in-marketpulse.md) took half of this
+decision — the plot's `<svg>` is `aria-hidden="true"` with `focusable="false"` —
+and deliberately left the other half, which was a real choice between two
+shapes:
+
+1. Drop the `aria-hidden`, give the `<svg>` `role="img"` and name it with the
+   alternative. One element carries the picture and its description.
+2. Leave the plot hidden and put the sentence in a **sibling**, in the picture's
+   own position in reading order.
+
+**The second, and the argument against it is answered rather than set aside.**
+That argument — the one the task file itself records — is that a screen-reader
+user arrowing the document meets an image-shaped hole where a sighted reader
+meets a chart. It would be a real cost if the hole existed, and since
+[Task 2.12.6](TASK-06-reading-a-point-crosshair-hover-and-keyboard.md) it does
+not: the reading layer **is** a `role="img"` with a name, in the same grid cell
+as the plot, focusable because reading a point is a thing a person does. The
+picture already had an element in the tree. What it lacked was a description.
+
+So the sentence is **one string reached two ways**: the paragraph a document
+reader meets where the chart is, and the target of the reading layer's
+`aria-describedby`, listed before its arrow-key hint. What a listener arriving on
+the chart's one tab stop hears is therefore _what this is_, then _what the keys
+do with it_.
+
+Two elements both claiming to be this image was the shape to avoid, and it is
+the two-surfaces-one-sentence defect with a role on it.
+
+### 15.2 The value scale and the time axis left the accessibility tree
+
+A decision this task owns and it is not the obvious one, so it is recorded with
+its test rather than as a preference. Both rows are `aria-hidden` now.
+
+They are labels **on a picture** rather than facts. Both are sampled and niced,
+which is §5's own distinction: a value scale rounded to nice numbers deliberately
+has no tick at the true high, and six time labels across 1,950 bars deliberately
+have none at the first instant. Read aloud in document order they are a dozen
+bare numbers and times with nothing between them to say what they are of,
+immediately before a paragraph that gives the same range in words and a facts
+block that states every figure exactly.
+
+**The test the decision had to pass is that nothing is lost**, and that is
+asserted rather than claimed: `PriceChart.test.tsx` collects every label inside
+an `aria-hidden` row and requires that none of them appears in what the tree
+keeps, and then requires the high and the low to appear in the sentence that
+replaces them.
+
+### 15.3 The alternative gained a clause the picture had only just learned to say
+
+The Work section's minimum list — symbol, window, first and last price, change,
+high, low, feed — was written when the plot drew a line and nothing else. Since
+2.12.5 the plot makes a claim about **direction**, and since 2.12.7 it makes one
+about **coverage**, and a text alternative that omitted either would be
+describing a different picture from the one on the screen.
+
+Direction was already covered, and it was confirmed rather than assumed: the
+change carries it, and it is spoken as a **word** because
+`formatChangePercent`'s Unicode minus does not survive being read aloud —
+`series-announcement.ts` measured that first and this reuses the finding rather
+than re-deriving it.
+
+Coverage was not covered, and it is the clause a picture-reader most needs:
+
+> The line covers the first 780 of 990 trading minutes in the window and stops
+> at 2026-09-04 16:00:00 EDT; the rest, running to 2026-09-08 13:00:00 EDT, has
+> no stored bars and is drawn as empty ground.
+
+**Counted in the axis's own units, not restated from the panel.** `BarSeriesPanel`
+already says the arithmetic — how many bars, through which instant, of a window
+running to which instant — and `CLAUDE.md`'s rule is that two surfaces describing
+one fact must not use the same words. What this sentence can say that the
+panel's cannot is where the data stops _on the axis it is describing_: the shape
+of the answer rather than the arithmetic of it. The count comes from `timeAxis`
+and `positionOfInstant`, the same two functions the wash is derived from, so the
+words and the pixels cannot disagree about how much of the frame is drawn.
+
+**And §10.1 forced a third branch that would not otherwise have been written.**
+The recorded `partial` body's shortfall is a Saturday, which a session-ordinal
+axis gives no width to — so the picture is complete and the answer is not. A
+sentence built from the drawing would agree with the drawing and be wrong, which
+is §6.2's defect stated in words instead of pixels. That case says so:
+
+> The line runs the full width of the frame and there is no empty ground on it,
+> but it is not the whole window: the window asked for runs to
+> 2026-09-05 16:00:00 EDT and the bars stop at 2026-09-04 16:00:00 EDT. What is
+> missing falls outside trading hours — a night, a weekend or a holiday — which
+> this axis gives no width to.
+
+### 15.4 The reserved readout height held at one viewport and at no other
+
+The defect the walk found, and it is the one worth transferring.
+
+`CLAUDE.md` records _that the readout strip reserves its height, so nothing below
+it moves when a reading appears_ as a property held by
+`e2e/specs/security-price-chart.spec.ts` **and by nothing else**. That was true.
+What nobody had noticed is that the spec ran at 1440 only, and 1440 is the one
+width where the property could not fail: the reservation was a single token, and
+the invitation is 20px there against a reading's 18px.
+
+Measured on 2026-09-12 across the widths this product is reviewed at, before the
+repair:
+
+| Viewport | Price region | Invitation | Reading | The figures below moved |
+| -------- | ------------ | ---------- | ------- | ----------------------- |
+| 1920     | 1019 px      | 20 px      | 18 px   | 0 px                    |
+| 1440     | 923 px       | 20 px      | 18 px   | 0 px                    |
+| 1280     | 816 px       | 20 px      | 18 px   | 0 px                    |
+| 1180     | 558 px       | 20 px      | 36 px   | **16 px**               |
+| 1024     | 480 px       | 20 px      | 36 px   | **18 px**               |
+| 768      | 352 px       | 40 px      | 54 px   | **14 px**               |
+| 390      | 342 px       | 40 px      | 54 px   | **14 px**               |
+| 320      | 272 px       | 40 px      | 72 px   | **32 px**               |
+
+So at every viewport but the widest, the four exact prices the picture rounds
+jumped under the hand of the person reading them — with `pnpm verify` green, all
+96 browser tests green, and axe reading zero violations throughout, because this
+is a fact about where two wrapped lines ended rather than about a DOM.
+
+**A token cannot fix it, and that is the transferable part.** The taller state's
+height is a function of the width, and the wrap points are neither the chart's
+density boundary nor each other's — the reading goes to two lines at about 800px
+of region and to three at about 420, while the invitation goes to two at about
+420 and stays there. A `min-height` large enough for the narrowest case reserves
+two blank lines on a desktop; a media query would be a second copy of a number
+nothing compares, which §11.1 is emphatic about.
+
+The repair is therefore **DOM rather than CSS**: the strip is a one-cell grid
+holding two rows, the live one and a hidden reading of the last bar, so the
+reservation is a measurement of the real thing at the real width. Measured after
+the repair, the figures move **0 px at every one of 1440, 1024, 768, 430, 390,
+360 and 320**.
+
+Two consequences worth knowing before touching it:
+
+- **The hidden row is `visibility: hidden`, which means Playwright can see its
+  text.** Four locators in two specs resolved to two nodes and were routed
+  through a `filter({ visible: true })` helper. That is the cost of the shape
+  and it is stated rather than hidden.
+- **The sizer is the last bar, not an invented one.** It is the bar the keyboard
+  path opens on, it is real, and it is the same shape as every other reading, so
+  it sizes the cell to what will actually be put in it.
+
+**The break was performed rather than assumed, and the result is worth recording
+exactly.** Removing the hidden row takes the **tablet** case red and leaves
+desktop and phone green — desktop because it is the width the defect never
+reached, and phone because at 342px of region the two states happen to wrap to
+the same height once the row is a grid cell. So the instrument that catches this
+is the middle viewport, which is the one the old spec did not run at and the one
+a development machine is least likely to be at.
+
+### 15.5 Every ink re-measured in the composition rather than in isolation
+
+§12.2's and §14.4's figures were taken against tokens. This task read them back
+off the assembled page — `/securities/NVDA` at 1440×1000, a real `partial`
+answer, with a reading on the chart so the crosshair is in the picture — and
+computed each pair as rendered, under `grayscale(1)`, and under a Machado
+severity-1.0 deuteranopia matrix.
+
+| Pair                                             | As rendered | Greyscale | Deuteranopia |
+| ------------------------------------------------ | ----------- | --------- | ------------ |
+| `--chart-grid` on the plot ground                | 1.269       | 1.271     | 1.272        |
+| `--chart-grid` over `--price-positive-wash`      | 1.104       | 1.106     | 1.100        |
+| `--chart-grid` over `--price-negative-wash`      | 1.090       | 1.096     | 1.103        |
+| `--chart-grid` over `--chart-uncovered`          | 1.146       | 1.146     | 1.147        |
+| `--chart-seam` on the plot ground                | 1.704       | 1.708     | 1.709        |
+| `--chart-reference` on the plot ground           | 4.480       | 4.478     | 4.501        |
+| `--chart-coverage-edge` over `--chart-uncovered` | 4.045       | 4.036     | 4.059        |
+| `--chart-crosshair` on the plot ground           | 9.322       | 9.291     | 9.381        |
+| `--chart-uncovered` on the plot ground           | 1.107       | 1.110     | 1.109        |
+| `--chart-uncovered` against the green wash       | 1.038       | 1.036     | 1.043        |
+| `--chart-uncovered` against the red wash         | 1.051       | 1.046     | 1.040        |
+| `--chart-series` over the green wash             | 14.869      | 14.821    | 14.834       |
+| `--chart-series` over the red wash               | 14.682      | 14.689    | 14.877       |
+| the axis rule on the plot ground                 | 17.084      | 17.042    | 17.158       |
+| **the two washes against each other**            | **1.013**   | **1.009** | **1.003**    |
+
+Every recorded figure survives the composition, to three decimal places in most
+rows. The useful reading is the last column against the first: **every mark on
+this chart moves by less than a hundredth of a ratio when the hue is removed,
+except the one pair whose entire difference is hue.** That is the measurement
+the whole direction treatment was built on, arriving from the other end — and
+the deuteranopia column is flatter still than greyscale, at 1.003.
+
+The §12.2 row that was deferred — the grid where a wash passes under it — is
+confirmed live at **1.10 to 1.15** depending on which of the three grounds it
+crosses. The weakening is accepted, and the recorded repair if a reader ever
+cannot follow a gridline across a tinted region is unchanged: **a darker grid,
+not a paler wash.**
+
+### 15.6 The greyscale proof over the page, and what the picture still says without hue
+
+`PriceChart.stories.tsx` proved the **encoding** at one width in a workshop.
+This is the composition: the Price region captured at 1440×1000, 1024×900 and
+390×780, as rendered, under `grayscale(1)`, and under the deuteranopia matrix —
+nine readings, taken on a real `partial` answer with a reading on the chart.
+
+What survives with the hue gone, read off the pictures rather than argued from
+the tokens:
+
+- **The reference rule and which side of it the line is on.** The dashed rule at
+  the window's opening price is 4.48:1 and does not move; the line crosses it
+  repeatedly and the crossings are exactly where the wash changes. The wash is
+  gone and the channel is not.
+- **The coverage boundary**, carried by three things at once: the ground changes
+  (1.11:1, faint and deliberately so), the long-dashed edge sits on it at
+  4.05:1, and the line stops there.
+- **The direction of the headline**, because `PriceChange` puts a glyph and a
+  word in front of the figure rather than relying on the ink.
+- **The reading**, because the crosshair is a near-black rule and a hollow disc.
+
+What genuinely disappears is the distinction between the two washes, which is
+the thing that was designed to be redundant. At 390 under deuteranopia the
+washes are all but invisible and the chart reads exactly as well, which is the
+strongest form of the claim: the tint is the third channel, not the first.
+
+### 15.7 One `verify`-gap entry left the list by becoming a browser assertion
+
+`CLAUDE.md` recorded §14.5's repair — _the plot is measured to the area there is
+to draw in, and not to the axis rule as well_ — as prose with a re-measure that
+meant opening a page and looking at it. It is now one assertion in
+`security-price-chart.spec.ts`: the uncovered ground's painted box must end
+**above** the plot's own bottom edge, by more than nothing and less than two
+pixels, because the pixel between them is the axis rule.
+
+**The break was performed rather than assumed.** Deleting the `offsetHeight -
+clientHeight` subtraction in `usePlotSize` takes exactly that test red and leaves
+the other 95 green. The entry is struck from the gap list, which is the second
+time this story has made one of those mechanical — `pnpm coverage:check` was the
+first.

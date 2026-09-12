@@ -63,19 +63,29 @@ function chart() {
 }
 
 /**
- * The strip under the axis, by what it is rather than by a class name.
+ * The live half of the strip under the axis, by what it is rather than by a
+ * class name.
  *
- * Found through a marker inside it and then walked up to the paragraph: the
- * figures are separate elements, so a text query lands on one of them and
- * `CLAUDE.md`'s rule is to assert the concatenation a screen reader is handed
- * rather than a fragment of it.
+ * Found through a marker inside it and then walked up one level: the figures
+ * are separate elements, so a text query lands on one of them and `CLAUDE.md`'s
+ * rule is to assert the concatenation a screen reader is handed rather than a
+ * fragment of it.
+ *
+ * **One level and not up to the paragraph, since Task 2.12.8.** The paragraph
+ * now holds two lines in one grid cell — the live one and the hidden reading
+ * that reserves its height — so its `textContent` is every figure twice. The
+ * marker query ignores the hidden one for the same reason: it is
+ * `aria-hidden`, which is exactly the claim *this is not for a reader*.
  */
 function readout(): HTMLElement {
-  const marker = screen.getByText(/Point at the chart|·/u);
-  const strip = marker.closest("p");
-  if (strip === null) throw new Error("the readout strip lost its paragraph");
-  return strip;
+  const marker = screen.getByText(/Point at the chart|·/u, { ignore: HIDDEN });
+  const line = marker.parentElement;
+  if (line === null) throw new Error("the readout strip lost its row");
+  return line;
 }
+
+/** Everything the accessibility tree drops, as a selector. */
+const HIDDEN = "[aria-hidden='true'], [aria-hidden='true'] *";
 
 /**
  * Let a pending announcement land.

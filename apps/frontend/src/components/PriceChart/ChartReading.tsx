@@ -115,6 +115,21 @@ export interface ChartReadingProps {
    * and disagrees with the first at the edges.
    */
   readonly slots: SlotScale | null;
+
+  /**
+   * The chart's text alternative, by id — what this picture *is*, as opposed to
+   * how to read it (Task 2.12.8).
+   *
+   * Optional because the element it points at exists only where a frame is
+   * drawn, and `aria-describedby` naming an id that is not in the document
+   * describes nothing while looking exactly like a description that works.
+   *
+   * It is listed **before** this component's own hint, which is the order a
+   * listener needs: what they have arrived at, then what the arrow keys do with
+   * it. `chart-alternative.ts` carries the argument for one string reached two
+   * ways.
+   */
+  readonly describedBy?: string | undefined;
 }
 
 /** Where the reading came from, which decides whether it is spoken. */
@@ -133,6 +148,7 @@ export function ChartReading({
   readings,
   plot,
   slots,
+  describedBy,
 }: ChartReadingProps) {
   const [reading, setReading] = useState<ReadingState>(NO_READING);
   const hintId = useId();
@@ -250,7 +266,9 @@ export function ChartReading({
        * and its name are settled here; what it says about the *series* is not.
        */}
       <div
-        aria-describedby={hintId}
+        aria-describedby={
+          describedBy === undefined ? hintId : `${describedBy} ${hintId}`
+        }
         aria-label={`${symbol} price chart`}
         className={styles.reader}
         onBlur={() => {
@@ -305,7 +323,7 @@ export function ChartReading({
         </svg>
       </div>
 
-      <Readout point={point} />
+      <Readout point={point} sizer={readings[readings.length - 1]?.bar} />
 
       <p className={styles.visuallyHidden} id={hintId}>
         Use the left and right arrow keys to read each bar, Home and End for the
@@ -371,6 +389,12 @@ const POINT_RADIUS = 4.5;
  * holds **the invitation** — which is the only affordance this chart has, and
  * the only thing in the product that says the keyboard path exists.
  *
+ * **How it is reserved changed on 2026-09-12**, and the reason is in the body:
+ * a token held it at 1440 and nowhere else, because a reading wraps at widths
+ * the invitation does not. It is now a hidden reading in the same grid cell,
+ * which makes the reservation a measurement of the real thing at the real
+ * width rather than a number somebody chose at one viewport.
+ *
  * ## The change is labelled `BAR`, and that label is load-bearing
  *
  * Three things on this screen say up or down, about three different subjects:
@@ -380,23 +404,68 @@ const POINT_RADIUS = 4.5;
  * precedent is the identity block's `LAST SESSION CLOSE` beside the chart's
  * current value: two figures, two subjects, told apart because each is labelled.
  */
-function Readout({ point }: { readonly point: ChartPoint | undefined }) {
-  if (point === undefined) {
-    return (
-      <p className={styles.readout}>
-        <span className={styles.invitation}>
-          Point at the chart, or press the left and right arrow keys, to read a
-          bar.
+function Readout({
+  point,
+  sizer,
+}: {
+  readonly point: ChartPoint | undefined;
+  readonly sizer: Bar | undefined;
+}) {
+  return (
+    <p className={styles.readout}>
+      {/*
+       * **The reservation, and it is a measurement rather than a token** (Task
+       * 2.12.8).
+       *
+       * A hidden reading of the last bar, in the same grid cell as the live
+       * one, so the strip is exactly as tall as a reading **at this width**.
+       * That is the repair to a defect the three-viewport walk found and the
+       * 1440-only spec could not: the reserved height was one token, and a
+       * reading wraps at widths the invitation does not. Measured on
+       * 2026-09-12 before the repair — the strip was 20px at rest and 36px with
+       * a reading at a 1024 viewport, 40 against 54 at 768 and at 390, so the
+       * four exact prices the picture rounds jumped **18 to 32 pixels** under
+       * the hand of somebody reading them, at every viewport but the widest.
+       *
+       * A token cannot fix it, which is why this is DOM rather than CSS: the
+       * taller state's height is a function of the width, and the wrap points
+       * are neither the chart's density boundary nor each other's. A media
+       * query would be a second copy of a number nothing compares —
+       * `CHARTING.md` §11.1 is emphatic about that — and a `min-height` large
+       * enough for the narrowest case would reserve two blank lines on a
+       * desktop.
+       *
+       * **The last bar and not an invented one.** It is the bar the keyboard
+       * path opens on, it is real, and it is the same shape as every other
+       * reading — five labelled figures and an instant — so it sizes the cell
+       * to what will actually be put in it. `aria-hidden`, `visibility:
+       * hidden`, and out of the tab order by having nothing focusable in it.
+       */}
+      {sizer !== undefined && (
+        <span aria-hidden="true" className={cx(styles.line, styles.sizer)}>
+          <BarFigures bar={sizer} />
         </span>
-      </p>
-    );
-  }
+      )}
+      <span className={styles.line}>
+        {point === undefined ? (
+          <span className={styles.invitation}>
+            Point at the chart, or press the left and right arrow keys, to read
+            a bar.
+          </span>
+        ) : (
+          <BarFigures bar={point.bar} />
+        )}
+      </span>
+    </p>
+  );
+}
 
-  const { bar } = point;
+/** One bar's instant, its four prices and its own change. */
+function BarFigures({ bar }: { readonly bar: Bar }) {
   const percent = barChangePercent(bar);
 
   return (
-    <p className={styles.readout}>
+    <>
       {/*
        * The instant leads, and it is the reason a reading is never ambiguous.
        * The axis is ordinal — it draws no gap between Friday's last minute and
@@ -418,7 +487,7 @@ function Readout({ point }: { readonly point: ChartPoint | undefined }) {
           />
         </span>
       )}
-    </p>
+    </>
   );
 }
 

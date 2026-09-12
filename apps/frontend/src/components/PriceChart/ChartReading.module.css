@@ -98,18 +98,49 @@
  * `min-height` rather than `height`, so the narrow case wraps onto a second line
  * instead of clipping. At 342px it does, and that is the width at which a
  * readout *beside* the plot stopped being possible at all.
+ *
+ * **A one-cell grid since Task 2.12.8, and the token is now only the floor.**
+ * Both states are placed in the same cell — a hidden reading of the last bar
+ * and whichever of the invitation and the live reading is current — so the
+ * strip is as tall as the taller of them **at this width**. The token alone
+ * held the reservation at 1440 and at no narrower viewport: a reading wraps to
+ * two lines where the invitation is still on one, which moved the four exact
+ * prices below by 18 to 32 pixels under the reader's hand. `ChartReading.tsx`'s
+ * `Readout` carries the measurements and the argument against the two repairs
+ * that look simpler.
  */
 .readout {
   grid-row: 3;
   grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr;
+  margin: var(--space-16) 0 0;
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--rule-hairline);
+}
+
+/*
+ * One state of the strip. Both sit in the same cell, so the row is the height
+ * of the taller and neither can push the other down.
+ */
+.line {
+  grid-area: 1 / 1;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-4) var(--space-20);
   min-height: var(--chart-readout-height);
-  margin: var(--space-16) 0 0;
-  padding-top: var(--space-12);
-  border-top: 1px solid var(--rule-hairline);
+}
+
+/*
+ * The reservation. Present in layout, absent from everything else —
+ * `visibility: hidden` rather than `display: none`, which is the whole point,
+ * and `pointer-events: none` so a hidden figure cannot take a click meant for
+ * the plot above it.
+ */
+.sizer {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /*

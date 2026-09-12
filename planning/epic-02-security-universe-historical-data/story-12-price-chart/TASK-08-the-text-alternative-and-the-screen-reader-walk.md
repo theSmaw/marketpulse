@@ -1,6 +1,6 @@
 # Task 2.12.8 — The text alternative, and the walk that proves it
 
-**Status:** Not started
+**Status:** Complete — 2026-09-12
 **Story:** [2.12 Price Chart](STORY.md)
 **Depends on:** 2.12.6, 2.12.7
 
@@ -423,3 +423,155 @@ Verify it by restoring the break rather than assuming it: delete the
 assertion goes red. If it lands, strike the entry from the gap list and say so —
 that is the migration the list wants, and this story has already performed it
 once (`pnpm coverage:check`).
+
+---
+
+## What was built — 2026-09-12
+
+**Status: complete.** `pnpm verify` passes; `pnpm e2e` passes at 97 tests.
+
+### The text alternative
+
+`apps/frontend/src/components/PriceChart/chart-alternative.ts` — a pure function
+of the state, built the way `series-announcement.ts` was and reusing
+`series-facts.ts`' vocabulary rather than inventing a second one for the same
+facts. `chart-alternative.test.ts` reads it as text against the recorded bodies.
+
+It states, for an answer with bars: the symbol, how many closing prices and what
+one point is, the opening and closing price, the direction **as a word** with the
+magnitude as a plain number, the high, the low, **how much of the frame the line
+occupies**, and the feed in the shipped vocabulary. `loading` and `empty` each get
+their own sentence; `refused` and `failed` get `null`, because neither draws a
+chart and the panel's sentence two lines below already says what happened.
+
+Three decisions inside it are worth naming:
+
+- **Built from `coverage`, not from the window asked for**, which is the Notes'
+  likeliest miss. The count comes from `timeAxis` and `positionOfInstant` — the
+  same two functions the wash is derived from — so the words and the pixels
+  cannot disagree.
+- **A third branch §10.1 forced.** Where the shortfall is a weekend the axis
+  gives no width to, the picture is complete and the answer is not, so the
+  sentence says that rather than agreeing with the drawing.
+- **It counts the axis's own units rather than restating the panel**, because
+  `CLAUDE.md`'s rule is that two surfaces describing one fact must not use the
+  same words. The panel has the arithmetic; this has the shape of the answer.
+
+### Where it lives, which was the open half of a decision
+
+`CHARTING.md` §15.1. The plot's `<svg>` stays `aria-hidden` — 2.12.4's decision,
+confirmed rather than reversed — and the sentence is a **sibling**: a hidden
+paragraph in the picture's own place in reading order, and the target of the
+reading layer's `aria-describedby`, listed before its arrow-key hint. One string,
+two routes, no new live region.
+
+The objection the task file records — that a screen-reader user meets an
+image-shaped hole — is answered rather than set aside: since 2.12.6 the reading
+layer **is** a `role="img"` with a name and a tab stop. The picture already had
+an element. What it lacked was a description.
+
+**The value scale and the time labels left the tree** (§15.2), which is this
+task's own decision and is asserted rather than claimed: a component test
+requires that no hidden label's text appears in what the tree keeps, and that
+the high and the low appear in the sentence replacing them.
+
+### The walk, and the defect it found
+
+Keyboard at three viewports, greyscale and a deuteranopia matrix over the
+finished chart on the page, every ink re-measured in the composition, axe green.
+
+- **Tab order**: the chart is the **seventh** stop and **zero** stops are
+  obscured at 1440×900, 768×800 or 390×780. `CLAUDE.md`'s counts predate the
+  chart; they are re-taken, and 390 is now in the spec for the first time. The
+  "target taller than the viewport" worry the Work section raised does **not**
+  fire — recorded, as §15.6's amendment asked.
+- **Contrast** (§15.5): every recorded figure survives the composition. Every
+  mark moves by less than a hundredth of a ratio with the hue removed **except
+  the one pair whose whole difference is hue** — the two washes, 1.013 as
+  rendered, 1.009 under greyscale, 1.003 under deuteranopia.
+- **The defect** (§15.4): the readout's reserved height held at 1440 and at no
+  narrower viewport, because a reading wraps where the invitation does not. The
+  exact figures the picture rounds moved **14 to 32 px** under the reader's hand
+  at every other width, with `pnpm verify` green, every browser test green and
+  axe silent. Repaired with a hidden reading in the same grid cell, so the
+  reservation is a measurement rather than a token; the spec now runs at three
+  viewports.
+
+### One `verify`-gap entry made mechanical
+
+§14.5's measurement — that the plot is measured to the area there is to draw in
+and not to the axis rule as well — is now one browser assertion, and the break
+was performed: deleting the subtraction in `usePlotSize` takes exactly that test
+red. Struck from `CLAUDE.md`'s list, which is the second time this story has done
+that.
+
+One entry was **added**, because it is a derivation nothing checks: the
+alternative's coverage clause and the uncovered wash agree by both calling
+`timeAxis` and `positionOfInstant`, and nothing would catch a later edit that
+recomputed one of them from elapsed time.
+
+---
+
+## For the stakeholders — what this actually delivers
+
+**The plain version: the price chart can now be read by somebody who cannot see
+it, and proving that turned up a bug that would have annoyed everybody.**
+
+A chart is a picture, and a picture is invisible to a screen reader. The lazy fix
+is to label it "price chart" and move on — technically compliant, completely
+useless. What this task built instead is a sentence that says what the picture
+says: which company, over what period, what it opened and closed at, which way it
+went **in words**, its high and low, where the prices came from, and — the part
+that matters most — **how much of the chart is actually filled with data**.
+
+That last one is the bit worth dwelling on, because it is where a lot of finance
+software quietly lies. Our store of market data is usually a few days behind the
+window somebody asks for. On screen we are honest about it: the part we have no
+data for gets a faint grey background and the line stops at a dashed edge, so you
+can see at a glance that the chart is not making anything up. Somebody listening
+gets none of that, so they now get the sentence: _"the line covers the first 780
+of 990 trading minutes in the window and stops at 4pm on the 4th; the rest has no
+stored bars."_ Same honesty, different channel.
+
+There is a subtle case we deliberately got right. Sometimes the missing part of a
+window is a **weekend** — and because our chart deliberately draws no gap for
+nights and weekends (it squeezes trading time together so the interesting bits
+are bigger), the picture looks complete even though the answer is short. A
+sentence written from the picture would have confidently said "we have all of
+it", which would be wrong. It says the truth instead. That is the kind of detail
+that separates a product people trust with money-adjacent decisions from one they
+don't.
+
+**We also chose to hide something, on purpose.** The numbers along the chart's
+edges — the price scale and the time labels — are now skipped by screen readers.
+They are approximations by design (rounded to neat values, sampled to fit), so
+read aloud they are a dozen bare numbers with no context, immediately before a
+paragraph that gives the same range properly and a table that gives every exact
+figure. We checked that nothing is lost before removing it, and there is now an
+automated test that fails if anybody ever removes something that _is_ only stated
+there.
+
+**And the walk found a real bug that every automated check had missed.** There is
+a strip under the chart that shows the exact prices of whichever minute your
+pointer is on. We had a test making sure that strip doesn't push the rest of the
+page down when it appears — because having the numbers you are reading jump
+under your hand feels cheap and makes people misread figures. That test was
+green. It was also running at one screen size, and that screen size happened to
+be the only one where the bug couldn't happen. On a laptop, a tablet and a phone,
+the page jumped by up to 32 pixels every time you touched the chart. Nobody had
+seen it because the automation was looking in the one place it wasn't.
+
+It is fixed — the strip now sizes itself to a real reading rather than to a
+number somebody picked once — and the test now runs at all three screen sizes. We
+also confirmed the fix by deliberately breaking it again and checking the test
+went red, which is this project's standing rule: a test that has never failed is
+not yet evidence of anything.
+
+**Where this leaves the product.** The price chart is now finished as a piece of
+work: it draws, it is honest about what it has, it answers questions with a mouse
+or a keyboard, it survives having its colour removed, and it can be read aloud.
+Next up is the volume chart (Story 2.13), which fills the empty region directly
+below it and brings the control that lets you change the time window — the first
+time a user will be able to ask this product for a different period. After that
+the epic closes and we move on to live market data, which is when the screen
+starts moving on its own.

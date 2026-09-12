@@ -303,9 +303,18 @@ test("Enter with nothing matched opens nothing", async ({ page }) => {
 // assumed**: deleting that declaration from `base.css` takes the 768 case red
 // on three stops, and the 1440 case stays green — which is why this runs at the
 // narrow viewport as well as the wide one.
+//
+// **Re-taken at three viewports on 2026-09-12 by Task 2.12.8**, because those
+// counts predate the chart and the chart adds a stop to this page. Walked with
+// a real answer on screen, the chart's stop is the **seventh** — after the four
+// navigation links, the search field and the Price region's own panel — and
+// **zero** stops are obscured at 1440×900, at 768×800 or at 390×780. The third
+// viewport is new here: `CLAUDE.md` measured two obscured stops at 390 before
+// the repair and no spec had held it since.
 for (const [width, height] of [
   [1440, 900],
   [768, 800],
+  [390, 780],
 ] as const) {
   test(`no tab stop lands under the chrome at ${String(width)}px`, async ({
     page,
@@ -313,6 +322,20 @@ for (const [width, height] of [
     await page.setViewportSize({ width, height });
     await page.goto(`/securities/${SYMBOL}`);
     await expect(page.getByRole("table")).toBeVisible();
+
+    // **Waited for the answer before counting, since Task 2.12.8.** The chart
+    // contributes a tab stop in `loaded` and `partial` and in no other state —
+    // `ChartReading` renders nothing where there is nothing to read — so a walk
+    // taken while the panel is still `loading` counts one fewer stop than the
+    // same page a second later. Either answer will do: CI's store holds no bars
+    // and every chart there is `empty`, which contributes no stop at all and is
+    // a correct page to walk.
+    await expect(
+      page
+        .getByText(/Holding .* bars/)
+        .or(page.getByText(/No bars stored for this window/))
+        .first(),
+    ).toBeVisible();
 
     const obscured: string[] = [];
     // Far enough to cross the field, all eight region panels, the bulk toggle
@@ -322,8 +345,7 @@ for (const [width, height] of [
     // **24 since Task 2.12.6**, which made the price chart readable and
     // therefore focusable: it is the second stop, immediately after the Price
     // region panel. The 26 still covers the whole run, and the new stop is
-    // inside it at both viewports — so this spec already holds the chart against
-    // the sticky chrome rather than needing to be extended for it.
+    // inside it at every viewport.
     for (let press = 0; press < 26; press += 1) {
       await page.keyboard.press("Tab");
       if (await focusIsObscured(page)) {

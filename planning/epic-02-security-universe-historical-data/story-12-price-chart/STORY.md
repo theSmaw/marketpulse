@@ -782,3 +782,40 @@ first was the wash's own colour being locally wrong. Both were failures of
 _opacity of the instrument_ rather than of coverage: a simulation cannot tell you
 the encoding answered the right question, and a test that counts elements cannot
 tell you one of them is painted over another.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.8 — the task list was reviewed an eighth time, from the other side of a chart that can be read aloud
+
+Two tasks remain — [2.12.9](TASK-09-measured-against-fifty-milliseconds.md) and
+[2.12.10](TASK-10-deployed-verify-document-and-adr.md) — and neither moves.
+What changed underneath them is worth three notes.
+
+### Acceptance criterion 2 is now met in both halves, and criterion 3 is met with a caveat it always had
+
+Criterion 2 — _readable and operable without a mouse, and conveys direction
+without colour_ — was half-met by 2.12.6 (operable) and half by 2.12.5
+(direction). It is now met as a **reading**: the keyboard walk is held at three
+viewports rather than two, zero stops land behind the sticky chrome, and the
+greyscale and deuteranopia proof was taken over the assembled page rather than
+over the mark in a workshop. `CHARTING.md` §15.5 and §15.6.
+
+Criterion 3 — _axe reports no violations_ — passes, and the caveat is this
+repository's standing one rather than a new reservation: an axe pass is a gate,
+not accessibility coverage. The evidence is the walk; axe is what stops it
+regressing.
+
+### 2.12.9 inherits one thing it did not have, and it is small
+
+The chart now renders one extra paragraph and the readout renders a hidden
+second row. Neither scales with the bar count — the paragraph is one string
+built from four numbers, and the hidden row is the same six elements the live
+one has — so the 50 ms budget is unaffected in shape. Worth measuring rather
+than assuming, which is what 2.12.9 is for.
+
+### 2.12.10 inherits one entry struck from `CLAUDE.md` and one added
+
+§14.5's measurement became a browser assertion (§15.7) and left the gap list;
+the alternative's coverage clause and the wash agreeing only by both calling
+`timeAxis` joined it. The story close should read the list rather than the
+count: the two changes are in opposite directions and the net is zero.
