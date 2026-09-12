@@ -263,16 +263,33 @@ Whichever way it goes, **the clip is the mechanism** and it already exists for
 the series. One `clipPath` that takes the rule, the wash and the line together,
 or a deliberate statement that the rule is outside it.
 
-### Three contrast pairs are now measurable and two are new
+### Four contrast pairs are now measurable and three are new
 
 `--chart-grid` where the wash passes under it was recorded at **1.11:1** and is
 now real rather than predicted. What this task adds to that list:
 
-| Pair                                            | Why it is this task's                                |
-| ----------------------------------------------- | ---------------------------------------------------- |
-| `--chart-uncovered` against `--surface-raised`  | The existing row; 1.107:1, deliberately the quietest |
-| `--chart-uncovered` against each wash           | **New.** Two pale fills meeting at a vertical edge   |
-| `--chart-reference` against `--chart-uncovered` | **New**, and only if the rule is not clipped         |
+| Pair                                              | Why it is this task's                                              |
+| ------------------------------------------------- | ------------------------------------------------------------------ |
+| `--chart-uncovered` against `--surface-raised`    | The existing row; 1.107:1, deliberately the quietest               |
+| `--chart-uncovered` against the **positive** wash | **New.** Two pale fills meeting at a vertical edge                 |
+| `--chart-uncovered` against the **negative** wash | **New**, and it is a separate row rather than pedantry — see below |
+| `--chart-reference` against `--chart-uncovered`   | **New**, and only if the rule is not clipped                       |
+
+**Two rows rather than one, because the wash splits at the rule.** Since
+2026-09-12 the fill is green above the reference and red below it
+(`CHARTING.md` §12.6), so which wash `--chart-uncovered` meets at the coverage
+edge depends on where the line was when coverage ran out — and **a single chart
+can present both**, one above the edge's midpoint and one below, if the line
+crosses the rule near it. A treatment judged against the green pair alone has
+been judged against half of what ships.
+
+There is a fifth pair this task does **not** own and should know about: the two
+washes meet each other along a horizontal boundary at the rule. They differ by
+1.013:1, which is nothing — and what carries that boundary is the dashed
+`--chart-reference` at 4.48:1 sitting exactly on it. That makes the rule
+load-bearing in a way it was not when the fill was one colour, and it is a reason
+to think hard before clipping it at the coverage edge: clip the rule and the two
+washes meet at an invisible seam wherever coverage is short.
 
 The second is the one to look at rather than compute: 1.107:1 and 1.15:1 against
 the same ground are within a few hundredths of each other, so the coverage edge

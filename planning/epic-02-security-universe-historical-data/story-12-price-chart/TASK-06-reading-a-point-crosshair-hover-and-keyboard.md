@@ -308,13 +308,31 @@ window opened at, and the line finishing above or below it. This readout says
 **which way one bar went**, which is the per-bar open-against-close that
 `CHARTING.md` §2 moved here when it chose a line over candlesticks.
 
-Those are different facts and they will disagree constantly. A red minute inside
-a green window is normal, and the design canvas already states the rule it
-follows: **the tint is the window's direction, never the bar's.** It is now live
-rather than anticipated, so the thing to get right here is that the readout's
-glyph and sign are visibly _about the bar_ — a label, a position, or a heading
-that says so — rather than a second opinion on the same question the wash
-answered.
+Those are different facts and they will disagree constantly.
+
+> **Corrected hours later on 2026-09-12, by the wash split.** This paragraph read
+> _"the design canvas already states the rule it follows: **the tint is the
+> window's direction, never the bar's**"_ — and that rule was **reversed** the
+> same afternoon. The wash no longer states the window's direction at all: it
+> splits at the reference rule, green above and red below, so it says
+> _where the price is relative to the window's open, at this instant_.
+> `CHARTING.md` §12.6 has the argument.
+
+**The correction makes this task's problem harder, not easier**, and that is why
+it is worth reading rather than skimming. There are now **three** subjects on one
+screen, not two:
+
+| Surface                        | Says                                                 |
+| ------------------------------ | ---------------------------------------------------- |
+| The headline glyph and sign    | What the **window** did, open to last close          |
+| The wash's colour at point _x_ | Whether the price at _x_ is above or below that open |
+| This readout                   | What **one bar** did, its own open to its own close  |
+
+All three can disagree at once, legitimately: a down-minute, below the window's
+open, inside a window that finished up. So the thing to get right here is that the
+readout's glyph and sign are visibly _about the bar_ — a label, a position, or a
+heading that says so. The old two-subject version of this problem could have been
+solved by tone; this one cannot.
 
 The precedent to copy is one this page already sets: the identity block's
 `LAST SESSION CLOSE` and the chart's current-value reading are two figures for
@@ -335,20 +353,32 @@ solid where the rule is dashed, which is already the difference between them.
 ### The memoisation repair got slightly larger
 
 The amendment above assigns this task the unmemoised `chartFrame` call, on the
-grounds that a pointer move rebuilds a 1,950-point path string. **It now rebuilds
-two.** The directional area is the line's own `d` with two segments and a close
-appended — cheap to derive, but the same string again in memory and the same
-string again handed to the DOM.
+grounds that a pointer move rebuilds a 1,950-point path string. **It now builds a
+second one in JavaScript and hands the DOM one copy of it.**
 
-Nothing about the repair changes; the number it is repairing roughly doubled, and
-the second of the two options — keeping the crosshair's state out of the
-component that computes the frame — is a little more clearly the right one than
-it was.
+> **Corrected hours later on 2026-09-12, by the wash split.** This read _"the same
+> string again in memory and the same string again handed to the DOM"_ and called
+> the cost doubled. **The DOM half is wrong.** The area is defined once in
+> `<defs>` and drawn through two clipped `<use>` elements, so the browser parses
+> one 1,950-point string for the fill however many times it is drawn. What does
+> double is the **JavaScript**: `directionalArea` builds `series + two segments +
+Z` as a new string on every call, and that call is in the render body.
+
+So the repair is unchanged and the figure it is repairing is **two string builds
+per render, one DOM parse** rather than two of each. That is still the one part of
+this chart linear in the bar count and still the right thing to point the trace
+at — it is simply half the size the first version of this paragraph claimed, and
+a measurement taken against the wrong expectation is how a real regression gets
+read as noise.
+
+The second of the two repair options — keeping the crosshair's state out of the
+component that computes the frame — is still the structurally stronger one.
 
 ### One prediction that keeps being corrected is nearly settled
 
 2.12.2 said the plot carries "roughly two dozen" elements and 2.12.4 corrected it
-to gridlines, seams and one `<path>`. It is now gridlines, seams, **two** paths
+to gridlines, seams and one `<path>`. It is now gridlines, seams, **two paths —
+one of them in `<defs>` — two `<use>`, two `<clipPath>` with a `<rect>` each**,
 and the reference rule. This task adds the crosshair and its disc; 2.12.7 adds
 the uncovered rect and the coverage edge. The shape has never moved and is the
 part that matters: **`O(sessions + breakpoint)`, `O(1)` in bars.** No element here

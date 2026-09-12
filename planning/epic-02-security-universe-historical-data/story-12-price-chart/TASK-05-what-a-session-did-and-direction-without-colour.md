@@ -623,10 +623,23 @@ Both were written by reasoning about the failure rather than by performing it.
 ### Swept the same day
 
 `CHARTING.md` §12.6, `VISUAL-LANGUAGE.md`'s _Direction without colour_ and its
-token table, and **the design canvas** — which had drawn ten single-tint washes and
-stated the old rule twice in prose. All ten are split and both sentences carry
-dated corrections. The canvas is the source of truth, so a finding that falsifies
-it is swept into it rather than recorded only downstream.
+token table, `CLAUDE.md`'s _Current state_, and **the design canvas** — which had
+drawn **twelve** single-tint washes and stated the old rule twice in prose. All
+twelve are split and both sentences carry dated corrections. The canvas is the
+source of truth, so a finding that falsifies it is swept into it rather than
+recorded only downstream.
+
+**The sweep was verified by reading the file back off the server** rather than by
+trusting the write receipt. Counted on the returned bytes: **24 clip-path ids**
+(two per region, twelve regions), and **24 fills where there had been twelve** —
+20 through `<use>` on the scaled artboards and 4 as direct `<path>`s on the two
+flat ones. Of the coloured pairs, 8 are `--price-positive-wash` and 8 are
+`--price-negative-wash`; the rest are the greyscale artboards' own greys.
+
+That check is worth copying. `DesignSync`'s `write_files` reports **what it
+sent**, not what the project now contains, and a canvas that is the source of
+truth is exactly the artefact where "I pushed it" and "it is there" must not be
+the same claim.
 
 ---
 
