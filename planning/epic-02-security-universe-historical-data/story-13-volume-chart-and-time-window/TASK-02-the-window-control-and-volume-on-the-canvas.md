@@ -139,3 +139,42 @@ reserved height is the property §15.4 found wrong at every viewport but 1440 �
 reading wraps where the invitation does not. What this task may decide is how a
 two-series reading is **laid out**; what it may not do is reintroduce a
 `min-height` token as the reservation.
+
+---
+
+## Amended 2026-09-12 by Task 2.13.1 — one surface on this list does not exist, and one that does is missing
+
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) settled what the control offers,
+and two of this task's inputs changed.
+
+**The set is five members with decided labels**, so the control's width is a
+known quantity rather than something the canvas discovers: `1D` `5D` `1M` `3M`
+`1Y`, visible labels abbreviated and accessible names spelled out (§4d). Design
+against five, not against "a small set".
+
+**There is no unavailable-window state to draw, and this task should not invent
+one.** The bullet above asks for "what it looks like when a window **cannot be
+offered** (2.13.1's decision 6)". Decision 6 answered that question the other
+way: **neither refusal is reachable through the control.** The calendar has 676
+sessions of headroom against a widest offer of 252, and the timeframe mapping
+forecloses the 10,000-bar cap for every session count from every source. So no
+window in this control is ever disabled, greyed, or unaskable — which also means
+2.13.6 does not need `TextField`'s `aria-disabled` + `readOnly` idiom here, and
+the WCAG consequence that idiom drags with it does not arise.
+
+**What replaces it is a state nobody currently owns: the control with nothing
+selected.** §4(b) decided that the address admits any session count the server
+accepts — `?sessions=7` from a hand-edited URL, and `?sessions=30` from Epic
+11's `setTimeWindow` — and that the control **shows no selection rather than
+snapping to the nearest**, because snapping would rewrite the user's address
+into a different window. That is a real, reachable, permanent state of this
+component, it is the first thing a stranger sees if they edit the address, and it
+needs a canvas position: five unselected buttons must not read as broken, as
+loading, or as "nothing has happened yet".
+
+Add to **Done when**:
+
+- The control's **no-selection** state has a canvas position and does not read as
+  broken or as loading
+- The selected state is designed for a set of **five** known labels, with the
+  visible/accessible split of §4(d) recorded

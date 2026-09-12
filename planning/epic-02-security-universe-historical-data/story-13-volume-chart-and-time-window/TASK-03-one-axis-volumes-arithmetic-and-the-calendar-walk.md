@@ -130,3 +130,62 @@ wrong quietly**. The walk is the thing every session count, every tick label and
 every coverage measurement is built on; a memo keyed imprecisely returns last
 window's axis for this window's request, and the chart that results is plausible
 and shifted rather than broken. Test the key, not only the speed-up.
+
+---
+
+## Amended 2026-09-12 by Task 2.13.1 — a fourth piece, and the walk's headline figure is not this product's
+
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) changed two things here.
+
+### A fourth piece: `time-window.ts`, which currently has no builder
+
+§2.2 named **`apps/frontend/src/market/time-window.ts`** as the one home for the
+window list, the control labels, the query spelling and the timeframe mapping —
+and no task owns writing it. This one does: it is arithmetic with no DOM in it,
+which is this task's whole fence, and 2.13.6's _"the timeframe mapping has one
+home"_ is a **check** rather than a build.
+
+- The five windows, their labels and their accessible names (§4's table), once.
+- **`sessions ≤ 21 → 1m`, above → `1d`** (§2.1). Exhaustive over a session
+  count, not a lookup keyed on the five — an address may carry any count, so
+  `?sessions=7` must map, and the mapping is what makes the cap structurally
+  unreachable. Assert that property rather than restating it: no session count
+  reachable inside the calendar may produce more than 10,000 bars.
+- It imports `SeriesWindow` from `../bar-series-query.js` exactly as
+  `use-bar-series.ts` does, and is exported through `market/index.ts`.
+- **Not in `packages/shared` today** — reversal trigger is the first non-frontend
+  caller, almost certainly Epic 11's `setTimeWindow`, at which point it moves
+  whole rather than being copied. If `market/`'s lint boundary makes the path
+  awkward, the decision that matters is _one home_, not _this path_.
+
+### The 46.1 ms figure is real and this product never reaches it
+
+The bullets above frame the repair as _"46.1 ms of a 50 ms budget at the widest
+window"_. **That window is not offered.** "Max" was declined (§1.2), so the
+widest window this product can reach is **1Y — 252 sessions — at 17.0 ms per
+render**, and §16.5's 672-session figure now describes a window nothing can ask
+for. Re-taken 2026-09-12 at the windows actually offered:
+
+| Window   | Sessions | Timeframe | Per call | Per render (×2) |
+| -------- | -------: | --------- | -------- | --------------- |
+| 1 day    |        1 | `1m`      | 0.058 ms | 0.1 ms          |
+| 5 days   |        5 | `1m`      | 0.222 ms | 0.4 ms          |
+| 1 month  |       21 | `1m`      | 0.735 ms | 1.5 ms          |
+| 3 months |       63 | `1d`      | 2.858 ms | 5.7 ms          |
+| 1 year   |      252 | `1d`      | 8.500 ms | **17.0 ms**     |
+
+**The repair is unchanged and still required** — 17.0 ms is a third of the
+budget, paid per answer and again per resize tick, and the server pays 20.6 ms of
+the same walk on every cache hit — but state the true headline. A later reader
+chasing 46 ms will not find it, and a figure nothing reaches is how a document
+stops being believed.
+
+**1Y cannot ship before this lands** (§1.2): the memoisation is a precondition of
+offering the window, not an optimisation that follows it.
+
+Add to **Done when**:
+
+- `time-window.ts` exists with the five windows, the labels and the mapping, and
+  a test asserts **no session count inside the calendar can exceed the cap**
+- The re-taken figures are recorded at the windows this product **offers**,
+  beside §16.5's, with the method stated for both
