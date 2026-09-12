@@ -1330,3 +1330,72 @@ worlds — green when the control was unreachable with an unreadable explanation
 and green now that it is neither. It is the right assertion for what that test is
 about and it is evidence of nothing else; a note beside it says so. Expect the
 same of any assertion that names a **state** rather than a **mechanism**.
+
+---
+
+## 10. The table is over §28's budget, measured 2026-09-12 by Task 2.12.9 — raised, not repaired
+
+A task measuring the **price chart** against `PRODUCT_SPEC.md` §28's _no routine
+main-thread task over 50 ms_ found that the chart is fine and **this table is
+not**. It is recorded here rather than in that story's document because the
+surface is this one's, and it is raised rather than repaired for the reason
+`CLAUDE.md` gives for exactly this shape: a measurement task that quietly
+rebuilds another story's component is a task whose scope stopped meaning
+anything.
+
+### What was measured
+
+Real Chromium at 1440×900, the built artefact, every response fulfilled from a
+recorded body, `PerformanceObserver` on `longtask` — which reports **only** tasks
+over 50 ms and is therefore §28's criterion directly. Five cold loads of each:
+
+| What was loaded                                          | Tasks over 50 ms              |
+| -------------------------------------------------------- | ----------------------------- |
+| `/` — neither table nor chart                            | **none**                      |
+| `/securities` — the table, **no chart at all**           | 5 — **51, 66, 64, 59, 63 ms** |
+| `/securities/NVDA` — the table and a 780-bar chart       | 5 — 56, 50, 65, 58, 60 ms     |
+| `/securities/NVDA` — the table and a **9,750-bar** chart | 5 — 52, 60, 62, 55, 61 ms     |
+| `/securities/NVDA`, 9,750-bar chart, **20-row universe** | **none**                      |
+| `/securities`, **20-row universe**                       | **none**                      |
+
+**The attribution is the last two rows against the second.** The cap-sized chart
+is still drawn where the task disappears, and the task is there where no chart
+exists at all. It does not move with the bar count: 780 bars and 9,750 bars
+produce the same figure.
+
+A CPU profile over five loads of each says where it goes, and it is not a
+function in this repository: **`(program)` — the engine's own style, layout and
+paint — is 75.6 ms per load at 518 rows against 35.0 ms at 20**, with the
+document at **10,331 nodes against 807**. It is the cost of building and laying
+out ten thousand nodes.
+
+### Why it is not repaired here, and what the repair would be
+
+Three options, none measured, in ascending order of cost:
+
+1. **`content-visibility: auto` on each band's rowgroup**, with a
+   `contain-intrinsic-size` estimate. A stylesheet change, and the risk is a
+   table one: skipped rows do not participate in column sizing, and §6's jump
+   control scrolls to a band by measured offset.
+2. **Render bands collapsed below a row-count threshold**, which is the collapse
+   Task 2.11.8 **declined** on its merits — and declining it again would be the
+   right answer if the only argument for it were performance.
+3. **Virtualise the rows.** The honest fix for a table of this size and the one
+   this product will eventually need, and a dependency or a hand-built windowing
+   layer is a decision with its own ADR.
+
+**Trigger — a condition, not a story number: the first time a second surface on
+this page renders per-row markup at universe scale.** Epic 5's anomaly score per
+security is the obvious candidate, and two of these in one load is a delay nobody
+mistakes for a slow laptop. Story 2.14's close carries it as a decision Epic 2
+owes an answer to.
+
+### What nothing checks
+
+Nothing in `pnpm verify` can see this and nothing in `pnpm e2e` asserts it: jsdom
+computes no layout, and the browser suite runs against a store with **zero bars
+and 518 securities**, where the table renders and the assertion would be about a
+duration on a shared runner. **Re-measure rather than cite**: load `/securities`
+in Chromium with `PerformanceObserver({ entryTypes: ["longtask"] })` installed
+before navigation, and compare against the same page with the universe response
+trimmed to twenty rows.

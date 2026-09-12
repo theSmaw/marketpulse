@@ -1,6 +1,6 @@
 # Story 2.12 — Price Chart
 
-**Status:** **In progress — Tasks 2.12.1 to 2.12.7 are complete (2026-09-12).** Three remain: the text alternative, the measurement and the close.
+**Status:** **In progress — Tasks 2.12.1 to 2.12.9 are complete (2026-09-12).** One remains: the close.
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.11
 **Epic scope covered:** Basic price chart
@@ -850,3 +850,39 @@ its own: the defect it turned up was repaired inside it, the performance
 consequences belong to 2.12.9 by its own charter, and the sweep consequences
 belong to 2.12.10 by its. 2.12.9 before 2.12.10 is unchanged and still right —
 the close reports the figures, so it cannot precede them.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.9 — the task list was reviewed a last time, and two acceptance criteria are closed
+
+The measurement was taken and **no task was added, none was deleted, and the
+order is unchanged.** One was amended in place —
+[2.12.10](TASK-10-deployed-verify-document-and-adr.md), which is all that is
+left.
+
+**Criterion 5 is met.** _"Rendering the largest series this epic serves produces
+no main-thread task over 50 ms, measured."_ Measured in real Chromium against the
+built artefact at the **9,750-bar cap**, cold, under 120 continuous pointer moves
+and under 40 arrow presses: **none**, in every state and at every density. The
+crosshair holds 60 FPS at the cap, and 8,970 extra bars cost about 5 ms and no
+elements.
+
+**Criterion 7 is met.** _"The bundle cost of the decision is recorded, in the
+shape Story 1.5 recorded the router's."_ **6,552 B gzipped — 5,901 JS and 651
+CSS — 4.2% of the artefact**, measured as three builds of the real application
+and attributed per module through the build's own sourcemap.
+[`CHARTING.md`](CHARTING.md) §16.6 carries the table. 2.12.1's **+279 B**
+prediction is falsified by 21× and §1 is untouched: the library it rejected was
+**+94,809 B on its own**.
+
+**And the measurement found a real defect that is not this story's.** The
+security page carries a **50–66 ms main-thread task on every cold load**, and it
+is the **518-row tracked universe** rather than the chart — proved by loading the
+cap-sized chart with a 20-row universe (no task) and the table with no chart at
+all (the task, unchanged). It is raised rather than absorbed, exactly as Task
+2.9.9 raised the server's calendar walk: recorded in `SEARCH-AND-SELECTION.md`
+§10 with three candidate repairs, named in Story 2.14's close as a decision the
+epic owes, and on `CLAUDE.md`'s gap list with a trigger.
+
+One consequence for the close: **do not write "the security page produces no long
+task"** in ADR 0027. The chart does not. The page does.

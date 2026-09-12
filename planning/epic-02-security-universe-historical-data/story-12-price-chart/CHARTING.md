@@ -1626,3 +1626,288 @@ clientHeight` subtraction in `usePlotSize` takes exactly that test red and leave
 the other 95 green. The entry is struck from the gap list, which is the second
 time this story has made one of those mechanical — `pnpm coverage:check` was the
 first.
+
+---
+
+## 16. What measuring it found — added 2026-09-12 by Task 2.12.9
+
+Every figure below was taken on **2026-09-12**, on an Apple M-series laptop
+(macOS 14.6, Node 24.20.0), against the **built artefact** — `vite build`, served
+by `vite preview`, driven through Playwright **1.62.1**, which is the version
+`pnpm e2e` pins, in real Chromium at 1440×900. Each is a dated observation of a
+machine, not a property of the code. **Re-take rather than cite**, and §0's own
+method note applies unchanged.
+
+Two things about the method, because they are what make the numbers mean
+anything:
+
+- **Every backend response was fulfilled from a recorded body**, so the figures
+  are the renderer's rather than the network's. The bars came from four bodies:
+  `uncovered` (780 bars, `partial`, the routine case §14.6 names), `dense`
+  (1,950 bars, the default window's real density), and two recorded for this
+  task and deliberately **not** checked in — 9,750 bars at the `1m` cap, and
+  8,580 bars over a 25-session window the store covers 22 of, which is the cap
+  **with the full mark set on it**.
+- **`PerformanceObserver` on `longtask` reports only tasks over 50 ms**, so it is
+  `PRODUCT_SPEC.md` §28's criterion directly rather than a proxy for it.
+
+### 16.1 The answer: the chart is not what breaks the budget. The page is, and it is the table.
+
+**The chart produces no main-thread task over 50 ms, in any state, at any
+density this API can serve** — cold, under 120 continuous pointer moves, and
+under 40 arrow presses.
+
+But the page it sits on does, and that is this task's real finding. On both
+`/securities` and `/securities/NVDA` there is **one task of 50–66 ms on every
+cold load**, and it is the **518-row tracked universe**, not the chart:
+
+| What was loaded                                     | >50 ms tasks over five loads |
+| --------------------------------------------------- | ---------------------------- |
+| `/` (no table, no chart)                            | **0**                        |
+| `/securities` (the table, **no chart at all**)      | 5 — 51, 66, 64, 59, 63 ms    |
+| `/securities/NVDA`, 780 bars                        | 5 — 56, 50, 65, 58, 60 ms    |
+| `/securities/NVDA`, **9,750 bars**                  | 5 — 52, 60, 62, 55, 61 ms    |
+| `/securities/NVDA`, 9,750 bars, **20-row universe** | **0**                        |
+| `/securities`, 20-row universe                      | **0**                        |
+
+The last two rows are the proof. The cap-sized chart is still drawn in them and
+the task is gone; the chart is absent in the second row and the task is there.
+It does not move with the bar count at all — 780 bars and 9,750 bars produce the
+same figure.
+
+A CPU profile over five loads each says where it goes: `(program)` — the
+engine's own style, layout and paint — is **75.6 ms per load at 518 rows and
+35.0 ms at 20**, and the whole document is **10,331 nodes against 807**. It is
+the cost of building and laying out ten thousand nodes, not of any function this
+repository wrote.
+
+**This task does not repair it, and that is a decision rather than an
+omission.** §28 is breached by a surface Story 2.11 built, the repair is
+virtualisation or deferred rendering of a table this story does not own, and
+`CLAUDE.md`'s rule for exactly this shape is the one Task 2.9.9 followed with the
+trading-calendar walk: **raise it rather than absorb it.** It is recorded in
+`SEARCH-AND-SELECTION.md` §10 with the measurement and the repair options, named
+in Story 2.14's close, and on `CLAUDE.md`'s gap list. The reversal trigger is a
+condition and not a story number: **the first time a second surface on this page
+renders per-row markup at universe scale** — Epic 5's anomaly column is the
+obvious candidate — because two of these in one load is a task nobody can
+mistake for a slow laptop.
+
+### 16.2 The chart's own cost, at four densities
+
+`cold` is navigation to two `requestAnimationFrame`s after the series `<path>`
+is in the DOM, median of seven loads, **with the universe trimmed to ten rows**
+so the figure is the chart's rather than the table's. It includes the whole
+application booting — router, fonts, chrome, panel — so it is **not** comparable
+to §0's 26.3 ms, which was a spike page drawing one path. What is comparable is
+the difference between its own rows.
+
+| Body          |  Bars | Plot elements |  Series `d` | Cold p50 | >50 ms tasks |
+| ------------- | ----: | ------------: | ----------: | -------: | ------------ |
+| `uncovered`   |   780 |            22 |   9,545 ch. | 151.9 ms | **none**     |
+| `dense`       | 1,950 |            21 |  23,803 ch. | 151.8 ms | **none**     |
+| cap, partial  | 8,580 |            44 | 105,122 ch. | 168.5 ms | **none**     |
+| cap, complete | 9,750 |            40 | 118,086 ch. | 157.2 ms | **none**     |
+
+**8,970 extra points cost about 5 ms and no elements.** That is §1's constraint
+arriving from the other end, and the clause it was actually about is intact:
+the plot is `O(sessions + breakpoint)` and `O(1)` in bars. The element counts
+also settle the prediction table for the last time — §0 predicted "~11, flat",
+2.12.2 corrected it to "roughly two dozen", 2.12.7 to "two dozen plus four", and
+the measured range is **21 to 44**, with the wider end being the `partial` states
+that carry a ground, an edge and a clip.
+
+### 16.3 The pointer path — the genuinely unmeasured surface, measured
+
+120 pointer moves across the plot, three runs per body, with the crosshair and
+the readout confirmed live in the same run (121 events recorded, a reading in
+the strip rather than the invitation):
+
+| Body          | Frame interval p50 / p95 | Move → paint p50 / p95 | >50 ms tasks |
+| ------------- | ------------------------ | ---------------------- | ------------ |
+| `uncovered`   | 16.7 / 18.6 ms           | 17.0 / 19.5 ms         | **none**     |
+| `dense`       | 16.7 / 18.6 ms           | 17.0 / 19.5 ms         | **none**     |
+| cap, partial  | 16.7 / 18.5 ms           | 17.0 / 19.2 ms         | **none**     |
+| cap, complete | 16.7 / 18.6 ms           | 17.1 / 19.1 ms         | **none**     |
+
+16.7 ms is one frame at 60 Hz. **The crosshair holds 60 FPS at the cap**, and a
+move is answered in the next frame. The keyboard path is the same picture at a
+different rate — 40 arrow presses, no long task, 24–26 ms press-to-paint p50,
+which is the announcement pacing §13.4 settled rather than work.
+
+### 16.4 The memoisation repair, priced — and it does **not** break the budget
+
+Task 2.12.4's amendment left `chartFrame` in the render body unmemoised; Task
+2.12.6 repaired it structurally by keeping the reading's state in a sibling, and
+2.12.8's amendment asked this task to trace the result and to break it on
+purpose. Both were done, and the break was **verified to have landed** rather
+than assumed — the component re-rendered 121 times for 121 pointer moves, read
+off a counter in the DOM.
+
+Per 120 pointer moves at the cap, CPU self time in the chart's own modules:
+
+| Build                                 | `chart-geometry` | `chart-time-axis` | `market-time` | per move    |
+| ------------------------------------- | ---------------: | ----------------: | ------------: | ----------- |
+| **As shipped** (state in the sibling) |         **0 ms** |          **0 ms** |        2.3 ms | **~0.1 ms** |
+| State lifted into `PriceChart`        |          85.2 ms |           20.7 ms |      100.1 ms | **~1.7 ms** |
+
+**The repair is worth about seventeen times on the pointer path** — and it is
+worth saying plainly that **neither build breaks §28 at this story's windows.**
+The lifted version rebuilds a 118,086-character path string and walks the
+trading calendar twice on every move, and it still answers inside a frame. So
+the repair is cheap insurance rather than the thing standing between this chart
+and a long task, and anybody undoing it in a tidy-up would see nothing go wrong
+on a developer's machine at a five-session window. What would go wrong is at the
+windows §16.5 is about.
+
+**The reserved-height sizer costs nothing measurable.** 2.12.8's amendment asked
+for the delta with and without it, since it renders a second `BarFigures` and a
+second `formatBarInstant` on every move. Measured with the sizer removed:
+`market-time` 1.5 ms against 1.6 ms per 120 moves, react-dom 4.2 against 4.3.
+The difference is below the profiler's resolution. React reconciles a subtree
+whose output never changes and touches no DOM, which is what it was expected to
+do and is now a number rather than an expectation.
+
+### 16.5 The trading-calendar walk, timed — and it is Story 2.13's problem, not this one's
+
+`timeAxis` steps **day by day** through the trading calendar, and since Task
+2.12.8 it is called **twice per render** of `PriceChart`: once by `chartFrame`
+and once by `chart-alternative.ts`, which derives its own axis on purpose
+(§15.3). Timed as a pure function, 200 iterations, Node 24 / V8:
+
+| Window                               | Sessions | Per call      | **Per render (×2)** |
+| ------------------------------------ | -------: | ------------- | ------------------- |
+| 5 sessions of `1m` — today's default |        5 | **0.202 ms**  | 0.4 ms              |
+| 25 sessions of `1m` — the `1m` cap   |       25 | **0.932 ms**  | 1.9 ms              |
+| 1 month of `1d`                      |       24 | 0.849 ms      | 1.7 ms              |
+| **1 year of `1d`**                   |      253 | **8.762 ms**  | **17.5 ms**         |
+| **672 sessions of `1d` — "max"**     |      672 | **23.051 ms** | **46.1 ms**         |
+
+The last row is the one to carry forward, and it corroborates a figure taken
+elsewhere on different hardware in a different runtime: Task 2.9.9 measured the
+**same walk over the same 672 sessions at 20.6 ms on the server**
+(`MARKET-DATA-API.md` §12.4). Two independent measurements of one algorithm,
+12% apart.
+
+So: **a "max" window at `1d` spends 46 ms of a 50 ms budget walking a calendar
+before anything is drawn** — per answer, and per resize tick, because the frame
+is rebuilt when the box changes. Story 2.13's window control is what makes that
+reachable.
+
+**The second call is not removed, and that is answered rather than deferred.**
+Three shapes were on offer (2.12.8's amendment): leave it, have `chartFrame`
+hand its axis to the alternative, or memoise `timeAxis` itself. At this story's
+windows the whole cost is 0.4 ms, so removing the call would buy 0.2 ms and
+spend §15.3's separation — the sentence would start depending on the frame,
+which is the coupling it was built to avoid. **The repair is the third one, and
+it is `packages/shared`'s**: memoising the walk on its window pays all three
+callers, including the server's, which is the argument Task 2.9.9 already made
+once and which now has a second caller behind it. The trigger is a condition:
+**the first window control offering a range wider than three months at `1d`.**
+
+### 16.6 The bundle cost of the decision, in Story 1.5's shape
+
+Three builds of the real application on 2026-09-12, `vite build`, sizes in bytes,
+gzip at level 9 — which is what §0's 134,210 was, confirmed by reproducing it
+rather than by trusting the label (Vite's own reporter prints 142.25 kB for the
+same file; it does not gzip at level 9).
+
+| Build                                       | Modules |      JS | **JS gzip** |    CSS | CSS gzip | Files |
+| ------------------------------------------- | ------: | ------: | ----------: | -----: | -------: | ----: |
+| The chart removed (`PriceChart` unrendered) |     347 | 422,275 |     134,469 | 42,301 |    8,331 |     4 |
+| Without the reading layer                   |     351 | 436,896 |     139,049 | 44,109 |    8,748 |     4 |
+| **As shipped**                              | **353** | 441,731 | **140,370** | 45,242 |    8,982 |     4 |
+
+**The whole chart costs +19,456 B of JavaScript (+5,901 gzipped) and +2,941 B of
+CSS (+651 gzipped): 6,552 B gzipped, 4.2% of the artefact.** The reading layer
+is 1,321 B of that, and the first row lands within 259 B of §0's pre-chart
+baseline, which tells a figure that moved from a figure that was mis-recorded.
+
+Attributed per module through the build's own sourcemap — raw minified bytes,
+which is why they sum to slightly less than the 19,456 above:
+
+| Part                                    |     Bytes | What it is                                                                                      |
+| --------------------------------------- | --------: | ----------------------------------------------------------------------------------------------- |
+| `ChartReading.tsx`                      |     3,822 | crosshair, readout, keyboard, live region                                                       |
+| `PriceChart.tsx`                        |     3,741 | the drawing                                                                                     |
+| `chart-time-axis.ts`                    |     3,251 | the session-ordinal axis — the single largest piece, and the one no library could have supplied |
+| `chart-alternative.ts`                  |     2,602 | the text alternative                                                                            |
+| `chart-geometry.ts`                     |     2,329 | the frame                                                                                       |
+| `chart-scale.ts`                        |     1,279 | the scale and its inverse                                                                       |
+| `chart-value-axis.ts`                   |       819 | nice-number ticks                                                                               |
+| `chart-reading.ts`                      |       654 | slot and point lookup                                                                           |
+| `chart-density.ts`                      |       533 | the one breakpoint                                                                              |
+| **The five `market/` modules together** | **6,536** | the arithmetic a library would have supplied                                                    |
+
+**2.12.1's prediction of +279 B gzipped is falsified by 21×, and §1 is not.**
+The prediction was explicit about being a spike's one `<path>` and a scale; what
+shipped carries axes, nice-number ticks, a session-ordinal domain, four states, a
+crosshair, a readout, a keyboard path and a text alternative. The comparison
+that decided §1 was against **Recharts at +94,809 B gzipped** — for a chart
+library, before any of the above — so the honest reading is that the entire
+hand-built chart **including** the arithmetic costs **6.9% of what the rejected
+library would have cost on its own**. The decision is not close, and it is closer
+than the spike suggested, which is the interesting part.
+
+Two smaller corrections to the same prediction, both of which 2.12.2 anticipated:
+**the CSS half is real but small** (+651 B gzipped for eighteen custom properties
+and the chart's own rules), and **the five arithmetic modules are a third of the
+JavaScript**, which is exactly the part §1 knowingly bought back when it declined
+`d3`.
+
+### 16.7 Two instruments were verified by breaking them, and one break did not go red
+
+`CLAUDE.md`'s rule is that a break which does not go red is equally evidence the
+break did not land, and §12.3's lesson is that a break can be **loud in the wrong
+dimension**. Both applied here, and both earned their keep.
+
+**Break 1 — one `<rect>` per bar, the break §1's constraint is about.** At the
+cap: **9,790 plot elements**, cold paint 368.8 ms against 157.2, and **five
+main-thread tasks of 137, 138, 140, 248 and 254 ms** over five loads. The
+instrument sees it, in the right dimension, at four to five times the budget —
+and the spike's 73.6 ms cold / 296 ms observed is reproduced in the real
+component. Worth recording alongside it: at the **default** window the same break
+draws 1,971 elements and produces **no long task at all** (167 ms cold against
+152), which is precisely §2's threshold argument — per-bar marks are affordable
+exactly where there are few enough of them to look at.
+
+**Break 2 — lifting the reading's state into `PriceChart`.** It landed, it cost
+17× on the pointer path (§16.4), and **it produced no long task**, so the trace
+records it as CPU rather than as a breach. That is the honest result and it is
+also a warning about the instrument: a regression can be real, measurable and
+invisible to §28's own criterion. The unit test that holds this repair —
+`PriceChart.test.tsx`'s _recomputes the frame zero times across forty arrow
+presses_ — remains the thing that would actually catch it, and it verifies its
+own counter in the same test.
+
+**And one instrument was wrong before it was right.** The first pointer pass
+reported a move-to-paint distribution of nothing at all, because the listener was
+attached to the plot's container and the crosshair's overlay is its sibling — so
+**121 real pointer moves recorded zero events while the chart was visibly
+responding to every one of them**. The frame-interval and long-task figures from
+that run were sound and the latency figures were empty. The rule that caught it
+is the same one this story keeps meeting: check that the instrument is live in
+the dimension it is reporting on, not merely that it produced a number.
+
+### 16.8 One finding made mechanical, and the fixture-leak greps
+
+`CLAUDE.md` asks that a gap entry which **can** be made mechanical should be, and
+this one can: the decision §1 rests on is a shape rather than a duration, and a
+shape is assertable without a stopwatch.
+
+`PriceChart.test.tsx` gained _draws no element per bar, at sixty-five times the
+bars_. It renders the same state at 30 bars and at 1,950, and asserts that the
+paths, the rects and the `<use>` elements are **identical**, that the lines differ
+by exactly the three extra session seams, and that the plot stays under forty
+elements — with the series path string asserted to have grown twentyfold, so a
+pair of equal counts cannot come from a pair of equal bodies. **Break 1 takes it
+red at `expected 1952 to be 32`**, verified by performing it. No wall-clock
+assertion was added anywhere: one would measure the runner, and a flaky
+performance gate is how a suite stops being believed.
+
+**The four fixture-leak greps were re-taken on the built artefact and all four
+found nothing** — `2026-09-04T13:3[0-9]`, `Agilent Technologies`,
+`2026-08-31T13:3[0-9]` and `2026-09-03T13:3[0-9]`. The two cap-sized bodies
+recorded for this task (1,104,621 and 972,239 bytes) were deliberately kept in a
+scratch directory and never checked in, so this story's fixture set is unchanged
+at fourteen and the largest thing in it is still `dense.json`.

@@ -1263,6 +1263,26 @@ more than ~200 sessions**, which is Story 2.12's "1 year" and "max" controls if
 it offers them. Below that the walk is under 6 ms and invisible; at the full
 depth it is the request.
 
+> **Amended 2026-09-12 by Task 2.12.9 — the same walk now has two more callers,
+> both in the browser, and one of them was measured independently.** Story 2.12's
+> chart builds its x-domain with `timeAxis`, which calls `marketSessionsBetween`,
+> and since Task 2.12.8 the chart's text alternative derives its own axis the
+> same way — so **`PriceChart` pays this walk twice per render**, unmemoised, with
+> no React Compiler installed to rescue it (`CHARTING.md` §16.5).
+>
+> Timed in Node 24 on 2026-09-12, 200 iterations: **0.202 ms** at five sessions,
+> **8.762 ms** at 253, and **23.051 ms** over the same 672 sessions this table
+> measures at **20.62 ms**. Two runtimes, one algorithm, **12% apart** — which is
+> the strongest available evidence that the figure above is the algorithm rather
+> than the machine it was taken on.
+>
+> **The repair and its trigger are unchanged; what has changed is who pays.** A
+> memoised session table in `packages/shared` now pays **three** callers rather
+> than one, and the client's share is 46 ms per render at the full daily depth —
+> against `PRODUCT_SPEC.md` §28's 50 ms budget, before anything is drawn. Story
+> 2.13's window control is the screen the trigger names, and its own file carries
+> a dated amendment saying so.
+
 ### 12.5 Nothing on this path compresses
 
 **Measured both ways round.** `Accept-Encoding: gzip, deflate, br` against the
