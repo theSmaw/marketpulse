@@ -620,17 +620,41 @@ Four things this task inherits rather than discovers:
   element per bar** at the cap produces 9,790 plot elements and main-thread tasks
   of **137–254 ms**, and at the default window produces none. That is §1's
   constraint and §2's threshold in one measurement.
-- **`CLAUDE.md`'s gap list grew by two and shrank by none** — the chart's figures
-  are dated observations nothing re-takes, and the universe table's breach is
-  recorded there and in `SEARCH-AND-SELECTION.md` §10. A new mechanical guard
-  exists instead: `PriceChart.test.tsx`'s _draws no element per bar, at
-  sixty-five times the bars_, break-verified.
+- **`CLAUDE.md`'s gap list moved, and 2.12.8's amendment above is right that the
+  useful instruction is _read it_ rather than count it** — this bullet said "grew
+  by two" in its first version and the list had gained three, which is that
+  warning landing on the task that repeated it. What is there now: the universe
+  table's breach with its re-measure, the chart's figures as dated observations of
+  one laptop, and the counter-example — that lifting the reading's state back into
+  `PriceChart` is a 17× regression **no long task can see**, held only by a unit
+  test. A new mechanical guard exists alongside them:
+  `PriceChart.test.tsx`'s _draws no element per bar, at sixty-five times the
+  bars_, break-verified at `expected 1952 to be 32`.
 - **One thing to carry into the four tests rather than the ADR.** Test 4 — _does
   it feel alive?_ — was answered **"not yet, and not from here"** on the canvas
   and this task owns the argued answer. §16.3 is a fact worth having while
   answering it: the crosshair holds **60 FPS at the cap**, so whatever "alive"
   turns out to mean for this product, the chart's interaction is not what is
   standing in its way.
+
+**The handover to Story 2.13 gains a sixth item, and it is already written
+down** — which is the point of saying so here. 2.12.8's amendment left the list at
+five. The sixth is the trading-calendar walk, and Task 2.12.9 put the figures into
+[Story 2.13's own `STORY.md`](../story-13-volume-chart-and-time-window/STORY.md)
+rather than leaving them for this close to hand over:
+
+> `timeAxis` is **0.202 ms** at today's five-session default and **23.051 ms**
+> over the whole stored depth at `1d`, **twice per render** — so **46 ms of a
+> 50 ms budget** at a "max" window, before a pixel is drawn, and again at every
+> resize tick. Task 2.9.9 measured the same walk at **20.6 ms** on the server, so
+> the `packages/shared` repair it argued for once now pays three callers.
+
+So this task owes that item **a check rather than a write-up**: confirm 2.13's
+file still carries it, and do not hand over a handover list that omits the one
+number the window control is most likely to be surprised by. The same applies to
+volume's marks — `CHARTING.md` §1's constraint and §2's threshold are what 2.13
+should read before drawing the first per-bar `<rect>` this axis will carry, and
+§16.7 now has both ends of it measured in the real component.
 
 **And one item for the upward sweep that is not this story's.** The security page
 carries a **50–66 ms main-thread task on every cold load**, and it is the 518-row
