@@ -427,6 +427,7 @@ Achromatic, structural and geometric values in `tokens.css`; anything carrying m
 | `--chart-height-compact` | `220px`   |                                                                   |
 | `--chart-gutter`         | `56px`    | The value scale's width                                           |
 | `--chart-gutter-compact` | `46px`    |                                                                   |
+| `--chart-filing-lane`    | `14px`    | Added 2026-09-12 by Task 2.12.4 — the reserved lane below, named  |
 | `--price-positive-wash`  | `#e6f2ec` | 1.15:1 on white; near-black on it measures 14.87                  |
 | `--price-negative-wash`  | `#fbeae9` | 1.16:1 on white; near-black on it measures 14.68                  |
 | `--price-unchanged-wash` | `#eef0f6` | A window that closed where it opened                              |
@@ -443,7 +444,7 @@ Stated rather than drawn, because three retrofits cost more than three sentences
 
 - **Epic 5's anomaly markers** — a 16 px lane inside the plot's _top_ padding, at the bar's x. Displaces nothing: the y-domain is already padded so the data never touches the frame, and the top half of that padding is the lane. It inherits the constraint that the amber ramp is a _fill behind a written band name_; on a plot there is no room for the name, so the marker carries the score as a number.
 - **Epic 8's comparison series** — the same axes, y switched to normalised percent change, a legend above the plot beside the reading. **It displaces the wash**: one filled area cannot serve _n_ series, so the directional tint is a single-series treatment and is dropped the moment a second series arrives. The second channel there is stroke pattern — the subject stays solid, comparators are dashed and dotted — which survives greyscale where _n_ hues do not.
-- **Epic 9's filing markers** — a 14 px lane _below_ the baseline and above the tick labels, outside the plot, because a filing is not a price. The gap between baseline and labels is reserved at 14 px from today rather than 6 px. The hard part is inherited from `CHARTING.md` §3: most 8-Ks land after the close, an ordinal axis has no position for an instant between sessions, and those markers sit on the seam carrying their true timestamp in the label.
+- **Epic 9's filing markers** — a 14 px lane _below_ the baseline and above the tick labels, outside the plot, because a filing is not a price. The gap between baseline and labels is reserved at 14 px from today rather than 6 px. **It became a token on 2026-09-12**, `--chart-filing-lane`, when Task 2.12.4 drew the first axis that had to spend it: reserved space that exists only as a number inside one component's stylesheet is reserved by nobody, and the volume chart inherits this axis. The hard part is inherited from `CHARTING.md` §3: most 8-Ks land after the close, an ordinal axis has no position for an instant between sessions, and those markers sit on the seam carrying their true timestamp in the label.
 - **Epic 6's topology is not an inheritor of any of this.** `PRODUCT_SPEC.md` §27 commits it to Sigma.js/WebGL against a different problem.
 
 ## What this is not

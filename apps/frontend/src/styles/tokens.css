@@ -536,6 +536,20 @@
   --chart-height-compact: 220px;
   --chart-gutter: 56px;
   --chart-gutter-compact: 46px;
+
+  /*
+   * The gap between the baseline and the time-axis labels, reserved at 14px
+   * from today (Task 2.12.4).
+   *
+   * The labels need about 6px. `VISUAL-LANGUAGE.md`'s _Room reserved for what
+   * arrives later_ puts **Epic 9's filing markers** in this lane — below the
+   * baseline and outside the plot, because a filing is not a price — and says
+   * plainly that three retrofits cost more than three sentences. It is a token
+   * rather than a component constant for the reason the heights are: the volume
+   * chart inherits this axis, and two charts that disagree about where their
+   * labels start cannot be stacked.
+   */
+  --chart-filing-lane: 14px;
 }
 
 /*

@@ -1,0 +1,30 @@
+/*
+ * The two region widths the stories review the chart at.
+ *
+ * They are `CHARTING.md` §2's measured figures rather than round numbers: the
+ * Price region is **1,019px** at a 1920 viewport and **480px** at 1024, which
+ * is where the compact plot height and gutter take over. A story at the
+ * workshop's own width would review a size the product never renders at.
+ *
+ * The panel ground is here too, because the plot keeps it — there is no chart
+ * ground and no token for one, and reviewing the gridlines against the
+ * workshop's default page would be reviewing them at the wrong contrast.
+ */
+
+.wide,
+.narrow {
+  padding: var(--space-16);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius);
+}
+
+.wide {
+  width: 1019px;
+  max-width: 100%;
+}
+
+.narrow {
+  width: 480px;
+  max-width: 100%;
+}

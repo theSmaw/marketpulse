@@ -406,15 +406,35 @@ describe("BarSeriesPanel", () => {
     );
   });
 
-  // The fence, asserted rather than left in a comment. Story 2.12 owns the
-  // charting decision, and a sparkline added here would be that decision taken
-  // by accident on the smallest possible evidence.
-  it("draws nothing — no canvas, no svg, no plotted series", () => {
+  // **The fence came down at Task 2.12.4** and this assertion was changed
+  // rather than deleted, for the reason the browser spec's was: an instrument
+  // that is removed when it goes green stops being an instrument.
+  //
+  // What it asserted until 2026-09-12 was that this panel plotted nothing — no
+  // canvas, no SVG — so that Story 2.12 would take the charting decision
+  // against a data layer already known to be right. It now asserts the thing
+  // that replaced it, and the thing that is easy to undo by accident: the
+  // drawing is **above** the stated facts and has not replaced any of them.
+  //
+  // It stays `svg` and not `canvas`, which is `CHARTING.md` §1's decision
+  // showing through: a canvas here would mean the chart had quietly changed
+  // renderer, and nothing else in this repository would notice.
+  it("draws the series above the facts, and drops none of them", () => {
     const { container } = render(
       <BarSeriesPanel {...props} view={barSeriesFixtureView("full")} />,
     );
 
     expect(container.querySelector("canvas")).toBeNull();
-    expect(container.querySelector("svg")).toBeNull();
+    expect(container.querySelector("svg")).not.toBeNull();
+
+    // An axis is sampled and it is niced, so it never states an exact fact.
+    // These are the figures the picture rounds, and `CHARTING.md` §5 dropped
+    // none of them.
+    for (const fact of ["Open", "Asked for", "Held", "Market feed"]) {
+      expect(screen.getByText(fact)).not.toBeNull();
+    }
+    expect(
+      screen.getByText(/Holding all 30 bars of the window asked for/),
+    ).not.toBeNull();
   });
 });

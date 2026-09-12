@@ -1,0 +1,180 @@
+/*
+ * The plot, the value gutter and the time axis, on one small grid.
+ *
+ * **Every value here is a token and the geometry is measured from what these
+ * rules produce**, which is the inversion worth knowing before reading
+ * `PriceChart.tsx`: the component does not read `--chart-height` and hand it to
+ * a scale, it sets a density class and measures the element this stylesheet
+ * sized. So the 600px breakpoint is spelled once, in `chart-density.ts`, and
+ * there is no media query here to disagree with it.
+ *
+ * The one thing that is **not** here is any position of any mark. Coordinates
+ * come from `chart-geometry.ts` as inline `top` / `left`, because a computed
+ * pixel is data rather than design — CSS Modules cannot express one and a
+ * stylesheet that tried would be a second scale.
+ */
+
+.chart {
+  /*
+   * The density pair, indirected once so that `.compact` swaps two values
+   * rather than restating the four rules that consume them.
+   */
+  --plot-height: var(--chart-height);
+  --value-gutter: var(--chart-gutter);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--value-gutter);
+  grid-template-rows: auto auto;
+}
+
+.compact {
+  --plot-height: var(--chart-height-compact);
+  --value-gutter: var(--chart-gutter-compact);
+}
+
+/*
+ * **One rule, along the bottom.** No left spine, no right spine, no top, no
+ * surrounding box — a four-sided frame is the single most default-looking thing
+ * a chart can do, and this language's structural hairline does the same job
+ * under the chrome, under a table head and over a group band.
+ *
+ * The plot keeps the panel's own ground. A sunken plot inside a raised panel is
+ * a box drawn in tone instead of ink and it drags every hairline down with it:
+ * the gridline measures 1.27:1 on white and 1.15:1 on sunken.
+ */
+.plot {
+  position: relative;
+  grid-row: 1;
+  grid-column: 1;
+  height: var(--plot-height);
+  border-bottom: 1px solid var(--chart-axis);
+}
+
+/*
+ * Absolutely positioned so that nothing the SVG contains can change the box
+ * that was measured to produce it. That is what makes the `ResizeObserver`
+ * loop-free by construction rather than by the equality guard alone.
+ */
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+}
+
+.gridline {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+
+/*
+ * Dashed rather than solid, and that is load-bearing: a solid vertical
+ * near-black rule inside a plot reads as *data* — a threshold, a marker, an
+ * event. Dashes say chrome. It is deliberately louder than a value gridline
+ * (1.70:1 against 1.27:1) because it carries more: it is the only thing on the
+ * plot that says a night passed.
+ */
+.seam {
+  stroke: var(--chart-seam);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+/*
+ * Achromatic whether the window rose or fell. Direction is not put on the one
+ * mark that is repeated 1,950 times, because that is the mark where the
+ * encoding problem is worst and a reader's ability to resolve it is least.
+ *
+ * `round` joins and caps rather than the default miter: at 0.47px per bar a
+ * minute-bar series reverses direction constantly, and a miter join on a near
+ * 180° turn projects a spike several pixels long.
+ */
+.series {
+  fill: none;
+  stroke: var(--chart-series);
+  stroke-width: var(--chart-series-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/*
+ * The value scale. Right rather than left, because right is where the latest
+ * price is — the current-value reading, the last point of the line and the
+ * scale all land in the same place.
+ */
+.gutter {
+  position: relative;
+  grid-row: 1;
+  grid-column: 2;
+}
+
+/*
+ * Every figure is `--font-data` and therefore tabular by construction. Story
+ * 1.4 measured a 14.3px spread on proportional numerals, and a value scale that
+ * shimmers as prices change width is the cheapest way to make a live chart feel
+ * broken.
+ *
+ * The micro-label idiom's size and ink are adopted; its uppercase and
+ * letterspacing are not — a number has no case.
+ */
+.valueLabel {
+  position: absolute;
+  right: 0;
+  left: var(--space-8);
+  font-family: var(--font-data);
+  font-size: var(--font-size-micro);
+  line-height: 1;
+  color: var(--ink-secondary);
+  text-align: right;
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+
+/*
+ * The gap between the baseline and the tick labels is **14px from today**
+ * rather than the 6px the labels need. `VISUAL-LANGUAGE.md` reserves that lane
+ * for Epic 9's filing markers, which sit below the baseline and outside the
+ * plot because a filing is not a price. Reserving it now is three sentences
+ * against a retrofit that would move every chart in the product.
+ */
+.axis {
+  position: relative;
+  grid-row: 2;
+  grid-column: 1;
+  height: var(--font-size-micro);
+  margin-top: var(--chart-filing-lane);
+}
+
+.timeLabel {
+  position: absolute;
+  top: 0;
+  font-family: var(--font-data);
+  font-size: var(--font-size-micro);
+  line-height: 1;
+  color: var(--ink-secondary);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/*
+ * A session boundary carries the date and everything between carries a time.
+ * The date is the thing the ordinal axis took away — it draws no gap between
+ * Friday's last minute and Monday's first — so it is set in the primary ink
+ * while the times stay secondary. That is the label half of the seam; the
+ * dashed rule above it is the other half, and neither is alone.
+ */
+.sessionLabel {
+  font-weight: 500;
+  color: var(--ink-primary);
+}
+
+/*
+ * The leftmost label is aligned to the edge rather than centred on it. Centred,
+ * it hangs half its width off the left of a `Region` that declares
+ * `overflow: auto`, and a horizontal scrollbar appears under a chart at every
+ * width. There is no matching rule on the right: the value gutter is empty in
+ * this row, so a label reaching into it costs nothing.
+ */
+.firstLabel {
+  transform: none;
+}
