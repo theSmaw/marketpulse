@@ -318,6 +318,12 @@ for (const [width, height] of [
     // Far enough to cross the field, all eight region panels, the bulk toggle
     // and the whole rail — the 23 stops Task 2.11.8 measured between the top of
     // the document and the first table row, with room to spare.
+    //
+    // **24 since Task 2.12.6**, which made the price chart readable and
+    // therefore focusable: it is the second stop, immediately after the Price
+    // region panel. The 26 still covers the whole run, and the new stop is
+    // inside it at both viewports — so this spec already holds the chart against
+    // the sticky chrome rather than needing to be extended for it.
     for (let press = 0; press < 26; press += 1) {
       await page.keyboard.press("Tab");
       if (await focusIsObscured(page)) {

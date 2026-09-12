@@ -168,9 +168,18 @@ test("the plot is shorter on a narrow region than on a wide one", async ({
 
   await page.setViewportSize({ width: 390, height: 780 });
   await expect(plot(page)).toBeVisible();
-  const narrow = await plot(page).boundingBox();
 
-  expect(narrow?.height).toBeLessThan(wide?.height ?? 0);
+  // **Polled rather than read once**, and that is a repair to a flake rather
+  // than defensive padding. The chart sizes itself from a `ResizeObserver`, so
+  // a viewport change reaches the plot's height one frame *after* the resize
+  // returns — and `toBeVisible()` is satisfied immediately, because the element
+  // was already visible at the old size. Read once, this test asserts the wide
+  // height against itself and fails at 281 against 281, intermittently and
+  // only under load. Found on 2026-09-12 running this file beside another;
+  // `the readout reserves its height` had the same cause and the same shape.
+  await expect
+    .poll(async () => (await plot(page).boundingBox())?.height ?? 0)
+    .toBeLessThan(wide?.height ?? 0);
   // And it is still a chart: the axis never disappears, which is the rule the
   // density table exists to hold. A plot with no axis is a sparkline, and a
   // sparkline is a different product.
@@ -342,6 +351,16 @@ test("the readout reserves its height, so nothing below it moves", async ({
   await page.goto(EXPLORER);
   await expect(anAnswer(page)).toBeVisible();
   if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
+
+  // **Waited for the resting strip before measuring anything**, and this is a
+  // correction rather than caution: without it the "before" reading is
+  // sometimes taken while the chart is still settling. The plot measures itself
+  // with a `ResizeObserver`, so the strip arrives a frame after the answer
+  // does — and a `y` captured in that gap moves for a reason that has nothing
+  // to do with a reading appearing. The test failed once that way and passed
+  // alone, which is the shape of a flake that would have been re-run until
+  // green instead of understood.
+  await expect(priceRegion(page).getByText(/Point at the chart/)).toBeVisible();
 
   const prices = priceRegion(page).getByText("Open", { exact: true });
   const before = await prices.boundingBox();

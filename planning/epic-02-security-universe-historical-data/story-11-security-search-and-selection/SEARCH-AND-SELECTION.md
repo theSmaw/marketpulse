@@ -548,6 +548,35 @@ The page therefore still holds exactly three live regions, and that count is
 asserted in `SecurityExplorer.test.tsx` and in `SecurityIdentity.test.tsx` and
 nowhere else.
 
+#### Amended 2026-09-12 by [Task 2.12.6](../story-12-price-chart/TASK-06-reading-a-point-crosshair-hover-and-keyboard.md) — **there is a fourth region now, and the trigger below did _not_ fire**
+
+The count above is false from today: the price chart's reading carries a
+`role="status"` of its own, so a browser on `/securities/NVDA` with bars in the
+store holds **four**. The sentence is kept rather than rewritten because the
+reasoning that produced it is untouched — what changed is the page, not the
+argument.
+
+**The reversal trigger did not fire, and that is the part worth reading.** It
+names "a fourth asynchronously-filled surface on this screen that must speak".
+This surface is not asynchronously filled. It fills on a **key press** and on
+nothing else — a pointer moving across the chart announces nothing at all — so
+it cannot queue against the universe's region or the panel's, which is the exact
+hazard §4 and `FRONTEND-STATE.md` §7 are defending. The two regions that fill
+from a fetch are silent at the moment a key is pressed, and the reverse. The
+identity block's answer (silence) was right for a surface filling in the same
+instant as two others; it is not available here and is not needed.
+
+So the rule §4 actually holds is not _three_. It is **no two regions may change
+in the same moment**, and a fourth region that speaks on a different input
+satisfies it. A fifth that spoke on a fetch would not.
+
+**One thing the count claim gained is a level.** `SecurityExplorer.test.tsx`
+still asserts three and still passes, because jsdom computes no layout: the
+chart measures a zero-width plot, has no readings, and the reading layer renders
+nothing at all. That test's comment was amended to say so. The fourth region is
+visible only to a browser, which is the same seam every other fact about this
+chart sits on.
+
 #### Amended 2026-09-11 by [Task 2.11.9](TASK-09-keyboard-screen-reader-and-the-journey.md) — **the rate was listened to, and 400 ms inverts below its own threshold**
 
 The reversal trigger below names this pass as the first real opportunity to find
@@ -909,20 +938,54 @@ Focus after every transition is stated, because focus after a result is opened i
 the step most often left to chance and landing at the top of a new document is
 not the same as landing on it.
 
-| #   | Key                      | What happens                                                                                           | Focus afterwards                                               |
-| --- | ------------------------ | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| 1   | `Tab` ×5 from the top    | past the four navigation links to the field. It is a control _over_ both surfaces, so it precedes both | the field, `aria-expanded="false"`                             |
-| 2   | type                     | the list opens on the **first** keystroke; the visible list updates on every one                       | **the field, throughout** — see 7.2                            |
-| 3   | `ArrowDown` / `ArrowUp`  | moves the active row and wraps at both ends; `aria-activedescendant` names it                          | still the field                                                |
-| 4   | `Enter`, list open       | opens the active result — `securityPath(symbol)`, pushed                                               | **still the field**, holding the query. See 7.3                |
-| 4a  | `Enter`, nothing matched | **nothing.** The address does not move                                                                 | the field                                                      |
-| 4b  | `Enter`, many matched    | opens the **first**, which is the one the sentence named                                               | the field                                                      |
-| 5   | `Escape`, list open      | closes the list and **keeps** the query                                                                | the field                                                      |
-| 5a  | `Escape` again           | clears the query. Two behaviours, one key, in the order a person expects                               | the field                                                      |
-| 6   | `Tab`, list open         | the list closes — no trap                                                                              | the field's own clear button, then onward through the page     |
-| 7   | `Shift`+`Tab`            | back to the field, with the query intact and the list reopened                                         | the field                                                      |
-| 8   | `Back`, from a security  | **the field keeps its query** — §3's amendment, and the friendlier of the two answers                  | wherever it was; nothing is stolen                             |
-| 9   | `Tab` on, past the field | eight region panels, `Collapse all`, twelve rail links, then the table's first band — **23 stops**     | each in turn, and **none of them behind the chrome** — see 7.4 |
+| #   | Key                      | What happens                                                                                                                                | Focus afterwards                                               |
+| --- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 1   | `Tab` ×5 from the top    | past the four navigation links to the field. It is a control _over_ both surfaces, so it precedes both                                      | the field, `aria-expanded="false"`                             |
+| 2   | type                     | the list opens on the **first** keystroke; the visible list updates on every one                                                            | **the field, throughout** — see 7.2                            |
+| 3   | `ArrowDown` / `ArrowUp`  | moves the active row and wraps at both ends; `aria-activedescendant` names it                                                               | still the field                                                |
+| 4   | `Enter`, list open       | opens the active result — `securityPath(symbol)`, pushed                                                                                    | **still the field**, holding the query. See 7.3                |
+| 4a  | `Enter`, nothing matched | **nothing.** The address does not move                                                                                                      | the field                                                      |
+| 4b  | `Enter`, many matched    | opens the **first**, which is the one the sentence named                                                                                    | the field                                                      |
+| 5   | `Escape`, list open      | closes the list and **keeps** the query                                                                                                     | the field                                                      |
+| 5a  | `Escape` again           | clears the query. Two behaviours, one key, in the order a person expects                                                                    | the field                                                      |
+| 6   | `Tab`, list open         | the list closes — no trap                                                                                                                   | the field's own clear button, then onward through the page     |
+| 7   | `Shift`+`Tab`            | back to the field, with the query intact and the list reopened                                                                              | the field                                                      |
+| 8   | `Back`, from a security  | **the field keeps its query** — §3's amendment, and the friendlier of the two answers                                                       | wherever it was; nothing is stolen                             |
+| 9   | `Tab` on, past the field | eight region panels, `Collapse all`, twelve rail links, then the table's first band — **23 stops**, and **24 since 2026-09-12** — see below | each in turn, and **none of them behind the chrome** — see 7.4 |
+
+#### Amended 2026-09-12 by [Task 2.12.6](../story-12-price-chart/TASK-06-reading-a-point-crosshair-hover-and-keyboard.md) — **the walk is 24 stops, and the new one is second**
+
+The price chart became readable, which made it focusable. Re-walked at three
+viewports on 2026-09-12, from the field:
+
+| Stop  | What                                                               |
+| ----- | ------------------------------------------------------------------ |
+| 1     | the **Price** region panel                                         |
+| 2     | **the chart** — `NVDA price chart`, one stop and never one per bar |
+| 3–9   | the seven remaining region panels                                  |
+| 10    | `Collapse all`                                                     |
+| 11–22 | the twelve rail links                                              |
+| 23    | the table's first band                                             |
+
+So **24 stops** to the first band rather than 23, and the new one is the second
+thing a person meets after the field — which is the right place for it, because
+it is inside the region it reads and a keyboard user reaches it before any of
+the six regions that still hold nothing.
+
+**It is one stop and it is worth saying why that is not free.** The default
+window is 1,950 bars; the naive implementation of a readable chart makes each one
+focusable, which would have made this walk 1,973 stops and the rail unreachable
+in practice. `CHARTING.md` §1's element-count constraint and this row are the
+same constraint seen from two ends.
+
+Two notes on what this does **not** change. The chart renders **no** stop where
+there are no bars to read — CI's store holds none, so the walk there is still 23.
+And §7.4's occlusion table is not re-taken here: `e2e/specs/search-keyboard.spec.ts`
+walks 26 presses, which still covers the whole run with room to spare, and it
+passes at both viewports with the new stop in it — so the `scroll-padding-top`
+repair covers it. The full three-viewport re-walk is
+[Task 2.12.8](../story-12-price-chart/TASK-08-the-text-alternative-and-the-screen-reader-walk.md)'s,
+which already names this stop as the thing it has to measure at the narrow end.
 
 ### 7.2 Focus never enters the list, and that is the pattern rather than an accident
 
