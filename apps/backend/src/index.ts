@@ -90,7 +90,14 @@ const database = createDatabasePool(config.database, app.log);
 // DIAGNOSTIC_CACHE_TTL_MS and one in-flight query whatever the caller count,
 // which is what makes a public unauthenticated endpoint safe to point at a
 // 35-connection ceiling with no PgBouncer under it.
-app.register(createDiagnosticsRoutes(createCachedDatabaseCheck(database)));
+app.register(
+  createDiagnosticsRoutes(createCachedDatabaseCheck(database), () =>
+    // The ledger and not the bars. `bar_coverage` is a few hundred rows however
+    // many bars exist; `max(observed_at) group by security_id` is ~345k rows at
+    // `1d` and fifty million at `1m`. `store-freshness.ts` carries the argument.
+    createMarketBarsRepository(database).listCoverage(),
+  ),
+);
 
 // The first route in this application that serves data (Task 2.4.2), and the
 // second registered here rather than inside `buildServer()`. The ordering that

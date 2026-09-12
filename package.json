@@ -25,6 +25,7 @@
     "stories": "node scripts/check-stories.mjs",
     "env:check": "node scripts/check-env-example.mjs",
     "links": "node scripts/check-links.mjs",
+    "coverage:check": "node scripts/check-backfill-coverage.mjs",
     "ready": "node scripts/check-ready.mjs",
     "db": "node scripts/local-database.mjs",
     "migrate": "node scripts/run-migrations.mjs",
@@ -36,7 +37,7 @@
     "image": "node scripts/build-image.mjs",
     "e2e": "node scripts/run-e2e.mjs",
     "e2e:deployed": "node scripts/run-deployed-check.mjs",
-    "verify": "pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run links && pnpm run test && pnpm run test:process"
+    "verify": "pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run links && pnpm run coverage:check && pnpm run test && pnpm run test:process"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

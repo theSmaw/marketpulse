@@ -318,6 +318,7 @@ which.
 | [2.8.9](TASK-09-what-we-hold-on-screen.md)                          | Coverage on `/securities`                              | **Yes — the payoff**            |
 | [2.8.10](TASK-10-verify-document-and-adr.md)                        | Verify, document, ADR 0020                             | No                              |
 | [2.8.11](TASK-11-the-nightly-catch-up-fills-both-timeframes.md)     | The catch-up fills both timeframes — added after close | No — a number stops being wrong |
+| [2.8.12](TASK-12-freshness-safeguards.md)                           | A static contract, and a runtime freshness answer      | No — unless something is stale  |
 
 ## What this story hands forward
 

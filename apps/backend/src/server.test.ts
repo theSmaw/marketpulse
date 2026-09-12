@@ -438,13 +438,15 @@ describe("the response-schema declaration", () => {
       // function or an interface rather than a pool, which is what makes a
       // stub enough — no database, no socket, and this stays a fast test.
       app.register(
-        createDiagnosticsRoutes(() =>
-          Promise.resolve({
-            ok: true as const,
-            ms: 0,
-            ageMs: 0,
-            checkedAt: 0,
-          }),
+        createDiagnosticsRoutes(
+          () =>
+            Promise.resolve({
+              ok: true as const,
+              ms: 0,
+              ageMs: 0,
+              checkedAt: 0,
+            }),
+          () => Promise.resolve([]),
         ),
       );
       app.register(
