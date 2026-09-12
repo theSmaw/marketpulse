@@ -102,6 +102,34 @@ has held since Story 1.4**: where `VISUAL-LANGUAGE.md` and the canvas disagree,
 the document is wrong. Downstream the old rule is unchanged — a component still
 may not diverge from the document.
 
+#### Amended 2026-09-12 by Task 2.12.4 — **the canvas is four files**
+
+The amendment above predicted its own expiry and named the mechanism: a count in
+a present-tense sentence is the kind of claim `CLAUDE.md` says becomes false
+quietly. It did, in a day. Task 2.12.4 added **`Price region.dc.html`** as a
+fourth file.
+
+**And it was added for a different reason from the first three, which is the part
+worth recording.** The second and third files exist because of a mechanical
+ceiling — the 256 KiB `get_file` cap makes a read-modify-write of the main canvas
+impossible. This one exists because of a **scope boundary**:
+`Price chart.dc.html` settled every mark on the plot and deliberately did not
+settle what the Price _region_ is once a chart is in it — where the current value
+sits, what becomes of the eight facts already stated beneath, and what a frame
+looks like with nothing in it. Those are a different question about the same
+subject.
+
+So the arrangement now has two kinds of file in it, and the next author should
+expect to add one for either reason. What neither removes is the cost the first
+amendment named: the whole language can no longer be read top to bottom in one
+place.
+
+**A standing instruction rather than a fourth count**, so this section stops
+needing an amendment per file: **do not restate the number here.** `list_files`
+on the project is the answer and it is one call. What belongs in this ADR is the
+rule — _a design that does not fit the main canvas is added as its own file_ —
+and that rule has now held four times.
+
 ### The one standing exception
 
 **Where a canvas value fails a measured accessibility floor, the intent is

@@ -297,3 +297,77 @@ from.
 instruction is unchanged: if this collapses to one `<path>` and a `<line>` in
 practice, fold it into [Task 2.12.4](TASK-04-the-first-chart-in-marketpulse.md)
 in that commit, say so, and renumber nothing.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.4 — the fold option has expired, and the reference rule has a question it did not have
+
+### The fold instruction can no longer be followed, so this is a task
+
+Three amendments above end with the same standing instruction: _if this collapses
+to one `<path>` and a `<line>` in practice, fold it into
+[Task 2.12.4](TASK-04-the-first-chart-in-marketpulse.md) **in that commit**, say
+so, and renumber nothing._
+
+**That commit has landed and did not fold it.** 2.12.4 is complete, and it drew
+the frame, the scale, the seams and the line while deliberately leaving the
+reference rule and the wash alone — its own amendment drew that boundary from the
+other side, on the grounds that the pair is inseparable and that drawing the rule
+in one task and the fill in another is how a chart ships with a tint and no
+geometry under it.
+
+So the conditional is spent rather than declined. **This is a standalone task
+because the only commit it could have been folded into is closed**, and that is a
+better reason than the ones above it were weighing. The question is not reopened
+a fourth time.
+
+### The new question: which close does the reference rule sit at?
+
+2.12.2 settled that the dashed rule sits at **"the window's opening close"**. That
+phrase has one meaning while the answer is `loaded` and two while it is
+`partial`, and `partial` is the normal case here.
+
+The window that was **asked for** and the window that is **covered** are different
+ranges, and `covered.start` is not obliged to equal `requested.start` — a store
+part-way through a backfill, a security listed mid-window, or a gap at the open
+all separate them. So there may be **no bar at the window's opening instant at
+all**, and "the window's opening close" names nothing.
+
+The two candidates, and they disagree visibly:
+
+1. **The first bar we hold.** The rule is always on the line, so the geometry —
+   _the side of the rule the line finishes on_ — always reads. It measures the
+   change across what is drawn.
+2. **The requested window's opening instant.** Faithful to the axis, and when
+   nothing is held there the rule floats at a price nobody observed, or has to be
+   suppressed.
+
+**Candidate 1 is almost certainly right and it must still be taken deliberately
+and stated**, because the second is what "the window's opening close" literally
+says and this task is the only place the difference is visible. Whichever is
+chosen, the same number has to be what the current-value reading's percentage is
+computed from — `series-facts.ts`'s `changePercent` already computes it across
+the **held** bars, so candidate 1 is also the one that keeps the plot and the
+figure above it agreeing. Two channels disagreeing about which way the window
+went is worse than either being wrong alone.
+
+This is the same class of question as §6.2's axis and it has the same shape: the
+`loaded` state is the one where both answers coincide, so building against it
+alone will not reveal the difference.
+
+### What is already in place
+
+- **The frame fits the fill.** The price domain is taken over the bars' `high`
+  and `low`, so a wash between the line and a rule anywhere inside the domain is
+  already inside the plot.
+- **The plot is one `<path>` plus chrome**, and the ground is the panel's own —
+  there is no chart ground, so a wash lands on `--surface-raised` and the
+  measured 1.11:1 of `--chart-grid` _where the wash passes under it_ is the
+  figure to confirm rather than discover.
+- **`--chart-reference` has no consumer in the application yet.** It is read only
+  by `components/chart-tokens.stories.module.css`, the specimen surface. It is
+  one of exactly three tokens in that position — the other two are 2.12.6's
+  `--chart-crosshair` and 2.12.7's `--chart-uncovered` — which is a precise map
+  of what this story has left to draw.
+- **Nothing reaches for `Marker`**, still, and nothing here should. The
+  `--marker-color` trap does not fire in this story.

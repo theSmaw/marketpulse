@@ -212,3 +212,87 @@ The chart is still **one tab stop**, and nothing 2.12.3 built puts a per-bar
 element anywhere: `placeBars` returns data, not nodes. The 2.12.2 correction
 above — that the plot is two dozen elements, none of them per-bar — still holds
 and is still the clause doing the work.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.4 — this task inherits a repair that was assigned to 2.12.4 and not taken, and it is the one §28 is about
+
+### The chart recomputes its whole geometry on every render, and nothing memoises it
+
+[Task 2.12.9](TASK-09-measured-against-fifty-milliseconds.md)'s amendment asked
+2.12.4 to **check whether the trading-calendar walk runs once per render or once
+per request**, and said that if it were per-render the repair — memoise on the
+request identity — _"belongs in Task 2.12.4's component rather than in the
+arithmetic"_.
+
+**It is per render, and 2.12.4 did not take the repair.** `PriceChart` calls
+`chartFrame(...)` in its render body with no `useMemo`, and `chartFrame` calls
+`timeAxis`, which steps **day by day** through the trading calendar to build the
+x-domain. Two things make that a fact rather than a guess:
+
+- **The React Compiler is not installed.** `apps/frontend/vite.config.ts` records
+  that all three of `@vitejs/plugin-react`'s transformer peers — including
+  `babel-plugin-react-compiler` — are optional and none is installed. The
+  compiler's _lint rules_ are on and its _auto-memoisation is not_, so there is
+  no invisible `useMemo` here.
+- **Nothing re-renders the chart today.** The only state it holds is its measured
+  box, behind an equality guard, so in practice `chartFrame` runs on mount, on a
+  resize, and when the view changes. That is why 2.12.4 leaving it unmemoised is
+  not a defect **yet**.
+
+**This task is what makes it one.** A crosshair re-renders on every pointer move.
+Unmemoised, every one of those rebuilds the axis, re-walks the calendar,
+re-derives the price domain and rebuilds a 1,950-point path string — for a change
+that moves one vertical rule and one disc. That is precisely the shape
+`PRODUCT_SPEC.md` §28's word **routine** is about, and it is the case
+[Task 2.12.9](TASK-09-measured-against-fifty-milliseconds.md) already names as
+the genuinely unmeasured surface.
+
+So the repair moves here, by default rather than by preference: it is the task
+that introduces the render, and the commit it was assigned to is closed.
+
+**Two ways to take it, and they are not equivalent:**
+
+1. **Memoise the frame** on the inputs that produce it — the plot box, the
+   density and the view's identity — so a pointer move re-renders the crosshair
+   over a frame that was not recomputed.
+2. **Keep the crosshair's state out of the component that computes the frame**,
+   so a pointer move re-renders a sibling and the frame's owner does not render
+   at all.
+
+The second is structurally stronger and the first is one line. Measure before
+choosing, and **do not report a repair you did not measure after** — 2.12.9's
+rule, and this is the surface it was written for.
+
+### The chart has zero tab stops today, not one
+
+The Work section says the chart is one tab stop. It is currently **none**: the
+`<svg>` is `aria-hidden` with `focusable="false"` and carries no interaction at
+all, which 2.12.4 took deliberately on the grounds that the picture is not the
+evidence — the stated facts beneath it are.
+
+Two consequences:
+
+- **This task adds the page's first chart tab stop**, which changes the count
+  [Task 2.12.8](TASK-08-the-text-alternative-and-the-screen-reader-walk.md) walks
+  at three viewports. `CLAUDE.md` records that occluded stops **worsen as the
+  viewport narrows** — four at 768 against one at 1440 — so the new stop is
+  measured at the narrow end rather than the wide one.
+- **Whatever becomes focusable is not the `<svg>` as it stands.** An
+  `aria-hidden` element cannot hold focus, and a focusable element inside an
+  `aria-hidden` subtree is the exact defect `CLAUDE.md` records from Story 2.11 —
+  a control carrying a description that no key press can reach. Decide the
+  focusable element and its accessible name here, and note that
+  [Task 2.12.8](TASK-08-the-text-alternative-and-the-screen-reader-walk.md) owns
+  the text alternative that may want the same element. **Those two decisions
+  interact and this one lands first.**
+
+### One thing that is easier than the amendments above assume
+
+The slot-versus-bar gap 2.12.3 recorded is unchanged and is still this task's.
+What is now settled is where the lookup goes: `placeBars` is already called inside
+`components/PriceChart/chart-geometry.ts`, which is pure and tested, so the
+`{slot → bar}` resolution has an existing home one step below the component and
+does not need a new one. The instruction stands that the arithmetic belongs in
+`src/market/`; what `chart-geometry.ts` shows is that a **pixel-level** step
+between the two is an established layer rather than a new idea.

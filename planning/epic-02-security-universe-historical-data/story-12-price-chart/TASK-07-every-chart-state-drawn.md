@@ -153,3 +153,77 @@ session in progress, which the free plan withholds the most recent ~15 minutes o
 Either record a body for it or build the axis for one in the story, and **do not
 take a green render of the existing `partial` fixture as evidence the treatment
 works**.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.4 — four of the six states already render, so this task reviews them and draws two
+
+The largest change to this task is that **it is no longer where most of these
+states first appear**. 2.12.4 could not draw `loaded` without deciding what the
+component does with the other five members, because it takes the view whole and
+its `switch` is exhaustive. So it took those decisions, and this task's job on
+four of six is to **confirm or overturn a decision that exists** rather than to
+originate one — which is a different and smaller job, and is worth knowing before
+planning it.
+
+### What renders today, and on whose authority
+
+| State                | Today                                                               | This task                                        |
+| -------------------- | ------------------------------------------------------------------- | ------------------------------------------------ |
+| `loading`            | A real frame with an empty scale — gridlines, no labels, no line    | Finish the **treatment**; the shape is fixed     |
+| `loaded`             | Drawn                                                               | Nothing                                          |
+| `partial`            | Drawn as `loaded` is — correct axis, **no uncovered treatment**     | **The whole of it.** This is still the task      |
+| `empty`              | A real, labelled axis and no line                                   | Review; add the sentence's relationship to it    |
+| `refused` / `failed` | **No chart at all.** The panel's sentence stands alone              | Confirm or overturn, deliberately                |
+| `stale`              | Untouched — the panel's dashed rail marks it and the chart does not | **Entirely this task's**, as 2.12.2 already said |
+
+**The `refused`/`failed` decision is the one to take seriously rather than
+inherit.** 2.12.4's reasoning is that neither has a window to be about, so a
+frame under either would be a picture of a window nobody asked for. That is
+defensible and it is not obviously right: the alternative — an empty frame with
+the failure's sentence inside it — keeps the region's height stable, which stops
+the page below jumping when a retry succeeds. Neither was measured. **Decide it
+here and say which, because "nobody revisited it" and "it was decided" render
+identically.**
+
+### The state this task exists for now exists on screen, and it is not the fixture
+
+[`CHARTING.md`](CHARTING.md) §11.3. 2.12.3's amendment above tells this task to
+"either record a body for it or build the axis for one in the story", because the
+recorded `partial` fixture's shortfall is a weekend and therefore exercises none
+of `--chart-uncovered`, the dashed edge or the clip.
+
+**Both halves of that instruction have moved:**
+
+- **Building the axis for one is done and tested.** `chart-geometry.test.ts`'s
+  _stops the line short when the shortfall is made of trading minutes_ takes the
+  `full` fixture's 30 bars against a window extended by an hour of the same
+  session, and asserts the line ends 29/89ths across. So the geometry this
+  treatment sits on is already verified against a trading-time shortfall.
+- **The live product is in that state right now.** A developer's store answers
+  the default window with 390 bars covering one session of five, because the
+  backfill is paced and sequential. `/securities/NVDA` today draws a line
+  occupying a fifth of its frame with four uncovered sessions beside it — which
+  is what `--chart-uncovered`, the dashed edge and the clip are for, and it is
+  the single most visible unfinished thing in the product.
+
+**What is still owed is a recorded body**, and the reason is narrower than the
+amendment above implies: a **story** cannot reach the live state, and criterion 6
+wants a story per state. So record one — a window reaching into a session in
+progress — for the workshop, and use the running page for the judgement.
+
+### Two smaller things
+
+- **The `stale` hint has a second half now.** 2.12.2 points at `BarSeriesPanel`'s
+  dashed marker and travelling rule as the precedent. Note the chart currently
+  sits **above** that rail rather than inside it, so a held chart is marked by
+  something that is no longer adjacent to it. That is either fine — one mark for
+  one answer — or it is the reason to move the rail. Decide; do not let the
+  layout decide.
+- **The "four surfaces describing one failure" count is right and the pairing has
+  changed.** 2.12.4 moved the current-value reading above the chart, so the
+  closest pair on this page is now the reading and the chart, which describe the
+  same window in two channels rather than two sentences. The grep still applies
+  to the sentences; the new risk is the two **channels** disagreeing, which is
+  [Task 2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md)'s
+  opening-close question and is named there.
