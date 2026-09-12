@@ -14,7 +14,7 @@ import { expectNothingFailedToRender } from "../support/app.js";
 // marks** in every unit and component test — which is correct there and means
 // this spec is the only instrument that can tell a chart from an empty frame.
 //
-// Three specific things, each of which would ship green without this file:
+// Four specific things, each of which would ship green without this file:
 //
 //  1. **That the drawing is inside the Price region**, rather than in a fresh
 //     panel beside the one that has been waiting for it since 2026-09-11.
@@ -29,6 +29,11 @@ import { expectNothingFailedToRender } from "../support/app.js";
 //     an input to the horizontal range rather than padding applied afterwards,
 //     and the failure is a chart that looks right at one width and wrong at
 //     another.
+//  4. **That the directional wash is painted at all** (Task 2.12.5). A fill
+//     whose ink is a consumer's responsibility renders invisibly when the
+//     consumer forgets — `CLAUDE.md` records it as the `--marker-color` trap —
+//     and no stylesheet is applied below this level, so nothing else in this
+//     repository can tell a tinted area from an untinted one.
 //
 // ## What a green run here does not certify
 //
@@ -176,6 +181,65 @@ test("the plot is shorter on a narrow region than on a wide one", async ({
   // written the obvious way goes red against a chart that is on the screen.
   expect(await plot(page).locator("line").count()).toBeGreaterThan(0);
 });
+
+test("the directional wash is actually painted", async ({ page }) => {
+  // **The one thing about Task 2.12.5 that only a browser can see**, and it is
+  // the `--marker-color` trap in its natural habitat: a fill whose ink comes
+  // from somewhere else renders *invisibly* when the somewhere else is missing.
+  // No error, correct DOM, green `pnpm verify` — jsdom applies no stylesheet, so
+  // a component test can assert the class is present and can never assert that
+  // the class paints anything.
+  //
+  // `PriceChart.tsx` answers that structurally with a total map over the three
+  // directions, which is why this spec asks the cheap question rather than a
+  // per-direction one: is the area filled with a colour at all.
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(EXPLORER);
+  await expect(plot(page)).toBeVisible();
+
+  await expect(anAnswer(page)).toBeVisible();
+  if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
+
+  // The area is the closed path; the series is the open one. Counted rather
+  // than checked for visibility, for this file's own recorded reason.
+  const paths = plot(page).locator("path");
+  expect(await paths.count()).toBe(2);
+
+  const fills = await paths.evaluateAll((elements) =>
+    elements.map((element) => getComputedStyle(element).fill),
+  );
+
+  // One filled and one not: the wash is an area and the close line is a stroke
+  // that must never be filled, which would flood the plot with near-black.
+  expect(fills.filter((fill) => fill === "none")).toHaveLength(1);
+  const wash = fills.find((fill) => fill !== "none") ?? "";
+
+  // **Read as three channels rather than compared to a string**, and the reason
+  // is a finding rather than a preference: this spec was first written to assert
+  // the fill was *some* colour, and it stayed green with the ink class deleted.
+  // SVG's initial `fill` is **black**, not `none` — so this chart's version of
+  // the `--marker-color` trap fails loudly (a plot flooded with near-black)
+  // rather than invisibly, and a test that only asks "is it painted" asks
+  // nothing. The verified break is the class removed; this is what catches it.
+  const [red, green, blue] = (wash.match(/\d+/g) ?? []).map(Number);
+  expect(red).toBeGreaterThan(WASH_FLOOR);
+  expect(green).toBeGreaterThan(WASH_FLOOR);
+  expect(blue).toBeGreaterThan(WASH_FLOOR);
+
+  // And it is not the panel's own ground, which is the other end of the same
+  // range and is what an area that has stopped saying anything looks like.
+  expect(wash).not.toBe("rgb(255, 255, 255)");
+});
+
+/**
+ * The lightest any wash channel is not.
+ *
+ * The three inks are `#e6f2ec`, `#fbeae9` and `#eef0f6` — every channel above
+ * 0xe6 — and the point of the number is that it is far above black rather than
+ * near the tokens. A spec that spelled the hexes would be a second copy of
+ * `market.css`; this asserts the *class* of colour a wash is.
+ */
+const WASH_FLOOR = 0xd0;
 
 test("nothing the chart draws makes the page scroll sideways", async ({
   page,

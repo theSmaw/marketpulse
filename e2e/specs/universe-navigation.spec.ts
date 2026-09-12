@@ -93,8 +93,26 @@ test("a jump lands the band below the chrome, with focus on its control", async 
   // queries.
   const chrome = await page.locator("header").boundingBox();
   const band = await focused.boundingBox();
-  expect(band?.y).toBeGreaterThanOrEqual(chrome?.height ?? 0);
+  expect(band?.y).toBeGreaterThanOrEqual((chrome?.height ?? 0) - SUB_PIXEL);
 });
+
+/**
+ * How far short of the chrome's own height this test will accept a band landing.
+ *
+ * **One pixel, and it is a fix for a measured flake rather than slack added in
+ * advance.** Observed 2026-09-12 on an unmodified tree: this assertion failed
+ * once in five runs, at 131 against a chrome of 132, and passed the other four.
+ * The cause is that `jumpToBand` subtracts a fractional chrome height and
+ * `window.scrollTo` lands on a fractional offset the compositor then rounds, so
+ * the band's top reads a hair above where the arithmetic put it.
+ *
+ * The claim this test makes is *below the chrome rather than behind it*, and a
+ * sub-pixel is not behind it — the failure mode it exists to catch is the
+ * `stickyChromeHeight()` subtraction being deleted, which puts the band **133px**
+ * too high rather than one. A required check that reddens at random teaches
+ * people to re-run it, which is how a real failure gets re-run away.
+ */
+const SUB_PIXEL = 1;
 
 test("collapsing every band turns 518 rows into a page you can see at once", async ({
   page,

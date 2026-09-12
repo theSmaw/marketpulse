@@ -216,9 +216,18 @@ test("the region draws its series — the fence Story 2.12 took down", async ({
   expect(await region.locator("svg line").count()).toBeGreaterThan(0);
 
   if (await hasBars(region)) {
-    // One `<path>`, which is the whole series. Two would mean something had
-    // started drawing per-bar marks, which `CHARTING.md` §2 measured as a line
-    // drawn expensively at 0.47px per bar.
-    await expect(region.locator("svg path")).toHaveCount(1);
+    // **Two `<path>`s and no more**, which is the constraint rather than the
+    // count: the close line, and the directional area beneath it that Task
+    // 2.12.5 added. Both are whole-series paths.
+    //
+    // This asserted **one** until 2026-09-12, and the number moved for a
+    // documented reason rather than because a mark was added carelessly. What
+    // it is actually guarding is unchanged and is still worth guarding: a
+    // **third** path would mean something had started drawing per-bar marks,
+    // which `CHARTING.md` §2 measured as a line drawn expensively at 0.47px per
+    // bar and 29,000 DOM nodes at the cap. The area is free of that by
+    // construction — it is the line's own `d` with two segments appended, so it
+    // does not scale with anything the line does not.
+    await expect(region.locator("svg path")).toHaveCount(2);
   }
 });

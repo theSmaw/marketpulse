@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { cx } from "../../cx.js";
-import type { BarSeriesView } from "../../market/index.js";
+import type { BarSeriesView, PriceDirection } from "../../market/index.js";
 import { chartDensity } from "../../market/index.js";
 import type { ChartSubject, PlotBox } from "./chart-geometry.js";
 import { chartFrame } from "./chart-geometry.js";
@@ -31,13 +31,36 @@ import styles from "./PriceChart.module.css";
 // gridlines are horizontal only, the one vertical rule is the session seam, and
 // the series is achromatic whatever the window did.
 //
-// Three things that look like this component's job and are not:
+// ## Direction, and the reason it is not a colour (Task 2.12.5)
 //
-//  - **The dashed reference rule at the opening close, and the directional
-//    wash.** Task 2.12.5's, and they are inseparable — the rule is the geometry
-//    that carries direction and the wash is the hue that repeats it. Drawing the
-//    wash here and the rule there is how a chart ships with a tint and nothing
-//    under it.
+// A dashed rule sits at the price the window opened at, and the area between it
+// and the close line is filled. **The side of the rule the line finishes on is
+// the direction**; the tint says the same thing again and says nothing new. That
+// ordering is forced rather than chosen: `VISUAL-LANGUAGE.md` measured
+// `--price-positive-wash` against `--price-negative-wash` at **1.009:1 under
+// `grayscale(1)`**, so washed back to a fill the two are the same colour. Cover
+// the tint entirely and this chart still says which way the window went.
+//
+// Two consequences are structural here rather than remembered:
+//
+//  - **The rule and the fill are one value.** `chart-geometry.ts` returns a
+//    `DirectionalArea` carrying both and the direction they are tinted for, so
+//    a render with the tint and no geometry under it is unrepresentable.
+//  - **The wash's class comes from a total map** over the three directions, so
+//    a fill can never be drawn with no ink — which is the `--marker-color` trap
+//    `CLAUDE.md` records, in its natural habitat. A fourth direction is a
+//    compile error rather than an invisible mark.
+//
+// **The high–low extent band is decided and is not drawn**, which is a stated
+// decision rather than an absence — `CHARTING.md` §12 carries the measurement.
+// At `1m` a bar's high and low sit within a few hundredths of a percent of its
+// close, so the envelope is a hairline around the line at every window this
+// story serves. It earns its space at `1d`, which Story 2.13's window control is
+// what brings, and `CHARTING.md` §5 keeps High and Low as *stated facts*
+// underneath in the meantime.
+//
+// Two things that look like this component's job and are not:
+//
 //  - **`--chart-uncovered` and the dashed coverage edge.** Task 2.12.7's. What
 //    *is* this task's is the x-domain coming from `coverage.requested`, which is
 //    one argument in `chart-geometry.ts` and is what decides whether that task
@@ -96,6 +119,29 @@ export interface PriceChartProps {
   readonly view: BarSeriesView;
 }
 
+/**
+ * The wash's ink, by direction — **a total map, and that is the point**.
+ *
+ * `CLAUDE.md` records the trap this shape exists to avoid: `Marker` renders
+ * nothing visible unless its row sets `--marker-color`, which is a fill whose
+ * colour is a consumer's responsibility and whose failure is silent. A custom
+ * property set by a direction class would have reproduced it exactly. A `Record`
+ * keyed on the union cannot: every direction has an ink, and a fourth one is a
+ * compile error here rather than an invisible area on a chart that passes every
+ * test.
+ *
+ * `string | undefined` is the workspace's own idiom for a class map — `Badge`,
+ * `AnomalyBadge` and `MetricStrip` all spell it this way — because
+ * `noUncheckedIndexedAccess` types a CSS Module's members that way at the
+ * source. The exhaustiveness this is here for is over the **directions**, which
+ * that does not weaken.
+ */
+const WASH: Readonly<Record<PriceDirection, string | undefined>> = {
+  positive: styles.washPositive,
+  negative: styles.washNegative,
+  unchanged: styles.washUnchanged,
+};
+
 export function PriceChart({ view }: PriceChartProps) {
   const { chartRef, plotRef, regionWidth, plot } = usePlotSize();
 
@@ -136,6 +182,20 @@ export function PriceChart({ view }: PriceChartProps) {
            * rule rather than as a sharper one. The line keeps its antialiasing,
            * because a 1.5px stroke over 1,950 points is where it is doing work.
            */}
+          {/*
+           * **The wash is the first thing drawn and the last thing that
+           * matters.** Under the gridlines deliberately: the grid drops from
+           * 1.27:1 to 1.11:1 where a fill passes beneath it, which is the one
+           * cost `tokens.css` accepts here, and the repair if it is ever needed
+           * is a darker grid rather than a paler wash. Over the ground, under
+           * everything with a meaning.
+           */}
+          {frame.direction !== null && (
+            <path
+              className={cx(styles.wash, WASH[frame.direction.direction])}
+              d={frame.direction.fill}
+            />
+          )}
           <g shapeRendering="crispEdges">
             {frame.gridlines.map((gridline) => (
               <line
@@ -157,6 +217,22 @@ export function PriceChart({ view }: PriceChartProps) {
                 y2={plot.height}
               />
             ))}
+            {/*
+             * The reference rule — the price the window opened at, and the
+             * datum the whole direction reading is taken against. Drawn over
+             * the grid and under the series: it is louder than a gridline
+             * because it carries more, and quieter than the data it is a
+             * baseline for.
+             */}
+            {frame.direction !== null && (
+              <line
+                className={styles.reference}
+                x1={0}
+                x2={plot.width}
+                y1={frame.direction.reference}
+                y2={frame.direction.reference}
+              />
+            )}
           </g>
           {frame.series !== null && (
             <path className={styles.series} d={frame.series} />

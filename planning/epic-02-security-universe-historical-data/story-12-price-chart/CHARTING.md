@@ -930,3 +930,133 @@ treatment, because its shortfall is a weekend. True — and the **live** default
 window is the ordinary case that does, on any store the backfill has not caught
 up to the current session. Task 2.12.7 has a real state to build against without
 constructing one; it is what `/securities/NVDA` shows today.
+
+---
+
+## 12. What direction found — added 2026-09-12 by Task 2.12.5
+
+[Task 2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md) drew
+the dashed reference rule and the directional wash, which were the last two
+marks §7.1 decided and nothing had built. Four findings, and the first is a
+decision the task was explicitly handed rather than something it discovered.
+
+### 12.1 The rule sits at the first held bar's **open**, and that is one turn past the question
+
+§7.1 settled the rule's position as _"the window's opening close"_. Task 2.12.4's
+amendment then spotted that the phrase has one meaning while the answer is
+`loaded` and two while it is `partial` — which is the normal case on this screen
+— because `covered.start` is not obliged to equal `requested.start` and there may
+be **no bar at the requested window's opening instant at all**. It named two
+candidates and said candidate 1 was almost certainly right and must still be
+taken deliberately.
+
+**Taken, and sharpened.** The rule is at **the first bar this system holds**, and
+at that bar's **`open`**.
+
+- **The first _held_ bar**, because it keeps the rule on the line, always, so the
+  reading — _the side of the rule the line finishes on_ — always works. The
+  alternative floats a datum at a price nobody observed, or suppresses the
+  channel exactly when coverage is short.
+- **Its `open` and not its close**, which the amendment did not ask about and
+  which turns out to be the load-bearing half. `series-facts.ts` computes the
+  reading above the plot as `(lastClose − firstOpen) / firstOpen`, and the design
+  canvas names the stated `Open` figure as _the same fact_ the rule draws. Put
+  the rule at the first bar's close and the picture and the figure are one bar
+  apart: invisible at `1m` in almost every window, and visible in exactly the one
+  that matters — a window whose first bar straddles its own final close reads as
+  up in one channel and down in the other.
+
+The same number in both, or the channels are not repeating each other; two
+channels disagreeing is worse than either being wrong alone. It is held by a test
+that imports `BarSeriesPanel`'s own arithmetic rather than re-deriving the open,
+because the invariant spans two components and a test that re-implemented it
+would be asserting that one file agrees with itself.
+
+**The canvas was corrected in place**, since it is the source of truth and the
+phrase originated there. `Price chart.dc.html`'s §04 now says _the price the
+window opened at_ and names the refinement with its date.
+
+### 12.2 The extent band is declined, and the decision is in the component
+
+§7.1's third finding drew the high–low envelope and found it a hairline at `1m`.
+This task's obligation was **a stated decision rather than an absence**: a chart
+that silently draws no band and a chart that decided not to are the same picture
+and different artefacts.
+
+**It is not drawn, at any window this story serves**, and the argument is
+unchanged from the canvas's: at `1m` a bar's high and low sit within a few
+hundredths of a percent of its close. `CHARTING.md` §5 keeps High and Low as
+_stated facts_ beneath the plot precisely because the picture rounds them, and
+that remains the honest place for them until a timeframe arrives where a
+session's range is a real distance. **Story 2.13's window control brings `1d`**,
+and when it does the band is `--price-unchanged-wash` beneath the directional
+fill — decided, so 2.13 does not re-take it. The frame already fits it: §10's
+price domain is taken over the bars' `high` and `low` rather than their closes.
+
+### 12.3 The wash's trap is the `--marker-color` trap upside down — it fails **loudly**
+
+`CLAUDE.md` records that `Marker` renders nothing visible unless its row sets
+`--marker-color`: a fill whose ink is a consumer's responsibility, failing
+silently. This chart's fill looked like the same shape and the component answers
+it structurally — a total `Record` over the three directions, so a fourth
+direction is a compile error rather than an invisible area.
+
+**The browser spec written to catch it was green against the break.** Asserting
+_the area is filled with some colour_ passed with the ink class deleted, because
+**SVG's initial `fill` is black**. So the failure here is not an invisible area
+at all; it is a plot flooded with near-black, which is loud and which nobody
+would ship. The spec now reads the fill as three channels and asserts every one
+of them is above `0xd0` — the class of colour a wash is, rather than a second
+copy of `market.css` — and **that version was verified red by restoring the
+break**.
+
+Worth recording beyond this chart: _a fill and a mark are different traps_. A
+`<use>` of a silhouette inherits `currentColor` and disappears; a `<path>`
+defaults to black and shouts. Reaching for the recorded trap by analogy produced
+a test that tested nothing.
+
+### 12.4 The density bullet is discharged, and it cost one 222 KB fixture
+
+The task's Work section asks what happens as marks overlap. §1 and §2 had already
+largely answered it — the line is one `<path>` at any point count — and the area
+adds no marks: **it is the line's own `d` with two segments and a close appended**
+rather than a second walk over the bars, so 1,950 points stay 1,950 points twice
+rather than four times.
+
+What could not be answered by argument is whether the thing _reads_ at 0.47 px
+per bar, and no recorded body had more than 150 bars — 3.5 px at the measured
+923 px region, which is the comfortable end. A fixture was recorded at the real
+density: `dense.json`, **1,950 bars over five sessions, `loaded`, 222 KB**. It is
+now the largest single file in `apps/frontend/src/fixtures/`, larger than the
+recorded universe, and `CLAUDE.md`'s _must not reach the shipped bundle_ entry
+names it with its own re-measure command.
+
+It earns the weight. It is the only artefact in this repository that shows what
+this product actually opens at — five sessions, four seams, the wash passing
+under every gridline and every seam — and Task 2.12.9 measures against it rather
+than constructing one.
+
+### 12.5 The verification is a rendering, not a claim
+
+The task asks for simulation rather than reasoning, which is how Task 1.4.4
+verified the palette. Four windows — rose, fell, flat, dense — are stories in the
+workshop, and **the same four again under `grayscale(1)` and under a Machado
+deuteranopia matrix**.
+
+Read on 2026-09-12 in Chromium at the 1,019 px region:
+
+- Under `grayscale(1)` the positive, negative and neutral washes are **three
+  indistinguishable greys**, exactly as the 1.009:1 measurement predicts. Every
+  window's direction is still readable, because the line finishes above the rule,
+  below it, or on it.
+- Under the deuteranopia matrix the positive and negative washes collapse toward
+  **one warm off-white** while the neutral stays faintly cool. The two that carry
+  meaning are the two that become identical — which is the finding stated as a
+  picture rather than as a ratio.
+- The flat window is the one worth having drawn. HD's hour wandered 66 cents and
+  ended where it began, so the fill has real area on **both** sides of the rule
+  and the reading is _neither_ — a state that is legible rather than degenerate.
+
+A filter in a story rather than a screenshot in a document, deliberately: a
+screenshot goes stale the first time a token moves, and a story is re-read every
+time somebody opens the workshop.

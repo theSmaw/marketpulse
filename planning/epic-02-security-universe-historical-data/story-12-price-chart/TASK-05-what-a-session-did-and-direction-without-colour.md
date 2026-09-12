@@ -371,3 +371,186 @@ alone will not reveal the difference.
   of what this story has left to draw.
 - **Nothing reaches for `Marker`**, still, and nothing here should. The
   `--marker-color` trap does not fire in this story.
+
+---
+
+## Done — 2026-09-12
+
+**Status:** Complete. `pnpm verify` and the browser suite pass.
+
+### What was built
+
+Two marks, which the four amendments above had reduced this task to, and both
+of them land as one value rather than as two fields:
+
+- **A dashed rule at the price the window opened at** (`--chart-reference`, at
+  `2 4` so it is told apart from the seam's `3 3` by more than its orientation).
+- **The area between that rule and the close line**, filled with one of
+  `--price-positive-wash` / `--price-negative-wash` / `--price-unchanged-wash`.
+
+`chart-geometry.ts` returns them as a single `DirectionalArea` — a `y`, a path
+and a direction — so the failure the Work section names ("a component that
+renders the tint without the reference rule has shipped a chart whose direction
+is carried by 1.009:1") is **unrepresentable** rather than discouraged. The wash
+picks its class from a total `Record` over `PriceDirection`, so a fourth
+direction is a compile error.
+
+The area path is **the line's own `d` with two segments and a close appended**,
+not a second walk over the bars. At the default window that is 1,950 points
+already in a string.
+
+### The decisions this task owed, and what each turned out to be
+
+| Question the amendments handed over    | Answer                                                                                                                        |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Which close the reference rule sits at | **The first _held_ bar, and its `open`** — candidate 1, sharpened. §12.1 below and `CHARTING.md` §12.1                        |
+| Whether the extent band ships          | **It does not**, at any window this story serves — and the decision is stated in the component rather than left as an absence |
+| Whether `Marker` is reached for        | **It is not**, still. Nothing here is a silhouette                                                                            |
+| What the density bullet needs          | A fixture at the real density. §12.4 of `CHARTING.md`                                                                         |
+
+#### The reference price went one turn further than it was asked to
+
+Task 2.12.4's amendment asked _which close_, and named two candidates. Candidate
+1 — the first bar we hold — is right and was taken. What the amendment did not
+ask is **open or close of that bar**, and that is the half that matters: the
+reading above the plot is `(lastClose − firstOpen) / firstOpen`, so the rule has
+to be at the **open** or the picture and the figure are a bar apart. Invisible at
+`1m` in nearly every window; visible in exactly the one where the first bar
+straddles the final close, which is a window that reads as up in one channel and
+down in the other.
+
+Held by a test that imports `BarSeriesPanel`'s own `seriesPrices` /
+`changePercent` rather than re-deriving the open here, because the invariant
+spans two components.
+
+#### Two fixtures were recorded, and one of them is heavy
+
+Neither could be written by hand — this fixture set exists to refuse that — so
+both were found in the real store and recorded through the real route.
+
+- **`flat.json`** — HD's 13:00–14:00 ET hour on 2026-09-04, which opened and
+  closed at exactly 320.705 after wandering 66 cents. Found with a `psql` query
+  over the store (the query is in `bar-series.ts`), because none of the eleven
+  existing bodies is flat and the neutral wash is a third of this task's
+  subject. It is the _interesting_ flat case: the fill has real area on both
+  sides of the rule and the direction is still none. The _degenerate_ one —
+  every bar identical, a zero-height domain — does not exist in the store and is
+  `FLAT_DOMAIN_FRACTION`'s, tested where it can be constructed honestly.
+- **`dense.json`** — 1,950 bars over five sessions, `loaded`, **222 KB**. The
+  default window's own density, 0.47 px per bar at the measured region. It is
+  now the largest file in `apps/frontend/src/fixtures/` and `CLAUDE.md`'s
+  no-ship list names it with its own re-measure command.
+
+### What was read, rather than argued
+
+The acceptance criterion is a simulation, not a claim. Four windows are stories,
+and the same four again under `grayscale(1)` and under a Machado deuteranopia
+matrix — **in the workshop rather than as a screenshot**, because a screenshot
+goes stale the first time a token moves.
+
+Read in Chromium on 2026-09-12 at the 1,019 px region: under greyscale the three
+washes are three indistinguishable greys and every window's direction is still
+readable; under deuteranopia the positive and negative washes collapse toward one
+warm off-white while the neutral stays faintly cool — **the two that carry
+meaning are the two that become identical**. The geometry never depended on
+either.
+
+### One finding worth more than the feature
+
+The browser test written to catch a wash with no ink **was green against the
+break**. Asserting _the area is filled with some colour_ passed with the class
+deleted, because **SVG's initial `fill` is black**. So this chart's version of
+the `--marker-color` trap fails _loudly_ — a plot flooded with near-black —
+rather than silently, and reaching for the recorded trap by analogy produced a
+test that tested nothing. The spec now reads three channels and asserts each is
+above `0xd0`, and that version was **verified red by restoring the break**.
+
+### What the user can see, and what they still cannot
+
+`/securities/NVDA` now says which way the window went in four channels at once:
+the headline's glyph, its sign, its words, and — new today — **the line finishing
+above or below a dashed rule on the plot**. On the developer's store that reads
+`▼ −0.34%` and a line that finishes below its own opening rule, with the negative
+wash between them.
+
+They still cannot read a point off the chart (2.12.6), see the states other than
+an answer drawn as states (2.12.7), see volume or change the window (2.13), or
+watch a price move — there is still no live data.
+
+### The design canvas
+
+`Price chart.dc.html` was **amended rather than re-read**: §04 had no flat
+window drawn (the third state it had decided existed) and named the reference as
+"the window's opening close". Both are fixed — a third artboard in both the
+as-rendered and the greyscale grids, built from the real HD bars, and the prose
+sharpened with its date. The canvas is the source of truth, so a finding that
+falsifies it is swept into it rather than recorded only downstream.
+
+---
+
+## For the stakeholders — what this actually did, in plain terms
+
+**Where the product is.** MarketPulse is being built to answer three questions
+about the US stock market: what is happening, what is unusual, and what evidence
+might explain it. We are still in the foundations — the part where a person can
+look up a company and see its real price history. The chart that does that
+appeared on screen four days ago. This task is about making it **say more**.
+
+**The problem this task solved.** A price line tells you where a share price
+went. It does not tell you, at a glance, whether the period you are looking at
+was an up one or a down one — you have to trace the line with your eye from one
+end to the other. Every financial product in the world solves this with colour:
+green for up, red for down. We have measured that our green and our red are, to
+a computer, **almost exactly the same brightness**. Print the screen in black
+and white, or show it to one of the roughly one man in twelve with a red-green
+colour vision difference, and the two become the same colour. A product that
+leans on that colour is a product that says nothing to those readers.
+
+**What we built instead.** A faint dashed line is drawn across the chart at the
+price the period **opened** at. The price line then finishes either above it or
+below it. That is the answer — up or down — and it is drawn as a _shape_, which
+survives being photocopied, printed, or seen by anyone. We tint the space
+between the two lines green or red as well, but the tint is now a repetition
+rather than the message. We proved this rather than asserted it: the chart is
+rendered in the team's component workshop with the colour stripped out entirely,
+and with a colour-blindness simulation applied, and in both cases you can still
+read which way the market went.
+
+**A decision worth explaining.** There was a real choice about _which_ price the
+dashed line sits at. Because our data store is filled in overnight, the chart
+very often shows slightly less than the period you asked for — you might ask for
+five days and we hold four and a half. So "the opening price" has two possible
+meanings: the price at the moment you asked about, or the price of the first
+data we actually hold. We chose the first data we hold, for a simple reason: it
+is guaranteed to be _on the line_, so the up-or-down reading always works. The
+alternative would have floated the line at a price nobody ever traded at, or made
+the whole feature vanish exactly when our data is incomplete — which is most
+weekday afternoons. We then went one step further and used that bar's _opening_
+price specifically, so the picture and the percentage printed above it are
+computed from the same number. Two parts of one screen disagreeing about whether
+a stock went up is worse than either being wrong on its own.
+
+**Something we chose not to build.** Each data point we store carries four
+prices — the open, the high, the low and the close. An obvious feature is to
+shade the high-to-low range behind the line so you can see how far the price
+swung within each minute. We drew it, measured it, and dropped it: over
+one-minute data, the high and low sit within a few hundredths of a percent of
+the close, so the shading is a hairline nobody can see. It becomes worth drawing
+when the next piece of work lets a user zoom out to daily data, where a day's
+range is a real distance. The exact high and low are still printed as text
+beneath the chart, where they are precise rather than approximated by a picture.
+
+**An honest note about testing.** We wrote an automated check that the coloured
+area actually has colour in it. It passed — and then we deliberately broke the
+feature to make sure the check would catch it, and it passed again. The check
+was worthless. We found out why, rewrote it properly, broke the feature a second
+time, and confirmed it now fails. This is a habit rather than an incident: a test
+that has never been seen to fail is a claim, not a safeguard.
+
+**What this unlocks.** The chart is now a complete statement about a period of
+trading rather than a drawing of it, and every later piece of the product
+inherits the rule it established: **colour is never allowed to be the only thing
+carrying a meaning**. The next two pieces of work add the ability to point at a
+single minute and read its four prices, and to change the window you are looking
+at. After that come volume, then live prices, then the unusual-activity scoring
+that the AI investigation feature is built on top of.
