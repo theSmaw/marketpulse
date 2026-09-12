@@ -67,6 +67,14 @@ export { toDomainSeries } from "./bar-series-payload.js";
 export { chartDensity } from "./chart-density.js";
 export type { ChartDensity } from "./chart-density.js";
 export {
+  READING_ANNOUNCEMENT_DELAY_MS,
+  READING_ANNOUNCEMENT_MIN_GAP_MS,
+  barChangePercent,
+  clearedAnnouncement,
+  formatBarInstant,
+  readingAnnouncement,
+} from "./chart-reading.js";
+export {
   clampToRange,
   linearScale,
   nearestSlot,
@@ -80,6 +88,7 @@ export type { LinearScale, SlotScale } from "./chart-scale.js";
 export {
   formatSessionDate,
   formatSessionTime,
+  nearestPlaced,
   placeBars,
   positionOfInstant,
   seamSlots,

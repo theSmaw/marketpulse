@@ -5,6 +5,7 @@ import type { BarSeriesView } from "../../market/index.js";
 import { chartDensity } from "../../market/index.js";
 import type { ChartSubject, PlotBox } from "./chart-geometry.js";
 import { chartFrame } from "./chart-geometry.js";
+import { ChartReading } from "./ChartReading.js";
 import styles from "./PriceChart.module.css";
 
 // **The first chart in MarketPulse** (Task 2.12.4) — one security's closes, on
@@ -75,10 +76,12 @@ import styles from "./PriceChart.module.css";
 //    one argument in `chart-geometry.ts` and is what decides whether that task
 //    draws a state or retrofits an axis.
 //  - **The crosshair, the readout and the keyboard path to a point.** Task
-//    2.12.6's. The SVG below is `aria-hidden` and carries no interaction at all,
-//    which is honest rather than a gap: every fact the picture shows is stated
-//    in text beneath it by `BarSeriesPanel`, and Task 2.12.8 owns the text
-//    alternative that says something a picture-reader would want.
+//    2.12.6's, and it landed on 2026-09-12 as `ChartReading` — a *sibling*
+//    rather than a change to this component. The base SVG below is still
+//    `aria-hidden` with no interaction on it; what a person reaches is an
+//    overlay in the same grid cell, which is what keeps a pointer move from
+//    re-rendering this component and recomputing the frame. Task 2.12.8 still
+//    owns the text alternative that says something a picture-reader would want.
 //
 // ## The frame is never conditional on the data
 //
@@ -126,9 +129,20 @@ export interface PriceChartProps {
    * and the exhaustive `switch` that catches a seventh member stops existing.
    */
   readonly view: BarSeriesView;
+
+  /**
+   * The security, from the address (Task 2.12.6).
+   *
+   * A prop rather than `view.series.symbol`, for `BarSeriesPanel`'s reason:
+   * three of the six states carry no series, and the reading's live region has
+   * to name its subject in every state it can speak in. It is only ever used by
+   * the reading layer — the picture itself says nothing about what it is of,
+   * which is Task 2.12.8's to change.
+   */
+  readonly symbol: string;
 }
 
-export function PriceChart({ view }: PriceChartProps) {
+export function PriceChart({ view, symbol }: PriceChartProps) {
   const { chartRef, plotRef, regionWidth, plot } = usePlotSize();
 
   // Three document-unique ids for the fill's definition and its two clips.
@@ -335,6 +349,26 @@ export function PriceChart({ view }: PriceChartProps) {
           </span>
         ))}
       </div>
+
+      {/*
+       * **The reading layer, and it is a sibling rather than a branch of this
+       * component** (Task 2.12.6).
+       *
+       * It renders the crosshair over the plot and the readout strip under the
+       * axis, and it holds the one piece of state that changes on every pointer
+       * move. That is the whole point: Task 2.12.4's amendment left
+       * `chartFrame` unmemoised and this task is what would have made that a
+       * defect — a crosshair re-rendering the frame's owner rebuilds the axis,
+       * re-walks the trading calendar and rebuilds a 1,950-point path string to
+       * move one vertical rule. With the state one level down, this component
+       * does not render at all while somebody reads the chart.
+       */}
+      <ChartReading
+        plot={plot}
+        readings={frame.readings}
+        slots={frame.slots}
+        symbol={symbol}
+      />
     </div>
   );
 }

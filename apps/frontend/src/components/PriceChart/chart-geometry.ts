@@ -111,6 +111,32 @@ export interface ChartFrame {
    */
   readonly series: string | null;
   /**
+   * Every bar that has a place on the axis, with the pixel it was drawn at
+   * (Task 2.12.6).
+   *
+   * **The crosshair's whole data model.** It is the placed bars — the ones
+   * `placeBars` found a slot for — carrying the two coordinates
+   * {@link linePath} already computed for them, so the reading and the mark are
+   * the same arithmetic rather than two spellings of it.
+   *
+   * Empty wherever there is nothing to read: an unmeasured box, a state with no
+   * window, or an `empty` answer. A crosshair over one of those is a *state*,
+   * and every state is Task 2.12.7's.
+   */
+  readonly readings: readonly ChartPoint[];
+  /**
+   * The x scale, kept so a pointer's pixel can be turned back into a slot.
+   *
+   * Plain data rather than a closure, which is `chart-scale.ts`'s rule and the
+   * reason this can sit on a frame at all. `null` before there is an axis.
+   *
+   * **This is what stops the crosshair re-deriving a mapping from an element's
+   * bounding box** — the task brief's own instruction, and the defect it names
+   * is real: a second spelling of the scale agrees with the first everywhere
+   * except the edges, which is exactly where a pointer spends its time.
+   */
+  readonly slots: SlotScale | null;
+  /**
    * What this window did — the dashed rule, the area under it, and which of the
    * three directions the pair is tinted for.
    *
@@ -175,6 +201,25 @@ export interface DirectionalArea {
    * budget is spent on, for a path that is the same line with a lid on it.
    */
   readonly fill: string;
+}
+
+/**
+ * One bar, its slot, and where it was drawn (Task 2.12.6).
+ *
+ * The `y` is the **close**, because the close is what the line is made of:
+ * putting the disc anywhere else would put the crosshair's point off the mark
+ * it is pointing at. The other three prices reach the reader through the
+ * readout, which is the role `CHARTING.md` §2 assigned it when it chose a line
+ * over candlesticks.
+ */
+export interface ChartPoint {
+  readonly bar: Bar;
+  /** The whole slot `placeBars` put it on. Ascending, which `nearestPlaced` needs. */
+  readonly slot: number;
+  /** Pixels across the plot. The same value the path was built from. */
+  readonly x: number;
+  /** Pixels down the plot, at the bar's close. */
+  readonly y: number;
 }
 
 /**
@@ -244,10 +289,13 @@ export function chartFrame(
       seams,
       ticks,
       series: null,
+      readings: [],
+      slots: x,
       direction: null,
     };
   }
 
+  const placed = placeBars(axis, subject.bars);
   const domain = priceDomain([first, ...rest]);
   // `[height, 0]` and not `[0, height]`: SVG's y grows downwards, so the
   // domain's high belongs at pixel zero. `chart-scale.ts` takes the inversion
@@ -255,8 +303,19 @@ export function chartFrame(
   // `height - y` anywhere.
   const y = linearScale(domain, [plot.height, 0]);
 
-  const placed = placeBars(axis, subject.bars);
-  const series = linePath(placed, x, y);
+  // **Scaled once, here, and read by everything downstream.** The line, the
+  // area's two closing segments and the crosshair's disc are all the same
+  // points; deriving them three times is three chances for one of them to be a
+  // pixel out, and the one that would show is the disc sitting beside the line
+  // it is meant to be on.
+  const points = placed.map(({ bar, slot }) => ({
+    bar,
+    slot,
+    x: round(scaleSlot(x, slot)),
+    y: round(scaleValue(y, bar.close)),
+  }));
+
+  const series = linePath(points);
 
   return {
     gridlines: valueTicks(domain, density.valueTicks).map((tick) => ({
@@ -266,7 +325,9 @@ export function chartFrame(
     seams,
     ticks,
     series,
-    direction: directionalArea(placed, series, x, y),
+    readings: points,
+    slots: x,
+    direction: directionalArea(points, series, y),
   };
 }
 
@@ -275,6 +336,8 @@ const EMPTY_FRAME: ChartFrame = {
   seams: [],
   ticks: [],
   series: null,
+  readings: [],
+  slots: null,
   direction: null,
 };
 
@@ -316,17 +379,13 @@ function unscaledGridlines(
  * would be a silently empty plot rather than a visible answer. The dot that
  * case deserves is the crosshair's disc, and that is Task 2.12.6's.
  */
-function linePath(
-  placed: readonly { readonly bar: Bar; readonly slot: number }[],
-  x: SlotScale,
-  y: LinearScale,
-): string | null {
-  if (placed.length < 2) return null;
+function linePath(points: readonly ChartPoint[]): string | null {
+  if (points.length < 2) return null;
 
-  return placed
-    .map(({ bar, slot }, index) => {
+  return points
+    .map(({ x, y }, index) => {
       const command = index === 0 ? "M" : "L";
-      return `${command}${String(round(scaleSlot(x, slot)))} ${String(round(scaleValue(y, bar.close)))}`;
+      return `${command}${String(x)} ${String(y)}`;
     })
     .join(" ");
 }
@@ -378,13 +437,12 @@ function linePath(
  * statement.
  */
 function directionalArea(
-  placed: readonly { readonly bar: Bar; readonly slot: number }[],
+  points: readonly ChartPoint[],
   series: string | null,
-  x: SlotScale,
   y: LinearScale,
 ): DirectionalArea | null {
-  const first = placed[0];
-  const last = placed[placed.length - 1];
+  const first = points[0];
+  const last = points[points.length - 1];
   if (series === null || first === undefined || last === undefined) return null;
   // Not a price any equity has, so a corrupt bar rather than a division to
   // attempt — `series-facts.ts` declines the same case and renders no
@@ -404,8 +462,8 @@ function directionalArea(
     // a third segment is what keeps it honest at 1d, where it is a real
     // distance.
     fill:
-      `${series} L${String(round(scaleSlot(x, last.slot)))} ${String(reference)}` +
-      ` L${String(round(scaleSlot(x, first.slot)))} ${String(reference)} Z`,
+      `${series} L${String(last.x)} ${String(reference)}` +
+      ` L${String(first.x)} ${String(reference)} Z`,
   };
 }
 

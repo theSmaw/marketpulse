@@ -107,7 +107,10 @@
 
 .point {
   fill: var(--surface-raised);
-  stroke: var(--chart-series);
+  /* `--chart-point` since Task 2.12.6 built the crosshair. Same value as
+     `--chart-series` and separately named, so the day the line softens the mark
+     that points at it does not have to follow. */
+  stroke: var(--chart-point);
   stroke-width: 2;
 }
 

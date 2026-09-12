@@ -105,7 +105,7 @@ function Region({
 }) {
   return (
     <div className={cx(styles.wide, treatment)}>
-      <PriceChart view={view} />
+      <PriceChart symbol="NVDA" view={view} />
     </div>
   );
 }
@@ -116,7 +116,7 @@ type Story = StoryObj<typeof meta>;
 
 /** The region at a 1920 viewport — five gridlines, dates and times. */
 export const Wide: Story = {
-  args: { view: barSeriesFixtureView("full") },
+  args: { symbol: "NVDA", view: barSeriesFixtureView("full") },
   render: (args) => (
     <div className={styles.wide}>
       <PriceChart {...args} />
@@ -126,7 +126,7 @@ export const Wide: Story = {
 
 /** The region at a 1024 viewport, which is where the compact pair takes over. */
 export const Narrow: Story = {
-  args: { view: barSeriesFixtureView("full") },
+  args: { symbol: "NVDA", view: barSeriesFixtureView("full") },
   render: (args) => (
     <div className={styles.narrow}>
       <PriceChart {...args} />
@@ -141,7 +141,7 @@ export const Narrow: Story = {
  * at hardest: it has to read as a chart waiting rather than as a chart broken.
  */
 export const Waiting: Story = {
-  args: { view: { state: "loading" } },
+  args: { symbol: "NVDA", view: { state: "loading" } },
   render: (args) => (
     <div className={styles.wide}>
       <PriceChart {...args} />
@@ -158,7 +158,7 @@ export const Waiting: Story = {
  * be a picture of data this system does not hold.
  */
 export const NoBars: Story = {
-  args: { view: barSeriesFixtureView("empty") },
+  args: { symbol: "NVDA", view: barSeriesFixtureView("empty") },
   render: (args) => (
     <div className={styles.wide}>
       <PriceChart {...args} />
@@ -175,7 +175,7 @@ export const NoBars: Story = {
  * mark lives on the panel around this, as a dashed rail beside the figures.
  */
 export const Held: Story = {
-  args: { view: barSeriesFixtureView("partial") },
+  args: { symbol: "NVDA", view: barSeriesFixtureView("partial") },
   render: (args) => (
     <div className={styles.wide}>
       <PriceChart {...args} />
@@ -196,7 +196,7 @@ export const Held: Story = {
  * regions that locally disagree with it.
  */
 export const WindowRose: Story = {
-  args: { view: barSeriesFixtureView("full") },
+  args: { symbol: "NVDA", view: barSeriesFixtureView("full") },
   render: (args) => <Region view={args.view} />,
 };
 
@@ -205,7 +205,7 @@ export const WindowRose: Story = {
  * state of this screen on a weekday afternoon.
  */
 export const WindowFell: Story = {
-  args: { view: barSeriesFixtureView("partial") },
+  args: { symbol: "NVDA", view: barSeriesFixtureView("partial") },
   render: (args) => <Region view={args.view} />,
 };
 
@@ -229,7 +229,7 @@ export const WindowFell: Story = {
  * inventing one here is what this fixture set exists to refuse.
  */
 export const WindowFlat: Story = {
-  args: { view: barSeriesFixtureView("flat") },
+  args: { symbol: "NVDA", view: barSeriesFixtureView("flat") },
   render: (args) => <Region view={args.view} />,
 };
 
@@ -250,7 +250,7 @@ export const WindowFlat: Story = {
  * opened, so a fifth of a window that gained 5.19% is red.
  */
 export const Dense: Story = {
-  args: { view: barSeriesFixtureView("dense") },
+  args: { symbol: "NVDA", view: barSeriesFixtureView("dense") },
   render: (args) => <Region view={args.view} />,
 };
 
@@ -266,7 +266,7 @@ export const Dense: Story = {
  * Read top to bottom: up, down, finished where it started, up.
  */
 export const Greyscale: Story = {
-  args: { view: barSeriesFixtureView("full") },
+  args: { symbol: "NVDA", view: barSeriesFixtureView("full") },
   render: () => (
     <div className={styles.stack}>
       <Region
@@ -299,7 +299,7 @@ export const Greyscale: Story = {
  * as above, for the same reason — the geometry never depended on the hue.
  */
 export const Deuteranopia: Story = {
-  args: { view: barSeriesFixtureView("full") },
+  args: { symbol: "NVDA", view: barSeriesFixtureView("full") },
   render: () => (
     <div className={styles.stack}>
       <ColourVisionFilters />

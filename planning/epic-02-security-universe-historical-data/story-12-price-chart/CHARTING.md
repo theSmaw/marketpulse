@@ -1108,3 +1108,130 @@ passed against a chart whose colour was locally wrong, because removing the hue
 removes the disagreement. The instrument that found this was a person looking at
 it in colour — which is the fourth of `VISUAL-LANGUAGE.md`'s four tests, applied
 by the stakeholder rather than by a test suite.
+
+---
+
+## 13. What reading a point found — added 2026-09-12 by Task 2.12.6
+
+The crosshair, the readout, and the keyboard path to the same reading. Six
+findings, and the first two are decisions Task 2.12.3 explicitly left open.
+
+### 13.1 A slot with no bar: the crosshair **snaps**, and the timestamp is what makes that honest
+
+Task 2.12.3 handed this task the choice and said both answers were defensible:
+over a slot with no bar, snap to the nearest _placed_ bar, or show no reading at
+all.
+
+**It snaps**, and the deciding argument is not smoothness. It is that
+`nearestPlaced` returns an **index** and the readout leads with **that bar's own
+market timestamp**, so a reader is always told which minute they are reading.
+A snap that names what it landed on cannot mislead; the alternative's honesty is
+purchased with a blank readout across the entire uncovered span of a `partial`
+answer — which is the normal state of this screen — and with `→` presses that
+visibly do nothing.
+
+The crosshair is therefore drawn at the **bar's** pixel rather than at the
+pointer's, so the vertical rule and the disc can never disagree about which bar
+is being read.
+
+### 13.2 The arrows step **bars**, not slots
+
+The same decision from the other end. Stepping slots means a press can land on
+nothing; stepping bars means the crosshair travels an uneven distance on some
+presses. At the density this chart opens at — **0.47 px per bar** — that
+distance is invisible, and where it is visible the gap _is_ the missing data.
+
+### 13.3 No recorded body in this fixture set has a hole in it
+
+**A finding rather than a decision**, and it is why §13.1's arithmetic is tested
+one level below the geometry. Two obvious assertions were written in
+`chart-geometry.test.ts` first and both went red:
+
+- _the last reading stops short of the frame on a `partial`_ — false, because
+  this recording's shortfall is **overnight**, which §10.1 already recorded;
+- _a short answer holds fewer readings than the axis has slots_ — false too:
+  **60 bars on 60 slots**.
+
+That is not a gap in the fixtures. It is what a liquid S&P 500 security's stored
+minutes actually look like. So the case the crosshair would read wrongly — a
+minute with no prints, shifting every reading after it by one — **cannot be
+reached from a recording**, and `chart-time-axis.test.ts` holds it with written
+objects. The rule this repository usually applies (record, never write) is
+inverted here deliberately and for a stated reason.
+
+### 13.4 The announcement rate: two numbers, both search's, and the second is the one that matters here
+
+`READING_ANNOUNCEMENT_DELAY_MS` is **400** and
+`READING_ANNOUNCEMENT_MIN_GAP_MS` is **1,500** — the same pair Task 2.11.9
+settled for search, adopted rather than re-derived, which is a judgement
+inheriting a measurement and is said plainly here rather than dressed up.
+
+What differs is which of the two does the work. Search's problem was a slow
+typist making every keystroke look like the last one. **A held arrow key is that
+failure with the brakes off**: a browser repeats at roughly 30 a second once the
+initial delay elapses, so the delay never fires and the floor is the whole
+mechanism. Holding `→` across a session announces the bar the crosshair is on
+_now_, at most about twice a second, rather than a backlog of the ones it has
+left.
+
+**And a pointer announces nothing at all.** A live region driven per
+pointer-move is actively hostile, and the person moving a mouse is not the person
+listening. The reversal trigger is search's: somebody reporting that it speaks
+over them or arrives late.
+
+### 13.5 The focus ring lands on the **plot**, which corrects the canvas
+
+`Price chart.dc.html` and `VISUAL-LANGUAGE.md` both said the disc is hollow _"so
+the focus ring can land on it"_. **The hollow disc is kept and its reason is
+unchanged** — a near-black ring around a near-black filled dot on a near-black
+line is invisible. Where the ring lands is wrong, and building it is what showed
+why.
+
+With **one tab stop** — which §1's element-count constraint requires, since the
+alternative is 1,950 — the point a ring would sit on **may not exist**: a person
+arriving by `Tab` has focus before they have a reading. So the ring is the
+existing global one, on the plot, because the plot is the control. Two
+consequences that are load-bearing rather than incidental:
+
+- **Arriving by keyboard opens on the last bar**, so focus is never a state with
+  nothing in it, and the reading a person lands on is the same figure the
+  headline above the plot already shows.
+- **`Escape` clears the reading and keeps focus**, which is only legible because
+  the ring is on the plot rather than on a disc that has just gone.
+
+`Price reading.dc.html` §04 carries the drawing and the argument; the canvas and
+`VISUAL-LANGUAGE.md` were both corrected the same day, in that order.
+
+### 13.6 The readout is a reserved strip under the axis, and the reservation is load-bearing
+
+Three placements were drawn and two declined (`Price reading.dc.html` §01). Over
+the plot needs collision-avoidance logic and moves while a number is being read;
+a column beside the plot does not survive **342 px**, which is the Price region's
+width at a 390 viewport, so it would need a second layout — the same argument
+that gave this chart one crosshair rather than two.
+
+The strip's height is held whether or not there is a reading in it, and **that
+was verified by breaking it**: setting `min-height: 0` moves the stated `Open`
+figure beneath it, and `e2e/specs/security-price-chart.spec.ts` goes red on the
+exact pixel. At rest the row carries **the invitation** — which is the only
+affordance this chart has, and the only thing anywhere on the page that says the
+keyboard path exists.
+
+### 13.7 The memoisation repair, measured after rather than reported
+
+Task 2.12.4's amendment assigned this task the unmemoised `chartFrame` call and
+offered two repairs, saying the second was structurally stronger: memoise the
+frame, or keep the crosshair's state out of the component that computes it.
+
+**The second was taken.** `ChartReading` is a sibling of the plot rather than a
+branch of `PriceChart`, so a pointer move re-renders the reading layer and the
+frame's owner does not render at all. A `useMemo` would have made the
+recomputation _conditional_ on a dependency array somebody has to keep right;
+this makes the re-render not happen.
+
+**Measured**, because the amendment's own instruction is that a repair must not
+be reported without one: `PriceChart.test.tsx` counts calls to `chartFrame`
+across **forty arrow presses** and the difference is **zero**. The counter is
+verified live in the same test by a render the component genuinely has to answer
+— a zero from an instrument wired to nothing looks exactly like a zero from a
+working repair.

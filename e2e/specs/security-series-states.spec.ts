@@ -342,7 +342,14 @@ test("the panel's live region is the same node before and after it speaks", asyn
   // since Task 2.10.8 — one per subject, each naming its own subject, so a
   // screen reader queueing them in an order neither component controls still
   // hands a listener two complete sentences.
-  const status = panel(page).getByRole("status");
+  //
+  // **And `.first()` since Task 2.12.6**, which put a third inside this panel:
+  // the chart's reading has a region of its own, and it is the one that speaks
+  // when a **key** is pressed rather than when a request lands. The panel's is
+  // first in the DOM because it is the first child of the panel, above the
+  // subject — which is where a live region belongs when it is about the whole
+  // of what follows it.
+  const status = panel(page).getByRole("status").first();
 
   // Empty before the first answer: arriving at a page is not a change, so a
   // loading sentence would only be a second copy of the visible line.

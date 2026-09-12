@@ -1,0 +1,41 @@
+/*
+ * The grid `ChartReading`'s two elements are placed on, and a stand-in for the
+ * plot they sit over.
+ *
+ * **It restates `PriceChart.module.css`'s grid rather than importing it**, which
+ * is a duplication taken deliberately and is worth naming. A story that composed
+ * the real `.chart` class would drag the real plot, gutter and axis rules into a
+ * workshop page whose subject is the crosshair — and the thing being reviewed
+ * here is a mark and a strip, not a second copy of the chart's own stories.
+ *
+ * The risk is the usual one for a copied number: the two could drift. What
+ * limits it is that nothing here is a *token* — the grid's shape is two columns
+ * and three rows, and if that changes these stories stop showing the crosshair
+ * over the plot, which is visible on the first look at the page.
+ */
+
+.chart {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--chart-gutter);
+  grid-template-rows: auto auto auto;
+  width: 782px;
+  max-width: 100%;
+  padding: var(--space-16);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius);
+}
+
+/*
+ * Where the plot would be. Sunken on purpose, which is the one thing on this
+ * page the product does not do: `VISUAL-LANGUAGE.md` is explicit that the real
+ * plot keeps the panel's ground, and a reviewer needs to see the extent of the
+ * area the pointer is live over.
+ */
+.plot {
+  grid-row: 1;
+  grid-column: 1;
+  height: var(--chart-height);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--chart-axis);
+}

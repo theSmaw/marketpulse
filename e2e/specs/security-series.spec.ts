@@ -207,7 +207,15 @@ test("the region draws its series — the fence Story 2.12 took down", async ({
   await expect(anAnswer(region)).toBeVisible();
 
   await expect(region.locator("canvas")).toHaveCount(0);
-  await expect(region.locator("svg")).toHaveCount(1);
+  // **Two SVGs since Task 2.12.6, and the second is not a second chart.** The
+  // plot is one, and the reading layer that carries the crosshair is an overlay
+  // in the same grid cell — a sibling rather than a branch, which is what keeps
+  // a pointer move from re-rendering the component that computes the frame. The
+  // overlay is present only where there are bars to read, so this asserts what
+  // is true whatever the answer was, and the branch below asserts the rest.
+  await expect(region.locator("svg")).toHaveCount(
+    (await hasBars(region)) ? 2 : 1,
+  );
 
   // The gridlines, which come from the box rather than from the series and are
   // therefore there whatever the answer was. A **count** rather than

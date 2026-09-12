@@ -1,8 +1,31 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import { PriceChart } from "./PriceChart.js";
+
+/**
+ * A counter around the real `chartFrame`, for the measurement at the bottom of
+ * this file.
+ *
+ * `vi.hoisted` because `vi.mock`'s factory is hoisted above every `const` in the
+ * module and would otherwise close over a variable in its temporal dead zone.
+ * The wrapper calls straight through, so every other test in this file runs
+ * against the real geometry.
+ */
+const frameCalls = vi.hoisted(() => ({ count: 0 }));
+
+vi.mock("./chart-geometry.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./chart-geometry.js")>();
+
+  return {
+    ...actual,
+    chartFrame: (...args: Parameters<typeof actual.chartFrame>) => {
+      frameCalls.count += 1;
+      return actual.chartFrame(...args);
+    },
+  };
+});
 
 // What a component test can and cannot see of a chart (Task 2.12.4).
 //
@@ -69,7 +92,7 @@ afterEach(() => {
 describe("without a measurement", () => {
   it("renders rather than throwing, which is every render in jsdom", () => {
     const { container } = render(
-      <PriceChart view={barSeriesFixtureView("full")} />,
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("full")} />,
     );
 
     // The frame is there — it is CSS — and it carries no marks, because a
@@ -82,7 +105,9 @@ describe("without a measurement", () => {
   it("draws a frame before the first answer arrives", () => {
     // §28's 500 ms is satisfied by the frame being there, not by the response
     // being fast. The element exists in `loading`, which is the whole rule.
-    const { container } = render(<PriceChart view={{ state: "loading" }} />);
+    const { container } = render(
+      <PriceChart symbol="NVDA" view={{ state: "loading" }} />,
+    );
 
     expect(container.querySelector("svg")).not.toBeNull();
   });
@@ -91,7 +116,7 @@ describe("without a measurement", () => {
     "draws nothing at all for %s, which has no window to be about",
     (fixture) => {
       const { container } = render(
-        <PriceChart view={barSeriesFixtureView(fixture)} />,
+        <PriceChart symbol="NVDA" view={barSeriesFixtureView(fixture)} />,
       );
 
       // A frame under a refusal would be a picture of a window nobody asked
@@ -106,7 +131,7 @@ describe("with a measurement", () => {
     measureEverythingAt(800, 280);
 
     const { container } = render(
-      <PriceChart view={barSeriesFixtureView("full")} />,
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("full")} />,
     );
 
     const path = container.querySelector("path");
@@ -127,7 +152,7 @@ describe("with a measurement", () => {
     measureEverythingAt(800, 280);
 
     const { container } = render(
-      <PriceChart view={barSeriesFixtureView("full")} />,
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("full")} />,
     );
 
     // Two paths: the close line, and the area — defined once in `<defs>` and
@@ -167,7 +192,7 @@ describe("with a measurement", () => {
     measureEverythingAt(800, 280);
 
     const { container } = render(
-      <PriceChart view={barSeriesFixtureView("empty")} />,
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("empty")} />,
     );
 
     expect(container.querySelector("path")).toBeNull();
@@ -177,5 +202,62 @@ describe("with a measurement", () => {
     // against it says a window opened at a price and nothing about what it did.
     expect(container.querySelectorAll("path")).toHaveLength(0);
     expect(container.querySelectorAll("use")).toHaveLength(0);
+  });
+});
+
+// **The repair Task 2.12.4's amendment assigned to this task, measured** — and
+// the amendment's own instruction is that a repair must not be reported without
+// a measurement after it.
+//
+// The problem it names: `chartFrame` is called in `PriceChart`'s render body
+// with no memoisation, and it walks the trading calendar day by day, re-derives
+// the price domain and rebuilds a 1,950-point path string. Nothing re-rendered
+// this component before today, which is why 2.12.4 leaving it unmemoised was
+// not a defect. **A crosshair is what would have made it one**, because a
+// crosshair re-renders on every pointer move and every arrow press.
+//
+// Two repairs were on offer and the amendment said the second was structurally
+// stronger: memoise the frame, or keep the crosshair's state out of the
+// component that computes it. This is the second, and the difference is exactly
+// what this test can see: a `useMemo` would make the recomputation *conditional*
+// on a dependency array somebody has to keep right, and would still re-render
+// this component. Here the component does not render at all.
+describe("what a reading costs", () => {
+  it("recomputes the frame zero times across forty arrow presses", () => {
+    measureEverythingAt(800, 280);
+
+    const { rerender } = render(
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("full")} />,
+    );
+
+    const chart = screen.getByRole("img", { name: "NVDA price chart" });
+    fireEvent.focus(chart);
+
+    // Whatever mounting and measuring cost, which is two or three: the first
+    // render has no box, the observer fires, and the measured render follows.
+    // The number that matters is the *difference*.
+    const afterMount = frameCalls.count;
+    expect(afterMount).toBeGreaterThan(0);
+
+    for (let press = 0; press < 40; press += 1) {
+      fireEvent.keyDown(chart, {
+        key: press % 2 === 0 ? "ArrowLeft" : "ArrowRight",
+      });
+    }
+
+    // And the reading did move, so this is a measurement of a working crosshair
+    // rather than of a component that ignores the keyboard.
+    expect(frameCalls.count - afterMount).toBe(0);
+    expect(screen.queryByText(/Point at the chart/u)).toBeNull();
+
+    // **And the instrument is live**, which is the half of this that a zero
+    // cannot demonstrate on its own: a counter wired to nothing also reports
+    // zero. `CLAUDE.md`'s rule is that a break which does not go red is equally
+    // evidence the break did not land, so the substitution is performed here —
+    // a render this component genuinely has to answer, which recomputes.
+    rerender(
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("partial")} />,
+    );
+    expect(frameCalls.count).toBeGreaterThan(afterMount);
   });
 });

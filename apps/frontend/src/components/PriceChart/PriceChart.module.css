@@ -24,7 +24,15 @@
 
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--value-gutter);
-  grid-template-rows: auto auto;
+  /*
+   * Three rows since Task 2.12.6: the plot, the time axis, and the readout
+   * strip that says which bar the crosshair is on. The third row's *contents*
+   * are `ChartReading`'s and so is its placement — that component owns the read
+   * position, and a parent that positioned its output would have to hold the
+   * state to know whether there is any. `ChartReading.module.css` says the same
+   * thing from the other side.
+   */
+  grid-template-rows: auto auto auto;
 }
 
 .compact {

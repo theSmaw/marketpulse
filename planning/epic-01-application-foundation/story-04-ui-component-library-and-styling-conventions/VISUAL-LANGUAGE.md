@@ -402,7 +402,19 @@ The x-domain comes from what was _requested_, never from the bars held (`CHARTIN
 
 A vertical `--chart-crosshair` rule and a **white disc with a near-black ring** on the line, identical under the pointer and under keyboard focus. Two treatments would be two things to keep correct and a promise that the keyboard path is the lesser one.
 
-The disc is hollow so the focus ring can land on it. Focus here is the existing global 2 px near-black outline at 2 px offset and **no new token**: a near-black ring around a near-black filled dot on a near-black line is invisible, and a white disc gives the outline something to sit outside of. The canvas's box-shadow ring was already declined in ADR 0026 because it vanishes in forced-colors mode.
+The disc is hollow so a near-black outline has something to sit outside of. Focus here is the existing global 2 px near-black outline at 2 px offset and **no new token**: a near-black ring around a near-black filled dot on a near-black line is invisible. The canvas's box-shadow ring was already declined in ADR 0026 because it vanishes in forced-colors mode.
+
+> **Corrected 2026-09-12 by Task 2.12.6, which built it.** This paragraph said the disc is hollow _"so the focus ring can land on it"_. The hollow disc is kept and its reason is unchanged; **where the ring lands is not it**. The chart is **one tab stop** — the alternative is 1,950, one per bar, which `CHARTING.md` §1's element-count constraint forbids outright — and with one tab stop the point a ring would sit on **may not exist**: a person arriving by `Tab` has focus before they have a reading. So the global ring lands on **the plot**, because the plot is the control. Two consequences follow rather than being chosen: arriving by keyboard opens the reading on the **last bar**, so focus is never a state with nothing in it and the reading agrees with the current value above the plot; and `Escape` clears the reading while keeping focus, which is only legible because the ring is on the plot rather than on a disc that has just gone. The canvas was corrected first, on `Price reading.dc.html` §04. `CHARTING.md` §13.5 has the argument.
+
+### The reading sits in a reserved strip under the axis
+
+One row, full width, directly beneath the time labels — so the crosshair's own vertical rule points down at the place the answer appears. It carries the bar's market instant, its four prices with the close emphasised, and its change labelled `BAR`.
+
+Three placements were drawn on `Price reading.dc.html` §01 and two declined. **Over the plot** — a card following the pointer — covers the mark it describes, needs collision-avoidance logic, and moves while somebody reads a number. **A column beside the plot** is honest and does not survive 342 px, which is this region's width at a 390 viewport; it would need a second layout, which is the same argument that gave this chart one crosshair rather than two.
+
+**Its height is reserved whether or not there is a reading in it.** A strip that appears when a pointer enters the plot pushes every exact figure stated beneath it down by a line, under the hand of somebody reading them. At rest the row carries the invitation — _"Point at the chart, or press the left and right arrow keys, to read a bar"_ — which is the only affordance this chart has and the only thing on the page that says the keyboard path exists.
+
+**The label on the change is load-bearing, not decoration.** Three things on this screen state a direction about three different subjects: the headline says what the **window** did, the wash says whether the price **at that point** is above where the window opened, and this says what **one bar** did. All three can disagree at once and each is right while they do. The precedent is the identity block's `LAST SESSION CLOSE` beside the chart's current value — two figures, two subjects, told apart because each is labelled.
 
 ### Density, and the chart never stops being a chart
 
@@ -419,24 +431,26 @@ The breakpoints are the **region's**, not the page's: the Price region is 1,019 
 
 Achromatic, structural and geometric values in `tokens.css`; anything carrying market meaning in `market.css`. Several chart values equal a chrome value today and are **still separately named**, which is the argument `--price-unchanged` and the `--service-*` trio already make in `market.css`: two values that coincide for different reasons must be able to move apart.
 
-| Token                    | Value     | Notes                                                                                                               |
-| ------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------- |
-| `--chart-axis`           | `#181c23` | The one rule. Same value as `--rule-strong`                                                                         |
-| `--chart-grid`           | `#e2e4ed` | 1.27:1 on white; **1.11:1 where a wash passes under one**                                                           |
-| `--chart-seam`           | `#c4c6cf` | 1.70:1. The canvas's own `--mp-line-strong`, adopted here at last                                                   |
-| `--chart-reference`      | `#74777f` | 4.48:1. The dashed rule at the opening close                                                                        |
-| `--chart-series`         | `#181c23` | The close line                                                                                                      |
-| `--chart-series-width`   | `1.5px`   |                                                                                                                     |
-| `--chart-crosshair`      | `#43474f` | 9.32:1 — quieter than the data it points at                                                                         |
-| `--chart-uncovered`      | `#f2f3f9` | 1.107:1 — the quietest mark in this language, deliberately                                                          |
-| `--chart-height`         | `280px`   |                                                                                                                     |
-| `--chart-height-compact` | `220px`   |                                                                                                                     |
-| `--chart-gutter`         | `56px`    | The value scale's width                                                                                             |
-| `--chart-gutter-compact` | `46px`    |                                                                                                                     |
-| `--chart-filing-lane`    | `14px`    | Added 2026-09-12 by Task 2.12.4 — the reserved lane below, named                                                    |
-| `--price-positive-wash`  | `#e6f2ec` | 1.15:1 on white; near-black on it measures 14.87                                                                    |
-| `--price-negative-wash`  | `#fbeae9` | 1.16:1 on white; near-black on it measures 14.68                                                                    |
-| `--price-unchanged-wash` | `#eef0f6` | **No application consumer since 2026-09-12** — the split has no neutral state. Reserved for the extent band at `1d` |
+| Token                    | Value     | Notes                                                                                                                |
+| ------------------------ | --------- | -------------------------------------------------------------------------------------------------------------------- |
+| `--chart-axis`           | `#181c23` | The one rule. Same value as `--rule-strong`                                                                          |
+| `--chart-grid`           | `#e2e4ed` | 1.27:1 on white; **1.11:1 where a wash passes under one**                                                            |
+| `--chart-seam`           | `#c4c6cf` | 1.70:1. The canvas's own `--mp-line-strong`, adopted here at last                                                    |
+| `--chart-reference`      | `#74777f` | 4.48:1. The dashed rule at the opening close                                                                         |
+| `--chart-series`         | `#181c23` | The close line                                                                                                       |
+| `--chart-series-width`   | `1.5px`   |                                                                                                                      |
+| `--chart-crosshair`      | `#43474f` | 9.32:1 — quieter than the data it points at                                                                          |
+| `--chart-point`          | `#181c23` | Added 2026-09-12 by Task 2.12.6 — the ring around the disc. Its fill is `--surface-raised`, punched through the line |
+| `--chart-uncovered`      | `#f2f3f9` | 1.107:1 — the quietest mark in this language, deliberately                                                           |
+| `--chart-height`         | `280px`   |                                                                                                                      |
+| `--chart-height-compact` | `220px`   |                                                                                                                      |
+| `--chart-gutter`         | `56px`    | The value scale's width                                                                                              |
+| `--chart-gutter-compact` | `46px`    |                                                                                                                      |
+| `--chart-filing-lane`    | `14px`    | Added 2026-09-12 by Task 2.12.4 — the reserved lane below, named                                                     |
+| `--chart-readout-height` | `22px`    | Added 2026-09-12 by Task 2.12.6 — the reading strip's reserved row, whether or not it holds a reading                |
+| `--price-positive-wash`  | `#e6f2ec` | 1.15:1 on white; near-black on it measures 14.87                                                                     |
+| `--price-negative-wash`  | `#fbeae9` | 1.16:1 on white; near-black on it measures 14.68                                                                     |
+| `--price-unchanged-wash` | `#eef0f6` | **No application consumer since 2026-09-12** — the split has no neutral state. Reserved for the extent band at `1d`  |
 
 ### What this section deliberately does not decide
 
