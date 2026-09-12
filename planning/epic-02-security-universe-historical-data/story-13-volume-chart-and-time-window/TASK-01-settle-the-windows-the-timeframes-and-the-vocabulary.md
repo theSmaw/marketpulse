@@ -1,6 +1,7 @@
 # Task 2.13.1 — Settle which windows exist, what a window costs, and the vocabulary it is spelled in
 
-**Status:** Not started. Subject document: `VOLUME-AND-WINDOW.md` (this task creates it).
+**Status:** Complete — 2026-09-12. Subject document:
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) (this task created it).
 **Story:** [2.13 Volume Chart & Time-Window Selection](STORY.md)
 **Depends on:** Story 2.12 (complete)
 
@@ -162,3 +163,178 @@ are in front of you. It is `packages/shared`'s, it pays three callers including
 the server, and it is Task 2.13.3's — with the explicit warning from this story's
 own amendment that a `useMemo` in `PriceChart` fixes one caller of three and
 leaves the server paying in full.
+
+---
+
+## What was decided — 2026-09-12
+
+Six decisions, in [`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md), each with the
+alternatives that were weighed and a reversal trigger written as a condition.
+
+1. **Five windows: 1D, 5D, 1M, 3M, 1Y — and no "max."** Justified against four
+   costs: what is stored, what the cap permits, the bytes and latency on the
+   wire, and the calendar walk. 1M is 21 sessions rather than the 25 the cap
+   would allow, deliberately. 1Y fires `CHARTING.md` §16.5's memoisation trigger,
+   so Task 2.13.3's repair is a precondition of shipping it.
+2. **The timeframe is derived, never chosen** — `sessions ≤ 21 → 1m`, above → `1d`,
+   in one module, `apps/frontend/src/market/time-window.ts`. The derivation is
+   what makes the 10,000-bar cap structurally unreachable through the named
+   window form.
+3. **A window means what it says**; a store that does not hold today answers
+   `empty` or `partial`, which are already rendered. No client-side shortening,
+   no new wire form.
+4. **The vocabulary in one table** — control label, accessible name, address,
+   spoken sentence, timeframe, session count. `?sessions=N` carries a count, the
+   default writes no parameter, and the control does not snap an address it did
+   not write.
+5. **A volume abbreviation is a rounding, so the readout states the exact
+   figure**; the volume plot reads `provenance.sources` rather than one feed
+   label, so Story 2.14 has somewhere to draw the seam.
+6. **Neither refusal is reachable through the control**, measured: 676 sessions
+   of calendar headroom against a widest offer of 252, and a cap the mapping
+   forecloses. Both still land in the existing six-state union — this story adds
+   no state.
+
+**Nothing shipped.** One throwaway benchmark was written under
+`apps/frontend/src/market/`, run, and deleted in the same task; `git status` is
+clean apart from the two documents. `pnpm verify` passes.
+
+### The figures were re-taken, not carried forward
+
+Session and bar counts came from `lastMarketSessions` on 2026-09-12 against a
+market date of 2026-09-11. The calendar walk was re-timed in the frontend's own
+runner at the windows this document proposes, and **it corroborates
+`CHARTING.md` §16.5 to within 4%** at every shared point — 0.222 ms against
+0.202 at five sessions, 8.500 against 8.762 at a year, 22.764 against 23.051 at
+the whole stored depth. Three measurements of one algorithm on two machines in
+two runtimes now agree, which makes it a property of the walk rather than of a
+laptop.
+
+---
+
+## For the stakeholder — what this actually was, in plain terms
+
+**Nothing is visible on screen from this task, and that is the intended outcome.**
+The payoffs are Task 2.13.4, which puts traded volume underneath the price
+chart, and Task 2.13.6, which puts the time-period buttons on screen. This task
+was the decision that has to happen before either of those is drawn.
+
+### The question
+
+The Security Explorer currently shows one thing: NVDA's price over the last five
+trading days. The obvious next step is a row of buttons — a day, a week, a
+month, three months, a year — so a user can change what period they are looking
+at. That sounds like a styling question. It isn't.
+
+Every one of those buttons reaches backwards into how much history we actually
+stored, sideways into a limit our own API enforces, and forwards into two future
+features: the comparison views in Epic 8, and the AI agent's ability to say
+"show me the last three months" in Epic 11. **Pick the buttons by taste and one
+of those three directions refuses the request — and the refusal arrives as an
+error on a user's screen rather than as a sentence in a document.** So the
+buttons were chosen with arithmetic.
+
+### What the arithmetic said
+
+We hold two kinds of bar: one per minute, going back a year, and one per trading
+day, going back to the start of 2024. Our API refuses to return more than 10,000
+bars in one response — refuses, rather than quietly sending less, because a
+short answer that looks complete is the most dangerous kind of wrong.
+
+A trading day contains 390 minutes. So:
+
+- **A month at minute resolution is 8,190 bars** — comfortably inside the limit.
+- **Twenty-six days is 10,140** — refused. The limit lands almost exactly on
+  "one month," which is a genuinely lucky coincidence and not one to build on.
+- **Three months at minute resolution is 24,570** and **a year is 97,920** —
+  both far beyond it.
+
+That settles the second decision on its own. A user cannot be offered a "three
+months" button _and_ a "minute detail" switch, because that combination is a
+request the system will refuse. So **the period decides the detail level
+automatically**: short periods use minute bars, long periods use daily bars, and
+the user never has to know. This isn't hiding something from them — the
+resolution is already printed on the page and read aloud by screen readers. It
+just isn't a knob they can turn into an error.
+
+There was a cost check too. Drawing a chart requires walking a calendar of
+trading days, skipping weekends and holidays. We timed it: the default
+five-day view costs less than half a millisecond, a year costs 17, and "as far
+back as we have" costs 45 — against a 50-millisecond budget the product
+publishes for staying responsive. **So "show me everything" was declined**, for
+three reasons, and the cost was the weakest of them. The stronger two: it has no
+honest name (our two kinds of history reach back different distances, and
+neither is "everything"), and its meaning would change every single night as more
+history accumulates. A button whose label means something different tomorrow is
+not a label.
+
+### The uncomfortable one, stated plainly
+
+**The "1 day" button will show an empty chart for most of the working day, and we
+are shipping it anyway.**
+
+Here is why. We top up our market data overnight, and our data plan won't give us
+the most recent quarter hour at all. So between the opening bell and that night's
+top-up, we genuinely have no data for today. "1 day" means today. The chart will
+correctly say so.
+
+We considered quietly redefining "1 day" to mean "the most recent day we happen
+to have." We rejected it: the button would then mean a different date depending
+on what time you pressed it, while the shareable link in the address bar said
+the same thing — which is the kind of small dishonesty that makes people stop
+trusting a screen. We also considered withholding the button until the live feed
+arrives in Epic 3. We rejected that too, because the shortest period we offer
+would then be a week, which is wrong for a product whose whole purpose is
+spotting unusual behaviour within a trading session — and because a control that
+grows a new button between releases is a control users have to relearn.
+
+So: the button is there, it is never the one you land on, and when it is empty it
+says clearly that it is empty rather than looking broken. **And we wrote down the
+condition for changing our minds**: if, when a person actually looks at that
+screen in Task 2.13.7, it reads as broken rather than as honest, the button comes
+out until the live feed lands. That judgement was deliberately left to the task
+that can see the pixels, because this project has already learned that lesson
+once — Story 2.12 had four automated checks pass against a chart that a human
+spotted was wrong within seconds of looking at it.
+
+### The quiet decision with the longest reach
+
+The buttons will put something like `?sessions=21` into the web address. We chose
+to put a **number** there rather than a name like `?window=1M`, and that turns
+out to matter well beyond this story.
+
+Because the address carries a plain count of trading days, **anything can ask for
+any period** — a user editing the address by hand, a link somebody shares, or,
+later, the AI agent saying "compare these two over the last thirty days." The
+product answers all of them. The five buttons are a convenient shortlist, not a
+fence. When the address names a period that isn't one of the five, the buttons
+simply show nothing selected rather than snapping to the nearest one, because
+snapping would silently answer a different question from the one that was asked.
+
+That is the mechanism Epic 11's "the AI changes the workspace" feature runs on,
+arriving two epics early and for free, because the vocabulary was chosen with it
+in mind.
+
+### One thing we protected for later
+
+Volume figures get abbreviated — `9.81M` rather than `9,814,203`. Abbreviation is
+rounding, so the rule is that the exact number is always one hover or one arrow
+key away, in the same readout strip that already un-rounds the prices.
+
+More importantly: today all our volume comes from the full US consolidated
+market. The live feed arriving in Epic 3 comes from **one exchange**, and one
+exchange's volume is a small fraction of the market's. A price from one exchange
+is roughly the market's price; **a volume from one exchange is nothing like the
+market's volume**, and a chart that stitched the two together without saying so
+would show what looks like trading collapsing at the join. Labelling that join is
+Story 2.14's job, not this one's — but this task made sure the volume chart is
+built to read _which sources it has_ rather than assuming one, so 2.14 has
+somewhere to put the label instead of needing a rebuild.
+
+### Where the product stands
+
+Epic 2's finish line is: a user can search for NVDA, open it, and inspect recent
+price **and volume** history. Price landed last week and draws properly. Volume
+and the period control are this story — nine tasks remain, seven of which change
+something on screen, and the first of those is three tasks away. After that, the
+epic closes and Epic 3 makes the numbers move.
