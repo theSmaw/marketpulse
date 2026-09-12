@@ -407,6 +407,10 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
 5. **Schemas.** `verify.yml`, `deploy.yml`, `dependabot.yml`, `staticwebapp.config.json` and `compose.yaml` are all _formatted_ by Prettier and validated by nothing.
 6. **Configuration that exists only on the platform.** The deploy uses `update` and never `create`, so the container app's probes, replica floor, ingress port, `CORS_ORIGIN`, `MARKET_DATA_PROVIDER` and the Alpaca credential exist in **no file in this repository** — as do the database's firewall rules, its Entra administrator, both Postgres roles and their grants, its alerts and its delete lock. `HOSTING.md` is their only durable copy. A diffing script **cannot** be a `verify` step, because `verify` has no credentials; making it one would fork the definition of "verified".
 
+**One entry left this list on 2026-09-12 by being made mechanical, and the route is worth knowing.** _"The scheduled backfill fills every timeframe the application reads"_ was never written here — it was a defect first: the nightly job filled `1m` only for eight days, every run green, while `routes/securities.ts` read its last close at `1d` (`BARS.md` §8.18). It is now `pnpm coverage:check`, a `verify` step. **That is the migration this list wants** — a prose entry with a re-measure command is a check nobody runs, and a `verify` step is one that cannot be skipped. An entry that can be made mechanical should be; what stays here is the residue that genuinely cannot, which is the breaks a human has to perform and the claims only a browser or a live store can see.
+
+Its runtime half is deliberately **neither** here nor in `verify`: `GET /diagnostics/freshness` answers _how many trading sessions behind is the store_, computed on request so it has no schedule to miss, and `check-deployed.mjs` fails on it after a merge. `verify` has no credentials and no database by design, and pointing it at a live store would fork the definition of "verified".
+
 Two of these have caught real defects, so treat the list as live: a stated invariant quietly stopped being true for two stories, and a broken link shipped.
 
 ## Intended stack

@@ -14,6 +14,8 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { DatabaseCheck, DatabaseCheckFn } from "../database.js";
+import type { CoverageRow } from "../store-freshness.js";
+import { toTimeRange } from "@marketpulse/shared";
 import { buildServer } from "../server.js";
 import { createDiagnosticsRoutes } from "./diagnostics.js";
 
@@ -26,7 +28,10 @@ afterEach(async () => {
   app = undefined;
 });
 
-async function serverWith(check: DatabaseCheckFn): Promise<FastifyInstance> {
+async function serverWith(
+  check: DatabaseCheckFn,
+  coverage: readonly CoverageRow[] = [],
+): Promise<FastifyInstance> {
   const instance = buildServer({
     logLevel: "silent",
     logFormat: "json",
@@ -36,7 +41,9 @@ async function serverWith(check: DatabaseCheckFn): Promise<FastifyInstance> {
   // Registered here rather than by `buildServer()`, exactly as `index.ts` does
   // it — so this test drives the arrangement that ships rather than a
   // convenient one.
-  instance.register(createDiagnosticsRoutes(check));
+  instance.register(
+    createDiagnosticsRoutes(check, () => Promise.resolve(coverage)),
+  );
 
   await instance.ready();
   app = instance;
@@ -178,7 +185,10 @@ describe("GET /diagnostics/database", () => {
         declared.push(route.schema);
     });
     instance.register(
-      createDiagnosticsRoutes(() => Promise.resolve(reachable)),
+      createDiagnosticsRoutes(
+        () => Promise.resolve(reachable),
+        () => Promise.resolve([]),
+      ),
     );
     await instance.ready();
     app = instance;
@@ -188,3 +198,106 @@ describe("GET /diagnostics/database", () => {
     expect(declared[0]).toMatchObject({ response: { 500: apiErrorSchema } });
   });
 });
+
+describe("GET /diagnostics/freshness", () => {
+  it("reports every timeframe the system stores, including one with no rows", () => {
+    // The original defect was not a wrong number — it was an ABSENT one. A
+    // timeframe reported by omission is a timeframe nobody notices, which is
+    // why the arithmetic enumerates `TIMEFRAMES` rather than the ledger.
+    return withFreshness([], async (instance) => {
+      const response = await instance.inject({
+        method: "GET",
+        url: "/diagnostics/freshness",
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{
+        timeframes: { timeframe: string }[];
+        checkedAt: string;
+      }>();
+
+      expect(body.timeframes.map((entry) => entry.timeframe).sort()).toEqual([
+        "1d",
+        "1m",
+      ]);
+      expect(body.checkedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    });
+  });
+
+  it("sends an unknown staleness as null and NEVER as zero", () => {
+    // **The trap `CLAUDE.md` names, on the one endpoint where it is worst.**
+    // `fast-json-stringify` coerces a `null` under a bare `"number"` to `0`.
+    // Here `null` means *we cannot tell* and `0` means *perfectly current* — so
+    // the wrong schema would make an empty store report as a healthy one, in
+    // the diagnostic built to catch exactly that. The schema declares
+    // `["number", "null"]`; this is the assertion that it still does.
+    return withFreshness([], async (instance) => {
+      const body = (
+        await instance.inject({
+          method: "GET",
+          url: "/diagnostics/freshness",
+        })
+      ).json<{
+        timeframes: { sessionsBehind: number | null }[];
+      }>();
+
+      for (const entry of body.timeframes) {
+        expect(entry.sessionsBehind).toBeNull();
+        expect(entry.sessionsBehind).not.toBe(0);
+      }
+    });
+  });
+
+  it("puts a real lag on the wire", () => {
+    return withFreshness(
+      [
+        {
+          timeframe: "1d",
+          covered: toTimeRange(
+            new Date("2024-01-02T14:30:00.000Z"),
+            new Date("2026-09-04T20:00:00.000Z"),
+          ),
+        },
+      ],
+      async (instance) => {
+        const body = (
+          await instance.inject({
+            method: "GET",
+            url: "/diagnostics/freshness",
+          })
+        ).json<{
+          timeframes: {
+            timeframe: string;
+            newestSession: string | null;
+            sessionsBehind: number | null;
+          }[];
+        }>();
+
+        const daily = body.timeframes.find((e) => e.timeframe === "1d");
+        expect(daily?.newestSession).toBe("2026-09-04");
+        // A number rather than the number: this runs against the real clock, so
+        // pinning it would go red every trading day. What must be true is that a
+        // store frozen in the past is reported as behind rather than as current.
+        expect(daily?.sessionsBehind).toBeGreaterThan(0);
+      },
+    );
+  });
+});
+
+/** A server with a stubbed coverage ledger, torn down after the assertion. */
+async function withFreshness(
+  coverage: readonly CoverageRow[],
+  assertion: (instance: FastifyInstance) => Promise<void>,
+): Promise<void> {
+  const instance = await serverWith(
+    () =>
+      Promise.resolve({
+        ok: true as const,
+        ms: 0,
+        ageMs: 0,
+        checkedAt: 0,
+      }),
+    coverage,
+  );
+  await assertion(instance);
+}

@@ -71,6 +71,23 @@ const OVERALL_TIMEOUT_MS = 180_000;
 
 const POLL_INTERVAL_MS = 1_000;
 
+/**
+ * How many completed sessions the store may be behind before this goes red.
+ *
+ * **Two, and it is a ceiling rather than a target.** The catch-up runs at 08:00
+ * UTC daily, so in the steady state every timeframe is zero or one behind — one
+ * on a weekday before the run, because the previous session closed after the
+ * last one. Two absorbs a single missed night. Three means two consecutive runs
+ * did nothing, which is a job that has stopped rather than a job that was
+ * unlucky.
+ *
+ * It is measured against `stalestSessionsBehind` — the WORST security — and not
+ * the newest, because a maximum is exactly what hid the original defect's
+ * shape: a partial fill leaves the freshest symbol current while most of the
+ * universe rots.
+ */
+const MAX_SESSIONS_BEHIND = 2;
+
 async function get(url) {
   try {
     const response = await fetch(url, {
@@ -123,6 +140,85 @@ async function probeBackend(backendOrigin) {
       body.uptimeSeconds ?? 0,
     ).toFixed(1)}s`,
   };
+}
+
+/**
+ * How many trading sessions behind the store is, per timeframe.
+ *
+ * **This is the check that catches a cron that stopped.** On 2026-09-12 the
+ * scheduled catch-up had filled minute bars only for eight days, every nightly
+ * run green, and it was found by a person noticing that two regions on one page
+ * disagreed by 4.6%. `scripts/check-backfill-coverage.mjs` refuses that
+ * *contract* statically in `pnpm verify`; nothing statically checkable can see a
+ * job that is disabled, throttled or failing — and `backfill.yml` records that
+ * GitHub disables a `schedule:` after 60 days with no pushes.
+ *
+ * **It runs here rather than in `verify` deliberately.** A deployed check runs
+ * after a merge and gates nothing; its output is a rollback decision. Failing
+ * `verify` on this would make an unrelated contributor's PR red because a
+ * backfill was skipped overnight, and `verify` has no credentials or database by
+ * design — pointing it at a live store would fork the definition of "verified".
+ *
+ * ## Why an EMPTY store passes
+ *
+ * `null` means the ledger holds nothing at that timeframe, which is CI's store
+ * exactly — `verify.yml` runs the migrations and the universe loader and never a
+ * backfill, because a backfill is metered. Failing on `null` would make this
+ * check red in the one environment that runs it most, which is how a check stops
+ * being read. **A store with no bars is not a stale store**; it is a store
+ * nobody has filled, and `pnpm bars:check` is the instrument for that.
+ */
+async function probeFreshness(backendOrigin) {
+  const result = await get(`${backendOrigin}/diagnostics/freshness`);
+
+  if (!result.ok) return { ok: false, detail: result.reason };
+  if (result.status !== 200) {
+    return { ok: false, detail: `HTTP ${String(result.status)}` };
+  }
+
+  let body;
+  try {
+    body = await result.response.json();
+  } catch {
+    return { ok: false, detail: "200 with a body that is not JSON" };
+  }
+
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !Array.isArray(body.timeframes)
+  ) {
+    return { ok: false, detail: "200 with a body that is not the contract" };
+  }
+
+  const stale = body.timeframes.filter(
+    (entry) =>
+      typeof entry.stalestSessionsBehind === "number" &&
+      entry.stalestSessionsBehind > MAX_SESSIONS_BEHIND,
+  );
+
+  const summary = body.timeframes
+    .map(
+      (entry) =>
+        `${String(entry.timeframe)}=${
+          entry.stalestSessionsBehind === null
+            ? "empty"
+            : `${String(entry.stalestSessionsBehind)} behind`
+        }`,
+    )
+    .join(", ");
+
+  if (stale.length > 0) {
+    return {
+      ok: false,
+      detail:
+        `${summary} — over the ${String(MAX_SESSIONS_BEHIND)}-session ceiling. ` +
+        "The nightly backfill has not run, or has not covered every security. " +
+        'Dispatch: gh workflow run backfill.yml -f args="--timeframe 1d --sessions 10"',
+    };
+  }
+
+  return { ok: true, detail: summary };
 }
 
 /**
@@ -195,6 +291,7 @@ export async function checkDeployed({ backendOrigin, frontendOrigin }) {
   const deadline = Date.now() + OVERALL_TIMEOUT_MS;
   let backend;
   let frontend;
+  let freshness;
 
   for (;;) {
     // Sequentially rather than in parallel, unlike `check-ready.mjs`. Two
@@ -204,15 +301,28 @@ export async function checkDeployed({ backendOrigin, frontendOrigin }) {
     backend = await probeBackend(backendOrigin);
     frontend = await probeFrontend(frontendOrigin);
 
-    if (backend.ok && frontend.ok) return { ok: true, backend, frontend };
-    if (Date.now() >= deadline) return { ok: false, backend, frontend };
+    // **Last, and only once the pair is up.** A stale store on a backend that
+    // is still starting is a fact about the backend, and retrying a freshness
+    // answer cannot change it: unlike the upload window this loop exists for,
+    // nothing about staleness resolves by waiting a second. So it is probed
+    // when the other two agree, and its result ends the loop either way.
+    if (backend.ok && frontend.ok) {
+      freshness = await probeFreshness(backendOrigin);
+      return { ok: freshness.ok, backend, frontend, freshness };
+    }
+
+    if (Date.now() >= deadline)
+      return { ok: false, backend, frontend, freshness };
 
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
 }
 
 /** Render the result, including the control's diagnosis. */
-export function reportDeployed({ ok, backend, frontend }, addresses) {
+export function reportDeployed(
+  { ok, backend, frontend, freshness },
+  addresses,
+) {
   const line = (mark, label, url, detail) =>
     `  ${mark} ${label.padEnd(9)} ${url}  ${detail}`;
 
@@ -230,6 +340,19 @@ export function reportDeployed({ ok, backend, frontend }, addresses) {
       "frontend",
       `${addresses.frontendOrigin}/`,
       frontend.detail,
+    ),
+  );
+  // Absent when the pair never came up — reported as "not reached" rather than
+  // omitted, so a reader cannot mistake a check that did not run for one that
+  // passed. That distinction is the whole subject of this file's newest probe.
+  console.log(
+    line(
+      freshness === undefined ? "·" : freshness.ok ? "✓" : "✗",
+      "store",
+      `${addresses.backendOrigin}/diagnostics/freshness`,
+      freshness === undefined
+        ? "not reached — the pair never came up"
+        : freshness.detail,
     ),
   );
   console.log("");

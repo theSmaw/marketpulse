@@ -121,6 +121,8 @@ import type { FastifyPluginCallback } from "fastify";
 import type { DatabaseCheck, DatabaseCheckFn } from "../database.js";
 import { apiErrorSchema } from "../errors.js";
 import type { JsonSchemaProperty } from "../json-schema.js";
+import type { CoverageRow, StoreFreshness } from "../store-freshness.js";
+import { storeFreshness } from "../store-freshness.js";
 
 /**
  * The body of `GET /diagnostics/database`.
@@ -176,6 +178,78 @@ const diagnosticSchema = {
 };
 
 /**
+ * The body of `GET /diagnostics/freshness` — how far behind the store is, per
+ * timeframe, in trading sessions.
+ *
+ * **The point of this endpoint is that it is computed on request.** The
+ * instrument that failed on 2026-09-12 was `pnpm bars:check`, and its deeper
+ * problem was not the timeframe it was pointed at — it was that it ran inside
+ * the job it reported on, so it could not report that job not running. This has
+ * no schedule to miss and no state to go stale.
+ *
+ * Declared here rather than in `packages/shared` by the same test the
+ * diagnostic above applies: nothing outside this application reads it. **If the
+ * status strip ever renders it, that test is what has changed** and the type
+ * moves then rather than being put there speculatively now.
+ *
+ * `store-freshness.ts` carries the arithmetic and the reasoning; this is the
+ * wire.
+ */
+interface FreshnessDiagnostic {
+  /** The session the market has most recently completed. `null` is a broken calendar. */
+  lastCompletedSession: string | null;
+  /** One entry per timeframe the system can store, never by omission. */
+  timeframes: {
+    timeframe: string;
+    newestSession: string | null;
+    sessionsBehind: number | null;
+    stalestSessionsBehind: number | null;
+    securities: number;
+  }[];
+  /** When this was computed, as an ISO 8601 instant. */
+  checkedAt: string;
+}
+
+const freshnessProperties = {
+  lastCompletedSession: { type: ["string", "null"] },
+  timeframes: {
+    type: "array",
+    items: {
+      type: "object",
+      properties: {
+        timeframe: { type: "string" },
+        newestSession: { type: ["string", "null"] },
+        // **`["number", "null"]` and never bare `"number"`.** `CLAUDE.md`
+        // records that `fast-json-stringify` coerces a `null` under `"number"`
+        // to **`0`** on the wire — "a plausible price rather than a visibly
+        // empty string". On this endpoint that coercion turns *we cannot tell*
+        // into *perfectly current*, which is the exact failure this whole
+        // diagnostic exists to prevent, reintroduced at the serialiser. There
+        // is a test.
+        sessionsBehind: { type: ["number", "null"] },
+        stalestSessionsBehind: { type: ["number", "null"] },
+        securities: { type: "number" },
+      },
+    },
+  },
+  checkedAt: { type: "string" },
+} satisfies Record<keyof FreshnessDiagnostic, JsonSchemaProperty>;
+
+const freshnessSchema = {
+  response: {
+    200: {
+      type: "object",
+      properties: freshnessProperties,
+      required: Object.keys(freshnessProperties),
+    },
+    500: apiErrorSchema,
+  },
+};
+
+/** Reads the coverage ledger. A function, so this file never learns there is a driver. */
+export type CoverageReadFn = () => Promise<readonly CoverageRow[]>;
+
+/**
  * The route, as a factory rather than a plain plugin.
  *
  * It takes the check as a **function** and not a pool, so this file never
@@ -197,6 +271,7 @@ const diagnosticSchema = {
  */
 export function createDiagnosticsRoutes(
   checkDatabase: DatabaseCheckFn,
+  readCoverage: CoverageReadFn,
 ): FastifyPluginCallback {
   return (app, _options, done) => {
     app.get(
@@ -224,6 +299,32 @@ export function createDiagnosticsRoutes(
           ms: Math.round(check.ms * 100) / 100,
           ageMs: Math.round(check.ageMs),
           checkedAt: new Date(check.checkedAt).toISOString(),
+        };
+
+        return reply.code(200).send(body);
+      },
+    );
+
+    // **Unbounded, unlike the database check above, and that is a measured
+    // difference rather than an oversight.** That one is cached because it is a
+    // connection attempt on a path the probes hammer every two seconds. This
+    // reads `bar_coverage`, which is a few hundred rows by construction — the
+    // property that table exists for — and nothing polls it: the deployed check
+    // calls it once after a merge. A cache here would add a second thing that
+    // can be stale to an endpoint whose entire subject is staleness.
+    app.get(
+      "/diagnostics/freshness",
+      { schema: freshnessSchema },
+      async (_request, reply) => {
+        const freshness: StoreFreshness = storeFreshness(
+          await readCoverage(),
+          new Date(),
+        );
+
+        const body: FreshnessDiagnostic = {
+          lastCompletedSession: freshness.lastCompletedSession,
+          timeframes: freshness.timeframes.map((entry) => ({ ...entry })),
+          checkedAt: new Date().toISOString(),
         };
 
         return reply.code(200).send(body);
