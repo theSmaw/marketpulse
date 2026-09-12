@@ -378,9 +378,17 @@ The audit above lists `--chart-reference`, `--chart-crosshair` and
 and notes that the three are exactly 2.12.5's, 2.12.6's and 2.12.7's, in that
 order — which makes the audit a progress check.
 
-**It has ticked once.** `--chart-reference` is read by
-`PriceChart.module.css`'s `.reference`, so the count is now eleven of thirteen
-with an application consumer and **two** remain. Re-take the audit at the close
+**It has ticked once and one row needs a different reading.** `--chart-reference`
+is read by `PriceChart.module.css`'s `.reference`, so **two** of the three remain
+— `--chart-crosshair` and `--chart-uncovered`, which are 2.12.6's and 2.12.7's.
+
+**`--price-unchanged-wash` has also lost its consumer, and that is the one case
+where this audit's standing rule gives the wrong answer.** The directional wash
+splits at the rule since 2026-09-12, so there is no neutral state for it to
+colour. It is **deferred**, not unshipped: `VISUAL-LANGUAGE.md` and
+`CHARTING.md` §12.2 both reserve it for the high–low extent band at `1d`, which
+Story 2.13's window control brings. A token with a dated, documented future
+consumer is a different thing from a token nobody reached for. Re-take the audit at the close
 rather than citing this line; the standing rule is unchanged and is the reason it
 is worth taking at all — a token still read only by the specimen story is a task
 that did not ship what it said it did, not a token to delete.

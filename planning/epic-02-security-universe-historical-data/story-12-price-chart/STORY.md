@@ -603,3 +603,41 @@ broken chart too. The transferable form: **a break that is loud in the wrong
 dimension passes a test looking in the right one.** Reaching for `CLAUDE.md`'s
 recorded `--marker-color` trap by analogy is what produced a test that tested
 nothing.
+
+### Revised the same day — the wash splits at the rule, and the review above stands
+
+The fifth review was written against the chart as it first shipped. **One of its
+subjects changed hours later**, on the stakeholder looking at the screen in
+colour: the wash took a single tint for the whole area, chosen by where the line
+finished, so a window that dipped below its opening price and recovered was
+painted **green throughout**. It is split at the rule now — green above, red below
+— and `CHARTING.md` §12.6 carries the argument.
+
+**Nothing in the review above is invalidated and one item is sharpened.** The
+2.12.7 amendment's central point — that the reference rule runs the full plot
+width while the wash stops at the data — is unchanged, and the two new contrast
+pairs it names are now _four_, because `--chart-uncovered` meets a green edge or a
+red one depending on where the line was when coverage ran out.
+
+Two things that are genuinely new for later tasks:
+
+- **`--price-unchanged-wash` has no application consumer**, because a split has no
+  neutral state. [Task 2.12.10](TASK-10-deployed-verify-document-and-adr.md)'s
+  token audit must read it as **deferred to the extent band at `1d`** rather than
+  as a task that did not ship what it said it did — which is that audit's own
+  standing rule and the one case where it would give the wrong answer.
+- **The same instrument failure happened twice in one task.** The browser spec was
+  written to catch a wash with no ink and passed against the break; rewritten, it
+  passed again against _one ink used on both sides_. Both versions asserted a
+  property the broken state also had. This is amended onto
+  [Task 2.12.9](TASK-09-measured-against-fifty-milliseconds.md) already and is
+  restated here because it is a property of how this story is being tested rather
+  than of one spec.
+
+**And the finding worth carrying furthest**: the greyscale and deuteranopia
+simulations both passed against the chart whose colour was locally wrong, because
+removing the hue removes the disagreement. **A simulation proves an encoding
+survives a transform; it cannot tell you the encoding was answering the right
+question.** The check that caught this was `VISUAL-LANGUAGE.md`'s fourth test
+applied by a person, which is exactly the class of check a team stops running once
+the automated ones are green.

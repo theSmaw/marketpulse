@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { cx } from "../../cx.js";
-import type { BarSeriesView, PriceDirection } from "../../market/index.js";
+import type { BarSeriesView } from "../../market/index.js";
 import { chartDensity } from "../../market/index.js";
 import type { ChartSubject, PlotBox } from "./chart-geometry.js";
 import { chartFrame } from "./chart-geometry.js";
@@ -44,12 +44,21 @@ import styles from "./PriceChart.module.css";
 // Two consequences are structural here rather than remembered:
 //
 //  - **The rule and the fill are one value.** `chart-geometry.ts` returns a
-//    `DirectionalArea` carrying both and the direction they are tinted for, so
-//    a render with the tint and no geometry under it is unrepresentable.
-//  - **The wash's class comes from a total map** over the three directions, so
-//    a fill can never be drawn with no ink — which is the `--marker-color` trap
-//    `CLAUDE.md` records, in its natural habitat. A fourth direction is a
-//    compile error rather than an invisible mark.
+//    `DirectionalArea` carrying both, so a render with the tint and no geometry
+//    under it is unrepresentable.
+//  - **The tint is a function of position, not of the window.** The area is one
+//    path drawn twice, clipped above and below the rule: green where the line
+//    is above the price it opened at, red where it is below. So the hue repeats
+//    *exactly* what survives the hue being removed, at every point rather than
+//    only at the end.
+//
+// **That split is a 2026-09-12 revision and the first version was wrong.** The
+// whole area originally took one tint chosen by where the line finished, which
+// painted a window that dipped and recovered **green throughout** — the hue
+// contradicting the geometry everywhere the line was under the rule. One fact
+// painted over regions that locally disagreed with it. `CHARTING.md` §12.6
+// carries the argument, and it cost `--price-unchanged-wash` its consumer: a
+// split has no neutral state, because every point is above or below.
 //
 // **The high–low extent band is decided and is not drawn**, which is a stated
 // decision rather than an absence — `CHARTING.md` §12 carries the measurement.
@@ -119,31 +128,22 @@ export interface PriceChartProps {
   readonly view: BarSeriesView;
 }
 
-/**
- * The wash's ink, by direction — **a total map, and that is the point**.
- *
- * `CLAUDE.md` records the trap this shape exists to avoid: `Marker` renders
- * nothing visible unless its row sets `--marker-color`, which is a fill whose
- * colour is a consumer's responsibility and whose failure is silent. A custom
- * property set by a direction class would have reproduced it exactly. A `Record`
- * keyed on the union cannot: every direction has an ink, and a fourth one is a
- * compile error here rather than an invisible area on a chart that passes every
- * test.
- *
- * `string | undefined` is the workspace's own idiom for a class map — `Badge`,
- * `AnomalyBadge` and `MetricStrip` all spell it this way — because
- * `noUncheckedIndexedAccess` types a CSS Module's members that way at the
- * source. The exhaustiveness this is here for is over the **directions**, which
- * that does not weaken.
- */
-const WASH: Readonly<Record<PriceDirection, string | undefined>> = {
-  positive: styles.washPositive,
-  negative: styles.washNegative,
-  unchanged: styles.washUnchanged,
-};
-
 export function PriceChart({ view }: PriceChartProps) {
   const { chartRef, plotRef, regionWidth, plot } = usePlotSize();
+
+  // Three document-unique ids for the fill's definition and its two clips.
+  //
+  // **Stripped to alphanumerics**, which is not decoration: `useId` returns a
+  // value wrapped in delimiters that differ by React major — colons in 18,
+  // guillemets in 19 — and both land inside `url(#…)`, where a non-ASCII or
+  // punctuation-bearing fragment is at best engine-dependent. Deriving a safe
+  // id from it keeps the uniqueness React guarantees without depending on the
+  // shape of what it returns. No test asserts these, which is `CLAUDE.md`'s
+  // rule about `useId` and the reason it is there.
+  const id = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const areaId = `${id}-area`;
+  const aboveId = `${id}-above`;
+  const belowId = `${id}-below`;
 
   const density = chartDensity(regionWidth);
   const frame = chartFrame(plot, density, chartSubject(view));
@@ -189,12 +189,54 @@ export function PriceChart({ view }: PriceChartProps) {
            * cost `tokens.css` accepts here, and the repair if it is ever needed
            * is a darker grid rather than a paler wash. Over the ground, under
            * everything with a meaning.
+           *
+           * **One path, referenced twice.** The area is defined once and drawn
+           * through two `<use>` elements clipped above and below the reference
+           * rule, which is what makes the split cost two small elements rather
+           * than a second copy of a 1,950-point string in the DOM. Defining it
+           * as two geometrically-split paths would have been the obvious way
+           * and would have doubled both the arithmetic and the parse — the one
+           * part of this chart that is genuinely linear in the bar count.
+           *
+           * The `<use>` carries the class and the `<path>` in `<defs>` sets no
+           * fill of its own, so the ink inherits into the cloned content. A
+           * `<path>` with no fill at all would render **black**, not invisible —
+           * which is the opposite of the `--marker-color` trap and is why the
+           * browser spec reads three channels rather than asking whether it is
+           * painted.
            */}
           {frame.direction !== null && (
-            <path
-              className={cx(styles.wash, WASH[frame.direction.direction])}
-              d={frame.direction.fill}
-            />
+            <>
+              <defs>
+                <path d={frame.direction.fill} id={areaId} />
+                <clipPath id={aboveId}>
+                  <rect
+                    height={frame.direction.reference}
+                    width={plot.width}
+                    x={0}
+                    y={0}
+                  />
+                </clipPath>
+                <clipPath id={belowId}>
+                  <rect
+                    height={plot.height - frame.direction.reference}
+                    width={plot.width}
+                    x={0}
+                    y={frame.direction.reference}
+                  />
+                </clipPath>
+              </defs>
+              <use
+                className={styles.washAbove}
+                clipPath={`url(#${aboveId})`}
+                href={`#${areaId}`}
+              />
+              <use
+                className={styles.washBelow}
+                clipPath={`url(#${belowId})`}
+                href={`#${areaId}`}
+              />
+            </>
           )}
           <g shapeRendering="crispEdges">
             {frame.gridlines.map((gridline) => (

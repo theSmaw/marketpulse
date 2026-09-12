@@ -388,6 +388,10 @@ The washes are, for practical purposes, **the same colour**. That is a stronger 
 
 **A flat window gets the neutral wash.** Three states, not two, exactly as the price trio already is: `--price-unchanged` is achromatic on every screen in this product, and a window that closed where it opened is not a green one.
 
+> **Reversed 2026-09-12 by Task 2.12.5, on a screenshot rather than a measurement.** The fill is **split at the rule** — `--price-positive-wash` above it, `--price-negative-wash` below — so the tint is a function of **position** rather than of the window. One tint for the whole area painted a window that dipped and recovered **green throughout**, hue contradicting geometry everywhere the line was under the rule. The split is strictly stronger against the 1.009:1 measurement above, because what the hue repeats is now exactly what survives the hue being removed.
+>
+> **So there is no neutral state**: every point is above or below, and a flat window is green where it was up and red where it was down. `--price-unchanged-wash` keeps one documented consumer — the high–low extent band, if Story 2.13's `1d` brings it — and none in the application today. `CHARTING.md` §12.6 carries the argument.
+
 **The identity accent stays off all of it.** `brand.css`'s crimson has four sanctioned positions in the chrome and a datum is not one of them; a crimson current-price line would be a fifth position and is a decision to escalate, not a detail to slip in.
 
 ### Partial coverage is drawn as space
@@ -415,24 +419,24 @@ The breakpoints are the **region's**, not the page's: the Price region is 1,019 
 
 Achromatic, structural and geometric values in `tokens.css`; anything carrying market meaning in `market.css`. Several chart values equal a chrome value today and are **still separately named**, which is the argument `--price-unchanged` and the `--service-*` trio already make in `market.css`: two values that coincide for different reasons must be able to move apart.
 
-| Token                    | Value     | Notes                                                             |
-| ------------------------ | --------- | ----------------------------------------------------------------- |
-| `--chart-axis`           | `#181c23` | The one rule. Same value as `--rule-strong`                       |
-| `--chart-grid`           | `#e2e4ed` | 1.27:1 on white; **1.11:1 where a wash passes under one**         |
-| `--chart-seam`           | `#c4c6cf` | 1.70:1. The canvas's own `--mp-line-strong`, adopted here at last |
-| `--chart-reference`      | `#74777f` | 4.48:1. The dashed rule at the opening close                      |
-| `--chart-series`         | `#181c23` | The close line                                                    |
-| `--chart-series-width`   | `1.5px`   |                                                                   |
-| `--chart-crosshair`      | `#43474f` | 9.32:1 — quieter than the data it points at                       |
-| `--chart-uncovered`      | `#f2f3f9` | 1.107:1 — the quietest mark in this language, deliberately        |
-| `--chart-height`         | `280px`   |                                                                   |
-| `--chart-height-compact` | `220px`   |                                                                   |
-| `--chart-gutter`         | `56px`    | The value scale's width                                           |
-| `--chart-gutter-compact` | `46px`    |                                                                   |
-| `--chart-filing-lane`    | `14px`    | Added 2026-09-12 by Task 2.12.4 — the reserved lane below, named  |
-| `--price-positive-wash`  | `#e6f2ec` | 1.15:1 on white; near-black on it measures 14.87                  |
-| `--price-negative-wash`  | `#fbeae9` | 1.16:1 on white; near-black on it measures 14.68                  |
-| `--price-unchanged-wash` | `#eef0f6` | A window that closed where it opened                              |
+| Token                    | Value     | Notes                                                                                                               |
+| ------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------- |
+| `--chart-axis`           | `#181c23` | The one rule. Same value as `--rule-strong`                                                                         |
+| `--chart-grid`           | `#e2e4ed` | 1.27:1 on white; **1.11:1 where a wash passes under one**                                                           |
+| `--chart-seam`           | `#c4c6cf` | 1.70:1. The canvas's own `--mp-line-strong`, adopted here at last                                                   |
+| `--chart-reference`      | `#74777f` | 4.48:1. The dashed rule at the opening close                                                                        |
+| `--chart-series`         | `#181c23` | The close line                                                                                                      |
+| `--chart-series-width`   | `1.5px`   |                                                                                                                     |
+| `--chart-crosshair`      | `#43474f` | 9.32:1 — quieter than the data it points at                                                                         |
+| `--chart-uncovered`      | `#f2f3f9` | 1.107:1 — the quietest mark in this language, deliberately                                                          |
+| `--chart-height`         | `280px`   |                                                                                                                     |
+| `--chart-height-compact` | `220px`   |                                                                                                                     |
+| `--chart-gutter`         | `56px`    | The value scale's width                                                                                             |
+| `--chart-gutter-compact` | `46px`    |                                                                                                                     |
+| `--chart-filing-lane`    | `14px`    | Added 2026-09-12 by Task 2.12.4 — the reserved lane below, named                                                    |
+| `--price-positive-wash`  | `#e6f2ec` | 1.15:1 on white; near-black on it measures 14.87                                                                    |
+| `--price-negative-wash`  | `#fbeae9` | 1.16:1 on white; near-black on it measures 14.68                                                                    |
+| `--price-unchanged-wash` | `#eef0f6` | **No application consumer since 2026-09-12** — the split has no neutral state. Reserved for the extent band at `1d` |
 
 ### What this section deliberately does not decide
 

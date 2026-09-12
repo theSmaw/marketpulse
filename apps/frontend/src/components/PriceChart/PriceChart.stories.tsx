@@ -32,6 +32,10 @@ import styles from "./PriceChart.stories.module.css";
 //    on the one mark repeated 1,950 times; that is `VISUAL-LANGUAGE.md`'s
 //    measurement, where the price washes differ by 1.009:1 under `grayscale(1)`
 //    and are therefore the same colour.
+//  - **The wash agrees with the geometry everywhere, not just at the end.**
+//    Green above the rule, red below it. A window that dips and recovers must
+//    show both; one colour across the whole area is the defect this was
+//    revised out of on 2026-09-12.
 //  - **A frame with nothing in it is still a chart.** `Waiting` is the state
 //    `PRODUCT_SPEC.md` §28's 500 ms is satisfied by, and it must read as a
 //    scale about to be filled rather than as an empty box.
@@ -181,12 +185,15 @@ export const Held: Story = {
 
 /**
  * **A window that rose.** The line finishes above the dashed rule at the price
- * it opened at, and the area between them carries the positive wash.
+ * it opened at.
  *
- * The thing to check is the order of the two channels: read the picture with
- * the tint ignored and it still says *up*, because the line is on the upper
- * side of a rule that is on the plot. That is the claim `Greyscale` below
- * tests rather than asserts.
+ * Two things to check, and the second is the one revised on 2026-09-12. The
+ * **order of the channels**: read the picture with the tint ignored and it still
+ * says *up*, because the line is on the upper side of a rule that is on the
+ * plot. And the **tint's subject**: the early minutes of this window trade below
+ * their own open, so that stretch is **red** inside a window that rose. One
+ * colour across the whole area would be a window-level fact painted over
+ * regions that locally disagree with it.
  */
 export const WindowRose: Story = {
   args: { view: barSeriesFixtureView("full") },
@@ -208,9 +215,13 @@ export const WindowFell: Story = {
  *
  * HD's 13:00–14:00 ET hour on 2026-09-04 traded between 320.31 and 320.97 and
  * ended at 320.705, where it started. So the line wanders, the fill has real
- * area on **both** sides of the rule, and the direction is still none — which
- * is why the wash is achromatic here rather than green. A flat window tinted
- * green would be a chart claiming a move the market did not make.
+ * area on **both** sides of the rule, and it finishes exactly on it.
+ *
+ * **There is no neutral wash here and there is no neutral state to have one.**
+ * Since the fill splits at the rule, a flat window is green where it was up and
+ * red where it was down — which is more informative than a single achromatic
+ * tint was, and is the clearest case for why the split is right: this window's
+ * shape is the whole of what there is to say about it.
  *
  * The genuinely degenerate case — every bar identical, a price domain of zero
  * height — is `FLAT_DOMAIN_FRACTION`'s and lives in `chart-value-axis.test.ts`.
@@ -226,13 +237,17 @@ export const WindowFlat: Story = {
  * **The density the product actually opens at** — 1,950 bars over five
  * sessions, which is 0.47 px per bar at the region's measured 923 px.
  *
- * Two things to look at, and neither is visible in any other story. The
+ * Three things to look at, and none is visible in any other story. The
  * **wash under four session seams**: the fill passes beneath every dashed
  * vertical and beneath every gridline, which is where the grid drops from
  * 1.27:1 to 1.11:1 — the one cost `tokens.css` accepts, and the thing to
- * confirm is that a gridline crossing tinted ground is still a gridline. And
- * the **area path at 1,950 points**, which is the line's own path with two
- * segments and a close appended rather than a second walk over the bars.
+ * confirm is that a gridline crossing tinted ground is still a gridline. The
+ * **area path at 1,950 points**, which is the line's own path with two segments
+ * and a close appended rather than a second walk over the bars — and which is
+ * defined once and referenced twice, so the split costs two small elements
+ * rather than a second copy of that string. And the **two sessions below the
+ * opening rule**: NVDA's first two days of this window trade under where it
+ * opened, so a fifth of a window that gained 5.19% is red.
  */
 export const Dense: Story = {
   args: { view: barSeriesFixtureView("dense") },
@@ -243,12 +258,12 @@ export const Dense: Story = {
  * **All four, with the hue taken out.** This is the acceptance criterion.
  *
  * `--price-positive-wash` and `--price-negative-wash` differ by **1.009:1**
- * under `grayscale(1)`, so the first two panels below are, for practical
- * purposes, tinted the same colour — and the third is too. If direction were
- * carried by the wash, this row would be four identical statements.
+ * under `grayscale(1)`, so every tinted region below is, for practical
+ * purposes, the same grey — including the two sides of the same chart. If
+ * direction were carried by the wash, this row would say nothing at all.
  *
  * It is not, because the rule is on the plot and the line is on one side of it.
- * Read top to bottom: up, down, neither, up.
+ * Read top to bottom: up, down, finished where it started, up.
  */
 export const Greyscale: Story = {
   args: { view: barSeriesFixtureView("full") },

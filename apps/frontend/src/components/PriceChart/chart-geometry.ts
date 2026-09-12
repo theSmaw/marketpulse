@@ -3,11 +3,9 @@ import type { Bar, Timeframe, TimeRange } from "@marketpulse/shared";
 import type {
   ChartDensity,
   LinearScale,
-  PriceDirection,
   SlotScale,
 } from "../../market/index.js";
 import {
-  directionOf,
   linearScale,
   placeBars,
   priceDomain,
@@ -65,9 +63,9 @@ import {
 // side of the rule the line finishes on — is the first channel, and the tint is
 // the second. A component able to render the fill without the rule would have
 // shipped a chart whose direction is carried by **1.009:1 under
-// `grayscale(1)`**, which is to say by nothing. Here it cannot: the rule's `y`,
-// the fill's path and the direction the wash is named for arrive together or not
-// at all.
+// `grayscale(1)`**, which is to say by nothing. Here it cannot: the rule's `y`
+// and the fill's path arrive together or not at all, and the renderer splits
+// that one path at that one `y` to colour it.
 
 /** The plot's own box, measured from the laid-out element. */
 export interface PlotBox {
@@ -125,13 +123,28 @@ export interface ChartFrame {
 /**
  * **Direction, drawn as position first and as hue second** (Task 2.12.5).
  *
- * One value with three fields rather than three fields on {@link ChartFrame},
- * and that is the mechanism the task asked for rather than a grouping
- * preference. `VISUAL-LANGUAGE.md` measured the two washes at **1.009:1 under
+ * One value with two fields rather than two fields on {@link ChartFrame}, and
+ * that is the mechanism the task asked for rather than a grouping preference.
+ * `VISUAL-LANGUAGE.md` measured the two washes at **1.009:1 under
  * `grayscale(1)`** — washed back to a fill, positive and negative are the same
  * colour — so a chart that drew the tint and not the rule would be a chart with
  * no direction on it at all, rendering perfectly and saying nothing. Bundling
  * them makes that state unrepresentable rather than discouraged.
+ *
+ * ## The fill carries no colour decision, and that is the 2026-09-12 revision
+ *
+ * This shipped with a **third** field — the window's direction — because the
+ * whole area took one tint chosen by where the line finished. That was wrong in
+ * a way the first screenshot showed: a window that dips below its opening price
+ * and recovers was painted **green throughout**, so the hue contradicted the
+ * geometry everywhere the line was below the rule. It was one fact painted over
+ * regions that locally disagreed with it.
+ *
+ * The area is now **split at the rule by the renderer** — green above, red below
+ * — so the tint is a function of *position* rather than of the window, and there
+ * is nothing here for a direction to decide. That is strictly stronger against
+ * the measurement above rather than a matter of taste: what the hue repeats is
+ * now exactly what survives the hue being removed.
  *
  * ## What Epic 8 does to this
  *
@@ -151,6 +164,10 @@ export interface DirectionalArea {
   /**
    * The closed area between the close line and the rule, as an SVG path.
    *
+   * **One path for both colours.** The renderer draws it twice, clipped above
+   * and below the rule, so the split costs two small elements rather than a
+   * second walk over the bars or a second copy of the point string.
+   *
    * Built by **appending two segments and a close to the line's own `d`**
    * rather than by walking the bars a second time. At the default window that
    * is 1,950 points already in a string; re-deriving them would double both the
@@ -158,16 +175,6 @@ export interface DirectionalArea {
    * budget is spent on, for a path that is the same line with a lid on it.
    */
   readonly fill: string;
-  /**
-   * Which of the three the window was, for the wash's ink.
-   *
-   * From {@link directionOf} on the same percentage `series-facts.ts` computes
-   * for the reading above the plot — **the same subject and the same rounding**,
-   * so the tint, the glyph, the sign and the spoken word cannot disagree about
-   * which way this window went. Two channels disagreeing is worse than either
-   * being wrong alone.
-   */
-  readonly direction: PriceDirection;
 }
 
 /**
@@ -325,7 +332,7 @@ function linePath(
 }
 
 /**
- * The dashed rule, the area between it and the line, and the window's direction.
+ * The dashed rule, and the area between it and the close line.
  *
  * ## Which price the rule sits at, which is the question this task was handed
  *
@@ -379,11 +386,13 @@ function directionalArea(
   const first = placed[0];
   const last = placed[placed.length - 1];
   if (series === null || first === undefined || last === undefined) return null;
+  // Not a price any equity has, so a corrupt bar rather than a division to
+  // attempt — `series-facts.ts` declines the same case and renders no
+  // percentage. The rule is that bar's open, so a zero would put the datum on
+  // the floor of a domain it does not belong to.
   if (first.bar.open === 0) return null;
 
   const reference = round(scaleValue(y, first.bar.open));
-  const change =
-    ((last.bar.close - first.bar.open) / first.bar.open) * PER_CENT;
 
   return {
     reference,
@@ -397,12 +406,8 @@ function directionalArea(
     fill:
       `${series} L${String(round(scaleSlot(x, last.slot)))} ${String(reference)}` +
       ` L${String(round(scaleSlot(x, first.slot)))} ${String(reference)} Z`,
-    direction: directionOf(change),
   };
 }
-
-/** A ratio as a percentage, so the direction is decided on the figure a reader sees. */
-const PER_CENT = 100;
 
 /**
  * One decimal place.
