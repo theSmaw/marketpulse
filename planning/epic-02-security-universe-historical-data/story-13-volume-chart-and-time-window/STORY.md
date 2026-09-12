@@ -133,6 +133,73 @@ and an instant swap of one dataset for another is the version that feels dead.
 The epic's exit criterion met in substance, and the window control Epics 8, 11 and 13 reuse
 or deliberately distinguish themselves from.
 
+## Tasks — added 2026-09-12
+
+Ten tasks, sequential. The shape follows Stories 2.9 to 2.12: **the decisions are
+settled first and ship nothing** (2.13.1, 2.13.2), the arithmetic that needs no
+screen is built and tested on its own (2.13.3), and the first visible thing lands
+as early as the dependency graph allows rather than at the end.
+
+**Seven of the ten change something a person can see, and the first of those is
+fourth** — the same arrangement Stories 2.11 and 2.12 used, for the reason
+`CLAUDE.md` gives: a run of tasks with no visible change is how a product stops
+being demonstrable.
+
+**Volume comes before the control, and that is the one ordering decision worth
+arguing for.** The story is explicit that the two halves are one interaction, which
+is a reason to design them together (2.13.2 does) rather than to build them
+together. One series in one window on an axis already known to be right is a
+smaller problem than a control that moves two series at once; building volume first
+means the control arrives with something to move, and means a week of work does not
+pass with nothing on screen.
+
+**2.13.1 and 2.13.2 are split because they are different decisions.** The first is
+what the product offers — which windows exist, what each costs in stored depth, in
+bytes, in a refused cap and in a calendar walk. The second is the instrument: what
+the control and the volume bars look like, on the canvas that has been the source of
+truth since ADR 0026, with the tokens landed in the chain the ADR fixes.
+
+**2.13.3 carries a repair rather than only an addition.** The `timeAxis` walk costs
+**46 ms of a 50 ms budget** at the widest window this story might offer, twice per
+render, and **20.6 ms** again on the server — three callers of one algorithm. It is
+memoised in `packages/shared` before any wide window is reachable, and explicitly
+**not** with a `useMemo` in a component, which would fix one caller of three.
+
+**2.13.4 is the payoff and 2.13.7 is what makes it honest**, split as 2.12.4 and
+2.12.7 were. The first is a correct second series in a correct frame; the second is
+every way a window change can answer — stale above all, which is inherited whole
+and which this control is the first thing in the product to produce deliberately.
+
+**2.13.8 and 2.13.9 are the criteria a green `pnpm verify` cannot see**: a tab stop
+that does not land behind the sticky chrome, a text alternative that accounts for a
+window the reader chose, a selected state that survives greyscale — and the cost of
+the first marks on this axis that are **per bar**, which at the cap was measured at
+9,790 elements and tasks of 137–254 ms and at the default window at none.
+
+| Task                                                                             | What it does                                                                   | Visible?                      |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------- |
+| [2.13.1](TASK-01-settle-the-windows-the-timeframes-and-the-vocabulary.md)        | Which windows, the timeframe mapping, the URL vocabulary, what a window costs  | No                            |
+| [2.13.2](TASK-02-the-window-control-and-volume-on-the-canvas.md)                 | What the control and the volume bars look like, and the pair's proportion      | **In the workshop**           |
+| [2.13.3](TASK-03-one-axis-volumes-arithmetic-and-the-calendar-walk.md)           | One axis as an object, volume's arithmetic, the calendar walk memoised         | No                            |
+| [2.13.4](TASK-04-volume-in-the-region-that-named-it.md)                          | Volume beneath price, in the region that has been naming this story            | **Yes — the payoff**          |
+| [2.13.5](TASK-05-one-reading-two-series.md)                                      | One crosshair, one readout, one tab stop — now answering for both series       | **Yes**                       |
+| [2.13.6](TASK-06-the-window-control-on-screen.md)                                | The control, the query string's first occupant, both charts moving together    | **Yes — the second payoff**   |
+| [2.13.7](TASK-07-every-state-of-a-window-change.md)                              | Stale, superseded, empty, partial, refused, failed — produced from real bodies | **Yes**                       |
+| [2.13.8](TASK-08-the-walk-keyboard-screen-reader-and-the-week-with-a-holiday.md) | The walk, and criterion 3 proved through the control rather than re-derived    | **Yes**                       |
+| [2.13.9](TASK-09-measured-the-bars-the-window-and-fifty-milliseconds.md)         | Per-bar fills at the cap, the window change, the repair re-measured            | No, unless it finds something |
+| [2.13.10](TASK-10-deployed-verify-document-and-adr.md)                           | Deployed, the four tests applied, `VOLUME-AND-WINDOW.md`, ADR 0028             | **Yes — deployed**            |
+
+**The subject document is `VOLUME-AND-WINDOW.md`** in this directory, created by
+2.13.1 and finished by 2.13.10. It is not a section of `CHARTING.md`: that document
+is how this product **draws**, and half of what this story settles is a window
+vocabulary that Epic 8 reuses, Epic 11 pushes with `setTimeWindow` and Epic 13
+deliberately distinguishes its own scrubber from. `CHARTING.md` gains amendments
+where the chart layer itself learns something, as §§10–17 did.
+
+**What none of the ten owns**: the feed label's wording, a stitched series naming two
+sources, and the epic's formal close. Those are Story 2.14's, and 2.13.10's job is
+an accurate statement of what is left rather than an early attempt at it.
+
 ---
 
 ## Amended 2026-09-10 by Task 2.10.9, after Story 2.10 closed — the window control's rules are already written
