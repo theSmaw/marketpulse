@@ -1113,6 +1113,8 @@ The market topology should intentionally exercise WebGL.
 
 A good candidate is a WebGL graph renderer such as Sigma.js, with the graph model kept separate from rendering.
 
+**This section governs the topology and not the 2-D chart layer — amended 2026-09-12 by Story 2.12.** There are two rendering decisions in this product, taken against different problems. Price, volume, comparison and anything else hung on a time axis are **hand-built SVG behind a wrapper, with no charting library**: see [ADR 0027](../docs/adr/0027-the-chart-layer-hand-built-svg-and-what-a-green-chart-suite-certifies.md) and [`CHARTING.md`](epic-02-security-universe-historical-data/story-12-price-chart/CHARTING.md). Nothing here reopens that, and nothing there reopens this.
+
 Target initial visualization:
 
 - 500 nodes;

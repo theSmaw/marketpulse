@@ -1,6 +1,6 @@
 # Task 2.12.10 — Deployed, verified, documented, and the four tests applied
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-12.** Story 2.12 is closed.
 **Story:** [2.12 Price Chart](STORY.md)
 **Depends on:** 2.12.8, 2.12.9
 
@@ -663,3 +663,102 @@ universe table rather than the chart (§16.1). It is already recorded in
 gap list — so this task owes it **nothing but not contradicting it**: do not write
 "the security page produces no long task" anywhere in ADR 0027 or in the close.
 The chart does. The page does not.
+
+---
+
+## What this task did — 2026-09-12
+
+**Nothing was re-measured that a previous task had already measured.** Nine
+tasks' amendments say what they already swept, and this close confirmed those
+rather than repeating them. What was taken fresh is the deployed verification,
+the screenshots, the audits the story explicitly owed, and four mechanical
+re-measures whose whole cost is one command each.
+
+### Deployed, and it was already there
+
+The deploy ran on the 2.12.9 merge and succeeded; no deploy was needed.
+`pnpm e2e:deployed` is **16/16 green**, `check-deployed` reports the pair
+coherent, and `/securities/NVDA` was opened cold, from a deep link, at three
+viewports. **The deployed chart is `loaded` and holds all 1,950 bars of the
+window asked for** — the store was one session behind at both timeframes and the
+nightly backfill had caught up to Friday. `CHARTING.md` §17.1 records the
+consequence nobody had written down: the deployed environment is the one place
+§14's coverage treatment is **not** under observation, because there is nothing
+uncovered there to observe.
+
+### The four tests: three pass, and test 4's answer is argued
+
+`CHARTING.md` §17.2, against the deployed page at 1440×900, 1024×800 and
+390×780. Test 4 — _does it feel alive?_ — is "not yet, and not from here" for the
+second time, and the argument is the one 2.12.2 and 2.12.8 both made: the motion
+vocabulary belongs to Epic 3, against real moving numbers.
+
+**2.12.8's question about the narrow viewports was answered by looking.** At 390
+the invitation wraps to two lines and fills the reserved row exactly; at 1024 it
+is one line with roughly a line of space beneath it, and it reads as separation
+rather than as a gap because the coverage sentence below is a separate unit with
+its own marker. **No change taken**, and §15.4's measurement stands.
+
+### What was found rather than confirmed
+
+**One live claim was false, and it was in code rather than in a document.**
+`market/chart-density.ts`'s header said the 600 px boundary was stated twice,
+once as a media query in the component's stylesheet — which Task 2.12.4 had
+already falsified when it built the chart the other way. Every document that
+carries this was correct; the module asserting it about itself was not, and
+nothing swept it because the sweep lists name documents. Corrected.
+
+**One stale claim in `README.md`, stale by three stories.** The routes table said
+`/securities` held "101 real securities ... eleven sectors" and "no search, no
+click-through and no prices". It has 518 in twelve bands, with search and
+click-through since 2.11 and a chart since 2.12, and `/securities/:symbol` was
+not in the table at all. Corrected, and the row for the per-security route added.
+
+### Audits, taken rather than cited
+
+All in `CHARTING.md` §17.3. **Every one of the sixteen `--chart-*` tokens has an
+application consumer** — the audit 2.12.2 opened with eighteen tokens and no
+consumers is closed. `--price-unchanged-wash` is the single row with none and is
+deferred by name, which both the component and its stylesheet carry a comment
+about.
+
+**The most dangerous entry on `CLAUDE.md`'s gap list was re-measured rather than
+assumed**, because this story added five files under `src/market/`: a file
+importing `node:path` and deep-importing `market/chart-geometry.js` produces
+**two** errors. The browser boundary and the market pattern are both live.
+
+Also re-run: no `@media` in `PriceChart.module.css`; both `timeAxis` and
+`positionOfInstant` in both `chart-alternative.ts` and `chart-geometry.ts`; all
+four fixture-leak greps clean against a fresh build; `initiallyCollapsed` unused
+by any route.
+
+### The sweep
+
+`CLAUDE.md` — the story-level close paragraph, the ADR range 0001–**0027**, the
+record table gaining `CHARTING.md`, the **two rendering decisions** under
+_Intended stack_, the chart vocabulary in the design-language paragraph, and the
+**three gap-list entries this story owed** (the greyscale property, the wash
+painted with a wash rather than with black, and the scale built against the plot
+rather than the region). `PRODUCT_SPEC.md` §27 gained the same pointer, because
+it is the document that most invites the wrong inference. `README.md`, `EPIC.md`,
+`STORY.md` and `VISUAL-LANGUAGE.md` as above.
+
+**`VISUAL-LANGUAGE.md`'s chart section reconciled by checking rather than by
+assuming**: the breakpoint table, the tick counts, the plot heights and the
+gutters all match `chart-density.ts`.
+
+### One thing left owed, deliberately visible
+
+**The canvas edit ADR 0026's procedure calls for was not taken.** The
+`Component library for MarketPulse` project is not reachable through `DesignSync`
+from this session. The edit is a sentence on `Price reading.dc.html` §01 saying
+the reading strip's reservation is a measurement rather than a height, and it is
+recorded in `CHARTING.md` §17.3a and as a note in `VISUAL-LANGUAGE.md` so that it
+is owed rather than lost.
+
+### Gates
+
+`pnpm verify` green, `pnpm links` green (286 documents, 922 cross-file links, 0
+broken), `pnpm e2e:deployed` green at 16/16. **`pnpm e2e` was not run locally**:
+this change is Markdown plus one comment block, it cannot turn a browser suite
+red, and CI's required `e2e` check runs it on the pull request.

@@ -1,8 +1,8 @@
 # Epic 2 — Security Universe & Historical Market Data
 
-**Status:** In progress — **Stories 2.1 to 2.11 complete (2026-09-11); Story 2.12 next.** Three stories remain: the price chart (2.12), the volume chart and window control (2.13), and the epic close (2.14).
+**Status:** In progress — **Stories 2.1 to 2.12 complete (2026-09-12); Story 2.13 next.** Two stories remain: the volume chart and window control (2.13), and the epic close (2.14).
 
-**Half the epic's exit criterion is met and demonstrable on the deployed site: a user can search for NVDA and open it.** Story 2.4 put the first real data on screen and Story 2.11 made the screen interactive — a search field that matches as you type, a per-security URL that deep-loads cold, and the Security Explorer shell holding §8.3's seven regions, two of them filled. The other half — inspect recent historical price and volume — is 2.12 and 2.13, and **both fill a region of that shell that already exists and already names them** rather than adding a panel.
+**The epic's exit criterion is three-quarters met and demonstrable on the deployed site: a user can search for NVDA, open it, and inspect its recent historical price.** Story 2.4 put the first real data on screen and Story 2.11 made the screen interactive — a search field that matches as you type, a per-security URL that deep-loads cold, and the Security Explorer shell holding §8.3's seven regions, two of them filled. **Story 2.12 then drew the first chart in MarketPulse** into the Price region of that shell — a session-ordinal axis, direction carried by geometry rather than by hue, one coverage rule across six states, a reading reachable by keyboard, and a text alternative that counts trading minutes (ADR 0027, [`CHARTING.md`](story-12-price-chart/CHARTING.md)). What remains of the criterion is **volume and the window control**, which is 2.13 — and it fills a region of that shell that already exists and already names it rather than adding a panel.
 **Sequence:** 2 of 15 — follows Epic 1 (Application Foundation)
 **Spec references:** PRODUCT_SPEC.md §6 (initial market universe), §7.1 (Alpaca), §8.3 (Security Explorer), §30 (storage)
 

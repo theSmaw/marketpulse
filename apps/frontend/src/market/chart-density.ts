@@ -23,12 +23,21 @@ import type { TimeTickOptions } from "./chart-time-axis.js";
 // `--chart-height` / `--chart-height-compact` and `--chart-gutter` /
 // `--chart-gutter-compact` and hands the numbers to the scales.
 //
-// The 600 px boundary is therefore stated **twice** — once in a media query in
-// the component's stylesheet, once here — and nothing checks that the two agree.
-// That is not avoidable: no stylesheet is applied in the test environment and
-// jsdom computes no layout, so a module that read the breakpoint from CSS could
-// not be tested without a browser. It is the same class of gap as the grid's
-// column count, and it is recorded in the task file rather than left implicit.
+// This was written expecting the boundary to be stated **twice** — once in a
+// media query in the component's stylesheet and once here — with nothing
+// checking that the two agreed. **Task 2.12.4 built it the other way and there
+// is no media query** (`CHARTING.md` §11.1): the component sets a density class
+// from this module's answer and the stylesheet keys on the class, so the 600 px
+// boundary has exactly one home, which is this file. What it costs instead is
+// that the component **measures** its plot rather than reading `--chart-height`
+// — and that is also the only shape that works, since `getTokens()` throws where
+// no stylesheet is applied.
+//
+// The hazard that remains is the obvious well-meant change: the natural way to
+// make a chart responsive is a media query, and the second one added here would
+// be a second copy of a number nothing compares. `CLAUDE.md`'s gap list keeps it
+// as a live hazard for that reason. Re-measure: `grep -n "@media"` in
+// `PriceChart.module.css` must find nothing.
 
 /** What a region's width buys. */
 export interface ChartDensity extends TimeTickOptions {

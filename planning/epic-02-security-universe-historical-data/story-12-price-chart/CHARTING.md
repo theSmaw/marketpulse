@@ -1911,3 +1911,247 @@ found nothing** — `2026-09-04T13:3[0-9]`, `Agilent Technologies`,
 recorded for this task (1,104,621 and 972,239 bytes) were deliberately kept in a
 scratch directory and never checked in, so this story's fixture set is unchanged
 at fourteen and the largest thing in it is still `dense.json`.
+
+---
+
+## 17. The close — added 2026-09-12 by Task 2.12.10
+
+The decisions above were settled on 2026-09-11 against a spike, and the ten
+sections since were written from the other side of a shipped chart. This one
+closes the document: what the deployed product actually does, the design bar
+applied to it, the audits the story owed, and what Story 2.13 inherits.
+
+**The decisions themselves are now ADR 0027**, which carries them and the
+"what a green check certifies" half. This document stays the working record —
+every alternative, every measurement and every reversal trigger — and ADR 0027
+cites it rather than restating its figures, because §0's instruction is to
+re-take rather than cite and an ADR that copied them would be a second place for
+them to go stale.
+
+### 17.1 The chart is live, and the deployed store is in a different state from the developer's
+
+Verified 2026-09-12 against <https://red-smoke-029583a0f.5.azurestaticapps.net>,
+cold, from a deep link, at three viewports. `pnpm e2e:deployed` is green at 16/16
+and `check-deployed` reports the pair coherent — backend up, the frontend
+document and both assets served together, and the store **1 session behind at
+both `1m` and `1d`**.
+
+**And the chart there is `loaded`, not `partial`.** `/securities/NVDA` holds all
+**1,950 bars of the window asked for**: 231.14 open, 234.76 high, 217.20 low,
+218.19 close, −5.60% across the window, `All US exchanges`. §11.3 records that a
+developer's store draws the same window four-fifths short, and §14 designed the
+treatment for exactly that. **Both are correct and they photograph completely
+differently**, which is why every screenshot below says which store it came from.
+2.12.7's amendment predicted a _small_ uncovered span deployed; what is actually
+there is none, because the nightly backfill had caught up to Friday.
+
+The honest consequence: **the deployed site does not exercise §14's coverage
+treatment at all today.** It is held by fourteen recorded bodies, by the
+component's stories and by `security-price-chart.spec.ts` against a local store,
+and the deployed environment is the one place it is _not_ under observation. A
+deployed chart showing a large uncovered span is `GET /diagnostics/freshness`
+saying the same thing in a number, and that is the thing to notice after a merge
+rather than a fault to chase.
+
+One thing worth recording because it reads oddly at first and is correct: the
+identity block says **218.36, −2.37%, from a stored daily bar** and the chart's
+headline directly beneath says **218.19, −5.60%**. Two different subjects, both
+labelled — the last _session_'s close against the last _bar_ of a five-session
+window. §5's governing principle is what makes that legible rather than
+contradictory, and the labels are doing the work they were put there to do.
+
+### 17.2 The four tests, applied to the deployed page
+
+Taken from the **deployed** store, in the region's real width, at 1440×900,
+1024×800 and 390×780. Not from the workshop, where a component looks better than
+it does in place.
+
+**1. Would a stranger believe this is a real funded product? — Yes.**
+The thing that earns it is density with restraint: 1,950 closes drawn as a single
+path at 0.47 px per bar, session seams as dashed verticals, a dashed reference
+rule at the window's open, the directional wash split at that rule, a value
+gutter that the plot stops short of, and the exact figures the picture rounds
+stated underneath in the data face. Nothing on the screen is decoration and
+nothing is a default. The provenance row and the `Asked for` / `Held` pair are
+the detail that most reads as _funded_ — a product that says what it does not
+have is a product somebody is accountable for.
+
+**2. Does it look designed rather than defaulted? — Yes.**
+This is the test a chart most often fails and the reason §1 mattered. There is no
+library's house style here because there is no library: the axis has one rule and
+no box, the gridlines are horizontal only, there is no legend, no drop shadow, no
+rounded series cap and no tooltip chrome. The value scale sits in a gutter rather
+than over the plot, and the reading appears in a reserved strip under the axis
+rather than in a floating card — which is a decision that reads as one.
+
+**3. Is there a moment in it worth showing somebody? — Yes**, and it is not the
+first paint. It is **moving the pointer across it**: the crosshair follows, the
+disc rides the line, and the strip under the axis states the bar's market
+instant, its four prices and its own change — and then doing the same thing with
+the arrow keys, from one tab stop, with the bar announced. The second half of
+that is the part worth showing to somebody who builds products, because almost
+nothing draws a chart that a keyboard can read.
+
+**4. Does it feel alive? — No, and still not from here.**
+Answered the same way against the canvas at 2.12.2 and unchanged. The motion
+vocabulary is deferred to Epic 3 on purpose, against real moving numbers, and a
+chart that animates its own first paint is decoration rather than a market
+moving. Two facts belong beside that answer rather than excusing it: §16.3
+measures the crosshair at **60 FPS at the 9,750-bar cap**, so the chart's
+interaction is not what stands in the way; and the honest form of the question
+is what the product does **when the data arrives**, which is Epic 3's live feed
+and not this story's to answer. **The story is not blocked on it** — the bar's
+own rule is that a "no" is not deferrable polish, and this is a "not yet" with a
+named owner, a named epic and a measurement saying the foundation will carry it.
+
+#### The one thing looking at the screenshots found
+
+2.12.8's amendment asks a specific question of the narrow viewports: a row sized
+by a hidden two-line reading is a row with visible empty space under a one-line
+invitation — does it read as _reserved_ or as _a gap_?
+
+**It reads as reserved, and at the phone the question does not arise.** At 390
+the invitation itself wraps to two lines and fills the row exactly. At 1024 the
+invitation is one line and there is roughly a line of space beneath it before the
+coverage sentence — and it reads as breathing room rather than as a gap, because
+the coverage sentence that follows is a separate unit with its own marker, so the
+space reads as separation between two things rather than as a half-empty box. At
+1440 nothing is in question. **No change taken**, and §15.4's measurement stands
+as the reason the alternative was rejected.
+
+### 17.3 The audits this story owed, taken rather than cited
+
+- **Every `--chart-*` token has an application consumer.** Sixteen tokens,
+  sixteen consumers outside `chart-tokens.stories.module.css`. The audit opened
+  at 2.12.2 with eighteen tokens and no consumers at all, ticked at 2.12.5
+  (`--chart-reference`), 2.12.6 (`--chart-crosshair`) and 2.12.7
+  (`--chart-uncovered`), and gained `--chart-coverage-edge` and
+  `--chart-filing-lane` along the way. **Nothing is read only by the specimen
+  story**, which was the failure this audit exists to catch — a task that did not
+  ship what it said it did.
+- **`--price-unchanged-wash` still has no application consumer, and that is the
+  one row where the standing rule gives the wrong answer.** It is deferred by
+  name to the high–low extent band at `1d` (§12.2), not unshipped. Both
+  `PriceChart.tsx` and `PriceChart.module.css` carry a comment saying so, which
+  is the durable form of this finding.
+- **The browser boundary and the market module's pattern are both live.** The
+  most dangerous entry on `CLAUDE.md`'s gap list, re-measured rather than assumed
+  because this story added five files under `src/market/`: a file importing
+  `node:path` **and** deep-importing `market/chart-geometry.js` produces **two**
+  errors, not one. Flat config is still resolving both patterns.
+- **No media query in `PriceChart.module.css`.** The 600px boundary has one home
+  in `chart-density.ts` (§11.1). The `CLAUDE.md` entry reads as a live hazard
+  rather than a present duplication, which is correct.
+- **The alternative and the wash still count the same axis.** Both
+  `chart-alternative.ts` and `chart-geometry.ts` call `timeAxis` and
+  `positionOfInstant`. This is the derivation §15.3 left standing and nothing
+  checks it.
+- **No fixture reaches the bundle.** All four named greps — `dense`,
+  `uncovered`, the first recorded body and the recorded universe — find nothing
+  in `dist/assets/*.js` against a fresh build.
+- **`initiallyCollapsed` is still unused by any route.** Component, stories and
+  tests only.
+
+### 17.3a One canvas edit is owed and was not taken — ADR 0026's procedure, left open deliberately
+
+`Price reading.dc.html` §01 specifies the reading strip as a **reserved row**, and
+§15.4 found that no single reserved height is correct at more than one width. The
+intent is unchanged and was met; the **mechanism** is not what a single height
+implies. ADR 0026's chain is canvas → `VISUAL-LANGUAGE.md` → `tokens.css` →
+components, and where the document and the canvas disagree **the document is
+wrong** — so the repair belongs on the artboard, not in the component.
+
+**It was not taken at this close**: the `Component library for MarketPulse`
+project was not reachable through `DesignSync` from this session, which lists two
+other design-system projects and not that one. The edit is a **sentence on the
+artboard** rather than a new value — an artboard draws one width and cannot
+express _"as tall as a reading is here"_ — and it is recorded here and as a note
+in `VISUAL-LANGUAGE.md`'s chart section so that it is owed rather than lost.
+`--chart-readout-height` remains correct as the row's **floor**, which is what
+both documents now say.
+
+### 17.4 `Foundations/Chart tokens` stays, and it is a decision rather than a leftover
+
+2.12.2 built it because there were tokens and no chart; 2.12.4 onwards gave every
+one of those tokens a real consumer, so the obvious reading is that it is now
+redundant. **It is not, and it is kept on the argument `Marker`'s own story
+makes**: it is the only surface that shows the marks **as a language** rather
+than as one chart — every ink side by side, at its real weight, with the
+greyscale pair §12.5 verifies direction against. Epic 5's anomaly markers and
+Epic 9's filing markers are the next inks to join that vocabulary and they will
+be reviewed there before they are drawn anywhere.
+
+The trigger for removing it is a condition: **the first time a token on that
+surface disagrees with what the chart draws.** At that point it has stopped being
+a specimen of the language and become a second copy of it.
+
+### 17.5 What Story 2.13 inherits, in one place
+
+Six items. The first five were written into this document and the sixth into
+2.13's own `STORY.md` at 2.12.9; this is the list, not the argument.
+
+1. **The axis.** Session-ordinal, `timeAxis` and `positionOfInstant`, with the
+   x-domain from `coverage.requested` and never from the bars (§3, §6.2). A
+   second plot shares it rather than building one.
+2. **The density decision.** One breakpoint at 600px, in `chart-density.ts`, as a
+   flag and a pair of tokens rather than a number (§10.3) — and **not** as a
+   media query (§11.1).
+3. **The seam Story 2.14 renders.** The stitch between stored history and a live
+   tail is on the wire with per-series provenance and costs under 20 ms; the
+   chart does not draw it yet and 2.14 does.
+4. **The coverage rule, which is the item most likely to be got wrong by a second
+   plot.** A mark derived from the window runs the full frame; a mark derived
+   from the bars stops at the coverage edge. **Two plots sharing one x-domain
+   must stop at the same pixel** — the volume bars, their own baseline, and the
+   price line above them — and the uncovered ground is drawn once per plot rather
+   than once per region. Note the volume bars are **fills**, which is what §14.5's
+   one-pixel finding was about: that measurement error was invisible for three
+   tasks because every mark before it was a stroke.
+5. **`chart-alternative.ts`'s `1d` branches have never been executed.**
+   `intervalWord` and `slotWord` each carry one — _"trading session"_ and
+   _"sessions"_ — and all fourteen recorded bodies are `1m`, so nothing in this
+   repository reaches either. They are written, they typecheck, and they are
+   unverified English. Record a body at `1d` for the reason 2.12.5 recorded
+   `dense` and 2.12.7 recorded `uncovered`: a state a story cannot render is a
+   state nobody reviews. **And the alternative says what window was asked for** —
+   a control that changes the window changes that sentence.
+6. **The trading-calendar walk, and it is the number the window control is most
+   likely to be surprised by.** `timeAxis` is **0.202 ms** at today's
+   five-session default and **23.051 ms** over the whole stored depth at `1d`,
+   **twice per render** — **46 ms of a 50 ms budget** at a "max" window, before a
+   pixel is drawn, and again at every resize tick (§16.5). Task 2.9.9 measured
+   the same walk at 20.6 ms on the server, so the `packages/shared` repair it
+   argued for once now pays three callers. It is carried in 2.13's own
+   `STORY.md`; confirmed present at this close.
+
+And one thing that is **not** 2.13's and must not be absorbed into it: the
+security page's **50–66 ms main-thread task on every cold load is the 518-row
+universe table, not the chart** (§16.1). It is recorded in
+`SEARCH-AND-SELECTION.md` §10 with three candidate repairs, named in Story 2.14's
+close, and on `CLAUDE.md`'s gap list. The chart produces no long task; the page
+does.
+
+### 17.6 What this document certifies at the close, amending §9
+
+§9 was written before anything was built and said the decisions were taken
+against measured figures, and that **a good chart was not thereby certified** —
+the four tests being applied here. They have been, to the deployed page, and
+three pass.
+
+Two things §9 could not have said and this section can:
+
+- **The strongest evidence for §1 is a measurement §1 did not have.** Drawing one
+  element per bar at the cap produces 9,790 plot elements and tasks of
+  137–254 ms, and none at the default window (§16.7). The renderer choice and the
+  series-type threshold fall out of that single figure.
+- **The bundle prediction §1 was taken on was falsified by 21× and the decision
+  was not.** +279 B predicted, 6,552 B gzipped shipped — against the rejected
+  library's +94,809 B **before** any axis, tick, state, crosshair, readout,
+  keyboard path or text alternative (§16.6). The whole hand-built chart costs
+  6.9% of what the library would have cost on its own.
+
+**And what it still does not certify**, unchanged in kind from §9: no figure here
+is re-taken by anything. §16's timings are one laptop on one day; §0's rule is
+the same as it was. The chart's _shape_ is mechanical now —
+`PriceChart.test.tsx`'s element-count guard, break-verified — and its _cost_ is
+prose.
