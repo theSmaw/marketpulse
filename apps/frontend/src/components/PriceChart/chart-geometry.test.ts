@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import type { BarSeriesView } from "../../market/index.js";
-import { chartDensity, formatPrice } from "../../market/index.js";
+import { chartDensity, directionOf, formatPrice } from "../../market/index.js";
+import { changePercent, seriesPrices } from "../BarSeriesPanel/series-facts.js";
 import type { ChartSubject } from "./chart-geometry.js";
 import { chartFrame } from "./chart-geometry.js";
 
@@ -26,7 +27,7 @@ const PLOT = { width: 867, height: 280 };
 const DENSITY = chartDensity(923);
 
 /** What the chart is about, taken from a recorded answer the way the component does. */
-function subjectOf(name: "full" | "partial"): ChartSubject {
+function subjectOf(name: "full" | "partial" | "flat" | "dense"): ChartSubject {
   const view: BarSeriesView = barSeriesFixtureView(name);
   if (view.state !== "loaded" && view.state !== "partial")
     throw new Error(`the ${name} fixture is not an answer with bars`);
@@ -202,6 +203,7 @@ describe("the frame is never conditional on the data", () => {
       seams: [],
       ticks: [],
       series: null,
+      direction: null,
     });
   });
 });
@@ -218,5 +220,136 @@ describe("the session seam", () => {
     expect(frame.ticks.filter((tick) => tick.kind === "session")).toHaveLength(
       1,
     );
+  });
+});
+
+describe("direction, and the geometry that carries it", () => {
+  // **The load-bearing half of Task 2.12.5.** `--price-positive-wash` and
+  // `--price-negative-wash` differ by 1.009:1 under `grayscale(1)`, so the tint
+  // is not a channel — the side of the reference rule the line finishes on is.
+  // Every assertion below is about that geometry; not one of them is about a
+  // colour, which is structural here rather than a discipline (no stylesheet is
+  // applied in this environment).
+
+  it("finishes above the rule on a window that rose", () => {
+    const frame = chartFrame(PLOT, DENSITY, subjectOf("full"));
+    const drawn = points(frame.series ?? "");
+    const last = drawn[drawn.length - 1];
+
+    expect(frame.direction).not.toBeNull();
+    expect(frame.direction?.direction).toBe("positive");
+    // Above, in SVG, is a **smaller** y. Asserting the reverse passes on a
+    // scale built upside down, which is the defect this file already has one
+    // test for.
+    expect(last?.[1]).toBeLessThan(frame.direction?.reference ?? 0);
+  });
+
+  it("finishes below the rule on a window that fell", () => {
+    const frame = chartFrame(PLOT, DENSITY, subjectOf("partial"));
+    const drawn = points(frame.series ?? "");
+    const last = drawn[drawn.length - 1];
+
+    expect(frame.direction?.direction).toBe("negative");
+    expect(last?.[1]).toBeGreaterThan(frame.direction?.reference ?? 0);
+  });
+
+  it("takes the neutral direction on a window that closed where it opened", () => {
+    // The third state, and the reason a fixture had to be found for it: ten of
+    // the recorded bodies are one direction or the other. HD's hour opened and
+    // closed at 320.705 with a real 66-cent range in between, so this is a flat
+    // *window* rather than a flat *line* — the interesting case, because the
+    // fill has area on both sides of the rule and the direction is still none.
+    const frame = chartFrame(PLOT, DENSITY, subjectOf("flat"));
+
+    expect(frame.direction?.direction).toBe("unchanged");
+    expect(frame.direction?.fill).not.toBeNull();
+  });
+
+  it("sits the rule at the price the panel beneath calls the open", () => {
+    // The decision Task 2.12.4's amendment handed this task, checked rather
+    // than described. `series-facts.ts` computes the reading above the plot
+    // from the **first held bar's open**, and the rule has to be that same
+    // number or the picture and the figure are a bar apart — the failure is
+    // invisible at 1m in almost every window and visible in exactly the one
+    // where the first bar straddles the final close.
+    const view = barSeriesFixtureView("partial");
+    if (view.state !== "partial")
+      throw new Error("the partial fixture is not partial");
+
+    const subject = subjectOf("partial");
+    const frame = chartFrame(PLOT, DENSITY, subject);
+    const first = subject.bars[0];
+    if (first === undefined) throw new Error("the fixture has no bars");
+
+    // Reaching across to `BarSeriesPanel`'s own arithmetic is deliberate and is
+    // the point of the test: the invariant spans both components, and a version
+    // of this that re-implemented the open here would be asserting that this
+    // file agrees with itself.
+    const prices = seriesPrices(view.series);
+    expect(prices.open).toBe(first.open);
+
+    // The rule's y is the open through the same value scale the line uses, so
+    // the way to check it without re-deriving the scale is that the *first
+    // point's own close* lands a hair from it — the two are one bar apart.
+    const drawn = points(frame.series ?? "");
+    const firstPoint = drawn[0];
+    expect(
+      Math.abs((firstPoint?.[1] ?? 0) - (frame.direction?.reference ?? 0)),
+    ).toBeLessThan(PLOT.height / 10);
+
+    // And the direction agrees with what the panel will print, which is the
+    // whole point of taking the same number.
+    const change = changePercent(prices);
+    expect(frame.direction?.direction).toBe(directionOf(change ?? 0));
+  });
+
+  it("closes the fill back to the rule rather than leaving it open", () => {
+    // An unclosed path still *fills* in SVG — the renderer closes it for you,
+    // along a straight line from the last point to the first — so the symptom
+    // of getting this wrong is a triangle of tint across the plot rather than
+    // an error. The `Z` and the two segments before it are what make the area
+    // the region between the line and the rule.
+    const frame = chartFrame(PLOT, DENSITY, subjectOf("full"));
+    const fill = frame.direction?.fill ?? "";
+
+    expect(fill.startsWith(frame.series ?? "")).toBe(true);
+    expect(fill.endsWith("Z")).toBe(true);
+
+    // Two segments appended and no more: down to the rule at the right-hand
+    // edge, back along it to the left. A fill that walked the bars a second
+    // time would double a 1,950-point string for no new information.
+    const appended = fill.slice((frame.series ?? "").length);
+    expect(appended.match(/L/g)).toHaveLength(2);
+    expect(appended).toContain(String(frame.direction?.reference));
+  });
+
+  it("draws no rule and no fill where there is no line to be on one side of", () => {
+    const view = barSeriesFixtureView("empty");
+    if (view.state !== "empty")
+      throw new Error("the empty fixture is not empty");
+
+    const frame = chartFrame(PLOT, DENSITY, {
+      requested: view.series.coverage.requested,
+      timeframe: view.series.timeframe,
+      bars: view.series.bars,
+    });
+
+    // A rule alone would be a datum with nothing measured against it.
+    expect(frame.direction).toBeNull();
+  });
+
+  it("keeps the rule inside the frame at the default window's density", () => {
+    // 1,950 bars at 0.47 px each, which is what this product opens at and is
+    // the only recorded body that has it. The rule is the first bar's open and
+    // the domain is taken over every bar's high and low, so it is inside the
+    // plot by construction — this is the assertion that would catch a later
+    // change to either.
+    const subject = subjectOf("dense");
+    const frame = chartFrame(PLOT, DENSITY, subject);
+
+    expect(subject.bars).toHaveLength(1950);
+    expect(frame.direction?.reference).toBeGreaterThan(0);
+    expect(frame.direction?.reference).toBeLessThan(PLOT.height);
+    expect(frame.direction?.direction).toBe("positive");
   });
 });

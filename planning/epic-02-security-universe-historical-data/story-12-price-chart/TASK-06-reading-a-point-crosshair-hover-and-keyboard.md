@@ -296,3 +296,62 @@ What is now settled is where the lookup goes: `placeBars` is already called insi
 does not need a new one. The instruction stands that the arithmetic belongs in
 `src/market/`; what `chart-geometry.ts` shows is that a **pixel-level** step
 between the two is an established layer rather than a new idea.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.5 — the plot now states a direction, and this readout states a different one
+
+### Two direction statements, two subjects, and they must not be confused
+
+The plot now says **which way the window went** — a dashed rule at the price the
+window opened at, and the line finishing above or below it. This readout says
+**which way one bar went**, which is the per-bar open-against-close that
+`CHARTING.md` §2 moved here when it chose a line over candlesticks.
+
+Those are different facts and they will disagree constantly. A red minute inside
+a green window is normal, and the design canvas already states the rule it
+follows: **the tint is the window's direction, never the bar's.** It is now live
+rather than anticipated, so the thing to get right here is that the readout's
+glyph and sign are visibly _about the bar_ — a label, a position, or a heading
+that says so — rather than a second opinion on the same question the wash
+answered.
+
+The precedent to copy is one this page already sets: the identity block's
+`LAST SESSION CLOSE` and the chart's current-value reading are two figures for
+two subjects, and what keeps them apart is that each is labelled.
+
+### The crosshair crosses a rule now, and both are chrome
+
+`--chart-crosshair` is `#43474f` and `--chart-reference` is `#74777f`. Where the
+vertical crosshair meets the horizontal reference rule they cross at similar
+weight, and both are dashed-or-solid chrome rather than data. Decide what that
+intersection looks like rather than discovering it: a crosshair that reads as
+part of the reference rule, or a reference rule that looks broken where the
+crosshair sits, are both the sort of thing only a screenshot finds.
+
+The cheap answer is probably that the crosshair is drawn **over** the rule and is
+solid where the rule is dashed, which is already the difference between them.
+
+### The memoisation repair got slightly larger
+
+The amendment above assigns this task the unmemoised `chartFrame` call, on the
+grounds that a pointer move rebuilds a 1,950-point path string. **It now rebuilds
+two.** The directional area is the line's own `d` with two segments and a close
+appended — cheap to derive, but the same string again in memory and the same
+string again handed to the DOM.
+
+Nothing about the repair changes; the number it is repairing roughly doubled, and
+the second of the two options — keeping the crosshair's state out of the
+component that computes the frame — is a little more clearly the right one than
+it was.
+
+### One prediction that keeps being corrected is nearly settled
+
+2.12.2 said the plot carries "roughly two dozen" elements and 2.12.4 corrected it
+to gridlines, seams and one `<path>`. It is now gridlines, seams, **two** paths
+and the reference rule. This task adds the crosshair and its disc; 2.12.7 adds
+the uncovered rect and the coverage edge. The shape has never moved and is the
+part that matters: **`O(sessions + breakpoint)`, `O(1)` in bars.** No element here
+scales with the bar count, and this task is the one most able to break that — a
+per-bar hit target is the naive way to build a crosshair and is the thing
+`CHARTING.md` §1's constraint forbids.

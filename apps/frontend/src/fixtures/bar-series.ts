@@ -4,7 +4,7 @@ import { isApiError, isBarSeriesResponse } from "@marketpulse/shared";
 import type { BarSeriesView } from "../market/index.js";
 import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
 
-// Eleven bodies `GET /market-data/bars` answers with, recorded from the real
+// Thirteen bodies `GET /market-data/bars` answers with, recorded from the real
 // endpoint over the real store — the fixture backend Stories 2.11 to 2.13 test
 // against instead of each inventing a mock (Task 2.10.6).
 //
@@ -21,7 +21,7 @@ import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
 // `timeframe` are closed unions this bundle knows; a body widened by hand to
 // "something realistic" is refused by `isBarSeriesResponse`, and the symptom is
 // `unreadable-body` in a test that looks like it is about something else. Two
-// of the ten below are deliberately in exactly that state, and they are labelled
+// of the thirteen below are deliberately in exactly that state, and they are labelled
 // as such so nobody reads them as bodies the server sends.
 //
 // ## How each was recorded, so it can be re-recorded rather than cited
@@ -38,7 +38,15 @@ import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
 // curl -s "$B?symbol=NVDA&timeframe=1m&start=2025-09-04T13:30:00.000Z&end=2026-09-04T20:00:00.000Z" > bar-series/refused-cap.json
 // curl -s "$B?symbol=NVDA&timeframe=1m&start=2023-09-04T13:30:00.000Z&end=2023-09-04T20:00:00.000Z" > bar-series/refused-calendar.json
 // curl -s "$B?symbol=ZZZZ&timeframe=1m&sessions=1"                                                  > bar-series/refused-unknown-symbol.json
+// curl -s "$B?symbol=HD&timeframe=1m&start=2026-09-04T17:00:00.000Z&end=2026-09-04T18:00:00.000Z"  > bar-series/flat.json
+// curl -s "$B?symbol=NVDA&timeframe=1m&start=2026-08-31T13:30:00.000Z&end=2026-09-04T20:00:00.000Z" > bar-series/dense.json
 // ```
+//
+// The last two were added by Task 2.12.5 and the **symbol and window in each is
+// the recording**, not an arbitrary choice: HD's hour opened and closed at the
+// same price, which no other recorded body does, and NVDA's five sessions are
+// 1,950 bars, which is the density the default window actually has. Their
+// entries below say how each was found.
 //
 // **`untracked.json` needed the universe changed under it**, which is the one
 // recording here with a side effect, so both halves are written down. The
@@ -140,7 +148,9 @@ import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
 // beside this file asserts the states they collapse to; this is the cheaper half
 // that every consumer gets for free.
 
+import DENSE from "./bar-series/dense.json" with { type: "json" };
 import EMPTY from "./bar-series/empty.json" with { type: "json" };
+import FLAT from "./bar-series/flat.json" with { type: "json" };
 import FULL from "./bar-series/full.json" with { type: "json" };
 import INCOHERENT from "./bar-series/incoherent.json" with { type: "json" };
 import PARTIAL from "./bar-series/partial.json" with { type: "json" };
@@ -153,7 +163,7 @@ import UNKNOWN_FEED from "./bar-series/unknown-feed.json" with { type: "json" };
 import UNTRACKED from "./bar-series/untracked.json" with { type: "json" };
 
 /**
- * The three transport outcomes these eleven bodies can be.
+ * The three transport outcomes these thirteen bodies can be.
  *
  * A **recorded fact about each fixture, not a computation** — deliberately, so
  * that nothing here becomes a second copy of `api-client.ts`'s classification.
@@ -304,6 +314,87 @@ export const BAR_SERIES_FIXTURES = {
     body: UNKNOWN_FEED,
     outcome: "unreadable-body",
     describes: "a body naming a feed slug this bundle does not know",
+  },
+
+  /**
+   * **HD's 13:00–14:00 ET hour on 2026-09-04, which opened and closed at
+   * 320.705.** → `loaded`, and the third direction.
+   *
+   * Added by Task 2.12.5, and it had to be found rather than made. The other
+   * ten answers are one direction or the other — `full` is +1.48% and `partial`
+   * is −0.11% — so the neutral wash, which is a third of that task's whole
+   * subject, had no body that produced it. A hand-written flat series was the
+   * obvious move and is the thing this module exists to refuse.
+   *
+   * So it was **selected with a query and then recorded through the route**,
+   * which is a procedure worth keeping because the next one of these will want
+   * it. Against the local store:
+   *
+   * ```
+   * docker exec marketpulse-postgres-1 psql -U marketpulse -d marketpulse -c "
+   *   with w as (
+   *     select s.symbol, date_trunc('hour', b.observed_at) as h,
+   *            (array_agg(b.open order by b.observed_at))[1] as o,
+   *            (array_agg(b.close order by b.observed_at))[60] as c,
+   *            count(*) as n
+   *     from market_bars b join securities s on s.id = b.security_id
+   *     where b.timeframe = '1m'
+   *       and b.observed_at >= '2026-09-04T13:30:00Z'
+   *       and b.observed_at <  '2026-09-04T20:00:00Z'
+   *     group by 1, 2)
+   *   select symbol, h, o, c from w where n = 60 and o = c limit 20;"
+   * ```
+   *
+   * It is not a contrived hour. HD traded between 320.31 and 320.97 across it —
+   * a real range, a line that wanders — and ended exactly where it began, which
+   * is what makes it the interesting flat case rather than a straight line. The
+   * *degenerate* flat case, where every bar is identical and the price domain
+   * has zero height, does not exist anywhere in this store: it is
+   * `FLAT_DOMAIN_FRACTION`'s and is tested in `chart-value-axis.test.ts` where
+   * it can be constructed honestly, because that function takes bars rather
+   * than a response body.
+   */
+  flat: {
+    status: 200,
+    body: FLAT,
+    outcome: "ok",
+    describes: "a window that closed at exactly the price it opened at",
+  },
+
+  /**
+   * **1,950 bars — the default window's own density, at the width every figure
+   * in `CHARTING.md` was measured against.** → `loaded`, +5.19%.
+   *
+   * Added by Task 2.12.5. The recorded bodies before it top out at 150 bars,
+   * which is 3.5 px per bar at the measured 923 px region — comfortable, and
+   * therefore not the case any of §2's arithmetic is about. **0.47 px per bar
+   * is the number this product actually opens at**, and a marks-per-pixel
+   * decision reviewed only at 3.5 has been reviewed at the easy end.
+   *
+   * Five sessions of `1m` over a window the store holds **completely**, so it
+   * is a `loaded` rather than a `partial`: asking the route for `sessions=5` on
+   * a developer's store answers `partial` with 390 bars, which is honest and is
+   * a different fixture's job. This one is the picture a user gets once the
+   * store is caught up.
+   *
+   * ```
+   * curl -s "$B?symbol=NVDA&timeframe=1m\
+   * &start=2026-08-31T13:30:00.000Z&end=2026-09-04T20:00:00.000Z" \
+   *   > bar-series/dense.json
+   * ```
+   *
+   * **It is 222 KB and that is the largest single thing in this directory.**
+   * Worth stating plainly, because `CLAUDE.md` already lists these fixtures
+   * under *what must not reach the shipped bundle* and names the securities
+   * corpus as the biggest of them — it is no longer. The re-measure command for
+   * this one is `grep -o "2026-08-31T13:3[0-9]" apps/frontend/dist/assets/*.js`,
+   * which must find nothing.
+   */
+  dense: {
+    status: 200,
+    body: DENSE,
+    outcome: "ok",
+    describes: "the default window's density — 1,950 bars over five sessions",
   },
 
   /**

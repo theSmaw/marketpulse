@@ -28,3 +28,39 @@
   width: 480px;
   max-width: 100%;
 }
+
+/*
+ * The greyscale and deuteranopia filters (Task 2.12.5).
+ *
+ * **Simulation rather than reasoning**, which is how Task 1.4.4 verified the
+ * palette and is the only thing that counts as evidence here: a claim that the
+ * encoding survives a colour-vision difference and a rendering of it surviving
+ * one are different artefacts. These wrap a real chart in the workshop, so a
+ * reviewer moves between the three treatments without leaving the page.
+ *
+ * The deuteranopia matrix is Machado, Oliveira and Fernandes' 2009 simulation
+ * at full severity, the same one browser devtools apply. It is stated here as a
+ * matrix rather than reached for from a library because it is eleven numbers
+ * and a dependency that renders a filter is a dependency in the bundle.
+ */
+
+.greyscale {
+  filter: grayscale(1);
+}
+
+.deuteranopia {
+  filter: url("#deuteranopia");
+}
+
+/* The four-window rows the simulation stories stack. */
+.stack {
+  display: grid;
+  gap: var(--space-16);
+}
+
+/* The filter definition is a document-level thing and has nothing to show. */
+.filters {
+  position: absolute;
+  width: 0;
+  height: 0;
+}

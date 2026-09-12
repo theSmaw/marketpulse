@@ -300,3 +300,92 @@ clause is §1's constraint and it is intact.
 `timeAxis` is called from `chart-geometry.ts`, which is **pure and has no DOM in
 it**. Timing it at the cap needs no browser and no component — which is what the
 2.12.3 amendment asked for, and it is now a two-line test rather than a trace.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.5 — a fixture at the real density now exists, the greps are three, and the instrument-break warning has a proven instance
+
+### There is a recorded body at the default window's density, and it changes what "measure the real thing" costs
+
+The Work section says to measure at the largest series this API serves. That is
+still the **10,000-bar cap** and nothing here discharges it. What changed is the
+step below it: `apps/frontend/src/fixtures/bar-series/dense.json` holds **1,950
+real bars over five sessions, `loaded`** — the density the product actually opens
+at, 0.47 px per bar at the measured 923 px region — and it did not exist before,
+because no recorded body had more than 150.
+
+So the measurement has a floor and a ceiling rather than only a ceiling: **the
+default window is the `routine` case** in `PRODUCT_SPEC.md` §28's sense, and the
+cap is the worst case. A report that measures only the cap has measured the case
+almost nobody is in.
+
+It also makes `timeAxis` timeable without constructing anything, which 2.12.3's
+amendment asked for: the fixture carries a real five-session window, and the cap
+version is the same call with a wider range.
+
+### The largest string the renderer builds roughly doubled
+
+2.12.5 added the directional area, and it is **the close line's own `d` with two
+segments and a close appended** — deliberately, rather than a second walk over the
+bars. That keeps the arithmetic flat and does not keep the _string_ flat: at the
+default window the renderer now hands the DOM two paths of 1,950 points instead of
+one.
+
+Worth pointing the trace at specifically, because it is the one part of this
+chart whose cost is genuinely linear in the bar count, and because the obvious
+"optimisation" — deriving the area from the bars in its own loop — would make it
+worse rather than better while looking like a tidy-up.
+
+### The prediction table, corrected a fourth time
+
+| Row                              | Status                                                                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| DOM nodes in the plot: ~11, flat | In the plot today: gridlines, seams, **two `<path>`s** and the reference rule. 2.12.6 adds two, 2.12.7 adds two          |
+| Shape                            | **Unmoved, and it is the clause that matters**: `O(sessions + breakpoint)`, `O(1)` in bars                               |
+| Bundle cost: +279 B gzipped      | Still unmeasured. 2.12.5 added no token, no module and no dependency — three CSS rules and one function — so it is small |
+
+### The fixture-leak greps are **three**, not two
+
+The Work section says _"`CLAUDE.md` names the two greps"_. It names three, and the
+new one is the largest thing on the list:
+
+```
+grep -o "2026-09-04T13:3[0-9]"  apps/frontend/dist/assets/*.js   # bar-series bodies
+grep -o "Agilent Technologies"  apps/frontend/dist/assets/*.js   # the recorded universe, 190,736 B
+grep -o "2026-08-31T13:3[0-9]"  apps/frontend/dist/assets/*.js   # dense.json, 221,603 B
+```
+
+All three found nothing on 2026-09-12. Re-take them rather than citing this line —
+and note the Work section's own reasoning now applies harder than when it was
+written: this story imports fixtures into stories and tests more heavily than any
+before it, and one of them is now **222 KB**.
+
+### The instrument-break warning is no longer hypothetical, and the example is worth reading
+
+The Work section asks that _"a `break` in whatever performance assertion you add
+actually goes red, because a break that does not go red is equally evidence the
+break did not land."_ The 2.12.1 amendment makes the same point about a confirming
+measurement being indistinguishable from one never taken.
+
+**2.12.5 produced a live instance of exactly that, in a correctness test rather
+than a performance one.** A browser spec asserting the directional wash was
+painted stayed **green with the ink class deleted**, because SVG's initial `fill`
+is black — so the assertion "it is filled with some colour" was true of the broken
+chart too. It was rewritten to read three channels, and _that_ version was verified
+red by restoring the break.
+
+The transferable part, and it is aimed squarely at this task: **a break that is
+loud in the wrong dimension passes a test looking in the right one.** For a
+performance assertion the analogue is a break that costs memory rather than main
+thread, or that moves work into a layer the trace does not cover. Pick the break
+so that it fails the specific thing being asserted, not merely so that it is a
+break.
+
+### One suggested break is now cheaper than the amendments above describe
+
+2.12.3's suggestion — build the axis from `series.bars` instead of
+`coverage.requested` — is held by **three** tests now rather than two.
+`chart-geometry.test.ts` gained _keeps the rule inside the frame at the default
+window's density_, which runs against `dense.json` and would move with the domain.
+Confirm all three go red; a break that reddens only the arithmetic has not proved
+the renderer is wired to it.

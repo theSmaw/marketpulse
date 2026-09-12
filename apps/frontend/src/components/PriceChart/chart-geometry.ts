@@ -3,9 +3,11 @@ import type { Bar, Timeframe, TimeRange } from "@marketpulse/shared";
 import type {
   ChartDensity,
   LinearScale,
+  PriceDirection,
   SlotScale,
 } from "../../market/index.js";
 import {
+  directionOf,
   linearScale,
   placeBars,
   priceDomain,
@@ -54,6 +56,18 @@ import {
 // No error, nothing red, and no test below `pnpm e2e` able to see it. The
 // signature below makes the window a separate parameter from the bars so the
 // two cannot be confused at a call site.
+//
+// ## What Task 2.12.5 added, and the one rule it holds
+//
+// **The reference rule and the directional wash are one value**
+// ({@link DirectionalArea}), not two fields a caller assembles. That is the
+// whole of `VISUAL-LANGUAGE.md`'s ordering made structural: the geometry — which
+// side of the rule the line finishes on — is the first channel, and the tint is
+// the second. A component able to render the fill without the rule would have
+// shipped a chart whose direction is carried by **1.009:1 under
+// `grayscale(1)`**, which is to say by nothing. Here it cannot: the rule's `y`,
+// the fill's path and the direction the wash is named for arrive together or not
+// at all.
 
 /** The plot's own box, measured from the laid-out element. */
 export interface PlotBox {
@@ -98,6 +112,62 @@ export interface ChartFrame {
    * takes and building it here keeps one spelling of the coordinate order.
    */
   readonly series: string | null;
+  /**
+   * What this window did — the dashed rule, the area under it, and which of the
+   * three directions the pair is tinted for.
+   *
+   * `null` wherever there is no line to be on one side of a rule: no bars, a
+   * single bar, or an opening price of zero.
+   */
+  readonly direction: DirectionalArea | null;
+}
+
+/**
+ * **Direction, drawn as position first and as hue second** (Task 2.12.5).
+ *
+ * One value with three fields rather than three fields on {@link ChartFrame},
+ * and that is the mechanism the task asked for rather than a grouping
+ * preference. `VISUAL-LANGUAGE.md` measured the two washes at **1.009:1 under
+ * `grayscale(1)`** — washed back to a fill, positive and negative are the same
+ * colour — so a chart that drew the tint and not the rule would be a chart with
+ * no direction on it at all, rendering perfectly and saying nothing. Bundling
+ * them makes that state unrepresentable rather than discouraged.
+ *
+ * ## What Epic 8 does to this
+ *
+ * **It removes it.** One filled area cannot serve *n* series, so the wash is a
+ * single-series treatment and is dropped the moment a comparison arrives
+ * (`VISUAL-LANGUAGE.md`'s _Room reserved for what arrives later_; the second
+ * channel there is stroke pattern, which survives greyscale where *n* hues do
+ * not). It is derived below from `subject.bars` — the one series — and the type
+ * that would carry a second one does not exist yet, deliberately: scaffolding
+ * Epic 8's shape today would be inventing an API against a screen nobody has
+ * drawn. What is owed instead is this paragraph, and the honest note in
+ * `CHARTING.md` §12 that this consequence is recorded rather than enforced.
+ */
+export interface DirectionalArea {
+  /** The dashed rule's y, in pixels — the price the window opened at. */
+  readonly reference: number;
+  /**
+   * The closed area between the close line and the rule, as an SVG path.
+   *
+   * Built by **appending two segments and a close to the line's own `d`**
+   * rather than by walking the bars a second time. At the default window that
+   * is 1,950 points already in a string; re-deriving them would double both the
+   * arithmetic and the main-thread parse that `PRODUCT_SPEC.md` §28's 50 ms
+   * budget is spent on, for a path that is the same line with a lid on it.
+   */
+  readonly fill: string;
+  /**
+   * Which of the three the window was, for the wash's ink.
+   *
+   * From {@link directionOf} on the same percentage `series-facts.ts` computes
+   * for the reading above the plot — **the same subject and the same rounding**,
+   * so the tint, the glyph, the sign and the spoken word cannot disagree about
+   * which way this window went. Two channels disagreeing is worse than either
+   * being wrong alone.
+   */
+  readonly direction: PriceDirection;
 }
 
 /**
@@ -167,6 +237,7 @@ export function chartFrame(
       seams,
       ticks,
       series: null,
+      direction: null,
     };
   }
 
@@ -177,6 +248,9 @@ export function chartFrame(
   // `height - y` anywhere.
   const y = linearScale(domain, [plot.height, 0]);
 
+  const placed = placeBars(axis, subject.bars);
+  const series = linePath(placed, x, y);
+
   return {
     gridlines: valueTicks(domain, density.valueTicks).map((tick) => ({
       y: round(scaleValue(y, tick.value)),
@@ -184,7 +258,8 @@ export function chartFrame(
     })),
     seams,
     ticks,
-    series: linePath(placeBars(axis, subject.bars), x, y),
+    series,
+    direction: directionalArea(placed, series, x, y),
   };
 }
 
@@ -193,6 +268,7 @@ const EMPTY_FRAME: ChartFrame = {
   seams: [],
   ticks: [],
   series: null,
+  direction: null,
 };
 
 /**
@@ -247,6 +323,86 @@ function linePath(
     })
     .join(" ");
 }
+
+/**
+ * The dashed rule, the area between it and the line, and the window's direction.
+ *
+ * ## Which price the rule sits at, which is the question this task was handed
+ *
+ * **The first bar we hold, and its `open`.** Task 2.12.2 settled the rule's
+ * position as "the window's opening close", and that phrase has one meaning
+ * while the answer is `loaded` and two while it is `partial` — which is the
+ * normal case on this screen. The window that was *asked for* and the window
+ * that is *covered* are different ranges, and there may be no bar at the
+ * requested window's opening instant at all: a store part-way through a
+ * backfill, a security listed mid-window, or a gap at the open all separate
+ * them. So the literal reading names nothing, and it was taken deliberately
+ * rather than inherited:
+ *
+ *  - **The first bar we hold** keeps the rule *on the line*, always, so the
+ *    reading — *the side of the rule the line finishes on* — always works. It
+ *    measures the change across what is actually drawn.
+ *  - **The requested window's opening instant** is faithful to the axis and, on
+ *    a short answer, floats the rule at a price nobody observed or suppresses it
+ *    entirely. A direction channel that disappears exactly when coverage is
+ *    short is not a channel.
+ *
+ * And the `open` rather than the close, which is one turn further than the
+ * question was asked. `series-facts.ts` computes the reading above the plot as
+ * `(lastClose − firstOpen) / firstOpen`, and the design canvas names the stated
+ * `Open` figure as *the same fact* the rule draws. Sitting the rule at the first
+ * bar's **close** would put the picture and the figure a bar apart — invisible
+ * at 1m in almost every window, and visible in exactly the one that matters: a
+ * window whose first bar straddles its own final close reads as up in one
+ * channel and down in the other. The same number, or the channels are not
+ * repeating each other.
+ *
+ * It is always inside the frame and does not have to be clamped: `priceDomain`
+ * is taken over the bars' `high` and `low`, and a bar's open lies between its
+ * own two.
+ *
+ * ## When there is none
+ *
+ * `null` for fewer than two points — a one-bar window draws no line, so there is
+ * nothing to be on one side of a rule — and for an opening price of **zero**,
+ * which is not a price any equity has and is a corrupt bar rather than a
+ * division to attempt. `series-facts.ts` declines the same case for the same
+ * reason and renders no percentage; this renders no wash, and the two stay one
+ * statement.
+ */
+function directionalArea(
+  placed: readonly { readonly bar: Bar; readonly slot: number }[],
+  series: string | null,
+  x: SlotScale,
+  y: LinearScale,
+): DirectionalArea | null {
+  const first = placed[0];
+  const last = placed[placed.length - 1];
+  if (series === null || first === undefined || last === undefined) return null;
+  if (first.bar.open === 0) return null;
+
+  const reference = round(scaleValue(y, first.bar.open));
+  const change =
+    ((last.bar.close - first.bar.open) / first.bar.open) * PER_CENT;
+
+  return {
+    reference,
+    // Down the right-hand edge to the rule, back along it to the left, and
+    // closed. The `Z` is a real segment rather than a formality: it runs from
+    // the rule up or down to the line's first point, which is the first bar's
+    // *close* while the rule is that same bar's *open*. At 1m that is a few
+    // hundredths of a percent and invisible; spelling it as `Z` rather than as
+    // a third segment is what keeps it honest at 1d, where it is a real
+    // distance.
+    fill:
+      `${series} L${String(round(scaleSlot(x, last.slot)))} ${String(reference)}` +
+      ` L${String(round(scaleSlot(x, first.slot)))} ${String(reference)} Z`,
+    direction: directionOf(change),
+  };
+}
+
+/** A ratio as a percentage, so the direction is decided on the figure a reader sees. */
+const PER_CENT = 100;
 
 /**
  * One decimal place.

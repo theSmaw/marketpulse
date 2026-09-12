@@ -16,8 +16,9 @@ import { PriceChart } from "./PriceChart.js";
 // stored bars, and `e2e/specs/security-price-chart.spec.ts` is where a real
 // engine is asked whether the thing is on the page and inside the right region.
 // What is left for this level is the **wiring** — that a measurement reaches
-// the marks, and that the two states with no window draw nothing at all — and
-// the last two tests install a fake observer to check it.
+// the marks, that the two states with no window draw nothing at all, and that
+// the directional pair Task 2.12.5 added is never taken apart into a tint with
+// no geometry under it. The tests that need a box install a fake observer.
 //
 // **Do not assert a coordinate here.** The rects below are invented; a test
 // that pinned a pixel to them would be checking its own stub.
@@ -117,6 +118,34 @@ describe("with a measurement", () => {
     expect(container.querySelectorAll("line").length).toBeGreaterThan(0);
   });
 
+  it("draws the reference rule and the wash together, never one alone", () => {
+    // The mechanism Task 2.12.5 owes: the washes differ by 1.009:1 under
+    // `grayscale(1)`, so a tint with no rule under it is a chart with no
+    // direction on it — rendering perfectly, and saying nothing. The geometry
+    // returns them as one value, and this is the level that checks the
+    // component does not take them apart again.
+    measureEverythingAt(800, 280);
+
+    const { container } = render(
+      <PriceChart view={barSeriesFixtureView("full")} />,
+    );
+
+    // Two paths: the close line, and the area beneath it. The area is the one
+    // with a `Z` on the end.
+    const paths = [...container.querySelectorAll("path")];
+    expect(paths).toHaveLength(2);
+    expect(paths.some((path) => path.getAttribute("d")?.endsWith("Z"))).toBe(
+      true,
+    );
+
+    // And the fill carries a class, which is what makes it visible at all. The
+    // `--marker-color` trap is a fill whose ink is somebody else's job; here a
+    // missing class is an invisible area with a green build, so it is asserted
+    // rather than assumed.
+    const area = paths.find((path) => path.getAttribute("d")?.endsWith("Z"));
+    expect(area?.getAttribute("class")).toMatch(/\S/);
+  });
+
   it("draws a labelled axis and no line for an answer with no bars", () => {
     measureEverythingAt(800, 280);
 
@@ -126,5 +155,9 @@ describe("with a measurement", () => {
 
     expect(container.querySelector("path")).toBeNull();
     expect(container.querySelector("svg")).not.toBeNull();
+
+    // Neither the wash nor the rule under it: a datum with nothing measured
+    // against it says a window opened at a price and nothing about what it did.
+    expect(container.querySelectorAll("path")).toHaveLength(0);
   });
 });

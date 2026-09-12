@@ -1,6 +1,6 @@
 # Story 2.12 — Price Chart
 
-**Status:** Not started
+**Status:** **In progress — Tasks 2.12.1 to 2.12.5 are complete (2026-09-12).** Five remain: the crosshair, every state drawn, the text alternative, the measurement and the close.
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.11
 **Epic scope covered:** Basic price chart
@@ -307,7 +307,7 @@ body this API serves takes 2.8 ms.
 | [2.12.2](TASK-02-the-chart-on-the-canvas.md)                         | What it looks like, on the canvas, and the tokens it needs               | **In the workshop**           |
 | [2.12.3](TASK-03-scales-ticks-and-the-market-gap.md)                 | Scales, domains, ticks and sessions — as pure functions                  | No                            |
 | [2.12.4](TASK-04-the-first-chart-in-marketpulse.md)                  | The first chart in MarketPulse, in the region that named it              | **Yes — the payoff**          |
-| [2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md) | The high–low band, and direction that survives greyscale                 | **Yes**                       |
+| [2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md) | The reference rule, the directional wash, and direction without colour   | **Yes**                       |
 | [2.12.6](TASK-06-reading-a-point-crosshair-hover-and-keyboard.md)    | Crosshair, readout, and the keyboard path to the same reading            | **Yes**                       |
 | [2.12.7](TASK-07-every-chart-state-drawn.md)                         | Every state from a recorded body, `partial` above all                    | **Yes**                       |
 | [2.12.8](TASK-08-the-text-alternative-and-the-screen-reader-walk.md) | A text alternative that says something true, and the walk that proves it | **Yes**                       |
@@ -522,3 +522,84 @@ story and one commit, 2.12.7 declares a dependency on it, the directional wash a
 the uncovered wash are adjacent surfaces whose contrast has to be judged together,
 and renumbering costs every reference in this directory. Recorded so it is not
 reopened as though it had been missed.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.5 — the task list was reviewed a fifth time, from the other side of a chart that states something
+
+The four reviews above ran against decisions, then arithmetic, then a drawing. This
+one runs against the first version of that drawing that makes a **claim** — the
+chart now says which way a window went, rather than only showing where a price
+was — and the question it can answer that the others could not is what a second
+mark on the plot does to the tasks that assumed there was one.
+
+**No task was added, none was deleted, and the order is unchanged.** Five were
+amended in place — 2.12.6, 2.12.7, 2.12.8, 2.12.9 and 2.12.10 — plus two stale
+headers in this directory corrected: 2.12.5's own `Status`, and this file's, which
+had read `Not started` since before 2.12.4 shipped the first chart.
+
+The five effects worth knowing without opening anything:
+
+- **2.12.7 gained a decision it did not have, and it is the one this story's
+  fourth review predicted in the abstract.** That review declined pulling 2.12.7
+  forward partly because _"the directional wash and the uncovered wash are
+  adjacent surfaces whose contrast has to be judged together"_. They are now
+  adjacent on a real screen and they behave **differently**: the wash stops at the
+  data by construction — it is the line's own path closed back to the rule — while
+  **the dashed reference rule runs the full plot width**, into four uncovered
+  sessions on `/securities/NVDA` today. Whether that rule clips at the coverage
+  edge is a real choice with two defensible readings, and 2.12.7 is the only place
+  it is visible. It also inherits two new contrast pairs, one of which is two pale
+  fills meeting at a vertical edge at 1.107:1 and 1.15:1 — close enough that the
+  dashed edge may be the only thing carrying the boundary exactly where the wash
+  is.
+
+- **2.12.6 now has two direction statements on one screen with different
+  subjects.** The plot says what the **window** did; that readout says what a
+  **bar** did, and a red minute inside a green window is normal. The canvas
+  already stated the rule — _the tint is the window's direction, never the bar's_
+  — and it is live rather than anticipated, so the readout's glyph and sign have
+  to be visibly _about the bar_. The memoisation repair assigned to that task also
+  got larger in the only dimension that is linear in bar count: a pointer move now
+  rebuilds **two** 1,950-point path strings rather than one.
+
+- **Two deferred rows elsewhere became measurable.** 2.12.8 was told that
+  `--chart-grid` under the wash _"is not measurable, because there is no wash"_ and
+  that the row is measured after 2.12.5 — it is now live. And 2.12.10's greyscale
+  `verify`-gap entry, which could not be written until the reference rule shipped,
+  is unblocked; its shape turns out to be narrower and more useful than "greyscale
+  is unchecked", and the amendment writes it out. 2.12.10's token audit ticked one
+  of its three rows: `--chart-reference` has an application consumer, **two
+  remain**, and they are exactly 2.12.6's and 2.12.7's.
+
+- **One conditional resolved and its concern transferred rather than expired.**
+  2.12.8's contrast list ends _"and — if 2.12.5 draws one — the high–low band,
+  which sits behind the line and therefore changes the ground the line is measured
+  against."_ No band is drawn. But the **directional wash** does exactly what that
+  clause worried about, across most of the plot rather than in a hairline, so the
+  row survives with a different name and larger scope.
+
+- **The fixture set is thirteen bodies and one of them is 222 KB.** `flat.json`
+  and `dense.json` were recorded because no existing body was flat and none was
+  denser than 150 bars. Neither discharges 2.12.7's owed recording — `dense.json`
+  is fully **covered**, so it exercises no uncovered treatment at all — and both
+  change 2.12.9, which now has a real default-window density to measure the
+  `routine` case against rather than only the cap, and a **third** fixture-leak
+  grep where its Work section says two.
+
+**Nothing in this review argues for a re-order, and the standing candidate was not
+re-examined because nothing bears on it.** The 2.12.5/2.12.6 swap has been asked
+and declined three times and 2.12.5 is now shipped, which closes it permanently.
+The 2.12.7-forward question was asked and declined at the fourth review on grounds
+that have only strengthened: the adjacency it named as a reason to keep the order
+turned out to be a real, specific decision that needs the wash on screen first, and
+it now is.
+
+**One finding is worth carrying out of this directory**, and it is amended onto
+2.12.9 because that is the task most exposed to it. A browser spec asserting the
+directional wash was painted stayed **green with the ink class deleted**, because
+SVG's initial `fill` is black — so "it is filled with some colour" was true of the
+broken chart too. The transferable form: **a break that is loud in the wrong
+dimension passes a test looking in the right one.** Reaching for `CLAUDE.md`'s
+recorded `--marker-color` trap by analogy is what produced a test that tested
+nothing.

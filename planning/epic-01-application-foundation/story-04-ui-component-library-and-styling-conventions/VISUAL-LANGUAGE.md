@@ -371,7 +371,9 @@ Dashed rather than solid, and that is load-bearing: a solid vertical near-black 
 
 ### Direction without colour — the geometry is the first channel
 
-A dashed horizontal rule sits at the window's **opening close**, and the area between the line and that rule is filled. **The side of the rule the line finishes on is the direction, drawn as geometry.** The fill's tint says the same thing again in colour and says nothing the geometry has not already said.
+A dashed horizontal rule sits at the price the window **opened at**, and the area between the line and that rule is filled. **The side of the rule the line finishes on is the direction, drawn as geometry.** The fill's tint says the same thing again in colour and says nothing the geometry has not already said.
+
+> **Sharpened 2026-09-12 by Task 2.12.5, which built it.** This read _"the window's opening close"_, which has one meaning while the answer is `loaded` and two while it is `partial` — the normal case on this screen, where there may be no bar at the requested window's opening instant at all. The rule is at **the first bar this system holds, and that bar's `open`**: the first _held_ bar keeps the rule on the line so the reading always works, and its _open_ is what makes the rule and the stated `Open` figure the same number rather than one bar apart. The canvas was corrected in place, since the phrase originated there. `CHARTING.md` §12.1 has the reasoning.
 
 The measurement that forces that ordering, taken 2026-09-11:
 
@@ -434,7 +436,10 @@ Achromatic, structural and geometric values in `tokens.css`; anything carrying m
 
 ### What this section deliberately does not decide
 
-- **Whether the high–low extent band ships.** That is [Task 2.12.5](../../epic-02-security-universe-historical-data/story-12-price-chart/TASK-05-what-a-session-did-and-direction-without-colour.md)'s. What was decided here is what it looks like if it does — `--price-unchanged-wash`, beneath the directional fill — and one finding taken by drawing it: **at `1m` a bar's high and low sit within a few hundredths of a percent of its close, so the envelope is a hairline around the line and is effectively invisible.** It earns its space at `1d`, which Story 2.13's window control is what brings.
+- **Whether the high–low extent band ships.** That was [Task 2.12.5](../../epic-02-security-universe-historical-data/story-12-price-chart/TASK-05-what-a-session-did-and-direction-without-colour.md)'s. What was decided here is what it looks like if it does — `--price-unchanged-wash`, beneath the directional fill — and one finding taken by drawing it: **at `1m` a bar's high and low sit within a few hundredths of a percent of its close, so the envelope is a hairline around the line and is effectively invisible.** It earns its space at `1d`, which Story 2.13's window control is what brings.
+
+  > **Answered 2026-09-12 by Task 2.12.5: it does not ship**, at any window Story 2.12 serves, for the reason above and unchanged. The decision is stated in `PriceChart.tsx` rather than left as an absence, because a chart that silently draws no band and a chart that decided not to are the same picture and different artefacts. High and Low stay _stated facts_ beneath the plot, which is what `CHARTING.md` §5 keeps them for. `CHARTING.md` §12.2 carries the argument.
+
 - **Anything about motion.** The chart is on the list of things the Motion section above defers to Epic 3 on purpose, and a chart that animates its own first paint is decoration rather than a market moving.
 - **The volume chart.** It inherits this axis and this frame, and deciding its bars before a price chart exists to place them under is the mistake Story 2.12's sequence was arranged to avoid.
 
@@ -475,7 +480,7 @@ Three, and they were treated differently.
 
 - **A live institutional wealth-management site** (2026-08-31), read through computed styles rather than by eye: the surfaces, ink, radius, shadow, spacing and type values in the original version of this document were a census of what that page actually renders, not an estimate from a screenshot
 - **Four styleguide and application-mockup screenshots** supplied by the user, which carry what a marketing page cannot: the named palette with its positive/negative separation, the multi-width module grid, the control heights and the seven-state matrix, and the structural idioms above
-- **The `Component library for MarketPulse` design canvas**, which has been the **source of truth** rather than a source since 2026-09-11 ([ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md)) — and is therefore listed here as the thing this document now follows rather than as one input among three. It is three files: `MarketPulse Design System.dc.html`, `Universe navigation.dc.html` (Task 2.11.8) and `Price chart.dc.html` (Task 2.12.2)
+- **The `Component library for MarketPulse` design canvas**, which has been the **source of truth** rather than a source since 2026-09-11 ([ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md)) — and is therefore listed here as the thing this document now follows rather than as one input among three. It is four files: `MarketPulse Design System.dc.html`, `Universe navigation.dc.html` (Task 2.11.8), `Price chart.dc.html` (Task 2.12.2, amended 2026-09-12 by Task 2.12.5 with the flat window and the sharpened reference) and `Price region.dc.html`
 - **`story-10-design.html`** (2026-09-10), a Tailwind/Material mock of the Security Explorer supplied by the user and the input to the refresh. It is a **reference and not a specification**: three of its decisions were taken, one was narrowed and two were declined, and [ADR 0022](../../../docs/adr/0022-the-design-refresh-three-typefaces-an-identity-accent-and-what-a-token-change-certifies.md) says which is which and why
 
 The institution is deliberately not named here or anywhere else in this repository, at the user's instruction. Nothing in this document depends on knowing which one it is — the values are values, and the aesthetic is a class of application rather than a brand.
