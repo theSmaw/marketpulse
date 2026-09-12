@@ -1,6 +1,6 @@
 # Task 2.12.9 — Measured against fifty milliseconds, at the largest series this epic serves
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-12.**
 **Story:** [2.12 Price Chart](STORY.md)
 **Depends on:** 2.12.7
 
@@ -579,3 +579,167 @@ _recomputes the frame zero times across forty arrow presses_ should go red, and 
 should the trace. Confirm both: a break that reddens only the unit test has not
 shown that the trace can see it, which is this story's own recorded lesson about a
 break being loud in the wrong dimension.
+
+---
+
+## What this task found — 2026-09-12
+
+**The subject document is [`CHARTING.md`](CHARTING.md) §16**, which carries every
+figure with the machine and the method it was taken on. This section is the
+summary and the decisions; do not cite a number from here that §16 states.
+
+### The headline, in one line each
+
+- **Criterion 5 is met.** The chart produces **no main-thread task over 50 ms**
+  in any state, at any density this API can serve — cold at the **9,750-bar
+  cap**, under 120 continuous pointer moves, and under 40 arrow presses. 8,970
+  extra bars cost about **5 ms and no elements**.
+- **The page it sits on does breach §28**, and it is **not the chart**. There is
+  one task of **50–66 ms on every cold load** of `/securities` **and**
+  `/securities/:symbol`, it is the **518-row tracked universe**, and it is proved
+  by the two ends: present on `/securities` where no chart exists, absent with a
+  20-row universe while the cap-sized chart is still drawn. Raised rather than
+  absorbed — see below.
+- **The bundle cost of the decision is 6,552 B gzipped, 4.2% of the artefact**
+  (5,901 JS + 651 CSS), against 2.12.1's prediction of **+279 B** for a spike's
+  one `<path>` and a scale. §1 is untouched: the rejected library was
+  **+94,809 B gzipped on its own**, so the whole hand-built chart including its
+  arithmetic costs **6.9%** of what Recharts would have cost before drawing
+  anything.
+- **The calendar walk is the number to carry forward**, and it belongs to Story
+  2.13: `timeAxis` is **0.202 ms** at today's default window and **23.051 ms**
+  over the whole stored depth at `1d` — **twice per render**, so **46 ms of a
+  50 ms budget** at a "max" window, before a pixel is drawn. Task 2.9.9 measured
+  the same walk at 20.6 ms on the server; two runtimes, one algorithm, 12% apart.
+- **The memoisation repair 2.12.6 took structurally is worth ~17× on the pointer
+  path and breaks nothing if undone at today's windows** — which is a reason to
+  keep it and a warning about what a trace can and cannot see.
+- **The four fixture-leak greps found nothing**, and no fixture was added: the
+  two cap-sized bodies recorded here (1.1 MB and 972 kB) live in a scratch
+  directory and are not checked in.
+
+### The decisions this task took, rather than deferred
+
+**1. The 518-row table is raised, not repaired.** §28 is breached by a surface
+Story 2.11 built; the repair is virtualisation or deferred rendering of a table
+this story does not own, and smuggling it into a measurement task is how a
+story's scope stops meaning anything. `CLAUDE.md`'s precedent for this exact
+shape is Task 2.9.9's — _raise it rather than absorb it_. It is recorded in
+[`SEARCH-AND-SELECTION.md`](../story-11-security-search-and-selection/SEARCH-AND-SELECTION.md)
+§10 with the measurement and three repair options, named in Story 2.14's close as
+a decision that epic owes, and on `CLAUDE.md`'s gap list. **Trigger:** the first
+time a second surface renders per-row markup at universe scale.
+
+**2. `chart-alternative.ts`'s second call to `timeAxis` stays.** Removing it
+would buy 0.2 ms at today's windows and spend §15.3's separation — the sentence
+would start deriving from the frame, which is the coupling it exists to avoid.
+The repair that actually pays is memoising the walk in `packages/shared`, which
+serves all three callers including the server's. **Trigger:** the first window
+control offering a range wider than three months at `1d`.
+
+**3. No wall-clock assertion was added to `pnpm verify`.** A timing gate in
+`pnpm test` measures the runner, and a flaky performance gate is how a suite
+stops being believed. What was added instead is the **shape** the timings follow
+from: `PriceChart.test.tsx`'s _draws no element per bar, at sixty-five times the
+bars_ — identical paths, rects and `<use>` counts at 30 bars and at 1,950, lines
+differing by exactly the three extra session seams, a ceiling of forty elements,
+and the series path string asserted to have grown twentyfold so that a pair of
+equal counts cannot come from a pair of equal bodies.
+
+### The instrument was broken on purpose, twice, and one break did not go red
+
+- **One `<rect>` per bar** — the break §1's constraint is about. At the cap:
+  **9,790 plot elements** and **five tasks of 137–254 ms**, reproducing the
+  spike's 296 ms in the real component. It also takes the new unit test red at
+  `expected 1952 to be 32`, verified by performing it. At the **default** window
+  the same break produces **no long task**, which is §2's threshold argument
+  arriving from the other end.
+- **Lifting the reading's state into `PriceChart`** — verified to have landed
+  (121 re-renders for 121 pointer moves, read off the DOM), measured at 17× the
+  CPU on the pointer path, and it produced **no long task at all**. A real
+  regression, invisible to §28's own criterion. The unit test is what catches it.
+- **And the instrument itself was wrong first**: the initial pointer pass
+  recorded **zero** move-to-paint samples across 121 real moves, because the
+  listener sat on the plot's container and the crosshair's overlay is its
+  sibling. The long-task and frame figures from that run were sound; the latency
+  column was empty and would have been reported as "nothing to see". Check the
+  instrument is live **in the dimension it reports on**.
+
+### What was not done, and why
+
+- **No repair was shipped to the chart**, because nothing in it exceeded the
+  budget. The Work section's own prediction — _"the expected outcome of this task
+  is that it finds nothing"_ — held for the chart and failed for the page, which
+  is the more useful outcome.
+- **The `1d` windows were timed but not traced in a browser**, because no window
+  control offers them yet. `timeAxis` is pure, so the figure that matters exists
+  before Story 2.13 needs it, which is what 2.12.3's amendment asked for.
+
+---
+
+## For the stakeholders — what happened here, in plain terms
+
+**Nothing on the screen changed this week, and that was the expected outcome.**
+This piece of work was a measurement: the product has a published promise that
+nothing it does should freeze the screen for more than a twentieth of a second,
+and the price chart we finished last week is the first thing MarketPulse draws
+that could plausibly break it. So we measured it, properly, in a real browser,
+against the largest amount of data the system is able to serve — roughly ten
+thousand price points, a month of minute-by-minute trading.
+
+**The chart passed, comfortably, and it passed at every size.** Drawing ten
+thousand points costs about five thousandths of a second more than drawing eight
+hundred, and moving the pointer across the chart to read individual bars holds a
+steady sixty frames a second — the same smoothness as scrolling a well-built
+website. The reason is a decision taken deliberately back at the start of this
+chart's work: the price line is drawn as **one shape**, not as ten thousand
+little ones. We tested that decision by deliberately breaking it — drawing one
+mark per bar — and the screen immediately froze for a quarter of a second at a
+time. That is the difference the original choice bought, and we can now put a
+number on it rather than a claim.
+
+**The measurement did find a real problem, and it is not in the chart.** Every
+time you open a security's page, the list of all 518 tracked companies
+underneath it takes the browser about a twentieth of a second to build — just
+over the line we set ourselves. It is not dramatic and most people would read it
+as "the page took a moment", but it is over budget, it happens on every visit,
+and it will get worse as we add more columns to that table in later epics. We
+proved it is the table and not the chart by loading the biggest possible chart
+with a short list (no delay at all) and by loading the list with no chart at all
+(the delay was still there).
+
+**We deliberately did not fix it in this piece of work.** Fixing it means
+changing how that table renders — a real change to a part of the product a
+different piece of work owns — and quietly widening a measurement task into a
+rebuild is how estimates stop meaning anything. Instead it is written down with
+the measurement, the three possible fixes, and a specific condition that says
+when it must be done. That is the same thing we did earlier in this epic when a
+measurement found a slow piece of date arithmetic on the server: record it, name
+the trigger, and don't let it be forgotten.
+
+**We also priced the decision not to use an off-the-shelf charting library.**
+Everything we hand-built — the chart, the crosshair, the keyboard controls, the
+spoken description for screen-reader users, and all the maths behind the axes —
+adds about 6.5 KB to what a visitor downloads, roughly 4% of the application.
+The library we turned down would have added 95 KB on its own, before we wrote a
+single line, and it would have come with its own appearance to fight and no
+screen-reader support to speak of. So the hand-built route cost about seven
+percent of the alternative and gave us complete control of how it looks and how
+it is read aloud. That is a good trade, recorded with the receipts.
+
+**And we found the number that will matter next.** The chart works out which
+days the market was actually open by walking the calendar day by day. Over five
+days that takes a fifth of a millisecond — nothing. Over two years, which is
+what a "maximum range" button would ask for, it takes 23 milliseconds, and the
+chart does it twice, so 46 milliseconds of our 50-millisecond budget would be
+gone before anything is drawn. The next piece of work adds exactly that kind of
+time-range control, so it now starts with the answer in hand and a named fix
+(remember the calendar rather than re-walking it) instead of discovering the
+problem with a user watching.
+
+**Where this leaves the product.** The price chart is finished, correct,
+accessible, and now proven fast at the largest data set the system can produce.
+One task remains before this chapter closes: deploying it, applying the four
+"does this look like a real product" tests to what is on screen, and writing the
+architecture decision record that the next four epics of charts — anomaly
+markers, comparisons, and charts opened by the AI itself — will inherit.

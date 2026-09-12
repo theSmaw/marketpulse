@@ -488,3 +488,73 @@ describe("what a reading costs", () => {
     expect(frameCalls.count).toBeGreaterThan(afterMount);
   });
 });
+
+// **What the drawing costs, as a shape rather than as a stopwatch** (Task
+// 2.12.9).
+//
+// `CHARTING.md` §1 decided hand-built SVG over four libraries on one constraint
+// above all: **SVG does not scale to one element per bar.** 9,750 candle groups
+// measured 29,260 DOM nodes and a 296 ms main-thread task against
+// `PRODUCT_SPEC.md` §28's 50 ms, and the line is one `<path>` at any point
+// count. Task 2.12.9 re-took that in the real component in a real browser and
+// the budget holds — with the same break performed to prove the instrument:
+// drawing one `<rect>` per bar puts 9,790 elements in the plot and five tasks
+// of 137–254 ms on the main thread.
+//
+// **This test is that finding made mechanical**, which is what `CLAUDE.md`'s gap
+// list asks of an entry that can be. It asserts no milliseconds — a wall-clock
+// assertion in `pnpm test` would be flaky on a busy runner and would be
+// measuring the runner — and instead asserts the property the milliseconds
+// follow from: **nothing in the plot scales with the bar count.**
+//
+// The two bodies are 65× apart in bars and the same state, so every difference
+// between them is legitimate or is the defect. The seams are the one thing that
+// legitimately moves, and they move with **sessions**.
+describe("what the drawing costs", () => {
+  function plotOf(name: "dense" | "full") {
+    const { container, unmount } = render(
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView(name)} />,
+    );
+    const svg = container.querySelector("svg");
+
+    const counts = {
+      elements: svg?.querySelectorAll("*").length ?? 0,
+      lines: svg?.querySelectorAll("line").length ?? 0,
+      paths: svg?.querySelectorAll("path").length ?? 0,
+      rects: svg?.querySelectorAll("rect").length ?? 0,
+      uses: svg?.querySelectorAll("use").length ?? 0,
+      series: svg?.querySelector("path")?.getAttribute("d")?.length ?? 0,
+    };
+
+    unmount();
+    return counts;
+  }
+
+  it("draws no element per bar, at sixty-five times the bars", () => {
+    measureEverythingAt(800, 280);
+
+    const few = plotOf("full"); // 30 bars, one session
+    const many = plotOf("dense"); // 1,950 bars, five sessions
+
+    // The instrument first, because a pair of equal counts proves nothing if
+    // the two bodies are the same body. The path string is the one thing that
+    // is *meant* to grow with the bars, and it grows by a factor of 60-odd.
+    expect(many.series).toBeGreaterThan(few.series * 20);
+
+    // Everything that is not a line is identical: the series path and the wash
+    // definition, the two wash clip rects, the two `<use>` elements.
+    expect(many.paths).toBe(few.paths);
+    expect(many.rects).toBe(few.rects);
+    expect(many.uses).toBe(few.uses);
+
+    // And the lines differ by the session seams alone — four sessions' worth of
+    // boundary against one's, at the same gridline count for the same height.
+    expect(many.lines - few.lines).toBe(3);
+
+    // The ceiling, stated so the failure names the thing rather than an
+    // arithmetic difference: two dozen elements and change. A per-bar mark puts
+    // this in the thousands, which is the state `CHARTING.md` §1 measured at
+    // 296 ms.
+    expect(many.elements).toBeLessThan(40);
+  });
+});

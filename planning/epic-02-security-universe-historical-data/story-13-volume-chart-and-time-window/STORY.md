@@ -199,3 +199,57 @@ defect is a second panel beside the region that has been holding the space.
 address, precisely so that this story's `?sessions=5` (or an absolute range) is
 the **first** occupant of the query string with no precedent to argue with. That
 is a handover, not a coincidence.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.9 — the window control has a measured cost waiting for it, and it is the calendar
+
+Story 2.12's measurement task traced the price chart against
+`PRODUCT_SPEC.md` §28 and found **nothing wrong with the chart**. It found
+something wrong with the window this story is about to make reachable, and the
+figure exists now so that this story starts with it rather than discovering it.
+
+**`timeAxis` walks the trading calendar day by day, and `PriceChart` calls it
+twice per render** — once through `chartFrame` and once through
+`chart-alternative.ts`, which derives its own axis on purpose
+([`CHARTING.md`](../story-12-price-chart/CHARTING.md) §15.3). Timed as a pure
+function on 2026-09-12, Node 24, 200 iterations:
+
+| Window                               | Sessions | Per call      | **Per render (×2)** |
+| ------------------------------------ | -------: | ------------- | ------------------- |
+| 5 sessions of `1m` — today's default |        5 | 0.202 ms      | 0.4 ms              |
+| 25 sessions of `1m` — the `1m` cap   |       25 | 0.932 ms      | 1.9 ms              |
+| 1 month of `1d`                      |       24 | 0.849 ms      | 1.7 ms              |
+| **1 year of `1d`**                   |      253 | **8.762 ms**  | **17.5 ms**         |
+| **672 sessions of `1d` — "max"**     |      672 | **23.051 ms** | **46.1 ms**         |
+
+**A "max" window at `1d` spends 46 ms of a 50 ms budget walking a calendar
+before a pixel is drawn** — per answer **and per resize tick**, because the frame
+is rebuilt when the box changes. And it is paid **again on the server**: Task
+2.9.9 measured the same walk over the same 672 sessions at **20.6 ms** in the
+cap check, on every cache hit (`MARKET-DATA-API.md` §12.4). Two independent
+measurements of one algorithm, 12% apart.
+
+Three consequences for this story, in the order it will meet them:
+
+- **Choosing the ranges the control offers is a performance decision, not only a
+  product one.** A month of `1d` is free. A year is 17.5 ms of client render.
+  "Max" is 46 ms plus the server's 20.6.
+- **The repair is `packages/shared`'s and it pays three callers** — memoise the
+  walk on its window. It is the repair Task 2.9.9 argued for once and declined to
+  take alone; a second caller and a third have arrived since, which is the
+  condition it was waiting for. `CHARTING.md` §16.5 states the trigger as **the
+  first window control offering a range wider than three months at `1d`** — which
+  is this story, if it offers one.
+- **Do not take the repair by memoising in the component.** A `useMemo` in
+  `PriceChart` fixes one of the three callers, makes the recomputation
+  conditional on a dependency array somebody has to keep right, and leaves the
+  server paying in full.
+
+One thing this story inherits **working**, so it is not re-litigated: the chart
+itself is flat in the bar count — 9,750 bars cost about 5 ms and no elements more
+than 780 — and the crosshair holds 60 FPS at the cap. Volume bars are the first
+marks this axis will carry that are **per bar**, so `CHARTING.md` §1's constraint
+and §2's threshold are the things to read before drawing them: one `<rect>` per
+bar at the cap was measured at **9,790 elements and five main-thread tasks of
+137–254 ms**, and at the default window at **no long task at all**.

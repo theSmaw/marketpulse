@@ -211,3 +211,33 @@ a store backfilled through the fixture provider (`PROVIDER.md` §5.4). The visua
 risk is low — the same treatment is reviewed in `FeedProvenance`'s stories — but
 the branch in _this_ panel has never executed, and this is the story that owns
 provenance.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.9 — this epic owes one answer about §28, and it is not the chart's
+
+Story 2.12's measurement task traced the price chart against
+`PRODUCT_SPEC.md` §28's _no routine main-thread task over 50 ms_. **The chart
+passes at every density this API can serve.** The page does not:
+
+> On **every cold load** of `/securities` and `/securities/:symbol` there is one
+> main-thread task of **50–66 ms**, and it is the **518-row tracked universe**.
+> Proved from both ends: it is there on `/securities` where no chart exists, and
+> gone with a 20-row universe while a **9,750-bar** chart is still drawn. A CPU
+> profile puts 40 of those milliseconds in the engine's own style, layout and
+> paint over a **10,331-node** document.
+
+The measurement, the attribution and three candidate repairs are in
+[`SEARCH-AND-SELECTION.md`](../story-11-security-search-and-selection/SEARCH-AND-SELECTION.md)
+§10; the argument for raising rather than absorbing it is in
+[`CHARTING.md`](../story-12-price-chart/CHARTING.md) §16.1.
+
+**What this story owes is an answer, not necessarily a repair.** Either take one
+of the three repairs and re-measure, or accept the breach in writing with the
+argument and the trigger — `CLAUDE.md`'s rule is that a stated invariant nothing
+checks quietly stops being true, and §28 is currently a published target this
+product misses on its two most-visited routes. Accepting it is defensible today
+(one task, just over the line, on a load rather than during interaction) and gets
+harder with every column Epic 5 adds to that table, which is why the recorded
+trigger is **the first time a second surface renders per-row markup at universe
+scale** rather than a date.
