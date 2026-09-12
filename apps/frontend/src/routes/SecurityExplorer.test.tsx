@@ -588,6 +588,14 @@ describe("the Security Explorer shell", () => {
     // surface, and `SEARCH-AND-SELECTION.md` §4 records why this one is allowed
     // to fill without speaking. Nothing else in the tree refuses a fourth
     // `role="status"`, so this is where that decision is held.
+    //
+    // **Three is what jsdom can see, and the browser sees four** (Task
+    // 2.12.6). The chart's reading has a region of its own, and it renders only
+    // where there are bars to read — which needs a measured plot, which needs a
+    // layout, which this level does not have. The fourth is deliberate and its
+    // argument is in `ChartReading.tsx`: it is the one region on this page that
+    // speaks when a **key** is pressed, and therefore never in the same moment
+    // as any of the three below, which speak when a request lands.
     expect(screen.getAllByRole("status")).toHaveLength(3);
   });
 });

@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
+import { expectNoAxeViolations } from "../support/axe.js";
 import { expectNothingFailedToRender } from "../support/app.js";
 
 // **The chart, in the region that named it** (Task 2.12.4) — and the three
@@ -167,9 +168,18 @@ test("the plot is shorter on a narrow region than on a wide one", async ({
 
   await page.setViewportSize({ width: 390, height: 780 });
   await expect(plot(page)).toBeVisible();
-  const narrow = await plot(page).boundingBox();
 
-  expect(narrow?.height).toBeLessThan(wide?.height ?? 0);
+  // **Polled rather than read once**, and that is a repair to a flake rather
+  // than defensive padding. The chart sizes itself from a `ResizeObserver`, so
+  // a viewport change reaches the plot's height one frame *after* the resize
+  // returns — and `toBeVisible()` is satisfied immediately, because the element
+  // was already visible at the old size. Read once, this test asserts the wide
+  // height against itself and fails at 281 against 281, intermittently and
+  // only under load. Found on 2026-09-12 running this file beside another;
+  // `the readout reserves its height` had the same cause and the same shape.
+  await expect
+    .poll(async () => (await plot(page).boundingBox())?.height ?? 0)
+    .toBeLessThan(wide?.height ?? 0);
   // And it is still a chart: the axis never disappears, which is the rule the
   // density table exists to hold. A plot with no axis is a sparkline, and a
   // sparkline is a different product.
@@ -261,4 +271,150 @@ test("nothing the chart draws makes the page scroll sideways", async ({
     (element) => element.scrollWidth > element.clientWidth,
   );
   expect(overflowing).toBe(false);
+});
+
+// **Reading a point** (Task 2.12.6) — the pointer path, which jsdom cannot see.
+//
+// `ChartReading.test.tsx` drives the keyboard and the announcement, because
+// those are a model rather than a layout. What is genuinely only visible here is
+// a **pointer over a plot that has a size**: jsdom has no layout, so the
+// arithmetic from a client X to a bar has nothing to be relative to and a
+// component test that faked one would be testing its own stub.
+//
+// Task 2.12.8 walks the keyboard path end to end with a screen reader. These are
+// the three properties that would ship broken without a browser.
+
+/** The one tab stop the chart has. */
+function reader(page: Page) {
+  return priceRegion(page).getByRole("img", { name: /price chart$/ });
+}
+
+/** The strip under the axis, in whichever of its two states it is in. */
+function readout(page: Page) {
+  return priceRegion(page)
+    .getByText(/Point at the chart/)
+    .or(
+      priceRegion(page)
+        .getByText(/EDT|EST/)
+        .first(),
+    );
+}
+
+test("a pointer over the plot reads the bar under it, and leaving clears it", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(EXPLORER);
+  await expect(anAnswer(page)).toBeVisible();
+  if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
+
+  // Resting: the invitation, which is the only thing on this page that says the
+  // chart answers questions at all — and the only thing anywhere that says the
+  // keyboard path exists.
+  await expect(priceRegion(page).getByText(/Point at the chart/)).toBeVisible();
+
+  const box = await reader(page).boundingBox();
+  if (box === null) throw new Error("the reading layer has no box");
+
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2);
+
+  // A market instant, four prices and the bar's own change. The prices are
+  // where three quarters of every bar in the store reaches a person:
+  // `CHARTING.md` §2 chose a line of closes over candlesticks *on the grounds
+  // that this readout exists*.
+  await expect(readout(page)).toContainText(/\d{2}:\d{2}\s+(EDT|EST)/);
+  await expect(
+    priceRegion(page).getByText("Bar", { exact: true }),
+  ).toBeVisible();
+
+  // One crosshair and one disc, and **counted rather than checked for
+  // visibility** — this file's own recorded finding: a vertical line is zero
+  // pixels wide to Playwright's bounding-box check, so `toBeVisible()` reports
+  // hidden against a crosshair that is on the screen.
+  expect(await reader(page).locator("line").count()).toBe(1);
+  expect(await reader(page).locator("circle").count()).toBe(1);
+
+  // Off the plot entirely, which is the state the chart spends its life in.
+  await page.mouse.move(box.x + box.width / 2, box.y - 80);
+  await expect(priceRegion(page).getByText(/Point at the chart/)).toBeVisible();
+  expect(await reader(page).locator("circle").count()).toBe(0);
+});
+
+test("the readout reserves its height, so nothing below it moves", async ({
+  page,
+}) => {
+  // **The claim only a browser can check**, and the defect it prevents is the
+  // one that makes a page feel cheap: a strip that appears when a pointer
+  // enters the plot pushes every exact figure beneath it down by a line, under
+  // the hand of somebody reading them.
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(EXPLORER);
+  await expect(anAnswer(page)).toBeVisible();
+  if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
+
+  // **Waited for the resting strip before measuring anything**, and this is a
+  // correction rather than caution: without it the "before" reading is
+  // sometimes taken while the chart is still settling. The plot measures itself
+  // with a `ResizeObserver`, so the strip arrives a frame after the answer
+  // does — and a `y` captured in that gap moves for a reason that has nothing
+  // to do with a reading appearing. The test failed once that way and passed
+  // alone, which is the shape of a flake that would have been re-run until
+  // green instead of understood.
+  await expect(priceRegion(page).getByText(/Point at the chart/)).toBeVisible();
+
+  const prices = priceRegion(page).getByText("Open", { exact: true });
+  const before = await prices.boundingBox();
+
+  const box = await reader(page).boundingBox();
+  if (box === null) throw new Error("the reading layer has no box");
+  await page.mouse.move(box.x + box.width * 0.4, box.y + box.height / 2);
+  await expect(
+    priceRegion(page).getByText("Bar", { exact: true }),
+  ).toBeVisible();
+
+  const after = await prices.boundingBox();
+
+  // The same y, to the pixel. Not "roughly": the reserved height is a token and
+  // either it is reserved or it is not.
+  expect(after?.y).toBe(before?.y);
+});
+
+test("the chart is one tab stop, and it is reachable", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(EXPLORER);
+  await expect(anAnswer(page)).toBeVisible();
+  if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
+
+  // Focused directly rather than tabbed to: **the count of stops before it is
+  // Task 2.12.8's**, which walks the whole page at three viewports. What this
+  // asserts is the property that would make that walk impossible — that the
+  // chart is one stop rather than one per bar, and that arriving on it produces
+  // a reading rather than a focused rectangle that says nothing.
+  await reader(page).focus();
+  await expect(
+    priceRegion(page).getByText("Bar", { exact: true }),
+  ).toBeVisible();
+  expect(await reader(page).locator("circle").count()).toBe(1);
+
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("Home");
+  await expect(
+    priceRegion(page).getByText("Bar", { exact: true }),
+  ).toBeVisible();
+
+  // Escape clears the reading and **keeps the focus**, which is the whole reason
+  // the focus ring is on the plot rather than on a disc that has just gone.
+  await page.keyboard.press("Escape");
+  await expect(priceRegion(page).getByText(/Point at the chart/)).toBeVisible();
+  expect(
+    await reader(page).evaluate(
+      (element) => element === document.activeElement,
+    ),
+  ).toBe(true);
+
+  // And the whole assembled page, with a reading on screen. axe is a gate here
+  // rather than a report, and a focusable element that gained a name, a
+  // description and a role today is exactly the shape of thing it catches.
+  await page.keyboard.press("End");
+  await expectNoAxeViolations(page, "the price chart with a reading on it");
 });

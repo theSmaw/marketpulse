@@ -1,6 +1,6 @@
 # Task 2.12.6 — Reading a point: the crosshair, and the keyboard path to it
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-12**
 **Story:** [2.12 Price Chart](STORY.md)
 **Depends on:** 2.12.5
 
@@ -385,3 +385,168 @@ part that matters: **`O(sessions + breakpoint)`, `O(1)` in bars.** No element he
 scales with the bar count, and this task is the one most able to break that — a
 per-bar hit target is the naive way to build a crosshair and is the thing
 `CHARTING.md` §1's constraint forbids.
+
+---
+
+## What was built — 2026-09-12
+
+### The shape of it
+
+**`ChartReading` is a sibling of the plot, not a branch of `PriceChart`.** That
+is the one structural decision everything else hangs off. It renders two things
+onto the chart's grid — an interactive overlay in the plot's own cell, and the
+readout strip in a row beneath the axis — and it holds the read position, so a
+pointer move re-renders it and the component that computes the frame does not
+render at all.
+
+| Piece                                      | Where                                                   |
+| ------------------------------------------ | ------------------------------------------------------- |
+| The sentence, the pacing, the bar's change | `src/market/chart-reading.ts`                           |
+| Slot → bar, as a binary search             | `nearestPlaced` in `src/market/chart-time-axis.ts`      |
+| Bars with their pixels, and the x scale    | `ChartFrame.readings` / `.slots` in `chart-geometry.ts` |
+| The crosshair, the strip, the keys         | `components/PriceChart/ChartReading.tsx`                |
+| Two tokens                                 | `--chart-point`, `--chart-readout-height`               |
+
+### The decisions this task owned, and what they were
+
+Every one of these is argued at length in
+[`CHARTING.md` §13](CHARTING.md) and drawn on **`Price reading.dc.html`**, a
+fifth file on the design canvas. In brief:
+
+1. **A slot with no bar: the crosshair snaps** to the nearest bar that exists,
+   and the crosshair is drawn at the **bar's** pixel rather than the pointer's,
+   so the rule and the disc can never disagree. What makes the snap honest is
+   that the strip leads with that bar's own market timestamp. §13.1.
+2. **The arrows step bars, not slots.** §13.2.
+3. **The readout is a reserved strip under the axis**, not a card over the plot
+   and not a column beside it — 342 px is the width that killed the column.
+   §13.6.
+4. **The announcement rate is search's two numbers**, and the _floor_ is what
+   does the work here rather than the delay: a held arrow key repeats ~30 times
+   a second. **A pointer announces nothing.** §13.4.
+5. **The focus ring lands on the plot**, which corrects a claim on
+   `Price chart.dc.html` and in `VISUAL-LANGUAGE.md`. Both were corrected the
+   same day, canvas first. §13.5.
+6. **The memoisation repair 2.12.4 did not take** was taken structurally and
+   **measured after**: zero `chartFrame` calls across forty arrow presses, with
+   the counter verified live in the same test. §13.7.
+
+### What it cost elsewhere
+
+- `PriceChart` gained a `symbol` prop, for `BarSeriesPanel`'s reason.
+- Two specs were corrected rather than deleted: the Price region now holds
+  **two** SVGs (the plot and the overlay), and the panel's live region needed
+  `.first()` because the chart's reading has one of its own.
+- One `SecurityExplorer` test's comment was amended: three live regions is what
+  **jsdom** can see, and a browser with bars in the store sees four.
+
+### What this task did **not** decide
+
+Every failed and empty state is 2.12.7's — a crosshair over a chart with no bars
+is a state, and `ChartReading` renders **nothing at all** there today rather than
+a tab stop that answers no key press. The text alternative is 2.12.8's and may
+want this same element; the element and its name are settled here, what it says
+about the _series_ is not.
+
+---
+
+## For the stakeholders — what this actually means
+
+_A non-technical account of what changed on 2026-09-12, and why._
+
+### Before this, the chart was a picture. Now it answers questions.
+
+Last week the Security Explorer learned to draw NVDA's price over the last five
+trading days. It was a real drawing of real market data — but it was exactly as
+interactive as a photograph. You could look at a dip in the line and have no way
+whatsoever to find out **when** it happened or **what the price was**. The exact
+figures were printed underneath, but they described the whole window, not the
+bit you were pointing at.
+
+**That gap is now closed.** Move your mouse across the chart and a thin vertical
+line follows it, with a small circle sitting exactly on the price line. Directly
+underneath, a row of figures tells you what you are pointing at: the date and
+time in New York market terms, the four prices that minute traded at, and
+whether that minute finished up or down.
+
+This is the second thing in MarketPulse that responds to a person — the search
+box was the first — and it is the first that responds **continuously**. That
+matters more than it sounds. The whole product is built around a person asking
+_"what happened here?"_, and until today the answer was always "somewhere in this
+table below".
+
+### Three decisions worth knowing about
+
+**1. We chose a simple line over the traditional "candlestick" chart — and this
+is the feature that made that choice safe.**
+
+A few days ago we measured that a candlestick on our default view would be about
+**half a pixel wide**. Unreadable. So we draw a clean line instead. But a
+candlestick carries four numbers per minute (the open, the high, the low and the
+close) and a line carries one. We justified the simpler drawing explicitly _on
+the grounds that this readout would exist_ — and it does, showing all four. The
+earlier decision is now paid for rather than owed.
+
+**2. It works without a mouse, and that took most of the thought.**
+
+Charts are where accessibility usually fails silently. The naive way to make a
+chart keyboard-reachable is to make every data point a stop — which on our
+default view means pressing Tab **1,950 times** to get past it. We made the
+chart a single stop: land on it and you immediately get a reading of the most
+recent minute, arrow keys walk you along, Home and End jump to the ends, Escape
+clears it.
+
+Building that turned up a genuine mistake in our own design work. Our design
+system said the focus indicator should draw around the little circle on the line.
+That cannot work, because when you first arrive on the chart there is no circle
+yet — you have not read anything. So the indicator goes around the plot, and
+arriving opens on the last bar. We corrected the design canvas, the design
+document and the code on the same day, in that order.
+
+**3. Three things on that screen say "up" or "down", and they can all disagree
+at once — legitimately.**
+
+The big number at the top says what the whole five-day window did. The green and
+red shading says whether the price at each point is above or below where the
+window opened. And the new readout says what **one single minute** did. A minute
+can tick up while sitting well below the window's opening price inside a week
+that finished higher — and all three statements are correct.
+
+That is a real hazard: three unlabelled arrows contradicting each other looks
+like a broken product. So every one of them is explicitly labelled — the new one
+is prefixed `BAR` and sits at the end of a row that begins with that minute's own
+timestamp. This follows a rule the product already had: never let colour or a
+glyph be the only thing saying what a number is about.
+
+### Two smaller things we were deliberate about
+
+**Nothing on the page moves when you point at it.** The row that shows the
+reading is there whether or not you are pointing — when you are not, it holds a
+short line telling you the chart can be read, including with the keyboard. If it
+appeared only on hover, every figure below would jump down a line under the
+reader's hand. We verified this by deliberately breaking it and watching the test
+catch it.
+
+**The chart does not re-do its own arithmetic every time you move the mouse.**
+Working out where 1,950 price points go involves walking the trading calendar day
+by day. Done on every mouse movement, that is the kind of thing that makes an
+application feel sluggish under load — and this product has published performance
+commitments. We arranged the code so the calculation simply does not happen
+again, and then **measured it**: forty key presses, zero recalculations.
+
+### Where this leaves the product
+
+The Security Explorer now has a chart a market analyst could genuinely use to
+investigate something: a real series, an honest picture of how much data we hold,
+exact figures underneath, and the ability to interrogate any individual minute of
+it with a mouse or a keyboard.
+
+**What is still missing, on purpose.** The chart's error and empty states are not
+yet designed as states (next task). A screen-reader walk of the whole page has
+not been done yet (the task after). There is no volume chart and no way to change
+the time window — that is the next story. And there is still no live data: every
+price on this screen is stored history, correctly labelled as such. Live prices
+arrive in Epic 3.
+
+None of that is drift. Each remaining region on that screen still says, in a
+sentence, which piece of work fills it.

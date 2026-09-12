@@ -66,6 +66,10 @@ const INK: readonly Specimen[] = [
     why: "Quieter than the data it points at, and identical under the pointer and under keyboard focus.",
   },
   {
+    name: "--chart-point",
+    why: "The ring around the disc on the line. The fill is the panel's own ground punched through the series, so the disc reads as a hole and a near-black outline has something to sit outside of.",
+  },
+  {
     name: "--chart-uncovered",
     why: "The span that was asked for and is not held. The quietest mark in this language, at 1.107:1, and it must not read as a failure.",
   },

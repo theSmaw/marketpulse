@@ -1,6 +1,6 @@
 # Story 2.12 — Price Chart
 
-**Status:** **In progress — Tasks 2.12.1 to 2.12.5 are complete (2026-09-12).** Five remain: the crosshair, every state drawn, the text alternative, the measurement and the close.
+**Status:** **In progress — Tasks 2.12.1 to 2.12.6 are complete (2026-09-12).** Four remain: every state drawn, the text alternative, the measurement and the close.
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.11
 **Epic scope covered:** Basic price chart

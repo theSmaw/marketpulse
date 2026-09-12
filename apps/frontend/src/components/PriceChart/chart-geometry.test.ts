@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import type { BarSeriesView } from "../../market/index.js";
-import { chartDensity, directionOf, formatPrice } from "../../market/index.js";
+import {
+  chartDensity,
+  directionOf,
+  formatPrice,
+  timeAxis,
+} from "../../market/index.js";
 import { changePercent, seriesPrices } from "../BarSeriesPanel/series-facts.js";
 import type { ChartSubject } from "./chart-geometry.js";
 import { chartFrame } from "./chart-geometry.js";
@@ -200,6 +205,8 @@ describe("the frame is never conditional on the data", () => {
 
     expect(frame).toEqual({
       gridlines: [],
+      readings: [],
+      slots: null,
       seams: [],
       ticks: [],
       series: null,
@@ -365,5 +372,107 @@ describe("direction, and the geometry that carries it", () => {
     expect(subject.bars).toHaveLength(1950);
     expect(frame.direction?.reference).toBeGreaterThan(0);
     expect(frame.direction?.reference).toBeLessThan(PLOT.height);
+  });
+});
+
+// **The readings, which are what the crosshair reads** (Task 2.12.6).
+//
+// The property that matters is that they are *the same arithmetic as the marks*
+// rather than a second derivation of them. A readings list that agreed with the
+// bars but not with the path would put the disc beside the line it is meant to
+// be on — a defect visible only in a browser, and only if somebody looked.
+describe("the readings", () => {
+  it("carries one reading per drawn point, at the drawn coordinates", () => {
+    const subject = subjectOf("full");
+    const frame = chartFrame(PLOT, DENSITY, subject);
+    const drawn = points(frame.series ?? "");
+
+    expect(frame.readings).toHaveLength(drawn.length);
+
+    // Pair by pair. This is the assertion that would catch a second rounding
+    // rule, a gutter applied twice, or a scale rebuilt with its range the other
+    // way up — all of which draw a plausible chart with a crosshair that misses.
+    for (const [index, reading] of frame.readings.entries()) {
+      expect([reading.x, reading.y]).toEqual(drawn[index]);
+    }
+  });
+
+  it("reads the close and not one of the other three prices", () => {
+    // The line is made of closes, so the disc has to be too. `high` and `open`
+    // are within a few hundredths of a percent of it at `1m`, which is exactly
+    // why this needs asserting rather than eyeballing: the wrong one looks
+    // right.
+    const subject = subjectOf("full");
+    const frame = chartFrame(PLOT, DENSITY, subject);
+
+    for (const reading of frame.readings) {
+      expect(subject.bars).toContain(reading.bar);
+    }
+
+    const closes = frame.readings.map((reading) => reading.bar.close);
+    expect(closes).toEqual(subject.bars.map((bar) => bar.close));
+  });
+
+  it("hands back the x scale, so a pointer is inverted rather than re-derived", () => {
+    // The task brief forbids re-deriving a mapping from an element's bounding
+    // box, and this field is what makes that unnecessary: the crosshair inverts
+    // the scale the marks were drawn with. A second spelling agrees with the
+    // first everywhere except the edges, which is where a pointer spends its
+    // time.
+    const frame = chartFrame(PLOT, DENSITY, subjectOf("full"));
+
+    expect(frame.slots).not.toBeNull();
+    expect(frame.slots?.range).toEqual([0, PLOT.width]);
+  });
+
+  it("has no readings before there is an answer, and none where the store holds nothing", () => {
+    // Both draw a real frame — the loading state is `PRODUCT_SPEC.md` §28's
+    // 500 ms satisfied by the frame rather than by the response — and neither
+    // has a bar in it to read. What a crosshair over one of those *looks* like
+    // is Task 2.12.7's.
+    expect(chartFrame(PLOT, DENSITY, null).readings).toEqual([]);
+
+    const empty = barSeriesFixtureView("empty");
+    if (empty.state !== "empty") throw new Error("the empty fixture moved");
+
+    const frame = chartFrame(PLOT, DENSITY, {
+      requested: empty.series.coverage.requested,
+      timeframe: empty.series.timeframe,
+      bars: empty.series.bars,
+    });
+
+    expect(frame.readings).toEqual([]);
+    // And it still has an axis, because that window was asked for.
+    expect(frame.ticks.length).toBeGreaterThan(0);
+  });
+
+  it("places every bar of every recorded answer on a slot of its own — which is why the hole case is synthetic", () => {
+    // **A finding rather than a check**, and it is the reason
+    // `chart-time-axis.test.ts`'s `nearestPlaced` cases are written objects
+    // while everything else in this file is a recorded body.
+    //
+    // Two obvious assertions were written here first and both went red. *The
+    // last reading stops short of the frame on a `partial`* is false — this
+    // recording's shortfall is overnight, which `CHARTING.md` §10.1 already
+    // recorded. And *a short answer has fewer readings than the axis has slots*
+    // is false too: 60 bars on 60 slots. **No recorded body in this fixture set
+    // has a hole in it.**
+    //
+    // That is not a gap in the fixtures; it is what a liquid S&P 500 security's
+    // stored minutes actually look like. So the case the crosshair would read
+    // wrongly — a minute with no prints, shifting everything after it by one —
+    // cannot be reached from a recording, and the level that can test it is the
+    // one below. What this asserts is the premise that makes the arithmetic
+    // work at all: slots ascend, so a binary search is legitimate.
+    const subject = subjectOf("partial");
+    const frame = chartFrame(PLOT, DENSITY, subject);
+    const axis = timeAxis(subject.requested, subject.timeframe);
+
+    expect(frame.readings.length).toBeGreaterThan(0);
+    expect(frame.readings.length).toBeLessThanOrEqual(axis.slots);
+
+    const slots = frame.readings.map((reading) => reading.slot);
+    expect(slots).toEqual([...slots].sort((left, right) => left - right));
+    expect(new Set(slots).size).toBe(slots.length);
   });
 });

@@ -248,6 +248,18 @@
      point is a hollow disc rather than a second crosshair. */
   --chart-crosshair: #43474f;
 
+  /* The disc the crosshair puts on the line, and **only its ring** — the fill is
+     `--surface-raised`, which is the panel's own ground punched through the
+     series so the mark reads as a hole rather than as a dot. Hollow for a
+     measured reason rather than a stylistic one: the global focus ring is a
+     2px near-black outline, and a near-black ring around a near-black filled
+     dot on a near-black line is invisible.
+
+     Same value as `--chart-series` and separately named, for this block's own
+     stated reason: the day the line softens, the mark that points at it must
+     not have to follow. */
+  --chart-point: #181c23;
+
   /* The span that was requested and is not held. `partial` is the normal case
      here, so this is a product state rather than a fault: 1.107:1, the quietest
      mark in this language, and it must not read as a failure. What stops it
@@ -550,6 +562,19 @@
    * labels start cannot be stacked.
    */
   --chart-filing-lane: 14px;
+
+  /* The readout strip's reserved height (Task 2.12.6) — the row under the axis
+     that says which bar the crosshair is on.
+
+     **Reserved rather than grown into.** The row is this tall whether it holds a
+     reading or the invitation to make one, because a strip that appears when a
+     pointer enters the plot moves every exact figure stated beneath it, and
+     nothing in this product may move while a number is being read.
+
+     22px is one line of `--font-size-body` at this language's dense leading,
+     which is what the strip is at every width down to 400px. Below that it wraps
+     to two lines and `min-height` lets it. */
+  --chart-readout-height: 22px;
 }
 
 /*

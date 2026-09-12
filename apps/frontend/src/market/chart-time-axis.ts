@@ -359,6 +359,79 @@ export function placeBars(
 }
 
 /**
+ * The index of the placed thing nearest a slot, or `null` when there is nothing
+ * placed (Task 2.12.6).
+ *
+ * ## Why this exists at all, which is the distinction the whole crosshair rests on
+ *
+ * **A slot is a position on the axis; a bar is a thing that traded**, and
+ * `bars[nearestSlot(...)]` confuses the two. They coincide only when every slot
+ * in the window holds a bar, which is the *uncommon* case on this screen: a
+ * `partial` answer covers the first *n* slots of a longer axis — the normal
+ * state, since the free plan withholds the most recent quarter of an hour — and
+ * a minute with no prints leaves a hole in the middle of a session, which the
+ * store records as an absent row rather than a zero-volume bar.
+ *
+ * Indexing the array by slot is wrong in both, and **wrong quietly in the
+ * second**: it returns a real bar, just not the one under the pointer, with
+ * everything after the hole shifted by one. Nothing renders badly and no test
+ * that does not know about holes can see it.
+ *
+ * ## The answer is the nearest placed thing, never nothing
+ *
+ * Task 2.12.3 handed this task two decisions and this is the first: what the
+ * crosshair does over a slot with no bar. It **snaps**, and the argument is on
+ * the canvas (`Price reading.dc.html` §05) and in `CHARTING.md` §13.2. Briefly:
+ * the readout leads with the bar's own market timestamp, so a snap cannot
+ * mislead — a reader is always told which minute they are reading — and the
+ * alternative blanks the reading across the whole uncovered span, which is a
+ * third of the commonest screen in the product.
+ *
+ * Takes anything carrying a `slot` rather than {@link PlacedBar}, because the
+ * caller is the pixel layer and what it holds is a placed bar **with its
+ * coordinates already on it**. Narrowing to `PlacedBar` would make the
+ * component re-find a pixel it is already holding. It returns an **index**
+ * rather than the thing found for the same reason: the caller wants a position
+ * it can step from, and arrows step positions.
+ *
+ * A binary search rather than a scan, and that is a measurement rather than
+ * tidiness: this runs on every pointer move over a 1,950-point series, which is
+ * `PRODUCT_SPEC.md` §28's 50 ms budget being spent on a lookup.
+ *
+ * Ties go to the **earlier** slot. Arbitrary, and stated so it stays stable:
+ * an unstated tie-break is a reading that changes when an unrelated edit
+ * reverses a comparison.
+ */
+export function nearestPlaced(
+  placed: readonly { readonly slot: number }[],
+  slot: number,
+): number | null {
+  if (placed.length === 0) return null;
+
+  let low = 0;
+  let high = placed.length - 1;
+
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    // `?? Infinity` is unreachable — `middle` is inside the array — and is what
+    // `noUncheckedIndexedAccess` costs. Written as a comparison that cannot pick
+    // a wrong side rather than as a non-null assertion.
+    if ((placed[middle]?.slot ?? Infinity) < slot) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+
+  const at = placed[low]?.slot;
+  const before = placed[low - 1]?.slot;
+  if (at === undefined) return null;
+  if (before === undefined) return low;
+
+  return slot - before <= at - slot ? low - 1 : low;
+}
+
+/**
  * Which slots get a label, and what they say.
  *
  * Two kinds, and the split is `CHARTING.md` §7.1's answer 9: **a session

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { PopulatedBarSeries } from "./bar-series-view.js";
 import { barSeriesFixtureView } from "../fixtures/bar-series.js";
 import {
+  nearestPlaced,
   formatSessionDate,
   formatSessionTime,
   placeBars,
@@ -392,5 +393,74 @@ describe("formatSessionDate and formatSessionTime", () => {
     expect(formatSessionTime(new Date("2026-12-04T14:30:00.000Z"))).toBe(
       "09:30",
     );
+  });
+});
+
+// **A slot is a position on the axis; a bar is a thing that traded** (Task
+// 2.12.6). These are the cases where the two lists come apart, and they are the
+// cases the crosshair would otherwise read wrongly — quietly, in the second one.
+describe("the nearest placed bar", () => {
+  /** Slots 0, 1, 2, then a hole where 3 and 4 would be, then 5. */
+  const withAHole = [
+    { slot: 0 },
+    { slot: 1 },
+    { slot: 2 },
+    { slot: 5 },
+  ] as const;
+
+  it("is the index, not the slot — which is the whole point of it existing", () => {
+    // `bars[slot]` is the defect this replaces. Slot 5 is index 3 here, and
+    // indexing by slot would read a real bar three minutes early with
+    // everything after the hole shifted.
+    expect(nearestPlaced(withAHole, 5)).toBe(3);
+  });
+
+  it("snaps to the nearer side of a hole", () => {
+    // Slot 3 is one away from slot 2 and two away from slot 5.
+    expect(nearestPlaced(withAHole, 3)).toBe(2);
+    // Slot 4 is two away from 2 and one away from 5.
+    expect(nearestPlaced(withAHole, 4)).toBe(3);
+  });
+
+  it("takes the earlier slot on a tie, stated rather than left to chance", () => {
+    // Equidistant between slots 2 and 5 is 3.5, which is not a slot. Two
+    // entries one apart with the query between them is the real tie: slot 0.5
+    // below is equidistant from 0 and 1.
+    expect(nearestPlaced(withAHole, 0.5)).toBe(0);
+  });
+
+  it("clamps past both ends, because a pointer dragged off the plot still means the nearest point", () => {
+    // The same rule `nearestSlot` takes for the same reason, one layer up. This
+    // is what pins the crosshair to the coverage edge over the uncovered span
+    // of a `partial` answer rather than blanking the reading across a third of
+    // the commonest screen in the product.
+    expect(nearestPlaced(withAHole, -40)).toBe(0);
+    expect(nearestPlaced(withAHole, 9_999)).toBe(3);
+  });
+
+  it("answers nothing when nothing is placed", () => {
+    // `null` rather than 0, which would be an index into an empty array and
+    // would render a reading of `undefined`.
+    expect(nearestPlaced([], 3)).toBeNull();
+  });
+
+  it("finds every bar of a real recorded answer by its own slot", () => {
+    // The round trip against the store rather than against four invented
+    // objects: place a recorded body's bars on a real axis, then ask for each
+    // one back by the slot it was put on.
+    const view = barSeriesFixtureView("full");
+    if (view.state !== "loaded" && view.state !== "partial")
+      throw new Error("the full fixture is not an answer with bars");
+
+    const axis = timeAxis(
+      view.series.coverage.requested,
+      view.series.timeframe,
+    );
+    const placed = placeBars(axis, view.series.bars);
+
+    expect(placed.length).toBeGreaterThan(0);
+    for (const [index, entry] of placed.entries()) {
+      expect(nearestPlaced(placed, entry.slot)).toBe(index);
+    }
   });
 });

@@ -169,7 +169,7 @@ export function BarSeriesPanel({
        * answer, which is `PRODUCT_SPEC.md` §28's 500 ms satisfied by the frame
        * rather than by the response.
        */}
-      <PriceChart view={view} />
+      <PriceChart symbol={symbol} view={view} />
       <Body view={view} onRetry={onRetry} />
     </div>
   );

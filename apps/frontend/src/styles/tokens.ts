@@ -125,12 +125,14 @@ const TOKEN_NAMES = [
   "--chart-reference",
   "--chart-series",
   "--chart-crosshair",
+  "--chart-point",
   "--chart-uncovered",
   "--chart-series-width",
   "--chart-height",
   "--chart-height-compact",
   "--chart-gutter",
   "--chart-gutter-compact",
+  "--chart-readout-height",
 
   // Authorship — agent.css. Added 2026-09-11 with the third colour scope.
   // No JavaScript consumer yet, and here for the canary reason `--brand-ink`

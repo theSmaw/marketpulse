@@ -1,0 +1,180 @@
+/*
+ * The crosshair, and the strip that says what it is pointing at (Task 2.12.6).
+ *
+ * **Two of these rules place an element on `PriceChart`'s grid**, which is a
+ * coupling worth naming rather than discovering. The reading layer has to sit in
+ * the same cell as the plot — it is an overlay — and the readout has to sit in a
+ * row beneath the axis, which is a row this component adds. Neither can be
+ * expressed from the parent without the parent owning this component's state,
+ * which is the one thing it must not do (see `ChartReading.tsx`'s header on why
+ * the read position lives one level down).
+ *
+ * So the grid's shape is `PriceChart.module.css`'s and the placement of these
+ * two children is here, and both files say so.
+ */
+
+/*
+ * The interactive layer, filling the plot's own cell.
+ *
+ * It draws nothing itself and it is the only thing on this chart a person can
+ * reach: one tab stop, whatever the series holds.
+ *
+ * **No focus rule here.** Focus is the token layer's job — one global
+ * `:focus-visible` outline — and a component declaring its own is answering a
+ * question already answered. What this element does is make sure the answer
+ * lands somewhere legible: it is exactly the plot's box, so the global ring
+ * draws around the plot rather than around a disc that may not exist yet.
+ */
+.reader {
+  position: relative;
+  grid-row: 1;
+  grid-column: 1;
+  /*
+   * `crosshair` rather than the default, which is the cheapest possible signal
+   * that this picture answers questions — and it appears before the person has
+   * committed to anything. The readout's invitation is the other half, and it
+   * is the half a keyboard reaches.
+   */
+  cursor: crosshair;
+}
+
+/*
+ * Absolutely positioned for `PriceChart`'s reason, restated because it is the
+ * same mechanism: nothing this element contains may change the box that was
+ * measured to produce it, which is what keeps the `ResizeObserver` loop-free by
+ * construction rather than by the equality guard alone.
+ */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+}
+
+/*
+ * The vertical rule, **solid and drawn over everything**.
+ *
+ * It crosses the reference rule at right angles, and both are chrome of similar
+ * weight — `--chart-crosshair` is 9.32:1 and `--chart-reference` is 4.48:1. Left
+ * to chance, the intersection reads either as a broken reference rule or as one
+ * shape. Solid over dashed is the difference that is already there, and it costs
+ * nothing: this layer is painted after the base SVG, so *over* is where it lands
+ * unless somebody works to prevent it.
+ *
+ * Quieter than the series it points at, and never `crispEdges`: the rule tracks
+ * a bar's exact pixel, and snapping it to a device pixel would put it beside the
+ * disc at fractional positions.
+ */
+.crosshair {
+  stroke: var(--chart-crosshair);
+  stroke-width: 1;
+}
+
+/*
+ * The disc on the line: **the panel's own ground punched through the series**,
+ * ringed in near-black.
+ *
+ * Hollow for a measured reason. The global focus ring is a 2px near-black
+ * outline, and a near-black ring around a near-black *filled* dot on a
+ * near-black line is invisible — so the fill is the surface and the ring is what
+ * reads. That argument survives this task's correction to where focus lands
+ * (`ChartReading.tsx`): the ring is on the plot now, and the disc still has to
+ * be legible sitting on the one mark this chart repeats 1,950 times.
+ */
+.point {
+  fill: var(--surface-raised);
+  stroke: var(--chart-point);
+  stroke-width: 2;
+}
+
+/*
+ * The readout strip: one row under the time axis, full width, **reserved**.
+ *
+ * The height is held whether or not there is a reading in it. A region that
+ * grows when a pointer enters it is a page that jumps under somebody's hand, and
+ * the exact figures the picture rounds are stated directly below this strip —
+ * they must not move while somebody is reading them.
+ *
+ * `min-height` rather than `height`, so the narrow case wraps onto a second line
+ * instead of clipping. At 342px it does, and that is the width at which a
+ * readout *beside* the plot stopped being possible at all.
+ */
+.readout {
+  grid-row: 3;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-20);
+  min-height: var(--chart-readout-height);
+  margin: var(--space-16) 0 0;
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--rule-hairline);
+}
+
+/*
+ * The resting state, and the only place in this product that tells a person
+ * what a control can do before they have touched it.
+ *
+ * It earns that exception: until this task the chart was `aria-hidden` and
+ * carried no interaction at all, so nothing on the page said the picture answers
+ * questions — and **nothing whatsoever said the keyboard path exists**, which is
+ * where charts usually fail silently. Both inputs are named in one sentence,
+ * because a keyboard hint that only appears on focus is a hint nobody reads.
+ */
+.invitation {
+  composes: prose from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+}
+
+/*
+ * The bar's instant, first and in the data face.
+ *
+ * It leads because it is what makes every other decision on this strip honest:
+ * the axis is ordinal and draws no gap between sessions, and the crosshair snaps
+ * to the nearest bar that exists rather than to the pixel under the pointer.
+ * Both are safe **because** the reading names the minute it is about.
+ */
+.stamp {
+  composes: dataCell from "../../styles/type.module.css";
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-primary);
+}
+
+.figure {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+
+/*
+ * `O H L C` and `Bar`, in the micro-label idiom — its size, its case and its
+ * ink, unlike the value scale, which keeps the size and drops the case because a
+ * number has none. These are words.
+ */
+.label {
+  composes: microLabel from "../../styles/type.module.css";
+  font-family: var(--font-data);
+  color: var(--ink-secondary);
+}
+
+.value {
+  composes: dataCell from "../../styles/type.module.css";
+  font-size: var(--font-size-body);
+  color: var(--ink-primary);
+}
+
+/*
+ * The close carries the weight, because it is the price the line is made of and
+ * therefore the one figure on this strip that is also on the plot. The other
+ * three are what the picture cannot show at 0.47px per bar, which is why they
+ * are here at all.
+ */
+.close {
+  font-weight: var(--font-weight-strong);
+}
+
+.visuallyHidden {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}
