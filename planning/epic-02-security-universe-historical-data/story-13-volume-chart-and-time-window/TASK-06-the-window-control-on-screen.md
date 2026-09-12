@@ -112,3 +112,64 @@ observe a **superseded** answer in a real browser, because it is the first way t
 change a request without navigating. Today that property is asserted in jsdom by
 request identity alone. 2.13.7 closes it; do not close it here by accident and
 leave it unrecorded.
+
+---
+
+## Amended 2026-09-12 by Task 2.13.1 — three of the four inputs to "a hand-typed parameter" were decided, and one obligation lands here
+
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) settled several things this task
+was told to decide, and created one it was not.
+
+**The bullet on hand-typed parameters is mostly answered.** Its four cases were:
+an unknown window name, a negative count, a count over the cap, and a window
+outside the calendar. Three no longer arise as stated.
+
+- **There are no window _names_ in the address.** §4(a): the parameter is
+  `sessions` and it carries a **count**, because `sessions` is already the wire's
+  own parameter and `?window=1M` would be a second vocabulary the address holds
+  and the request does not.
+- **A count over the cap is unreachable through this form.** §2.1's mapping
+  forecloses it for every session count from every source. The `refused` state
+  stays reachable through the **absolute** window form, which Epic 13 produces.
+- **A window off the calendar is reachable by address and by an agent's
+  `setTimeWindow`, and not by this control** — 676 sessions of headroom against a
+  widest offer of 252 (§6.1). It is asked and the server's refusal is rendered,
+  never pre-empted by the client: `use-security-symbol.ts`'s precedent, where the
+  server's answer naming the input beats a client reporting on something else.
+
+What is left genuinely open for this task is a **negative, zero or unparseable
+count**, and the same precedent points the same way.
+
+**The obligation this task gains: no snapping.** §4(b) decided that the address
+admits any count the server accepts, and that when it names a count outside the
+five, **the control shows no selection and does not snap to the nearest** —
+snapping rewrites the user's address into a different window, which
+`FRONTEND-STATE.md` §3 forbids, and silently answers a different question from
+the one asked. This is what makes Epic 11's `setTimeWindow` work two epics early,
+so it is a feature rather than an edge case. 2.13.2 owns how it looks.
+
+**And there is no disabled window**, so `TextField`'s `aria-disabled` +
+`readOnly` idiom is not needed here and its WCAG consequence does not arise. The
+announcement rule still applies in full: a control that changes the page must
+announce that it did, and a label that flips is not a substitute.
+
+**`1D` ships knowing it is reliably `empty`** on a nightly-backfilled store
+(§1.3). It is never the default and never preselected. Do not write copy around
+that — the empty rendering already states the window and shows the whole frame as
+uncovered.
+
+**Record a `1d` response body here, not in 2.13.7.** This task is the first thing
+in the product's history to make a `1d` window reachable, which means
+`chart-alternative.ts`'s two `1d` branches — `intervalWord`'s _"trading
+session"_ and `slotWord`'s _"sessions"_ — **execute for the first time**, and all
+fourteen recorded bodies are `1m`. A task that ships unverified English and a
+task that records the body to review it should not be one apart. 2.13.7 still
+needs whatever bodies its transitions need; the `1d` one is this task's, with its
+bundle-leak grep added to `CLAUDE.md` in the same change.
+
+Add to **Done when**:
+
+- An address naming a count outside the five renders with **no selection**, and a
+  test proves the address was not rewritten
+- A `1d` response body is recorded, a story renders it, and somebody **read the
+  two `1d` sentences aloud**

@@ -97,3 +97,27 @@ task and its figures stop being comparable to the ones before it.
 The trap is the warm floor. §0.1 of `CHARTING.md` records how these figures are
 taken; a cold first run and a warm tenth are different measurements and saying which
 one you have is most of the value.
+
+---
+
+## Amended 2026-09-12 by Task 2.13.1 — measure the windows this product offers
+
+Two corrections to the figures this task is told to re-take.
+
+**The widest offered window is 252 sessions, not 672.** "Max" was declined
+([`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §1.2), so the 23.051 ms / 46.1 ms
+row describes a window nothing in the product can ask for. Re-take the table at
+the windows the control **offers** — 1, 5, 21, 63 and 252 sessions — and carry
+§16.5's 672-session row as a historical figure rather than as a live claim. The
+widest live figure is **17.0 ms per render at 1Y**, a third of the budget.
+
+**2.13.1 already re-took that table once, before the repair, and it is the
+baseline to compare against** rather than §16.5's: 0.058 / 0.222 / 0.735 / 2.858
+/ 8.500 ms per call at 1, 5, 21, 63 and 252 sessions, taken 2026-09-12 in the
+frontend's own runner, 200 iterations after 50 warm-up calls. It corroborates
+§16.5 to within 4% at every shared point, which is what makes the two comparable
+at all. **State the method both were taken with**: a figure that has moved looks
+exactly like a figure that was mis-recorded.
+
+The rest of this task is unchanged, including the instruction not to absorb the
+universe table's 50–66 ms into a new number.

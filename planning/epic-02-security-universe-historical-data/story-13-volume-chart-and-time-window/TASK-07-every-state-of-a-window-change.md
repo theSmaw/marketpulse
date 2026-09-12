@@ -115,3 +115,47 @@ The trap is believing a break went red. A state rendered from a body that cannot
 reach it proves nothing: `loaded` is the one state where the window-derived and
 bar-derived x-domains agree, which is why anything built against it alone proves
 nothing at all.
+
+---
+
+## Amended 2026-09-12 by Task 2.13.1 — two judgements this task owns, and a correction
+
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) placed both refusals and left this
+task two things to decide that its Work section does not currently name.
+
+**Correction: reachability was decided in 2.13.1, not in 2.13.6.** The bullet
+above says _"whether the second is reachable was decided in 2.13.6"_. §6 decided
+it: **neither refusal is reachable through the control.** The calendar refusal is
+reachable by a hand-typed address and by Epic 11's `setTimeWindow`; the cap is
+reachable only through the **absolute** window form. Both are still rendered
+here — a state the control cannot cause is still a state the product can be in —
+and both carry the server's sentence with **no retry**, because a refusal is a
+fact about the request rather than about the moment.
+
+**§1.3's trigger is this task's to fire or not, and it needs a person.** 1D is
+offered knowing it is reliably `empty` on a nightly-backfilled store. The written
+reversal trigger is: **if the `empty` rendering at 1D reads as a broken product
+rather than as an honest one when somebody looks at the screen, 1D is withdrawn
+until Epic 3's live feed lands.** That judgement was deliberately deferred to
+this task because this is the first task that can see it. Look at it, and write
+down the answer either way — `CHARTING.md` §12.6 is the standing reminder that
+four automated simulations passed against a chart a person spotted was wrong.
+
+**§6.3's labelling tension is named and not resolved, on purpose.** `refused` and
+`failed` draw **no frame at all**, deliberately, because neither carries a window
+a frame could be built from. Acceptance criterion 4 asks that a failed window
+change leave the previous data visible and labelled. Those are compatible — a
+refusal is an answer about the **new** window, and the previous window's series
+is still a true picture of the **previous** window — but only if the label above
+it says **which window is on screen**. That is this task's to design, and it was
+written down so it is inherited rather than discovered halfway through.
+
+**The `1d` body moved to 2.13.6**, which is the task that first makes a `1d`
+window reachable and therefore first executes `chart-alternative.ts`'s unverified
+English. Whatever bodies the transitions themselves need are still this task's.
+
+Add to **Done when**:
+
+- The label above a `refused` or `failed` chart names **which window** is on
+  screen, and a test proves a reader cannot mistake the old window for the new one
+- §1.3's trigger is answered in writing, from a screenshot, either way

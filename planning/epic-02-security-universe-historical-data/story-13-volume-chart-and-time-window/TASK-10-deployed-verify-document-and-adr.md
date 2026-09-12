@@ -96,3 +96,28 @@ And the honest caveat, in the shape 2.12.10 used: a green run here certifies the
 chain and not coverage, the figures are one machine on one day, and nothing re-takes
 them. What is mechanical is said to be mechanical; everything else is prose with a
 date on it.
+
+---
+
+## Amended 2026-09-12 by Task 2.13.1 — one conditional sweep is now unconditional
+
+`CHARTING.md` §16.5's reversal trigger is _"the first window control offering a
+range wider than three months at `1d`"_, and the sweep bullet above is written as
+_"which fires if a window wider than three months at `1d` is offered"_.
+
+**It is offered.** [`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §1.2 settled a
+1Y window at `1d` — 252 sessions, 17.0 ms per render — so the trigger has fired
+and §16.5 needs a dated amendment saying so rather than a re-reading of its
+condition. Its 672-session row also becomes a historical figure at this close:
+"max" was declined, so no control can reach it.
+
+Two smaller carries for the same sweep:
+
+- **§17.5 item 5's `1d` branches stop being unexecuted** the moment 2.13.6 ships
+  a 3M window. Amend that item rather than leaving it as a standing warning.
+- **The window vocabulary is the half of this story ADR 0028 exists for.** §4's
+  table — the label, the accessible name, the address, the spoken sentence, the
+  timeframe and the session count — is what Epic 8 reuses, Epic 11 pushes and
+  Epic 13 distinguishes its scrubber from, and §4(b)'s "the address admits any
+  count the control does not offer" is the single decision with the longest
+  reach in it.

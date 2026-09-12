@@ -320,3 +320,39 @@ marks this axis will carry that are **per bar**, so `CHARTING.md` §1's constrai
 and §2's threshold are the things to read before drawing them: one `<rect>` per
 bar at the cap was measured at **9,790 elements and five main-thread tasks of
 137–254 ms**, and at the default window at **no long task at all**.
+
+---
+
+## Amended 2026-09-12 by Task 2.13.1 — the three open decisions are settled, and one figure in this file is no longer live
+
+**The three open decisions above are closed** and their record is
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md). In one line each:
+
+1. **Which windows — 1D, 5D, 1M, 3M, 1Y, and no "max."** 1M is 21 sessions
+   (8,190 bars) rather than the 25 the cap would allow. "Max" was declined on
+   three grounds, of which its cost is the weakest: it has no honest label and
+   its meaning changes nightly.
+2. **The timeframe is derived, never chosen** — `sessions ≤ 21 → 1m`, above →
+   `1d`, in one module. The derivation is also what makes the 10,000-bar cap
+   structurally unreachable through the named window form.
+3. **An intraday window shows whatever the store holds**, reported by the
+   coverage machinery that already exists. No client-side shortening, no new wire
+   form. `1D` is offered knowing it is reliably `empty` until Epic 3, never as the
+   default, with a reversal trigger 2.13.7 has to answer by looking at it.
+
+**And one figure in the 2.12.9 amendment below is no longer a live claim.** It
+says the calendar walk costs _"46 ms of a 50 ms budget at the widest window this
+story might offer"_. This story does not offer that window: "max" was declined,
+so **the widest reachable window is 1Y at 252 sessions and 17.0 ms per render**.
+The 672-session row stands as a historical measurement and as the reason the
+memoisation is right; it is not a cost anything in the product now pays. The
+repair is unchanged and is still a **precondition** of shipping 1Y rather than an
+optimisation following it.
+
+**Task amendments, all of them in place rather than as re-ordering.** Nothing was
+added, deleted or moved — the dependency graph is unchanged — but six task files
+carry dated amendments: 2.13.2 loses an unavailable-window state that cannot
+occur and gains the **no-selection** state that can; 2.13.3 gains
+`time-window.ts`, which no task owned; 2.13.6 gains the no-snapping rule and the
+`1d` fixture; 2.13.7 gains the labelling tension and §1.3's judgement; 2.13.9 and
+2.13.10 get the corrected headline figure.
