@@ -305,18 +305,19 @@ criteria are properties of a populated database and cannot be re-taken from a cl
 code half is re-taken; the data half is re-read from the deployed store, and each criterion says
 which.
 
-| Task                                                                | What it does                                           | Visible?                |
-| ------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------- |
-| [2.8.1](TASK-01-the-storage-decisions-and-the-sizing-arithmetic.md) | Timescale, timeframes, where the backfill runs, sizing | No                      |
-| [2.8.2](TASK-02-the-universe-recurated.md)                          | The size, the taxonomy, the rename map                 | **Yes — `/securities`** |
-| [2.8.3](TASK-03-the-market-bars-table.md)                           | `market_bars`: the key, the columns, the indexes       | No                      |
-| [2.8.4](TASK-04-the-write-path-and-the-ingestion-ledger.md)         | The write path, and "what do I have"                   | No                      |
-| [2.8.5](TASK-05-the-multi-symbol-fetch.md)                          | One request, many symbols — and the page that lies     | No                      |
-| [2.8.6](TASK-06-the-backfill-command.md)                            | `pnpm backfill` — windows, pacing, resuming            | No                      |
-| [2.8.7](TASK-07-gaps-completeness-and-catch-up.md)                  | Four reasons a bar is missing; catch-up                | No                      |
-| [2.8.8](TASK-08-the-full-backfill-measured.md)                      | Run it; measure everything                             | No                      |
-| [2.8.9](TASK-09-what-we-hold-on-screen.md)                          | Coverage on `/securities`                              | **Yes — the payoff**    |
-| [2.8.10](TASK-10-verify-document-and-adr.md)                        | Verify, document, ADR 0020                             | No                      |
+| Task                                                                | What it does                                           | Visible?                        |
+| ------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------- |
+| [2.8.1](TASK-01-the-storage-decisions-and-the-sizing-arithmetic.md) | Timescale, timeframes, where the backfill runs, sizing | No                              |
+| [2.8.2](TASK-02-the-universe-recurated.md)                          | The size, the taxonomy, the rename map                 | **Yes — `/securities`**         |
+| [2.8.3](TASK-03-the-market-bars-table.md)                           | `market_bars`: the key, the columns, the indexes       | No                              |
+| [2.8.4](TASK-04-the-write-path-and-the-ingestion-ledger.md)         | The write path, and "what do I have"                   | No                              |
+| [2.8.5](TASK-05-the-multi-symbol-fetch.md)                          | One request, many symbols — and the page that lies     | No                              |
+| [2.8.6](TASK-06-the-backfill-command.md)                            | `pnpm backfill` — windows, pacing, resuming            | No                              |
+| [2.8.7](TASK-07-gaps-completeness-and-catch-up.md)                  | Four reasons a bar is missing; catch-up                | No                              |
+| [2.8.8](TASK-08-the-full-backfill-measured.md)                      | Run it; measure everything                             | No                              |
+| [2.8.9](TASK-09-what-we-hold-on-screen.md)                          | Coverage on `/securities`                              | **Yes — the payoff**            |
+| [2.8.10](TASK-10-verify-document-and-adr.md)                        | Verify, document, ADR 0020                             | No                              |
+| [2.8.11](TASK-11-the-nightly-catch-up-fills-both-timeframes.md)     | The catch-up fills both timeframes — added after close | No — a number stops being wrong |
 
 ## What this story hands forward
 

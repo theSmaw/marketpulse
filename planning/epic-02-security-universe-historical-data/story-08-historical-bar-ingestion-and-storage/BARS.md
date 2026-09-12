@@ -1399,3 +1399,94 @@ rather than a note.**
 **A second, cheaper condition that should fire first:** the next change to
 `backfill.yml` for any reason at all. The fix is one line in a file that would
 already be open.
+
+### 8.18.1 The condition fired, and the repair was taken — 2026-09-12
+
+§8.18 declined the repair and wrote the condition for taking it:
+
+> **The first screen whose correctness depends on a daily close being current.**
+> … Story 2.12's price chart and Epic 5's anomaly detection both are … **Either
+> of those firing makes this a task rather than a note.**
+
+**Story 2.12's price chart shipped on 2026-09-12** (Task 2.12.4), and the
+condition fired within the hour — reported by a person looking at the page,
+which is the second time this story's staleness has been found that way rather
+than by an instrument.
+
+#### What it looked like on the screen, which is why a date-stamped stale figure is not enough
+
+§8.18 argued that `/securities`' column "is not quite" the screen in question,
+because **a close labelled with its own session date is honest, if stale**. That
+was true while the close was the only price on the page. It stopped being true
+the moment a chart was drawn beside it. Measured on the deployed product, ADI:
+
+| Surface                                  | Reads                                   | From                                   |
+| ---------------------------------------- | --------------------------------------- | -------------------------------------- |
+| Identity block, **"LAST SESSION CLOSE"** | **362.25 ▲ +1.61%**, dated `2026-09-04` | a stored **`1d`** bar                  |
+| Universe strip, "…minute bars through"   | `2026-09-10`                            | the **`1m` ledger** — what is _stored_ |
+| **The chart's last point**               | **378.98**, `2026-09-11 15:59 EDT`      | stored `1m` bars **+ a live tail**     |
+
+Three dates and two closes **4.6% apart** on one screen. Each figure is
+individually true and the composition is not: `LAST SESSION CLOSE` is a false
+label once Sep 4 is no longer the last session, and `+1.61%` is a week-old move
+presented without qualification beside a chart that contradicts it.
+
+The middle row is the one that is _not_ a defect and is worth separating, because
+it will otherwise be "fixed" too: the chart legitimately shows one session more
+than the ledger, because Friday was **fetched on demand and never stored**
+(`MARKET-DATA-API.md`'s stitch — the response's provenance shows 1,560 stored
+bars beside 390 retrieved at request time). "Through 2026-09-10" is a true
+statement about the store.
+
+#### The repair
+
+Two things were wrong and both are in `.github/workflows/backfill.yml`:
+
+1. **The job filled one timeframe of two.** The scheduled run is now **two
+   passes, daily first** — `--timeframe 1d --sessions 10`, then `--sessions 10`.
+   A `workflow_dispatch` still runs its input verbatim and exactly once, because
+   an operator resuming from the ledger is naming a range and must not have a
+   second pass invented for them.
+
+   **Daily first is the repair rather than a detail.** The `1d` pass is minutes;
+   the `1m` pass is the heavy one and in steady state plans zero requests. If the
+   shared deadline is ever reached, the pass sacrificed is the one that was
+   already current.
+
+2. **The report was pointed past the gap.** `pnpm bars:check` was hard-coded to
+   `--timeframe 1m` — the one instrument that reports staleness honestly, asked
+   only about the timeframe that is never stale. It now runs for **both**, which
+   is the half of this that stops the next occurrence being found by a person.
+   `check-bars.ts` already knew: its own remedy text names
+   `pnpm backfill --timeframe 1d`.
+
+**One deadline is shared across the passes rather than one each.** Two at 4h50m
+would be 9h40m against a 5h30m job backstop, which is precisely the
+`timeout-minutes` failure that block was written to avoid. A pass reached with
+under a minute left is skipped with a warning and status 124 rather than being
+given no time and reporting that it found nothing — a graceful stop exits **0**,
+so without that check an out-of-budget pass is indistinguishable from a clean one.
+
+#### What was verified, and what was not
+
+The loop was exercised as a standalone script against a stub backfill and a stub
+`timeout`, because **nothing in `pnpm verify` reads this file** — it is on
+`CLAUDE.md`'s list of files no tool reads, and `timeout` is GNU coreutils and is
+absent from macOS, so the first run of the harness proved only that. Four
+behaviours, all confirmed: a scheduled run does two passes daily-first; a
+dispatch does one verbatim; a failing pass stops the run and propagates its
+status; an exhausted budget warns and returns 124.
+
+**Not verified here:** that the `1d` catch-up actually fills the four missing
+sessions. That is a metered run against the vendor and is the operator's
+dispatch, not this change's. The sessions missing at the time of writing are
+**2026-09-08, 09, 10 and 11** — four, not eight days, because 2026-09-07 is Labor
+Day and is `closed` in the checked-in calendar.
+
+#### The cheaper condition, recorded as having been skipped
+
+§8.18 named a second condition that "should fire first": **the next change to
+`backfill.yml` for any reason at all.** No such change came in the two days
+between, so the expensive condition fired first — which is the ordinary outcome
+for a trigger written against a file nobody had a reason to open, and is worth
+noting before another repair is deferred behind one.
