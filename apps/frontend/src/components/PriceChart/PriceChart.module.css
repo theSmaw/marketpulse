@@ -237,3 +237,46 @@
   stroke-width: 1;
   stroke-dasharray: 2 4;
 }
+
+/*
+ * **The span that was requested and is not held** (Task 2.12.7).
+ *
+ * The quietest mark in this language — 1.107:1 against the panel's own ground —
+ * and deliberately so: `partial` is the normal state of this screen, not a
+ * fault, so the treatment must not read as one. No hatching, no warning colour,
+ * no icon.
+ *
+ * What stops it reading as *flat data* is not this value but the clip: the
+ * line, the wash and the reference rule stop at the coverage edge rather than
+ * being drawn to the frame. Remove the clip and let them run, and the chart
+ * renders perfectly while saying something false.
+ *
+ * It carries no hue: every contrast pair in this treatment moves by less than a
+ * hundredth of a ratio under `grayscale(1)`, so there is nothing here for a
+ * colour-vision difference to take away.
+ */
+.uncovered {
+  fill: var(--chart-uncovered);
+}
+
+/*
+ * The dashed vertical where the data stops.
+ *
+ * **The one mark in this treatment allowed to be loud**, at 4.05:1 against the
+ * wash it bounds, and it is load-bearing rather than a nicety: the uncovered
+ * ground and the two directional washes are 1.038:1 and 1.051:1 apart, which is
+ * to say invisible. The ground changing is what a reader notices; this is what
+ * makes the boundary between two pale fills locatable.
+ *
+ * `6 3` — a longer rhythm than the seam's `3 3` and the reference rule's
+ * `2 4`, because **the coverage edge and a session seam coincide most of the
+ * time rather than rarely**: a store caught up to a previous session's close
+ * stops exactly on a session boundary, which is precisely where a seam is
+ * drawn. Ink and rhythm are what tell the two apart, and the edge is drawn
+ * last so it is the one on top.
+ */
+.coverageEdge {
+  stroke: var(--chart-coverage-edge);
+  stroke-width: 1;
+  stroke-dasharray: 6 3;
+}

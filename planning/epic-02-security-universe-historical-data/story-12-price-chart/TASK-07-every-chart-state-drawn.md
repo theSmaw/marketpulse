@@ -1,6 +1,6 @@
 # Task 2.12.7 — Every chart state drawn, from a recorded body
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-12.**
 **Story:** [2.12 Price Chart](STORY.md)
 **Depends on:** 2.12.5
 
@@ -323,3 +323,209 @@ The `refused`/`failed` decision this task was told to take seriously rather than
 inherit is **unaffected** by anything 2.12.5 did — neither state has a window, so
 neither has a rule or a wash. It is still the call to make deliberately, and it is
 still the one where "nobody revisited it" and "it was decided" render identically.
+
+---
+
+## What was built — 2026-09-12
+
+The design was taken first, on the canvas ADR 0026 makes the source of truth:
+**`Price chart states.dc.html`**, a fifth file in the
+`Component library for MarketPulse` project, added for `Price region.dc.html`'s
+reason rather than the 256 KiB one — it is a different question about the same
+subject. Every drawing on it is the **real geometry** of a recorded body, so what
+was reviewed is what ships. `VISUAL-LANGUAGE.md`'s _Partial coverage is drawn as
+space_ carries the decisions and [`CHARTING.md`](CHARTING.md) §14 carries the
+findings.
+
+### The six states, and what each got
+
+| State                | What it draws now                                          | Originated or confirmed             |
+| -------------------- | ---------------------------------------------------------- | ----------------------------------- |
+| `loading`            | The frame, an unlabelled scale, and **no wash**            | Confirmed — the shape was fixed     |
+| `loaded`             | Unchanged, and it produces no coverage marks by arithmetic | Unchanged                           |
+| `partial`            | The uncovered ground, the dashed edge, and the clip        | **Originated.** The whole of it     |
+| `empty`              | The same wash across the **whole plot**                    | **Overturned** — see below          |
+| `refused` / `failed` | Nothing at all                                             | **Confirmed**, with a new argument  |
+| `stale`              | Nothing. The chart is identical to a fresh answer          | **Originated**, and it is a decline |
+
+### The four decisions this task was told to take rather than inherit
+
+**1. The reference rule is clipped at the coverage edge.** This is the one the
+story's fifth review flagged as genuinely open with two defensible readings, and
+one of the two turned out not to be a reading. The case for leaving it full width
+was that it carries the seam where the two washes meet — and the washes exist
+only where the bars do, which is the side of the edge the rule survives on, so
+clipping it removes it from a region that has no seam in it. What decided it is
+that `--chart-reference` is 4.48:1 and `--chart-uncovered` is 1.107:1: unclipped,
+the loudest mark on the plot sits inside the quietest region, which is the one
+thing that treatment must not become. §14.2.
+
+**2. `empty` washes the whole plot.** Overturning 2.12.4's bare labelled axis,
+and the reason is that it is not a new treatment at all: a 200 with no bars is a
+window we asked for and hold **none** of, so it is coverage zero. It costs no new
+mark, and it is what tells `empty` apart from `loading` at a glance — the two
+were previously the same frame with the same marks on it.
+
+**3. `refused` and `failed` still draw nothing.** The argument is structural
+rather than aesthetic, which is what makes it a decision rather than an
+inheritance: neither member carries a series, so neither carries a requested
+window, and a frame under either would have to **invent** one to be a picture of.
+The case against — that an empty frame would hold the region's height so the page
+below did not jump on a successful retry — is real and is paid for by the
+sentence, its detail and the retry occupying the region.
+
+**4. A stale chart is identical to a fresh one.** No dim, no blur, no fade, no
+second style. The mark's subject is the **answer** — the current value above, the
+drawing and the eight stated facts below are one answer and are one request old
+as a whole — so a second mark inside the plot would say two things were
+independently stale, and `BarSeriesPanel`'s dashed rail already sits above all
+three. Declining it also keeps `FRONTEND-STATE.md` §2's stated reversal trigger
+unfired, which is worth more than the mark would have been.
+
+### The rule the treatment collapsed to
+
+> **A mark derived from the window runs the full frame. A mark derived from the
+> bars stops at the coverage edge.**
+
+That is one sentence in place of four state-by-state specifications, and every
+state above falls out of one number — how much of the window is held — rather
+than out of a branch. `chart-geometry.ts` returns a `ChartCoverage`: the covered
+span (the clip), the spans that are not (the wash), and the interior boundaries
+between them (the edges). Zero, one or **two** uncovered spans, because a store
+can be missing the start of a window as well as the end and both ends come from
+the same range.
+
+The spans come from `coverage.covered` measured against the axis, never from
+where the last bar landed — which is what makes §10.1's weekend case fall out
+rather than needing a special case, and what stops a complete answer whose final
+minute never traded being washed.
+
+### What the fourteenth recorded body is for
+
+`uncovered.json`: NVDA over 2026-09-03 to 2026-09-08, **780 bars against a window
+of 990 trading minutes**. Owed to this task because the recorded `partial`
+fixture's shortfall is a Saturday and a session-ordinal axis gives Saturday no
+slots, so it exercises none of this. The judgement was taken on the **running
+page**, which has been in this state since 2.12.4; the recording is what keeps it
+reviewable in the workshop and in CI afterwards.
+
+### The defect this shipped for an hour, and what it teaches
+
+The uncovered ground painted **over the axis rule**, so the frame appeared to
+stop at the coverage edge — the exact impression the treatment exists to prevent.
+The cause predates this task: the plot's bottom border _is_ the axis rule and
+`getBoundingClientRect()` includes it, so the measured height was always one
+pixel taller than the drawable area. Every mark before today tolerated it because
+a stroke a pixel low lands under a near-black rule and is invisible. **A fill does
+not.** Found by looking at the running page; §14.5 has the repair and the general
+form.
+
+### Verification
+
+`pnpm verify` passes. Beyond it: the coverage arithmetic is verified in
+`chart-geometry.test.ts` against the recorded bodies — including the weekend case
+producing _no_ wash, which is the treatment being right rather than skipped —
+the wiring and the shared clip in `PriceChart.test.tsx`, with the clip's test
+**verified by performing the break** rather than assumed, and the ground being
+painted at all in `e2e/specs/security-price-chart.spec.ts`, which is the only
+level that can see a fill. That spec branches rather than skipping on an empty
+store, so CI exercises the coverage-zero end of the same treatment while a
+developer's store exercises the ordinary one.
+
+---
+
+## For the stakeholders — what this actually changed, in plain terms
+
+### The problem, in one sentence
+
+MarketPulse rarely has everything you ask it for, and until today the chart did
+not say so.
+
+Ask for the last five trading days and the honest answer is often "here are four
+and a bit". The historical data is topped up overnight, and our market-data plan
+withholds the most recent quarter of an hour, so a chart drawn at eleven in the
+morning is always a little behind the market. That is not a fault — it is how the
+data arrives — but it puts a chart in an awkward position: it has been asked
+about a window it can only partly answer.
+
+There are two ways to handle that and only one of them is honest. The tempting
+one is to stretch what you have to fill the picture. It looks perfect. It is also
+a lie, because the reader asked about five days and is looking at four, with
+nothing on the screen to tell them which. The other is to draw the window that
+was asked for and leave the part you cannot answer visibly empty.
+
+We had already chosen the honest one. What was missing was the _drawing_ of it:
+the line simply stopped in mid-air, with plain white to the right of it. That
+reads as a chart that broke, or as a price that went flat and stopped moving.
+
+### What is on the screen now
+
+Open NVDA today and the part of the window we hold is drawn as before — the price
+line, the shading that says which way it went. The part we do **not** hold is now
+a faint grey ground, with a dashed line marking exactly where our data stops.
+
+Three deliberate details:
+
+- **The grey is the quietest colour in the entire product.** A missing stretch of
+  data is a normal state, not an error, so it must not look like a warning. No
+  red, no stripes, no exclamation mark. It is just a change of ground.
+- **The frame keeps its full width.** The bottom rule, the gridlines, the day
+  labels — all of them run right across, because those describe the window the
+  reader asked about. Only the things that describe actual prices stop early.
+  That is the whole distinction, and it is the difference between "we have not
+  got this yet" and "there is nothing here".
+- **Nothing about it depends on colour.** We measured it: strip the colour out
+  entirely and every part of this treatment reads exactly the same. Roughly one
+  man in twelve has some form of colour-vision difference, and none of them loses
+  anything here.
+
+We also settled the three quieter states while we were in there. A chart that is
+still **waiting** for an answer shows the empty frame and no grey — because we do
+not yet know whether anything is missing. A chart that got an answer with
+**nothing in it** is grey all the way across, which now says something different
+from waiting rather than looking identical to it. And when a request is
+**refused** or a lookup **fails**, the chart draws nothing at all and the panel
+explains why in a sentence, because those states have no time window to be a
+picture of. Crucially, a failure stays in its own box: the rest of the page,
+including the full list of 518 securities below, carries on working.
+
+### Why this matters for the product we are building
+
+MarketPulse is being built to answer "what is unusual here, and what is the
+evidence?" Everything downstream — the anomaly scores, the AI investigations, the
+historical replay — rests on a reader being able to trust that what they are
+shown is what we actually know.
+
+A chart that quietly fills in its own gaps poisons that. If the picture can
+overstate what we hold in a way nobody can see, then no number beside it can be
+taken at face value either, and the AI features we are building towards inherit
+that doubt. This is a small piece of drawing that buys a large piece of
+credibility: **you can now tell, at a glance and without reading anything, how
+much of what you asked for we actually have.**
+
+### Where the product stands
+
+The price chart is now complete as a _picture_. It draws a real series, says
+which way the window went without relying on colour, lets you point at any minute
+and read it, and is honest about its own coverage in every state it can be in.
+
+Two things remain in this chapter of the work: making the chart describe itself
+properly to somebody using a screen reader, and measuring that it stays fast at
+the largest windows. After that comes the volume chart and the ability to change
+the time window — at which point a user can explore a security's history rather
+than just look at the last few days of it.
+
+### One decision worth knowing about
+
+We found and fixed a one-pixel error that had been present since the chart was
+first drawn: the grey ground was painting over the chart's own baseline, which
+made the frame look like it stopped early — precisely the impression this work
+exists to prevent. It was invisible until now because every previous mark on the
+chart was a thin line, and a thin line a pixel out of place hides under the
+baseline. A solid block of colour does not.
+
+We mention it because of how it was found: not by a test, but by opening the page
+and looking at it. Our automated checks are extensive and they were all green
+throughout. There are things about a picture that only a person looking at it can
+see, and this is the second time in this piece of work that a human eye has
+caught something a green tick could not.

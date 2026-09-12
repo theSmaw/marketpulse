@@ -1,6 +1,6 @@
 # Story 2.12 — Price Chart
 
-**Status:** **In progress — Tasks 2.12.1 to 2.12.6 are complete (2026-09-12).** Four remain: every state drawn, the text alternative, the measurement and the close.
+**Status:** **In progress — Tasks 2.12.1 to 2.12.7 are complete (2026-09-12).** Three remain: the text alternative, the measurement and the close.
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.11
 **Epic scope covered:** Basic price chart
@@ -687,3 +687,98 @@ rather than unexamined: the 2.12.5/2.12.6 swap is moot now 2.12.5 has shipped, a
 the 2.12.7-forward question was declined at the fourth review on grounds the split
 has only strengthened — the adjacency it named is now four measurable pairs and a
 clipping decision.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.7 — the task list was reviewed a seventh time, from the other side of a chart that is honest when it is short
+
+The reviews above ran against decisions, then arithmetic, then a drawing, then a
+drawing that makes a claim. This one runs against **a chart that has less than it
+was asked for and says so**, which is the state this screen is in most of the
+time and was the largest unfinished thing in the product.
+
+**No task was added, none was deleted, and the order is unchanged.** Three were
+amended in place — 2.12.8, 2.12.9 and 2.12.10 — and three documents outside this
+directory were swept the same day: `CLAUDE.md`'s _Current state_ and two entries
+on its `verify`-gap list, and `VISUAL-LANGUAGE.md`'s _Partial coverage is drawn
+as space_.
+
+The four effects worth knowing without opening anything:
+
+- **The clipping question this story's fifth review handed to 2.12.7 is closed,
+  and one of its two defensible readings turned out not to be a reading.** The
+  reference rule **is** clipped. The case for leaving it full width was that it
+  carries the seam where the two washes meet — and the washes are the close
+  line's own path closed back to the rule, so they exist only where the bars do,
+  which is the side of the edge the rule survives on. Clipping it removes it from
+  a region that has no seam in it. That argument appeared in the fifth review, was
+  sharpened by the sixth, and was wrong in both. [`CHARTING.md`](CHARTING.md)
+  §14.2.
+
+- **The treatment collapsed to one rule, and `empty` stopped being its own
+  decision.** _A mark derived from the window runs the full frame; a mark derived
+  from the bars stops at the coverage edge._ Four of the six states now fall out
+  of one number rather than out of a branch, and `empty` — which 2.12.4 drew as a
+  bare labelled axis — is this treatment at **coverage zero**, which is what tells
+  it apart on screen from `loading`. Worth knowing for 2.13: the volume chart
+  inherits the rule as well as the axis, and two plots on one x-domain must stop
+  at the same pixel.
+
+- **A latent one-pixel measurement error surfaced, and the next task to meet it is
+  2.13's.** The plot's bottom border _is_ the axis rule and `getBoundingClientRect()`
+  includes it, so the measured height has been one pixel too tall since 2.12.4.
+  Every mark tolerated it because a stroke a pixel low hides under a near-black
+  rule; the first **fill** painted straight over the axis. It is on `CLAUDE.md`'s
+  `verify`-gap list because nothing checks the repair — jsdom implements neither
+  property, so the correction is zero there. §14.5.
+
+- **The fixture set is fourteen bodies and the fourteenth is 147 KB.** `uncovered.json`
+  is the only recorded body whose shortfall is made of trading minutes, which is
+  what §10.1 said this task was owed. It changes 2.12.9's denominator — the
+  largest thing in that directory is still `dense` at 222 KB, and there are now
+  **four** fixture-leak greps where that task's Work section says two.
+
+**Nothing in this review argues for a re-order**, and the standing candidate is
+now spent rather than declined: the fourth review's _"pull 2.12.7 forward"_ was
+about a four-fifths-empty frame with no treatment on it, and there is no longer
+one. What the deferral bought is exactly what it was argued to buy — the two
+adjacent washes were judged together on a real screen, and the contrast pair that
+decided the edge (1.038:1) could not have been measured before 2.12.5 shipped the
+wash it meets.
+
+**Re-checked the same day, after the amendments were written.** The question was
+asked again — _does anything need adding, deleting or re-ordering?_ — and the
+answer is still no, but the first pass of the three amendments was **incomplete
+in four places**, each now written into the task it belongs to:
+
+- **2.12.8** — the chart's tab stop exists in `loaded` and `partial` **only**, so
+  `CLAUDE.md`'s occluded-stop counts predate it, CI's empty store contributes no
+  stop at all, and a walk taken before the answer lands counts one fewer. And the
+  `verify`-gap entry 2.12.7 added is **that task's to make mechanical** rather
+  than to inherit: it is one `evaluate` in the spec it is already extending, and
+  `CLAUDE.md`'s standing preference is that an entry which can be made mechanical
+  should be.
+- **2.12.9** — the routine case to trace is `uncovered.json`, **not** `dense.json`:
+  `dense` is fully covered, so the densest body in the set exercises none of the
+  marks 2.12.7 added. And the clip is **nested** over a 1,950-point fill rather
+  than merely one more clip, which is the specific paint shape nothing has
+  measured.
+- **2.12.10** — the handover to Story 2.13 gains a fourth item, the coverage rule,
+  and it is the one a second plot is most likely to get wrong: two plots on one
+  x-domain must stop at the same pixel, and volume bars are **fills**, which is
+  exactly what §14.5's one-pixel finding was about.
+
+**On re-ordering specifically, asked and declined with a reason.** 2.12.8 and
+2.12.9 are both unblocked now and neither depends on the other, so they could
+swap. They should not: 2.12.9's own principle is to measure the real thing, and
+2.12.8 adds an element to the chart — small, but the order as written measures
+the finished article, and renumbering costs every reference in this directory
+against a gain of nothing.
+
+**One finding is worth carrying out of this directory.** The defect that shipped
+here for an hour was found by opening the page, not by a test — the second time
+in this story that a human eye caught something every green tick missed, and the
+first was the wash's own colour being locally wrong. Both were failures of
+_opacity of the instrument_ rather than of coverage: a simulation cannot tell you
+the encoding answered the right question, and a test that counts elements cannot
+tell you one of them is painted over another.

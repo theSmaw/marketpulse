@@ -433,3 +433,84 @@ states direction, and the no-ship entry names `dense.json` with its own grep,
 having previously named the recorded universe as the largest thing on the list.
 The design canvas was amended in the same commit for the same reason. Confirm
 rather than repeat.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.7 — the token audit is finished, and the canvas gained a fifth file
+
+Four things for the close.
+
+### The token audit's three rows are now three consumers
+
+That audit's standing question was which chart tokens had no application
+consumer. `--chart-reference` gained one at 2.12.5 and `--chart-crosshair` at
+2.12.6; **`--chart-uncovered` gained one at 2.12.7** and is read by
+`PriceChart.module.css`. The row that remains is not a chart token at all:
+`--price-unchanged-wash` still has no application consumer, and the audit must
+read it as **deferred to the extent band at `1d`** rather than as something that
+did not ship — which the fifth review already recorded and which is unchanged.
+
+**One token was added**, so the audit has a new row to check rather than only to
+tick: `--chart-coverage-edge` (`#74777f`, 4.05:1 against the wash it bounds), read
+by `PriceChart.module.css` and declared in `styles/tokens.ts`. It shares a value
+with `--chart-reference` and is separately named for that block's own stated
+reason.
+
+### The canvas is five files, and the rule ADR 0026 states has now held five times
+
+`Price chart states.dc.html`, added for `Price region.dc.html`'s reason rather
+than the 256 KiB one: it is a different question about the same subject. **ADR
+0026 needs no amendment for it** — its own standing instruction is not to restate
+the count, and `list_files` is the answer. What the close should confirm is that
+the instruction was followed rather than that the number is right.
+
+### One `verify`-gap entry was added and it is a measurement rather than a mark
+
+_That the plot is measured to the area there is to draw in, and not to the axis
+rule as well._ It is on `CLAUDE.md`'s list with its re-measure, and it is the one
+entry in this story that **cannot** be made mechanical by any level below a
+browser: jsdom implements neither `offsetHeight` nor `clientHeight`, so the
+correction is zero there and every component test is identical with the repair
+and without it.
+
+### The deployed check has a new state to expect
+
+The deployed store is backfilled nightly, so `/securities/NVDA` in the deployed
+environment is normally `partial` with a **small** shortfall rather than the
+four-fifths-empty frame a developer's store shows. Both are the same treatment
+and neither is a fault; what would be worth noticing after a merge is a deployed
+chart showing a _large_ uncovered span, which is `GET /diagnostics/freshness`
+saying the same thing in a number.
+
+### The screenshot conditional is discharged, and the instruction it carried is now live
+
+The amendment above tells this task to **take the screenshots after 2.12.7, not
+before**, because the developer's store answers the default window four-fifths
+short and an undressed uncovered span is the hardest possible case for test 1.
+**2.12.7 has shipped**, so the conditional is spent and the instruction is simply
+in force: the screenshots are takeable now, and the four-fifths-empty frame is no
+longer an embarrassment to be timed around — it is the state the treatment was
+designed for and is arguably the most interesting thing to photograph.
+
+Say which store each screenshot came from, which the amendment above already
+asks for and which matters more now that the two stores produce visibly different
+charts: a deployed store backfilled nightly shows a **small** uncovered span, a
+developer's shows a large one, and both are correct.
+
+### The handover to Story 2.13 gains a fourth item
+
+The Work section's list is _"the axis it inherits, the density decision, the seam
+Story 2.14 renders, and the daily-series calendar walk"_. Add **the coverage
+rule**, and it is the item most likely to be got wrong by a second plot:
+
+> A mark derived from the window runs the full frame; a mark derived from the
+> bars stops at the coverage edge. Two plots sharing one x-domain must stop at
+> **the same pixel** — the volume bars, their own baseline, and the price line
+> above them — and the uncovered ground is drawn once per plot rather than once
+> per region. A volume chart that drew bars into the uncovered span, or that
+> washed a different width from the chart above it, is the defect this rule
+> exists to prevent, arriving in the one place the rule was not restated.
+
+And note the volume bars are **fills**, which is what §14.5's one-pixel finding
+was about: the measurement error was invisible for three tasks because every mark
+before it was a stroke.

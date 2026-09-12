@@ -324,3 +324,102 @@ premise to 2.12.5 for. What is still owed here is unchanged and is the harder ha
 the proof over **the finished chart in place on the page** — axis, labels,
 crosshair, states, the stated-facts block beneath it and the headline above it, all
 at once. A component in a workshop at one width is not a screen.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.7 — six states render, so six states have to speak
+
+Three things change here, and the first is the largest: **the states this task
+walks now exist**. Until today four of the six were drawn and two of those were
+provisional; the treatment is settled and `Price chart states.dc.html` is where
+it is specified. `CHARTING.md` §14 has the arguments.
+
+### The text alternative has a new fact to carry, and it is the one a picture-reader most needs
+
+The uncovered span is a **fact about coverage that reaches a sighted reader as a
+change of ground**. There is no such channel in a text alternative, so it has to
+be a clause — and the honest version says _how much_, not merely _that_: a window
+covered to four sessions of five and one covered to 780 minutes of 990 are the
+same sentence otherwise.
+
+Note the fact is **already on the page in words**, in `BarSeriesPanel`'s coverage
+sentence directly beneath the plot. So this is the closest pair on this screen to
+a sentence duplicated for two audiences, and the rule against two surfaces using
+the same words applies with the usual force. What the chart's alternative can say
+that the coverage sentence cannot is where the data stops _on the axis it is
+describing_ — the shape of the answer rather than the arithmetic of it.
+
+### The contrast table gains four rows, and two of them are the closest pairs in the product
+
+Measured at 2.12.7 and reproduced here so this task re-measures rather than
+discovers:
+
+| Surface                                             | Recorded    |
+| --------------------------------------------------- | ----------- |
+| `--chart-uncovered` against `--price-positive-wash` | **1.038:1** |
+| `--chart-uncovered` against `--price-negative-wash` | **1.051:1** |
+| `--chart-coverage-edge` against `--chart-uncovered` | 4.045:1     |
+| `--chart-grid` crossing the uncovered wash          | 1.146:1     |
+
+The first two are why the dashed edge is load-bearing rather than a nicety, and
+**a single chart can present both** — one above the reference rule and one below
+— wherever the line crosses its own opening price near the edge. The useful half
+for this task: every row moves by **less than a hundredth of a ratio** under
+`grayscale(1)`, so unlike the directional wash this treatment has no hue to lose
+and the greyscale proof here is confirming rather than defending.
+
+### Two states now have no chart in them at all, which is an accessibility-tree decision
+
+`refused` and `failed` render **nothing** — no SVG, no reading layer, no live
+region from this component. That is settled and argued (§14, and this story's
+seventh review), and it means the screen-reader walk must confirm the _panel's_
+sentence is what a listener reaches in those states rather than a chart
+announcing its own absence. The failure to look for is the opposite one: a chart
+that says "no data" in the accessibility tree while the panel says the same thing
+two lines later, which is the two-surfaces-one-sentence defect in the one place
+nothing on screen would show it.
+
+### The chart's tab stop is conditional on the state, which the walk must not assume
+
+Missed by this amendment's first pass and worth stating plainly, because it is a
+property of the walk rather than of the text alternative. `ChartReading` renders
+**nothing** where there is nothing to read, so the chart contributes a tab stop
+in **`loaded` and `partial` only** — not in `loading`, not in `empty`, and not in
+the two states that draw no chart at all.
+
+Three consequences for the Work section's keyboard walk:
+
+- **`CLAUDE.md`'s occluded-stop counts predate the chart.** One at 1440×900, four
+  at 768×800, two at 390×780 were measured on a page with no chart tab stop on
+  it. The chart adds at most one and the walk must re-take them rather than cite
+  them.
+- **CI's store has no bars**, so every chart there is `empty` and contributes
+  **no** stop. A browser assertion written against the developer's store will
+  pass locally and assert nothing in the pipeline — the same branch the coverage
+  spec already takes, and for the same reason.
+- **The stop appears and disappears with the answer.** A walk taken while the
+  panel is still `loading` counts one fewer stop than the same page a second
+  later, which is the shape of flake `security-price-chart.spec.ts` already had
+  twice. Wait for the answer before counting.
+
+### One `verify`-gap entry is this task's to make mechanical rather than to inherit
+
+2.12.7 added an entry to `CLAUDE.md`'s list — _that the plot is measured to the
+area there is to draw in, and not to the axis rule as well_ — and it is the
+weakest kind of entry on that list: prose with a re-measure that means opening a
+page and looking at it. `CLAUDE.md`'s own standing preference is that **an entry
+which can be made mechanical should be**, and this one can, in the spec this task
+is already extending:
+
+> The uncovered ground's painted box must end **above** the plot's own bottom
+> edge, because the pixel between them is the axis rule. One `evaluate` comparing
+> two `getBoundingClientRect().bottom` values, in a browser, where the border
+> exists — jsdom implements neither `offsetHeight` nor `clientHeight`, so the
+> correction reads as zero there and every component test is identical with the
+> repair and without it.
+
+Verify it by restoring the break rather than assuming it: delete the
+`offsetHeight - clientHeight` subtraction in `usePlotSize` and confirm the new
+assertion goes red. If it lands, strike the entry from the gap list and say so —
+that is the migration the list wants, and this story has already performed it
+once (`pnpm coverage:check`).

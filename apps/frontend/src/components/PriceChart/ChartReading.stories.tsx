@@ -55,6 +55,7 @@ function frameOf(name: "full" | "dense"): ChartFrame {
 
   const subject: ChartSubject = {
     requested: view.series.coverage.requested,
+    covered: view.series.coverage.covered,
     timeframe: view.series.timeframe,
     bars: view.series.bars,
   };

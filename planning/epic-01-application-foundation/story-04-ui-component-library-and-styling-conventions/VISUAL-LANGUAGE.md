@@ -398,6 +398,18 @@ The washes are, for practical purposes, **the same colour**. That is a stronger 
 
 The x-domain comes from what was _requested_, never from the bars held (`CHARTING.md` §6.2). The shortfall is therefore visible: a faintly sunken region at 1.107:1, a dashed vertical where the data stops, and the series **clipped** at that edge rather than drawn to the frame. It must not read as a failure — so no hatching, no warning colour, no icon — and it must not read as flat data, which is what the clip prevents.
 
+> **Built 2026-09-12 by Task 2.12.7, which took the three things this paragraph left open.** The canvas file is `Price chart states.dc.html`; `CHARTING.md` §14 carries the arguments.
+>
+> **1. One rule decides every state: a mark derived from the _window_ runs the full frame; a mark derived from the _bars_ stops at the coverage edge.** The axis rule, the gridlines, the seams and every tick label are the window — the reader asked for it, and a frame that shrank to the data is §6.2's defect. The line, the two washes **and the dashed reference rule** are the bars, and one clip takes all three.
+>
+> That the reference rule is clipped is the decision, and it was open: it shipped running the full plot width because there was nothing to stop at. Three things closed it. It is the loudest mark on the plot at 4.48:1 and the uncovered wash is the quietest at 1.107:1, so unclipped it puts the loudest mark inside the quietest region; the line and the wash already stop at the edge, so a rule that did not would be a third convention for one boundary; and the argument for keeping it — _that it carries the seam where the two washes meet_ — is **vacuous**, because the washes exist only where the bars do, which is the side of the edge the rule survives on.
+>
+> **2. The edge is load-bearing rather than decorative, and it is measured.** `--chart-uncovered` against `--price-positive-wash` is **1.038:1** and against `--price-negative-wash` is **1.051:1** — the boundary between two pale fills is invisible without a mark on it, and which of the two it meets depends on where the line was when coverage ran out. `--chart-coverage-edge` is that mark: the same hue as the reference rule, separately named, at a **`6 3`** rhythm against the seam's `3 3` and the reference's `2 4`. The rhythm matters because **the coverage edge and a session seam land on the same pixel most of the time** — a store caught up to a previous session's close stops exactly on a session boundary, which is where a seam is drawn.
+>
+> **3. `empty` is this treatment at coverage zero, not a fourth treatment.** A 200 with no bars is a window we asked for and hold none of, so the wash covers the whole plot and there is no edge. That is what tells it apart on screen from `loading`, which is the same frame with **no wash at all** — nothing is known to be missing before anything has been answered.
+>
+> Two states get none of it: `refused` and `failed` draw **no frame**, because neither carries a series and therefore neither carries a window, and a frame under either would have to invent one to be a picture of.
+
 ### One crosshair, for both inputs
 
 A vertical `--chart-crosshair` rule and a **white disc with a near-black ring** on the line, identical under the pointer and under keyboard focus. Two treatments would be two things to keep correct and a promise that the keyboard path is the lesser one.
@@ -431,26 +443,27 @@ The breakpoints are the **region's**, not the page's: the Price region is 1,019 
 
 Achromatic, structural and geometric values in `tokens.css`; anything carrying market meaning in `market.css`. Several chart values equal a chrome value today and are **still separately named**, which is the argument `--price-unchanged` and the `--service-*` trio already make in `market.css`: two values that coincide for different reasons must be able to move apart.
 
-| Token                    | Value     | Notes                                                                                                                |
-| ------------------------ | --------- | -------------------------------------------------------------------------------------------------------------------- |
-| `--chart-axis`           | `#181c23` | The one rule. Same value as `--rule-strong`                                                                          |
-| `--chart-grid`           | `#e2e4ed` | 1.27:1 on white; **1.11:1 where a wash passes under one**                                                            |
-| `--chart-seam`           | `#c4c6cf` | 1.70:1. The canvas's own `--mp-line-strong`, adopted here at last                                                    |
-| `--chart-reference`      | `#74777f` | 4.48:1. The dashed rule at the opening close                                                                         |
-| `--chart-series`         | `#181c23` | The close line                                                                                                       |
-| `--chart-series-width`   | `1.5px`   |                                                                                                                      |
-| `--chart-crosshair`      | `#43474f` | 9.32:1 — quieter than the data it points at                                                                          |
-| `--chart-point`          | `#181c23` | Added 2026-09-12 by Task 2.12.6 — the ring around the disc. Its fill is `--surface-raised`, punched through the line |
-| `--chart-uncovered`      | `#f2f3f9` | 1.107:1 — the quietest mark in this language, deliberately                                                           |
-| `--chart-height`         | `280px`   |                                                                                                                      |
-| `--chart-height-compact` | `220px`   |                                                                                                                      |
-| `--chart-gutter`         | `56px`    | The value scale's width                                                                                              |
-| `--chart-gutter-compact` | `46px`    |                                                                                                                      |
-| `--chart-filing-lane`    | `14px`    | Added 2026-09-12 by Task 2.12.4 — the reserved lane below, named                                                     |
-| `--chart-readout-height` | `22px`    | Added 2026-09-12 by Task 2.12.6 — the reading strip's reserved row, whether or not it holds a reading                |
-| `--price-positive-wash`  | `#e6f2ec` | 1.15:1 on white; near-black on it measures 14.87                                                                     |
-| `--price-negative-wash`  | `#fbeae9` | 1.16:1 on white; near-black on it measures 14.68                                                                     |
-| `--price-unchanged-wash` | `#eef0f6` | **No application consumer since 2026-09-12** — the split has no neutral state. Reserved for the extent band at `1d`  |
+| Token                    | Value     | Notes                                                                                                                                                                                  |
+| ------------------------ | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--chart-axis`           | `#181c23` | The one rule. Same value as `--rule-strong`                                                                                                                                            |
+| `--chart-grid`           | `#e2e4ed` | 1.27:1 on white; **1.11:1 where a wash passes under one**                                                                                                                              |
+| `--chart-seam`           | `#c4c6cf` | 1.70:1. The canvas's own `--mp-line-strong`, adopted here at last                                                                                                                      |
+| `--chart-reference`      | `#74777f` | 4.48:1. The dashed rule at the opening close                                                                                                                                           |
+| `--chart-series`         | `#181c23` | The close line                                                                                                                                                                         |
+| `--chart-series-width`   | `1.5px`   |                                                                                                                                                                                        |
+| `--chart-crosshair`      | `#43474f` | 9.32:1 — quieter than the data it points at                                                                                                                                            |
+| `--chart-point`          | `#181c23` | Added 2026-09-12 by Task 2.12.6 — the ring around the disc. Its fill is `--surface-raised`, punched through the line                                                                   |
+| `--chart-uncovered`      | `#f2f3f9` | 1.107:1 — the quietest mark in this language, deliberately. **1.038:1 against the positive wash, 1.051:1 against the negative one**, which is why the edge below is load-bearing       |
+| `--chart-coverage-edge`  | `#74777f` | Added 2026-09-12 by Task 2.12.7 — the dashed vertical where held data stops. 4.05:1 against the wash it bounds. Same value as `--chart-reference`, separately named, at a `6 3` rhythm |
+| `--chart-height`         | `280px`   |                                                                                                                                                                                        |
+| `--chart-height-compact` | `220px`   |                                                                                                                                                                                        |
+| `--chart-gutter`         | `56px`    | The value scale's width                                                                                                                                                                |
+| `--chart-gutter-compact` | `46px`    |                                                                                                                                                                                        |
+| `--chart-filing-lane`    | `14px`    | Added 2026-09-12 by Task 2.12.4 — the reserved lane below, named                                                                                                                       |
+| `--chart-readout-height` | `22px`    | Added 2026-09-12 by Task 2.12.6 — the reading strip's reserved row, whether or not it holds a reading                                                                                  |
+| `--price-positive-wash`  | `#e6f2ec` | 1.15:1 on white; near-black on it measures 14.87                                                                                                                                       |
+| `--price-negative-wash`  | `#fbeae9` | 1.16:1 on white; near-black on it measures 14.68                                                                                                                                       |
+| `--price-unchanged-wash` | `#eef0f6` | **No application consumer since 2026-09-12** — the split has no neutral state. Reserved for the extent band at `1d`                                                                    |
 
 ### What this section deliberately does not decide
 

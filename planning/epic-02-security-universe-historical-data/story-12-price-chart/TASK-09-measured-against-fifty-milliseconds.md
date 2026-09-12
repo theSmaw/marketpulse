@@ -419,3 +419,68 @@ alone_ — the block checking that the two clip rects' heights sum to the plot a
 that the lower one starts where the upper one ends. Confirm it goes red, because a
 one-pixel seam is exactly the sort of thing that renders, survives a screenshot
 review and is invisible in a trace.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.7 — the element count grew by a known amount, and the fixture-leak greps are four
+
+Three corrections, none of which changes what this task measures.
+
+### The plot's element count, restated
+
+2.12.7 adds, at most: **two `<rect>`** for the uncovered spans (one in the
+ordinary case, two only where the store is missing the start of the window as
+well), **one `<clipPath>` with one `<rect>` in it**, and **one `<line>`** per
+coverage edge. All of them are constant in the bar count — nothing here scales
+with the series — so §1's constraint is untouched and the corrected figure this
+task measures against is _roughly two dozen plus four_.
+
+**Two of them are conditional on the state and that matters for what is being
+timed.** A `loaded` answer carries none of it, because the covered span is the
+frame and the arithmetic produces no wash, no edge and no clip. So the densest
+window (`dense`, 1,950 bars, fully covered) and the emptiest state are at
+opposite ends of both axes, and a measurement taken only on `dense` measures the
+element count at its lowest.
+
+### One clip is now shared by three marks, which is cheaper than it looks
+
+The series, the wash group and the reference rule all reference **one**
+`clipPath`. That is one more paint-time clip than before and **not** three: the
+group around the two `<use>` elements is what carries it for both washes, because
+an element takes one `clip-path` and each `<use>` already spends its own on the
+split at the reference rule.
+
+### The fixture-leak grep is four, not two, and not three
+
+The Work section says two. The sixth review's amendment said three. It is
+**four**: `dense.json` at 222 KB, `uncovered.json` at **147 KB** (added by
+2.12.7), the securities corpus at 191 KB, and the original bar-timestamp grep.
+`CLAUDE.md`'s entry carries all four by name.
+
+### The clip is nested over a 1,950-point fill, which is the specific shape nothing has measured
+
+Sharpening the section above rather than adding to it, because "one more clip" is
+not the interesting part. 2.12.5's amendment already flagged that a `clipPath` is
+a rasterisation step and that clipping a 1,950-point filled path twice is not
+obviously free. What 2.12.7 added is that the same fill is now clipped
+**twice over**: the coverage clip on the group, and each `<use>`'s own clip at the
+reference rule inside it.
+
+So at the default window in the ordinary `partial` state the paint phase carries
+a nested clip over a 1,950-point path, twice, plus a third reference to the same
+clip on the line and a fourth on the rule. All constant in bar count — the
+**shape** is unmoved — but if anything in the paint phase surprises this task,
+this is now the first place to look rather than the second.
+
+### The fixture to measure the routine case on has changed, and it is not `dense`
+
+2.12.5's amendment says `dense.json` is the routine case and the cap is the worst
+case. That is still true of **density** and is now false of **element count**:
+`dense` is fully covered, so it carries no wash, no edge and no clip and
+exercises none of what 2.12.7 added.
+
+The body with both real density and the full mark set is `uncovered.json` — 780
+bars, 990 slots, `partial`. Measure the routine case on **that**, and keep
+`dense` for the density ceiling. A trace taken only on `dense` measures the
+densest series this product opens at with the fewest elements it ever draws,
+which is neither end of anything.

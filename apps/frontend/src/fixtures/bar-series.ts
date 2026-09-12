@@ -4,7 +4,7 @@ import { isApiError, isBarSeriesResponse } from "@marketpulse/shared";
 import type { BarSeriesView } from "../market/index.js";
 import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
 
-// Thirteen bodies `GET /market-data/bars` answers with, recorded from the real
+// Fourteen bodies `GET /market-data/bars` answers with, recorded from the real
 // endpoint over the real store — the fixture backend Stories 2.11 to 2.13 test
 // against instead of each inventing a mock (Task 2.10.6).
 //
@@ -21,7 +21,7 @@ import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
 // `timeframe` are closed unions this bundle knows; a body widened by hand to
 // "something realistic" is refused by `isBarSeriesResponse`, and the symptom is
 // `unreadable-body` in a test that looks like it is about something else. Two
-// of the thirteen below are deliberately in exactly that state, and they are labelled
+// of the fourteen below are deliberately in exactly that state, and they are labelled
 // as such so nobody reads them as bodies the server sends.
 //
 // ## How each was recorded, so it can be re-recorded rather than cited
@@ -40,13 +40,16 @@ import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
 // curl -s "$B?symbol=ZZZZ&timeframe=1m&sessions=1"                                                  > bar-series/refused-unknown-symbol.json
 // curl -s "$B?symbol=HD&timeframe=1m&start=2026-09-04T17:00:00.000Z&end=2026-09-04T18:00:00.000Z"  > bar-series/flat.json
 // curl -s "$B?symbol=NVDA&timeframe=1m&start=2026-08-31T13:30:00.000Z&end=2026-09-04T20:00:00.000Z" > bar-series/dense.json
+// curl -s "$B?symbol=NVDA&timeframe=1m&start=2026-09-03T13:30:00.000Z&end=2026-09-08T17:00:00.000Z" > bar-series/uncovered.json
 // ```
 //
-// The last two were added by Task 2.12.5 and the **symbol and window in each is
-// the recording**, not an arbitrary choice: HD's hour opened and closed at the
-// same price, which no other recorded body does, and NVDA's five sessions are
-// 1,950 bars, which is the density the default window actually has. Their
-// entries below say how each was found.
+// The last three were added by Tasks 2.12.5 and 2.12.7, and the **symbol and
+// window in each is the recording**, not an arbitrary choice: HD's hour opened
+// and closed at the same price, which no other recorded body does; NVDA's five
+// sessions are 1,950 bars, which is the density the default window actually
+// has; and the last window reaches 210 trading minutes past what the store
+// holds, which is the only shortfall in this set that is made of trading time.
+// Their entries below say how each was found.
 //
 // **`untracked.json` needed the universe changed under it**, which is the one
 // recording here with a side effect, so both halves are written down. The
@@ -159,11 +162,12 @@ import REFUSED_CAP from "./bar-series/refused-cap.json" with { type: "json" };
 import REFUSED_UNKNOWN_SYMBOL from "./bar-series/refused-unknown-symbol.json" with { type: "json" };
 import STITCHED from "./bar-series/stitched.json" with { type: "json" };
 import UNAVAILABLE from "./bar-series/unavailable.json" with { type: "json" };
+import UNCOVERED from "./bar-series/uncovered.json" with { type: "json" };
 import UNKNOWN_FEED from "./bar-series/unknown-feed.json" with { type: "json" };
 import UNTRACKED from "./bar-series/untracked.json" with { type: "json" };
 
 /**
- * The three transport outcomes these thirteen bodies can be.
+ * The three transport outcomes these fourteen bodies can be.
  *
  * A **recorded fact about each fixture, not a computation** — deliberately, so
  * that nothing here becomes a second copy of `api-client.ts`'s classification.
@@ -395,6 +399,49 @@ export const BAR_SERIES_FIXTURES = {
     body: DENSE,
     outcome: "ok",
     describes: "the default window's density — 1,950 bars over five sessions",
+  },
+
+  /**
+   * **780 bars over a window reaching into a session in progress** — the state
+   * the uncovered treatment exists for. → `partial`.
+   *
+   * Added by Task 2.12.7, and it is owed to that task specifically because
+   * `CHARTING.md` §10.1 found that the `partial` fixture above **exercises none
+   * of it**: that body's shortfall is a Saturday, and a session-ordinal axis
+   * gives a Saturday no slots, so its 60 bars correctly fill their frame. A
+   * treatment reviewed against it alone would be a treatment nothing on screen
+   * had run.
+   *
+   * This one's shortfall is **trading minutes**. NVDA over Thursday
+   * 2026-09-03 13:30Z to Tuesday 2026-09-08 17:00Z: the store holds both
+   * complete sessions and stops at Friday's close, so the requested window
+   * reaches 210 trading minutes into Tuesday that nothing covers — 210 of 990
+   * slots, a little over a fifth of the frame.
+   *
+   * ```
+   * curl -s "$B?symbol=NVDA&timeframe=1m\
+   * &start=2026-09-03T13:30:00.000Z&end=2026-09-08T17:00:00.000Z" \
+   *   > bar-series/uncovered.json
+   * ```
+   *
+   * **It is the live product's ordinary state, recorded so a story can reach
+   * it.** `/securities/NVDA` on a developer's store is already in this state and
+   * has been since Task 2.12.4 — a line occupying a fifth of its frame — but a
+   * *story* cannot reach a running store, and acceptance criterion 6 wants one
+   * per state. The judgement was taken on the running page; this is what keeps
+   * it reviewable afterwards.
+   *
+   * 147 KB, which is second to `dense` and therefore also on `CLAUDE.md`'s
+   * must-not-ship list. Re-measure by name:
+   * `grep -o "2026-09-03T13:3[0-9]" apps/frontend/dist/assets/*.js` must find
+   * nothing.
+   */
+  uncovered: {
+    status: 200,
+    body: UNCOVERED,
+    outcome: "ok",
+    describes:
+      "a window reaching 210 trading minutes past what the store holds",
   },
 
   /**

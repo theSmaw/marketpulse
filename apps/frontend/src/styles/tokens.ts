@@ -127,6 +127,7 @@ const TOKEN_NAMES = [
   "--chart-crosshair",
   "--chart-point",
   "--chart-uncovered",
+  "--chart-coverage-edge",
   "--chart-series-width",
   "--chart-height",
   "--chart-height-compact",
