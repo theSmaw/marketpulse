@@ -227,3 +227,82 @@ progress — for the workshop, and use the running page for the judgement.
   to the sentences; the new risk is the two **channels** disagreeing, which is
   [Task 2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md)'s
   opening-close question and is named there.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.5 — two washes now meet at the coverage edge, and one mark already crosses it
+
+The directional rule and the wash shipped. Three things change here, and the
+first is a decision this task did not previously have because the surface it is
+about did not exist.
+
+### The reference rule runs into the uncovered region. The wash does not
+
+This is the concrete form of the adjacency `STORY.md`'s fourth review predicted
+when it declined pulling this task forward — _"the directional wash and the
+uncovered wash are adjacent surfaces whose contrast has to be judged together"_.
+They are now adjacent on a real screen, and they behave differently:
+
+- **The wash already stops at the data.** It is the close line's own path closed
+  back to the rule, so it ends at the last bar and nothing about it reaches the
+  frame. `--chart-uncovered` will land beside it, not under it.
+- **The dashed rule does not.** It is drawn `x1=0 → x2=plot.width`, full width,
+  because at 2.12.5 there was nothing to stop at. On `/securities/NVDA` today it
+  crosses four uncovered sessions.
+
+**Decide it here, because both readings are defensible and they say different
+things.** A rule that stops at the coverage edge says _this datum describes the
+data we hold_; a rule that continues says _this price is the datum for the whole
+window you asked about, and we simply have nothing to plot against it out here_.
+The second is arguably more honest about what the axis means, and it is also the
+one that puts a `--chart-reference` hairline at 4.48:1 on top of
+`--chart-uncovered` at 1.107:1 — a mark markedly louder than the region it sits
+in, which is the one thing that treatment must not become.
+
+Whichever way it goes, **the clip is the mechanism** and it already exists for
+the series. One `clipPath` that takes the rule, the wash and the line together,
+or a deliberate statement that the rule is outside it.
+
+### Three contrast pairs are now measurable and two are new
+
+`--chart-grid` where the wash passes under it was recorded at **1.11:1** and is
+now real rather than predicted. What this task adds to that list:
+
+| Pair                                            | Why it is this task's                                |
+| ----------------------------------------------- | ---------------------------------------------------- |
+| `--chart-uncovered` against `--surface-raised`  | The existing row; 1.107:1, deliberately the quietest |
+| `--chart-uncovered` against each wash           | **New.** Two pale fills meeting at a vertical edge   |
+| `--chart-reference` against `--chart-uncovered` | **New**, and only if the rule is not clipped         |
+
+The second is the one to look at rather than compute: 1.107:1 and 1.15:1 against
+the same ground are within a few hundredths of each other, so the coverage edge
+may be invisible **precisely where the wash is**, which is the left-hand side of
+it. The dashed edge is what carries it, and that is now load-bearing rather than
+a nicety.
+
+### The fixture set is thirteen bodies, not eleven — and neither new one is yours
+
+The Work section says _"`apps/frontend/src/fixtures/` holds eleven recorded
+response bodies"_. It holds **thirteen**. 2.12.5 added two, and stating what they
+are is the point, because the risk here is re-recording something that exists:
+
+- **`flat.json`** — a window that opened and closed at the same price. Not this
+  task's; it is the neutral wash's story.
+- **`dense.json`** — 1,950 bars over five sessions, **`loaded`**. Not this task's
+  either, and specifically **not** the body this task is still owed: it is fully
+  covered, so it exercises no uncovered treatment at all. What it does give you
+  is the density to judge the uncovered region _against_ — a four-fifths-empty
+  frame and a full one, side by side in the workshop.
+
+**The recording this task owes is unchanged**: a window reaching into a session
+in progress, so a _story_ can reach the state the running page is already in.
+`bar-series.ts`'s header now carries the recording procedure for two bodies that
+had to be _found_ rather than requested, and the `psql` query idiom there is the
+one to copy if the store has to be searched for a window with the right shape.
+
+### One thing that got easier
+
+The `refused`/`failed` decision this task was told to take seriously rather than
+inherit is **unaffected** by anything 2.12.5 did — neither state has a window, so
+neither has a rule or a wash. It is still the call to make deliberately, and it is
+still the one where "nobody revisited it" and "it was decided" render identically.

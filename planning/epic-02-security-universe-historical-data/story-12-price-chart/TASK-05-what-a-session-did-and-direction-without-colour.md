@@ -1,6 +1,6 @@
 # Task 2.12.5 — What a session actually did, and direction without colour
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-12.** The record is [`CHARTING.md`](CHARTING.md) §12.
 **Story:** [2.12 Price Chart](STORY.md)
 **Depends on:** 2.12.4
 

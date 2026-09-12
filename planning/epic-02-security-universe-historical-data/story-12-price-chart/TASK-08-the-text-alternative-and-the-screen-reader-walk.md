@@ -260,3 +260,61 @@ The table in 2.12.2's amendment stands. Two notes from what shipped:
   as a border against `--surface-raised` like every other structural hairline in
   this product. It is the same value and the same figure; it is simply not in the
   drawing, which matters if this task goes looking for it in the SVG.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.5 — one deferred row can be measured, one conditional resolved, and the alternative gained a fact
+
+### The deferred contrast row is now measurable
+
+The amendment above records that `--chart-grid` where the wash passes under it
+(**1.11:1**) _"is not yet measurable, because there is no wash"_, and that the row
+is measured after 2.12.5 rather than before.
+
+**2.12.5 has shipped and the row is live.** The figure to confirm is the one
+`tokens.css` already states beside `--chart-grid`, and it is worth knowing which
+way the argument runs before measuring it: the weakening is **accepted**, and the
+stated repair if a reader ever cannot follow a gridline across a tinted region is
+**a darker grid, not a paler wash** — because the wash is already at the floor of
+visibility on purpose and making it paler solves nothing.
+
+### The high–low band conditional resolved, and what replaced it is a bigger surface
+
+The 2.12.1 amendment's contrast list ends _"and — if 2.12.5 draws one — the
+high–low band, which sits behind the line and therefore changes the ground the
+line is measured against."_
+
+**It draws none.** The band is declined at every window this story serves and the
+reason is in `CHARTING.md` §12.2. But the clause's _concern_ transferred intact
+and got larger: **the directional wash sits behind the line and changes the ground
+the line is measured against**, across most of the plot rather than in a hairline.
+The figures are recorded — the near-black series measures **14.87** on the green
+wash and **14.68** on the red — so what this task owes is confirming them over the
+composition rather than discovering them.
+
+### The text alternative now has a fact the picture states and the sentence does not
+
+The Work section's minimum list — symbol, window, first and last price, change,
+high, low, feed — was written when the plot drew a line and nothing else. The plot
+now makes a **claim about direction** in its own right, and a text alternative
+that omits it is describing a different picture from the one on screen.
+
+It is probably already covered: _change_ carries the sign, and `series-facts.ts`'s
+vocabulary is the one to reuse rather than invent beside. **Confirm it deliberately
+rather than assume the overlap** — and note the same subject trap
+[Task 2.12.6](TASK-06-reading-a-point-crosshair-hover-and-keyboard.md) is amended
+with: the wash is about the **window**, the readout is about a **bar**, and one
+sentence covering both without saying which is which is the text version of two
+channels disagreeing.
+
+### The greyscale half of this task got smaller and did not go away
+
+`PriceChart.stories.tsx` now carries four windows under `grayscale(1)` and four
+under a Machado deuteranopia matrix, and `CHARTING.md` §12.5 records what was read
+off them on 2026-09-12.
+
+That is the **encoding** proved, which is what the Work section credits this task's
+premise to 2.12.5 for. What is still owed here is unchanged and is the harder half:
+the proof over **the finished chart in place on the page** — axis, labels,
+crosshair, states, the stated-facts block beneath it and the headline above it, all
+at once. A component in a workshop at one width is not a screen.

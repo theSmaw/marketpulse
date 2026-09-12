@@ -366,3 +366,62 @@ this is a real funded product?_ — and it will look considerably better once
 **Take the screenshots after 2.12.7, not before**, and if the deployed store is
 better backfilled than the development one, say which one the screenshot came
 from.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.5 — the token audit ticked one row, and the greyscale entry can now be written
+
+### One of the three unconsumed tokens has an application consumer
+
+The audit above lists `--chart-reference`, `--chart-crosshair` and
+`--chart-uncovered` as read **only** by `components/chart-tokens.stories.module.css`,
+and notes that the three are exactly 2.12.5's, 2.12.6's and 2.12.7's, in that
+order — which makes the audit a progress check.
+
+**It has ticked once.** `--chart-reference` is read by
+`PriceChart.module.css`'s `.reference`, so the count is now eleven of thirteen
+with an application consumer and **two** remain. Re-take the audit at the close
+rather than citing this line; the standing rule is unchanged and is the reason it
+is worth taking at all — a token still read only by the specimen story is a task
+that did not ship what it said it did, not a token to delete.
+
+### The greyscale `verify`-gap entry is unblocked and its shape is narrower than expected
+
+The section above says the greyscale entry 2.12.2 owes _"cannot be written until
+Task 2.12.5 ships the reference rule"_. **It has**, and the entry is writable.
+
+Write it against what actually holds the property rather than against greyscale in
+general, because the honest scope is small: no test in `pnpm verify` can see a
+colour at all — `getTokens()` throws where no stylesheet is applied, which
+`CLAUDE.md` already records as the structural reason "do not assert on colour" is
+not a discipline. So the entry is not _"greyscale is unchecked"_; it is:
+
+> **That the chart's direction survives the hue being removed.** The geometry —
+> the line finishing above or below `--chart-reference` — is what carries it, and
+> the two washes differ by **1.009:1 under `grayscale(1)`**, so a change that
+> deleted the rule and kept the tint would leave a chart whose direction is
+> carried by nothing. Nothing mechanical can see this. What holds it is
+> `chart-geometry.ts`'s `DirectionalArea`, which makes the pair one value, and
+> `PriceChart.stories.tsx`'s two simulation stories, which a person reads.
+> Re-measure: render `Greyscale` in the workshop and say which way each of the
+> four windows went.
+
+And note there is now a **second** entry from this task, of the class this list
+exists for — a claim only a browser can see:
+
+> **That the directional wash is painted with a wash rather than with black.**
+> `e2e/specs/security-price-chart.spec.ts`'s _the directional wash is actually
+> painted_. The first version of that spec was **green against the break**,
+> because SVG's initial `fill` is black and "is it filled with some colour" was
+> true of the broken chart. Re-measure: delete `WASH[...]` from the wash's
+> `className` in `PriceChart.tsx` and confirm that spec goes red — it was
+> verified that way on 2026-09-12.
+
+### One item on the sweep list is already done rather than owed
+
+`CLAUDE.md`'s _Current state_ and its fixture no-ship entry were both corrected in
+2.12.5's commit under the same-day rule — the paragraph now describes a chart that
+states direction, and the no-ship entry names `dense.json` with its own grep,
+having previously named the recorded universe as the largest thing on the list.
+The design canvas was amended in the same commit for the same reason. Confirm
+rather than repeat.
