@@ -1235,3 +1235,144 @@ across **forty arrow presses** and the difference is **zero**. The counter is
 verified live in the same test by a render the component genuinely has to answer
 — a zero from an instrument wired to nothing looks exactly like a zero from a
 working repair.
+
+---
+
+## 14. What every state found — added 2026-09-12 by Task 2.12.7
+
+[Task 2.12.7](TASK-07-every-chart-state-drawn.md) is the first task in this story
+that had to be right about the states the chart is in when it has **less than it
+asked for**, which is most of the time. Six things came out of it. Two reverse
+nothing and settle a decision that had been open since §12; two are corrections
+to claims this file's own reviews made; and the last one is a rendering defect
+that only existed because a fill is opaque and a stroke is not.
+
+### 14.1 One rule replaced four state-by-state decisions
+
+The treatment was specified state by state — §7.1's answer 7 for `partial`, a
+bare labelled axis for `empty`, an unlabelled scale for `loading`, nothing for
+the two failures. Built, it collapses to one sentence:
+
+> **A mark derived from the window runs the full frame. A mark derived from the
+> bars stops at the coverage edge.**
+
+The axis rule, the gridlines, the seams and every tick label come from
+`coverage.requested`; the line, the two washes and the reference rule come from
+the bars and share one `clipPath`. Everything else falls out of a single number
+— how much of the window is held — rather than out of a branch on the state:
+
+- `loaded` — the covered span **is** the frame, so the arithmetic produces no
+  wash and no edge, with no special case for it.
+- `partial` — the ordinary case.
+- `empty` — coverage zero, which is one uncovered span across the whole plot.
+  **Not a fourth treatment**, and it is what tells the state apart from
+  `loading` on screen, which is the same frame with the wash absent.
+- `loading` — nothing is _known_ to be missing before anything has been
+  answered, which is a different value from "all of it is missing" rather than
+  the same absence.
+
+The uncovered spans are derived from `coverage.covered` against the axis and
+**never from where the last bar landed**. That is what makes §10.1 fall out
+rather than needing a case of its own: the recorded `partial` fixture's
+shortfall is a Saturday, a session-ordinal axis gives Saturday no slots, so
+`positionOfInstant` puts its covered end at the frame's own right-hand side and
+the one-pixel floor drops the difference. A treatment keyed on the last bar
+would have washed a sliver there — and would also wash one on a **complete**
+answer whose final minute never traded.
+
+### 14.2 The reference rule is clipped, and the argument for keeping it was vacuous
+
+This was the open decision [STORY.md](STORY.md)'s fifth review handed here, with
+two defensible readings. It is **clipped**, and one of the two readings turned
+out not to be a reading at all.
+
+The case for leaving it full width was that it carries the seam where the two
+washes meet: they differ by 1.013:1, so the boundary between them is the dashed
+rule sitting exactly on it, and clipping the rule would leave that boundary
+invisible wherever coverage is short. **That is false, and the error is worth
+recording because it survived three reviews.** The washes are the close line's
+own path closed back to the rule, so they exist _only_ where the bars do — which
+is precisely the side of the coverage edge the rule survives on. Clipping it
+removes it from the uncovered span, where there is no wash for it to separate.
+
+What actually decided it is the pair of contrasts. `--chart-reference` is 4.48:1
+and `--chart-uncovered` is 1.107:1, so an unclipped rule puts the loudest mark on
+the plot inside the quietest region — the one thing §7.1's answer 7 says that
+treatment must not become. And the line and the wash already stop at the edge, so
+a rule that did not would be a third convention for one boundary.
+
+### 14.3 The coverage edge and a session seam coincide most of the time
+
+Not rarely, and not a contrived case: **a store caught up to a previous session's
+close stops exactly on a session boundary**, which is precisely where a seam is
+drawn. On the recorded body this task added, the coverage edge and the third
+session seam are the same pixel to one decimal place, and on `/securities/NVDA`
+today they are the same pixel too.
+
+So a third dashed vertical could not be told from the second by being dashed. It
+is told apart by ink and rhythm — 4.05:1 and `6 3` against the seam's 1.54:1 and
+`3 3` — and it is drawn **last** so it is the one on top. What actually carries
+the boundary is neither dash: it is the ground changing behind it.
+
+### 14.4 The pair the edge exists for, measured directly rather than inferred
+
+STORY.md's fifth review predicted this pair from two figures taken against white
+— 1.107:1 and 1.15:1 — and called them "within a few hundredths of each other".
+Taken directly, they are closer than that:
+
+| Pair meeting at the coverage edge                   | Contrast    | Under `grayscale(1)` |
+| --------------------------------------------------- | ----------- | -------------------- |
+| `--chart-uncovered` against `--price-positive-wash` | **1.038:1** | 1.036:1              |
+| `--chart-uncovered` against `--price-negative-wash` | **1.051:1** | 1.046:1              |
+| `--chart-uncovered` against `--surface-raised`      | 1.107:1     | 1.110:1              |
+| `--chart-coverage-edge` against `--chart-uncovered` | 4.045:1     | 4.036:1              |
+| `--chart-grid` crossing the uncovered wash          | 1.146:1     | 1.146:1              |
+| `--chart-seam` crossing it                          | 1.539:1     | 1.539:1              |
+
+Two things follow. **The edge is load-bearing rather than a nicety** — without
+it, the boundary between held and unheld is invisible exactly where the wash is,
+which is the left-hand side of it. And **the whole treatment carries no hue**:
+every row moves by less than a hundredth of a ratio under `grayscale(1)`, so
+there is nothing in it for a colour-vision difference to take away. That is a
+stronger claim than the directional wash can make and it is worth stating
+plainly, because it is the one part of this chart where the greyscale story is
+confirming rather than defending.
+
+A single chart can present the first two rows at once, one above the rule and
+one below, wherever the line crosses its own opening price near the edge.
+
+### 14.5 A fill is opaque and a stroke is not, which is how the axis vanished
+
+The defect this task shipped for about an hour, found by looking at the running
+page rather than by any test:
+
+> **The uncovered ground painted over the axis rule**, so the frame appeared to
+> stop at the coverage edge — the exact impression this whole treatment exists to
+> prevent, arriving as a rendering artefact rather than as a decision.
+
+The cause is one pixel and it had been there since 2.12.4. `PriceChart` measures
+the plot with `getBoundingClientRect()`, and the plot's **bottom border _is_ the
+axis rule**, so the measured height is one pixel taller than the area there is to
+draw in. Every mark before this task tolerated that, because a stroke a pixel low
+lands under a near-black rule and is invisible. A fill does not.
+
+The repair is `offsetHeight - clientHeight`, subtracted once at the measurement —
+the border as an integer, and zero in jsdom where neither property is
+implemented, so the component's own tests are unaffected. The transferable form:
+**a latent measurement error is exposed by the first mark whose failure mode is
+opacity rather than position**, and Story 2.13's volume bars are the next fills
+this axis will carry.
+
+### 14.6 The fixture set is fourteen bodies, and the fourteenth is the state the product is in
+
+`uncovered.json` — NVDA over Thursday 2026-09-03 to Tuesday 2026-09-08, 780 bars
+against a window of 990 trading minutes. It is owed to this task for the reason
+§10.1 gave: the `partial` fixture exercises none of this treatment, so a _story_
+could not reach the state the running page has been in since 2.12.4.
+
+Worth stating that the judgement was **not** taken on it. The running page is
+where the wash, the edge and the clip were reviewed, because a developer's store
+is already four sessions short of the default window; the recording is what keeps
+that reviewable afterwards and in CI. And CI itself exercises the other end of
+the same treatment for free: `verify.yml` runs no backfill, so every chart there
+is `empty`, which is coverage zero.

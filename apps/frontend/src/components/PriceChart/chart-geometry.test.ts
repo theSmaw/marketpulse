@@ -32,13 +32,16 @@ const PLOT = { width: 867, height: 280 };
 const DENSITY = chartDensity(923);
 
 /** What the chart is about, taken from a recorded answer the way the component does. */
-function subjectOf(name: "full" | "partial" | "flat" | "dense"): ChartSubject {
+function subjectOf(
+  name: "full" | "partial" | "flat" | "dense" | "uncovered",
+): ChartSubject {
   const view: BarSeriesView = barSeriesFixtureView(name);
   if (view.state !== "loaded" && view.state !== "partial")
     throw new Error(`the ${name} fixture is not an answer with bars`);
 
   return {
     requested: view.series.coverage.requested,
+    covered: view.series.coverage.covered,
     timeframe: view.series.timeframe,
     bars: view.series.bars,
   };
@@ -178,6 +181,7 @@ describe("the frame is never conditional on the data", () => {
 
     const frame = chartFrame(PLOT, DENSITY, {
       requested: view.series.coverage.requested,
+      covered: view.series.coverage.covered,
       timeframe: view.series.timeframe,
       bars: view.series.bars,
     });
@@ -210,6 +214,9 @@ describe("the frame is never conditional on the data", () => {
       seams: [],
       ticks: [],
       series: null,
+      // Not one uncovered span across a zero-width plot: an unmeasured element
+      // knows nothing about coverage, and washing it would be a claim.
+      coverage: { covered: null, uncovered: [], edges: [] },
       direction: null,
     });
   });
@@ -352,6 +359,7 @@ describe("direction, and the geometry that carries it", () => {
 
     const frame = chartFrame(PLOT, DENSITY, {
       requested: view.series.coverage.requested,
+      covered: view.series.coverage.covered,
       timeframe: view.series.timeframe,
       bars: view.series.bars,
     });
@@ -437,6 +445,7 @@ describe("the readings", () => {
 
     const frame = chartFrame(PLOT, DENSITY, {
       requested: empty.series.coverage.requested,
+      covered: empty.series.coverage.covered,
       timeframe: empty.series.timeframe,
       bars: empty.series.bars,
     });
@@ -474,5 +483,100 @@ describe("the readings", () => {
     const slots = frame.readings.map((reading) => reading.slot);
     expect(slots).toEqual([...slots].sort((left, right) => left - right));
     expect(new Set(slots).size).toBe(slots.length);
+  });
+});
+
+// **What the coverage treatment is derived from** (Task 2.12.7).
+//
+// The rule this block holds: *a mark derived from the window runs the full
+// frame; a mark derived from the bars stops at the coverage edge.* Everything
+// below is the second half of that as arithmetic, and none of it is visible at
+// any other level — jsdom computes no layout, and a browser can see that a
+// region is washed without being able to say it was washed in the right place.
+describe("how much of the window is held", () => {
+  it("washes nothing and draws no edge when the answer covers the window", () => {
+    const frame = chartFrame(PLOT, DENSITY, subjectOf("full"));
+
+    // `loaded` means `covered` equals `requested`, so both ends land on the
+    // frame's own sides and the floor drops the zero-width difference. No
+    // branch on the state produces this — the arithmetic does.
+    expect(frame.coverage.uncovered).toEqual([]);
+    expect(frame.coverage.edges).toEqual([]);
+    expect(frame.coverage.covered).toEqual({ from: 0, to: PLOT.width });
+  });
+
+  it("stops the covered span short when the shortfall is made of trading minutes", () => {
+    // The recorded body this task exists for: 780 bars against a window
+    // reaching 210 trading minutes into a session the store has not taken.
+    const frame = chartFrame(PLOT, DENSITY, subjectOf("uncovered"));
+    const [span, ...rest] = frame.coverage.uncovered;
+
+    expect(rest).toEqual([]);
+    expect(span?.to).toBe(PLOT.width);
+    // 210 of 990 slots, so a little over a fifth of the frame. Asserted as a
+    // proportion rather than as a pixel: the pixel is a product of a plot width
+    // this test chose, and the proportion is the fact about the answer.
+    const uncoveredFraction =
+      ((span?.to ?? 0) - (span?.from ?? 0)) / PLOT.width;
+    expect(uncoveredFraction).toBeCloseTo(210 / 990, 2);
+
+    // One edge, at the span's own start, and nothing at the frame's sides.
+    expect(frame.coverage.edges).toEqual([span?.from]);
+    expect(frame.coverage.covered).toEqual({ from: 0, to: span?.from });
+
+    // And the line ends inside the covered span rather than at the frame. This
+    // is the pair that makes the drawing honest: the axis is the window, the
+    // data stops before it, and the two facts agree.
+    const last = frame.readings[frame.readings.length - 1];
+    expect(last?.x).toBeLessThan(span?.from ?? 0);
+    expect(last?.x).toBeGreaterThan((span?.from ?? 0) - 5);
+  });
+
+  it("washes nothing when the shortfall is a weekend, because a weekend has no slots", () => {
+    // `CHARTING.md` §10.1, and the reason this task needed a fourteenth
+    // recorded body. The `partial` fixture holds Friday 15:00–16:00 against a
+    // window requested to Saturday 16:00 — and on a session-ordinal axis
+    // Saturday contributes nothing, so those 60 bars correctly fill their
+    // frame.
+    //
+    // **This is the treatment being right rather than being skipped.** A
+    // shortfall made of a weekend is not a shortfall a chart should leave a
+    // hole for, and taking the edge from the bars instead of from the covered
+    // range would have drawn one.
+    const frame = chartFrame(PLOT, DENSITY, subjectOf("partial"));
+
+    expect(frame.coverage.uncovered).toEqual([]);
+    expect(frame.coverage.edges).toEqual([]);
+  });
+
+  it("washes the whole plot for an answer with no bars in it", () => {
+    const view = barSeriesFixtureView("empty");
+    if (view.state !== "empty")
+      throw new Error("the empty fixture is not empty");
+
+    const frame = chartFrame(PLOT, DENSITY, {
+      requested: view.series.coverage.requested,
+      covered: view.series.coverage.covered,
+      timeframe: view.series.timeframe,
+      bars: view.series.bars,
+    });
+
+    // Coverage zero, which is this treatment at its limit rather than a fourth
+    // one — and it is the whole of what tells `empty` apart from `loading` on
+    // screen. No edge: an edge at the frame's own side is a spine.
+    expect(frame.coverage.covered).toBeNull();
+    expect(frame.coverage.uncovered).toEqual([{ from: 0, to: PLOT.width }]);
+    expect(frame.coverage.edges).toEqual([]);
+  });
+
+  it("washes nothing before there is an answer", () => {
+    // The distinction the union carries and the drawing has to keep: nothing is
+    // *known* to be missing before anything has been answered. A frame that
+    // washed while it waited would say we had asked and been told no.
+    expect(chartFrame(PLOT, DENSITY, null).coverage).toEqual({
+      covered: null,
+      uncovered: [],
+      edges: [],
+    });
   });
 });

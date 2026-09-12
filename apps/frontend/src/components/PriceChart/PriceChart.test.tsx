@@ -205,6 +205,119 @@ describe("with a measurement", () => {
   });
 });
 
+// **The uncovered treatment reaches the DOM** (Task 2.12.7).
+//
+// The split with the other two levels is the usual one and it is worth stating,
+// because the obvious test to write here is the wrong one.
+// `chart-geometry.test.ts` owns *where* the wash and the edge go — it is the
+// only level that can, since a coordinate needs arithmetic rather than a
+// layout — and `e2e/specs/security-price-chart.spec.ts` owns whether the wash
+// *paints*, since no stylesheet is applied here. What is left is the wiring:
+// that a coverage span becomes an element, and that the three marks derived
+// from bars carry the clip.
+describe("what the coverage treatment renders", () => {
+  /**
+   * The uncovered grounds, by position rather than by class name.
+   *
+   * A direct child of the SVG: the only other `<rect>`s this chart draws are
+   * the two inside `<clipPath>` elements, and a CSS Module's hashed class is
+   * not a thing to assert on.
+   */
+  function grounds(container: HTMLElement): readonly Element[] {
+    return [...(container.querySelector("svg")?.children ?? [])].filter(
+      (child) => child.tagName === "rect",
+    );
+  }
+
+  it("puts a ground behind the span that was asked for and is not held", () => {
+    measureEverythingAt(800, 280);
+
+    const { container } = render(
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("uncovered")} />,
+    );
+
+    const [ground, ...rest] = grounds(container);
+    expect(rest).toEqual([]);
+    // Full height and stopping at the frame's right-hand side. The `x` is the
+    // geometry's and is asserted there; what this level can see is that a span
+    // became an element with the shape of a region rather than of a mark.
+    expect(ground?.getAttribute("height")).toBe("280");
+    expect(
+      Number(ground?.getAttribute("x")) + Number(ground?.getAttribute("width")),
+    ).toBe(800);
+  });
+
+  it("clips the line, the wash and the reference rule to the data", () => {
+    // **The decision this task took rather than inherited.** The rule ran the
+    // full plot width when it shipped; it describes the bars, so it stops where
+    // they do. All three carry the same clip, which is what makes "the rule
+    // says one thing and the line another" unrepresentable.
+    measureEverythingAt(800, 280);
+
+    const { container } = render(
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("uncovered")} />,
+    );
+
+    const series = container.querySelector("path[d^='M']:not([d$='Z'])");
+    expect(series?.getAttribute("clip-path")).toMatch(/^url\(#.+\)$/);
+
+    // The washes are clipped as a pair rather than individually: an element
+    // takes one `clip-path` and each `<use>` already spends its own on the
+    // split at the rule.
+    const washes = container.querySelectorAll("use");
+    expect(washes).toHaveLength(2);
+    const group = washes[0]?.parentElement;
+    expect(group?.tagName).toBe("g");
+    expect(group?.getAttribute("clip-path")).toBe(
+      series?.getAttribute("clip-path"),
+    );
+
+    // Every clipped mark shares one clip. Three references to it, and the rule
+    // is the third — this is the assertion that would go red if a later tidy-up
+    // let it run to the frame again.
+    const clipped = container.querySelectorAll(
+      `[clip-path="${series?.getAttribute("clip-path") ?? ""}"]`,
+    );
+    expect(clipped).toHaveLength(3);
+  });
+
+  it("washes the whole plot for an answer with nothing in it, and none of it while it waits", () => {
+    // The pair that carries `empty`'s entire drawn content. `loading` and
+    // `empty` are the same frame; the wash is what says one of them has been
+    // answered.
+    measureEverythingAt(800, 280);
+
+    const answered = render(
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("empty")} />,
+    );
+    const [whole, ...more] = grounds(answered.container);
+    expect(more).toEqual([]);
+    expect(whole?.getAttribute("x")).toBe("0");
+    expect(whole?.getAttribute("width")).toBe("800");
+
+    answered.unmount();
+
+    const waiting = render(
+      <PriceChart symbol="NVDA" view={{ state: "loading" }} />,
+    );
+    expect(grounds(waiting.container)).toEqual([]);
+  });
+
+  it("draws no ground and no clip for an answer that covers its window", () => {
+    // A complete answer must carry none of this, and it must carry none of it
+    // *by arithmetic* rather than by a branch — the covered span is the frame,
+    // so there is nothing to wash and nothing to clip against.
+    measureEverythingAt(800, 280);
+
+    const { container } = render(
+      <PriceChart symbol="NVDA" view={barSeriesFixtureView("full")} />,
+    );
+
+    expect(grounds(container)).toEqual([]);
+    expect(container.querySelectorAll("[clip-path]")).toHaveLength(2);
+  });
+});
+
 // **The repair Task 2.12.4's amendment assigned to this task, measured** — and
 // the amendment's own instruction is that a repair must not be reported without
 // a measurement after it.

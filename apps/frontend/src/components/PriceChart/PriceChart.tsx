@@ -69,12 +69,41 @@ import styles from "./PriceChart.module.css";
 // what brings, and `CHARTING.md` §5 keeps High and Low as *stated facts*
 // underneath in the meantime.
 //
-// Two things that look like this component's job and are not:
+// ## Every state drawn, and the one rule that decides them (Task 2.12.7)
 //
-//  - **`--chart-uncovered` and the dashed coverage edge.** Task 2.12.7's. What
-//    *is* this task's is the x-domain coming from `coverage.requested`, which is
-//    one argument in `chart-geometry.ts` and is what decides whether that task
-//    draws a state or retrofits an axis.
+// **A mark derived from the window runs the full frame; a mark derived from the
+// bars stops at the coverage edge.** The axis rule, the gridlines, the seams and
+// every tick label come from the window that was *asked for* — the reader asked
+// for it, and a frame that shrank to the data would be §6.2's defect. The line,
+// the two washes and the reference rule describe bars, so one `clipPath` takes
+// all three.
+//
+// That gives four of the six states their whole treatment, from one number:
+//
+//  - **`loading`** — a real scale with nothing written on it, and **no wash**.
+//    Nothing is known to be missing before anything has been answered.
+//  - **`loaded`** — the covered span is the frame, so there is no edge to draw.
+//  - **`partial`** — the ordinary case here, and the one this task exists for.
+//  - **`empty`** — coverage zero, which is one uncovered span across the whole
+//    plot. Not a fourth treatment: it is this one at its limit, and it is what
+//    tells the state apart from `loading` at a glance.
+//
+// **`refused` and `failed` still draw nothing at all, and that was reviewed
+// rather than inherited.** The argument is structural: neither member carries a
+// series, so neither carries a requested window, and a frame under either would
+// have to *invent* one to be a picture of. The case for drawing one — that it
+// holds the region's height so the page below does not jump when a retry
+// succeeds — is real and is paid elsewhere, by the sentence, its detail and the
+// retry occupying the region.
+//
+// **And a stale answer looks exactly like a fresh one.** No dim, no blur, no
+// fade, no second style: `FRONTEND-STATE.md` §2's rule, and declining it here
+// keeps that rule's stated reversal trigger — *a chart that redraws a held
+// series in a second style* — unfired. The mark's subject is the answer as a
+// whole, and `BarSeriesPanel`'s dashed rail already sits above all of it.
+//
+// One thing that looks like this component's job and is not:
+//
 //  - **The crosshair, the readout and the keyboard path to a point.** Task
 //    2.12.6's, and it landed on 2026-09-12 as `ChartReading` — a *sibling*
 //    rather than a change to this component. The base SVG below is still
@@ -145,7 +174,8 @@ export interface PriceChartProps {
 export function PriceChart({ view, symbol }: PriceChartProps) {
   const { chartRef, plotRef, regionWidth, plot } = usePlotSize();
 
-  // Three document-unique ids for the fill's definition and its two clips.
+  // Four document-unique ids: the fill's definition, its two clips, and the
+  // coverage clip Task 2.12.7 added.
   //
   // **Stripped to alphanumerics**, which is not decoration: `useId` returns a
   // value wrapped in delimiters that differ by React major — colons in 18,
@@ -158,9 +188,20 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
   const areaId = `${id}-area`;
   const aboveId = `${id}-above`;
   const belowId = `${id}-below`;
+  const coveredId = `${id}-covered`;
 
   const density = chartDensity(regionWidth);
   const frame = chartFrame(plot, density, chartSubject(view));
+
+  // **The clip that holds this task's one rule** — everything derived from bars
+  // stops at the coverage edge. `undefined` rather than a clip over the whole
+  // plot when there is nothing to clip against, so a complete answer carries no
+  // extra element and `pnpm e2e`'s element count stays about the chart rather
+  // than about a state it is not in.
+  const clipToCovered =
+    frame.coverage.uncovered.length > 0 && frame.coverage.covered !== null
+      ? `url(#${coveredId})`
+      : undefined;
 
   // Two states have no window to draw an axis for: a refusal is an answer about
   // the *request* and a failure never got one. A frame under either would be a
@@ -219,6 +260,43 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
            * browser spec reads three channels rather than asking whether it is
            * painted.
            */}
+          {/*
+           * **The uncovered ground, and it is the first thing painted** (Task
+           * 2.12.7). Under the wash, under the grid, under everything: it is a
+           * statement about the *frame* rather than about any mark on it, and a
+           * gridline that stopped at the coverage edge would be the frame
+           * shrinking to the data, which is the defect §6.2 exists to prevent.
+           *
+           * Zero of these on a complete answer, one on the ordinary short one,
+           * two where the store is missing the start as well, and one across
+           * the whole plot for an `empty` answer — which is the state's entire
+           * drawn content and the thing that tells it apart from `loading`.
+           */}
+          {frame.coverage.uncovered.map((span) => (
+            <rect
+              className={styles.uncovered}
+              height={plot.height}
+              key={span.from}
+              width={span.to - span.from}
+              x={span.from}
+              y={0}
+            />
+          ))}
+          {frame.coverage.covered !== null &&
+            frame.coverage.uncovered.length > 0 && (
+              <defs>
+                <clipPath id={coveredId}>
+                  <rect
+                    height={plot.height}
+                    width={
+                      frame.coverage.covered.to - frame.coverage.covered.from
+                    }
+                    x={frame.coverage.covered.from}
+                    y={0}
+                  />
+                </clipPath>
+              </defs>
+            )}
           {frame.direction !== null && (
             <>
               <defs>
@@ -240,16 +318,26 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
                   />
                 </clipPath>
               </defs>
-              <use
-                className={styles.washAbove}
-                clipPath={`url(#${aboveId})`}
-                href={`#${areaId}`}
-              />
-              <use
-                className={styles.washBelow}
-                clipPath={`url(#${belowId})`}
-                href={`#${areaId}`}
-              />
+              {/*
+               * A `<g>` around the pair rather than a second `clipPath` on each
+               * `<use>`: an element takes one `clip-path`, and these two already
+               * spend theirs on the split at the reference rule. The group is
+               * where the coverage clip goes, which is also the honest shape —
+               * the wash is one statement about the held bars and is clipped
+               * once.
+               */}
+              <g clipPath={clipToCovered}>
+                <use
+                  className={styles.washAbove}
+                  clipPath={`url(#${aboveId})`}
+                  href={`#${areaId}`}
+                />
+                <use
+                  className={styles.washBelow}
+                  clipPath={`url(#${belowId})`}
+                  href={`#${areaId}`}
+                />
+              </g>
             </>
           )}
           <g shapeRendering="crispEdges">
@@ -280,18 +368,58 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
              * because it carries more, and quieter than the data it is a
              * baseline for.
              */}
+            {/*
+             * **Clipped since Task 2.12.7, and that was the open question.** It
+             * ran the full plot width when it shipped, because there was
+             * nothing to stop at. It is a statement about the bars — the price
+             * the first one we hold opened at — so it stops where they do.
+             *
+             * Three things decided it, and the third is the one that closed it:
+             * the rule is the loudest mark on the plot at 4.48:1 and the
+             * uncovered wash is the quietest at 1.107:1, so an unclipped rule
+             * puts the loudest mark inside the quietest region; the line and
+             * the wash already stop at the edge, so a rule that did not would
+             * be a third convention for one boundary; and the argument for
+             * keeping it — that it carries the seam where the two washes meet —
+             * is vacuous, because the washes exist only where the bars do,
+             * which is the side of the edge the rule survives on.
+             */}
             {frame.direction !== null && (
               <line
                 className={styles.reference}
+                clipPath={clipToCovered}
                 x1={0}
                 x2={plot.width}
                 y1={frame.direction.reference}
                 y2={frame.direction.reference}
               />
             )}
+            {/*
+             * The coverage edge, **last in this group so it is over the seam**.
+             * The two coincide most of the time rather than rarely: a store
+             * caught up to a previous session's close stops exactly on a session
+             * boundary, which is precisely where a seam is drawn. They are told
+             * apart by ink and rhythm — 4.05:1 and `6 3` against the seam's
+             * 1.54:1 and `3 3` — and what actually carries the boundary is
+             * neither dash but the ground changing behind it.
+             */}
+            {frame.coverage.edges.map((x) => (
+              <line
+                className={styles.coverageEdge}
+                key={x}
+                x1={x}
+                x2={x}
+                y1={0}
+                y2={plot.height}
+              />
+            ))}
           </g>
           {frame.series !== null && (
-            <path className={styles.series} d={frame.series} />
+            <path
+              className={styles.series}
+              clipPath={clipToCovered}
+              d={frame.series}
+            />
           )}
         </svg>
       </div>
@@ -396,6 +524,7 @@ function chartSubject(view: BarSeriesView): ChartSubject | null {
     case "empty":
       return {
         requested: view.series.coverage.requested,
+        covered: view.series.coverage.covered,
         timeframe: view.series.timeframe,
         bars: view.series.bars,
       };
@@ -459,14 +588,32 @@ function usePlotSize() {
       const region = chart.getBoundingClientRect();
       const box = plot.getBoundingClientRect();
 
+      // **The axis rule's own pixel, subtracted** (Task 2.12.7). The plot's
+      // bottom border *is* the axis, and a bounding rect includes it — so the
+      // measured height is one pixel taller than the area there is to draw in.
+      //
+      // Every mark before today tolerated that, because a stroke a pixel low
+      // lands under a near-black rule and is invisible. **A fill does not.**
+      // The uncovered ground is opaque, so a rect drawn to the measured height
+      // paints over the axis and the frame appears to stop at the coverage
+      // edge — which is the exact impression this whole treatment exists to
+      // prevent, arriving as a rendering artefact rather than as a decision.
+      //
+      // `offsetHeight - clientHeight` is the border, as integers, and it is
+      // zero in jsdom — where neither is implemented — so the measurement
+      // helpers in this component's tests are unaffected. The width needs no
+      // such correction: there are no side borders.
+      const axisRule = plot.offsetHeight - plot.clientHeight;
+      const height = box.height - axisRule;
+
       setSize((current) =>
         current.regionWidth === region.width &&
         current.plot.width === box.width &&
-        current.plot.height === box.height
+        current.plot.height === height
           ? current
           : {
               regionWidth: region.width,
-              plot: { width: box.width, height: box.height },
+              plot: { width: box.width, height },
             },
       );
     });

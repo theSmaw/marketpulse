@@ -40,6 +40,28 @@ import styles from "./PriceChart.stories.module.css";
 //    `PRODUCT_SPEC.md` §28's 500 ms is satisfied by, and it must read as a
 //    scale about to be filled rather than as an empty box.
 //
+// ## Every state, and the one rule behind them (Task 2.12.7)
+//
+// The six members are all below, and the thing to read them against is the rule
+// that decides all six: **a mark derived from the window runs the full frame; a
+// mark derived from the bars stops at the coverage edge.**
+//
+// `Uncovered` is the one to look at hardest, and it is the state this screen is
+// in most of the time — the store is backfilled nightly and the free plan
+// withholds the most recent ~15 minutes, so a window reaching towards now is
+// routinely covered up to some point and no further. Three things there have to
+// be true at once: the axis is the window that was **asked for**, the line
+// stops where the data does, and the difference is a region rather than an
+// absence. `NoBars` is the same treatment at coverage zero, and `Waiting` is the
+// same frame with no wash at all — nothing is known to be missing before
+// anything has been answered.
+//
+// `Refused` and `Failed` render **nothing**, deliberately: neither carries a
+// window, so a frame under either would be a picture of something nobody asked
+// for. They are stories rather than an omission because *"nobody revisited it"*
+// and *"it was decided"* render identically, and this is where the decision is
+// visible.
+//
 // Every story is built by `barSeriesFixtureView` from a body recorded off the
 // real endpoint and collapsed through the real state transition. Nothing here
 // is a hand-written state: a hand-built `partial` whose coverage disagrees with
@@ -156,6 +178,11 @@ export const Waiting: Story = {
  * The axis is real and labelled — that window was asked for — and there is no
  * line, because there is nothing to draw. Inventing a price scale for it would
  * be a picture of data this system does not hold.
+ *
+ * **The whole plot is washed** (Task 2.12.7), because coverage zero is this
+ * chart's uncovered treatment at its limit rather than a fourth treatment. Put
+ * this beside `Waiting`: the two are the same frame, and the wash is the entire
+ * difference between *we asked and hold none of it* and *we have not asked yet*.
  */
 export const NoBars: Story = {
   args: { symbol: "NVDA", view: barSeriesFixtureView("empty") },
@@ -173,6 +200,13 @@ export const NoBars: Story = {
  * dim, no blur, no fade, no skeleton over a price — and a chart that redrew a
  * held series in a second style is that rule's stated reversal trigger. The
  * mark lives on the panel around this, as a dashed rail beside the figures.
+ *
+ * **Confirmed rather than inherited at Task 2.12.7**, which owned the decision.
+ * The mark's subject is the *answer* — the reading above, the drawing and the
+ * eight stated facts below are one answer and are one request old as a whole —
+ * so a second mark inside the plot would say two things were independently
+ * stale. And declining it keeps §2's reversal trigger unfired, which is worth
+ * more than the mark would be.
  */
 export const Held: Story = {
   args: { symbol: "NVDA", view: barSeriesFixtureView("partial") },
@@ -255,6 +289,63 @@ export const Dense: Story = {
 };
 
 /**
+ * **A window we asked for and hold part of** — the state this screen is in most
+ * of the time, and the one Task 2.12.7 exists for.
+ *
+ * NVDA over Thursday 3 September to Tuesday 8 September: the store holds both
+ * complete sessions and stops at Friday's close, so 210 of 990 trading minutes
+ * were asked for and are not held. Four things to check, and the third is the
+ * one a chart normally gets wrong:
+ *
+ *  - **The axis is the whole window.** Five tick labels, three sessions, and the
+ *    last of them is one the store has nothing in. A frame that shrank to the
+ *    data would look complete and disagree silently with the sentence printed
+ *    directly beneath it.
+ *  - **The ground changes** where the data stops, at 1.107:1 — the quietest
+ *    mark in this language, because a short answer is not a fault.
+ *  - **The line is clipped rather than shortened**, and so are the wash and the
+ *    reference rule. Letting any of them run to the frame renders perfectly and
+ *    reads as *flat data*, which is worse than a hole.
+ *  - **The edge is a long dash** and it lands on a session seam here, which is
+ *    the common case rather than a coincidence: a store caught up to a previous
+ *    session's close stops exactly on a session boundary. Ink and rhythm are
+ *    what tell the two apart.
+ */
+export const Uncovered: Story = {
+  args: { symbol: "NVDA", view: barSeriesFixtureView("uncovered") },
+  render: (args) => <Region view={args.view} />,
+};
+
+/**
+ * **The server declined to answer, so there is nothing here.** That is the
+ * story.
+ *
+ * A refusal is an answer about the *request*: this member carries no series and
+ * therefore no window, and a frame under it would have to invent one to be a
+ * picture of. The sentence and the server's own arithmetic are rendered by
+ * `BarSeriesPanel` beneath, where they belong.
+ *
+ * It is a story rather than an omission because the alternative was weighed and
+ * declined — an empty frame would hold the region's height so the page below
+ * did not jump when a retry succeeded, and that is paid for instead by the
+ * sentence, its detail and the retry occupying the region.
+ */
+export const Refused: Story = {
+  args: { symbol: "NVDA", view: barSeriesFixtureView("refusedCap") },
+  render: (args) => <Region view={args.view} />,
+};
+
+/**
+ * **Nothing arrived, so there is nothing here either** — and the rest of the
+ * page is untouched, which is the property the browser suite asserts because it
+ * is the only level where a boundary can be observed.
+ */
+export const Failed: Story = {
+  args: { symbol: "NVDA", view: barSeriesFixtureView("unavailable") },
+  render: (args) => <Region view={args.view} />,
+};
+
+/**
  * **All four, with the hue taken out.** This is the acceptance criterion.
  *
  * `--price-positive-wash` and `--price-negative-wash` differ by **1.009:1**
@@ -263,7 +354,13 @@ export const Dense: Story = {
  * direction were carried by the wash, this row would say nothing at all.
  *
  * It is not, because the rule is on the plot and the line is on one side of it.
- * Read top to bottom: up, down, finished where it started, up.
+ * Read top to bottom: up, down, finished where it started, up, up.
+ *
+ * **The fifth row is Task 2.12.7's** and it is here for a second claim: the
+ * uncovered treatment carries no hue either. Every contrast pair in it moves by
+ * less than a hundredth of a ratio under this filter, so the coverage edge and
+ * the ground behind it read exactly as they do in colour — there is nothing in
+ * them for a colour-vision difference to take away.
  */
 export const Greyscale: Story = {
   args: { symbol: "NVDA", view: barSeriesFixtureView("full") },
@@ -285,6 +382,10 @@ export const Greyscale: Story = {
         view={barSeriesFixtureView("dense")}
         treatment={styles.greyscale}
       />
+      <Region
+        view={barSeriesFixtureView("uncovered")}
+        treatment={styles.greyscale}
+      />
     </div>
   ),
 };
@@ -296,7 +397,8 @@ export const Greyscale: Story = {
  * Greyscale is the harsher test and this is the more honest one: a red-green
  * difference does not vanish for a deuteranope so much as collapse toward a
  * single yellowish axis, and washes this pale collapse completely. Same reading
- * as above, for the same reason — the geometry never depended on the hue.
+ * as above, for the same reason — the geometry never depended on the hue. The
+ * fifth row is the uncovered treatment, which never had a hue to lose.
  */
 export const Deuteranopia: Story = {
   args: { symbol: "NVDA", view: barSeriesFixtureView("full") },
@@ -317,6 +419,10 @@ export const Deuteranopia: Story = {
       />
       <Region
         view={barSeriesFixtureView("dense")}
+        treatment={styles.deuteranopia}
+      />
+      <Region
+        view={barSeriesFixtureView("uncovered")}
         treatment={styles.deuteranopia}
       />
     </div>

@@ -419,3 +419,40 @@ alone_ — the block checking that the two clip rects' heights sum to the plot a
 that the lower one starts where the upper one ends. Confirm it goes red, because a
 one-pixel seam is exactly the sort of thing that renders, survives a screenshot
 review and is invisible in a trace.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.7 — the element count grew by a known amount, and the fixture-leak greps are four
+
+Three corrections, none of which changes what this task measures.
+
+### The plot's element count, restated
+
+2.12.7 adds, at most: **two `<rect>`** for the uncovered spans (one in the
+ordinary case, two only where the store is missing the start of the window as
+well), **one `<clipPath>` with one `<rect>` in it**, and **one `<line>`** per
+coverage edge. All of them are constant in the bar count — nothing here scales
+with the series — so §1's constraint is untouched and the corrected figure this
+task measures against is _roughly two dozen plus four_.
+
+**Two of them are conditional on the state and that matters for what is being
+timed.** A `loaded` answer carries none of it, because the covered span is the
+frame and the arithmetic produces no wash, no edge and no clip. So the densest
+window (`dense`, 1,950 bars, fully covered) and the emptiest state are at
+opposite ends of both axes, and a measurement taken only on `dense` measures the
+element count at its lowest.
+
+### One clip is now shared by three marks, which is cheaper than it looks
+
+The series, the wash group and the reference rule all reference **one**
+`clipPath`. That is one more paint-time clip than before and **not** three: the
+group around the two `<use>` elements is what carries it for both washes, because
+an element takes one `clip-path` and each `<use>` already spends its own on the
+split at the reference rule.
+
+### The fixture-leak grep is four, not two, and not three
+
+The Work section says two. The sixth review's amendment said three. It is
+**four**: `dense.json` at 222 KB, `uncovered.json` at **147 KB** (added by
+2.12.7), the securities corpus at 191 KB, and the original bar-timestamp grep.
+`CLAUDE.md`'s entry carries all four by name.

@@ -324,3 +324,57 @@ premise to 2.12.5 for. What is still owed here is unchanged and is the harder ha
 the proof over **the finished chart in place on the page** — axis, labels,
 crosshair, states, the stated-facts block beneath it and the headline above it, all
 at once. A component in a workshop at one width is not a screen.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.7 — six states render, so six states have to speak
+
+Three things change here, and the first is the largest: **the states this task
+walks now exist**. Until today four of the six were drawn and two of those were
+provisional; the treatment is settled and `Price chart states.dc.html` is where
+it is specified. `CHARTING.md` §14 has the arguments.
+
+### The text alternative has a new fact to carry, and it is the one a picture-reader most needs
+
+The uncovered span is a **fact about coverage that reaches a sighted reader as a
+change of ground**. There is no such channel in a text alternative, so it has to
+be a clause — and the honest version says _how much_, not merely _that_: a window
+covered to four sessions of five and one covered to 780 minutes of 990 are the
+same sentence otherwise.
+
+Note the fact is **already on the page in words**, in `BarSeriesPanel`'s coverage
+sentence directly beneath the plot. So this is the closest pair on this screen to
+a sentence duplicated for two audiences, and the rule against two surfaces using
+the same words applies with the usual force. What the chart's alternative can say
+that the coverage sentence cannot is where the data stops _on the axis it is
+describing_ — the shape of the answer rather than the arithmetic of it.
+
+### The contrast table gains four rows, and two of them are the closest pairs in the product
+
+Measured at 2.12.7 and reproduced here so this task re-measures rather than
+discovers:
+
+| Surface                                             | Recorded    |
+| --------------------------------------------------- | ----------- |
+| `--chart-uncovered` against `--price-positive-wash` | **1.038:1** |
+| `--chart-uncovered` against `--price-negative-wash` | **1.051:1** |
+| `--chart-coverage-edge` against `--chart-uncovered` | 4.045:1     |
+| `--chart-grid` crossing the uncovered wash          | 1.146:1     |
+
+The first two are why the dashed edge is load-bearing rather than a nicety, and
+**a single chart can present both** — one above the reference rule and one below
+— wherever the line crosses its own opening price near the edge. The useful half
+for this task: every row moves by **less than a hundredth of a ratio** under
+`grayscale(1)`, so unlike the directional wash this treatment has no hue to lose
+and the greyscale proof here is confirming rather than defending.
+
+### Two states now have no chart in them at all, which is an accessibility-tree decision
+
+`refused` and `failed` render **nothing** — no SVG, no reading layer, no live
+region from this component. That is settled and argued (§14, and this story's
+seventh review), and it means the screen-reader walk must confirm the _panel's_
+sentence is what a listener reaches in those states rather than a chart
+announcing its own absence. The failure to look for is the opposite one: a chart
+that says "no data" in the accessibility tree while the panel says the same thing
+two lines later, which is the two-surfaces-one-sentence defect in the one place
+nothing on screen would show it.

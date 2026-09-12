@@ -35,6 +35,10 @@ import { expectNothingFailedToRender } from "../support/app.js";
 //     repository can tell a tinted area from an untinted one — or tell two inks
 //     from one ink used twice, which is the shape of the thing this chart got
 //     wrong first.
+//  5. **That the span which was asked for and is not held has a ground behind
+//     it** (Task 2.12.7). Same reason as 4 and a worse failure: a line that
+//     stops early over nothing reads as data that went flat, and `partial` is
+//     the state this screen is in most of the time.
 //
 // ## What a green run here does not certify
 //
@@ -254,6 +258,75 @@ test("the directional wash is painted, on both sides of the rule", async ({
  * `market.css`; this asserts the *class* of colour a wash is.
  */
 const WASH_FLOOR = 0xd0;
+
+test("the span that was asked for and is not held has a ground behind it", async ({
+  page,
+}) => {
+  // **Task 2.12.7's one browser-only claim.** No stylesheet is applied below
+  // this level, so nothing else in this repository can tell a washed region
+  // from an unwashed one — and the failure mode is the quiet kind: a chart
+  // whose line stops early with nothing behind the gap reads as data that went
+  // flat, which is the defect the treatment exists to prevent.
+  //
+  // Branched rather than skipped on an empty store, and that is the useful half
+  // here: `empty` is this same treatment at coverage zero, so CI — which holds
+  // 518 securities and no bars — exercises the whole-plot case while a
+  // developer's store exercises the ordinary short one. A **complete** answer
+  // is the one state with nothing to assert, and it is the one that skips.
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(EXPLORER);
+  await expect(plot(page)).toBeVisible();
+  await expect(anAnswer(page)).toBeVisible();
+
+  const complete = await priceRegion(page)
+    .getByText(/Holding all /)
+    .isVisible();
+  if (complete) test.skip(true, "this store covers the whole window");
+
+  // A direct child of the plot's SVG: the only other rects this chart draws are
+  // inside `<clipPath>` elements, which paint nothing and are not children of
+  // the SVG root.
+  const grounds = plot(page).locator("> rect");
+  expect(await grounds.count()).toBeGreaterThan(0);
+
+  const painted = await grounds.evaluateAll((elements) =>
+    elements.map((element) => ({
+      fill: getComputedStyle(element).fill,
+      width: element.getBoundingClientRect().width,
+    })),
+  );
+
+  for (const ground of painted) {
+    // Painted, and **not** the panel's own ground — which is what an uncovered
+    // region with its class deleted would look like, and is invisible to a test
+    // that only asks whether a rect is there. This is the same shape as the
+    // wash's own recorded finding one test above, taken deliberately rather
+    // than by analogy: SVG's initial fill is black, so "is it painted" passes
+    // against a plot flooded with near-black.
+    expect(ground.fill).not.toBe("rgb(255, 255, 255)");
+    const [red, green, blue] = (ground.fill.match(/\d+/g) ?? []).map(Number);
+    expect(red).toBeGreaterThan(WASH_FLOOR);
+    expect(green).toBeGreaterThan(WASH_FLOOR);
+    expect(blue).toBeGreaterThan(WASH_FLOOR);
+    // A region rather than a mark. A sub-pixel sliver is the state the
+    // geometry's floor exists to drop.
+    expect(ground.width).toBeGreaterThan(1);
+  }
+
+  // And where there are bars there is an edge between the two grounds, because
+  // the two pale fills either side of it differ by 1.038:1 and 1.051:1 — which
+  // is to say by nothing. Counted rather than checked for visibility: a
+  // vertical line is zero pixels wide to Playwright's bounding-box check, which
+  // is this file's own recorded finding.
+  if (await hasBars(page)) {
+    const seams = await plot(page).locator("line").count();
+    // Gridlines, seams, the reference rule and the edge. The number is not the
+    // assertion — that there is more than a frame's worth is.
+    expect(seams).toBeGreaterThan(1);
+  }
+
+  await expectNothingFailedToRender(page);
+});
 
 test("nothing the chart draws makes the page scroll sideways", async ({
   page,

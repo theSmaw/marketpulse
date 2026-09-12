@@ -266,6 +266,22 @@
      reading as *flat data* is not this value but the clip — the series stops at
      the coverage edge rather than being drawn to the frame. */
   --chart-uncovered: #f2f3f9;
+
+  /* The dashed vertical where held data stops and the requested window carries
+     on. **The one mark in that treatment allowed to be loud**, and it is
+     load-bearing rather than a nicety: `--chart-uncovered` differs from
+     `--price-positive-wash` by 1.038:1 and from `--price-negative-wash` by
+     1.051:1, so the boundary between two pale fills is invisible without it.
+     4.05:1 against the wash it bounds, 4.48:1 against the panel's ground.
+
+     Same value as `--chart-reference` and separately named, for that token's
+     own stated reason — these two are different jobs at one hue today and the
+     day one moves, the other must not have to follow. What distinguishes them
+     on screen is orientation and rhythm: `6 3` here, `2 4` there, against the
+     session seam's `3 3`. The rhythm matters because a coverage edge and a
+     session seam land on the same pixel most of the time — a store caught up to
+     a previous session's close stops exactly on a session boundary. */
+  --chart-coverage-edge: #74777f;
 }
 
 /*
