@@ -1,6 +1,6 @@
 # Story 2.12 — Price Chart
 
-**Status:** **In progress — Tasks 2.12.1 to 2.12.9 are complete (2026-09-12).** One remains: the close.
+**Status:** **Complete — all ten tasks, closed 2026-09-12 by [Task 2.12.10](TASK-10-deployed-verify-document-and-adr.md).** The record is [`CHARTING.md`](CHARTING.md) and [ADR 0027](../../../docs/adr/0027-the-chart-layer-hand-built-svg-and-what-a-green-chart-suite-certifies.md).
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.11
 **Epic scope covered:** Basic price chart
@@ -886,3 +886,40 @@ epic owes, and on `CLAUDE.md`'s gap list with a trigger.
 
 One consequence for the close: **do not write "the security page produces no long
 task"** in ADR 0027. The chart does not. The page does.
+
+---
+
+## The close — 2026-09-12, Task 2.12.10
+
+**All eight acceptance criteria are met.** Where one is met by an argument rather
+than by a green check, the argument is named.
+
+| #   | Criterion                                                                   | Met by                                                                                                                                                                                                     |
+| --- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | A correct price series, verified against the stored bars rather than by eye | `chart-geometry.test.ts`, `PriceChart.test.tsx`, and `security-price-chart.spec.ts` against a real store                                                                                                   |
+| 2   | Readable and operable without a mouse; direction without colour             | One tab stop, arrows step bars, `Home`/`End`/`Escape`; the dashed reference rule carries direction and the two washes differ by 1.009:1 in greyscale, so the tint only repeats it (`CHARTING.md` §12, §13) |
+| 3   | axe clean on the security page, contrast gate still passing                 | The pre-merge gate, and the deployed run at the close: **0 violations, 47 passes** on the securities route                                                                                                 |
+| 4   | Every state renders; a failed chart does not take the page                  | One coverage rule decides all six (§14.1); `refused` and `failed` draw no frame at all, deliberately                                                                                                       |
+| 5   | No main-thread task over 50 ms at the largest series this epic serves       | §16.2 — measured at the 9,750-bar cap, cold and under interaction. **The chart. The page has one and it is the universe table** (§16.1)                                                                    |
+| 6   | Stories per state, `pnpm stories` passing                                   | `PriceChart.stories.tsx`, `ChartReading.stories.tsx`, and `Foundations/Chart tokens`                                                                                                                       |
+| 7   | The bundle cost recorded in Story 1.5's shape                               | §16.6 — **6,552 B gzipped, 4.2% of the artefact**, against the rejected library's +94,809 B                                                                                                                |
+| 8   | `pnpm verify` passes                                                        | Green at the close, with the four fixture-leak greps clean against a fresh build                                                                                                                           |
+
+**Verified on the deployed site**, cold and from a deep link, at 1440×900,
+1024×800 and 390×780: `pnpm e2e:deployed` 16/16, the pair coherent, the store one
+session behind at both timeframes — and the chart **`loaded`, holding all 1,950
+bars of the window asked for**. `CHARTING.md` §17.1 records the consequence that
+the deployed environment is therefore the one place §14's coverage treatment is
+not under observation.
+
+**The design bar: three of four.** §17.2 carries the applied tests with their
+reasoning. Test 4 — _does it feel alive?_ — is answered **"not yet, and not from
+here"** for the second time, deferred by name to Epic 3's motion vocabulary
+against real moving numbers. That is a "not yet" with a named owner and a
+measurement behind it (the crosshair holds 60 FPS at the cap), not polish
+deferred.
+
+**What Story 2.13 inherits is `CHARTING.md` §17.5** — six items, of which the
+coverage rule is the one most likely to be got wrong by a second plot, and the
+trading-calendar walk is the number the window control is most likely to be
+surprised by.
