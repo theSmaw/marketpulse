@@ -456,3 +456,31 @@ The Work section says two. The sixth review's amendment said three. It is
 **four**: `dense.json` at 222 KB, `uncovered.json` at **147 KB** (added by
 2.12.7), the securities corpus at 191 KB, and the original bar-timestamp grep.
 `CLAUDE.md`'s entry carries all four by name.
+
+### The clip is nested over a 1,950-point fill, which is the specific shape nothing has measured
+
+Sharpening the section above rather than adding to it, because "one more clip" is
+not the interesting part. 2.12.5's amendment already flagged that a `clipPath` is
+a rasterisation step and that clipping a 1,950-point filled path twice is not
+obviously free. What 2.12.7 added is that the same fill is now clipped
+**twice over**: the coverage clip on the group, and each `<use>`'s own clip at the
+reference rule inside it.
+
+So at the default window in the ordinary `partial` state the paint phase carries
+a nested clip over a 1,950-point path, twice, plus a third reference to the same
+clip on the line and a fourth on the rule. All constant in bar count — the
+**shape** is unmoved — but if anything in the paint phase surprises this task,
+this is now the first place to look rather than the second.
+
+### The fixture to measure the routine case on has changed, and it is not `dense`
+
+2.12.5's amendment says `dense.json` is the routine case and the cap is the worst
+case. That is still true of **density** and is now false of **element count**:
+`dense` is fully covered, so it carries no wash, no edge and no clip and
+exercises none of what 2.12.7 added.
+
+The body with both real density and the full mark set is `uncovered.json` — 780
+bars, 990 slots, `partial`. Measure the routine case on **that**, and keep
+`dense` for the density ceiling. A trace taken only on `dense` measures the
+densest series this product opens at with the fewest elements it ever draws,
+which is neither end of anything.

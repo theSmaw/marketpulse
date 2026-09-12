@@ -378,3 +378,48 @@ announcing its own absence. The failure to look for is the opposite one: a chart
 that says "no data" in the accessibility tree while the panel says the same thing
 two lines later, which is the two-surfaces-one-sentence defect in the one place
 nothing on screen would show it.
+
+### The chart's tab stop is conditional on the state, which the walk must not assume
+
+Missed by this amendment's first pass and worth stating plainly, because it is a
+property of the walk rather than of the text alternative. `ChartReading` renders
+**nothing** where there is nothing to read, so the chart contributes a tab stop
+in **`loaded` and `partial` only** — not in `loading`, not in `empty`, and not in
+the two states that draw no chart at all.
+
+Three consequences for the Work section's keyboard walk:
+
+- **`CLAUDE.md`'s occluded-stop counts predate the chart.** One at 1440×900, four
+  at 768×800, two at 390×780 were measured on a page with no chart tab stop on
+  it. The chart adds at most one and the walk must re-take them rather than cite
+  them.
+- **CI's store has no bars**, so every chart there is `empty` and contributes
+  **no** stop. A browser assertion written against the developer's store will
+  pass locally and assert nothing in the pipeline — the same branch the coverage
+  spec already takes, and for the same reason.
+- **The stop appears and disappears with the answer.** A walk taken while the
+  panel is still `loading` counts one fewer stop than the same page a second
+  later, which is the shape of flake `security-price-chart.spec.ts` already had
+  twice. Wait for the answer before counting.
+
+### One `verify`-gap entry is this task's to make mechanical rather than to inherit
+
+2.12.7 added an entry to `CLAUDE.md`'s list — _that the plot is measured to the
+area there is to draw in, and not to the axis rule as well_ — and it is the
+weakest kind of entry on that list: prose with a re-measure that means opening a
+page and looking at it. `CLAUDE.md`'s own standing preference is that **an entry
+which can be made mechanical should be**, and this one can, in the spec this task
+is already extending:
+
+> The uncovered ground's painted box must end **above** the plot's own bottom
+> edge, because the pixel between them is the axis rule. One `evaluate` comparing
+> two `getBoundingClientRect().bottom` values, in a browser, where the border
+> exists — jsdom implements neither `offsetHeight` nor `clientHeight`, so the
+> correction reads as zero there and every component test is identical with the
+> repair and without it.
+
+Verify it by restoring the break rather than assuming it: delete the
+`offsetHeight - clientHeight` subtraction in `usePlotSize` and confirm the new
+assertion goes red. If it lands, strike the entry from the gap list and say so —
+that is the migration the list wants, and this story has already performed it
+once (`pnpm coverage:check`).

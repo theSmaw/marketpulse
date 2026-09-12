@@ -481,3 +481,36 @@ four-fifths-empty frame a developer's store shows. Both are the same treatment
 and neither is a fault; what would be worth noticing after a merge is a deployed
 chart showing a _large_ uncovered span, which is `GET /diagnostics/freshness`
 saying the same thing in a number.
+
+### The screenshot conditional is discharged, and the instruction it carried is now live
+
+The amendment above tells this task to **take the screenshots after 2.12.7, not
+before**, because the developer's store answers the default window four-fifths
+short and an undressed uncovered span is the hardest possible case for test 1.
+**2.12.7 has shipped**, so the conditional is spent and the instruction is simply
+in force: the screenshots are takeable now, and the four-fifths-empty frame is no
+longer an embarrassment to be timed around — it is the state the treatment was
+designed for and is arguably the most interesting thing to photograph.
+
+Say which store each screenshot came from, which the amendment above already
+asks for and which matters more now that the two stores produce visibly different
+charts: a deployed store backfilled nightly shows a **small** uncovered span, a
+developer's shows a large one, and both are correct.
+
+### The handover to Story 2.13 gains a fourth item
+
+The Work section's list is _"the axis it inherits, the density decision, the seam
+Story 2.14 renders, and the daily-series calendar walk"_. Add **the coverage
+rule**, and it is the item most likely to be got wrong by a second plot:
+
+> A mark derived from the window runs the full frame; a mark derived from the
+> bars stops at the coverage edge. Two plots sharing one x-domain must stop at
+> **the same pixel** — the volume bars, their own baseline, and the price line
+> above them — and the uncovered ground is drawn once per plot rather than once
+> per region. A volume chart that drew bars into the uncovered span, or that
+> washed a different width from the chart above it, is the defect this rule
+> exists to prevent, arriving in the one place the rule was not restated.
+
+And note the volume bars are **fills**, which is what §14.5's one-pixel finding
+was about: the measurement error was invisible for three tasks because every mark
+before it was a stroke.

@@ -746,6 +746,35 @@ adjacent washes were judged together on a real screen, and the contrast pair tha
 decided the edge (1.038:1) could not have been measured before 2.12.5 shipped the
 wash it meets.
 
+**Re-checked the same day, after the amendments were written.** The question was
+asked again — _does anything need adding, deleting or re-ordering?_ — and the
+answer is still no, but the first pass of the three amendments was **incomplete
+in four places**, each now written into the task it belongs to:
+
+- **2.12.8** — the chart's tab stop exists in `loaded` and `partial` **only**, so
+  `CLAUDE.md`'s occluded-stop counts predate it, CI's empty store contributes no
+  stop at all, and a walk taken before the answer lands counts one fewer. And the
+  `verify`-gap entry 2.12.7 added is **that task's to make mechanical** rather
+  than to inherit: it is one `evaluate` in the spec it is already extending, and
+  `CLAUDE.md`'s standing preference is that an entry which can be made mechanical
+  should be.
+- **2.12.9** — the routine case to trace is `uncovered.json`, **not** `dense.json`:
+  `dense` is fully covered, so the densest body in the set exercises none of the
+  marks 2.12.7 added. And the clip is **nested** over a 1,950-point fill rather
+  than merely one more clip, which is the specific paint shape nothing has
+  measured.
+- **2.12.10** — the handover to Story 2.13 gains a fourth item, the coverage rule,
+  and it is the one a second plot is most likely to get wrong: two plots on one
+  x-domain must stop at the same pixel, and volume bars are **fills**, which is
+  exactly what §14.5's one-pixel finding was about.
+
+**On re-ordering specifically, asked and declined with a reason.** 2.12.8 and
+2.12.9 are both unblocked now and neither depends on the other, so they could
+swap. They should not: 2.12.9's own principle is to measure the real thing, and
+2.12.8 adds an element to the chart — small, but the order as written measures
+the finished article, and renumbering costs every reference in this directory
+against a gain of nothing.
+
 **One finding is worth carrying out of this directory.** The defect that shipped
 here for an hour was found by opening the page, not by a test — the second time
 in this story that a human eye caught something every green tick missed, and the
