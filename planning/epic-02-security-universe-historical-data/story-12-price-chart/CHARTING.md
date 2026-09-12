@@ -855,3 +855,78 @@ One thing was added that `d3` would not have supplied: **the step is floored at
 a cent**, because prices are rendered to two decimals and a finer step produces
 two gridlines carrying the same label. Choosing the step and rounding the label
 have to agree, which is the rule `directionOf` already follows for a percentage.
+
+---
+
+## 11. What drawing it found — added 2026-09-12 by Task 2.12.4
+
+[Task 2.12.4](TASK-04-the-first-chart-in-marketpulse.md) is the first task in
+this story to put a mark on a screen. Three things came out of it that are not
+in §10, and none of them reverses a decision above. Two are corrections to
+instructions §10 gave, taken with their reasons; the third is the one worth
+reading if you only read one.
+
+### 11.1 The component reads no token, and that is a deviation from §10.3 taken deliberately
+
+§10.3 says `chartDensity` returns a flag and the component "reads the token pair
+the flag selects and hands the numbers to the scales". **It does not.** It sets
+a density class and **measures the elements the stylesheet sized**, with one
+`ResizeObserver` watching the chart and the plot.
+
+Three reasons, and the first is disqualifying on its own:
+
+1. **`getTokens()` throws in the test environment.** No stylesheet is applied
+   there — which `CLAUDE.md` records as the structural reason "do not assert on
+   colour" is not merely a discipline — so a component that called it would take
+   every one of its own jsdom tests down with it.
+2. **The measurement _is_ the token, resolved.** The plot element's height is
+   whatever `--chart-height` says after the density class has chosen which of the
+   pair applies. Reading the token and re-deriving the box would be the second
+   spelling of a value CSS already owns.
+3. **The gutter stops being something to remember.** §10's amendment warns that a
+   scale built against the region width draws a line under its own labels. Here
+   the measured element is the plot and the gutter is a sibling column it never
+   contains, so the rule holds by construction rather than by a subtraction
+   somebody has to keep doing.
+
+**And it collapses the gap §10.3 recorded**, which is the part that matters
+beyond this component. §10.3 says the 600px boundary is "now spelled twice —
+once in a media query, once in that module — and nothing can check they agree."
+It is spelled **once**, in `chart-density.ts`. There is no media query in
+`PriceChart.module.css` at all; the stylesheet keys on a class the component
+sets from that module's answer. `CLAUDE.md`'s corresponding entry is amended
+rather than deleted, because the duplication it warns about is exactly what a
+later author would reintroduce by reaching for a media query.
+
+### 11.2 A `<line>` is invisible to a browser test, and two specs were written wrongly first
+
+Playwright's visibility check is a non-empty bounding box. **A horizontal
+gridline is zero pixels tall**, so every mark this chart draws except the series
+reports `hidden` — and `expect(gridline).toBeVisible()` goes red against a chart
+that is on the screen and correct.
+
+Recorded because it is not a quirk to route around once: it is a property of
+SVG that every later chart spec meets, Story 2.13's volume chart is the next one
+to meet it, and the failure looks exactly like a chart that did not render. The
+instrument is a **count**.
+
+### 11.3 The default window on a developer's store is the honest `partial`, and it draws §6.2 in public
+
+The local store answers `sessions=5` with **390 bars covering one session of the
+five**, because the backfill is paced and sequential and had reached 2026-09-04.
+So the first chart this product ever drew is a line occupying a fifth of its own
+frame with four empty sessions to the right of it.
+
+That is §6.2 working, in the browser, on the first run — and it is worth saying
+plainly because it is the opposite of what a reviewer expects to see and the
+temptation to "fix" it is real. **The fix would be the defect.** A domain taken
+from the bars would have filled the frame, looked complete, and disagreed
+silently with the sentence directly beneath it, which says we hold through
+2026-09-04 and asked through 2026-09-11.
+
+It also corrects §10.1's implication in one direction worth stating: §10.1 warns
+that the recorded `partial` **fixture** exercises none of the uncovered
+treatment, because its shortfall is a weekend. True — and the **live** default
+window is the ordinary case that does, on any store the backfill has not caught
+up to the current session. Task 2.12.7 has a real state to build against without
+constructing one; it is what `/securities/NVDA` shows today.

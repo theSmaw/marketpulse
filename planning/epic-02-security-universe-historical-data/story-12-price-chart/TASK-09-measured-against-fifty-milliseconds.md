@@ -223,3 +223,80 @@ it produces a `partial` chart that fills its frame and looks complete, and
 `market/chart-time-axis.test.ts` should go red on it — _comes from the requested
 window and not from the bars_. Confirm it does, because that test is the only
 thing standing between §6.2 and a chart that lies convincingly.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.4 — one question in the amendments above is answered, and the prediction table needs a third correction
+
+### "Does the calendar walk run once per render or once per request?" — **once per render**
+
+2.12.3's amendment asked 2.12.4 to check this and said the repair, if needed,
+belonged in that component. **It is per render and 2.12.4 did not take the
+repair.** `PriceChart` calls `chartFrame(...)` in its render body with no
+`useMemo`, and `chartFrame` calls `timeAxis`, which steps day by day through the
+trading calendar.
+
+**Two things make that a measured fact rather than an inference**, and the first
+is worth knowing generally:
+
+- **The React Compiler is not installed.** `apps/frontend/vite.config.ts` records
+  that all three of `@vitejs/plugin-react`'s transformer peers — including
+  `babel-plugin-react-compiler` — are optional and none is installed. So the
+  compiler's _rules_ are linted and its _auto-memoisation is absent_. Any
+  reasoning anywhere in this story that assumed a render-body computation was
+  memoised for free is wrong.
+- **Nothing re-renders the chart yet.** Its only state is the measured box behind
+  an equality guard, so today `chartFrame` runs on mount, on resize and on a view
+  change. That is why it is not a defect at 2.12.4 and is why this task would
+  measure nothing if it measured today.
+
+**The repair has moved to
+[Task 2.12.6](TASK-06-reading-a-point-crosshair-hover-and-keyboard.md)**, which is
+the task that introduces a render per pointer move — and it is amended there with
+the two ways to take it. What this task owes is unchanged and now has a target:
+**trace continuous pointer movement after 2.12.6 lands**, which is still the
+genuinely unmeasured surface and is now also the one with a known unmemoised
+recomputation behind it.
+
+### The prediction table, corrected a third time
+
+| Prediction (2026-09-11 spike)    | 2026-09-11 correction   | What 2.12.4 actually shipped                                      |
+| -------------------------------- | ----------------------- | ----------------------------------------------------------------- |
+| DOM nodes in the plot: ~11, flat | "roughly two dozen"     | See below — **fewer than two dozen, and two of them are not SVG** |
+| Bundle cost: +279 B gzipped      | + CSS half, + 5 modules | Unmeasured; now measurable against a real component               |
+
+**Two of the elements 2.12.2's correction listed are not in the drawing at all.**
+The **axis rule** is a CSS `border-bottom` on the plot element and the **plot's
+ground** is the panel's own surface — neither is an SVG node. The uncovered rect,
+the wash path, the coverage edge, the crosshair and its disc do not exist yet
+(2.12.5, 2.12.6, 2.12.7). What is in the plot today is: gridlines, session seams,
+and one `<path>`.
+
+So **state the figure as a shape rather than a number**, which 2.12.2's amendment
+already recommended and which this confirms: `O(sessions + breakpoint)`, `O(1)` in
+bars. The seam count scales with **sessions** — four at the default window,
+about twenty-four at the `1m` cap — and nothing scales with the bar count. That
+clause is §1's constraint and it is intact.
+
+### Two instrument breaks are now cheaper than the amendments above describe
+
+- **"Build the axis from `series.bars` instead of `coverage.requested`"** —
+  2.12.3's suggested break. It is now held by **two** tests rather than one:
+  `market/chart-time-axis.test.ts` as recorded, and
+  `components/PriceChart/chart-geometry.test.ts`'s _stops the line short when the
+  shortfall is made of trading minutes_, which asserts a pixel rather than an
+  axis. Break it and confirm **both** go red; a break that reddens only the
+  arithmetic has not proved the renderer is wired to it.
+- **A new one, closer to a real mistake than either.** `chart-geometry.ts`
+  answers a zero-sized plot box with an empty frame rather than a throw, because
+  `linearScale` refuses a zero-width range on purpose. **Remove that guard** and
+  the chart throws on its own first frame — before `ResizeObserver` has reported —
+  taking the region's error boundary with it. It is one `if`, it is invisible to
+  every unit test that does not stub a measurement, and it is exactly the kind of
+  line a later reader deletes as redundant.
+
+### One thing that got cheaper to measure
+
+`timeAxis` is called from `chart-geometry.ts`, which is **pure and has no DOM in
+it**. Timing it at the cap needs no browser and no component — which is what the
+2.12.3 amendment asked for, and it is now a two-line test rather than a trace.

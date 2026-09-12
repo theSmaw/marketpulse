@@ -13,6 +13,7 @@ import {
 } from "../../market/index.js";
 import { Marker } from "../Marker/Marker.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
+import { PriceChart } from "../PriceChart/PriceChart.js";
 import { announceSeries } from "./series-announcement.js";
 import type { SeriesPrices } from "./series-facts.js";
 import {
@@ -25,21 +26,36 @@ import {
 } from "./series-facts.js";
 import styles from "./BarSeriesPanel.module.css";
 
-// One security's bar series, as **stated facts and not a drawing** (Task
-// 2.10.7).
+// One security's bar series — **the chart, and the exact figures the picture
+// rounds** (Task 2.10.7, drawn since Task 2.12.4).
 //
-// ## The fence, and it is a hard one
+// ## The fence that used to be here, and why it came down
 //
-// **Nothing here is plotted. No axis, no line, no bars, no sparkline, no
-// canvas, no SVG series** — and that is a scope decision rather than an
-// unfinished state. Story 2.12 owns the charting decision: library or
-// hand-built, line or candlestick, how an x-axis handles the gaps between
-// sessions. Every one of those is easier to take against a data layer already
-// known to be right, and a sparkline added here would be that decision made by
-// accident, on the smallest possible evidence, by whoever needed one first.
+// Until 2026-09-12 this header stated that nothing was plotted — no axis, no
+// line, no sparkline, no canvas, no SVG — and `e2e/specs/security-series.spec.ts`
+// asserted it. That was Story 2.10's fence, and its purpose was that Story 2.12
+// should take the charting decision against a data layer already known to be
+// right rather than debug both at once. It worked: `CHARTING.md` §0's
+// measurements were taken against a panel with no drawing in it.
 //
-// If this panel starts wanting a picture, that is the signal that Story 2.12
-// has arrived — not the signal to draw a small one.
+// It came down deliberately, in the commit that added `PriceChart`, and the
+// browser spec was **changed to assert what is now true rather than deleted**,
+// so the instrument survives the fence.
+//
+// ## Nothing stopped being stated, and that is the decision
+//
+// `CHARTING.md` §5 went through this panel fact by fact and dropped none of
+// them. An axis is sampled and it is niced, so it never states an exact figure:
+// a value scale rounded to nice numbers deliberately has no tick at the true
+// high, and six time labels across 1,950 bars deliberately have none at the
+// first instant. **Drawing a fact is not the same as stating it, and this
+// product states facts.**
+//
+// So what changed is arrangement rather than content. The headline moved up
+// into the chart's chrome as the current-value reading, and everything else —
+// the coverage sentence, the four prices, the two windows, the provenance —
+// became the stated-facts block beneath the drawing. A future task that deletes
+// those to tidy the region is deleting the thing that makes the region honest.
 //
 // ## What it is for, which is not decoration
 //
@@ -143,9 +159,69 @@ export function BarSeriesPanel({
         untracked={isUntracked(view)}
       />
       {isStale(view) && <Refreshing />}
+      <Reading view={view} />
+      {/*
+       * **The chart, above the facts and not instead of them** (Task 2.12.4).
+       *
+       * It takes the view whole and fetches nothing, exactly as this panel
+       * does, so the workshop can render it with no backend running. It draws
+       * its frame in every state that has a window — including before the first
+       * answer, which is `PRODUCT_SPEC.md` §28's 500 ms satisfied by the frame
+       * rather than by the response.
+       */}
+      <PriceChart view={view} />
       <Body view={view} onRetry={onRetry} />
     </div>
   );
+}
+
+/**
+ * The current value, in the chart's chrome.
+ *
+ * **This is the headline that used to open the facts block**, moved by
+ * `CHARTING.md` §5: the one figure a person reads before they read anything
+ * else belongs with the picture it is the end of, and the value scale is on the
+ * right for the same reason — the latest price, the last point of the line and
+ * the scale all land in the same place.
+ *
+ * It stays a number in the DOM, in the data face, and is never a label drawn on
+ * the line. It is deliberately paired with the coverage sentence below the
+ * chart rather than standing alone, because a percentage with no window
+ * attached is a number about nothing.
+ */
+function Reading({ view }: { readonly view: BarSeriesView }) {
+  const prices = readablePrices(view);
+  if (prices === null) return null;
+
+  const percent = changePercent(prices);
+
+  return (
+    <div className={styles.headline}>
+      <span className={styles.close}>{formatPrice(prices.close)}</span>
+      {percent !== null && (
+        <span className={styles.headlineChange}>
+          <PriceChange
+            change={formatChangePercent(percent)}
+            direction={directionOf(percent)}
+          />
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** The four prices of the window, when the answer has bars in it. */
+function readablePrices(view: BarSeriesView): SeriesPrices | null {
+  switch (view.state) {
+    case "loaded":
+    case "partial":
+      return seriesPrices(view.series);
+    case "loading":
+    case "empty":
+    case "refused":
+    case "failed":
+      return null;
+  }
 }
 
 /**
@@ -361,7 +437,6 @@ function SeriesState({
 }) {
   const prices = seriesPrices(series);
   const { first, last } = barSpan(series);
-  const percent = changePercent(prices);
   const { requested, covered } = series.coverage;
 
   return (
@@ -389,24 +464,13 @@ function SeriesState({
        */}
       <div className={styles.settle} key={settleSignature(series, prices)}>
         {/*
-         * The headline: what the security did across the bars we hold. It is the
-         * one figure on this panel a person reads before they read anything else,
-         * so it is the one thing set at display size — and it is deliberately
-         * paired with the coverage line below rather than standing alone, because
-         * a percentage with no window attached is a number about nothing.
+         * The headline used to open this block and now opens the chart's chrome
+         * above it (`CHARTING.md` §5, Task 2.12.4). What that costs is that the
+         * settle wash no longer passes under the close — the wash marks the
+         * facts, which is where the bar count and the coverage it keys on both
+         * live. Extending it over the reading is Task 2.12.7's call to take
+         * with the rest of the states rather than a detail to change here.
          */}
-        <div className={styles.headline}>
-          <span className={styles.close}>{formatPrice(prices.close)}</span>
-          {percent !== null && (
-            <span className={styles.headlineChange}>
-              <PriceChange
-                change={formatChangePercent(percent)}
-                direction={directionOf(percent)}
-              />
-            </span>
-          )}
-        </div>
-
         <Coverage
           complete={complete}
           bars={series.bars.length}

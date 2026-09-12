@@ -175,19 +175,50 @@ test("a symbol the universe does not hold is a sentence, not a crash", async ({
   await expectNothingFailedToRender(page);
 });
 
-test("the panel draws nothing — the fence Story 2.12 inherits", async ({
+test("the region draws its series — the fence Story 2.12 took down", async ({
   page,
 }) => {
-  // Story 2.12 owns the charting decision, and a sparkline added here would be
-  // that decision taken by accident on the smallest possible evidence. The
-  // component's header states the fence; this is the instrument for it, and it
-  // is in the browser rather than in jsdom because a canvas that renders only
-  // in a real engine would pass a jsdom check.
+  // **This test asserted the opposite until 2026-09-12, and it was changed
+  // rather than deleted.**
+  //
+  // Story 2.10 built a fence here: no `<canvas>` and no `<svg>` in the Price
+  // region, so that Story 2.12 would take the charting decision against a data
+  // layer already known to be right rather than debug both at once. It served
+  // its purpose — `CHARTING.md` §0's measurements were taken against it — and
+  // Task 2.12.4 took it down in the commit that added `PriceChart`.
+  //
+  // Deleting it would have left the region with no instrument at all. What it
+  // asserts now is the thing on the other side of the fence, and the two halves
+  // are both load-bearing:
+  //
+  //  1. **An `<svg>` and still no `<canvas>`.** `CHARTING.md` §1 chose
+  //     hand-built SVG with no charting dependency, and a canvas appearing here
+  //     would mean that decision had been quietly reversed — a change nothing
+  //     else in this repository would notice.
+  //  2. **The frame is there whatever the answer was.** This is deliberately
+  //     asserted before any branch on whether the store has bars in it: CI's
+  //     store holds 518 securities and zero bars, so the answer there is
+  //     `empty` — and the frame is not conditional on the data, which is
+  //     `PRODUCT_SPEC.md` §28's 500 ms satisfied by the chart rather than by
+  //     the response.
   await page.goto(`/securities/${SYMBOL}`);
 
   const region = page.getByRole("region", { name: "Price" });
   await expect(anAnswer(region)).toBeVisible();
 
   await expect(region.locator("canvas")).toHaveCount(0);
-  await expect(region.locator("svg")).toHaveCount(0);
+  await expect(region.locator("svg")).toHaveCount(1);
+
+  // The gridlines, which come from the box rather than from the series and are
+  // therefore there whatever the answer was. A **count** rather than
+  // `toBeVisible`: Playwright's visibility check is a non-empty bounding box,
+  // and a horizontal gridline is zero pixels tall.
+  expect(await region.locator("svg line").count()).toBeGreaterThan(0);
+
+  if (await hasBars(region)) {
+    // One `<path>`, which is the whole series. Two would mean something had
+    // started drawing per-bar marks, which `CHARTING.md` §2 measured as a line
+    // drawn expensively at 0.47px per bar.
+    await expect(region.locator("svg path")).toHaveCount(1);
+  }
 });

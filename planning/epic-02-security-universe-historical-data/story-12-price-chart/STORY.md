@@ -443,3 +443,82 @@ checked.
 **Nothing in this review argues for a re-order.** The 2.12.5/2.12.6 swap has now
 been asked and declined twice and neither of this review's findings bears on it:
 2.12.6's slot-versus-bar decision is independent of 2.12.5 in both directions.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.4 — the task list was reviewed a fourth time, from the other side of a chart on a screen
+
+The three reviews above were run against decisions and then against arithmetic.
+This one was run against **a drawing a person can look at**, which is the first
+instrument in this story that can find the thing none of the others could: what
+the chart's existence does to the tasks that assumed it did not exist yet.
+
+**No task was added, none was deleted, and the order is unchanged.** Six were
+amended in place — 2.12.5, 2.12.6, 2.12.7, 2.12.8, 2.12.9 and 2.12.10 — each with
+a dated block at the foot of its own file. One document outside this directory was
+swept the same day: **ADR 0026**, whose "the canvas is three files" became false
+when 2.12.4 added a fourth, exactly as 2.12.2's amendment predicted it would.
+
+The four effects worth knowing without opening anything:
+
+- **2.12.5's escape hatch closed, and that is what makes it a task.** Three
+  amendments ended with the same standing instruction: _if it collapses to one
+  `<path>` and a `<line>`, fold it into 2.12.4 **in that commit**._ That commit
+  has landed and did not fold it — deliberately, because the reference rule and
+  the directional wash are one mechanism and 2.12.4's own fence was that drawing
+  half of it is how a chart ships with a tint and no geometry under it. **The
+  conditional is spent rather than declined**, which is a better reason for
+  keeping the task than any of the ones previously weighed.
+
+  It also gained a question no earlier amendment names: 2.12.2 put the reference
+  rule at _"the window's opening close"_, and that phrase names **nothing** when
+  `covered.start` is later than `requested.start`. Same shape as §6.2's axis
+  question, same trap — `loaded` is the state where both candidate answers
+  coincide.
+
+- **A repair was assigned to 2.12.4, not taken, and has moved to 2.12.6.** 2.12.3
+  asked whether the trading-calendar walk runs once per render or once per
+  request, and said the memoisation belonged in 2.12.4's component. **It is per
+  render and it is unmemoised** — and, confirmed while checking: the **React
+  Compiler is not installed** in this repository, only its lint rules, so nothing
+  memoises a render-body computation for free. That is harmless today, because
+  nothing re-renders the chart. It stops being harmless in 2.12.6, which
+  re-renders on every pointer move and would re-walk the calendar and rebuild a
+  1,950-point path for a change that moves one vertical rule. It is `PRODUCT_SPEC.md`
+  §28's word _routine_ exactly, and it is amended onto that task with the two
+  ways to take it.
+
+- **2.12.7 got smaller in a way worth planning around.** 2.12.4 takes the view
+  whole and its `switch` is exhaustive, so it could not draw `loaded` without
+  deciding what happens to the other five members. Four of the six now render:
+  `loading` as a frame with an empty scale, `empty` as a real labelled axis with
+  no line, and `refused`/`failed` as **no chart at all**. So that task now
+  **reviews four decisions and originates two** — the `partial` treatment and
+  `stale` — and the `refused`/`failed` call is the one to take seriously rather
+  than inherit, because "nobody revisited it" and "it was decided" render
+  identically.
+
+  It also no longer has to manufacture the state it exists for. A developer's
+  store answers the default window with 390 bars covering **one session of five**,
+  so `/securities/NVDA` is in the trading-minute `partial` right now — which
+  `CHARTING.md` §10.1 warned the recorded fixture could not exercise. A recorded
+  body is still owed, but only so a **story** can reach it.
+
+- **2.12.10's sweep list has four items already fired and one pointing at
+  something that does not exist.** `CLAUDE.md`'s _Current state_, the region's
+  `filledBy`, `BarSeriesPanel`'s fence header and ADR 0026's file count were all
+  corrected in the drawing commit under `CLAUDE.md`'s same-day rule. And the
+  instruction to "confirm both halves of the density duplication say the same
+  number" has no second half to confirm: **there is no media query**, the 600px
+  boundary is spelled once, and that `verify`-gap entry was rewritten in place
+  rather than left describing a duplication that no longer exists.
+
+**Nothing in this review argues for a re-order, and one candidate was considered
+honestly.** The most visible unfinished thing in the product today is 2.12.7's,
+not 2.12.5's: every user of a store that is not fully backfilled sees a
+four-fifths-empty frame with no uncovered treatment on it. That is an argument for
+pulling 2.12.7 forward. It was **declined** — 2.12.5 is the smallest task in the
+story and one commit, 2.12.7 declares a dependency on it, the directional wash and
+the uncovered wash are adjacent surfaces whose contrast has to be judged together,
+and renumbering costs every reference in this directory. Recorded so it is not
+reopened as though it had been missed.

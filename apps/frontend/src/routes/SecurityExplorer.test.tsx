@@ -315,14 +315,19 @@ describe("the market-data region", () => {
     renderAt(PATHS.securities);
 
     // The region is a landmark with a name, like every other one on this page,
-    // so a keyboard or screen-reader user has something to jump to. `filledBy`
-    // says the charts are a story away — a panel of numbers where a reader
-    // expects a chart looks unfinished unless it says so.
+    // so a keyboard or screen-reader user has something to jump to.
+    //
+    // **`filledBy` said the chart was a story away until 2026-09-12, and now
+    // says what it holds and what it still does not.** Task 2.12.4 drew the
+    // chart and amended the sentence in the same commit, which is the rule for
+    // a live claim that has become false; the assertion moved with it rather
+    // than being deleted, because a region whose description stops matching its
+    // contents is exactly what nothing else here would catch.
     await waitFor(() => {
       expect(screen.getByRole("region", { name: "Price" })).toBeTruthy();
     });
     expect(
-      screen.getByText(/The chart itself arrives with Story 2.12/),
+      screen.getByText(/Changing the window arrives with Story 2.13/),
     ).toBeTruthy();
   });
 });
@@ -528,7 +533,7 @@ describe("the Security Explorer shell", () => {
     // arrived at once here, and the cheap check is exactly this — a locator
     // that resolves to two nodes means two surfaces are saying one thing.
     for (const opening of [
-      "One security's minute bars",
+      "One security's closes over the default window",
       "How unusual this security's behaviour",
       "Traded volume across the same window",
       "This security measured against",

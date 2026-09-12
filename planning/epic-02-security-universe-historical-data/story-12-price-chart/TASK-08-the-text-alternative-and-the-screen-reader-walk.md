@@ -185,3 +185,78 @@ decision on its merits and say so, which is what the amendment asks for.
 The measured 1.009:1 greyscale figure is also the strongest argument for the text
 alternative stating the **direction in words**: the sentence is the third channel,
 after geometry and hue, and it is the only one that works with the screen off.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.4 — the accessibility-tree decision was taken, and taking it created the choice this task now owns
+
+### What was decided, and what it deliberately did not decide
+
+2.12.1's amendment says the likely answer is that the marks are hidden and the
+text alternative carries everything, and instructs this task to **take that
+deliberately and say so** rather than arrive at it by noticing there was only
+ever one element.
+
+**2.12.4 took the first half.** The plot's `<svg>` is `aria-hidden="true"` with
+`focusable="false"`, and the reason is stated in the component rather than
+implied: the picture is not the evidence on this page — the stated facts beneath
+it are, every one checkable against the store — so a `role="img"` with a name
+invented for it would have been a promise that task had not earned.
+
+**It deliberately did not take the second half**, which is this task's: what the
+text alternative is, and therefore _where_ it lives. The two are one decision and
+only one of them has been made, which leaves a specific choice rather than a
+blank:
+
+1. **Give the `<svg>` `role="img"` and `aria-labelledby`**, dropping the
+   `aria-hidden`. One element carries the picture and its description, which is
+   the conventional shape.
+2. **Leave the `<svg>` hidden and put the alternative in a sibling** — a visually
+   hidden paragraph, built the way `series-announcement.ts` builds the panel's.
+
+**The second is probably right here and it is not obviously right.** The argument
+for it is that this page already states every fact in visible text, so a
+`role="img"` sentence would be a **third** copy of the same facts — after the
+visible figures and the existing `role="status"` announcement — and
+`FRONTEND-STATE.md` §7's rule is that a region belongs to a subject. The argument
+against is that a screen-reader user arrowing the document meets an image-shaped
+hole where sighted readers meet a chart.
+
+Whichever is taken, **the count of things saying the same facts is the thing to
+watch**, and it is already three on this page. The Notes' second likeliest miss —
+a live region added here when 2.12.6 settled the rate — is the same failure seen
+from a different angle.
+
+### The keyboard walk has a moving target, and it is not this task's to hold still
+
+The Work section says to walk the page and extend the existing spec. Two facts
+that were not true when it was written:
+
+- **The chart has zero tab stops today**, and
+  [Task 2.12.6](TASK-06-reading-a-point-crosshair-hover-and-keyboard.md) adds the
+  first. So the walk this task extends is a walk over a page 2.12.6 changed, and
+  the amendment there names the interaction: the focusable element and its
+  accessible name are decided _there_, and the text alternative may want the same
+  element. **2.12.6 lands first and this task must not silently re-decide it.**
+- **The chart's height is a token, so the "target taller than the viewport"
+  worry is now checkable rather than speculative.** `--chart-height` is 280px and
+  `--chart-height-compact` is 220px, and the compact pair applies below 600px **of
+  region**. At 390px the region is ~342px wide and the plot is 220px tall inside
+  a viewport 780px tall — so the chart region is nowhere near taller than the
+  viewport, and `scroll-padding-top` should cover its stop like any other. Confirm
+  it rather than assume it; what the Work section warned about does not appear to
+  fire, and recording that it does not is worth a line.
+
+### The contrast table has one row that can be struck and one that cannot yet be measured
+
+The table in 2.12.2's amendment stands. Two notes from what shipped:
+
+- **`--chart-grid` where the wash passes under it (1.11:1) is not yet
+  measurable**, because there is no wash — the directional fill is
+  [Task 2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md)'s and
+  has not shipped. That row is measured after 2.12.5, not before.
+- **`--chart-axis` is not an SVG ink at all.** The bottom rule is a CSS
+  `border-bottom` on the plot element rather than a `<line>`, so it is measured
+  as a border against `--surface-raised` like every other structural hairline in
+  this product. It is the same value and the same figure; it is simply not in the
+  drawing, which matters if this task goes looking for it in the SVG.

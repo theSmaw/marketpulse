@@ -200,15 +200,17 @@ export function SecurityExplorer() {
          * looks unfinished unless it says the chart is a story away; saying so
          * is the difference between a fence and an omission.
          *
-         * **The fence is charts.** Story 2.12 owns the charting decision and
-         * should take it against a data layer already known to be right — a
-         * sparkline slipped in here is that decision taken in the wrong place
-         * by the wrong task.
+         * **The fence was charts, and Task 2.12.4 took it down.** Story 2.12
+         * owned the charting decision and took it against a data layer already
+         * known to be right; the sentence below was amended in the same commit
+         * as the drawing, because a region that says it holds no chart while
+         * holding one is the live claim `CLAUDE.md` says to amend rather than
+         * leave standing.
          */}
         <div className={page.wide}>
           <Region
             name="Price"
-            filledBy="One security's minute bars, stated rather than drawn. The chart itself arrives with Story 2.12."
+            filledBy="One security's closes over the default window, drawn — with the exact figures the picture rounds stated beneath it. Changing the window arrives with Story 2.13."
           >
             <BarSeriesPanel
               view={series.view}

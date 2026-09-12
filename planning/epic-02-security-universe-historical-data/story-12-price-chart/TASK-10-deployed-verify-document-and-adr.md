@@ -268,3 +268,101 @@ that was there when it was written.
   written down. Nothing in a governing document names those paths, so there is
   nothing to sweep — recorded here so the close does not go looking for a
   correction that is not owed.
+
+---
+
+## Amended 2026-09-12 by Task 2.12.4 — four sweep items have already fired, and one instruction now points at something that does not exist
+
+This is the first amendment to this task written from the other side of a shipped
+chart rather than from a decision. **Nothing is added to the close; four things
+are struck or rewritten**, because a close task that re-does work already done is
+how a sweep stops being trustworthy.
+
+### Already swept, so do not sweep twice — and what is left of each
+
+- **`CLAUDE.md`'s _Current state_.** The Work section says the paragraph claiming
+  a user "cannot see a chart of anything" becomes false the moment 2.12.4 merges.
+  It did, and **it was corrected in that commit**, per `CLAUDE.md`'s own same-day
+  rule. What was corrected is the **Price region only** — the paragraph now says
+  what the chart draws and lists what a user still cannot do, naming 2.12.6,
+  2.12.7 and Story 2.13. **What this task still owes is the story-level close**:
+  reading a point, every state drawn, and the text alternative all land between
+  now and then, and each moves that same paragraph.
+- **`SecurityExplorer.tsx`'s `filledBy` for the Price region**, the route test
+  asserting it, and `BarSeriesPanel`'s header fence — all three amended in the
+  drawing commit. `STORY.md`'s 2026-09-11 amendment quotes the old sentence
+  "verbatim" and was **deliberately left standing** as a dated historical record.
+  Confirm that judgement rather than re-taking it; correcting it would destroy the
+  record.
+- **ADR 0026's file count.** 2.12.2's amendment predicted that "the canvas is
+  three files" would go false quietly and it did, in a day — 2.12.4 added
+  `Price region.dc.html`. **ADR 0026 now carries a 2026-09-12 amendment**, and
+  that amendment replaces the count with a standing rule so the ADR stops needing
+  one per file. **Do not add a fifth count.**
+- **`--chart-filing-lane` was added**, so the token list is thirteen `--chart-*`
+  values rather than twelve, and the "eighteen tokens with no consumer" figure in
+  2.12.2's amendment has moved. See the audit below, which is the item this
+  replaces.
+
+### The density-breakpoint entry: the instruction points at something that does not exist
+
+2.12.3's amendment tells this task to confirm that **both halves** of the
+duplication exist and say the same number, noting the CSS half would arrive with
+2.12.4's media query.
+
+**There is no media query.** `PriceChart.module.css` contains none; the component
+sets a density class from `chartDensity`'s answer and the stylesheet keys on the
+class, so the 600px boundary is spelled **once**. `CLAUDE.md`'s entry was
+rewritten in the drawing commit — struck through, kept, and re-pointed at the
+thing a later author would actually do, which is reach for a media query when
+making a chart responsive. `CHARTING.md` §11.1 carries the argument.
+
+**So at the close: confirm the entry reads as a live hazard rather than as a
+present duplication, and run its re-measure** —
+`grep -n "@media" apps/frontend/src/components/PriceChart/PriceChart.module.css`
+must find nothing.
+
+### The gutter entry owed to the list needs rewording before it is written
+
+2.12.2's amendment owes this list an entry on the value gutter, with the
+re-measure "remove the subtraction and confirm a browser spec is what goes red".
+**There is no subtraction.** The gutter is a sibling grid column and the scale is
+built against the measured **plot** element, so the property holds by
+construction. The hazard is real and differently shaped: a later author who
+computes the scale from the _region_ — the outer element, which is also measured
+and is right there — reintroduces exactly the defect. Write the entry against
+that, and its re-measure is to build `slotScale` against `regionWidth` and
+confirm `e2e/specs/security-price-chart.spec.ts`'s _the plot stops where the
+value gutter starts_ goes red.
+
+The greyscale entry 2.12.2 owes is unchanged and cannot be written until
+[Task 2.12.5](TASK-05-what-a-session-did-and-direction-without-colour.md) ships
+the reference rule.
+
+### The token audit, with the answer already half-known
+
+2.12.2 asks this task to check that every `--chart-*` token is read by something.
+Measured 2026-09-12, counting consumers outside `tokens.css`:
+
+| Consumed by the application                                                                                                               | Consumed **only** by the specimen story                       |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `--chart-axis`, `--chart-grid`, `--chart-seam`, `--chart-series`, `--chart-series-width`, the heights, the gutters, `--chart-filing-lane` | `--chart-reference`, `--chart-crosshair`, `--chart-uncovered` |
+
+The three on the right are **exactly** 2.12.5's, 2.12.6's and 2.12.7's, in that
+order — which makes this audit a progress check rather than a cleanup. At the
+close all thirteen should have an application consumer; **a token still read only
+by `components/chart-tokens.stories.module.css` is a task that did not ship what
+it said it did**, not a token to delete.
+
+### One thing that is now easy to check and was not
+
+The Work section asks for the four tests applied to a screenshot at three
+viewports, with real data. Note what "real data" now means on a developer's
+store: the default window is a genuine `partial` covering one session of five, so
+**the screenshot to judge is a chart that is four-fifths empty**. That is correct
+and it is also the hardest possible case for test 1 — _would a stranger believe
+this is a real funded product?_ — and it will look considerably better once
+[Task 2.12.7](TASK-07-every-chart-state-drawn.md) dresses the uncovered span.
+**Take the screenshots after 2.12.7, not before**, and if the deployed store is
+better backfilled than the development one, say which one the screenshot came
+from.
