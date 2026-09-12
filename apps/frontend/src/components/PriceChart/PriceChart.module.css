@@ -183,46 +183,33 @@
  * **The directional wash** (Task 2.12.5) — the one filled area on this chart,
  * between the close line and the rule at the price the window opened at.
  *
- * Three classes rather than one class reading a custom property, and that is
- * the `--marker-color` trap answered structurally: a fill whose colour is set
- * somewhere else renders invisibly when the somewhere else forgets, with no
- * error and a green build. `PriceChart.tsx` picks one of these from a total map
- * over the three directions, so there is no path through the component that
- * draws an area with no ink in it.
+ * **Two classes, and which one applies is decided by geometry rather than by a
+ * fact about the window.** `PriceChart.tsx` draws one path twice, clipped above
+ * and below the rule, so `.washAbove` lands wherever the line is above the price
+ * it opened at and `.washBelow` wherever it is below. The hue therefore repeats
+ * *position*, which is exactly the channel that survives `grayscale(1)` — the
+ * two inks differ by 1.009:1 there, so the tint is decoration and the geometry
+ * is the statement.
  *
- * `stroke: none` is stated rather than inherited. The area's path is the series
- * path with a lid on it, so a stroke here would redraw the close line a second
- * time in the wash's colour and then close it across the plot — a horizontal
- * tinted rule at the opening price that looks exactly like a mis-drawn
- * reference.
+ * **Revised 2026-09-12.** This was three classes keyed on the window's
+ * direction, so the whole area took one tint: a window that dipped and
+ * recovered was painted green throughout, hue contradicting geometry wherever
+ * the line was under the rule. The split has no neutral state — every point is
+ * above or below — which is why `--price-unchanged-wash` has no consumer here
+ * any more. It keeps one: the high–low extent band, if Story 2.13's `1d` window
+ * brings it.
+ *
+ * These are the weakest colours in the product and making them stronger would
+ * be solving the wrong problem: a louder tint does not become a second channel,
+ * it becomes a louder first one.
  */
-.wash {
-  stroke: none;
-}
 
-/*
- * The three inks. **Decorative by measurement, not by choice**: under
- * `grayscale(1)` the first two differ by 1.009:1, so cover the hue and nothing
- * is lost — the geometry has already said which way the window went. That is
- * why these are the weakest colours in the product and why making them stronger
- * would be solving the wrong problem: a louder tint does not become a second
- * channel, it becomes a louder first one.
- */
-.washPositive {
+.washAbove {
   fill: var(--price-positive-wash);
 }
 
-.washNegative {
+.washBelow {
   fill: var(--price-negative-wash);
-}
-
-/*
- * A window that closed where it opened. Three states, not two — the same
- * argument `--price-unchanged` already makes for the ink: tinting a flat window
- * green would say it rose.
- */
-.washUnchanged {
-  fill: var(--price-unchanged-wash);
 }
 
 /*

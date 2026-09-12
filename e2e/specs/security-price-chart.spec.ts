@@ -29,11 +29,11 @@ import { expectNothingFailedToRender } from "../support/app.js";
 //     an input to the horizontal range rather than padding applied afterwards,
 //     and the failure is a chart that looks right at one width and wrong at
 //     another.
-//  4. **That the directional wash is painted at all** (Task 2.12.5). A fill
-//     whose ink is a consumer's responsibility renders invisibly when the
-//     consumer forgets — `CLAUDE.md` records it as the `--marker-color` trap —
-//     and no stylesheet is applied below this level, so nothing else in this
-//     repository can tell a tinted area from an untinted one.
+//  4. **That both directional washes are painted, and differ** (Task 2.12.5).
+//     No stylesheet is applied below this level, so nothing else in this
+//     repository can tell a tinted area from an untinted one — or tell two inks
+//     from one ink used twice, which is the shape of the thing this chart got
+//     wrong first.
 //
 // ## What a green run here does not certify
 //
@@ -182,17 +182,17 @@ test("the plot is shorter on a narrow region than on a wide one", async ({
   expect(await plot(page).locator("line").count()).toBeGreaterThan(0);
 });
 
-test("the directional wash is actually painted", async ({ page }) => {
-  // **The one thing about Task 2.12.5 that only a browser can see**, and it is
-  // the `--marker-color` trap in its natural habitat: a fill whose ink comes
-  // from somewhere else renders *invisibly* when the somewhere else is missing.
-  // No error, correct DOM, green `pnpm verify` — jsdom applies no stylesheet, so
-  // a component test can assert the class is present and can never assert that
-  // the class paints anything.
+test("the directional wash is painted, on both sides of the rule", async ({
+  page,
+}) => {
+  // **The one thing about Task 2.12.5 that only a browser can see.** No
+  // stylesheet is applied below this level, so a component test can assert the
+  // class is present and can never assert that the class paints anything.
   //
-  // `PriceChart.tsx` answers that structurally with a total map over the three
-  // directions, which is why this spec asks the cheap question rather than a
-  // per-direction one: is the area filled with a colour at all.
+  // Since 2026-09-12 there are two of them: the area is one path drawn twice,
+  // clipped above and below the reference rule, so the tint is a function of
+  // position rather than of the window. Both have to be painted **and they have
+  // to differ** — one wash for both sides is the revision undone.
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(EXPLORER);
   await expect(plot(page)).toBeVisible();
@@ -200,19 +200,17 @@ test("the directional wash is actually painted", async ({ page }) => {
   await expect(anAnswer(page)).toBeVisible();
   if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
 
-  // The area is the closed path; the series is the open one. Counted rather
-  // than checked for visibility, for this file's own recorded reason.
-  const paths = plot(page).locator("path");
-  expect(await paths.count()).toBe(2);
+  // Two `<use>`, one `<path>` for them to reference, and one for the line.
+  // Counted rather than checked for visibility, for this file's own recorded
+  // reason — and the path count is the constraint `CHARTING.md` §1 cares about:
+  // a second copy of a 1,950-point string would be two closed paths here.
+  const washes = plot(page).locator("use");
+  expect(await washes.count()).toBe(2);
+  expect(await plot(page).locator("path").count()).toBe(2);
 
-  const fills = await paths.evaluateAll((elements) =>
+  const fills = await washes.evaluateAll((elements) =>
     elements.map((element) => getComputedStyle(element).fill),
   );
-
-  // One filled and one not: the wash is an area and the close line is a stroke
-  // that must never be filled, which would flood the plot with near-black.
-  expect(fills.filter((fill) => fill === "none")).toHaveLength(1);
-  const wash = fills.find((fill) => fill !== "none") ?? "";
 
   // **Read as three channels rather than compared to a string**, and the reason
   // is a finding rather than a preference: this spec was first written to assert
@@ -221,14 +219,20 @@ test("the directional wash is actually painted", async ({ page }) => {
   // the `--marker-color` trap fails loudly (a plot flooded with near-black)
   // rather than invisibly, and a test that only asks "is it painted" asks
   // nothing. The verified break is the class removed; this is what catches it.
-  const [red, green, blue] = (wash.match(/\d+/g) ?? []).map(Number);
-  expect(red).toBeGreaterThan(WASH_FLOOR);
-  expect(green).toBeGreaterThan(WASH_FLOOR);
-  expect(blue).toBeGreaterThan(WASH_FLOOR);
+  for (const fill of fills) {
+    const [red, green, blue] = (fill.match(/\d+/g) ?? []).map(Number);
+    expect(red).toBeGreaterThan(WASH_FLOOR);
+    expect(green).toBeGreaterThan(WASH_FLOOR);
+    expect(blue).toBeGreaterThan(WASH_FLOOR);
+    // Not the panel's own ground, which is the other end of the same range and
+    // is what an area that has stopped saying anything looks like.
+    expect(fill).not.toBe("rgb(255, 255, 255)");
+  }
 
-  // And it is not the panel's own ground, which is the other end of the same
-  // range and is what an area that has stopped saying anything looks like.
-  expect(wash).not.toBe("rgb(255, 255, 255)");
+  // And the two are not the same colour. Both classes resolving to one ink is
+  // exactly the pre-revision behaviour — a single tint over both sides of the
+  // rule — and every assertion above passes against it.
+  expect(fills[0]).not.toBe(fills[1]);
 });
 
 /**

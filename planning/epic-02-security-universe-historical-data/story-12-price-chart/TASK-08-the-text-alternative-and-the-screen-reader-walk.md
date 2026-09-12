@@ -292,6 +292,12 @@ The figures are recorded — the near-black series measures **14.87** on the gre
 wash and **14.68** on the red — so what this task owes is confirming them over the
 composition rather than discovering them.
 
+**Both of them, within one chart.** Since the wash split at the rule
+(`CHARTING.md` §12.6) the line crosses from one ground to the other every time it
+crosses its own opening price, which on a real window is many times. So this is
+not "measure the line on whichever wash this chart has" — it is one line over two
+grounds, and the row that matters is the **worse** of the two.
+
 ### The text alternative now has a fact the picture states and the sentence does not
 
 The Work section's minimum list — symbol, window, first and last price, change,

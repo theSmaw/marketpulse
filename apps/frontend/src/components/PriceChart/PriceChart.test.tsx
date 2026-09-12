@@ -130,20 +130,37 @@ describe("with a measurement", () => {
       <PriceChart view={barSeriesFixtureView("full")} />,
     );
 
-    // Two paths: the close line, and the area beneath it. The area is the one
-    // with a `Z` on the end.
+    // Two paths: the close line, and the area — defined once in `<defs>` and
+    // closed with a `Z`. Not four, and not two copies of the point string.
     const paths = [...container.querySelectorAll("path")];
     expect(paths).toHaveLength(2);
-    expect(paths.some((path) => path.getAttribute("d")?.endsWith("Z"))).toBe(
-      true,
-    );
 
-    // And the fill carries a class, which is what makes it visible at all. The
-    // `--marker-color` trap is a fill whose ink is somebody else's job; here a
-    // missing class is an invisible area with a green build, so it is asserted
-    // rather than assumed.
     const area = paths.find((path) => path.getAttribute("d")?.endsWith("Z"));
-    expect(area?.getAttribute("class")).toMatch(/\S/);
+    expect(area).toBeDefined();
+
+    // Drawn twice, clipped above and below the rule — which is the split that
+    // makes the tint a function of position rather than of the window. Each
+    // reference carries a class, because a `<use>` of a path with no fill of
+    // its own renders **black** rather than nothing.
+    const uses = [...container.querySelectorAll("use")];
+    expect(uses).toHaveLength(2);
+    for (const use of uses) {
+      expect(use.getAttribute("class")).toMatch(/\S/);
+      expect(use.getAttribute("href")).toBe(`#${area?.id ?? ""}`);
+      expect(use.getAttribute("clip-path")).toMatch(/^url\(#.+\)$/);
+    }
+
+    // The two clips meet at the rule and cover the plot between them, so no
+    // band of the area is left uncoloured and none is coloured twice.
+    const rects = [...container.querySelectorAll("clipPath rect")];
+    expect(rects).toHaveLength(2);
+    const [above, below] = rects.map((rect) => ({
+      y: Number(rect.getAttribute("y")),
+      height: Number(rect.getAttribute("height")),
+    }));
+    expect(above?.y).toBe(0);
+    expect(below?.y).toBe(above?.height);
+    expect((above?.height ?? 0) + (below?.height ?? 0)).toBe(280);
   });
 
   it("draws a labelled axis and no line for an answer with no bars", () => {
@@ -159,5 +176,6 @@ describe("with a measurement", () => {
     // Neither the wash nor the rule under it: a datum with nothing measured
     // against it says a window opened at a price and nothing about what it did.
     expect(container.querySelectorAll("path")).toHaveLength(0);
+    expect(container.querySelectorAll("use")).toHaveLength(0);
   });
 });

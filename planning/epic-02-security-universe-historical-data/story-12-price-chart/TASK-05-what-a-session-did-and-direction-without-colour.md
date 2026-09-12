@@ -554,3 +554,136 @@ carrying a meaning**. The next two pieces of work add the ability to point at a
 single minute and read its four prices, and to change the window you are looking
 at. After that come volume, then live prices, then the unusual-activity scoring
 that the AI investigation feature is built on top of.
+
+---
+
+## Revised 2026-09-12, the same day — the wash splits at the rule
+
+**The section above is the record of what shipped first. This is what was wrong
+with it and what replaced it.** Kept as two blocks rather than rewritten, because
+the defect is more instructive than the repair.
+
+### What the simulations could not see
+
+The greyscale and deuteranopia readings recorded above were correct and they were
+not a review. Looking at the chart **in colour** — which the stakeholder did, and
+no test in this repository can — found this:
+
+> A window that dips below its opening price and recovers was painted **green
+> throughout**. The whole area took one tint, chosen by where the line
+> **finished**.
+
+Hue and position agreed at exactly one point, the last one, and contradicted each
+other everywhere the line was under the rule. It is the rule this task exists to
+enforce, broken by the mark built to enforce it — and **every simulation passed
+against it**, because removing the hue removes the disagreement.
+
+The general form, which is worth more than this chart: **a simulation proves an
+encoding survives a transform; it cannot tell you the encoding was answering the
+right question.** The instrument that found this was a person looking at it, which
+is `VISUAL-LANGUAGE.md`'s fourth test applied by a human being.
+
+### What it is now
+
+**The area is split at the reference rule** — `--price-positive-wash` above,
+`--price-negative-wash` below — so the tint is a function of **position**. That is
+strictly stronger against the 1.009:1 measurement rather than a change of taste:
+what the hue repeats is now exactly what survives the hue being removed, at every
+point instead of only at the end.
+
+Four consequences, and the first two are real costs:
+
+- **The neutral state is gone.** A split has no third case. `--price-unchanged-wash`
+  has no application consumer and keeps one reserved — the extent band at `1d`.
+  [Task 2.12.10](TASK-10-deployed-verify-document-and-adr.md)'s token audit should
+  read it as **deferred**, not as a task that did not ship.
+- **`DirectionalArea` lost a field.** It carried the window's direction to pick an
+  ink and there is no ink to pick. It is a rule's `y` and a path.
+- **The point string did not double.** The area is defined **once** in `<defs>` and
+  drawn through two `<use>` elements clipped above and below the rule. The obvious
+  implementation — two geometrically-split paths clamping the line to the
+  reference — would have doubled both the arithmetic and the DOM parse of the one
+  thing on this chart that is linear in bar count.
+- **The other three channels are untouched.** The headline still states the
+  _window's_ direction in a glyph, a sign and words, and the line still finishes
+  on one side of the rule.
+
+### The second instrument failure, and it is the same shape as the first
+
+The browser spec from the first pass asserted both fills were pale. **It passed
+with one ink used on both sides** — which is precisely the behaviour that was just
+revised out. It now asserts the two fills differ from each other, and that version
+was verified red by pointing `.washBelow` at the positive wash.
+
+So this task produced the same class of mistake twice: **a test that asserts a
+property the broken state also has.** The first was "is it painted" against a
+default of black; the second was "are they pale" against one pale ink used twice.
+Both were written by reasoning about the failure rather than by performing it.
+
+### Swept the same day
+
+`CHARTING.md` §12.6, `VISUAL-LANGUAGE.md`'s _Direction without colour_ and its
+token table, `CLAUDE.md`'s _Current state_, and **the design canvas** — which had
+drawn **twelve** single-tint washes and stated the old rule twice in prose. All
+twelve are split and both sentences carry dated corrections. The canvas is the
+source of truth, so a finding that falsifies it is swept into it rather than
+recorded only downstream.
+
+**The sweep was verified by reading the file back off the server** rather than by
+trusting the write receipt. Counted on the returned bytes: **24 clip-path ids**
+(two per region, twelve regions), and **24 fills where there had been twelve** —
+20 through `<use>` on the scaled artboards and 4 as direct `<path>`s on the two
+flat ones. Of the coloured pairs, 8 are `--price-positive-wash` and 8 are
+`--price-negative-wash`; the rest are the greyscale artboards' own greys.
+
+That check is worth copying. `DesignSync`'s `write_files` reports **what it
+sent**, not what the project now contains, and a canvas that is the source of
+truth is exactly the artefact where "I pushed it" and "it is there" must not be
+the same claim.
+
+---
+
+## For the stakeholders — the correction, and why it was a good catch
+
+The report above stands, with one thing changed the same afternoon.
+
+**What we had built.** The shaded area between the price line and the opening
+price was a single colour for the whole period — green if the period ended up, red
+if it ended down.
+
+**What was wrong with it.** A share price does not move in one direction. On a day
+that finished up 5%, the first two mornings might still be _below_ where it opened
+— and we were painting those mornings **green**, because the period as a whole
+ended up. The colour was telling you about the endpoint while the picture in front
+of you was about every moment in between. On the very first chart you look at,
+that is the part your eye goes to.
+
+**What it is now.** The shading changes colour at the opening price: green where
+the price is above where it started, red where it is below. So the colour agrees
+with the picture everywhere, not just at the right-hand edge.
+
+**Why this is the stronger version, not just the prettier one.** The whole point
+of this piece of work was that colour must never be the only thing carrying a
+meaning. The split actually makes that _more_ true. Colour is now repeating
+"above or below the opening price", which is exactly what the shape of the chart
+already shows you — so if you remove the colour entirely, nothing was being said
+that you cannot still read. Under the old version, the colour was saying something
+the shape did not, which is the situation we were trying to avoid.
+
+**What it cost.** There is no longer a "flat" colour. A day that closes exactly
+where it opened now shows green where it was up and red where it was down, rather
+than a single neutral grey — which is, on reflection, a more useful picture of
+such a day than "nothing happened" was.
+
+**The honest note about how this was found.** We tested the original version by
+stripping the colour out and by simulating colour blindness, and it passed both —
+because removing the colour also removes the disagreement we had introduced. A
+simulation can tell you an encoding survives being transformed; it cannot tell you
+the encoding was answering the right question. **A person looking at the screen
+found this, and that is the check that caught it.** We have written that down,
+because it is the kind of thing a team stops doing once the automated tests are
+green.
+
+We also got the automated test wrong twice in the same way — each time it asserted
+something that was _also_ true of the broken version. Both are now fixed and both
+were confirmed by deliberately breaking the feature and watching them fail.

@@ -237,7 +237,6 @@ describe("direction, and the geometry that carries it", () => {
     const last = drawn[drawn.length - 1];
 
     expect(frame.direction).not.toBeNull();
-    expect(frame.direction?.direction).toBe("positive");
     // Above, in SVG, is a **smaller** y. Asserting the reverse passes on a
     // scale built upside down, which is the defect this file already has one
     // test for.
@@ -249,20 +248,26 @@ describe("direction, and the geometry that carries it", () => {
     const drawn = points(frame.series ?? "");
     const last = drawn[drawn.length - 1];
 
-    expect(frame.direction?.direction).toBe("negative");
     expect(last?.[1]).toBeGreaterThan(frame.direction?.reference ?? 0);
   });
 
-  it("takes the neutral direction on a window that closed where it opened", () => {
-    // The third state, and the reason a fixture had to be found for it: ten of
+  it("finishes on the rule on a window that closed where it opened", () => {
+    // The third case, and the reason a fixture had to be found for it: ten of
     // the recorded bodies are one direction or the other. HD's hour opened and
     // closed at 320.705 with a real 66-cent range in between, so this is a flat
-    // *window* rather than a flat *line* — the interesting case, because the
-    // fill has area on both sides of the rule and the direction is still none.
+    // *window* rather than a flat *line* — the interesting one, because the
+    // line crosses the rule repeatedly and the renderer tints both sides.
+    //
+    // There is no "neutral" answer to assert any more and that is the point:
+    // since 2026-09-12 the tint is a function of position, and a flat window is
+    // green where it was up and red where it was down, finishing exactly where
+    // it started.
     const frame = chartFrame(PLOT, DENSITY, subjectOf("flat"));
+    const drawn = points(frame.series ?? "");
+    const last = drawn[drawn.length - 1];
 
-    expect(frame.direction?.direction).toBe("unchanged");
     expect(frame.direction?.fill).not.toBeNull();
+    expect(last?.[1]).toBe(frame.direction?.reference);
   });
 
   it("sits the rule at the price the panel beneath calls the open", () => {
@@ -293,14 +298,24 @@ describe("direction, and the geometry that carries it", () => {
     // point's own close* lands a hair from it — the two are one bar apart.
     const drawn = points(frame.series ?? "");
     const firstPoint = drawn[0];
+
     expect(
       Math.abs((firstPoint?.[1] ?? 0) - (frame.direction?.reference ?? 0)),
     ).toBeLessThan(PLOT.height / 10);
 
-    // And the direction agrees with what the panel will print, which is the
-    // whole point of taking the same number.
+    // And the **geometry** agrees with what the panel will print, which is the
+    // whole point of taking the same number. Stated as the implication rather
+    // than as a colour, because since 2026-09-12 the chart holds no direction
+    // value at all — it holds a rule, and the reading is which side of it the
+    // line ends on.
     const change = changePercent(prices);
-    expect(frame.direction?.direction).toBe(directionOf(change ?? 0));
+    const finish = drawn[drawn.length - 1]?.[1] ?? 0;
+    const reference = frame.direction?.reference ?? 0;
+
+    if (directionOf(change ?? 0) === "negative")
+      expect(finish).toBeGreaterThan(reference);
+    else if (directionOf(change ?? 0) === "positive")
+      expect(finish).toBeLessThan(reference);
   });
 
   it("closes the fill back to the rule rather than leaving it open", () => {
@@ -350,6 +365,5 @@ describe("direction, and the geometry that carries it", () => {
     expect(subject.bars).toHaveLength(1950);
     expect(frame.direction?.reference).toBeGreaterThan(0);
     expect(frame.direction?.reference).toBeLessThan(PLOT.height);
-    expect(frame.direction?.direction).toBe("positive");
   });
 });

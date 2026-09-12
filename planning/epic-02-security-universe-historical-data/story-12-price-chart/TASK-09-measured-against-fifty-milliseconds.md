@@ -323,26 +323,41 @@ It also makes `timeAxis` timeable without constructing anything, which 2.12.3's
 amendment asked for: the fixture carries a real five-session window, and the cap
 version is the same call with a wider range.
 
-### The largest string the renderer builds roughly doubled
+### The renderer builds a second 1,950-point string in JavaScript and hands the DOM one copy of it
+
+> **Corrected hours later on 2026-09-12, by the wash split.** This section read
+> _"the largest string the renderer builds roughly doubled &mdash; the renderer now
+> hands the DOM two paths of 1,950 points instead of one"_. **The DOM half is
+> wrong**, and it would have sent this task looking for a cost that is not there.
 
 2.12.5 added the directional area, and it is **the close line's own `d` with two
 segments and a close appended** — deliberately, rather than a second walk over the
-bars. That keeps the arithmetic flat and does not keep the _string_ flat: at the
-default window the renderer now hands the DOM two paths of 1,950 points instead of
-one.
+bars. Since the split it is defined **once** in `<defs>` and drawn through two
+clipped `<use>` elements, so:
 
-Worth pointing the trace at specifically, because it is the one part of this
-chart whose cost is genuinely linear in the bar count, and because the obvious
-"optimisation" — deriving the area from the bars in its own loop — would make it
-worse rather than better while looking like a tidy-up.
+- **JavaScript** builds a second 1,950-point string per call to `chartFrame`,
+  which is in the render body and unmemoised (2.12.6 owns that repair).
+- **The DOM** parses that string **once**, however many times it is drawn.
+
+So the thing to measure is a **string build**, not a second parse. It is still the
+one part of this chart whose cost is genuinely linear in the bar count, and the
+obvious "optimisation" — deriving the area from the bars in its own loop, or
+splitting it into two geometrically-clamped paths — would make it worse rather
+than better while looking like a tidy-up.
+
+**And there is a new cost shape worth a look**, because it is not a string at all:
+a `<use>` instantiates a shadow tree and a `clipPath` is a rasterisation step. Two
+of each, constant in bar count — but clipping a 1,950-point filled path twice is
+not obviously free, and no figure in this repository covers it. If anything in the
+paint phase surprises this task, that is the first place to look.
 
 ### The prediction table, corrected a fourth time
 
-| Row                              | Status                                                                                                                   |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| DOM nodes in the plot: ~11, flat | In the plot today: gridlines, seams, **two `<path>`s** and the reference rule. 2.12.6 adds two, 2.12.7 adds two          |
-| Shape                            | **Unmoved, and it is the clause that matters**: `O(sessions + breakpoint)`, `O(1)` in bars                               |
-| Bundle cost: +279 B gzipped      | Still unmeasured. 2.12.5 added no token, no module and no dependency — three CSS rules and one function — so it is small |
+| Row                              | Status                                                                                                                                                                |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DOM nodes in the plot: ~11, flat | Today: gridlines, seams, **two `<path>`s — one in `<defs>` — two `<use>`, two `<clipPath>`/`<rect>` pairs**, and the reference rule. 2.12.6 adds two, 2.12.7 adds two |
+| Shape                            | **Unmoved, and it is the clause that matters**: `O(sessions + breakpoint)`, `O(1)` in bars                                                                            |
+| Bundle cost: +279 B gzipped      | Still unmeasured. 2.12.5 added no token, no module and no dependency — two CSS rules and one function — so it is small                                                |
 
 ### The fixture-leak greps are **three**, not two
 
@@ -389,3 +404,18 @@ break.
 window's density_, which runs against `dense.json` and would move with the domain.
 Confirm all three go red; a break that reddens only the arithmetic has not proved
 the renderer is wired to it.
+
+### One more instrument break, and it is the cheapest on this list
+
+The wash split at the rule is **two clip rectangles that must meet exactly**: one
+from the top of the plot to the reference, one from the reference to the bottom.
+Change either by a pixel and the chart grows a hairline band that is either
+uncoloured or double-painted, right across the plot at the one y a reader is
+looking at.
+
+It is one number in `PriceChart.tsx`, and the assertion holding it lives inside
+`PriceChart.test.tsx`'s _draws the reference rule and the wash together, never one
+alone_ — the block checking that the two clip rects' heights sum to the plot and
+that the lower one starts where the upper one ends. Confirm it goes red, because a
+one-pixel seam is exactly the sort of thing that renders, survives a screenshot
+review and is invisible in a trace.

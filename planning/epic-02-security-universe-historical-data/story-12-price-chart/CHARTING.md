@@ -1060,3 +1060,51 @@ Read on 2026-09-12 in Chromium at the 1,019 px region:
 A filter in a story rather than a screenshot in a document, deliberately: a
 screenshot goes stale the first time a token moves, and a story is re-read every
 time somebody opens the workshop.
+
+### 12.6 The wash splits at the rule — revised 2026-09-12, the same day, on a screenshot
+
+**§12.5's greyscale reading was right and it was not the whole review.** Looking
+at the chart in colour, at the stakeholder's prompting, found something the
+simulations could not: the early part of a window that dips below its opening
+price and recovers was painted **green**, because the whole area took one tint
+chosen by where the line **finished**.
+
+That is the rule this story exists to enforce, broken by the mark built to
+enforce it. Hue and position agreed at exactly one point — the last one — and
+contradicted each other everywhere the line was under the rule. It is a
+window-level fact painted over regions that locally disagree with it.
+
+**The area is now split at the rule: `--price-positive-wash` above,
+`--price-negative-wash` below.** The tint is a function of _position_, which is
+the channel that survives the hue being removed — so this is **strictly stronger**
+against §12.5's 1.009:1 measurement rather than a change of taste. What the hue
+repeats is now exactly what the geometry says, at every point.
+
+#### What it cost, and what it did not
+
+- **The neutral state is gone.** A split has no third case: every point is above
+  or below. `--price-unchanged-wash` therefore has **no consumer in the
+  application**, and keeps exactly one documented future one — the high–low
+  extent band, if Story 2.13's `1d` window brings it (§12.2). It is not deleted,
+  and [Task 2.12.10](TASK-10-deployed-verify-document-and-adr.md)'s token audit
+  should read it as _deferred_ rather than as a task that did not ship.
+- **`DirectionalArea` lost its third field.** It carried the window's direction
+  to pick the ink; there is no ink to pick. It is a rule's `y` and a path, and
+  the pairing §12 opens with is untouched.
+- **The point string did not double.** The area is defined **once** in `<defs>`
+  and drawn through two `<use>` elements clipped above and below the rule. The
+  obvious implementation — two geometrically-split paths, clamping the line to
+  the reference in each direction — would have doubled both the arithmetic and
+  the DOM parse of the one thing on this chart that is linear in bar count.
+- **The three channels still agree.** The headline still states the _window's_
+  direction with a glyph, a sign and words, and the line still finishes on one
+  side of the rule. What stopped being a window-level claim is only the fill.
+
+#### The finding, stated generally
+
+**A simulation proves the encoding survives a transform; it cannot tell you the
+encoding was answering the right question.** Greyscale and deuteranopia both
+passed against a chart whose colour was locally wrong, because removing the hue
+removes the disagreement. The instrument that found this was a person looking at
+it in colour — which is the fourth of `VISUAL-LANGUAGE.md`'s four tests, applied
+by the stakeholder rather than by a test suite.
