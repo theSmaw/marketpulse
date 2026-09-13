@@ -78,7 +78,7 @@ describe("what a listener is told", () => {
     // The subject leads, because this is one of four polite regions on the
     // Security Explorer and a listener is handed them in an order no component
     // controls (`FRONTEND-STATE.md` §7).
-    expect(sentence?.startsWith("NVDA price chart:")).toBe(true);
+    expect(sentence?.startsWith("NVDA chart reading:")).toBe(true);
 
     // **"up", not "+".** `formatChangePercent` spells a fall with a Unicode
     // minus, which is right on screen and read aloud inconsistently — from
@@ -136,7 +136,7 @@ describe("what a listener is told", () => {
   it("says so when a reading is cleared", () => {
     // Escape is a thing the person did, and a listener is owed its result.
     expect(clearedAnnouncement("NVDA")).toBe(
-      "NVDA price chart: reading cleared.",
+      "NVDA chart reading: reading cleared.",
     );
   });
 });

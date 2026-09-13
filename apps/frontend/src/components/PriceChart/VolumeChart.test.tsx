@@ -146,10 +146,16 @@ describe("with a measured box", () => {
 
     // `sessionLabels: "ends"` — the first and last session date and nothing
     // between. The `full` fixture is a half-hour inside one session, so that is
-    // one label; what matters is that there is no clock time anywhere.
-    const labels = [...container.querySelectorAll("span")].map(
-      (span) => span.textContent,
-    );
+    // one label; what matters is that there is no clock time on the axis.
+    //
+    // **Scoped to the label rows rather than to the container, since Task
+    // 2.13.5**, and the reason is not a weakening: the readout strip beneath
+    // this plot states a bar's instant, which is a clock time on purpose and is
+    // in a `<p>`. What this test is about is the *axis*, and both label rows
+    // are `<div aria-hidden>`.
+    const labels = [
+      ...container.querySelectorAll("div[aria-hidden='true'] span"),
+    ].map((span) => span.textContent);
     expect(labels.some((label) => /\d:\d\d/u.test(label))).toBe(false);
   });
 

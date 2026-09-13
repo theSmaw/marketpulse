@@ -1529,6 +1529,23 @@ reservation is a measurement of the real thing at the real width. Measured after
 the repair, the figures move **0 px at every one of 1440, 1024, 768, 430, 390,
 360 and 320**.
 
+#### Amended 2026-09-13 by Task 2.13.5 — **the repair above was half of itself**
+
+The strip reserves `max(hidden reading, whatever is live)`. At rest that is
+`max(reading, invitation)` and with a reading on screen it is
+`max(reading, reading)` — so a width at which the **invitation** is the taller of
+the two drops the figures by a line when a pointer enters the plot. This
+document's own table is what makes that reachable rather than theoretical: at 768
+and 390 the invitation is 40px, and it is the state whose wrap point moves first
+as a sentence grows.
+
+It was never measured, because the walk above measured the state that _was_ the
+defect. Task 2.13.5 hides **both** states — the reading and the invitation — so
+the row is the taller of them whichever one is showing. The volume plot's strip
+needed the same shape for a plainer reason (both of its states are figures), and
+doing it in one change is what keeps the two strips reserving their height by one
+rule. `chart-readout.module.css` is now the single home for that rule.
+
 Two consequences worth knowing before touching it:
 
 - **The hidden row is `visibility: hidden`, which means Playwright can see its

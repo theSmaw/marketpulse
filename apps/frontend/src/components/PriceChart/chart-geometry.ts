@@ -20,6 +20,7 @@ import {
   timeTicks,
   valueTicks,
   volumeDomain,
+  volumePeakBar,
   volumePeakLabel,
 } from "../../market/index.js";
 
@@ -544,6 +545,30 @@ export interface VolumePlot {
   /** How many stems the path holds. One per bar, or one per pixel — see §10.2. */
   readonly stems: number;
   /**
+   * Every bar that has a place on the axis, with the pixel it was drawn at and
+   * the top of **its own** column (Task 2.13.5).
+   *
+   * The volume plot's half of the shared reading, and it is the same shape as
+   * {@link PricePlot.readings} for a reason that is load-bearing rather than
+   * tidy: **both are `placeBars(axis, bars)` in the same order**, so one index
+   * addresses the same bar in both. That is what lets one read position drive a
+   * crosshair in two regions without either plot knowing the other exists.
+   *
+   * `y` is the bar's own volume, **not** the pixel column's tallest. Below a
+   * pixel per bar the drawn silhouette carries the column's maximum (§10.5), so
+   * the disc genuinely sits below the ink under it — which is the picture
+   * admitting what it rounded rather than a mark that missed.
+   */
+  readonly readings: readonly ChartPoint[];
+  /**
+   * The bar that traded the window's peak, or `null` where there are no bars.
+   *
+   * What the volume readout states at rest (§15). The abbreviated {@link peak}
+   * is the gutter's; this is the fact behind it, carried here so the strip does
+   * not walk the bars a second time.
+   */
+  readonly peakBar: Bar | null;
+  /**
    * What the value gutter writes: the window's peak, abbreviated — or `null`
    * where there are no bars.
    *
@@ -558,6 +583,8 @@ const EMPTY_VOLUME_PLOT: VolumePlot = {
   columns: null,
   columnWidth: 0,
   stems: 0,
+  readings: [],
+  peakBar: null,
   peak: null,
 };
 
@@ -638,6 +665,18 @@ export function volumeFrame(
   const y = linearScale(volumeDomain(bars), [height, 0]);
   const placed = placeBars(axis, bars);
   const peak = volumePeakLabel(bars);
+  const peakBar = volumePeakBar(bars);
+
+  // **The reading's points, scaled once and never from the drawn path** (Task
+  // 2.13.5). Each bar's own x and the top of its own column — the same
+  // `placeBars` order the price plot's readings are in, which is what makes one
+  // index mean one bar in both plots.
+  const readings = placed.map(({ bar, slot }) => ({
+    bar,
+    slot,
+    x: round(scaleSlot(x, slot)),
+    y: round(scaleValue(y, bar.volume)),
+  }));
 
   // **How far apart two stems are actually drawn**, which is `slots - 1` and not
   // `slots`: `scaleSlot` puts the first bar at 0 and the last at the width, so the
@@ -660,6 +699,8 @@ export function volumeFrame(
     return {
       ...silhouette(placed, x, y, time.width, height),
       columnWidth: COLUMN_GAP_PX,
+      readings,
+      peakBar,
       peak,
     };
   }
@@ -678,6 +719,8 @@ export function volumeFrame(
     columnWidth:
       slotWidth >= MIN_GAPPED_SLOT_PX ? slotWidth - COLUMN_GAP_PX : slotWidth,
     stems: stems.length,
+    readings,
+    peakBar,
     peak,
   };
 }

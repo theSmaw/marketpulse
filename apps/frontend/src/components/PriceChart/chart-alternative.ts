@@ -14,6 +14,7 @@ import {
   spokenVolume,
   timeAxis,
   volumePeak,
+  volumePeakBar,
 } from "../../market/index.js";
 import {
   changePercent,
@@ -236,13 +237,15 @@ function peakClause(series: PopulatedBarSeries): string {
   const peak = volumePeak(series.bars);
   if (peak <= 0) return "No shares changed hands anywhere in the window.";
 
-  const busiest = series.bars.find((bar) => bar.volume === peak);
+  // **The same derivation the strip's resting state reads** (Task 2.13.5).
+  // It was a `find` here and would have been a second one there, which is two
+  // sites deriving one fact — and the way a sentence and a strip come to name
+  // two different busiest minutes with neither obviously wrong.
+  const busiest = volumePeakBar(series.bars);
 
   return (
     `The tallest column is ${spokenVolume(peak)}` +
-    (busiest === undefined
-      ? ""
-      : `, at ${formatMarketInstant(busiest.startsAt)}`) +
+    (busiest === null ? "" : `, at ${formatMarketInstant(busiest.startsAt)}`) +
     "."
   );
 }

@@ -1,0 +1,86 @@
+/*
+ * The volume plot's half of the reading (Task 2.13.5).
+ *
+ * **Almost nothing is here, and that is the point.** The layer, the crosshair
+ * and the disc come from `chart-marks.module.css` and the strip's shape and
+ * figure idiom from `chart-readout.module.css` — one read position is one mark
+ * drawn in two places, not two marks that happen to be styled alike, and one
+ * reservation mechanism rather than two that drift.
+ *
+ * As in `ChartReading.module.css`: two of these rules place an element on
+ * `VolumeChart`'s grid, and that coupling is stated in both files. The reading
+ * layer sits in the plot's own cell and the strip in a row beneath the axis,
+ * and neither can be placed from the parent without the parent owning the read
+ * position — which is the one thing it must not do.
+ */
+
+.reader {
+  composes: reader from "./chart-marks.module.css";
+}
+
+.overlay {
+  composes: overlay from "./chart-marks.module.css";
+}
+
+.crosshair {
+  composes: crosshair from "./chart-marks.module.css";
+}
+
+.point {
+  composes: point from "./chart-marks.module.css";
+}
+
+.readout {
+  composes: readout from "./chart-readout.module.css";
+}
+
+.line {
+  composes: line from "./chart-readout.module.css";
+}
+
+.sizer {
+  composes: sizer from "./chart-readout.module.css";
+}
+
+.stamp {
+  composes: stamp from "./chart-readout.module.css";
+}
+
+.figure {
+  composes: figure from "./chart-readout.module.css";
+}
+
+.label {
+  composes: label from "./chart-readout.module.css";
+}
+
+.value {
+  composes: value from "./chart-readout.module.css";
+}
+
+.emphasis {
+  composes: emphasis from "./chart-readout.module.css";
+}
+
+/*
+ * The resting state's instant, one step back.
+ *
+ * The reading's stamp leads in the primary ink because the minute is what is
+ * being asked about; the peak's is a footnote on a figure, so it steps to the
+ * secondary ink and drops the medium weight. Nothing else distinguishes the two
+ * states at a glance, and they are the same height by construction.
+ */
+.quiet {
+  font-weight: var(--font-weight-regular);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The resting state of a window in which nothing traded — prose rather than a
+ * figure, in the invitation's idiom, because there is no number to set in the
+ * data face.
+ */
+.flat {
+  composes: prose from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+}

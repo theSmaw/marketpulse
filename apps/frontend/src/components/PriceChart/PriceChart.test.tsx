@@ -5,6 +5,7 @@ import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import type { BarSeriesView } from "../../market/index.js";
 import { ChartAxis } from "./ChartAxis.js";
 import { PriceChart } from "./PriceChart.js";
+import { VolumeChart } from "./VolumeChart.js";
 
 /**
  * A counter around the real frame builders, for the measurement at the bottom of
@@ -37,6 +38,10 @@ vi.mock("./chart-geometry.js", async (importOriginal) => {
       frameCalls.count += 1;
       return actual.priceFrame(...args);
     },
+    volumeFrame: (...args: Parameters<typeof actual.volumeFrame>) => {
+      frameCalls.count += 1;
+      return actual.volumeFrame(...args);
+    },
   };
 });
 
@@ -52,6 +57,26 @@ function Chart({ view }: { readonly view: BarSeriesView }) {
   return (
     <ChartAxis view={view}>
       <PriceChart symbol="NVDA" view={view} />
+    </ChartAxis>
+  );
+}
+
+/**
+ * **Both plots, inside one axis — the pair as the route renders it** (Task
+ * 2.13.5).
+ *
+ * A separate harness from `Chart` rather than a change to it, because most of
+ * this file is about what the *price* plot draws and a second plot in those
+ * counts would be noise. The one place the pair is required is the
+ * zero-recomputation guard, and it is required there absolutely: a guard
+ * pointed at a component that is not on screen reports zero for the same reason
+ * a counter wired to nothing does.
+ */
+function Pair({ view }: { readonly view: BarSeriesView }) {
+  return (
+    <ChartAxis view={view}>
+      <PriceChart symbol="NVDA" view={view} />
+      <VolumeChart symbol="NVDA" view={view} />
     </ChartAxis>
   );
 }
@@ -468,7 +493,17 @@ describe("what a reading costs", () => {
   it("recomputes the frame zero times across forty arrow presses", () => {
     measureEverythingAt(800, 280);
 
-    const { rerender } = render(<Chart view={barSeriesFixtureView("full")} />);
+    // **The pair, since Task 2.13.5.** The read position moved into `ChartAxis`
+    // so that one reading can drive marks in two regions, and the way that goes
+    // wrong is a single context: a read position on `ChartAxisValue` is handed
+    // to every `useChartAxis()` caller and **both frame owners are callers**, so
+    // a pointer move would rebuild a 1,950-point path string and a 726-stem
+    // silhouette to move one vertical rule. The page would look perfect.
+    //
+    // So this renders both plots and counts all three builders. A guard pointed
+    // at a component that is not on screen reports zero for the same reason a
+    // counter wired to nothing does.
+    const { rerender } = render(<Pair view={barSeriesFixtureView("full")} />);
 
     const chart = screen.getByRole("img", { name: "NVDA price chart" });
     fireEvent.focus(chart);
@@ -486,16 +521,22 @@ describe("what a reading costs", () => {
     }
 
     // And the reading did move, so this is a measurement of a working crosshair
-    // rather than of a component that ignores the keyboard.
+    // rather than of a component that ignores the keyboard. The invitation is
+    // gone from the *live* line; the hidden copy that reserves the row's height
+    // is `aria-hidden`, which is exactly the claim *this is not for a reader*.
     expect(frameCalls.count - afterMount).toBe(0);
-    expect(screen.queryByText(/Point at the chart/u)).toBeNull();
+    expect(
+      screen.queryByText(/Point at the chart/u, {
+        ignore: "[aria-hidden='true'], [aria-hidden='true'] *",
+      }),
+    ).toBeNull();
 
     // **And the instrument is live**, which is the half of this that a zero
     // cannot demonstrate on its own: a counter wired to nothing also reports
     // zero. `CLAUDE.md`'s rule is that a break which does not go red is equally
     // evidence the break did not land, so the substitution is performed here —
     // a render this component genuinely has to answer, which recomputes.
-    rerender(<Chart view={barSeriesFixtureView("partial")} />);
+    rerender(<Pair view={barSeriesFixtureView("partial")} />);
     expect(frameCalls.count).toBeGreaterThan(afterMount);
   });
 });

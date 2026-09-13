@@ -391,6 +391,20 @@ below, because the thing that made them impossible is gone.
   negative red are **1.05:1** apart, so colour is never the encoding and a
   colour assertion tests the thing that carries no meaning. What carries it is
   the marker's _shape_, the arrow glyph and the sign, and the word.
+- **Not a pattern loose enough for a neighbouring element to satisfy, through a
+  locator with a fallback.** Added 2026-09-13 by Task 2.13.5, and it is a real
+  finding rather than a caution: `security-price-chart.spec.ts` had a `readout`
+  helper reading _the invitation, or failing that the first `EDT` in the Price
+  region_, and an assertion that the readout contains **some** clock time. The
+  panel's own live sentence — _holding 390 bars, through 2026-09-04 16:00:00
+  EDT_ — is in that region and satisfies both halves, so the assertion was green
+  against a chart nobody had pointed at, for two stories. The same shape bit the
+  volume plot's first draft twice over: a `mouse.move` to a `boundingBox()` that
+  had not been scrolled into view lands outside the window, and the strip's
+  **resting** state also states an instant and a grouped integer. Two rules
+  follow. A locator with an `.or()` fallback must be pointed at something
+  structural — the row a known label sits in — rather than at a pattern; and an
+  assertion about a reading must also assert that the resting state is **gone**.
 - **Not a single element's text where a component splits it.** Two directions,
   and the second is the one nobody expects. `getByText("up +12.40")` fails on
   `PriceChange`, because the direction word is a visually-hidden `<span>` and

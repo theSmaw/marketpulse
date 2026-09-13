@@ -1334,3 +1334,288 @@ decision**, not one that avoids the question.
 - **2.13.9** still owes §10.4 — the path-string cost at 1M.
 - **2.13.10** still owes §14.2's four tests against the deployed page, and the
   **count** of test-4 deferrals.
+
+---
+
+# Part four — the reading, added 2026-09-13 by Task 2.13.5
+
+§15 decided the **layout** of the shared reading and left three things open: the
+mark on the volume plot, what its strip says at rest, and how one read position
+reaches two regions without re-rendering either frame owner. All three are
+settled here, and the first two were taken on the canvas —
+**`Volume reading.dc.html`** in the `Component library for MarketPulse`
+project ([ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md)),
+six numbered sections, with the specimens drawn from the same 1,950 stored NVDA
+minute bars Part two used.
+
+**No new token.** Nothing here needed one, and that is a result rather than an
+absence: the marks are the price chart's marks and the strip is the price
+strip's idiom.
+
+---
+
+## 22. Decision — **one crosshair per plot, at one pixel, from one read position**
+
+§15 left this open and the Work section of
+[`TASK-05`](TASK-05-one-reading-two-series.md) named the two candidates: one
+vertical rule spanning both plots, or one per plot at the same x. The structural
+requirement was the only thing fixed — _not two marks that can disagree_.
+
+**A rule spanning both plots cannot be drawn.** The two are separate `Region`
+panels with a heading, a border and — at one column — the Abnormal-move region
+between them, so a single rule would have to be painted over the page's chrome.
+That is not a trade-off; there is no version of it that is the product's layout.
+
+So: **one mark, drawn twice, from one index.** What makes it one rather than two
+that agree is below.
+
+### 22.1 The read position is an **index**, and that is the load-bearing choice
+
+`ChartAxis` holds `{ index, source }`. Both plots place their bars with the same
+`placeBars(axis, bars)` on the same bars, so their `readings` arrays are the same
+bars in the same order and **one index addresses one bar in both**.
+
+The two alternatives were considered and both are worse:
+
+- **A slot** would be resolved to a bar twice, by two components, with two
+  chances to resolve it differently at the ends — which is exactly where a
+  pointer spends its time.
+- **A `Bar`** would be an object identity travelling through a context, and a
+  plot that had rebuilt its bars would hold one matching nothing.
+
+The property is asserted rather than assumed:
+`chart-geometry.test.ts`'s _addresses the same bar from one index in both plots,
+at the same x_ takes it at the **dense** window, where the volume plot draws a
+silhouette and the two arrays genuinely could have diverged — the drawing is one
+stem per pixel column there and the reading is still one entry per bar.
+Break-verified by reversing one array.
+
+### 22.2 The disc, and what it means on a plot with no line
+
+**Decided: the same hollow disc as the price plot, at the bar's own volume.**
+Three candidates were drawn (`Volume reading.dc.html` §02) against a real
+specimen — the pixel column under the pointer carries **1,162,113** and the bar
+the crosshair snapped to traded **333,250**, 29% of it:
+
+| Candidate                | Why not / why                                                                                                                                                                                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Rule only**            | Honest and mute. The rule says _here_ and the strip says _333,250_, and nothing in the picture connects them — a reader comparing the strip to the column under the rule is comparing two different facts with no sign that they are different |
+| **Repaint the column**   | States value and position in one mark, and spends the plot's one encoding — height — on a second ink. At 0.37 px per bar the repaint is a 1 px sliver nobody sees. The right mark for a window with columns; not one mark for every window     |
+| **The disc** — **taken** | One vocabulary across both plots, one mark at every density, and the only place in the picture the snapped bar's **own** volume appears at all                                                                                                 |
+
+**That the disc sits below the silhouette is the point, not a defect.** §10.5
+says the picture is per pixel below a pixel per bar and the reading is always per
+bar; until now that was a sentence in this document. The disc is the picture
+admitting what it rounded, and the strip's instant is what makes it legible.
+
+**Reversal trigger:** a reader reporting that the disc looks _misaligned_ rather
+than informative. The repair is not the repaint — it is a disc drawn only where a
+bar has a pixel of its own, which the geometry already knows — and its cost is a
+mark that appears and disappears with the window, which is a second thing to
+explain.
+
+---
+
+## 23. Decision — the volume strip's two states, and what is **not** in them
+
+| State             | Content                                                                                                         |
+| ----------------- | --------------------------------------------------------------------------------------------------------------- |
+| Under the pointer | The bar's instant, then `Volume` and the **exact grouped integer**                                              |
+| At rest           | `Peak`, the exact integer, then the instant in the secondary ink                                                |
+| Nothing traded    | _No shares changed hands anywhere in the window._ — `chart-alternative.ts`'s words, because it is the same fact |
+
+Three things about it are decisions rather than consequences.
+
+**The instant is the joint.** It is the only thing both strips say, spelled by
+the same `formatBarInstant`, and it is what makes two answers legible as one
+reading. At rest it steps back — secondary ink, regular weight — because there it
+is a footnote on a figure rather than the thing being asked about. That is the
+whole of how a reader tells the two states apart at a glance.
+
+**The figure is exact, and the label keeps its word.** §5a: abbreviate on the
+axis and in summaries, never in a reading — so the gutter says `3.13M` and the
+strip says `3,131,031`, from `formatVolumeExact`. `O H L C` is the one place this
+product abbreviates a label and it earns that by being the notation of the thing
+itself; `V` is not notation anybody knows, so volume keeps its word for the same
+reason the bar's change does.
+
+**No invitation, and no second copy of anything.** The price strip's sentence is
+about a keyboard path belonging to the plot above; repeating it would be two
+surfaces saying one thing, which is the defect two strips exist to avoid rather
+than to commit.
+
+### 23.1 The strip is **not in the accessibility tree**, and that follows from the rest
+
+`aria-hidden`, exactly like the plot, its one gutter label and its two dates.
+Three reasons, and the third is the one that decides it:
+
+- Every other mark in this region is hidden for the same reason — they are
+  labels on a picture.
+- The region's accessible content is **one sentence**, `volumeAlternative`, and
+  it already states the peak and when it happened. An exposed strip would state
+  the same fact in the same breath, which is the two-surfaces defect with the
+  peak in it.
+- A listener is not short of the figure: it arrives as a clause in the spoken
+  reading (§24).
+
+---
+
+## 24. Decision — **one sentence, one more clause**, and the subject moved
+
+A listener meets **one** live region where a sighted reader meets two surfaces in
+the same instant. So the spoken reading carries what the two strips carry between
+them — `Volume 4.06 million.` appended to the existing sentence — rather than a
+second announcement. A fifth polite region on this page would be queued against
+the other four in an order no component controls
+([`FRONTEND-STATE.md`](../story-10-frontend-market-data-layer/FRONTEND-STATE.md)
+§7).
+
+**Spoken and written are the same figure and not the same string.** The strip
+writes `4,061,234` and the sentence says `4.06 million`. That is not a
+disagreement: nine digits of precision in a sentence somebody hears once is not
+how a number is said, and `volume-format.ts` decides both forms in one module so
+they cannot drift. The exact figure stays on screen, which is where an exact
+figure is read rather than heard.
+
+**The subject moved from `price chart` to `chart reading`**, and the second
+reason makes it a repair rather than a preference:
+
+- Since 2.13.4 the two plots are one instrument on one axis, and this sentence
+  now states a fact from each.
+- `chart-alternative.ts` already opens the price chart's text alternative with
+  the words _NVDA price chart_. The old subject was **two surfaces opening with
+  one phrase** — the defect `CLAUDE.md` records happening three times in one
+  afternoon on the search screen, shipped quietly here since Task 2.12.6.
+
+The `role="img"` name on the tab stop is unchanged: that element **is** the price
+plot.
+
+---
+
+## 25. Decision — the volume plot adds **no tab stop**
+
+`Tab` lands on the price plot and opens on the last bar; the arrows step bars;
+`Home`, `End` and `Escape` are unchanged. The volume plot answers a pointer and
+is not focusable.
+
+This is not a gap in the keyboard path, and the test it has to pass is _is
+anything unreachable without a pointer?_ Nothing is: the same read position
+drives both strips, so arrowing along the price plot moves the volume crosshair
+and fills the volume strip, and the spoken sentence carries the figure. A second
+stop would be the same reading at twice the cost, against the bar this chart is
+held to — **one tab stop and never one per bar**.
+
+Held by `VolumeReading.test.tsx`'s _adds no tab stop, so the pair is still one_
+and by `e2e/specs/security-price-chart.spec.ts`'s _the keyboard path drives both
+plots, and adds no second tab stop_, which also checks that the next `Tab` leaves
+the pair entirely rather than landing inside the Volume region.
+
+---
+
+## 26. The reservation, applied completely — **and it found a live gap in the price strip**
+
+`CHARTING.md` §15.4's mechanism is a hidden reading of the last bar in the same
+grid cell, so the row is as tall as a reading _at this width_. The volume strip
+inherits the mechanism and needed **one more copy of it**, and following that
+through found something already shipped.
+
+**Both of the volume strip's states are content** — a reading and a peak, two
+figures — so both are laid out hidden and the row is the taller of them at every
+width. With only one hidden state the row would be `max(reading, whatever is
+live)`, which drops by a line whenever the _other_ state is the taller one.
+
+**That is exactly the price strip's shape today**, and it had not been noticed:
+one hidden reading, an invitation that is live at rest, and therefore a strip
+that is `max(reading, invitation)` at rest and `max(reading, reading)` with a
+reading on screen. A width at which the invitation wraps further than a reading
+drops the four exact prices by a line under the reader's hand — §15.4's defect
+from the other direction, never measured at three viewports. The price strip now
+hides the invitation too.
+
+**Both specs run at all three viewports**, and the middle one is the instrument.
+
+---
+
+## 27. The constraint §15.1 handed over, and the shape that answers it
+
+**Two contexts in one component, not one value with both in it.** This is the
+whole of the risk in the task and it is invisible on screen: a read position
+added to `ChartAxisValue` would be handed to every `useChartAxis()` caller, and
+**both frame owners are callers** — so a pointer move would rebuild a
+1,950-point path string and a 726-stem silhouette to move one vertical rule. The
+page would look perfect. `CLAUDE.md` records the same regression at **17× the CPU
+on the pointer path with no long task at all**, which is to say invisible to
+`PRODUCT_SPEC.md` §28's own criterion.
+
+So `ChartAxis` holds two pieces of state and memoises two values. React
+re-renders a context consumer only when that context's value changes by identity;
+`children` is the same element tree it was handed, so the subtree between the
+provider and the plots does not render at all — which is what keeps this route's
+518-row universe table out of the pointer path.
+
+**The guard is finished rather than re-pointed.** `PriceChart.test.tsx` now counts
+`timeFrame`, `priceFrame` **and** `volumeFrame`, renders **both** plots inside one
+`ChartAxis`, still reports zero across forty arrow presses, and still verifies its
+own counter live in the same test. The break was performed: putting the read
+position on `ChartAxisValue` takes it to **120** recomputations — three builders
+× forty presses — which is the number that says both plots were on screen and all
+three were counted.
+
+**And this is not a store.**
+[`FRONTEND-STATE.md`](../story-10-frontend-market-data-layer/FRONTEND-STATE.md)
+§1's reversal trigger is _the first piece of state two features must agree about
+that neither owns_; this is two components inside one feature on one route, and a
+wrapper answers it. Said here and in `ChartAxis.tsx` so that a later reader does
+not read a second context as the trigger having fired quietly.
+
+---
+
+## 28. One derivation the strip and the sentence share
+
+`volumePeakBar(bars)` joins `volumePeak` in `chart-volume-axis.ts`. It was a
+`find` inside `chart-alternative.ts`'s `peakClause` and would have been a second
+`find` in the strip — two sites deriving one fact, which is how a strip and a
+sentence come to name two different busiest minutes with neither obviously
+wrong. The first bar of a tie wins, deliberately: a tie is two minutes that
+traded the same number of shares, and the earlier one is what _when did the
+window get busy_ is asking about.
+
+---
+
+## 28.1 And one instrument that was measuring the wrong thing
+
+`e2e/specs/security-price-chart.spec.ts`'s _a pointer over the plot reads the bar
+under it_ asserted that the readout contains **some** clock time. Its `readout`
+helper resolves to the invitation or, failing that, to the first `EDT` in the
+Price region — and the panel's own live sentence is _NVDA: holding 390 bars,
+through 2026-09-04 16:00:00 EDT…_, which satisfies it. The assertion was
+therefore green against a chart nobody had pointed at, and had been since Task
+2.12.6.
+
+It was found because this task's cross-plot test asks the two strips for **the
+same specific minute** and could not be made to pass. Both assertions now run
+against the row the `BAR` label sits in. The same shape caught the volume test a
+second time: a `mouse.move` to an un-scrolled `boundingBox()` lands outside the
+window, the strip keeps its resting state — which states a _different_ instant
+and a _different_ grouped integer — and a loosely written assertion passes
+against it. Both new tests scroll first, and both assert the resting state is
+**gone**.
+
+---
+
+## 29. What Part four hands on
+
+- **2.13.6 / 2.13.7** own the fence this task stops at: **what a reading does
+  when the window changes underneath it.** The series is replaced, so the read
+  position must clear or re-anchor — a state question rather than an interaction
+  one. Nothing here handles it, and today no control can change the window.
+- **2.13.8**'s walk inherits a page with **two** readout strips, one of which is
+  deliberately absent from the accessibility tree. That is the claim to walk
+  rather than to re-read: is the volume figure genuinely reachable without a
+  pointer, in a real screen reader, through the price plot's one tab stop?
+- **Epic 5** owns the clause this strip does not have. _"Volume 3.8× normal"_
+  belongs here eventually and the baseline that computes it does not exist; a
+  readout comparing this bar to anything is a number this product is not yet
+  entitled to state.
+- **Epic 3** owns a reading over a series that is still moving. Everything here
+  assumes the bar under the crosshair is finished.

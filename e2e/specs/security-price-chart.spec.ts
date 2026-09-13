@@ -402,15 +402,33 @@ function barLabel(page: Page) {
     .filter({ visible: true });
 }
 
-/** The strip under the axis, in whichever of its two states it is in. */
-function readout(page: Page) {
+/**
+ * The resting line's sentence, in the **live** half of the strip.
+ *
+ * `filter({ visible: true })` since Task 2.13.5, for `barLabel`'s reason one
+ * step further: the strip reserves its height by laying out *every* state it
+ * can be in, hidden, in the same grid cell — so the invitation is in the
+ * document twice whenever a reading is on screen, and once as its own
+ * reservation when it is not.
+ */
+function invitation(page: Page) {
   return priceRegion(page)
     .getByText(/Point at the chart/)
-    .or(
-      priceRegion(page)
-        .getByText(/EDT|EST/)
-        .first(),
-    );
+    .filter({ visible: true });
+}
+
+/**
+ * The **live** line of the price strip — the row the `BAR` label sits in.
+ *
+ * **This replaced a helper that resolved to the invitation or, failing that, to
+ * the first `EDT` in the Price region** (Task 2.13.5). The fallback was the
+ * defect: the panel's own live sentence is *NVDA: holding 390 bars, through
+ * 2026-09-04 16:00:00 EDT…*, so an assertion asking for *some* clock time was
+ * green against a chart nobody had pointed at. It was found by asking the two
+ * strips for the **same specific minute** and failing to make that pass.
+ */
+function priceStrip(page: Page) {
+  return barLabel(page).locator("../..");
 }
 
 test("a pointer over the plot reads the bar under it, and leaving clears it", async ({
@@ -424,7 +442,7 @@ test("a pointer over the plot reads the bar under it, and leaving clears it", as
   // Resting: the invitation, which is the only thing on this page that says the
   // chart answers questions at all — and the only thing anywhere that says the
   // keyboard path exists.
-  await expect(priceRegion(page).getByText(/Point at the chart/)).toBeVisible();
+  await expect(invitation(page)).toBeVisible();
 
   const box = await reader(page).boundingBox();
   if (box === null) throw new Error("the reading layer has no box");
@@ -435,8 +453,14 @@ test("a pointer over the plot reads the bar under it, and leaving clears it", as
   // where three quarters of every bar in the store reaches a person:
   // `CHARTING.md` §2 chose a line of closes over candlesticks *on the grounds
   // that this readout exists*.
-  await expect(readout(page)).toContainText(/\d{2}:\d{2}\s+(EDT|EST)/);
+  //
+  // **Against the row the `BAR` label sits in, since Task 2.13.5.** This asked
+  // the `readout` helper for *some* clock time, and the helper falls back to
+  // the first `EDT` in the Price region — which the panel's own live sentence
+  // (*holding 390 bars, through 2026-09-04 16:00:00 EDT*) satisfies. It was
+  // green against a chart nobody had pointed at.
   await expect(barLabel(page)).toBeVisible();
+  await expect(priceStrip(page)).toContainText(/\d{2}:\d{2}\s+(EDT|EST)/);
 
   // One crosshair and one disc, and **counted rather than checked for
   // visibility** — this file's own recorded finding: a vertical line is zero
@@ -447,7 +471,7 @@ test("a pointer over the plot reads the bar under it, and leaving clears it", as
 
   // Off the plot entirely, which is the state the chart spends its life in.
   await page.mouse.move(box.x + box.width / 2, box.y - 80);
-  await expect(priceRegion(page).getByText(/Point at the chart/)).toBeVisible();
+  await expect(invitation(page)).toBeVisible();
   expect(await reader(page).locator("circle").count()).toBe(0);
 });
 
@@ -485,9 +509,7 @@ for (const viewport of VIEWPORTS) {
     // nothing to do with a reading appearing. The test failed once that way and
     // passed alone, which is the shape of a flake that would have been re-run
     // until green instead of understood.
-    await expect(
-      priceRegion(page).getByText(/Point at the chart/),
-    ).toBeVisible();
+    await expect(invitation(page)).toBeVisible();
 
     const prices = priceRegion(page).getByText("Open", { exact: true });
 
@@ -559,7 +581,7 @@ test("the chart is one tab stop, and it is reachable", async ({ page }) => {
   // Escape clears the reading and **keeps the focus**, which is the whole reason
   // the focus ring is on the plot rather than on a disc that has just gone.
   await page.keyboard.press("Escape");
-  await expect(priceRegion(page).getByText(/Point at the chart/)).toBeVisible();
+  await expect(invitation(page)).toBeVisible();
   expect(
     await reader(page).evaluate(
       (element) => element === document.activeElement,
@@ -841,3 +863,220 @@ test("the volume plot says what it is, for a reader who cannot see it", async ({
 
   await expectNoAxeViolations(page, "the security route, volume drawn");
 });
+
+// **One reading, two strips** (Task 2.13.5).
+//
+// `VOLUME-AND-WINDOW.md` §15 decided two readouts rather than one, on the
+// arrangement this product actually renders at one column: Price and Volume are
+// two `Region` panels with the Abnormal-move region between them, and the price
+// panel plus its eight stated facts is taller than a phone — so a single strip
+// puts the answer off screen for anybody pointing at a volume bar.
+//
+// What no level below this can see is that it is **one** reading. jsdom
+// computes no layout and has no pointer, so a component test can assert the two
+// strips agree about a bar and cannot assert the two crosshairs land on the
+// same pixel of a laid-out page.
+
+/**
+ * The volume plot's reading layer — the surface a pointer is over.
+ *
+ * By shape rather than by role, because it deliberately has none: it is not a
+ * control, and the one tab stop for the pair is the price plot. It is the only
+ * `aria-hidden` element in this region whose **direct** child is an SVG — the
+ * plot's own box is not hidden (the canvas inside it is), and the gutter and the
+ * axis hold spans.
+ */
+function volumeReader(page: Page) {
+  return volumeRegion(page).locator("div[aria-hidden='true']:has(> svg)");
+}
+
+/**
+ * The **live** line of the volume strip, told apart from its two reservations.
+ *
+ * `filter({ visible: true })` cannot do it here: the reservations are
+ * `visibility: hidden`, which Playwright reports as hidden, but the whole strip
+ * is `aria-hidden` so a text query lands on the region's heading instead. The
+ * live line is the last child of the strip, which is the order the component
+ * renders them in and the order a one-cell grid requires.
+ */
+function volumeStrip(page: Page) {
+  return volumeRegion(page).locator("p[aria-hidden='true'] > span").last();
+}
+
+test("a pointer over the volume plot reads the bar under it", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(EXPLORER);
+  await expect(anAnswer(page)).toBeVisible();
+  if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
+
+  // At rest: the window's peak and when it happened. **Not** a second copy of
+  // the price strip's invitation — that sentence is about a keyboard path
+  // belonging to the plot above, and two surfaces saying one thing is the
+  // defect two strips exist to avoid rather than to commit.
+  await expect(volumeStrip(page)).toContainText("Peak");
+  await expect(volumeRegion(page).getByText(/Point at the chart/)).toHaveCount(
+    0,
+  );
+
+  // **Scrolled to first**, which is not caution: `boundingBox()` is relative to
+  // the viewport and this region is below the fold at every viewport this suite
+  // runs at, so a mouse move to an un-scrolled box lands outside the window
+  // entirely. The failure it produces is the quiet one — the strip keeps its
+  // resting state, which states a *different* instant and a *different*
+  // grouped integer, so a loosely written assertion passes against a chart
+  // nobody pointed at.
+  await volumeReader(page).scrollIntoViewIfNeeded();
+  const box = await volumeReader(page).boundingBox();
+  if (box === null) throw new Error("the volume reading layer has no box");
+
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2);
+
+  // The resting state is gone, which is what says this is a reading rather than
+  // the peak the strip states when nobody is pointing at it.
+  await expect(volumeStrip(page)).not.toContainText("Peak");
+
+  // A market instant and an exact, grouped integer — `VOLUME-AND-WINDOW.md`
+  // §5a: abbreviate on the axis and in summaries, never in a reading. The
+  // gutter above it states the same peak as `3.13M`.
+  await expect(volumeStrip(page)).toContainText(/\d{2}:\d{2}\s+(EDT|EST)/);
+  await expect(volumeStrip(page)).toContainText(/\d{1,3}(,\d{3})+/);
+
+  // Counted rather than checked for visibility, which is this file's own
+  // recorded finding: a vertical line is zero pixels wide to Playwright's
+  // bounding-box check.
+  expect(await volumeReader(page).locator("line").count()).toBe(1);
+  expect(await volumeReader(page).locator("circle").count()).toBe(1);
+});
+
+test("the two crosshairs are one reading, at one pixel", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(EXPLORER);
+  await expect(anAnswer(page)).toBeVisible();
+  if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
+
+  await reader(page).scrollIntoViewIfNeeded();
+  const box = await reader(page).boundingBox();
+  if (box === null) throw new Error("the reading layer has no box");
+
+  // Pointed at the **price** plot, and the volume plot answers — which is the
+  // whole claim. One read position in a wrapper above both regions, two
+  // overlays consuming it, and neither plot knowing the other exists.
+  await page.mouse.move(box.x + box.width * 0.45, box.y + box.height / 2);
+  await expect(barLabel(page)).toBeVisible();
+
+  const priceX = await reader(page)
+    .locator("line")
+    .first()
+    .evaluate((line) => line.getBoundingClientRect().x);
+  const volumeX = await volumeReader(page)
+    .locator("line")
+    .first()
+    .evaluate((line) => line.getBoundingClientRect().x);
+
+  // The same pixel, not approximately: both marks are placed from one
+  // `SlotScale` on one shared `TimeFrame`, so a difference here is two axes
+  // rather than a rounding.
+  expect(Math.abs(priceX - volumeX)).toBeLessThan(1);
+
+  // And both strips name the same minute, which is the joint that makes two
+  // answers legible as one reading.
+  //
+  // **Against the `BAR` row rather than the `readout` helper**, and the reason
+  // is a trap worth leaving written down: that helper falls back to the first
+  // `EDT` in the Price region, and the panel's own live sentence — *holding 390
+  // bars, through 2026-09-04 16:00:00 EDT* — satisfies it. Every assertion that
+  // only asked for *some* clock time has been passing against that sentence.
+  const instant = await volumeStrip(page).textContent();
+  const minute = /\d{2}:\d{2}\s+(?:EDT|EST)/u.exec(instant ?? "")?.[0];
+  expect(minute).toBeDefined();
+  await expect(priceStrip(page)).toContainText(minute ?? "");
+});
+
+test("the keyboard path drives both plots, and adds no second tab stop", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(EXPLORER);
+  await expect(anAnswer(page)).toBeVisible();
+  if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
+
+  await reader(page).focus();
+  await page.keyboard.press("Home");
+
+  // The first bar of the window, reached through the price plot — and the
+  // volume strip follows, with nothing having pointed at it. A second tab stop
+  // would be the same reading at twice the cost, and the bar this chart is held
+  // to is *one tab stop and never one per bar*.
+  await expect(volumeStrip(page)).toContainText(/\d{1,3}(,\d{3})+/);
+  await expect(volumeStrip(page)).not.toContainText("Peak");
+
+  // Tab once more and focus is past the whole pair rather than landing on the
+  // volume plot.
+  await page.keyboard.press("Tab");
+  const stillOnTheChart = await reader(page).evaluate(
+    (element) => element === document.activeElement,
+  );
+  expect(stillOnTheChart).toBe(false);
+  const insideVolume = await volumeRegion(page).evaluate((region) =>
+    region.contains(document.activeElement),
+  );
+  expect(insideVolume).toBe(false);
+});
+
+// **The volume strip's reservation, at all three viewports** (Task 2.13.5).
+//
+// The price strip's equivalent is above, and this is the same defect measured
+// on a strip whose two states are **both figures**. `CHARTING.md` §15.4 found
+// that no single reserved height is correct at more than one width, and the
+// 1440-only spec that was supposed to catch it could not: 1440 is the one width
+// where neither state wraps.
+for (const viewport of VIEWPORTS) {
+  test(`the volume readout reserves its height at ${viewport.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({
+      width: viewport.width,
+      height: viewport.height,
+    });
+    await page.goto(EXPLORER);
+    await expect(anAnswer(page)).toBeVisible();
+    if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
+
+    await expect(volumeStrip(page)).toContainText("Peak");
+
+    // The next region's heading, which is what actually moves if the strip
+    // grows — measured against the document rather than the viewport, because
+    // at the two narrow sizes reaching the chart scrolls the page and a
+    // viewport-relative `y` moves by the scroll rather than by the defect.
+    const below = page.getByRole("region", { name: "Relative performance" });
+    const documentY = () =>
+      below.evaluate(
+        (element) => element.getBoundingClientRect().top + window.scrollY,
+      );
+
+    /** The same figure, once it has stopped moving on its own. */
+    const settled = async () => {
+      let last = await documentY();
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        await page.waitForTimeout(100);
+        const next = await documentY();
+        if (next === last) return next;
+        last = next;
+      }
+      return last;
+    };
+
+    await volumeReader(page).scrollIntoViewIfNeeded();
+    const before = await settled();
+
+    const box = await volumeReader(page).boundingBox();
+    if (box === null) throw new Error("the volume reading layer has no box");
+    await page.mouse.move(box.x + box.width * 0.4, box.y + box.height / 2);
+    await expect(volumeStrip(page)).toContainText(/\d{2}:\d{2}/);
+
+    // The same y, to the pixel. Either the row is reserved or it is not.
+    expect(await documentY()).toBe(before);
+  });
+}
