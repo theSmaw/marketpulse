@@ -331,8 +331,26 @@ test("the panel's live region is the same node before and after it speaks", asyn
   // moment as its content is not reliably announced, and one that is *removed*
   // announces nothing. Task 2.4.3 shipped exactly that defect on the universe
   // table and this is the same instrument, pointed at the second region.
+  // **The answer is held open rather than delayed** (amended 2026-09-13, Task
+  // 2.13.7). This used to sleep a second inside the route and then assert that
+  // the region was still empty, which is a **race** rather than an assertion:
+  // `page.goto` resolves on `load`, and on a loaded runner `load` can arrive
+  // after a one-second fetch — at which point the answer has landed, the region
+  // has spoken, and the "empty before the first answer" assertion polls for ten
+  // seconds against a sentence that is correct.
+  //
+  // It failed exactly that way on CI once, having passed twice on the same
+  // branch. It is not this suite's only sleep-shaped wait, but it is the one
+  // whose whole subject is *the state before the answer*, so a widened delay
+  // would only move the race rather than remove it. Holding the response until
+  // the test releases it makes the ordering a fact.
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
   await page.route(BARS_ROUTE_PATTERN, async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await held;
     await route.continue();
   });
 
@@ -352,13 +370,19 @@ test("the panel's live region is the same node before and after it speaks", asyn
   const status = panel(page).getByRole("status").first();
 
   // Empty before the first answer: arriving at a page is not a change, so a
-  // loading sentence would only be a second copy of the visible line.
+  // loading sentence would only be a second copy of the visible line. The
+  // answer cannot have arrived — it is still held above — so this is now a
+  // statement about the `loading` state rather than about how fast the runner is.
+  await expect(status).toBeAttached();
   await expect(status).toHaveText("");
 
   await status.evaluate((element) => {
     (window as unknown as { seriesAnnouncer?: Element }).seriesAnnouncer =
       element;
   });
+
+  // The node is captured; now let the answer through.
+  release();
 
   // The sentence names its subject, which is what makes it complete beside a
   // sentence about 518 securities.
