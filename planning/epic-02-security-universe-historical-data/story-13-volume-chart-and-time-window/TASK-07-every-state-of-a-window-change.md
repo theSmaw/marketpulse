@@ -280,3 +280,95 @@ Add to **Done when**:
   subject
 - The three causes of a columnless volume plot are distinguishable on screen, and
   somebody looked at them side by side
+
+---
+
+## Amended 2026-09-13 by Task 2.13.5 — the reading's behaviour across a change is **already decided by default**, and the default is the wrong one
+
+This task's Work section says _"the crosshair is anchored to a bar that may not
+exist in the new window. Decide whether it clears or re-anchors."_ That was
+written when the read position did not exist. It does now, and it has a behaviour
+— so this task is **overriding a default rather than choosing from two options**,
+and the default is not either of the two the bullet names.
+
+### What is built, precisely
+
+The read position lives in `ChartAxis` as `{ index, source }`, in a **second
+context** whose consumers are the two reading overlays and neither frame owner
+([`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §27). `index` is a position into
+`readings`, which both plots build from the same `placeBars(axis, bars)` — which
+is what lets one index address one bar in both.
+
+A window change replaces `view`, rebuilds both frames, and **does not touch the
+index**. Each overlay reads it through a bounds check, so:
+
+| The new window is     | What the reader sees                                                   |
+| --------------------- | ---------------------------------------------------------------------- |
+| **shorter**           | No reading. The index is out of range and both overlays render nothing |
+| **as long or longer** | A reading of a **different bar**, silently and plausibly               |
+
+The second row is the one that matters, and it is worse than it looks: index 300
+of a five-session `1m` window and index 300 of a 1Y `1d` window are not adjacent
+facts, they are different years. The crosshair lands somewhere real, the strips
+state a real instant and a real volume, and nothing is wrong on screen except the
+answer.
+
+### Why it has not been seen, which is the reason to decide it deliberately
+
+**Both input paths clear the reading on the way to the control.** A pointer
+travelling to a control above the plot fires `onPointerLeave`; a keyboard user
+tabbing to it blurs the plot. So a person operating 2.13.6's control cannot
+normally hold a reading across the change at all.
+
+What can:
+
+- **Epic 11's `setTimeWindow`** — an agent changing the window with nobody
+  touching anything. This is the case the product is being built for, two epics
+  early, and it is the one with no pointer to leave the plot.
+- **A rapid sequence**, which this task already owes: press two windows quickly
+  and the second change lands while the first answer is in flight.
+- **Any later control a pointer can reach without leaving the plot** — an overlay
+  button, a context menu, a keyboard shortcut on the chart itself.
+
+So this is a fence that is currently held by a coincidence of layout, and a
+coincidence of layout is not a decision.
+
+### What to decide, and the two candidates
+
+- **Clear on a window change.** Honest and cheap; the cost is that an agent's
+  `setTimeWindow` leaves a reader who was mid-reading with nothing, having not
+  asked for that either.
+- **Re-anchor by instant.** Keep the bar's `startsAt`, find the nearest placed bar
+  in the new window, and clear only if the instant falls outside it. More work,
+  and it is the only answer that means anything at all when the two windows
+  overlap in time — which four of the five do.
+
+Whichever: **the keyboard case is explicit and is part of the decision.** Focus
+must not be lost, and `Escape`'s contract is that it clears the reading and keeps
+focus — so a cleared reading caused by a window change must leave focus exactly
+where a cleared reading caused by `Escape` does.
+
+### Two smaller carries
+
+- **The volume strip is the one surface that changes with nobody pointing at
+  anything.** Its resting state is the window's **peak and when it happened**,
+  which is a window-derived fact — so a window change rewrites it even with no
+  reading live. That is correct, and it is a cheap visible confirmation that a
+  change landed, in a state where the charts may still be showing a held answer.
+  Make sure it is not mistaken for a reading, and note that it is `null` where a
+  window holds no bars, in which case the strip renders nothing at all.
+- **The "no two surfaces, one sentence" count stays at six, with a wrinkle.** The
+  volume strip is `aria-hidden` by design (§23.1 — `volumeAlternative` already
+  states the peak, and an exposed strip would state it twice), so it cannot
+  collide with either alternative **by sentence**. It can still collide
+  **visually**, which is the check to run on it: the volume strip and the volume
+  region's own copy must not say the same thing in the same words on screen.
+
+Add to **Done when**:
+
+- The reading across a window change is decided **against the built default**, not
+  chosen from two hypotheticals, and the test proves the case that is hard to
+  reach: a change with a reading still live, driven without a pointer
+- A cleared reading leaves focus where `Escape` leaves it
+- The volume strip's resting peak is shown changing with the window, and is
+  distinguishable on screen from a reading

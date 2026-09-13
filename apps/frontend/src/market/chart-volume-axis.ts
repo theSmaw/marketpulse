@@ -61,6 +61,33 @@ export function volumePeak(bars: readonly Bar[]): number {
 }
 
 /**
+ * The bar that traded the peak, or `null` where there are none.
+ *
+ * **One derivation, two readers** (Task 2.13.5). The volume strip's resting
+ * state states the window's peak *and when it happened*, and
+ * `chart-alternative.ts`'s `peakClause` states the same pair for a listener —
+ * so before this existed the fact was found twice, by two `find`s over the same
+ * array, in two files. Two sites deriving one thing is how a strip and a
+ * sentence come to disagree about which minute was busiest, and neither is
+ * obviously wrong when they do.
+ *
+ * **The first bar at the peak wins**, which is a decision rather than an
+ * accident of `find`: a tie is two minutes that traded exactly the same number
+ * of shares, and the earlier one is the one a reader looking for *when the
+ * window got busy* is asking about.
+ *
+ * Returns the bar rather than its instant, because its two callers want
+ * different things from it — one spells an instant for the eye and the other
+ * for the ear — and a function returning a formatted string would have to pick.
+ */
+export function volumePeakBar(bars: readonly Bar[]): Bar | null {
+  let peak: Bar | null = null;
+  for (const bar of bars)
+    if (peak === null || bar.volume > peak.volume) peak = bar;
+  return peak;
+}
+
+/**
  * Zero to the window's peak — the domain, unpadded.
  *
  * Takes the bars rather than a peak so that no caller can hand it a top it

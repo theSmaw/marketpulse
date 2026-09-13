@@ -1,0 +1,121 @@
+/*
+ * **The readout strip, in one home for both of them** (Task 2.13.5).
+ *
+ * `VOLUME-AND-WINDOW.md` §15 decided two strips rather than one: at a single
+ * column the Price and Volume regions are unavoidably a screen apart, so a
+ * reading stated only under the price chart is off screen for anybody pointing
+ * at a volume bar. Two strips is not duplication **because they state two
+ * subjects** — four prices and a bar's own change under one, one exact integer
+ * under the other.
+ *
+ * Two strips *styled twice* would be duplication, and this file is what stops
+ * it. What is shared is the whole of the shape and none of the content: the
+ * row, the reservation, the figure idiom.
+ *
+ * ## The reservation, which is the one rule here that is not typography
+ *
+ * `CHARTING.md` §15.4 found that **no single reserved height is correct at more
+ * than one width**: a reading wraps where the strip's other state does not, and
+ * the exact figures beneath the chart moved 14 to 32 px at every viewport but
+ * 1440 while `pnpm verify` and all 96 browser tests stayed green. So the
+ * reservation is not a token — it is **every state the strip can be in, laid
+ * out in one grid cell with all but the live one hidden**, which makes the row
+ * as tall as the tallest of them *at this width* rather than at the width
+ * somebody measured.
+ *
+ * `--chart-readout-height` survives as the row's **floor** and nothing else. A
+ * second `min-height` token would be re-taking a decision that has already been
+ * paid for once.
+ *
+ * A `composes:` target: never import this from `main.tsx`.
+ */
+
+/*
+ * One row under the time axis, full width, reserved.
+ *
+ * The grid is one cell on purpose — every state is placed in it, so none of
+ * them can push another down and the row cannot change height between them.
+ */
+.readout {
+  grid-row: 3;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr;
+  margin: var(--space-16) 0 0;
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--rule-hairline);
+}
+
+/*
+ * One state of the strip. `flex-wrap` rather than `nowrap`: at 342px a reading
+ * genuinely does not fit on one line, and wrapping is what the reservation
+ * above is measuring.
+ */
+.line {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-20);
+  min-height: var(--chart-readout-height);
+}
+
+/*
+ * A state that is present in layout and absent from everything else —
+ * `visibility: hidden` rather than `display: none`, which is the whole point,
+ * and `pointer-events: none` so a hidden figure cannot take a click meant for
+ * the plot above it.
+ */
+.sizer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/*
+ * The bar's instant, first and in the data face.
+ *
+ * It leads because it is what makes every other decision on this strip honest:
+ * the axis is ordinal and draws no gap between sessions, the crosshair snaps to
+ * the nearest bar that exists rather than to the pixel under the pointer, and
+ * the volume plot's silhouette draws a pixel column's tallest bar rather than
+ * this one. All three are safe **because** the reading names the minute it is
+ * about.
+ */
+.stamp {
+  composes: dataCell from "../../styles/type.module.css";
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-primary);
+}
+
+.figure {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+
+/*
+ * The micro-label idiom — its size, its case and its ink, unlike the value
+ * scale, which keeps the size and drops the case because a number has none.
+ * These are words.
+ */
+.label {
+  composes: microLabel from "../../styles/type.module.css";
+  font-family: var(--font-data);
+  color: var(--ink-secondary);
+}
+
+.value {
+  composes: dataCell from "../../styles/type.module.css";
+  font-size: var(--font-size-body);
+  color: var(--ink-primary);
+}
+
+/*
+ * The figure the strip exists for carries the weight: the close on the price
+ * strip, because it is the price the line is made of; the exact integer on the
+ * volume strip, because it is the one thing there the picture cannot state.
+ */
+.emphasis {
+  font-weight: var(--font-weight-strong);
+}

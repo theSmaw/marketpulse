@@ -1,6 +1,6 @@
 # Task 2.13.5 — One reading, two series
 
-**Status:** Not started
+**Status:** Complete — 2026-09-13
 **Story:** [2.13 Volume Chart & Time-Window Selection](STORY.md)
 **Depends on:** 2.13.4
 
@@ -351,3 +351,200 @@ Add to **Done when**:
   presses, and still verifies its own counter live
 - The peak bar is derived once, in one named function, read by both the strip and
   the text alternative
+
+---
+
+## What was built — 2026-09-13
+
+**Status: complete.** Volume joined the reading, and the reading stayed one.
+
+The design was taken on the canvas first, as ADR 0026 requires:
+**`Volume reading.dc.html`**, a new file in the `Component library for
+MarketPulse` project — six numbered sections, with the specimens drawn from the
+same 1,950 stored NVDA minute bars Task 2.13.2 used, reusing that file's
+generated path data rather than inventing a second series. It settles the three
+things §15 left open and records the candidates each one beat.
+
+The record is [`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) **Part four**
+(§§22–29). What follows is what changed and what it cost.
+
+### The five decisions
+
+| Question                       | Answer                                                                                                                                  |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| The crosshair across two plots | **One per plot, at one pixel, from one index.** A spanning rule cannot be drawn — two panels, a heading and a third region between them |
+| The mark on the volume plot    | **The price plot's hollow disc, at the bar's own volume** — which below a pixel per bar is _not_ the top of the ink under it            |
+| The volume strip at rest       | **The window's peak, exact, and when it happened.** Not a second invitation and not an empty row                                        |
+| What a listener gets           | **One more clause in the one sentence** — `Volume 4.06 million.` — and the subject moved to `chart reading`                             |
+| Where the read position lives  | **A second context in `ChartAxis`**, whose consumers are the two overlays and neither frame owner                                       |
+
+### What is on screen
+
+`/securities/NVDA`, pointer anywhere on either plot: two crosshairs at one
+pixel, two strips naming one minute. The volume strip states the bar's instant
+and its **exact grouped integer** — `178,846`, not `179K` — because abbreviation
+is for the axis and for summaries. At rest it states `PEAK 2,688,585` and the
+minute it happened in, which is the figure the gutter above abbreviates to
+`2.69M`.
+
+The keyboard path is unchanged and now drives both: `Tab` onto the price plot,
+arrows step bars, and the volume strip follows with nothing having pointed at
+it. **No second tab stop**, no fifth live region.
+
+### What it cost, in files
+
+- **`chart-reading-context.ts`** — new. The read position, as an index, with
+  `useChartReading` throwing outside a `ChartAxis` for `useChartAxis`'s reason.
+- **`ChartAxis.tsx`** — holds it, and **memoises two values separately**. That
+  separation is the whole repair and it is invisible on screen.
+- **`VolumeReading.tsx` / `.module.css` / `.stories.tsx` / `.test.tsx`** — new.
+- **`chart-readout.module.css`** — new, and it is the point of the refactor: one
+  home for the strip's shape, its reservation and its figure idiom, so two
+  strips are not two copies of one decision. The crosshair, the disc and the
+  reading layer moved to `chart-marks.module.css` for the same reason — one read
+  position is one mark drawn twice, not two marks styled alike.
+- **`chart-geometry.ts`** — `VolumePlot` gained `readings` and `peakBar`.
+- **`chart-volume-axis.ts`** — `volumePeakBar`, read by the strip **and** by
+  `chart-alternative.ts`'s `peakClause`, which was deriving it separately.
+- **`chart-reading.ts`** — the volume clause and the subject.
+
+### Four things that were found rather than reasoned
+
+1. **The price strip's reservation was half of itself, and had shipped that way.**
+   `CHARTING.md` §15.4's repair hides the _reading_, so the row is
+   `max(reading, whatever is live)` — which is `max(reading, invitation)` at rest
+   and `max(reading, reading)` with a reading on screen. A width at which the
+   **invitation** is the taller of the two drops the four exact prices by a line
+   when a pointer enters the plot: §15.4's own defect from the other direction,
+   with §15.4's own table showing it is reachable (the invitation is 40 px at 768
+   and at 390). Both strips now hide **both** states. `CHARTING.md` §15.4 carries
+   a dated amendment.
+2. **The spoken sentence and the price chart's text alternative opened with the
+   same four words.** Both began `NVDA price chart:` — two surfaces opening with
+   one phrase, which is the defect `CLAUDE.md` records happening three times in
+   one afternoon on the search screen, shipped quietly since Task 2.12.6. The
+   subject move to `chart reading` was needed for its own reason and repairs this
+   one in the same change.
+3. **A shipped browser assertion had been green against the wrong element.**
+   `security-price-chart.spec.ts`'s _a pointer over the plot reads the bar under
+   it_ asked its `readout` helper for **some** clock time, and that helper falls
+   back to the first `EDT` in the Price region — which the panel's own live
+   sentence satisfies (_holding 390 bars, through 2026-09-04 16:00:00 EDT_). It
+   passed whether or not a reading was on screen. Found because the new
+   cross-plot test asks for a **specific** minute and could not be made to pass.
+   Both now assert against the row the `BAR` label sits in.
+4. **The disc at the bar's own volume makes §10.5 visible.** That the picture is
+   per pixel and the reading is per bar was a sentence in a document; on the
+   default window the disc genuinely sits inside a column three times its height,
+   and the strip's instant is what makes that readable rather than wrong. It was
+   drawn against a real specimen — the pixel column carries 1,162,113 and the
+   snapped bar traded 333,250 — before it was built.
+
+### What is verified, and by what
+
+- `pnpm verify` green. **788 frontend tests**, thirteen of them new — eight in
+  `VolumeReading.test.tsx` and five across the geometry and the volume axis.
+- **The zero-recomputation guard is finished**, which is what 2.13.4's amendment
+  asked for: it counts `timeFrame`, `priceFrame` **and** `volumeFrame`, renders
+  **both** plots inside one `ChartAxis`, reports zero across forty arrow presses
+  and still verifies its own counter live. **Break performed** — putting the read
+  position on `ChartAxisValue` takes it to **120**, which is three builders ×
+  forty presses and therefore evidence that both plots were on screen and all
+  three were counted.
+- **The index-sharing property is asserted, not assumed** —
+  `chart-geometry.test.ts` takes it at the dense window where the two arrays
+  genuinely could have diverged, and the break was performed by reversing one.
+- `pnpm e2e` green, with **six new browser tests**: a pointer over the volume
+  plot, the two crosshairs at one pixel, the keyboard path driving both with no
+  second stop, and the volume strip's reservation **at all three viewports** —
+  because the middle one is the instrument.
+- Looked at on the running page at 1440, and the drawing matches the canvas.
+
+### What a user still cannot do
+
+**Change the window.** That is Task 2.13.6, and it is the one remaining thing
+between this story and its exit criterion. Nothing here handles a reading whose
+series is replaced underneath it — the read position would have to clear or
+re-anchor — and that is 2.13.7's, deliberately: it is a state question rather
+than an interaction one, and today no control can cause it.
+
+They also still cannot see _how unusual_ a volume is. `Volume 3.8× normal`
+belongs on this strip and the baseline that computes it does not exist. Epic 5.
+
+---
+
+## For the stakeholder — what this actually means
+
+**The short version: you can now point at either chart and ask it a question, and
+both charts answer at once.**
+
+Open `/securities/NVDA` and move the mouse across the price line. A thin vertical
+marker follows your pointer — and it now appears in the **volume chart
+underneath at exactly the same moment and exactly the same position**, with a
+small ring marking that minute's trading. Under each chart, a line of text tells
+you what you are pointing at: the price chart says the minute, the four prices
+and how that minute moved; the volume chart says the same minute and exactly how
+many shares changed hands in it. Not "179K" — **178,846**. You can also do all of
+this with the keyboard, using the arrow keys, without a mouse at all.
+
+**Why this matters to the product rather than being a nice touch.** Last week's
+volume chart could show you _where_ trading was heavy. It could not tell you _how
+heavy_ — a bar is a height on a picture, and a height is not a number you can
+quote. The whole premise of MarketPulse is that a person can check the evidence
+behind a claim rather than take it on trust. When the system eventually says
+"volume 3.8× normal", the user has to be able to hover over that minute and read
+the actual figure. This is that ability. It is also the last piece of the
+price-and-volume pair working as a single instrument rather than as two pictures
+that happen to be stacked.
+
+**Four decisions worth knowing about, and why they went the way they did.**
+
+_We gave each chart its own line of text, rather than one shared line._ The
+obvious design is a single readout stating everything. We drew it and rejected
+it, for a reason that is about the actual page rather than about taste: on a
+narrow screen the price chart plus the eight figures printed under it is taller
+than a phone, so a single readout would put the answer **off the screen** for
+somebody pointing at a volume bar. Two lines of text, each sitting directly under
+the chart it describes. They deliberately say different things — one is about
+prices, the other is about shares — and the only thing they both say is the
+minute, which is what makes two answers read as one question.
+
+_When nobody is pointing at it, the volume readout states the busiest minute of
+the period._ We could have left it blank, or repeated the price chart's "point at
+the chart to read a bar" prompt. A blank row is a hole in the page, and repeating
+the prompt would be the same sentence twice — which is a thing this project has
+already been burned by. Instead the row does work when it is idle: it names the
+heaviest minute in the window and when it happened. That is exactly the figure the
+anomaly scoring will later turn into "3.8× normal", so it is the number a user
+will most want, and it is there before they ask.
+
+_We made the marker on the volume chart honest about something the picture
+rounds._ At the default five-day view there are more minutes than there are
+pixels, so the volume chart draws, for each pixel of width, the **busiest** minute
+in it. The marker, though, sits at the height of the exact minute you are pointing
+at — which means it often sits noticeably below the bar it is inside. That looks
+odd for about two seconds and then it is the most useful thing on the chart: it is
+the picture admitting what it had to round, and the timestamp beside the figure is
+what makes it readable. The alternative — a marker that quietly snapped to the
+drawn bar — would have looked tidier while stating a number that disagrees with
+the text underneath it.
+
+_We spent real effort making sure that following the pointer is cheap._ There is a
+well-known way to build this that works perfectly and is slow: let the page
+re-draw both charts every time the mouse moves a pixel. On the busiest view that
+means rebuilding a 1,950-point line and a 726-bar silhouette to move one thin
+vertical marker, and — this is the awkward part — **nothing would look wrong and
+no standard performance alarm would fire**. It simply costs about seventeen times
+the processor work on the one interaction a user does constantly, on a page that
+also holds a 518-row table. So the position of the marker is deliberately held in
+a place that only the two markers listen to, and there is an automated test that
+counts the redraws and fails if the number stops being zero. We broke it on
+purpose to confirm the test actually catches it.
+
+**Where this leaves the project.** The price and volume charts are now finished as
+a pair — they share one timeline, one marker, one keyboard path, and they answer
+together. The one thing still missing from this stage is the control that lets a
+user change the period they are looking at: today everything shows the last five
+trading days and nothing else. That is the next task, and it is the last one
+between here and the goal this stage of work was set: _search for a security,
+open it, and explore its recent price and volume history_.

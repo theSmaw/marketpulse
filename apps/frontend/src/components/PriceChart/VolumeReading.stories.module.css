@@ -1,0 +1,34 @@
+/*
+ * The grid `VolumeReading`'s two elements are placed on, and a stand-in for the
+ * plot they sit over.
+ *
+ * **It restates `VolumeChart.module.css`'s grid rather than importing it**, for
+ * `ChartReading.stories.module.css`'s reason: a story that composed the real
+ * `.chart` class would drag the real plot, gutter and axis rules into a
+ * workshop page whose subject is a crosshair and a strip.
+ */
+
+.chart {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--chart-gutter);
+  grid-template-rows: auto auto auto;
+  width: 782px;
+  max-width: 100%;
+  padding: var(--space-16);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius);
+}
+
+/*
+ * Where the plot would be — the volume plot's own height, and sunken for the
+ * price reading's reason: a reviewer needs to see the extent of the area the
+ * pointer is live over, which the real plot does not draw.
+ */
+.plot {
+  grid-row: 1;
+  grid-column: 1;
+  height: var(--chart-volume-height);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--chart-axis);
+}

@@ -7,6 +7,7 @@ import {
   formatChangePercent,
   formatPrice,
 } from "./price-format.js";
+import { spokenVolume } from "./volume-format.js";
 
 // One bar, said in words and in figures (Task 2.12.6).
 //
@@ -39,13 +40,31 @@ import {
 // and all three can legitimately disagree at once. So the sentence says *on the
 // bar* out loud, and the strip labels its figure `BAR`.
 //
-// ## The four prices, and the one figure that is not a price
+// ## The four prices, the bar's own change — and, since Task 2.13.5, its volume
 //
-// Open, high, low and close, plus the bar's own change. **Volume is not here**,
-// and that is a fence rather than an omission: `Bar` carries it, Story 2.13
-// builds the volume chart into the region directly below this one, and a volume
-// figure in a price readout is the fact that would then be stated twice in two
-// places with two subjects. It arrives with the chart that is about it.
+// The fence above said volume arrives *with the chart that is about it*, and it
+// has. What it did **not** anticipate is that the two arrive on different
+// channels, and the reason is worth stating because it looks like an
+// inconsistency in the shipped product:
+//
+//  - **On screen there are two strips and this sentence's figures are only the
+//    price strip's.** `VOLUME-AND-WINDOW.md` §15: a readout belongs to a
+//    subject and its sentences name it, so the volume figure is stated under
+//    the volume plot, beside the columns it is about.
+//  - **A listener has one region**, not two surfaces arriving in the same
+//    instant. So the sentence carries what the two strips carry between them,
+//    as **one more clause** rather than as a second announcement — a fifth
+//    polite region on this page would be queued against the other four in an
+//    order no component controls.
+//
+// The subject moved with it: `chart reading` rather than `price chart`. Two
+// reasons, and the second is the one that makes it a repair rather than a
+// preference. Since Task 2.13.4 the two plots are one instrument on one axis
+// and this sentence now states a fact from each; and `chart-alternative.ts`
+// already opens the price chart's text alternative with the words *NVDA price
+// chart*, so the old subject was two surfaces opening with one phrase — the
+// defect `CLAUDE.md` records happening three times in one afternoon on the
+// search screen.
 
 /**
  * How long the reading's live region waits after the last key press, in
@@ -88,7 +107,7 @@ export const READING_ANNOUNCEMENT_DELAY_MS = 400;
 export const READING_ANNOUNCEMENT_MIN_GAP_MS = 1500;
 
 /** The subject every sentence opens with, after the symbol. */
-const SUBJECT = "price chart";
+const SUBJECT = "chart reading";
 
 /**
  * A bar's own change, open to close, as a percentage — or `null` when there is
@@ -174,7 +193,15 @@ export function readingAnnouncement(
     `${symbol} ${SUBJECT}: ${formatBarInstant(bar.startsAt)}, ` +
     `close ${formatPrice(bar.close)}, ${direction}. ` +
     `Open ${formatPrice(bar.open)}, high ${formatPrice(bar.high)}, ` +
-    `low ${formatPrice(bar.low)}.`
+    `low ${formatPrice(bar.low)}. ` +
+    // **Last, and spoken rather than written** (Task 2.13.5). Last because a
+    // listener stepping along a session is asking *what was the price here?*
+    // and the volume is the detail they can wait for — the same argument that
+    // put the open, high and low behind the close. Spoken because
+    // `formatVolumeExact`'s `4,061,234` is nine digits of false precision in a
+    // sentence somebody hears once; `volume-format.ts` decides both forms in
+    // one module so the strip and the sentence cannot quote different figures.
+    `Volume ${spokenVolume(bar.volume)}.`
   );
 }
 

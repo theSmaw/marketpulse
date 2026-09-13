@@ -7,6 +7,7 @@ import { volumeAlternative } from "./chart-alternative.js";
 import { volumeFrame, volumeTicks } from "./chart-geometry.js";
 import { chartSubject, drawsAFrame } from "./chart-subject.js";
 import { usePlotBox } from "./use-plot-box.js";
+import { VolumeReading } from "./VolumeReading.js";
 import styles from "./VolumeChart.module.css";
 
 // **Traded volume, under the price and on the same axis** (Task 2.13.4).
@@ -274,6 +275,26 @@ export function VolumeChart({ view, symbol }: VolumeChartProps) {
           </span>
         ))}
       </div>
+
+      {/*
+       * **The reading layer, a sibling for the price chart's reason** (Task
+       * 2.13.5).
+       *
+       * It draws this plot's crosshair and the strip under its axis, and it
+       * holds none of the state: the read position lives in `ChartAxis`, in a
+       * context **this component does not consume**. That is the whole of the
+       * repair — a pointer move re-renders the two overlays and neither frame
+       * owner, so nothing rebuilds a 726-stem silhouette to move one vertical
+       * rule. `chart-reading-context.ts` carries the argument, and
+       * `PriceChart.test.tsx` counts all three frame builders across forty
+       * arrow presses with both plots on screen rather than trusting it.
+       */}
+      <VolumeReading
+        peakBar={volume.peakBar}
+        plot={box}
+        readings={volume.readings}
+        slots={time.slots}
+      />
     </div>
   );
 }

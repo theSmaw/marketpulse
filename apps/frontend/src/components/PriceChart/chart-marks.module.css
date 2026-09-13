@@ -144,3 +144,82 @@
 .firstLabel {
   transform: none;
 }
+
+/*
+ * **The reading layer and its two marks, shared by both plots since Task
+ * 2.13.5.**
+ *
+ * They belong here for the same reason the seam does, one level sharper: there
+ * is exactly **one read position** for the pair, so the crosshair is not two
+ * similar marks that happen to be styled alike — it is one mark drawn in two
+ * places. A second copy of these rules is a chart whose two rules could end up
+ * a pixel or a shade apart while both files look correct.
+ *
+ * The layer itself is the plot's own cell, in both grids: row 1, column 1.
+ */
+.reader {
+  position: relative;
+  grid-row: 1;
+  grid-column: 1;
+  /*
+   * `crosshair` rather than the default, which is the cheapest possible signal
+   * that this picture answers questions — and it appears before the person has
+   * committed to anything. The readout's resting line is the other half.
+   */
+  cursor: crosshair;
+}
+
+/*
+ * Absolutely positioned for `.canvas`'s reason, restated because it is the same
+ * mechanism: nothing this element contains may change the box that was measured
+ * to produce it, which is what keeps each chart's `ResizeObserver` loop-free by
+ * construction rather than by its equality guard alone.
+ */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+}
+
+/*
+ * The vertical rule, **solid and drawn over everything**.
+ *
+ * On the price plot it crosses the reference rule at right angles, and both are
+ * chrome of similar weight — `--chart-crosshair` is 9.32:1 and
+ * `--chart-reference` is 4.48:1. Left to chance the intersection reads either
+ * as a broken reference rule or as one shape; solid over dashed is the
+ * difference that is already there. On the volume plot there is no rule to
+ * cross, and it is the same mark anyway, because a reader lines the two plots
+ * up by it.
+ *
+ * Never `crispEdges`: the rule tracks a bar's exact pixel, and snapping it to a
+ * device pixel would put it beside the disc at fractional positions.
+ */
+.crosshair {
+  stroke: var(--chart-crosshair);
+  stroke-width: 1;
+}
+
+/*
+ * The disc: **the panel's own ground punched through whatever is under it**,
+ * ringed in near-black.
+ *
+ * Hollow for a measured reason. The global focus ring is a 2px near-black
+ * outline, and a near-black ring around a near-black *filled* dot on a
+ * near-black line is invisible — so the fill is the surface and the ring is
+ * what reads.
+ *
+ * **It is the same mark on both plots and it does not mean the same thing**,
+ * which is a decision rather than an oversight (`Volume reading.dc.html` §02).
+ * On the price plot it sits *on* the drawn line. On the volume plot below a
+ * pixel per bar it sits inside a column that is taller than it, because the
+ * silhouette carries each pixel column's maximum and this carries the snapped
+ * bar's own volume — the picture admitting what it rounded, rather than a mark
+ * that missed.
+ */
+.point {
+  fill: var(--surface-raised);
+  stroke: var(--chart-point);
+  stroke-width: 2;
+}

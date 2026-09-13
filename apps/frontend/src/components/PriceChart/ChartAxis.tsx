@@ -6,13 +6,31 @@ import { chartDensity } from "../../market/index.js";
 import type { ChartPlotRole } from "./chart-axis-context.js";
 import { ChartAxisProvider } from "./chart-axis-context.js";
 import { timeFrame } from "./chart-geometry.js";
+import type { ChartRead } from "./chart-reading-context.js";
+import { ChartReadingProvider, NO_READING } from "./chart-reading-context.js";
 import { chartSubject } from "./chart-subject.js";
 
-// **The axis, once, for every plot under it** (Task 2.13.4).
+// **The axis, once, for every plot under it** (Task 2.13.4), **and the one
+// position both of them are read at** (Task 2.13.5).
 //
-// See `chart-axis-context.ts` for the argument. What is here is the mechanism:
-// one piece of state, one `timeFrame` call, and `children` rendered through
-// untouched.
+// See `chart-axis-context.ts` and `chart-reading-context.ts` for the two
+// arguments. What is here is the mechanism: two pieces of state, one
+// `timeFrame` call, **two context values that are memoised separately**, and
+// `children` rendered through untouched.
+//
+// The separation is the load-bearing part and it is invisible on screen. React
+// re-renders a context consumer only when that context's value changes by
+// identity, so a pointer move re-renders this component, leaves the frame
+// memo's inputs untouched, and reaches **only** the two reading overlays.
+// `children` is the same element tree it was handed, so the subtree between
+// this provider and the plots does not render at all — which is what keeps the
+// 518-row universe table below this route out of the pointer path.
+//
+// **This is not a store, and `FRONTEND-STATE.md` §1's trigger has not fired.**
+// That trigger is *the first piece of state two features must agree about that
+// neither owns*; this is two components inside one feature on one route, and a
+// wrapper answers it. A later reader should not read this file as the trigger
+// having fired quietly.
 
 /** A plot's measurement of itself. */
 interface PlotMeasurement {
@@ -53,6 +71,12 @@ export function ChartAxis({ view, children }: ChartAxisProps) {
   const [price, setPrice] = useState(UNMEASURED);
   const [volume, setVolume] = useState(UNMEASURED);
 
+  // **The read position, and it is deliberately not in the value above.** See
+  // `chart-reading-context.ts`: both frame owners call `useChartAxis`, so a
+  // read position on that value would rebuild a 1,950-point path string and a
+  // 726-stem silhouette on every mouse event.
+  const [read, setRead] = useState<ChartRead>(NO_READING);
+
   const report = useCallback(
     (role: ChartPlotRole, regionWidth: number, width: number) => {
       const set = role === "price" ? setPrice : setVolume;
@@ -86,5 +110,13 @@ export function ChartAxis({ view, children }: ChartAxisProps) {
     };
   }, [price, volume, view, report]);
 
-  return <ChartAxisProvider value={value}>{children}</ChartAxisProvider>;
+  // `setRead` is a `useState` setter and therefore stable, so this value changes
+  // exactly when the reading does — which is the property the guard counts.
+  const reading = useMemo(() => ({ read, setRead }), [read]);
+
+  return (
+    <ChartAxisProvider value={value}>
+      <ChartReadingProvider value={reading}>{children}</ChartReadingProvider>
+    </ChartAxisProvider>
+  );
 }

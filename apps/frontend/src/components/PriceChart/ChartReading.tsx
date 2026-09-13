@@ -20,6 +20,7 @@ import {
 } from "../../market/index.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import type { ChartPoint, PlotBox } from "./chart-geometry.js";
+import { NO_READING, useChartReading } from "./chart-reading-context.js";
 import styles from "./ChartReading.module.css";
 
 // **Reading a point** (Task 2.12.6) — the crosshair, the four prices of the bar
@@ -132,17 +133,6 @@ export interface ChartReadingProps {
   readonly describedBy?: string | undefined;
 }
 
-/** Where the reading came from, which decides whether it is spoken. */
-type ReadingSource = "pointer" | "keyboard";
-
-interface ReadingState {
-  /** An index into `readings`, or `null` for no reading. */
-  readonly index: number | null;
-  readonly source: ReadingSource;
-}
-
-const NO_READING: ReadingState = { index: null, source: "pointer" };
-
 export function ChartReading({
   symbol,
   readings,
@@ -150,7 +140,13 @@ export function ChartReading({
   slots,
   describedBy,
 }: ChartReadingProps) {
-  const [reading, setReading] = useState<ReadingState>(NO_READING);
+  // **The read position comes from the axis wrapper since Task 2.13.5**, and it
+  // is the same value the volume plot's overlay reads. What was a `useState`
+  // here is now a `useState` one component up, for the reason that put it here
+  // in the first place: the state that changes on every pointer move must live
+  // somewhere that re-renders neither frame owner, and there are two of them
+  // now. `chart-reading-context.ts` carries the argument.
+  const { read: reading, setRead: setReading } = useChartReading();
   const hintId = useId();
 
   // Clamped on read rather than reset on change. `readings` is rebuilt whenever
@@ -446,17 +442,47 @@ function Readout({
           <BarFigures bar={sizer} />
         </span>
       )}
+      {/*
+       * **The second sizer, added by Task 2.13.5** — and it completes the
+       * mechanism rather than adding to it.
+       *
+       * With one hidden reading the row is `max(reading, whatever is live)`: at
+       * rest that is `max(reading, invitation)` and with a reading it is
+       * `max(reading, reading)`. So a width at which the *invitation* is the
+       * taller of the two still drops the strip by a line the moment a pointer
+       * enters the plot — the identical defect §15.4 found from the other
+       * direction, and it has never been measured at three viewports. Hiding
+       * **both** states makes the row the taller of the two at every width,
+       * whichever one is showing.
+       *
+       * The volume strip needed this first, because both of its states are
+       * content rather than one being an invitation. Doing it here in the same
+       * change is what stops the two strips reserving their height by two
+       * different rules.
+       */}
+      <span aria-hidden="true" className={cx(styles.line, styles.sizer)}>
+        <Invitation />
+      </span>
       <span className={styles.line}>
-        {point === undefined ? (
-          <span className={styles.invitation}>
-            Point at the chart, or press the left and right arrow keys, to read
-            a bar.
-          </span>
-        ) : (
-          <BarFigures bar={point.bar} />
-        )}
+        {point === undefined ? <Invitation /> : <BarFigures bar={point.bar} />}
       </span>
     </p>
+  );
+}
+
+/**
+ * The resting state, and the only thing in this product that says the keyboard
+ * path exists.
+ *
+ * A component rather than a literal since Task 2.13.5, because it is now
+ * rendered twice — once live and once hidden, to reserve the row at a width
+ * where it is the taller of the strip's two states.
+ */
+function Invitation() {
+  return (
+    <span className={styles.invitation}>
+      Point at the chart, or press the left and right arrow keys, to read a bar.
+    </span>
   );
 }
 

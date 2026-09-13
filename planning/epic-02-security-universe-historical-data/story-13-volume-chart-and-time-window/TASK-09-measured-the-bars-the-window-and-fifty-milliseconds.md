@@ -274,3 +274,59 @@ Add to **Done when**:
   fan-out
 - The zero-recomputation guard is confirmed to count `timeFrame`, `priceFrame`
   **and** `volumeFrame` against a rendered pair before it is trusted
+
+---
+
+## Amended 2026-09-13 by Task 2.13.5 — the zero that had to be confirmed is now mechanical, and the pointer path is finally measurable as a pair
+
+### "The thing that must still be zero" is discharged, and this task checks a grep rather than an instrument
+
+2.13.4's amendment left this task a real check: the zero-recomputation guard
+counted `timeFrame` and `priceFrame`, rendered only the price chart, and was
+therefore blind to the volume side. **2.13.5 finished it.**
+`PriceChart.test.tsx` now counts all three builders, renders **both** plots inside
+one `ChartAxis`, still reports zero across forty arrow presses, and still verifies
+its own counter live — and the break was performed: putting the read position on
+`ChartAxisValue` takes it to **120**, which is three builders × forty presses and
+is therefore evidence that both plots were on screen and all three were counted.
+
+So this task's item becomes a **confirmation by grep** rather than a check to
+design: the three names are in the mock and the harness renders the pair. Spend
+the time on the wall-clock halves instead, which are still only takeable in a
+browser.
+
+### The pointer path is now two overlays, which is what the fifth candidate was written about
+
+The Work bullet _"the pointer path, at the cap, with two plots"_ was written
+before there was a second reading layer. There is one now, and the shape is the
+one 2.13.4's fifth candidate anticipated with one correction worth stating before
+the measurement:
+
+- **A resize tick fans out to both plots and, through them, to both overlays** —
+  the overlays are children of the frame owners, so they re-render when their
+  parent does. That is the fifth candidate unchanged.
+- **A pointer move fans out to the two overlays and to nothing else.** The read
+  position is a **second context** (§27), so neither frame owner consumes it. The
+  guard proves no frame is rebuilt; it does **not** prove the render is cheap, and
+  what each overlay now does per pointer move includes `formatVolumeExact` and
+  `formatBarInstant` on the snapped bar.
+
+Those are two different fan-outs with two different causes, and the existing
+bullets already ask for both. What is new is that they can now be told apart in a
+profile, because one of them touches `timeFrame` and the other cannot.
+
+### And one number that did not exist when this task was written
+
+The reading's DOM grew: each strip lays out **every state it can be in** — the
+price strip two, the volume strip three — in one grid cell, to reserve its height
+at the real width. That is a fixed handful of spans per plot and does not scale
+with the bar count, so it is not a candidate. It is stated so that a profile
+showing more layout under the charts than last time has an explanation that is
+already written down.
+
+Add to **Done when**:
+
+- The zero-recomputation guard is confirmed by **grep** — three builder names in
+  the mock, the pair in the harness — rather than re-derived
+- The resize fan-out and the pointer fan-out are measured and attributed
+  **separately**, and the profile says which one touched a frame builder

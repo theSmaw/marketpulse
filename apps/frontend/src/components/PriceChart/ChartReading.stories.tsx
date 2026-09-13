@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import { chartDensity } from "../../market/index.js";
+import { ChartAxis } from "./ChartAxis.js";
 import { ChartReading } from "./ChartReading.js";
 import type { ChartSubject } from "./chart-geometry.js";
 import { priceFrame, timeFrame } from "./chart-geometry.js";
@@ -68,20 +69,30 @@ function frameOf(name: "full" | "dense") {
   return { ...time, ...priceFrame(time, PLOT.height, subject.bars) };
 }
 
-/** The chart's own grid, with a stand-in where the plot would be. */
+/**
+ * The chart's own grid, with a stand-in where the plot would be.
+ *
+ * **Inside a `ChartAxis` since Task 2.13.5**: that component owns the one read
+ * position both plots answer, and `useChartReading` throws without it rather
+ * than falling back to private state. The frame it builds is not the one drawn
+ * below — the readings here come from the real geometry at a fixed box, because
+ * what is being reviewed is the mark and the strip rather than the layout.
+ */
 function Harness({ name }: { readonly name: "full" | "dense" }) {
   const frame = frameOf(name);
 
   return (
-    <div className={styles.chart}>
-      <div className={styles.plot} />
-      <ChartReading
-        plot={PLOT}
-        readings={frame.readings}
-        slots={frame.slots}
-        symbol="NVDA"
-      />
-    </div>
+    <ChartAxis view={barSeriesFixtureView(name)}>
+      <div className={styles.chart}>
+        <div className={styles.plot} />
+        <ChartReading
+          plot={PLOT}
+          readings={frame.readings}
+          slots={frame.slots}
+          symbol="NVDA"
+        />
+      </div>
+    </ChartAxis>
   );
 }
 

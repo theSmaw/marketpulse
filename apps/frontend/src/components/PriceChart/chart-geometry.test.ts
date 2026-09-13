@@ -668,6 +668,68 @@ describe("one axis, handed to both plots", () => {
     );
   });
 
+  it("addresses the same bar from one index in both plots, at the same x", () => {
+    // **The property one read position rests on** (Task 2.13.5). The crosshair
+    // is an index into `readings`, and the two overlays read it out of two
+    // arrays — so if those arrays were ever a different length, a different
+    // order, or built from a different set of bars, a pointer over one plot
+    // would move the other plot's mark to somebody else's minute. Nothing on
+    // screen would look wrong.
+    //
+    // It holds by construction — both are `placeBars(axis, bars)` on the same
+    // bars — and construction is exactly the kind of thing a later edit changes
+    // for a good reason. Asserted at the dense window, where the volume plot
+    // draws a silhouette and the arrays genuinely could have diverged: the
+    // *drawing* is one stem per pixel column there, and the *reading* is still
+    // one entry per bar.
+    const subject = subjectOf("dense");
+    const time = timeFrame(PLOT.width, DENSITY, subject);
+    const price = priceFrame(time, PLOT.height, subject.bars);
+    const volume = volumeFrame(time, VOLUME_HEIGHT, subject.bars);
+
+    expect(volume.readings).toHaveLength(price.readings.length);
+    expect(volume.readings.length).toBeGreaterThan(volume.stems);
+
+    expect(volume.readings.map((reading) => reading.bar)).toEqual(
+      price.readings.map((reading) => reading.bar),
+    );
+    expect(volume.readings.map((reading) => reading.x)).toEqual(
+      price.readings.map((reading) => reading.x),
+    );
+  });
+
+  it("puts the volume disc at the bar's own volume, not at the column drawn over it", () => {
+    // §10.5, as a number rather than as a sentence. Below a pixel per bar the
+    // drawn column carries its pixel column's **maximum** and the reading
+    // carries the snapped bar, so the two genuinely disagree — and the disc
+    // must follow the reading. A disc built from the drawn path would look
+    // tidier and would state a figure the strip beneath it contradicts.
+    const subject = subjectOf("dense");
+    const time = timeFrame(PLOT.width, DENSITY, subject);
+    const volume = volumeFrame(time, VOLUME_HEIGHT, subject.bars);
+
+    const domain = Math.max(...subject.bars.map((bar) => bar.volume));
+    const quietest = volume.readings.reduce((lowest, reading) =>
+      reading.bar.volume < lowest.bar.volume ? reading : lowest,
+    );
+
+    // y grows downwards and the domain runs zero to the window's peak, so the
+    // quietest bar's disc is within a pixel of the baseline.
+    expect(quietest.y).toBeCloseTo(
+      VOLUME_HEIGHT - (quietest.bar.volume / domain) * VOLUME_HEIGHT,
+      0,
+    );
+
+    // And the silhouette over it is taller, which is what makes the assertion
+    // above a statement about two different facts rather than a tautology.
+    const tallestNearby = Math.max(
+      ...stems(volume.columns ?? "")
+        .filter((stem) => Math.abs(stem.x - quietest.x) <= 1)
+        .map((stem) => VOLUME_HEIGHT - stem.top),
+    );
+    expect(tallestNearby).toBeGreaterThan(VOLUME_HEIGHT - quietest.y);
+  });
+
   it("ends both series at the same pixel when the answer is short", () => {
     // `CHARTING.md` §17.5 item 4, named as the item most likely to be got wrong by
     // a second plot: two plots sharing one x-domain must stop at the same pixel.
@@ -729,6 +791,8 @@ describe("one axis, handed to both plots", () => {
       columns: null,
       columnWidth: 0,
       stems: 0,
+      readings: [],
+      peakBar: null,
       peak: null,
     });
   });

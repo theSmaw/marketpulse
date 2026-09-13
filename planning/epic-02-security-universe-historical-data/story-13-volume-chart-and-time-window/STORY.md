@@ -1,6 +1,6 @@
 # Story 2.13 — Volume Chart & Time-Window Selection
 
-**Status:** In progress — 2.13.1 to 2.13.4 complete
+**Status:** In progress — 2.13.1 to 2.13.5 complete
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.12
 **Epic scope covered:** Basic volume chart; time-window selection
@@ -435,3 +435,45 @@ so a column of `slot − 1` leaves a 2.0 px gap at thirty bars rather than §10.
 stated 1 px. The geometry measures the gap against the pitch; the table now carries
 a dated amendment, and the byte figure came out **better** than predicted at
 10.6 kB rather than 16.8.
+
+---
+
+## What 2.13.5 settled, and what it hands the rest of the story — 2026-09-13
+
+**The reading answers for both plots, and it is still one reading.** Its record is
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) Part four (§§22–29) and its canvas
+is `Volume reading.dc.html`.
+
+Three things §15 left open are now decided: **one crosshair per plot at one
+pixel, from one index**; **the price plot's hollow disc at the bar's own volume**,
+which below a pixel per bar deliberately sits inside a taller column; and the
+volume strip's resting state, which is **the window's peak and when it happened**
+rather than a second copy of the price strip's invitation.
+
+Two things that are properties of the pair rather than of either plot:
+
+- **The volume plot adds no tab stop and no live region.** One stop for the pair,
+  on the price plot; the volume figure reaches a listener as one more clause in
+  the existing spoken sentence, whose subject moved from `price chart` to
+  `chart reading` — which also repairs two surfaces that had been opening with
+  one phrase since Task 2.12.6.
+- **`PriceChart.test.tsx`'s zero-recomputation guard is finished** rather than
+  re-pointed: three frame builders, both plots on screen, still zero across forty
+  presses, and the break performed (120 — three builders × forty presses).
+
+What it hands on:
+
+| Task    | What moved                                                                                                                                                                                                                                                                  |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.13.6  | Nothing new to build in the reading, and the pair added **no** tab stop — but `1d` makes **five** call sites print a time of day for a bar that is a whole session, which the recorded `1d` body makes readable for the first time                                          |
+| 2.13.7  | Owns the fence this task stopped at, and it is now **overriding a built default rather than choosing between two options**: the read position survives a window change, is clamped, and is therefore _wrong rather than absent_ whenever the new window is at least as long |
+| 2.13.8  | Inherits a page with **two** readout strips, one deliberately absent from the accessibility tree. The claim to walk is whether a bar's traded volume is genuinely reachable with the screen off                                                                             |
+| 2.13.9  | The zero it had to confirm is now mechanical; what is left is telling the **resize** fan-out apart from the **pointer** fan-out, which is newly possible because only one of them touches a frame builder                                                                   |
+| 2.13.10 | ADR 0028 gains a **fourth** shared-axis mechanism — the second context — and the reason it is not the store trigger firing                                                                                                                                                  |
+
+**And one defect found in shipped code rather than written today**: the price
+strip's reserved height was `max(reading, whatever is live)`, so a width at which
+the _invitation_ wraps further than a reading dropped the four exact prices by a
+line under the reader's hand — `CHARTING.md` §15.4's own defect from the other
+direction, at widths its own table shows are reachable. Both strips now reserve
+every state they can be in, and §15.4 carries a dated amendment.

@@ -8,6 +8,7 @@ import {
   formatBarInstant,
   formatPrice,
 } from "../../market/index.js";
+import { ChartAxis } from "./ChartAxis.js";
 import { ChartReading } from "./ChartReading.js";
 import type { ChartSubject } from "./chart-geometry.js";
 import { priceFrame, timeFrame } from "./chart-geometry.js";
@@ -50,13 +51,23 @@ function frameOf(name: "full" | "partial") {
 
 function renderReading(name: "full" | "partial" = "full") {
   const frame = frameOf(name);
+
+  // **Inside a `ChartAxis`, since Task 2.13.5**, and not as ceremony: that
+  // component owns the one read position both plots answer, and
+  // `useChartReading` throws without it for `useChartAxis`'s reason — a reading
+  // layer that fell back to private state is two plots pointing at two bars.
+  // The frame this wrapper builds is not the one used below; the readings are
+  // still the real geometry above, because what is under test here is the
+  // model rather than the layout.
   const result = render(
-    <ChartReading
-      plot={PLOT}
-      readings={frame.readings}
-      slots={frame.slots}
-      symbol="NVDA"
-    />,
+    <ChartAxis view={barSeriesFixtureView(name)}>
+      <ChartReading
+        plot={PLOT}
+        readings={frame.readings}
+        slots={frame.slots}
+        symbol="NVDA"
+      />
+    </ChartAxis>,
   );
 
   return { ...result, frame };
@@ -142,7 +153,9 @@ describe("what a person reaches", () => {
 
     // And the strip holds the invitation rather than a blank, which is the only
     // thing on this page that says the keyboard path exists.
-    expect(screen.getByText(/Point at the chart/u)).toBeTruthy();
+    expect(
+      screen.getByText(/Point at the chart/u, { ignore: HIDDEN }),
+    ).toBeTruthy();
   });
 
   it("renders nothing at all when there is nothing to read", () => {
@@ -150,7 +163,9 @@ describe("what a person reaches", () => {
     // chart to read a bar" over a chart with no bars is an instruction that does
     // not work. What those states *look* like is Task 2.12.7's.
     render(
-      <ChartReading plot={PLOT} readings={[]} slots={null} symbol="NVDA" />,
+      <ChartAxis view={barSeriesFixtureView("full")}>
+        <ChartReading plot={PLOT} readings={[]} slots={null} symbol="NVDA" />
+      </ChartAxis>,
     );
 
     expect(screen.queryByRole("img")).toBeNull();
@@ -225,14 +240,18 @@ describe("the keyboard path", () => {
 
     chart().focus();
     fireEvent.keyDown(chart(), { key: "ArrowLeft" });
-    expect(screen.queryByText(/Point at the chart/u)).toBeNull();
+    expect(
+      screen.queryByText(/Point at the chart/u, { ignore: HIDDEN }),
+    ).toBeNull();
 
     fireEvent.keyDown(chart(), { key: "Escape" });
 
     // The strip returns to the invitation — the same height, so nothing below
     // it moves — and focus stays where it was, which is only legible because
     // the focus ring is on the plot rather than on a disc that has just gone.
-    expect(screen.getByText(/Point at the chart/u)).toBeTruthy();
+    expect(
+      screen.getByText(/Point at the chart/u, { ignore: HIDDEN }),
+    ).toBeTruthy();
     expect(document.activeElement).toBe(chart());
   });
 
@@ -283,10 +302,14 @@ describe("the keyboard path", () => {
     renderReading();
 
     fireEvent.focus(chart());
-    expect(screen.queryByText(/Point at the chart/u)).toBeNull();
+    expect(
+      screen.queryByText(/Point at the chart/u, { ignore: HIDDEN }),
+    ).toBeNull();
 
     fireEvent.blur(chart());
-    expect(screen.getByText(/Point at the chart/u)).toBeTruthy();
+    expect(
+      screen.getByText(/Point at the chart/u, { ignore: HIDDEN }),
+    ).toBeTruthy();
   });
 });
 
@@ -364,8 +387,20 @@ describe("what is announced", () => {
     settle(READING_ANNOUNCEMENT_DELAY_MS);
 
     const spoken = screen.getByRole("status").textContent;
-    expect(spoken.startsWith("NVDA price chart:")).toBe(true);
+
+    // **`chart reading` and not `price chart`, since Task 2.13.5.** The
+    // sentence now carries a fact from each plot, and the words it used to open
+    // with are the price chart's text alternative's — two surfaces opening with
+    // one phrase is the defect `CLAUDE.md` records happening three times in one
+    // afternoon on the search screen.
+    expect(spoken.startsWith("NVDA chart reading:")).toBe(true);
     expect(spoken).toContain("on the bar");
+
+    // **And volume is a clause in it rather than a second announcement.** A
+    // sighted reader meets the volume strip in the same instant; a listener
+    // meets one region, so the one sentence carries what the two strips carry
+    // between them.
+    expect(spoken).toMatch(/Volume [\d.]+ (thousand|million|billion)\.$/u);
   });
 
   it("says nothing at all for a pointer, however far it moves", () => {

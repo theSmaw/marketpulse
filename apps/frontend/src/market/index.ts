@@ -117,6 +117,7 @@ export {
   FLAT_VOLUME_TOP,
   volumeDomain,
   volumePeak,
+  volumePeakBar,
   volumePeakLabel,
 } from "./chart-volume-axis.js";
 export {

@@ -426,7 +426,21 @@ Three placements were drawn on `Price reading.dc.html` §01 and two declined. **
 
 **Its height is reserved whether or not there is a reading in it.** A strip that appears when a pointer enters the plot pushes every exact figure stated beneath it down by a line, under the hand of somebody reading them. At rest the row carries the invitation — _"Point at the chart, or press the left and right arrow keys, to read a bar"_ — which is the only affordance this chart has and the only thing on the page that says the keyboard path exists.
 
+> **Sharpened 2026-09-13 by Task 2.13.5.** _Reserved_ means **every state the strip can be in is laid out in one grid cell, with all but the live one hidden** — not a height somebody chose. `CHARTING.md` §15.4 found that no single reserved height is correct at more than one width, and the first repair hid only the reading, which leaves the row shorter whenever the _other_ state is the taller one. Both states are hidden now, in both strips.
+
 **The label on the change is load-bearing, not decoration.** Three things on this screen state a direction about three different subjects: the headline says what the **window** did, the wash says whether the price **at that point** is above where the window opened, and this says what **one bar** did. All three can disagree at once and each is right while they do. The precedent is the identity block's `LAST SESSION CLOSE` beside the chart's current value — two figures, two subjects, told apart because each is labelled.
+
+### The reading is one, and it is stated twice — added 2026-09-13 by Task 2.13.5
+
+**One read position, one crosshair drawn once per plot at the same pixel, and two readout strips stating two subjects.** Taken on `Volume reading.dc.html`, which is the canvas half of this section.
+
+A single rule spanning both plots is not a design option: Price and Volume are separate panels with a heading, a border and — at one column — a third region between them. And a single strip under the price chart is not one either, for a reason that is about this product's layout rather than about readouts: at one column the price panel plus its eight stated facts is taller than a phone, so the answer to _what did this volume bar do_ would be off screen for the person pointing at it.
+
+**Two strips is not duplication, because they do not say the same thing.** A readout belongs to a subject and its sentences name it. The price strip states four prices and the bar's change labelled `BAR`; the volume strip states the same instant and one **exact** integer, and at rest it states the window's peak and when it happened rather than repeating an invitation about a keyboard path that belongs to the plot above. **The instant is the joint** — the one thing both say, in one spelling — and it is what makes two answers read as one reading.
+
+**The disc means something slightly different on the second plot, and that is deliberate.** On the price chart it sits on the drawn line. On the volume plot, below a pixel per bar, it sits _inside_ a column taller than itself — because the drawn silhouette carries each pixel column's tallest bar and the disc carries the bar the crosshair snapped to. Three marks were drawn and two declined: a rule alone says _here_ and connects nothing to the figure in the strip; repainting the snapped column spends the plot's one encoding — height — on a second ink and is a 1 px sliver at the window this product opens at. The disc is the same mark at every density, and it is the only place the picture states that bar's own volume at all.
+
+**Volume adds no tab stop and no live region.** One stop for the pair, on the price plot; the arrows drive both crosshairs; and the figure reaches a listener as one more clause in the existing spoken sentence rather than as a fifth polite region on a page that already carries four.
 
 ### Density, and the chart never stops being a chart
 

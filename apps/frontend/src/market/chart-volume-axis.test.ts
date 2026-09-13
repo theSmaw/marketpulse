@@ -7,6 +7,7 @@ import {
   FLAT_VOLUME_TOP,
   volumeDomain,
   volumePeak,
+  volumePeakBar,
   volumePeakLabel,
 } from "./chart-volume-axis.js";
 
@@ -92,6 +93,41 @@ describe("the one label volume's gutter writes", () => {
     // No answer rather than zero shares traded. The states with no bars already
     // say which they are, in words.
     expect(volumePeakLabel([])).toBeNull();
+  });
+});
+
+describe("the bar that traded the peak", () => {
+  it("is the bar itself, so a strip and a sentence cannot name two minutes", () => {
+    // **One derivation, two readers** (Task 2.13.5): the volume readout's
+    // resting state and `chart-alternative.ts`'s `peakClause`. Before this
+    // existed the fact was a `find` in one file and would have been a second
+    // `find` in another, which is how two surfaces come to state two different
+    // busiest minutes with neither obviously wrong.
+    const bars = recordedBars("dense");
+    const busiest = volumePeakBar(bars);
+
+    expect(busiest?.volume).toBe(volumePeak(bars));
+  });
+
+  it("takes the first of a tie, because that is the minute somebody is asking about", () => {
+    const early = {
+      ...barWith(900),
+      startsAt: new Date("2026-09-04T13:30:00Z"),
+    };
+    const late = {
+      ...barWith(900),
+      startsAt: new Date("2026-09-04T13:31:00Z"),
+    };
+
+    expect(volumePeakBar([early, late])).toBe(early);
+  });
+
+  it("is null where there are no bars, which is not a peak of zero", () => {
+    // A window with nothing in it has **no answer**, and the states that carry
+    // no bars already say so in words. A peak of zero shares would be a
+    // different claim, and it belongs to the window where nothing traded.
+    expect(volumePeakBar([])).toBeNull();
+    expect(volumePeakBar([barWith(0)])?.volume).toBe(0);
   });
 });
 
