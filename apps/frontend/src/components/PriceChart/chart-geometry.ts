@@ -5,6 +5,7 @@ import type {
   LinearScale,
   SlotScale,
   TimeAxis,
+  TimeTickOptions,
 } from "../../market/index.js";
 import {
   linearScale,
@@ -92,7 +93,7 @@ import {
 
 /** The plot's own box, measured from the laid-out element. */
 export interface PlotBox {
-  /** Pixels across, **excluding the value gutter** — see {@link chartFrame}. */
+  /** Pixels across, **excluding the value gutter** — see {@link timeFrame}. */
   readonly width: number;
   readonly height: number;
 }
@@ -232,15 +233,6 @@ export interface PricePlot {
   readonly direction: DirectionalArea | null;
 }
 
-/**
- * Everything the price chart's SVG needs, and nothing about how it is drawn.
- *
- * The axis and the plot as one value, which is what the single-plot renderer
- * holds today. Task 2.13.4 splits the call: one {@link timeFrame} in the wrapper,
- * and a {@link priceFrame} and a {@link volumeFrame} under it.
- */
-export interface ChartFrame extends TimeFrame, PricePlot {}
-
 /** A run of pixels across the plot. `from` is always the smaller. */
 export interface PixelSpan {
   readonly from: number;
@@ -285,7 +277,7 @@ export interface ChartCoverage {
 /**
  * **Direction, drawn as position first and as hue second** (Task 2.12.5).
  *
- * One value with two fields rather than two fields on {@link ChartFrame}, and
+ * One value with two fields rather than two fields on {@link PricePlot}, and
  * that is the mechanism the task asked for rather than a grouping preference.
  * `VISUAL-LANGUAGE.md` measured the two washes at **1.009:1 under
  * `grayscale(1)`** — washed back to a fill, positive and negative are the same
@@ -378,43 +370,6 @@ export interface ChartSubject {
   readonly covered: TimeRange | null;
   readonly timeframe: Timeframe;
   readonly bars: readonly Bar[];
-}
-
-/**
- * The frame, the scale and the line — for a plot box of a given size.
- *
- * **`plot.width` excludes the value gutter.** `CHARTING.md`'s §10 amendment is
- * emphatic that the gutter is an input to the horizontal range rather than
- * padding applied afterwards, because a scale built against the whole region
- * draws a line that runs under its own labels. Here that is structural instead
- * of remembered: the caller measures the plot element, and the gutter is a
- * sibling column that element never contains.
- *
- * A zero-sized box answers with an **empty frame rather than a throw**. An
- * element reports zero before it has been laid out, and `linearScale` refuses a
- * zero-width range on purpose — so the check belongs here, once, rather than at
- * the one call site that would otherwise take the region's error boundary down
- * on its own first paint.
- *
- * `subject` is `null` before the first answer arrives. That is the frame-first
- * rule (`PRODUCT_SPEC.md` §28, and the task brief's own bullet): the scale, the
- * gridlines and the rule are drawn from the box, and the data fills in labels
- * and a line.
- */
-export function chartFrame(
-  plot: PlotBox,
-  density: ChartDensity,
-  subject: ChartSubject | null,
-): ChartFrame {
-  // Both dimensions, checked here rather than inside the halves: a plot with
-  // width and no height is an element mid-layout, and drawing its seams and its
-  // tick labels would be a frame around nothing.
-  if (!(plot.width > 0) || !(plot.height > 0)) {
-    return { ...emptyTimeFrame(0, density), ...EMPTY_PRICE_PLOT };
-  }
-
-  const time = timeFrame(plot.width, density, subject);
-  return { ...time, ...priceFrame(time, plot.height, subject?.bars ?? []) };
 }
 
 /**
@@ -726,6 +681,45 @@ export function volumeFrame(
     peak,
   };
 }
+
+/**
+ * The volume plot's own time labels — **the first and last session date, and
+ * nothing else** (`VOLUME-AND-WINDOW.md` §9.4).
+ *
+ * A separate function rather than a field on {@link VolumePlot}, because it is
+ * the one thing the two plots draw *differently* from the same axis and the
+ * difference is a policy rather than a measurement: `timeFrame` already put the
+ * price chart's ticks on the frame, and volume needs the same slots labelled
+ * under a narrower policy.
+ *
+ * **`sessionLabels: "ends"` is reused, not invented**: it is the value
+ * `chart-density.ts` already gives a narrow region, and reusing it is what keeps
+ * the policy in one vocabulary. **It is a constant here and not a branch** —
+ * there is no viewport test and no media query, for `CHARTING.md` §11.1's
+ * reason. The volume plot carries two dates at every width, which is enough to
+ * anchor it where §9.1 says it will sometimes be read a screen away from the
+ * price chart, and visibly less than the six labels above it.
+ *
+ * Intraday times are declined outright. Volume is read comparatively — this bar
+ * against its neighbours — and a second full time axis doubles the chrome for
+ * the supporting series.
+ */
+export function volumeTicks(time: TimeFrame): readonly TimeLabel[] {
+  const { axis, slots: x } = time;
+  if (axis === null || x === null) return [];
+
+  return timeTicks(axis, VOLUME_TICKS).map((tick) => ({
+    x: round(scaleSlot(x, tick.slot)),
+    label: tick.label,
+    kind: tick.kind,
+  }));
+}
+
+/** §9.4's row, as the one value that produces it. */
+const VOLUME_TICKS: TimeTickOptions = {
+  sessionLabels: "ends",
+  intraday: false,
+};
 
 /**
  * The sub-pixel regime: one stem per pixel column, carrying that column's tallest

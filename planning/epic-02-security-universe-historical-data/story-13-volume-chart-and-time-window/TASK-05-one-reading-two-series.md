@@ -266,3 +266,88 @@ Add to **Done when**:
 - The rest state's peak instant comes from one named source, and `formatBarInstant`
   spells it
 - The strip renders correctly where `peak` is `null`
+
+---
+
+## Amended 2026-09-13 by Task 2.13.4 — the wrapper is built and named, and **the shape of the second context is the trap**
+
+The wrapper 2.13.3's amendment said might exist does exist, so this task's first
+step is no longer "move the call out of `SecurityExplorer`". Everything below is a
+narrowing except the second heading, which is new and is the thing most likely to
+undo Task 2.12.6's repair while looking like the repair.
+
+### What exists, and where the state goes
+
+| File                                          | What it holds                                                                          |
+| --------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `components/PriceChart/ChartAxis.tsx`         | The wrapper. One `timeFrame` call, `children` rendered through unchanged               |
+| `components/PriceChart/chart-axis-context.ts` | The context, `ChartPlotRole`, and `useChartAxis` — which **throws** without a provider |
+| `components/PriceChart/use-plot-box.ts`       | The shared measurement, including the axis-rule pixel                                  |
+| `components/PriceChart/chart-subject.ts`      | `chartSubject` / `drawsAFrame`, read identically by both plots                         |
+
+`ChartAxis` is rendered around the grid in `SecurityExplorer` and is **already
+holding state** — the two plots' measurements. Adding the read position to it is
+this task's job and is a handful of lines. The `children`-through-unchanged
+property is what makes that safe: `SecurityExplorer` owns the element tree, so a
+state change in `ChartAxis` re-renders **no plot** unless that plot consumes a
+context that changed.
+
+### **Two contexts, not one value with both in it**
+
+This is the whole of the risk, and it is invisible: a read position added to
+`ChartAxisValue` would be handed to every `useChartAxis()` caller, and both frame
+owners call it. A pointer move would then re-render `PriceChart` and
+`VolumeChart` on every mouse event — rebuilding a 1,950-point path string and a
+726-stem silhouette to move one vertical rule. **The page would look perfect**,
+and it is the regression `CLAUDE.md` records at **17× the CPU on the pointer
+path** with no long task at all, which is to say invisible to `PRODUCT_SPEC.md`
+§28's own criterion.
+
+So the read position goes in a **separate context** with its own provider, whose
+consumers are the two reading overlays and nothing else. The frame context and
+the reading context live in the same component and are two values.
+
+### The zero-recomputation guard is re-pointed but **not yet complete**, and this task finishes it
+
+2.13.4 re-pointed `PriceChart.test.tsx`'s counter at `timeFrame` **and**
+`priceFrame`, as §15.1 asked. It does **not** count `volumeFrame`, and the test
+renders only the price chart — so today it is blind to exactly the regression
+above happening on the volume side.
+
+Two things owed here, and the second is what makes the first mean anything:
+
+- **Count all three frame builders** — `timeFrame`, `priceFrame`, `volumeFrame`.
+- **Render the pair**, inside a `ChartAxis`, and take the forty arrow presses
+  against it. A guard pointed at a component that is not on screen reports zero
+  for the same reason a counter wired to nothing does, and the test already
+  verifies its own counter live in the same test; keep that half.
+
+### Three smaller carries
+
+- **The peak bar is now derived in one place already.**
+  `chart-alternative.ts`'s `peakClause` finds it with
+  `series.bars.find((bar) => bar.volume === peak)` for the volume plot's text
+  alternative. If the strip's rest state wants the same fact, that is **two**
+  sites deriving one thing, which is when 2.13.3's second option —
+  `volumePeakBar(bars)` beside `volumePeak` in `chart-volume-axis.ts` — becomes
+  the right one rather than the optional one. Move the alternative onto it in the
+  same change.
+- **Volume already has a text alternative, and the strip does not replace it.**
+  `volumeAlternative(view, symbol)` states the peak, when it happened, the
+  coverage and the feed. A readout answers _what is this bar_; that answers _what
+  is this picture_. Two sentences, two questions, both naming their subject — do
+  not collapse them, and do not let the strip repeat the alternative's words.
+- **Everything renders inside a `ChartAxis` now**, tests and stories included,
+  because `useChartAxis` throws without one. `PriceChart.test.tsx`,
+  `VolumeChart.test.tsx` and `BarSeriesPanel.test.tsx` each carry a small wrapper
+  component to copy.
+
+Add to **Done when**:
+
+- The read position lives in a **second context**, and neither frame owner
+  consumes it — checked by the guard below rather than asserted
+- The zero-recomputation guard counts `timeFrame`, `priceFrame` **and**
+  `volumeFrame`, renders **both** plots, still reports zero across forty arrow
+  presses, and still verifies its own counter live
+- The peak bar is derived once, in one named function, read by both the strip and
+  the text alternative

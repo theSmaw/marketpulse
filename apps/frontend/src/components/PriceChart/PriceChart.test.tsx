@@ -2,15 +2,24 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
+import type { BarSeriesView } from "../../market/index.js";
+import { ChartAxis } from "./ChartAxis.js";
 import { PriceChart } from "./PriceChart.js";
 
 /**
- * A counter around the real `chartFrame`, for the measurement at the bottom of
+ * A counter around the real frame builders, for the measurement at the bottom of
  * this file.
+ *
+ * **Re-pointed at the pair by Task 2.13.4 rather than replaced**, which is what
+ * `VOLUME-AND-WINDOW.md` §15.1 asks of it: `chartFrame` was one call and is now
+ * two — `timeFrame` in the wrapper above both plots, `priceFrame` in this
+ * component — and a counter left on one of them would report zero while the
+ * other was rebuilt on every pointer move. `timeFrame` is the expensive half:
+ * it walks the trading calendar and builds the slot scale.
  *
  * `vi.hoisted` because `vi.mock`'s factory is hoisted above every `const` in the
  * module and would otherwise close over a variable in its temporal dead zone.
- * The wrapper calls straight through, so every other test in this file runs
+ * The wrappers call straight through, so every other test in this file runs
  * against the real geometry.
  */
 const frameCalls = vi.hoisted(() => ({ count: 0 }));
@@ -20,12 +29,32 @@ vi.mock("./chart-geometry.js", async (importOriginal) => {
 
   return {
     ...actual,
-    chartFrame: (...args: Parameters<typeof actual.chartFrame>) => {
+    timeFrame: (...args: Parameters<typeof actual.timeFrame>) => {
       frameCalls.count += 1;
-      return actual.chartFrame(...args);
+      return actual.timeFrame(...args);
+    },
+    priceFrame: (...args: Parameters<typeof actual.priceFrame>) => {
+      frameCalls.count += 1;
+      return actual.priceFrame(...args);
     },
   };
 });
+
+/**
+ * The chart as the route renders it: **inside the axis both plots hang on.**
+ *
+ * Not a convenience. `useChartAxis` throws outside a `ChartAxis` on purpose, and
+ * the reason is in `chart-axis-context.ts`: a plot that fell back to building
+ * its own axis would look right at every width where the two agreed, which is
+ * every width until one of them was measured a frame later than the other.
+ */
+function Chart({ view }: { readonly view: BarSeriesView }) {
+  return (
+    <ChartAxis view={view}>
+      <PriceChart symbol="NVDA" view={view} />
+    </ChartAxis>
+  );
+}
 
 // What a component test can and cannot see of a chart (Task 2.12.4).
 //
@@ -91,9 +120,7 @@ afterEach(() => {
 
 describe("without a measurement", () => {
   it("renders rather than throwing, which is every render in jsdom", () => {
-    const { container } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("full")} />,
-    );
+    const { container } = render(<Chart view={barSeriesFixtureView("full")} />);
 
     // The frame is there — it is CSS — and it carries no marks, because a
     // zero-width scale has no pixels to put them at. `linearScale` refuses that
@@ -105,9 +132,7 @@ describe("without a measurement", () => {
   it("draws a frame before the first answer arrives", () => {
     // §28's 500 ms is satisfied by the frame being there, not by the response
     // being fast. The element exists in `loading`, which is the whole rule.
-    const { container } = render(
-      <PriceChart symbol="NVDA" view={{ state: "loading" }} />,
-    );
+    const { container } = render(<Chart view={{ state: "loading" }} />);
 
     expect(container.querySelector("svg")).not.toBeNull();
   });
@@ -116,7 +141,7 @@ describe("without a measurement", () => {
     "draws nothing at all for %s, which has no window to be about",
     (fixture) => {
       const { container } = render(
-        <PriceChart symbol="NVDA" view={barSeriesFixtureView(fixture)} />,
+        <Chart view={barSeriesFixtureView(fixture)} />,
       );
 
       // A frame under a refusal would be a picture of a window nobody asked
@@ -130,9 +155,7 @@ describe("with a measurement", () => {
   it("draws the series once the element has a box", () => {
     measureEverythingAt(800, 280);
 
-    const { container } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("full")} />,
-    );
+    const { container } = render(<Chart view={barSeriesFixtureView("full")} />);
 
     const path = container.querySelector("path");
     expect(path).not.toBeNull();
@@ -151,9 +174,7 @@ describe("with a measurement", () => {
     // component does not take them apart again.
     measureEverythingAt(800, 280);
 
-    const { container } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("full")} />,
-    );
+    const { container } = render(<Chart view={barSeriesFixtureView("full")} />);
 
     // Two paths: the close line, and the area — defined once in `<defs>` and
     // closed with a `Z`. Not four, and not two copies of the point string.
@@ -192,7 +213,7 @@ describe("with a measurement", () => {
     measureEverythingAt(800, 280);
 
     const { container } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("empty")} />,
+      <Chart view={barSeriesFixtureView("empty")} />,
     );
 
     expect(container.querySelector("path")).toBeNull();
@@ -231,7 +252,7 @@ describe("what a screen reader is handed", () => {
     measureEverythingAt(800, 280);
 
     const { container } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("uncovered")} />,
+      <Chart view={barSeriesFixtureView("uncovered")} />,
     );
 
     // The sentence, and it is the coverage clause that matters: a listener is
@@ -246,7 +267,7 @@ describe("what a screen reader is handed", () => {
     measureEverythingAt(800, 280);
 
     const { container } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("dense")} />,
+      <Chart view={barSeriesFixtureView("dense")} />,
     );
 
     // The scale is niced and the time labels are sampled, so neither states an
@@ -273,7 +294,7 @@ describe("what a screen reader is handed", () => {
     measureEverythingAt(800, 280);
 
     const { container } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("dense")} />,
+      <Chart view={barSeriesFixtureView("dense")} />,
     );
 
     // Resolved through the document, which is the half that can silently be
@@ -307,7 +328,7 @@ describe("what a screen reader is handed", () => {
     measureEverythingAt(800, 280);
 
     const { container } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("empty")} />,
+      <Chart view={barSeriesFixtureView("empty")} />,
     );
 
     // No reading layer here — there is nothing to read — so the paragraph is
@@ -347,7 +368,7 @@ describe("what the coverage treatment renders", () => {
     measureEverythingAt(800, 280);
 
     const { container } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("uncovered")} />,
+      <Chart view={barSeriesFixtureView("uncovered")} />,
     );
 
     const [ground, ...rest] = grounds(container);
@@ -369,7 +390,7 @@ describe("what the coverage treatment renders", () => {
     measureEverythingAt(800, 280);
 
     const { container } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("uncovered")} />,
+      <Chart view={barSeriesFixtureView("uncovered")} />,
     );
 
     const series = container.querySelector("path[d^='M']:not([d$='Z'])");
@@ -401,9 +422,7 @@ describe("what the coverage treatment renders", () => {
     // answered.
     measureEverythingAt(800, 280);
 
-    const answered = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("empty")} />,
-    );
+    const answered = render(<Chart view={barSeriesFixtureView("empty")} />);
     const [whole, ...more] = grounds(answered.container);
     expect(more).toEqual([]);
     expect(whole?.getAttribute("x")).toBe("0");
@@ -411,9 +430,7 @@ describe("what the coverage treatment renders", () => {
 
     answered.unmount();
 
-    const waiting = render(
-      <PriceChart symbol="NVDA" view={{ state: "loading" }} />,
-    );
+    const waiting = render(<Chart view={{ state: "loading" }} />);
     expect(grounds(waiting.container)).toEqual([]);
   });
 
@@ -423,9 +440,7 @@ describe("what the coverage treatment renders", () => {
     // so there is nothing to wash and nothing to clip against.
     measureEverythingAt(800, 280);
 
-    const { container } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("full")} />,
-    );
+    const { container } = render(<Chart view={barSeriesFixtureView("full")} />);
 
     expect(grounds(container)).toEqual([]);
     expect(container.querySelectorAll("[clip-path]")).toHaveLength(2);
@@ -453,9 +468,7 @@ describe("what a reading costs", () => {
   it("recomputes the frame zero times across forty arrow presses", () => {
     measureEverythingAt(800, 280);
 
-    const { rerender } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("full")} />,
-    );
+    const { rerender } = render(<Chart view={barSeriesFixtureView("full")} />);
 
     const chart = screen.getByRole("img", { name: "NVDA price chart" });
     fireEvent.focus(chart);
@@ -482,9 +495,7 @@ describe("what a reading costs", () => {
     // zero. `CLAUDE.md`'s rule is that a break which does not go red is equally
     // evidence the break did not land, so the substitution is performed here —
     // a render this component genuinely has to answer, which recomputes.
-    rerender(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView("partial")} />,
-    );
+    rerender(<Chart view={barSeriesFixtureView("partial")} />);
     expect(frameCalls.count).toBeGreaterThan(afterMount);
   });
 });
@@ -513,7 +524,7 @@ describe("what a reading costs", () => {
 describe("what the drawing costs", () => {
   function plotOf(name: "dense" | "full") {
     const { container, unmount } = render(
-      <PriceChart symbol="NVDA" view={barSeriesFixtureView(name)} />,
+      <Chart view={barSeriesFixtureView(name)} />,
     );
     const svg = container.querySelector("svg");
 

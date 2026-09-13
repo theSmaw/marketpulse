@@ -124,10 +124,13 @@ test("every empty region names the epic that fills it", async ({ page }) => {
   await page.goto(EXPLORER);
   await expect(page.getByRole("region", { name: "Price" })).toBeVisible();
 
-  // Six: the five later epics own, plus Story 2.13's volume. A placeholder
-  // whose label is dropped renders a dashed box with nothing in it — which
-  // reads as broken and goes red nowhere else.
-  await expect(page.getByText(/^Filled by /)).toHaveCount(6);
+  // **Five since Task 2.13.4 filled the Volume region** — the five later epics
+  // own, and the sixth is gone because the region it belonged to now holds a
+  // chart. A placeholder whose label is dropped renders a dashed box with
+  // nothing in it, which reads as broken and goes red nowhere else; a
+  // placeholder that survives the thing it was waiting for is a screen saying it
+  // holds a plan while holding the plan's output.
+  await expect(page.getByText(/^Filled by /)).toHaveCount(5);
   await expect(
     page.getByText("Filled by Epic 5 — Anomaly Detection"),
   ).toHaveCount(3);

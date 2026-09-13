@@ -19,12 +19,9 @@ import {
 } from "../../market/index.js";
 import { changePercent, seriesPrices } from "../BarSeriesPanel/series-facts.js";
 import type { ChartSubject } from "./chart-geometry.js";
-import {
-  chartFrame,
-  priceFrame,
-  timeFrame,
-  volumeFrame,
-} from "./chart-geometry.js";
+import type { ChartDensity } from "../../market/index.js";
+import type { PlotBox } from "./chart-geometry.js";
+import { priceFrame, timeFrame, volumeFrame } from "./chart-geometry.js";
 
 // **Acceptance criterion 1 is checked here and nowhere else** (Task 2.12.4).
 //
@@ -42,6 +39,30 @@ import {
 
 /** A plot box the size of the Price region at 1440×900, minus the value gutter. */
 const PLOT = { width: 867, height: 280 };
+
+/**
+ * The axis and the price plot together, for the assertions that read both.
+ *
+ * **A local composition since Task 2.13.4**, and deliberately not an export: it
+ * is what `chart-geometry.ts` used to offer as `chartFrame`, and the reason that
+ * function is gone is that a shipped composition taking a whole {@link PlotBox}
+ * is a function that can build an axis out of one plot's height — which is
+ * exactly what a second plot on the same axis must not be able to do. The tests
+ * still want the pair in one value; nothing in the application does.
+ */
+function chartFrame(
+  plot: PlotBox,
+  density: ChartDensity,
+  subject: ChartSubject | null,
+) {
+  if (!(plot.width > 0) || !(plot.height > 0)) {
+    const empty = timeFrame(0, density, null);
+    return { ...empty, ...priceFrame(empty, 0, []) };
+  }
+
+  const time = timeFrame(plot.width, density, subject);
+  return { ...time, ...priceFrame(time, plot.height, subject?.bars ?? []) };
+}
 const DENSITY = chartDensity(923);
 
 /** What the chart is about, taken from a recorded answer the way the component does. */

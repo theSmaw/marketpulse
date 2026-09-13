@@ -304,3 +304,35 @@ And the performance bullet is now a fact rather than a hope: the walk is memoise
 **1Y costs 0.8 ms per render against 17.0 before**, and the first walk of a set of
 dates still costs ~9.5 ms once per process. If a wide window feels slow here, read
 2.13.3's figures before reaching for a `useMemo`.
+
+---
+
+## Amended 2026-09-13 by Task 2.13.4 — two things land here by name rather than falling between tasks
+
+### The high–low extent band is now **this task's**, with a measurement
+
+`CHARTING.md` §12.2 declined the band at `1m` and named Story 2.13's `1d` windows
+as when it returns. 2.13.2 could not settle it on an artboard and Task 2.13.4 was
+given it as a measurement — but it could not take it either, for a stated reason:
+the measurement is the band's height in pixels at 3M and at 1Y **against a real
+`1d` body**, no `1d` body has been recorded, and recording one is this task's
+(`VOLUME-AND-WINDOW.md` §2.3).
+
+So it is handed here explicitly, which is what that amendment asked for instead of
+letting it fall between the two. **Once a `1d` window draws, read the band's
+height at 3M and at 1Y and decide from the number.** `--price-unchanged-wash` is
+still reserved for it and still has no application consumer.
+
+### And a second look at the volume plot's end columns
+
+`VOLUME-AND-WINDOW.md` §19.2: the first and last volume columns are clipped to
+half their width, because `scaleSlot` puts the first bar at x = 0 and the last at
+x = width. Task 2.13.4 looked at it at **thirty bars** — the density §10.3 names —
+and **accepted** it, recording the argument and the one alternative (inset the
+x-domain in **both** plots, which is a change to the price chart).
+
+3M is the window that makes it worth re-asking: the column there is 12.8 px rather
+than 28.9, so the half that is lost is a different proportion of a different mark.
+**Look at it when 3M first draws.** If it reads badly, the repair is the inset and
+it is a price-chart change that wants saying out loud rather than slipping in
+beside a window control.

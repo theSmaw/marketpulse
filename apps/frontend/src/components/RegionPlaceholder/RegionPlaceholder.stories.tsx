@@ -28,14 +28,15 @@ type Story = StoryObj<typeof meta>;
 
 export const Bare: Story = {};
 
-/** Every sentence this screen actually ships, in the order the grid holds them. */
+/**
+ * Every sentence this screen actually ships, in the order the grid holds them.
+ *
+ * **Five since Task 2.13.4 filled the Volume region**, which used to open this
+ * list. A workshop page whose fixture text is a sentence the product has stopped
+ * saying is a second, quieter copy of the live claim `CLAUDE.md` says to amend —
+ * this one on a screen a designer reviews rather than a reader reads.
+ */
 const REGIONS = [
-  {
-    name: "Volume",
-    filledBy:
-      "Traded volume across the same window as the price above it, which is why it sits directly beneath at the same width.",
-    plan: "Story 2.13 — Volume Chart",
-  },
   {
     name: "Abnormal-move indicators",
     filledBy:

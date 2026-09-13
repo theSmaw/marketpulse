@@ -182,3 +182,64 @@ The "it must stay derived" bullet is unchanged and now has a second reason to be
 careful: `CLAUDE.md`'s gap list gained an entry from 2.13.3 about the memoised
 walk, and the sentence and the wash still agree only because both call `timeAxis`
 and `positionOfInstant`.
+
+---
+
+## Amended 2026-09-13 by Task 2.13.4 — the text alternative's open question is **answered**, and the second-place-to-get-it-wrong did not materialise
+
+### Volume has its own sentence. Confirm and extend; do not decide.
+
+2.13.2's amendment left this "leaning, not decided" and told this task to settle
+it. **2.13.4 settled it by building it**, and the reason is one this task would
+have reached anyway: the volume plot's SVG, its single value label and its two
+dates are all `aria-hidden`, so without a sentence of its own the Volume region is
+a heading with nothing in the accessibility tree underneath it.
+
+`volumeAlternative(view, symbol)` states the symbol, the bar count, the interval,
+the window's peak **and when it happened**, the coverage, and the feed. It is a
+hidden paragraph in the picture's place in reading order, the same shape as the
+price chart's.
+
+So the Work bullet's question — _in that sentence or one of its own_ — reads
+**one of its own**, and this task's job on it is what it does to that sentence: a
+window the reader chose changes what both sentences say, and `1d` windows execute
+`intervalWord`'s and `slotWord`'s unverified English for the first time.
+
+### The "second place it can be got wrong" does not exist, and that is worth checking rather than assuming
+
+The amendment warned that a second alternative is a second place the
+derived-from-`timeAxis` rule can be broken. **It is not, as built**: there is one
+`coverageClause`, parameterised by a small `Mark` vocabulary — `The line runs` /
+`The columns run` — so both sentences count the same axis through the same call to
+`axisSpan`, which calls `timeAxis` and `positionOfInstant`.
+
+That is the good outcome and it is exactly the kind of thing a later edit undoes
+by "simplifying" one sentence into its own function. `CLAUDE.md`'s gap list
+carries the derivation as a live hazard; **re-measure it here** rather than
+trusting this paragraph:
+`grep -n "timeAxis\|positionOfInstant" apps/frontend/src/components/PriceChart/chart-alternative.ts`
+must find them, and `grep -c "coverageClause" …` must find one definition and two
+call sites.
+
+### The greyscale walk has nothing to look at in the workshop yet
+
+2.13.2's amendment made the greyscale bullet a **confirmation** — neither the
+volume columns nor the control's selected state spends hue. The confirmation is
+still owed and the instrument is still missing: `PriceChart.stories.tsx` carries
+`Greyscale` and `Deuteranopia` stories over four windows, and
+`VolumeChart.stories.tsx` and `ChartAxis.stories.tsx` **carry neither**.
+
+`--chart-volume` is `#848995`, which `grayscale(1)` takes to `#898989` — nothing
+on the plot changes, because nothing on it was ever distinguished by hue. But that
+is a claim about a token, and `CHARTING.md` §12.6 is the standing reminder that
+four greyscale simulations passed against a chart a person could see was wrong.
+**Add the pair of simulation stories over the pair of plots, and look at them.**
+
+Add to **Done when**:
+
+- The alternative's `1d` English is read aloud by a person at a 3M or 1Y window,
+  which is the first time `intervalWord` and `slotWord` execute their `1d` branches
+- One `coverageClause` still serves both sentences, re-measured by grep rather
+  than asserted
+- `Greyscale` and `Deuteranopia` stories exist over the **pair**, and somebody
+  says which way each window went and where the heavy trading was

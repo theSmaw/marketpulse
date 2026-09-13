@@ -11,7 +11,9 @@ import {
   formatChangePercent,
   formatPrice,
   positionOfInstant,
+  spokenVolume,
   timeAxis,
+  volumePeak,
 } from "../../market/index.js";
 import {
   changePercent,
@@ -123,6 +125,133 @@ export function chartAlternative(
   }
 }
 
+/**
+ * **Which mark the coverage sentence is about**, so that one clause can serve
+ * two plots without either of them reading as the other's leftovers.
+ *
+ * The coverage *fact* is one fact — both plots hang on one axis and stop at one
+ * pixel — but a sentence has a subject, and `FRONTEND-STATE.md` §7's rule is
+ * that a surface's sentences name theirs. Two hidden paragraphs that both said
+ * "the line" would be the two-surfaces-one-sentence defect with the volume plot
+ * describing the price plot's picture.
+ *
+ * A verb per subject rather than a pluralisation helper: there are two of them,
+ * for ever, and "the columns run" is easier to read in the template than a call
+ * that agrees it.
+ */
+interface Mark {
+  readonly subject: string;
+  readonly run: string;
+  readonly cover: string;
+  readonly behind: string;
+}
+
+const LINE: Mark = {
+  subject: "The line",
+  run: "runs",
+  cover: "covers",
+  behind: "on it",
+};
+
+const COLUMNS: Mark = {
+  subject: "The columns",
+  run: "run",
+  cover: "cover",
+  behind: "behind them",
+};
+
+/**
+ * **The volume plot, in a sentence** (Task 2.13.4) — or `null` where there is no
+ * picture.
+ *
+ * The volume plot's SVG, its one value label and its two dates are all
+ * `aria-hidden`, for the same reasons the price chart's are: they are labels
+ * *on a picture* rather than facts, and read aloud in document order they are a
+ * bare abbreviated number and two dates with no subject between them. Without
+ * this paragraph the Volume region would be a heading with nothing in the
+ * accessibility tree under it at all.
+ *
+ * It states the **peak and when it happened**, which is the figure this plot
+ * exists to make checkable and the one Epic 5 later qualifies as a multiple
+ * ("volume 3.8× normal"). Abbreviation is for the axis; the sentence speaks the
+ * magnitude as a word (`spokenVolume`), so the two channels quote the same
+ * figure to the same precision and only the magnitude differs.
+ *
+ * **Task 2.13.5's readout replaces none of this.** A readout answers *what is
+ * this bar*; this answers *what is this picture*, which is the question a
+ * listener cannot ask a crosshair.
+ */
+export function volumeAlternative(
+  view: BarSeriesView,
+  symbol: string,
+): string | null {
+  switch (view.state) {
+    case "loading":
+      return `${symbol} volume chart: the frame is drawn and the columns have not arrived yet.`;
+
+    case "empty":
+      return (
+        `${symbol} volume chart: no columns are drawn. ` +
+        `No bars are stored anywhere in the window asked for, ` +
+        `${formatMarketRange(view.series.coverage.requested)}, so the whole ` +
+        `frame is empty ground.`
+      );
+
+    case "loaded":
+    case "partial":
+      return describeVolume(view.series, symbol);
+
+    case "refused":
+    case "failed":
+      return null;
+  }
+}
+
+/** The picture, when there are columns on it. */
+function describeVolume(series: PopulatedBarSeries, symbol: string): string {
+  return [
+    `${symbol} volume chart: ${formatCount(series.bars.length)} columns of ` +
+      `traded volume, one per ${intervalWord(series.timeframe)}, measured from ` +
+      `a baseline of zero to the window's busiest ${slotUnit(series.timeframe)}.`,
+    peakClause(series),
+    coverageClause(series, COLUMNS),
+    feedClause(series),
+  ].join(" ");
+}
+
+/**
+ * The window's peak, and when it happened.
+ *
+ * **The plot's ceiling is the peak** (§9.3 — the domain is zero to the peak,
+ * unpadded), so this sentence is what the tallest column means, said once. The
+ * gutter writes the same figure abbreviated; a listener gets it as a magnitude
+ * word and an instant, because "the top of the scale" is not a fact anybody can
+ * read off a picture they cannot see.
+ *
+ * A window in which nothing traded is a real answer and says so, rather than
+ * reporting a peak of zero shares at an arbitrary minute — `FLAT_VOLUME_TOP`
+ * exists on the scale for exactly that window.
+ */
+function peakClause(series: PopulatedBarSeries): string {
+  const peak = volumePeak(series.bars);
+  if (peak <= 0) return "No shares changed hands anywhere in the window.";
+
+  const busiest = series.bars.find((bar) => bar.volume === peak);
+
+  return (
+    `The tallest column is ${spokenVolume(peak)}` +
+    (busiest === undefined
+      ? ""
+      : `, at ${formatMarketInstant(busiest.startsAt)}`) +
+    "."
+  );
+}
+
+/** The singular of `slotWord`, for a sentence that names one of them. */
+function slotUnit(timeframe: Timeframe): string {
+  return timeframe === "1d" ? "session" : "trading minute";
+}
+
 /** The picture, when there is a line on it. */
 function describeSeries(series: PopulatedBarSeries, symbol: string): string {
   const prices = seriesPrices(series);
@@ -135,7 +264,7 @@ function describeSeries(series: PopulatedBarSeries, symbol: string): string {
       `${formatPrice(prices.close)}${move(percent)}.`,
     `The highest price on it is ${formatPrice(prices.high)} and the lowest ` +
       `${formatPrice(prices.low)}.`,
-    coverageClause(series),
+    coverageClause(series, LINE),
     feedClause(series),
   ].join(" ");
 }
@@ -181,14 +310,14 @@ const SIGNS = /[+\u2212]/gu;
  * reason: silence would make *we hold all of it* and *nobody checked* sound
  * identical.
  */
-function coverageClause(series: PopulatedBarSeries): string {
+function coverageClause(series: PopulatedBarSeries, mark: Mark): string {
   const { requested, covered } = series.coverage;
   const { total, from, to } = axisSpan(requested, series.timeframe, covered);
   const unit = slotWord(series.timeframe, total);
 
   if (from === 0 && to === total) {
     if (!isShort(requested, covered))
-      return `The line runs the full width of the window asked for, ${formatMarketRange(requested)}.`;
+      return `${mark.subject} ${mark.run} the full width of the window asked for, ${formatMarketRange(requested)}.`;
 
     // **A short answer with nothing to draw**, which is `CHARTING.md` §10.1's
     // finding said in words rather than in pixels: the shortfall is a weekend
@@ -198,8 +327,9 @@ function coverageClause(series: PopulatedBarSeries): string {
     // this module that exists to stop the sentence agreeing with the picture
     // when the picture cannot say the thing.
     return (
-      `The line runs the full width of the frame and there is no empty ground ` +
-      `on it, but it is not the whole window: the window asked for runs to ` +
+      `${mark.subject} ${mark.run} the full width of the frame and there is no ` +
+      `empty ground ${mark.behind}, but it is not the whole window: the window ` +
+      `asked for runs to ` +
       `${formatMarketInstant(requested.end)} and the bars stop at ` +
       `${formatMarketInstant(covered.end)}. What is missing falls outside ` +
       `trading hours — a night, a weekend or a holiday — which this axis gives ` +
@@ -211,7 +341,7 @@ function coverageClause(series: PopulatedBarSeries): string {
 
   if (from === 0)
     return (
-      `The line covers the first ${formatCount(held)} of ${formatCount(total)} ` +
+      `${mark.subject} ${mark.cover} the first ${formatCount(held)} of ${formatCount(total)} ` +
       `${unit} in the window and stops at ${formatMarketInstant(covered.end)}; ` +
       `the rest, running to ${formatMarketInstant(requested.end)}, has no ` +
       `stored bars and is drawn as empty ground.`
@@ -221,7 +351,7 @@ function coverageClause(series: PopulatedBarSeries): string {
   // mid-window, or a backfill that began late. Cheap to be right about, because
   // both ends come off the same range.
   return (
-    `The line covers ${formatCount(held)} of ${formatCount(total)} ${unit} in ` +
+    `${mark.subject} ${mark.cover} ${formatCount(held)} of ${formatCount(total)} ${unit} in ` +
     `the window, from ${formatMarketInstant(covered.start)} to ` +
     `${formatMarketInstant(covered.end)}; the window asked for runs ` +
     `${formatMarketRange(requested)}, and what is not covered at either end is ` +

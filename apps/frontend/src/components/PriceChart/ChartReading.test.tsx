@@ -9,8 +9,8 @@ import {
   formatPrice,
 } from "../../market/index.js";
 import { ChartReading } from "./ChartReading.js";
-import type { ChartFrame, ChartSubject } from "./chart-geometry.js";
-import { chartFrame } from "./chart-geometry.js";
+import type { ChartSubject } from "./chart-geometry.js";
+import { priceFrame, timeFrame } from "./chart-geometry.js";
 
 // **The keyboard path, and the cleared state** (Task 2.12.6).
 //
@@ -20,7 +20,7 @@ import { chartFrame } from "./chart-geometry.js";
 // this checks the model in between — which keys move a reading, what a reading
 // says, and what is left when it is cleared.
 //
-// **The readings come from `chartFrame` against a recorded body**, not from
+// **The readings come from the real geometry against a recorded body**, not from
 // hand-written points. A crosshair tuned against invented geometry is a
 // crosshair verified against nothing: the ordering of the slots, the clamping at
 // the ends and the pixels the disc sits at are all properties of the real
@@ -28,7 +28,7 @@ import { chartFrame } from "./chart-geometry.js";
 
 const PLOT = { width: 867, height: 280 };
 
-function frameOf(name: "full" | "partial"): ChartFrame {
+function frameOf(name: "full" | "partial") {
   const view = barSeriesFixtureView(name);
   if (view.state !== "loaded" && view.state !== "partial")
     throw new Error(`the ${name} fixture is not an answer with bars`);
@@ -40,7 +40,12 @@ function frameOf(name: "full" | "partial"): ChartFrame {
     bars: view.series.bars,
   };
 
-  return chartFrame(PLOT, chartDensity(923), subject);
+  // **Composed here rather than by the geometry**, since Task 2.13.4: one
+  // `timeFrame` serves both plots and there is no longer a function that takes a
+  // whole plot box, because a function that did could build an axis for one plot
+  // out of the other's height.
+  const time = timeFrame(PLOT.width, chartDensity(923), subject);
+  return { ...time, ...priceFrame(time, PLOT.height, subject.bars) };
 }
 
 function renderReading(name: "full" | "partial" = "full") {

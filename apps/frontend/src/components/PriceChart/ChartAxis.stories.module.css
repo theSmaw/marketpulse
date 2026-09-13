@@ -1,0 +1,47 @@
+/*
+ * The two stacked regions, at the two region widths the product renders them at
+ * — `CHARTING.md` §2's measured figures, 1,019px at a 1920 viewport and 480px at
+ * 1024, rather than round numbers.
+ *
+ * The panel ground is here because both plots keep it: there is no chart ground
+ * and no token for one, so reviewing the gridlines or the columns against the
+ * workshop's default page would be reviewing them at the wrong contrast.
+ */
+
+.wide,
+.narrow {
+  padding: var(--space-16);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius);
+}
+
+.wide {
+  width: 1019px;
+  max-width: 100%;
+}
+
+.narrow {
+  width: 480px;
+  max-width: 100%;
+}
+
+/*
+ * The gap between the two is the panel boundary a reader's eye has to cross to
+ * line the plots up. It is deliberately the page's own region gap rather than
+ * something tighter — tightening it here would review an adjacency the product
+ * does not have.
+ */
+.region + .region {
+  margin-top: var(--space-24);
+}
+
+.heading {
+  margin: 0 0 var(--space-8);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-micro);
+  font-weight: 600;
+  color: var(--ink-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}

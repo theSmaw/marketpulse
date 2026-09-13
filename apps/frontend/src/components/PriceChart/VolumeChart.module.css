@@ -1,0 +1,190 @@
+/*
+ * The volume plot, its one value label and its two dates — on the same small
+ * grid as the price chart above it, at a third of the height.
+ *
+ * **What is not here is as decided as what is.** No gridlines, no second
+ * intraday time axis, no directional wash, no reference rule and no second
+ * gutter width: `VOLUME-AND-WINDOW.md` §9.4 is the table, and every row of it
+ * was a default declined rather than a feature not yet built.
+ *
+ * Everything both plots draw is composed from `chart-marks.module.css`. The
+ * three numbers that would otherwise be duplicated — the seam's `3 3`, the
+ * coverage edge's `6 3` — are a system that has to stay distinct from each
+ * other, and two copies with nothing comparing them is the trap `CHARTING.md`
+ * §10.3 spent a task closing.
+ *
+ * As in the price chart's stylesheet: **no coordinate is here.** They come from
+ * `chart-geometry.ts` as inline attributes, because a computed pixel is data
+ * rather than design.
+ */
+
+.chart {
+  /*
+   * **88px against the price plot's 280, and 68 against 220** — the compact pair
+   * keeps the *ratio* (3.18:1 and 3.24:1) rather than the height, which is the
+   * only shape in which §9.2's arithmetic survives a narrow region.
+   *
+   * The number was taken against the reading the plot has to support rather than
+   * by eye: `PRODUCT_SPEC.md` §11's volume anomaly and §38's demo line are both
+   * a multiple — "volume 3.8× normal" — and with the domain running zero to the
+   * window's peak, a 3.8× peak draws the ordinary bar at 23px here and at 18px
+   * compact. At 70px it is 18px on a wide region and the step from typical to
+   * slightly elevated stops being legible.
+   */
+  --plot-height: var(--chart-volume-height);
+
+  /*
+   * **The full gutter, for one label it does not need.** Two charts that
+   * disagree about where their value scale starts cannot be stacked: the seams
+   * would land at different x across the panel boundary, and lining the two
+   * plots up by their session boundaries is the whole reason they are stacked.
+   * Alignment outranks tightness (§9.1).
+   */
+  --value-gutter: var(--chart-gutter);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--value-gutter);
+  /*
+   * Two rows against the price chart's three: the plot and the time axis. The
+   * third is Task 2.13.5's — each plot carries its own readout strip, because at
+   * one column the two regions are unavoidably a screen apart and a person
+   * pointing at a volume bar would otherwise read the answer off screen.
+   */
+  grid-template-rows: auto auto;
+}
+
+.compact {
+  --plot-height: var(--chart-volume-height-compact);
+  --value-gutter: var(--chart-gutter-compact);
+}
+
+/*
+ * **Here the bottom rule is a true zero**, which is the one place the two plots
+ * are honestly different. On the price chart it is the frame's single rule and
+ * a price of zero is meaningless; here the columns grow from it, so it is the
+ * baseline of the value scale as well as the edge of the frame.
+ *
+ * It is therefore derived from the *window* and not from the bars, and it runs
+ * the full frame like every other mark of that kind — there is no second
+ * baseline mark to clip, which `VOLUME-AND-WINDOW.md` §13.1 states because the
+ * canvas listed one.
+ */
+.plot {
+  position: relative;
+  grid-row: 1;
+  grid-column: 1;
+  height: var(--plot-height);
+  border-bottom: 1px solid var(--chart-axis);
+}
+
+.canvas {
+  composes: canvas from "./chart-marks.module.css";
+}
+
+.seam {
+  composes: seam from "./chart-marks.module.css";
+}
+
+.uncovered {
+  composes: uncovered from "./chart-marks.module.css";
+}
+
+.coverageEdge {
+  composes: coverageEdge from "./chart-marks.module.css";
+}
+
+/*
+ * **The columns: one stroked path, butt-capped, at every window.**
+ *
+ * `stroke-width` is not here — it is the column width, which is a coordinate and
+ * comes from the geometry as an attribute (§10.6). That is also why there is no
+ * `--chart-volume-gap` token: the 1px gap participates in arithmetic that
+ * produces a pixel, and a number in a stylesheet with its threshold in a module
+ * is one decision in two homes.
+ *
+ * `butt` and not the default: a round or square cap adds half the stroke width
+ * at each end, which at 3M's 10.5px columns would put five pixels of ink below
+ * the baseline and five above every bar's true height.
+ *
+ * `#848995` is **the one chart ink with a measured contrast floor rather than a
+ * measured cost**. The directional wash is decorative — the geometry carries
+ * direction — so it has none to fail; these columns are the only thing on their
+ * plot carrying the magnitude, so WCAG 1.4.11's 3:1 for a graphical object
+ * required to understand the content applies, and it applies against four
+ * grounds: the panel (3.50:1), the uncovered ground (3.16:1) and both price
+ * washes (3.05:1 and 3.01:1), because Epic 8's overlays put fills behind bars.
+ * The bound is real in both directions — lighter fails on the uncovered ground,
+ * darker starts to make a filled area outweigh a 1.5px line.
+ */
+.columns {
+  fill: none;
+  stroke: var(--chart-volume);
+  stroke-linecap: butt;
+}
+
+/*
+ * The value gutter, holding **one label and not a scale**: the window's peak,
+ * abbreviated. Volume's zero is the axis rule and needs no label beside it, and
+ * a reader does not read a column off a scale — they read it against its
+ * neighbours.
+ */
+.gutter {
+  position: relative;
+  grid-row: 1;
+  grid-column: 2;
+}
+
+/*
+ * **Top-aligned to the plot rather than centred on its edge**, which is the one
+ * place this label departs from the price scale's idiom above it. Centred on
+ * the peak's own y — which is the top of the plot, because the domain runs to
+ * the peak — half of it would sit above the plot and collide with the price
+ * scale's lowest label.
+ */
+.peakLabel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--space-8);
+  font-family: var(--font-data);
+  font-size: var(--font-size-micro);
+  line-height: 1;
+  color: var(--ink-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/*
+ * The same 14px `--chart-filing-lane` above the labels as the price chart, and
+ * for the same reason one level sharper: Epic 9's filing markers sit on the
+ * shared time axis, so **each plot keeps its own lane** and a marker can appear
+ * under either. The token is what stops the two disagreeing about its height.
+ */
+.axis {
+  position: relative;
+  grid-row: 2;
+  grid-column: 1;
+  height: var(--font-size-micro);
+  margin-top: var(--chart-filing-lane);
+}
+
+.timeLabel {
+  composes: timeLabel from "./chart-marks.module.css";
+}
+
+.sessionLabel {
+  composes: sessionLabel from "./chart-marks.module.css";
+}
+
+.firstLabel {
+  composes: firstLabel from "./chart-marks.module.css";
+}
+
+/*
+ * The text alternative. Off screen and in the accessibility tree — without it
+ * the Volume region would be a heading with nothing under it at all, because
+ * the plot, its one label and its two dates are all `aria-hidden`.
+ */
+.visuallyHidden {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}
