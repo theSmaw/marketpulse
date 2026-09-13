@@ -92,18 +92,35 @@ describe("TimeWindowControl", () => {
     unmount();
   });
 
-  it("describes itself with the readout, so a listener gets the fact on arrival", () => {
+  // **On the cells rather than on the group, since Task 2.13.8's walk.** The
+  // group is a `div` with no `tabindex`: this is a roving-tabindex radiogroup,
+  // so the tab stop is the *checked cell* and the container is never focused.
+  // A description is read when a control is **reached**, and a description on a
+  // container is not part of a child's — so the readout was correct, attached,
+  // visible and unreachable by any key press, which is `TextField`'s two-task
+  // defect reached by a different route.
+  //
+  // Asserted on **every** cell rather than on the checked one: a listener
+  // arrowing under manual activation must hear the window on screen wherever
+  // focus is, which is what a sighted reader sees for the same press.
+  it("describes every cell with the readout, so a listener gets the fact on arrival", () => {
     renderControl(7);
 
     const group = screen.getByRole("radiogroup", { name: "Time window" });
-    const description = document.getElementById(
-      group.getAttribute("aria-describedby") ?? "",
-    );
+    expect(group.getAttribute("aria-describedby")).toBeNull();
 
-    // The half of the no-selection state a sighted reader gets for free from the
-    // two sitting side by side. Five unchecked radios announced with no
-    // explanation is a control that sounds broken.
-    expect(description?.textContent).toBe("7 sessions");
+    const cells = screen.getAllByRole("radio");
+    expect(cells).toHaveLength(5);
+
+    for (const cell of cells) {
+      const description = document.getElementById(
+        cell.getAttribute("aria-describedby") ?? "",
+      );
+      // The half of the no-selection state a sighted reader gets for free from
+      // the two sitting side by side. Five unchecked radios announced with no
+      // explanation is a control that sounds broken.
+      expect(description?.textContent).toBe("7 sessions");
+    }
   });
 
   it("reports the session count it was pressed for, and never the one already on screen", () => {

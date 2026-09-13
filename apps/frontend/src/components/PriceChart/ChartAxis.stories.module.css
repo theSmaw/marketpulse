@@ -45,3 +45,9 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+
+/* The rows the simulation stories stack, matching `PriceChart.stories`'. */
+.stack {
+  display: grid;
+  gap: var(--space-24);
+}

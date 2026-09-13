@@ -698,6 +698,66 @@ function refusedConnection(): NodeJS.ErrnoException {
   return error;
 }
 
+// **Acceptance criterion 3, at the layer that resolves a window** (Task 2.13.8).
+//
+// > "5 days" is five trading sessions across a week containing a holiday.
+//
+// `chart-geometry.test.ts` holds the same week at the **axis** level, from
+// `lastMarketSessions(5, 2026-11-30)` directly. What is asserted here is the
+// half the axis cannot see: that the request the control actually sends —
+// `?sessions=5`, a count — comes back from the **route** resolved against the
+// checked-in calendar, with the holiday and the weekend already gone.
+//
+// The clock is pinned rather than mocked globally, through the seam the route
+// already has for `stitched.json`'s recording. `2026-11-30T21:05:00.000Z` is
+// 16:05 ET on the Monday after Thanksgiving, so `sessions=5` resolves backwards
+// over `11-30, 11-27, 11-25, 11-24, 11-23` — skipping Thanksgiving `11-26`
+// **and** the weekend `11-21`/`11-22`, which are three ways a naive
+// implementation is wrong in one assertion.
+//
+// The store is empty on purpose: this is about the **window** the route
+// resolved, which `coverage.requested` reports whether or not a single bar was
+// found. What the same five sessions look like *drawn* is
+// `e2e/specs/security-holiday-week.spec.ts`, over the body
+// `apps/frontend/src/fixtures/bar-series/holiday-week.json`, which this
+// arrangement generated.
+describe("a named window across a week with a holiday in it", () => {
+  /** 16:05 ET on Monday 2026-11-30 — after the close, so the week is over. */
+  const AFTER_THE_MONDAY = new Date("2026-11-30T21:05:00.000Z");
+
+  it("resolves five sessions back over Thanksgiving and the weekend", async () => {
+    const instance = await barsServer({
+      store: { rows: [], held: undefined },
+      now: AFTER_THE_MONDAY,
+    });
+
+    const response = await instance.inject({
+      method: "GET",
+      url: "/market-data/bars?symbol=NVDA&timeframe=1m&sessions=5",
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    const body = response.json<BarSeriesResponse>();
+
+    // 09:30 on Monday 2026-11-23 to 16:00 on Monday 2026-11-30. **14:30Z and
+    // 21:00Z rather than 13:30Z and 20:00Z**, because this week is on EST: the
+    // instants are a conversion the calendar did and not a constant anybody
+    // here typed.
+    expect(body.series.coverage.requested).toStrictEqual({
+      start: "2026-11-23T14:30:00.000Z",
+      end: "2026-11-30T21:00:00.000Z",
+    });
+
+    // Five **sessions** and not five days: the span is seven calendar days,
+    // which is what a window skipping a holiday and a weekend has to be.
+    const span =
+      new Date(body.series.coverage.requested.end).getTime() -
+      new Date(body.series.coverage.requested.start).getTime();
+    expect(span / 86_400_000).toBeCloseTo(7.27, 2);
+  });
+});
+
 // The response schema (Task 2.9.3), driven through the real route.
 //
 // Everything worth asserting about a response schema is a property of the

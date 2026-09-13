@@ -1,0 +1,32 @@
+/*
+ * The colour-vision simulations, in one home (Task 2.13.8).
+ *
+ * They were declared once, in `PriceChart.stories.module.css`, which was right
+ * while one chart was the only thing being simulated. Task 2.13.4's amendment
+ * owed a simulation over the **pair**, and the obvious way to pay it is a second
+ * copy of a filter and eleven matrix numbers in a second stylesheet — the same
+ * shape as the dash rhythms `chart-marks.module.css` exists to stop, and worse,
+ * because two simulations that had quietly drifted apart would produce two
+ * reviews that disagreed with no way to tell which was wrong.
+ *
+ * This file sits outside `src/components/` deliberately: `pnpm stories` asks
+ * every `.tsx` under that directory for a stories file, and a document-level
+ * filter with nothing to show has no states worth reviewing side by side.
+ * `test-render.tsx` is the precedent — scaffolding a story or a test reaches
+ * for, at the root rather than in the workshop.
+ */
+
+.greyscale {
+  filter: grayscale(1);
+}
+
+.deuteranopia {
+  filter: url("#deuteranopia");
+}
+
+/* The filter definition is a document-level thing and has nothing to show. */
+.filters {
+  position: absolute;
+  width: 0;
+  height: 0;
+}

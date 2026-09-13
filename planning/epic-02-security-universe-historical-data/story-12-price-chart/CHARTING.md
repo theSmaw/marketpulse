@@ -1512,6 +1512,15 @@ is §6.2's defect stated in words instead of pixels. That case says so:
 > missing falls outside trading hours — a night, a weekend or a holiday — which
 > this axis gives no width to.
 
+**Amended 2026-09-13 by Task 2.13.8** — _the bars stop at_ is now _what is stored
+reaches only to_. The quote above is what shipped in Story 2.12 and is left
+standing as the record. The clause was heard at `1d` on Story 2.13's walk and was
+false there by two sessions: both instants belong to a **window** rather than to
+a bar, and a daily ledger's covered edge is the moment a backfill finished
+(`Sep 13 00:04:11`) while its last bar is `Sep 11`. At `1m` the two coincide,
+because a covered range ends at a session close — which is why it read correctly
+for a story.
+
 ### 15.4 The reserved readout height held at one viewport and at no other
 
 The defect the walk found, and it is the one worth transferring.

@@ -73,6 +73,32 @@ const MAX_SESSIONS_FOR_MIDDAY = 5;
 /** The hour a midday tick lands on, in market time. */
 const MIDDAY_HOUR = 12;
 
+/**
+ * How far a time tick must sit from a date, as a fraction of the whole axis.
+ *
+ * **Found by looking at a half day** (Task 2.13.8). A midday tick is placed at
+ * 12:00 in each session and a session normally runs to 16:00, so it lands 240
+ * slots of 1,950 — 12% of the axis — before the next session's date. On
+ * `2026-11-27`, which closes at 13:00, it lands **60 slots of 1,770**, which is
+ * 3.4% and at the wide region is 32 px. `12:00` is about 34 px in the data face
+ * and `Nov 30` about 44 px, both centred on their slot, so the two need roughly
+ * 47 px between them and had 32: the axis read `12:00Nov 30`, with no space at
+ * all.
+ *
+ * 5% is that 47 px at the 930 px plot the product actually draws, stated as a
+ * fraction because the axis has no pixels — it is built from slots, and the same
+ * module is read at three region widths. It is deliberately a **floor on the
+ * gap** rather than a rule about half days: a window clipped mid-session
+ * produces the same collision from a different direction, and neither case is
+ * worth its own branch.
+ *
+ * The tick that loses is always the **time**. `CHARTING.md` §7.1's answer 9 is
+ * that a session boundary carries the date and everything between carries the
+ * time; the date is what tells a reader which night the axis did not draw, and a
+ * time is what density takes away.
+ */
+const MIN_TICK_SEPARATION = 0.05;
+
 /** The most hourly ticks a single-session axis writes. */
 const MAX_HOURLY_TICKS = 6;
 
@@ -492,7 +518,18 @@ export function timeTicks(
   }
 
   if (options.intraday && axis.timeframe === "1m") {
-    ticks.push(...intradayTicks(axis));
+    // **Thinned against the dates already placed**, which is the repair Task
+    // 2.13.8's walk found on Thanksgiving week. See {@link MIN_TICK_SEPARATION}:
+    // a session that closes early puts its midday within a label's width of the
+    // next session's date, and the two are drawn on top of each other.
+    const dates = ticks.map((tick) => tick.slot);
+    const gap = axis.slots * MIN_TICK_SEPARATION;
+
+    ticks.push(
+      ...intradayTicks(axis).filter((tick) =>
+        dates.every((slot) => Math.abs(tick.slot - slot) >= gap),
+      ),
+    );
   }
 
   return ticks.sort((left, right) => left.slot - right.slot);

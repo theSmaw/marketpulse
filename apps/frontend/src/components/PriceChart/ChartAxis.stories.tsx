@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
+import { cx } from "../../cx.js";
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
+import type { Simulation } from "../../story-simulation.js";
+import { ColourVisionFilters, SIMULATIONS } from "../../story-simulation.js";
 import type { BarSeriesView } from "../../market/index.js";
 import { ChartAxis } from "./ChartAxis.js";
 import { PriceChart } from "./PriceChart.js";
@@ -58,12 +61,19 @@ type Story = StoryObj<typeof meta>;
 function Pair({
   view,
   width,
+  simulation,
 }: {
   readonly view: BarSeriesView;
   readonly width: "wide" | "narrow";
+  readonly simulation?: Simulation | undefined;
 }) {
   return (
-    <div className={styles[width]}>
+    <div
+      className={cx(
+        styles[width],
+        simulation === undefined ? undefined : SIMULATIONS[simulation],
+      )}
+    >
       <ChartAxis view={view}>
         <section className={styles.region}>
           <h3 className={styles.heading}>Price</h3>
@@ -133,5 +143,134 @@ export const Uncovered: Story = {
  */
 export const Waiting: Story = {
   args: { view: { state: "loading" }, children: null },
+  render: (args) => <Pair view={args.view} width="wide" />,
+};
+
+/**
+ * **The pair with the hue taken out** — Task 2.13.4's amendment, paid.
+ *
+ * `PriceChart.stories.tsx` has carried `Greyscale` and `Deuteranopia` over four
+ * windows since Task 2.12.5 and the volume plot had **neither**, which left a
+ * claim standing on a token table rather than on a rendering:
+ * `--chart-volume` is `#848995`, which `grayscale(1)` takes to `#898989`, so
+ * nothing on the plot is distinguished by hue and nothing can be lost. That is
+ * true and it is the same kind of statement that passed four times against a
+ * chart a person could see was wrong (`CHARTING.md` §12.6). **So look at it.**
+ *
+ * Three claims to confirm rather than to discover, because
+ * `VOLUME-AND-WINDOW.md` §12 and §8.2 decided all three before anything was
+ * drawn:
+ *
+ *  - **The volume columns carry no direction at all.** A column has no geometry
+ *    left to spend — it starts at zero and its height is its whole meaning — so
+ *    an up-day column and a down-day column are the same ink, in colour and out
+ *    of it. If a row below shows two column inks, something started spending
+ *    hue after the decision said it would not.
+ *  - **The price chart's direction still reads**, from the geometry: the line
+ *    finishes above or below the dashed reference rule, and the two washes
+ *    differ by 1.009:1 under this filter. Say which way each row went.
+ *  - **The coverage edge and the uncovered ground never had a hue**, in either
+ *    frame, and the two frames must still stop at the same x.
+ *
+ * **And move the pointer across a plot while you are here**, which is the mark
+ * Task 2.13.5's amendment added: the crosshair's hollow disc is the one mark on
+ * the volume plot whose *position* carries a fact the drawing rounds away, and
+ * on `Dense` it sits inside a column taller than itself. It is
+ * `--surface-raised` filled and `--chart-point` ringed, so it spends no hue
+ * either — but it is a small ring on a grey silhouette, and whether it is
+ * *findable* under a filter is a question only a pair of eyes answers.
+ */
+export const Greyscale: Story = {
+  args: { view: barSeriesFixtureView("dense"), children: null },
+  render: () => (
+    <div className={styles.stack}>
+      <Pair
+        view={barSeriesFixtureView("dense")}
+        width="wide"
+        simulation="greyscale"
+      />
+      <Pair
+        view={barSeriesFixtureView("full")}
+        width="wide"
+        simulation="greyscale"
+      />
+      <Pair
+        view={barSeriesFixtureView("uncovered")}
+        width="wide"
+        simulation="greyscale"
+      />
+      <Pair
+        view={barSeriesFixtureView("daily")}
+        width="wide"
+        simulation="greyscale"
+      />
+    </div>
+  ),
+};
+
+/**
+ * **The same four under a deuteranopia simulation**, which is what roughly one
+ * man in twelve sees.
+ *
+ * Greyscale is the harsher test and this is the more honest one: a red-green
+ * difference does not vanish for a deuteranope so much as collapse toward a
+ * single yellowish axis. The volume plot has nothing to collapse — it is one
+ * near-grey ink at every window — so what this row is really reviewing is the
+ * **pair**: the price chart's washes going flat above a volume plot that never
+ * changed, with the seams still crossing both.
+ *
+ * The fourth row is a `1d` window, which neither simulation had ever been run
+ * over: until Task 2.13.6 no window the application could ask for resolved to
+ * daily bars, so every simulation in this repository before this one was of a
+ * minute chart.
+ */
+export const Deuteranopia: Story = {
+  args: { view: barSeriesFixtureView("dense"), children: null },
+  render: () => (
+    <div className={styles.stack}>
+      <ColourVisionFilters />
+      <Pair
+        view={barSeriesFixtureView("dense")}
+        width="wide"
+        simulation="deuteranopia"
+      />
+      <Pair
+        view={barSeriesFixtureView("full")}
+        width="wide"
+        simulation="deuteranopia"
+      />
+      <Pair
+        view={barSeriesFixtureView("uncovered")}
+        width="wide"
+        simulation="deuteranopia"
+      />
+      <Pair
+        view={barSeriesFixtureView("daily")}
+        width="wide"
+        simulation="deuteranopia"
+      />
+    </div>
+  ),
+};
+
+/**
+ * **The holiday week, complete** — five sessions across Thanksgiving 2026, the
+ * half day included (Task 2.13.8).
+ *
+ * The one window in this workshop whose sessions are **not all the same width**.
+ * Follow the dashed seams across both plots: the fourth band is a little over
+ * half the width of the others, because `2026-11-27` closed at 13:00 and
+ * contributes 210 slots rather than 390 — and there is no band at all for
+ * Thanksgiving, which is what a session-ordinal axis does with a day nothing
+ * traded on.
+ *
+ * It is the only body here the store could not answer, because the week has not
+ * happened: `fixtures/bar-series.ts` argues why a body generated by this
+ * product's own server against the checked-in calendar is admissible and a
+ * hand-written one is not. The prices are a seeded walk and nothing here is
+ * about them; what is real is where the bars fall.
+ */
+export const HolidayWeek: Story = {
+  args: { view: barSeriesFixtureView("holidayWeek"), children: null },
   render: (args) => <Pair view={args.view} width="wide" />,
 };

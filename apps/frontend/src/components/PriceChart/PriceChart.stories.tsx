@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { cx } from "../../cx.js";
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
+import { ColourVisionFilters, SIMULATIONS } from "../../story-simulation.js";
 import type { PriceChartProps } from "./PriceChart.js";
 import { ChartAxis } from "./ChartAxis.js";
 import { PriceChart } from "./PriceChart.js";
@@ -92,31 +93,6 @@ const meta = {
   title: "Market/PriceChart",
   component: PriceChart,
 } satisfies Meta<typeof PriceChart>;
-
-/**
- * The deuteranopia matrix, as an SVG filter the stories below point `filter:` at.
- *
- * Machado, Oliveira and Fernandes (2009) at full severity — the same simulation
- * a browser's own rendering-emulation panel applies, stated here as eleven
- * numbers because a dependency that draws a filter is a dependency in a bundle.
- * It is rendered once, hidden, beside the story that uses it: an SVG filter is
- * referenced by id from anywhere in the document.
- */
-function ColourVisionFilters() {
-  return (
-    <svg aria-hidden="true" className={styles.filters} focusable="false">
-      <filter id="deuteranopia" colorInterpolationFilters="linearRGB">
-        <feColorMatrix
-          type="matrix"
-          values="0.367 0.861 -0.228 0 0
-                  0.280 0.673  0.047 0 0
-                 -0.012 0.043  0.969 0 0
-                  0     0      0     1 0"
-        />
-      </filter>
-    </svg>
-  );
-}
 
 /** One chart at the wide region's measured width, optionally under a filter. */
 function Region({
@@ -381,23 +357,23 @@ export const Greyscale: Story = {
     <div className={styles.stack}>
       <Region
         view={barSeriesFixtureView("full")}
-        treatment={styles.greyscale}
+        treatment={SIMULATIONS.greyscale}
       />
       <Region
         view={barSeriesFixtureView("partial")}
-        treatment={styles.greyscale}
+        treatment={SIMULATIONS.greyscale}
       />
       <Region
         view={barSeriesFixtureView("flat")}
-        treatment={styles.greyscale}
+        treatment={SIMULATIONS.greyscale}
       />
       <Region
         view={barSeriesFixtureView("dense")}
-        treatment={styles.greyscale}
+        treatment={SIMULATIONS.greyscale}
       />
       <Region
         view={barSeriesFixtureView("uncovered")}
-        treatment={styles.greyscale}
+        treatment={SIMULATIONS.greyscale}
       />
     </div>
   ),
@@ -420,23 +396,23 @@ export const Deuteranopia: Story = {
       <ColourVisionFilters />
       <Region
         view={barSeriesFixtureView("full")}
-        treatment={styles.deuteranopia}
+        treatment={SIMULATIONS.deuteranopia}
       />
       <Region
         view={barSeriesFixtureView("partial")}
-        treatment={styles.deuteranopia}
+        treatment={SIMULATIONS.deuteranopia}
       />
       <Region
         view={barSeriesFixtureView("flat")}
-        treatment={styles.deuteranopia}
+        treatment={SIMULATIONS.deuteranopia}
       />
       <Region
         view={barSeriesFixtureView("dense")}
-        treatment={styles.deuteranopia}
+        treatment={SIMULATIONS.deuteranopia}
       />
       <Region
         view={barSeriesFixtureView("uncovered")}
-        treatment={styles.deuteranopia}
+        treatment={SIMULATIONS.deuteranopia}
       />
     </div>
   ),
