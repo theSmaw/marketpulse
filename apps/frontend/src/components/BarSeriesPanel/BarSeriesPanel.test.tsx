@@ -119,7 +119,20 @@ describe("BarSeriesPanel", () => {
     // plausible, shifted, and invisible to anyone not looking for it. The zone
     // abbreviation is what makes it checkable at all.
     const first = screen.getByText("First → last").parentElement;
-    expect(first?.textContent).toContain("2026-09-04 09:30:00 EDT");
+    expect(first?.textContent).toContain("Sep 4 · 09:30 EDT");
+  });
+
+  it("states a daily bar as a session rather than as a midnight event", () => {
+    // **The row is two bars and not two windows**, which is why it spells them
+    // the way both readout strips do (Task 2.13.6). Before the `1d` window was
+    // reachable this row read `2026-06-12 00:00:00 EDT`, which is a whole
+    // session's trading wearing the timestamp of the hour it was stamped at —
+    // the vendor stamps a daily bar at midnight market time.
+    render(<Panel {...props} view={barSeriesFixtureView("daily")} />);
+
+    const first = screen.getByText("First → last").parentElement;
+    expect(first?.textContent).toContain("Jun 12");
+    expect(first?.textContent).not.toContain("00:00");
   });
 
   it("states the four prices from the bars it holds", () => {

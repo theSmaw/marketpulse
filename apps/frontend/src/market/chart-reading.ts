@@ -1,4 +1,4 @@
-import type { Bar } from "@marketpulse/shared";
+import type { Bar, Timeframe } from "@marketpulse/shared";
 import { marketWallClockAt } from "@marketpulse/shared";
 
 import { formatSessionDate } from "./chart-time-axis.js";
@@ -125,7 +125,8 @@ export function barChangePercent(bar: Bar): number | null {
 }
 
 /**
- * A bar's instant, in market terms — `Sep 4 · 11:52 EDT`.
+ * A bar's instant, in market terms — `Sep 4 · 11:52 EDT` at `1m`, and `Sep 4`
+ * at `1d`.
  *
  * **The date, the time and the zone**, which is three facts where the axis has
  * room for one. A time alone is ambiguous across a five-session window that
@@ -139,14 +140,40 @@ export function barChangePercent(bar: Bar): number | null {
  * on every arrow press. The window facts below the chart state whole instants
  * because a *window* genuinely has a second in it.
  *
+ * ## Why it takes the timeframe, added by Task 2.13.6
+ *
+ * **At `1d` a bar is a session, and a session has no time of day.** The vendor
+ * stamps a daily bar at midnight market time — `2026-06-12T04:00:00.000Z` is
+ * 00:00 EDT, which the first recorded `1d` body confirmed rather than the
+ * nearest documentation claiming — so the unconditional spelling printed
+ * `Jun 12 · 00:00 EDT`: a whole session's trading wearing the timestamp of an
+ * hour in which nothing traded, on **five** surfaces at once (the two readout
+ * strips' stamps, the resting peak's instant, the spoken sentence, and the
+ * volume chart's peak clause).
+ *
+ * It is fixed here, in the **one** function all five of them already called,
+ * rather than at the five call sites — which is the whole reason there is one
+ * function: the alternative is five independent repairs and a product that
+ * spells one fact two ways. `intervalWord` and `slotWord` in
+ * `chart-alternative.ts` already take the timeframe for the same reason.
+ *
+ * The zone goes with the time rather than surviving it. `Jun 12 EDT` would be
+ * asserting a zone about a date, which is not a thing a date has; the session
+ * date is already a market date, because `marketWallClockAt` resolved it in the
+ * market's own zone.
+ *
  * Every conversion goes through `packages/shared/src/market-time.ts`, the one
  * module in this workspace allowed to name the market's timezone.
  */
-export function formatBarInstant(instant: Date): string {
+export function formatBarInstant(instant: Date, timeframe: Timeframe): string {
   const wall = marketWallClockAt(instant);
+  const date = formatSessionDate(wall.date);
+
+  if (timeframe === "1d") return date;
+
   return (
-    `${formatSessionDate(wall.date)} · ` +
-    `${pad(wall.hour)}:${pad(wall.minute)} ${wall.offset.abbreviation}`
+    `${date} · ${pad(wall.hour)}:${pad(wall.minute)} ` +
+    wall.offset.abbreviation
   );
 }
 
@@ -173,6 +200,7 @@ export function formatBarInstant(instant: Date): string {
 export function readingAnnouncement(
   symbol: string,
   bar: Bar | null,
+  timeframe: Timeframe,
 ): string | null {
   if (bar === null) return null;
 
@@ -190,7 +218,7 @@ export function readingAnnouncement(
         `${formatChangePercent(percent).replace(SIGNS, "")} on the bar`;
 
   return (
-    `${symbol} ${SUBJECT}: ${formatBarInstant(bar.startsAt)}, ` +
+    `${symbol} ${SUBJECT}: ${formatBarInstant(bar.startsAt, timeframe)}, ` +
     `close ${formatPrice(bar.close)}, ${direction}. ` +
     `Open ${formatPrice(bar.open)}, high ${formatPrice(bar.high)}, ` +
     `low ${formatPrice(bar.low)}. ` +

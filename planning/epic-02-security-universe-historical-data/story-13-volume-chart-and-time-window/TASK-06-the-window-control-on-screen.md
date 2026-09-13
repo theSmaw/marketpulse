@@ -1,6 +1,6 @@
 # Task 2.13.6 — The window control, in the address and on screen
 
-**Status:** Not started
+**Status:** Complete — 2026-09-13
 **Story:** [2.13 Volume Chart & Time-Window Selection](STORY.md)
 **Depends on:** 2.13.3, 2.13.4
 
@@ -395,3 +395,164 @@ Add to **Done when**:
 - With a `1d` body recorded, somebody **read what all five surfaces print for a
   daily bar** and either accepted it in writing or fixed it in the two functions
   rather than at the call sites
+
+---
+
+## What was built, 2026-09-13
+
+The record is [`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) **Part five**
+(§§30–35) and the canvas's `Volume and window.dc.html` §§12–13. What follows is
+the index and the Done-when list answered.
+
+### The files
+
+| Added                                       | What it is                                                 |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| `routes/use-time-window.ts`                 | the **one** place the window is read out of the address    |
+| `components/TimeWindowControl/`             | the control, its stylesheet, six stories, thirteen tests   |
+| `fixtures/bar-series/daily.json`            | NVDA, 63 sessions — the first `1d` body in this repository |
+| `fixtures/bar-series/daily-year.json`       | NVDA, 252 sessions — the `1Y` window                       |
+| `e2e/specs/security-window-control.spec.ts` | thirteen browser tests, at three viewports                 |
+
+| Changed                           | Why                                                                       |
+| --------------------------------- | ------------------------------------------------------------------------- |
+| `routes/paths.ts`                 | `securityPath(symbol, sessions?)` — the **one** place a window is written |
+| `routes/SecurityExplorer.tsx`     | reads the window, derives the timeframe, renders the control              |
+| `components/Region/Region.tsx`    | a `control` slot on the heading row, outside the error boundary           |
+| `market/chart-time-axis.ts`       | §30.1 — a daily bar is placed by the session it belongs to                |
+| `market/chart-reading.ts`         | §30.2 — a bar's instant takes the timeframe                               |
+| four components + the alternative | the six surfaces that printed an hour nothing traded in                   |
+| `CHARTING.md`, `CLAUDE.md`        | dated amendments where this task falsified a live claim                   |
+
+### Done when — answered
+
+- ✅ A named window set above both charts, current one encoded by **three**
+  channels and none of them hue (a bar, a weight, a step of ink)
+- ✅ Choosing one re-reads and redraws both plots **from one request** (asserted
+  in the browser by counting requests for the new window)
+- ✅ In the address; the default writes no parameter; reload and cold deep link
+  both land on it; **Back undoes a change**
+- ✅ Read in one place (`use-time-window.ts`), built in one (`paths.ts`);
+  `grep -rn "sessions" apps/frontend/src --include=*.tsx` finds no second reader
+- ✅ **No new cancellation or superseding code** — §34
+- ✅ The timeframe mapping has one home and a `1d` window is reachable and
+  draws — which took a repair nobody predicted, §30.1
+- ✅ Keyboard-operable, announced by the radio itself, and no tab stop behind the
+  sticky chrome at 1440 **or** 1024
+- ✅ Stories per state; `pnpm stories` passes
+- ✅ `pnpm verify` and `pnpm e2e` pass
+- ✅ An address naming a count outside the five renders with **no selection**,
+  and a browser test proves the address was not rewritten — break-verified
+- ✅ A `1d` body is recorded (two), a story renders it, and the two `1d`
+  sentences were read
+- ✅ The readout is present in every state, states the resolved count, is not
+  focusable — and gained a **second form**, §33
+- ✅ The selection changes in the frame the press lands: the control holds **no
+  state at all**, so there is nothing to wait for
+- ✅ Hover and selected are different channels — the `AllPermutations` story
+  shows all seven states, and the same row again under `grayscale(1)`
+- ✅ All six surfaces that print a daily bar's instant were read and **fixed in
+  the one function they already called**, not at the call sites
+
+### Two things handed on that were not in this task's list
+
+- **2.13.9** inherits a cost nothing has measured: the `1d` placement branch
+  calls `marketDateAt` once per bar, which is 504 calls per frame build at 1Y
+  across the two plots. Bounded, off the pointer path, unmeasured.
+- **2.13.7** still owns the superseded-answer property this task's own Notes
+  section predicted. It was not closed by accident and it is not closed.
+
+---
+
+## For the stakeholder — what this actually changed, in plain terms
+
+**Before this task, MarketPulse could show you one security's recent price and
+volume, and only ever the same five days of it.** The charts were real and the
+numbers were real, but the period was fixed. There was no way to ask "what did
+this look like over the last three months?" — not by clicking, not by typing an
+address, not at all.
+
+**Now there is a control above the chart with five choices on it: 1D, 5D, 1M, 3M,
+1Y.** Press one and both charts — price and volume — redraw together over that
+period. This is the first control in the product that changes _what the data
+says_ rather than how it is drawn, which is why it was worth building carefully.
+
+Five decisions in it are worth explaining, because each one was a choice between
+something easy and something honest.
+
+**1. The period goes in the web address.** Pick three months and the address
+becomes `…/securities/NVDA?sessions=63`. That is not a technicality: it means the
+link you send a colleague opens on the chart _you_ were looking at, a page reload
+keeps your place, and the browser's Back button undoes a choice. A product where
+the view lives only in the page's memory loses all three, and there is no way to
+add them back later without rebuilding how the screen works.
+
+**2. The labels tell a small lie, so there is a readout that tells the truth.**
+"1M" is what every analyst tool calls it, so that is what the button says — but a
+month is not a month on a stock market. It is twenty-one _trading_ sessions, with
+the weekends and the holidays taken out. So beside the buttons there is a small
+label that always states the real number: `21 SESSIONS`. The button says the
+approximation; the readout says the fact. The alternative — buttons labelled "21
+sessions", "63 sessions", "252 sessions" — is a paragraph rather than a control.
+
+**3. If the address asks for something we do not offer, we answer it and show
+nothing selected.** Type `?sessions=7` and you get seven sessions, with none of
+the five buttons lit and the readout saying `7 SESSIONS`. We deliberately do
+**not** quietly round it to the nearest button we do have, because that would
+rewrite what you asked for and then answer a different question without telling
+you. This matters more than it sounds: two epics from now the AI agent will ask
+for periods of its own choosing, and it will routinely ask for one that is not on
+the list. That already works, today, because of this decision.
+
+**4. Pressing a key does not fire off a chain of requests.** On a keyboard, the
+arrow keys move between the five buttons and the space bar chooses one. The
+conventional behaviour for this kind of control is that arrowing _immediately_
+selects — which would mean walking from "1D" to "1Y" fetched four different
+periods of market data and pushed four entries into your browser history, for one
+intention. So the arrows move; the press decides.
+
+**5. We now show three months and a year of data, and doing that found two real
+faults nobody could have found by reading the code.** Those longer periods use
+_daily_ bars rather than minute-by-minute ones, and until this task nothing in the
+product had ever asked for a daily bar. When we finally did:
+
+- **The three-month chart drew nothing.** A correct frame, correct dates along
+  the bottom, the correct headline price above it — and no line. The cause is
+  that our data provider timestamps a whole trading day at midnight, and the
+  chart places every point by where it falls inside a trading session. Midnight
+  is not inside one. Every point was silently discarded. Nothing failed, no test
+  went red, and a person looking at the screen would have read it as "this
+  company did not trade for three months".
+- **Six places on the screen printed a time of day that does not exist.** A
+  daily bar was labelled `Jun 12 · 00:00 EDT` — a whole session's trading wearing
+  the timestamp of an hour when the market is shut.
+
+Both are fixed, each in a single place rather than six, and both are now covered
+by tests that were verified to fail when the fix is removed. **This is the value
+of shipping a feature end to end rather than in layers**: the code for daily
+charts had been written, reviewed and typechecked weeks ago, and it did not work.
+Only a person pressing a button found out.
+
+**One thing we decided _not_ to add, and why.** On a daily chart, each bar has a
+high and a low as well as a closing price — a real range, roughly 2.7% of the
+price on a typical day. An earlier note in the design record said we should start
+drawing that range as a shaded band once daily charts existed. We drew it, four
+different ways, against real NVIDIA data — and declined it. Not because it is too
+small to see (it is about 31 pixels tall, clearly visible) but because the chart
+already uses that space to show whether the period is up or down, and the two
+markings fight. The high and the low are still there: they appear, exactly, the
+moment you point at any bar. A picture that shows less and a readout that states
+more is the better trade, and the four drawings are kept on the design canvas so
+the next person to suggest it can see what it looked like.
+
+### Where this leaves the product
+
+**The epic's goal is now met in substance**: a person can search for NVDA, open
+it, and inspect its historical price and volume over a period of their choosing.
+That is the whole of what Epic 2 set out to deliver.
+
+What is left in this story is the **unhappy paths** — what the screen does while
+the new period is loading, and what it does when loading it fails with the
+previous period still on screen. Those matter, and they are the next task. After
+that, the epic closes and Epic 3 brings the live market feed: the moment the
+numbers on this screen start moving on their own.

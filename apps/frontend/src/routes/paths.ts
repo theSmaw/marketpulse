@@ -1,3 +1,5 @@
+import { DEFAULT_WINDOW_SESSIONS, SESSIONS_PARAM } from "../market/index.js";
+
 // Every path in the application, declared once.
 //
 // This table exists because of the one thing React Router does not give us.
@@ -86,7 +88,7 @@ export const ROUTE_PATTERNS = {
 } as const;
 
 /**
- * The address of one security's page.
+ * The address of one security's page, optionally at a given window.
  *
  * `encodeURIComponent` because the value reaching here is a **ticker**, and a
  * ticker is not always the bare alphanumeric it looks like: the tracked
@@ -101,6 +103,28 @@ export const ROUTE_PATTERNS = {
  * — the same argument `bar-series-query.ts` already makes about
  * `BarSeriesRequest.symbol`.
  */
-export function securityPath(symbol: string): string {
-  return `${PATHS.securities}/${encodeURIComponent(symbol)}`;
+export function securityPath(symbol: string, sessions?: number): string {
+  const path = `${PATHS.securities}/${encodeURIComponent(symbol)}`;
+
+  // **An absent parameter means the default, and this never writes one it did
+  // not need** (`FRONTEND-STATE.md` §3, `VOLUME-AND-WINDOW.md` §4c). So
+  // `/securities/NVDA` *is* the five-session view and the `5D` cell, pressed
+  // from another window, **removes** the parameter rather than setting it. A URL
+  // that accretes every default is a session dump rather than a shareable link.
+  //
+  // Note the consequence, accepted rather than worked around: one view has two
+  // addresses, because a hand-typed or shared `?sessions=5` is honoured and left
+  // exactly as it was written. This application does not rewrite somebody's
+  // address into a different spelling of the same thing.
+  if (sessions === undefined || sessions === DEFAULT_WINDOW_SESSIONS) {
+    return path;
+  }
+
+  // `URLSearchParams` rather than a template, so a count is encoded by the thing
+  // that knows how, and `SESSIONS_PARAM` rather than the literal, so the
+  // address, the wire and the control cannot learn different spellings of one
+  // parameter — it is the same constant `bar-series-query.ts` puts on the wire.
+  const query = new URLSearchParams({ [SESSIONS_PARAM]: String(sessions) });
+
+  return `${path}?${query.toString()}`;
 }

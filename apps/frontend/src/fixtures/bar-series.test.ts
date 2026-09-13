@@ -1,3 +1,4 @@
+import { marketWallClockAt } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -156,6 +157,44 @@ describe("the recorded bar-series fixtures", () => {
 
     expect(view.securityStatus).toBe("untracked");
     expect(view.series.bars.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ["daily", 63],
+    ["dailyYear", 252],
+  ] as const)(
+    "reads %s as a daily series of one bar per session",
+    (name, bars) => {
+      // The two `1d` bodies, and what is asserted is the **timeframe** and the
+      // count rather than a price. One bar per session is the property every
+      // `1d` decision in this story rests on: the axis stops being minutes, the
+      // silhouette stops being a silhouette, and a bar's instant stops being an
+      // hour of the day.
+      const view = barSeriesFixtureView(name);
+
+      expect(view.state).toBe("partial");
+      if (view.state !== "partial") return;
+
+      expect(view.series.timeframe).toBe("1d");
+      expect(view.series.bars).toHaveLength(bars);
+    },
+  );
+
+  it("records a daily bar at midnight in market terms, which is why its instant needed the timeframe", () => {
+    // **The fact this fixture was recorded to find out**, asserted so it cannot
+    // quietly change under `formatBarInstant`'s `1d` branch: the vendor stamps a
+    // session's bar at 00:00 market time, so every surface that printed a time
+    // of day printed one nothing traded in. `chart-reading.ts` carries the
+    // repair and `VOLUME-AND-WINDOW.md` §30 carries the decision.
+    const view = barSeriesFixtureView("daily");
+    if (view.state !== "partial") throw new Error("daily is not partial");
+
+    // `PopulatedBarSeries` types its bars as non-empty, so this indexes rather
+    // than guarding — a guard here is the `no-unnecessary-condition` the lint
+    // rule correctly refuses.
+    const wall = marketWallClockAt(view.series.bars[0].startsAt);
+    expect(wall.hour).toBe(0);
+    expect(wall.minute).toBe(0);
   });
 
   it("marks every recorded answer fresh, because a response that just arrived is", () => {

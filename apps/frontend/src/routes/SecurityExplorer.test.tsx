@@ -7,8 +7,8 @@ import {
   stubFetch as stubEveryRequest,
 } from "../fixtures/stub-fetch.js";
 import { renderWithContext } from "../test-render.js";
+import { DEFAULT_WINDOW_SESSIONS } from "../market/index.js";
 import { PATHS, ROUTE_PATTERNS } from "./paths.js";
-import { DEFAULT_SESSIONS } from "./SecurityExplorer.js";
 import { SecurityExplorer } from "./SecurityExplorer.js";
 
 // The route's tests drive the real component against a stubbed `fetch`, so the
@@ -299,7 +299,7 @@ describe("the market-data region", () => {
 
     expect(urls).toHaveLength(1);
     expect(urls[0]).toContain("symbol=AMD");
-    expect(urls[0]).toContain(`sessions=${String(DEFAULT_SESSIONS)}`);
+    expect(urls[0]).toContain(`sessions=${String(DEFAULT_WINDOW_SESSIONS)}`);
     expect(urls[0]).not.toMatch(/start=|end=/);
   });
 
@@ -317,18 +317,25 @@ describe("the market-data region", () => {
     // The region is a landmark with a name, like every other one on this page,
     // so a keyboard or screen-reader user has something to jump to.
     //
-    // **`filledBy` said the chart was a story away until 2026-09-12, and now
-    // says what it holds and what it still does not.** Task 2.12.4 drew the
-    // chart and amended the sentence in the same commit, which is the rule for
-    // a live claim that has become false; the assertion moved with it rather
-    // than being deleted, because a region whose description stops matching its
-    // contents is exactly what nothing else here would catch.
+    // **`filledBy` has now been amended twice in the same way**, which is the
+    // rule for a live claim that has become false rather than a habit. Task
+    // 2.12.4 drew the chart and deleted *"a chart arrives with Story 2.12"* in
+    // the same commit; Task 2.13.6 shipped the control and deleted *"changing
+    // the window arrives with Story 2.13"* in the same commit. Both times the
+    // assertion moved with the sentence rather than being deleted, because a
+    // region whose description stops matching its contents is exactly what
+    // nothing else here would catch.
     await waitFor(() => {
       expect(screen.getByRole("region", { name: "Price" })).toBeTruthy();
     });
+    expect(screen.getByText(/closes over the window you choose/)).toBeTruthy();
+
+    // And the sentence no longer promises a story that has landed. A region that
+    // says a capability is coming while carrying the control for it is the live
+    // claim this check exists to keep honest.
     expect(
-      screen.getByText(/Changing the window arrives with Story 2.13/),
-    ).toBeTruthy();
+      screen.queryByText(/Changing the window arrives with Story 2.13/),
+    ).toBeNull();
   });
 });
 
@@ -536,7 +543,7 @@ describe("the Security Explorer shell", () => {
     // arrived at once here, and the cheap check is exactly this — a locator
     // that resolves to two nodes means two surfaces are saying one thing.
     for (const opening of [
-      "One security's closes over the default window",
+      "One security's closes over the window you choose",
       "How unusual this security's behaviour",
       "Traded volume over the same window",
       "This security measured against",

@@ -567,6 +567,11 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
         readings={frame.readings}
         slots={frame.slots}
         symbol={symbol}
+        // **Off the shared axis and not off this component's own view** (Task
+        // 2.13.6). The axis is the one thing that knows what a slot is, and the
+        // strip's instant has to agree with the tick labels above it: at `1d`
+        // both stop printing times of day in the same render.
+        timeframe={time.axis?.timeframe ?? null}
       />
     </div>
   );

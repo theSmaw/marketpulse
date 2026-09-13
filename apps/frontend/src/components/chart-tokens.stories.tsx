@@ -102,7 +102,7 @@ const WASHES: readonly Specimen[] = [
   },
   {
     name: "--price-unchanged-wash",
-    why: "When it closed where it opened — three states, as the price trio is three.",
+    why: "The one token on this page with no application consumer. The chart has no neutral wash — the area is split by the reference rule, so every pixel is above or below it — and the high–low extent band it was then reserved for was declined a second time at 1d (Task 2.13.6). It is kept because the price trio is three, and because the first plot that stops spending its area on a directional wash is the one that can carry a band.",
   },
 ];
 

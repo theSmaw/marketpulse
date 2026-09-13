@@ -8,6 +8,7 @@ import type {
 } from "../../market/index.js";
 import {
   directionOf,
+  formatBarInstant,
   formatChangePercent,
   formatPrice,
   positionOfInstant,
@@ -243,9 +244,17 @@ function peakClause(series: PopulatedBarSeries): string {
   // two different busiest minutes with neither obviously wrong.
   const busiest = volumePeakBar(series.bars);
 
+  // **`formatBarInstant` and not `formatMarketInstant`** since Task 2.13.6, and
+  // the difference is the subject rather than the precision. This instant belongs
+  // to a **bar**, and at `1d` a bar is a session with no time of day in it — so
+  // it is spelled the way the two readout strips spell a bar, which is also the
+  // one place that rule lives. `formatMarketInstant` keeps the instants in this
+  // file that belong to a **window**, where a second genuinely exists.
   return (
     `The tallest column is ${spokenVolume(peak)}` +
-    (busiest === null ? "" : `, at ${formatMarketInstant(busiest.startsAt)}`) +
+    (busiest === null
+      ? ""
+      : `, at ${formatBarInstant(busiest.startsAt, series.timeframe)}`) +
     "."
   );
 }

@@ -291,6 +291,41 @@ export function positionOfInstant(axis: TimeAxis, instant: Date): AxisPosition {
   const first = axis.sessions[0];
   const last = axis.sessions[axis.sessions.length - 1];
 
+  // **On a daily axis a slot is a whole session, so an instant is placed by the
+  // session it belongs to rather than by where it falls inside one** (Task
+  // 2.13.6), and this branch is the difference between a `1d` chart and a blank
+  // frame.
+  //
+  // It was found by drawing one. The vendor stamps a daily bar at **midnight**
+  // market time — the first recorded `1d` body says so — and midnight is earlier
+  // than any session's open, so every bar in a `1d` window resolved to the
+  // `boundary` case below, `placeBars` dropped every one of them, and `3M` drew
+  // a perfect empty frame with a correct axis, a correct headline and no line.
+  // Nothing was red: every test in this repository ran on `1m` bodies, which
+  // cannot reach this.
+  //
+  // The fraction is how far through the session's own trading hours the instant
+  // sits, clamped to the slot, so that a **coverage edge** at Friday's close
+  // marks Friday as covered while a bar stamped at Friday's midnight sits at the
+  // start of Friday's slot. `placeBars` floors it, which is what makes a bar own
+  // its whole session.
+  if (axis.timeframe === "1d") {
+    const date = marketDateAt(instant);
+    const session = axis.sessions.find((each) => each.date === date);
+
+    if (session !== undefined) {
+      const span = session.close.getTime() - session.open.getTime();
+      const through = (time - session.open.getTime()) / span;
+      return {
+        kind: "inside",
+        slot: session.firstSlot + Math.min(Math.max(through, 0), 1),
+      };
+    }
+    // An instant on no session's date — a weekend, a holiday, or the hours after
+    // the last session the window reaches — falls through to the same boundary
+    // arithmetic a `1m` axis uses, which is already the right answer for it.
+  }
+
   // `sessions` is never empty, but `noUncheckedIndexedAccess` is on and an
   // assertion here would be this file claiming something it did not check.
   if (first === undefined || last === undefined) return { kind: "outside" };

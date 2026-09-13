@@ -1619,3 +1619,313 @@ against it. Both new tests scroll first, and both assert the resting state is
   entitled to state.
 - **Epic 3** owns a reading over a series that is still moving. Everything here
   assumes the bar under the crosshair is finished.
+
+---
+
+# Part five — the control on screen, added 2026-09-13 by Task 2.13.6
+
+Everything in Parts one to four was arithmetic, vocabulary and drawing. This is
+the part where a person can change the window, which is the first thing in
+MarketPulse that changes **what the data says** rather than how it is drawn.
+
+Four decisions were left open and are taken here — the ARIA pattern, what the
+address does with a value that is not a count, whether a window change pushes
+history, and whether a change of security carries the window. Two things the
+canvas had settled were **corrected by building them**. And the `1d` body this
+task was told to record turned out to be carrying a defect that nothing in the
+repository could have found by reading.
+
+---
+
+## 30. The `1d` window, and the two things recording a body found
+
+§2.3 put the recorded `1d` body in this task and gave a reason: two branches of
+`chart-alternative.ts` were unverified English, and five surfaces printed a time
+of day for a bar that at `1d` is a whole session. Both were right. Neither was
+the interesting half.
+
+**Two bodies are recorded**, not one, and both came off the **deployed** store
+rather than a developer's — `daily.json` (NVDA, 63 sessions, the `3M` window) and
+`daily-year.json` (252 sessions, `1Y`). The deployed store is backfilled nightly
+at both timeframes; a local one holds whatever it was last handed, so recording
+there would have produced two bodies whose shortfall was a laptop rather than the
+market. `fixtures/bar-series.ts` carries both commands.
+
+### 30.1 A daily bar is stamped at midnight, and the chart drew nothing
+
+`2026-06-12T04:00:00.000Z` is **00:00 EDT**. Nobody in this repository had seen a
+`1d` bar, which is exactly why the decision was deferred to a recording.
+
+The consequence nobody predicted: **`positionOfInstant` placed every daily bar
+between two sessions**, because midnight is earlier than any session's open, so
+`placeBars` dropped all 63 of them. `3M` rendered a **correct axis, a correct
+headline, a correct coverage sentence and no line at all** — a blank frame that
+looked like a security that had not traded for three months. Nothing anywhere was
+red: all fourteen recorded bodies were `1m`, so no test in the repository could
+reach the branch.
+
+**The repair is a rule rather than a special case.** On a daily axis a slot _is_ a
+session, so an instant is placed by **the session it belongs to** rather than by
+where it falls inside one — its market date against the axis's session dates, with
+the fraction through that session's trading hours kept so that a **coverage edge**
+at Friday's close still marks Friday as covered. An instant on no session's date —
+a weekend, a holiday, the hours past the last session — falls through to the same
+boundary arithmetic a `1m` axis uses, which was already the right answer for it.
+
+Four tests in `chart-time-axis.test.ts` hold it and the break was performed:
+deleting the branch takes three of them red and leaves the other 810 green.
+
+### 30.2 Six surfaces printed an hour nothing traded in, and one was not on the list
+
+`formatBarInstant` was unconditional, so a daily bar read `Jun 12 · 00:00 EDT`.
+2.13.5's amendment listed five call sites. There are **six**: the sixth is
+`BarSeriesPanel`'s `First → last` row, which is two **bars** sitting between two
+rows that are **windows**, and it was found by looking at a `1d` window on the
+running page rather than by reading the list.
+
+**Fixed in the one function all six already called**, which takes a `Timeframe`:
+`1m` keeps `Sep 4 · 09:30 EDT` and `1d` becomes `Jun 12`. The zone goes with the
+time rather than surviving it — `Jun 12 EDT` asserts a zone about a _date_, which
+is not a thing a date has, and the session date is already a market date resolved
+in the market's own zone.
+
+**What keeps `formatMarketInstant`**: every instant that belongs to a **window**
+— both coverage ranges, the panel's two window rows, the announcement's
+sentences. A window genuinely has a second in it, and at `1d` it genuinely runs
+midnight to midnight. The split is _bar_ against _window_, not precise against
+rounded.
+
+### 30.3 The high–low extent band, drawn and declined a second time
+
+2.13.4's amendment handed this task a **measurement**: draw the band at 3M and at
+1Y against a real `1d` body and decide from the number. Done, and the number
+overturns `CHARTING.md` §12.2's stated reason rather than confirming it.
+
+| Window | Median session range, as pixels of a 280 px plot |
+| ------ | -----------------------------------------------: |
+| 3M     |                                           **31** |
+| 1Y     |                                           **18** |
+
+It is legible. `1m`'s hairline argument does not apply, so this is a genuine
+re-decision.
+
+**Decided: no band, and what declines it is collision rather than size.** The
+plot already spends its area on a decided encoding — the directional wash split
+at the price the window opened at — and the band wants the same pixels. Four
+arrangements were drawn against the real body and looked at:
+
+- **Over the wash** — a grey fringe eating into the green; reads as a printing
+  misregistration rather than as an encoding.
+- **Under the wash** — visible only where it exceeds the line; reads as a drop
+  shadow.
+- **At 18% alpha** — the same two problems, softer.
+- **Instead of the wash** — a clean high-low-close picture, and the chart stops
+  saying which way the window went at one timeframe and not the others. A chart
+  that means different things at different windows is worse than one that says
+  less.
+
+And the information is not lost: each session's high and low are stated
+**exactly** in the readout under the pointer or the arrow keys, and the window's
+in the metric strip below. The four drawings are on the canvas (§13) so the next
+person to propose it can see what it looks like rather than re-deriving it.
+
+**Reversal trigger — a condition:** the first plot that stops spending its area
+on a directional wash. Epic 8's comparison view draws several series and cannot
+wash any of them; that is the plot where an extent band has the area to itself.
+`CHARTING.md` §12.2 has a dated amendment and `--price-unchanged-wash` now has
+**no** future consumer named against it.
+
+### 30.4 And the end columns, looked at again
+
+§19.2 asked for a second look when 3M first drew. Looked at: the clipped half is
+**6.4 px of 12.8 at 3M** and **1.8 of 3.7 at 1Y**. **Accepted again**, argument
+unchanged — the repair is insetting the x-domain in _both_ plots, which moves the
+price line's endpoints off the frame's edges to fix an artefact at the edge of the
+supporting series. Trigger: the first time an end column has to carry a mark of
+its own, which is Epic 5's overlay rather than anything in this story.
+
+---
+
+## 31. The address, and the four decisions in it
+
+`?sessions=…` is the **first occupant of this product's query string**, which
+`SEARCH-AND-SELECTION.md` §3 left empty on purpose.
+
+**Read in one place and built in one place**, which is the symbol's arrangement
+applied to the view: `routes/use-time-window.ts` decodes and `paths.ts`'s
+`securityPath(symbol, sessions?)` builds. The parser is **not** in
+`market/time-window.ts` and that is 2.13.3's decision standing: parsing is where
+the open question lived, and the open question is about a URL rather than about
+the vocabulary.
+
+### 31.1 A value that is not a count is **asked for anyway**
+
+The four cases §4 left open reduce to one rule, inherited from
+`use-security-symbol.ts`: **this client refuses nothing; it asks, and renders the
+answer.**
+
+| In the address   | Asked for | What a reader sees                              |
+| ---------------- | --------- | ----------------------------------------------- |
+| absent           | 5         | the default, and no parameter is ever written   |
+| `?sessions=7`    | 7         | a real answer; the control shows no selection   |
+| `?sessions=0`    | 0         | the server's _"a window of zero sessions…"_     |
+| `?sessions=-5`   | −5        | the server's refusal, naming `-5`               |
+| `?sessions=1000` | 1000      | the server's refusal, naming the calendar bound |
+| `?sessions=abc`  | `NaN`     | the server's refusal, naming `NaN`              |
+
+Two decisions are inside that table.
+
+**A value that is not a count goes on the wire as `NaN`.** The alternative —
+treating it as absent and showing the default — is the snapping §4(b) forbids
+wearing a different hat: it answers a question nobody asked and leaves an address
+in the bar that disagrees with the chart under it. The cost is one recorded
+imprecision: the server's sentence names `NaN` rather than the `abc` that was
+typed, because `BarSeriesRequest`'s named window carries a `number`. Carrying the
+raw text to the wire would fix the wording and widen a type every layer between
+the address and `series-request.ts` reads. Not worth it; the sentence is still
+_about_ the right thing and still states the rule the reader needs.
+
+**A count is only read as a count when this application would spell it the same
+way.** `?sessions=0x10` is a well-formed hex literal that `Number` reads as 16,
+and asking for sixteen sessions while the address says `0x10` is precisely the
+failure this module exists to refuse. So the test is a round trip:
+`String(Number(raw)) === raw`. It admits `7`, `-5`, `0` and `3.5` exactly as
+written and sends everything else as `NaN`.
+
+An empty or whitespace-only value is **"the address did not name one"** —
+`use-security-symbol.ts` already treats a whitespace-only path segment that way.
+
+### 31.2 A window change **pushes** history
+
+Back undoes it. Pressing a window is a deliberate act and the address it writes is
+one a person can send, so the browser's own undo should reach it.
+
+This is what forces manual activation on the keyboard (§32): with
+selection-following-focus, arrowing from `1D` to `1Y` would push four addresses
+for one intention.
+
+### 31.3 A change of **security** does not carry the window
+
+`/securities/NVDA?sessions=252` → clicking AMD in the table opens
+`/securities/AMD`, at the default.
+
+The argument is not that it would be wrong to carry it — it is that the table's
+518 links would each have to carry the current window, and search's would too, and
+an address built by something that did not know about the window is how the two
+come to disagree. Carrying it in one of the two places and not the other is worse
+than carrying it in neither. **Reversal trigger: the first surface that needs two
+securities on one window** — Epic 8's comparison, where the window is genuinely a
+property of the comparison rather than of a reading.
+
+---
+
+## 32. The ARIA pattern: a radio group with **manual** activation
+
+§8 deliberately took no position on this and it is decided here.
+
+`role="radiogroup"` with five `role="radio"` cells is what a closed set of
+mutually exclusive options **is**, so the semantics were never in question. What
+was open is whether selection follows focus, and the answer is **no**, against the
+APG's default for radios:
+
+- **The arrows move focus. `Space` or `Enter` commits.** One press is one window
+  is one request is one history entry.
+- Selection following focus makes arrowing from `1D` to `1Y` **four** window
+  changes: four requests of up to 154 kB, four addresses pushed into history, and
+  four answers announced. That is the expensive-commit case the APG's own guidance
+  on automatic selection names.
+- It costs one thing worth naming: a keyboard user arrows to `1Y` and nothing
+  moves until they press. What tells them so is the radio itself — _"1 year, radio
+  button, not checked, 5 of 5"_ — which is why this beat a `toolbar` of toggle
+  buttons, where nothing in the announcement says a press is pending.
+
+**One tab stop for five cells, held by the checked one.** So tabbing out of a
+half-arrowed control and back returns to the window actually on screen rather than
+to a cell somebody walked past — and that fell out of the control holding **no
+state at all** rather than being arranged. The arrows wrap, because a five-member
+set is a ring and `1Y → → → 1D` should not be four presses back.
+
+**The arrows are `preventDefault`ed and `Tab` is not.** This control sits on a
+`Region`'s heading row and a `Region` declares `overflow: auto`, so an unprevented
+arrow scrolls the panel under the hand of the person operating the control; a
+swallowed `Tab` would take the one stop out of the tab order it is in.
+
+**What announces the change is the radio.** No live region was added, and that is
+deliberate: this page already carries four, `FRONTEND-STATE.md` §7's rule is that
+a region belongs to a subject, and the panel's own region announces the new answer
+when it arrives. The window itself is stated in the chart's text alternative,
+which already says _"the last N trading sessions"_ and now says a different N.
+
+---
+
+## 33. Two things building it corrected on the canvas
+
+Both were drawn, both were wrong, and neither was reachable by reasoning about
+tokens. They are corrected **in the canvas** rather than annotated in the code,
+because ADR 0026 makes the canvas the source of truth and a canvas that disagrees
+with the product is the failure it exists to prevent.
+
+**The focus ring is on the cell, not the group.** §8's artboard drew it around the
+bordered box, which is right for a control with one focusable thing in it and
+wrong for this one: with manual activation, focus moves between five cells and the
+ring is the only thing saying which one `Space` will commit. A ring around the
+group names the control and hides the target. So it is the ordinary global
+`:focus-visible` rule doing its job — and `a11y.module.css`'s `focusRingHost`
+idiom, which was written with _this control_ named as its second consumer, is
+**not** needed here.
+
+**The readout has a second form.** §8.4 gives it one shape, `N SESSIONS`. If the
+address admits any count the server accepts it also admits `?sessions=abc`, and
+`NaN SESSIONS` is exactly the kind of figure this product must never print. So
+there are two, and the second says what is wrong rather than guessing a number:
+`NOT A SESSION COUNT`. It deliberately does not _explain_ — the sentence a reader
+acts on is the server's refusal in the chart's own region, naming what was asked,
+and a second explanation beside the control would be the
+two-surfaces-describing-one-failure defect this product has already paid for three
+times in one afternoon.
+
+The readout is also the group's `aria-describedby`, which §8.4 did not settle. It
+is drawn as a static micro-label and that is what it looks like; what a _listener_
+needs is the same fact on arrival, because five unchecked radios announced with no
+explanation is a control that sounds broken.
+
+---
+
+## 34. What this task did **not** need to write
+
+Three of them, each because an earlier task built the thing properly.
+
+- **No cancellation code.** A window change changes `barSeriesQuery(request)`,
+  which is the cache key and the request; `useBarSeries` already supersedes the
+  in-flight request and resets the view. The task file said _"if you find
+  yourself writing some, something is being keyed differently"_ — nothing was.
+- **No timeframe mapping.** `timeframeForSessions` is one call in the route, and
+  the Done-when item about one home is a grep rather than a build.
+- **No cap arithmetic and no pre-emptive size check.** §2.1's mapping forecloses
+  the 10,000-bar cap for every session count from every source.
+
+And one thing it deliberately did not do: **no `useMemo` anywhere.** 1Y draws at
+252 sessions against a memoised calendar walk (2.13.3); if a wide window ever
+feels slow, §16.5's figures are the place to start rather than a component.
+
+---
+
+## 35. What Part five hands on
+
+- **2.13.7** owns every state of a window change — the held answer, the stale
+  rail, a refusal over a previous window, and the labelling tension §6.3 names. It
+  also inherits the one property this task could not close: **the control is the
+  cheapest way in the product to observe a superseded answer in a real browser**,
+  and that is still asserted in jsdom by request identity alone.
+- **2.13.8**'s walk inherits a new tab stop, a radio group with manual activation,
+  and a `1d` vocabulary nobody has heard in a real screen reader. The two `1d`
+  sentences were read aloud here; what has not been done is hearing them in
+  sequence with the six instants §30.2 changed.
+- **2.13.9** inherits a measurable question this task did not take: the `1d`
+  placement branch calls `marketDateAt` once per bar, which is **504 calls per
+  frame build** at 1Y across the two plots. It is bounded and it is not on the
+  pointer path, but nothing has measured it.
+- **Epic 8** inherits the control itself. Its props are the vocabulary of a
+  window — a list, a current value, a change callback — and it knows nothing about
+  `useBarSeries`, the address or a security, so a comparison view drives it by
+  passing a different list.

@@ -4,9 +4,16 @@ import { isApiError, isBarSeriesResponse } from "@marketpulse/shared";
 import type { BarSeriesView } from "../market/index.js";
 import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
 
-// Fourteen bodies `GET /market-data/bars` answers with, recorded from the real
+// Sixteen bodies `GET /market-data/bars` answers with, recorded from the real
 // endpoint over the real store — the fixture backend Stories 2.11 to 2.13 test
 // against instead of each inventing a mock (Task 2.10.6).
+//
+// **Fourteen of them were `1m` until Task 2.13.6**, which is a fact about the
+// product rather than about this directory: no window the application could ask
+// for resolved to daily bars until the window control shipped. The two `1d`
+// bodies at the end of the table are the first, and they are what made
+// `chart-alternative.ts`'s two `1d` branches and five printed instants
+// reviewable rather than merely typechecked.
 //
 // ## Why they are recorded and not written
 //
@@ -21,7 +28,7 @@ import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
 // `timeframe` are closed unions this bundle knows; a body widened by hand to
 // "something realistic" is refused by `isBarSeriesResponse`, and the symptom is
 // `unreadable-body` in a test that looks like it is about something else. Two
-// of the fourteen below are deliberately in exactly that state, and they are labelled
+// of the sixteen below are deliberately in exactly that state, and they are labelled
 // as such so nobody reads them as bodies the server sends.
 //
 // ## How each was recorded, so it can be re-recorded rather than cited
@@ -41,10 +48,23 @@ import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
 // curl -s "$B?symbol=HD&timeframe=1m&start=2026-09-04T17:00:00.000Z&end=2026-09-04T18:00:00.000Z"  > bar-series/flat.json
 // curl -s "$B?symbol=NVDA&timeframe=1m&start=2026-08-31T13:30:00.000Z&end=2026-09-04T20:00:00.000Z" > bar-series/dense.json
 // curl -s "$B?symbol=NVDA&timeframe=1m&start=2026-09-03T13:30:00.000Z&end=2026-09-08T17:00:00.000Z" > bar-series/uncovered.json
+// curl -s "$B?symbol=NVDA&timeframe=1d&sessions=63"                                                 > bar-series/daily.json
+// curl -s "$B?symbol=NVDA&timeframe=1d&sessions=252"                                                > bar-series/daily-year.json
 // ```
 //
-// The last three were added by Tasks 2.12.5 and 2.12.7, and the **symbol and
-// window in each is the recording**, not an arbitrary choice: HD's hour opened
+// **The last two were recorded against the DEPLOYED store and not a local one**,
+// and that is the one departure in this file's procedure rather than an
+// oversight. They are the `3M` and `1Y` windows the control offers, so what they
+// have to be is *what a user gets* — and the deployed store is backfilled
+// nightly at both timeframes while a developer's holds whatever it was last
+// handed. Recording them locally would have produced two bodies whose shortfall
+// was a laptop rather than the market. `$B` for those two is
+// `https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io/market-data/bars`
+// (`HOSTING.md` holds the address), and they are the named window form rather
+// than an absolute one **because the named form is what the control sends**.
+//
+// `flat`, `dense` and `uncovered` were added by Tasks 2.12.5 and 2.12.7, and the
+// **symbol and window in each is the recording**, not an arbitrary choice: HD's hour opened
 // and closed at the same price, which no other recorded body does; NVDA's five
 // sessions are 1,950 bars, which is the density the default window actually
 // has; and the last window reaches 210 trading minutes past what the store
@@ -151,6 +171,8 @@ import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
 // beside this file asserts the states they collapse to; this is the cheaper half
 // that every consumer gets for free.
 
+import DAILY from "./bar-series/daily.json" with { type: "json" };
+import DAILY_YEAR from "./bar-series/daily-year.json" with { type: "json" };
 import DENSE from "./bar-series/dense.json" with { type: "json" };
 import EMPTY from "./bar-series/empty.json" with { type: "json" };
 import FLAT from "./bar-series/flat.json" with { type: "json" };
@@ -167,7 +189,7 @@ import UNKNOWN_FEED from "./bar-series/unknown-feed.json" with { type: "json" };
 import UNTRACKED from "./bar-series/untracked.json" with { type: "json" };
 
 /**
- * The three transport outcomes these fourteen bodies can be.
+ * The three transport outcomes these sixteen bodies can be.
  *
  * A **recorded fact about each fixture, not a computation** — deliberately, so
  * that nothing here becomes a second copy of `api-client.ts`'s classification.
@@ -442,6 +464,64 @@ export const BAR_SERIES_FIXTURES = {
     outcome: "ok",
     describes:
       "a window reaching 210 trading minutes past what the store holds",
+  },
+
+  /**
+   * **63 daily bars — NVDA's `3M` window, and the first `1d` body this
+   * repository has ever held.** → `partial`.
+   *
+   * Added by Task 2.13.6, which is the task that made a `1d` window reachable
+   * at all: until the control shipped, every window the application could ask
+   * for mapped to `1m` through `timeframeForSessions`, so two branches of
+   * `chart-alternative.ts` and five printed instants were written, typechecked
+   * and never executed.
+   *
+   * **What it settled, and the figure is the whole reason it had to be recorded
+   * rather than written.** A `1d` bar's `startsAt` is **midnight** in market
+   * terms — `2026-06-12T04:00:00.000Z` is 00:00 EDT — which `formatBarInstant`
+   * spelled as `Jun 12 · 00:00 EDT` on five surfaces: a session wearing the
+   * timestamp of an hour nothing traded in. Nobody in this repository had seen
+   * a `1d` bar, so the decision was deferred to this fixture by name
+   * (`VOLUME-AND-WINDOW.md` §2.3); the repair is one argument on one function.
+   *
+   * It is a `partial` and not a `loaded`, which is also a recorded fact rather
+   * than a choice: a named window reaches to the **current** session's close, so
+   * a `3M` window asked for on a weekend runs to Monday and the store holds
+   * through Friday. One session of 64 is uncovered — a sliver of the uncovered
+   * ground at the right-hand edge — which is the ordinary state of every `1d`
+   * window this control offers.
+   */
+  daily: {
+    status: 200,
+    body: DAILY,
+    outcome: "ok",
+    describes: "63 daily bars — the 3M window, and the first 1d body recorded",
+  },
+
+  /**
+   * **252 daily bars — the `1Y` window, the widest this control offers.** →
+   * `partial`.
+   *
+   * The second `1d` body, and it is not a duplicate of the first at a different
+   * length. Two things are only visible here. The **high–low extent band**
+   * `CHARTING.md` §12.2 declined at `1m` and handed to this story was measured
+   * against both: a daily bar's range is **12.6% of the plotted span at 3M and
+   * 7.1% at 1Y** (medians), against the hairline it was at `1m` — which is what
+   * turned that deferral into a decision. And a year of sessions is the window
+   * where the axis stops labelling times of day altogether, so it is the body
+   * the `1d` tick vocabulary is reviewed against.
+   *
+   * 48 KB, which puts it third in this directory behind `dense` and
+   * `uncovered`, and on `CLAUDE.md`'s must-not-ship list with them. Re-measure
+   * by name: `grep -o "2025-09-11T04:00" apps/frontend/dist/assets/*.js` must
+   * find nothing — and note it is the only fixture here reaching into **2025**,
+   * which is what makes that string distinctive.
+   */
+  dailyYear: {
+    status: 200,
+    body: DAILY_YEAR,
+    outcome: "ok",
+    describes: "252 daily bars — the widest window the control offers",
   },
 
   /**

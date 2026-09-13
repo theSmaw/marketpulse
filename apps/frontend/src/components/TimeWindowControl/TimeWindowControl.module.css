@@ -1,0 +1,142 @@
+/*
+ * The window control — one bordered box, five cells, hairline separators, and a
+ * readout outside it.
+ *
+ * Every value here is read off `VOLUME-AND-WINDOW.md` §8 rather than chosen, and
+ * two of them are corrections that document records because drawing it found
+ * them: hover is `--surface-sunken` and **not** `--surface-page`, which is
+ * 1.02:1 against white and does not appear on a control standing on a raised
+ * panel; and the readout sits outside the box, because inside it read as a sixth
+ * button and competed with hover for the one ground a cell can take.
+ *
+ * **No colour is spent anywhere in this file.** The selection is a shape, a
+ * weight and a step of ink, so `grayscale(1)` changes nothing about it — which
+ * is the one thing this control did not need measuring, because it has no hue to
+ * remove.
+ */
+
+/*
+ * The box and the readout, on one line until they cannot be.
+ *
+ * `flex-wrap` rather than a media query: the constraint is how much room the
+ * panel's heading row has left, which is a function of the region's width *and*
+ * of the heading beside it — not of the viewport. `CHARTING.md` §11.1 is
+ * emphatic that a breakpoint spelled twice is a number nothing compares, and
+ * this is the same argument one layer out.
+ */
+.control {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-8) var(--space-12);
+}
+
+.group {
+  display: flex;
+  align-items: stretch;
+
+  height: var(--control-height);
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--rule-hairline);
+  border-radius: var(--radius);
+}
+
+/*
+ * One cell.
+ *
+ * `flex: 0 1 auto` with a minimum: the cells never grow — a stretched row of
+ * five on a desktop panel would read as a navigation bar rather than as an
+ * instrument — and they shrink to their minimum before the readout wraps below,
+ * which is the narrow behaviour §8.6 asks for. The label never truncates,
+ * because the minimum is wide enough for the widest of the five.
+ */
+.cell {
+  flex: 0 1 auto;
+  min-width: 46px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0;
+  padding: 0 var(--space-12);
+  position: relative;
+
+  /* The micro-label idiom, and the reason these read as instrument controls
+     rather than as five web buttons: no new idiom was invented for them. */
+  composes: microLabel from "../../styles/type.module.css";
+  font-family: var(--font-data);
+  font-weight: var(--font-weight-regular);
+  color: var(--ink-secondary);
+
+  background: none;
+  border: 0;
+  /* Hairline separators, and they are borders on the cells rather than a gap in
+     the row: four gaps would put four seams where a reader is trying to see one
+     axis of choice. The first cell has none — see below. */
+  border-left: var(--border-width) solid var(--rule-hairline);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.cell:first-child {
+  border-left: 0;
+}
+
+/*
+ * **Hover owns the ground, and the selected cell takes none** (§8.2).
+ *
+ * Two states that a person using a mouse and a keyboard together can have on
+ * screen at the same moment must differ by more than a shade — the lesson the
+ * combobox's hovered row and active row already paid for — so these are
+ * different channels rather than two tints of one.
+ */
+.cell:hover {
+  background: var(--surface-sunken);
+  color: var(--ink-primary);
+}
+
+/*
+ * Selection: **three channels and none of them is hue.** The bar, the weight,
+ * and the ink stepping to primary.
+ *
+ * The bar is `--rule-strong` — near-black — and not the identity crimson. The
+ * accent has four sanctioned positions in the chrome, a control that changes a
+ * datum is not one of them, and a fifth position is a decision to escalate
+ * rather than a detail to slip into a stylesheet.
+ */
+.checked {
+  color: var(--ink-primary);
+  font-weight: var(--font-weight-strong);
+}
+
+.checked::after {
+  content: "";
+  position: absolute;
+  left: var(--space-4);
+  right: var(--space-4);
+  bottom: 0;
+  height: 2px;
+  background: var(--rule-strong);
+}
+
+/* The spelled-out name, for the ear only: `1D` is what is shown and "1 day" is
+   what is read, and both come off `TIME_WINDOWS`. */
+.name {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}
+
+/*
+ * The readout — the resolved session count, outside the box, in the micro-label
+ * idiom the status strip already uses for the market feed.
+ *
+ * `white-space: nowrap` because `21 SESSIONS` breaking across two lines in a
+ * panel heading is the one way this can look broken, and it is the state that
+ * explains the other five.
+ */
+.readout {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
