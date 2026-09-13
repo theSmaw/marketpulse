@@ -740,3 +740,59 @@ to prevent. What stands there instead is two route-level assertions on the numbe
 of regions, written by hand, on one route. Re-measure: add a second
 `role="status"` to `SecurityExplorer` and confirm the only red is the count
 assertion somebody thought to write.
+
+---
+
+## 8. Amendment 2026-09-13 by Task 2.13.7 — **what is on screen is not always what came back**
+
+This document's §1 and §4 describe a layer in which one union answers both _what
+came back_ and _what is on screen_. That was true for as long as the only thing
+that changed the request was a change of **security**, because a held series for
+the old symbol under the new one is the failure this whole layer is careful about
+— so on a symbol change the honest screen really is `loading`.
+
+**Story 2.13's window control is the first thing that separates the two.** The
+security has not moved; the series on screen is still a true picture of _its own_
+window; and three of the six members carry no picture at all, so `refused` and
+`failed` used to take a correct chart off the screen and put a sentence where it
+had been.
+
+### What was added, and what was deliberately not
+
+**`market/held-series.ts`: the last _answer_ this page painted is kept, together
+with the request it answers, until a newer answer replaces it — cleared on a
+change of security and never otherwise.** Three things follow, and each was a
+candidate design rejected in favour of this one:
+
+- **It is not a seventh member of `BarSeriesView`.** §1's rule 2 says every state
+  is a member; this is not a state, it is a fact about **two requests**, and a
+  union member describes one. A seventh member would land in every consumer's
+  `switch` for ever and each would have to re-derive which answer it was holding.
+- **It is not `stale`.** That flag is _the same request, one request old_, set at
+  the two cache reads in §2. A held answer to a **different** window is not a
+  stale answer to this one, and the two marks say different sentences on screen.
+- **§2's reversal trigger stays unfired**, and this task is the first thing that
+  could have fired it by accident. That trigger is _a chart that redraws a held
+  series in a second style_. Nothing here redraws anything: the held series is
+  the same series drawn the same way, and the browser suite compares the series
+  path data either side of a window change and requires it to be identical.
+
+### The shape the rest of the layer inherits
+
+`barSeriesScreen(state, asked)` is the one producer of a `BarSeriesScreen`, and
+there is no other way to obtain one. That is a fence rather than a convenience,
+and it is §1's rule 1 applied a level up: a component handed _the answer_ and
+_the picture_ as two props can be handed two that disagree, which is a screen the
+application cannot reach and a reviewer cannot tell from one it can.
+
+The full argument, the four rail sentences and the reading's behaviour across a
+change are in
+[`VOLUME-AND-WINDOW.md`](../story-13-volume-chart-and-time-window/VOLUME-AND-WINDOW.md)
+Part six, §§36–41.
+
+### What nothing checks
+
+**That a held answer is drawn in exactly the same style as a fresh one.** No
+level below `pnpm e2e` can see a second style, for the reason none of them can
+see a colour: no stylesheet is applied in the test environment. The path-data
+comparison in `e2e/specs/security-window-change.spec.ts` is the whole of it.

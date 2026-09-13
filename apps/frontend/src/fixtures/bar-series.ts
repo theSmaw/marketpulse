@@ -1,8 +1,23 @@
 import type { ApiError, BarSeriesResponse } from "@marketpulse/shared";
 import { isApiError, isBarSeriesResponse } from "@marketpulse/shared";
 
-import type { BarSeriesView } from "../market/index.js";
-import { toBarSeriesView, toStaleBarSeriesView } from "../market/index.js";
+import type {
+  BarSeriesRequest,
+  BarSeriesScreen,
+  BarSeriesState,
+  BarSeriesView,
+} from "../market/index.js";
+import type { ApiResult } from "../api-client.js";
+import {
+  DEFAULT_WINDOW_SESSIONS,
+  barSeriesScreen,
+  seriesWindowFor,
+  timeframeForSessions,
+  toBarSeriesState,
+  toBarSeriesView,
+  toRequestedBarSeriesState,
+  toStaleBarSeriesView,
+} from "../market/index.js";
 
 // Sixteen bodies `GET /market-data/bars` answers with, recorded from the real
 // endpoint over the real store — the fixture backend Stories 2.11 to 2.13 test
@@ -607,32 +622,176 @@ export function barSeriesFixtureBody(
 export function barSeriesFixtureView(
   name: BarSeriesFixtureName,
 ): BarSeriesView {
+  return toBarSeriesView(LOADING, barSeriesFixtureResult(name));
+}
+
+/**
+ * One recorded body as the `ApiResult` the transport would have produced.
+ *
+ * Extracted at Task 2.13.7, because a **sequence** of requests is now a thing a
+ * story has to produce — a window change is two requests and the second one's
+ * state depends on the first — and every step of that sequence goes through the
+ * real transition. The shape is decided entirely by the status code that was
+ * recorded alongside the body.
+ *
+ * `requestId` is `null` for every answer and a fixed, obviously-fake id for the
+ * failures, because the recorded bodies carry a real correlation id from the
+ * moment of recording and a story rendering one would put a different id on
+ * screen every time it is re-recorded.
+ */
+export function barSeriesFixtureResult(
+  name: BarSeriesFixtureName,
+): ApiResult<BarSeriesResponse> {
   const fixture = BAR_SERIES_FIXTURES[name];
 
   switch (fixture.outcome) {
     case "ok":
-      return toBarSeriesView(LOADING, {
+      return {
         outcome: "ok",
         status: fixture.status,
         data: barSeriesFixtureBody(name),
         requestId: null,
-      });
+      };
 
     case "api-error":
-      return toBarSeriesView(LOADING, {
+      return {
         outcome: "api-error",
         status: fixture.status,
         error: barSeriesFixtureError(name),
         requestId: FIXTURE_REQUEST_ID,
-      });
+      };
 
     case "unreadable-body":
-      return toBarSeriesView(LOADING, {
+      return {
         outcome: "unreadable-body",
         status: fixture.status,
         requestId: FIXTURE_REQUEST_ID,
-      });
+      };
   }
+}
+
+/**
+ * The named request for one window of NVDA, as this application spells it.
+ *
+ * The symbol is fixed and it does not matter: nothing downstream of
+ * `barSeriesQuery` reads it, the recorded bodies carry their own, and what the
+ * held-answer rule actually compares is *whether two requests name the same
+ * one*. {@link windowChangeFixtureScreen} takes a second symbol for exactly the
+ * case where it must differ.
+ */
+export function barSeriesFixtureRequest(
+  sessions: number,
+  symbol = "NVDA",
+): BarSeriesRequest {
+  return {
+    symbol,
+    timeframe: timeframeForSessions(sessions),
+    window: seriesWindowFor(sessions),
+  };
+}
+
+/**
+ * What is on screen for one settled answer — the ordinary, no-window-change
+ * case.
+ *
+ * Built through {@link toRequestedBarSeriesState} and {@link shownBarSeries}
+ * rather than as a literal, for this module's whole reason: a `ShownBarSeries`
+ * assembled by hand can hold a combination the layer cannot produce, and a
+ * component tuned against one of those renders the real thing wrongly.
+ */
+export function barSeriesFixtureScreen(
+  name: BarSeriesFixtureName,
+  sessions: number = DEFAULT_WINDOW_SESSIONS,
+): BarSeriesScreen {
+  return barSeriesViewScreen(barSeriesFixtureView(name), sessions);
+}
+
+/**
+ * The same, for a view that did not come from a recorded body.
+ *
+ * Three states have no body behind them and cannot: `loading` is the absence of
+ * one, a **stale** answer is a recorded one marked by a second transition, and
+ * a retry in flight is a third. They still have to reach the panel as a screen,
+ * and building one by hand at each call site would be the hand-built state this
+ * module exists to refuse — so the assembly goes through
+ * {@link toRequestedBarSeriesState} here, once.
+ */
+export function barSeriesViewScreen(
+  view: BarSeriesView,
+  sessions: number = DEFAULT_WINDOW_SESSIONS,
+): BarSeriesScreen {
+  const request = barSeriesFixtureRequest(sessions);
+
+  return barSeriesScreen(
+    toRequestedBarSeriesState({ view: LOADING, held: null }, request, view),
+    request,
+  );
+}
+
+/** A window change, as the two requests it actually is. */
+export interface WindowChange {
+  /** The answer already on screen. Must be one of the three answers. */
+  readonly held: BarSeriesFixtureName;
+  /** The window it answers. */
+  readonly heldSessions: number;
+  /** The window being changed to. */
+  readonly askedSessions: number;
+  /**
+   * How the new window settled, or `undefined` for *still in flight*.
+   *
+   * `undefined` is the state the press itself produces and is the commonest of
+   * the three on screen, which is why it is the default rather than a fourth
+   * name.
+   */
+  readonly asked?: BarSeriesFixtureName;
+  /** The security being asked about, where it differs from the held one. */
+  readonly askedSymbol?: string;
+}
+
+/**
+ * **A window change, collapsed through the real transitions** (Task 2.13.7).
+ *
+ * The shape Tasks 2.10.8 and 2.12.7 established, applied to a state that only a
+ * *sequence* can reach: a held answer paints, the request changes, and the new
+ * one is either still in flight, refused or failed. Every step below is the
+ * function `use-bar-series.ts` calls, in the order it calls it, so a story built
+ * this way is showing what the application actually does rather than what
+ * somebody believed it does.
+ *
+ * The `askedSymbol` case is the one that must come out **empty-handed**: a
+ * change of security drops the held answer, and a story that could not produce
+ * that could not show the difference.
+ */
+export function windowChangeFixtureScreen(
+  change: WindowChange,
+): BarSeriesScreen {
+  const heldRequest = barSeriesFixtureRequest(change.heldSessions);
+  const askedRequest = barSeriesFixtureRequest(
+    change.askedSessions,
+    change.askedSymbol,
+  );
+
+  const settled: BarSeriesState = toRequestedBarSeriesState(
+    { view: LOADING, held: null },
+    heldRequest,
+    barSeriesFixtureView(change.held),
+  );
+
+  // The render-phase adjustment `use-bar-series.ts` makes when the key moves:
+  // the view resets to `loading` — nothing is cached in a story — and the held
+  // answer survives or does not, on the symbol alone.
+  const changed = toRequestedBarSeriesState(settled, askedRequest, LOADING);
+
+  const after =
+    change.asked === undefined
+      ? changed
+      : toBarSeriesState(
+          changed,
+          askedRequest,
+          barSeriesFixtureResult(change.asked),
+        );
+
+  return barSeriesScreen(after, askedRequest);
 }
 
 /**

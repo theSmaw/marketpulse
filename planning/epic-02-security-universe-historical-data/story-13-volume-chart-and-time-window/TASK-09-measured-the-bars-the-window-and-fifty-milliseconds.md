@@ -388,3 +388,81 @@ Add to **Done when**:
 - The window-change figure separates a same-timeframe change from a `1m` → `1d`
   one
 - The keyboard-driven rapid sequence is timed as well as the pointer-driven one
+
+---
+
+## Amended 2026-09-13 by Task 2.13.7 — the rapid sequence has a recorded shape, a **seventh** candidate, and a warning that invalidates the measurement environment
+
+### The measurement environment first, because it silently zeroes the thing this task measures
+
+**A browser tab driven over CDP reports `document.visibilityState === "hidden"`,
+which pauses `requestAnimationFrame` — and `ResizeObserver` delivery with it.**
+Measured 2026-09-13: a freshly constructed observer on a laid-out **939 × 221**
+element fired **zero times in 500 ms**.
+
+For this task that is worse than a nuisance. Every figure here is a browser
+figure; a resize storm in a non-painting tab is **no storm at all**, a cold 1Y
+load measures a chart that never got a box, and the numbers would be plausible,
+small and meaningless. `CLAUDE.md`'s gap list carries it. **Say in the record
+which browser each figure was taken in and that it was visible** — Playwright's
+page is, a devtools-driven tab may not be.
+
+### The rapid sequence is no longer hypothetical, and its shape is recorded
+
+This task's _"measure a rapid sequence of changes, which is the pattern 2.13.7
+exercised and nothing has timed"_ now has a driver and an observed behaviour to
+time against: three presses inside one answer's flight settle on the last, the
+address ends on the last, and **one** rail is on screen throughout because what is
+on screen never changed. `e2e/specs/security-window-change.spec.ts` is the harness
+and it stalls the answers deliberately rather than racing them.
+
+Two things that changes about the measurement:
+
+- **A rapid sequence now paints the previous window's charts for its whole
+  duration** rather than a skeleton. So the CPU under a sequence is _render of a
+  held frame_ plus _n_ superseded fetches, not _n_ frame builds — which is the
+  opposite of what the bullet was written expecting, and is worth stating with the
+  figure because it is the shape the design chose.
+- **The keyboard-driven sequence is `→ → Space`**, not four presses (2.13.6's
+  amendment), and it reaches the change with the plot blurred and no reading live.
+  The pointer-driven one may have a reading live. Time both; they are different
+  amounts of work.
+
+### The seventh candidate: `resolveRead`'s search, which is bounded but is on a path nothing has profiled
+
+`ChartRead` now carries the bar's **instant**, and `resolveRead` resolves it
+against the current `readings` (§38). Its shape:
+
+- **The fast path is an index hit and an integer comparison**, and it is what runs
+  on every pointer move. No allocation, no search.
+- **The search runs once per window change**, per overlay — so **twice** per
+  change — and it is a binary search over `readings`, which is at most 9,750 at
+  the cap and 252 at 1Y.
+
+That is bounded and off the pointer path by construction, which is why 2.13.7 did
+not measure it. **What is worth confirming rather than assuming** is the fast
+path: it is inside both reading overlays' render, and 2.13.5's amendment already
+asks for the pointer fan-out to be measured separately from the resize fan-out.
+If a profile shows `resolveRead` on the pointer path doing anything but the index
+comparison, something upstream is rebuilding `readings` per move and the guard
+that should have caught it is looking at the wrong thing.
+
+### Two small additions to the fan-out picture, so a profile has them written down
+
+- **`useBarSeries` holds one state object rather than two**, and derives a
+  `BarSeriesScreen` per render — four field reads and a `switch`. Named so that a
+  profile showing a second object allocated per render in the hook has an
+  explanation already on paper rather than becoming a candidate.
+- **`usePlotBox` holds the two plot elements as state.** The elements are set once
+  per attachment, so this adds one render per plot on mount and none afterwards;
+  the effect's dependencies now include them, which is the repair §40 records. It
+  does **not** change the resize path. Stated for the same reason.
+
+Add to **Done when**:
+
+- Every browser figure records that the page was **visible**, with the method
+  stated
+- The rapid sequence is timed in both its driven forms, and the figure is stated
+  as _held frame plus n superseded fetches_ rather than as _n frame builds_
+- `resolveRead`'s fast path is confirmed on the pointer profile to be an index
+  comparison and nothing else

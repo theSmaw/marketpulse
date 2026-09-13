@@ -404,3 +404,98 @@ Add to **Done when**:
 - A real screen reader is used to arrow across the control without committing, and
   whether manual activation is discoverable is recorded either way
 - The control's `aria-describedby` is confirmed reachable
+
+---
+
+## Amended 2026-09-13 by Task 2.13.7 — **four new surfaces to walk**, one new keyboard behaviour, and a warning about the instrument
+
+Nothing in this task's scope is removed. What changed is that the page now has
+states it did not have when this was written, and one of them is a **listener's**
+state that no automated instrument can judge.
+
+### The instrument first, because it invalidates a whole class of observation
+
+**A browser tab driven over CDP reports `document.visibilityState === "hidden"`,
+which pauses `requestAnimationFrame` — and `ResizeObserver` delivery with it.**
+Measured 2026-09-13: a freshly constructed observer on a laid-out **939 × 221**
+element fired **zero times in 500 ms**. Every chart in such a tab therefore
+measures zero and renders an `<svg>` at 0 × 0 inside a correctly-sized plot,
+which is **indistinguishable on inspection from a real defect** — it cost this
+task's predecessor a session chasing one.
+
+This walk is largely conducted by looking at screens, so it matters here more
+than anywhere: **Playwright's page is visible and a CDP-driven tab may not be.**
+Before believing any observation that depends on layout, read
+`document.visibilityState` and count `requestAnimationFrame` ticks for 400 ms.
+`CLAUDE.md`'s gap list carries it.
+
+### The four new surfaces
+
+1. **The held-window rail** — a visible sentence in the Price region in four
+   forms (§37). Three of them are reachable by hand: `?sessions=1000` after an
+   answer, a stalled request, and a 503. It spends **no hue** — a dashed marker,
+   `--ink-secondary`, and a dashed hairline — so the greyscale bullet gains a
+   confirmation rather than a search, exactly as 2.13.2's amendment framed the
+   other two.
+2. **The rail's `Try again`** — in the failed state this is the screen's **one**
+   retry and it is **a new tab stop**, in a position the panel has never had one.
+   The stop count in a failed state is therefore not the stop count in a loaded
+   one, which the count bullet should say rather than pick one state and report
+   it.
+3. **A new clause in the panel's live region** — _"The 5-session window is still
+   on screen."_ It is appended after the state's own sentence and after `stale`,
+   and it exists so a listener can tell _the page went blank_ from _the page kept
+   the previous answer_. **Nobody has heard it.** That is the same class of claim
+   as 2.13.5's volume clause and wants the same treatment: walk it with a real
+   screen reader and record whether it arrives late enough in a long sentence to
+   be missed.
+4. **`describeSessionCount` is now spoken in two places** — the control's readout
+   (`aria-describedby` on the group) and the rail. A listener arriving at the
+   control hears _"Time window … 21 sessions"_; a listener hearing the region
+   update hears _"The 21-session window …"_. Confirm those read as one vocabulary
+   rather than as two, which is the thing a single grep cannot tell you.
+
+### One new keyboard behaviour, and it is the hard one to reach
+
+**A reading now survives a window change** (§38). The crosshair keeps the bar's
+instant and re-anchors to the nearest placed bar in the new window, clearing only
+when the instant falls outside it — and **focus is not touched**, so a cleared
+reading lands exactly where `Escape` leaves it.
+
+The part to walk is the part the unit tests cannot reach: **what a listener
+hears.** The reading's live region is paced, and a window change may move the
+crosshair with no key press behind it. Arrow to a bar, press a window cell,
+and record whether the new bar is announced, whether it is announced _late_, and
+whether a cleared reading says anything at all. If a listener cannot tell that
+the crosshair moved, that is a finding rather than a nuisance — it is the case
+Epic 11's `setTimeWindow` puts in front of every user.
+
+Note the **manual activation** interaction while you are there: `→ → Space` moves
+focus twice and commits once, so a keyboard user reaches a window change with the
+plot blurred and no reading live. The re-anchor is therefore **mouse- and
+agent-facing** rather than keyboard-facing, which is worth stating in the walk's
+record so a later reader does not conclude it was built for a path it does not
+serve.
+
+### Two things this walk no longer has to find
+
+- **The control is present and operable in `loading`, `failed` and `refused`**,
+  asserted in `e2e/specs/security-window-change.spec.ts` where it actually lives —
+  the region's heading row, outside the `ErrorBoundary`. Confirm by keyboard; do
+  not re-derive.
+- **The three address-reachable refusals are produced without stubbing** in that
+  same spec. The walk can use those three addresses as free fixtures for a
+  screen-reader pass over a state that has no chart in it.
+
+Add to **Done when**:
+
+- `document.visibilityState` is checked before any observation that depends on
+  layout, and the walk says which browser it was conducted in
+- The rail is walked in all three reachable forms, greyscale included, and
+  confirmed to spend no hue
+- The stop count is recorded **per state**, naming the one the rail's `Try again`
+  adds
+- A real screen reader hears the held-window clause, and whether it is reachable
+  in practice is recorded either way
+- A window change is driven with a reading live, and what a listener hears about
+  the moved or cleared crosshair is recorded

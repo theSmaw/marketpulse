@@ -1,10 +1,11 @@
 import type { SecurityStatus } from "@marketpulse/shared";
 
-import type { BarSeriesView } from "../../market/index.js";
+import type { BarSeriesScreen, BarSeriesView } from "../../market/index.js";
 import {
   directionOf,
   formatChangePercent,
   formatPrice,
+  windowPhrase,
 } from "../../market/index.js";
 import {
   changePercent,
@@ -110,9 +111,36 @@ import {
  * hostile; whatever ships there owes either a debounce upstream of the request
  * or a decision to leave the region silent while a query is being typed.
  */
-export function announceSeries(view: BarSeriesView, symbol: string): string {
-  const sentence = describe(view, symbol);
-  return sentence === "" ? "" : `${symbol}: ${sentence}`;
+export function announceSeries(
+  screen: BarSeriesScreen,
+  symbol: string,
+): string {
+  const sentence = describe(screen.view, symbol);
+  if (sentence === "") return "";
+
+  // **The held-window clause, and it is appended rather than substituted**
+  // (Task 2.13.7).
+  //
+  // A listener has one region and the screen has two facts in it: what happened
+  // to the window that was asked for, and what is consequently still drawn.
+  // Dropping the second would leave somebody who cannot see the chart unable to
+  // tell *the page went blank* from *the page kept the previous answer* — and
+  // those are the two things acceptance criterion 4 is about distinguishing.
+  //
+  // It is the **last** clause because it is the least urgent: the sentence has
+  // already said what happened, and this qualifies the screen rather than the
+  // event. That is the same position `stale` takes for the same reason.
+  const held =
+    screen.previous === null
+      ? ""
+      : ` ${sentenceCase(windowPhrase(screen.previous.window))} is still on screen.`;
+
+  return `${symbol}: ${sentence}${held}`;
+}
+
+/** A noun phrase at the start of a sentence. */
+function sentenceCase(phrase: string): string {
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
 }
 
 /** Everything after the subject. */

@@ -215,7 +215,17 @@ export function SecurityExplorer() {
        * Task 2.13.5 puts the read position in the same wrapper, on every
        * pointer move across a chart.
        */}
-      <ChartAxis view={series.view}>
+      {/*
+       * **The axis is built from what is DRAWN, not from what was asked**
+       * (Task 2.13.7). `series.screen.shown` is the previous window's answer
+       * wherever the current request carries no picture — in flight with
+       * nothing cached, refused, or failed — so the two plots keep the frame
+       * they had rather than collapsing to nothing and back.
+       *
+       * `series.view` is still what the panel *reports on*, which is why both
+       * reach `BarSeriesPanel` and only one reaches the plots.
+       */}
+      <ChartAxis view={series.screen.shown}>
         <div className={page.grid}>
           {/*
            * The series region, first and two columns wide, because it is what
@@ -270,7 +280,7 @@ export function SecurityExplorer() {
               }
             >
               <BarSeriesPanel
-                view={series.view}
+                screen={series.screen}
                 symbol={symbol}
                 onRetry={series.retry}
                 defaulted={!fromAddress}
@@ -312,7 +322,7 @@ export function SecurityExplorer() {
               name="Volume"
               filledBy="Traded volume over the same window as the price above it, on the same axis and stopping at the same coverage edge, which is why it sits directly beneath at the same width. The window control above moves both."
             >
-              <VolumeChart view={series.view} symbol={symbol} />
+              <VolumeChart view={series.screen.shown} symbol={symbol} />
             </Region>
           </div>
 

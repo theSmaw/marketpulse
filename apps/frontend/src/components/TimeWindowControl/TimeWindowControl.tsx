@@ -2,7 +2,11 @@ import type { KeyboardEvent } from "react";
 import { useId, useRef } from "react";
 
 import type { TimeWindow } from "../../market/index.js";
-import { TIME_WINDOWS, windowForSessions } from "../../market/index.js";
+import {
+  TIME_WINDOWS,
+  describeSessionCount,
+  windowForSessions,
+} from "../../market/index.js";
 import { cx } from "../../cx.js";
 import styles from "./TimeWindowControl.module.css";
 
@@ -259,7 +263,12 @@ export function TimeWindowControl({
  * `SEARCH-AND-SELECTION.md` paid for three times in one afternoon.
  */
 export function readoutText(sessions: number): string {
-  return Number.isInteger(sessions) && sessions > 0
-    ? `${String(sessions)} ${sessions === 1 ? "session" : "sessions"}`
-    : "not a session count";
+  // **The count itself is `time-window.ts`'s spelling since Task 2.13.7**, and
+  // that is a repair rather than a tidy-up: the rail that names which window is
+  // on screen when a newer one has not answered says the same number a few
+  // centimetres from here, and two surfaces spelling one window two ways is a
+  // reader's problem. What stays here is the **fallback**, deliberately — the
+  // sentence a surface says about a count that is not one is that surface's own,
+  // and a shared one would be the two-surfaces-one-sentence defect.
+  return describeSessionCount(sessions) ?? "not a session count";
 }

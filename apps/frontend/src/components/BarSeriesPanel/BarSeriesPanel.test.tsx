@@ -4,8 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import {
   BAR_SERIES_FIXTURE_NAMES,
   barSeriesFixtureView,
+  barSeriesViewScreen,
   staleBarSeriesFixtureView,
+  windowChangeFixtureScreen,
 } from "../../fixtures/bar-series.js";
+import type { BarSeriesView } from "../../market/index.js";
 import { ChartAxis } from "../PriceChart/ChartAxis.js";
 import type { BarSeriesPanelProps } from "./BarSeriesPanel.js";
 import { BarSeriesPanel } from "./BarSeriesPanel.js";
@@ -41,15 +44,31 @@ const props = {
  *
  * `useChartAxis` throws outside a `ChartAxis` on purpose (`chart-axis-context.ts`
  * carries why), so this is the real arrangement rather than a convenience. The
- * `view` is handed to both because it is one answer: the axis takes the window
- * out of it and the panel states the figures.
+ * axis is built from **what is drawn** since Task 2.13.7, which on a window
+ * change is not always the answer to the request being made.
  */
-function Panel(panelProps: BarSeriesPanelProps) {
+function Screen(panelProps: BarSeriesPanelProps) {
   return (
-    <ChartAxis view={panelProps.view}>
+    <ChartAxis view={panelProps.screen.shown}>
       <BarSeriesPanel {...panelProps} />
     </ChartAxis>
   );
+}
+
+/**
+ * The same, for the ordinary case: one answer, to the request being made.
+ *
+ * Kept as a second harness rather than folded into {@link Screen} because it is
+ * what nearly every test below is about, and because the screen it builds goes
+ * through the **real** `toRequestedBarSeriesState` — so a test written this way
+ * cannot hold a `screen` whose halves disagree, which is the combination
+ * `barSeriesScreen` exists to make unreachable.
+ */
+function Panel({
+  view,
+  ...rest
+}: Omit<BarSeriesPanelProps, "screen"> & { readonly view: BarSeriesView }) {
+  return <Screen {...rest} screen={barSeriesViewScreen(view)} />;
 }
 
 /**
@@ -444,5 +463,196 @@ describe("BarSeriesPanel", () => {
     expect(
       screen.getByText(/Holding all 30 bars of the window asked for/),
     ).not.toBeNull();
+  });
+});
+
+// --- Task 2.13.7: a window change, in every way it can end ---
+
+describe("a window change", () => {
+  // Acceptance criterion 4's second clause, which is the load-bearing one: **a
+  // failed window change leaves the previous data visible and labelled rather
+  // than blanking the page.** Every screen below is built by
+  // `windowChangeFixtureScreen`, which runs the two requests through the real
+  // transitions in the order `use-bar-series.ts` runs them — a hand-built
+  // `screen` could hold a pair no sequence of requests can produce.
+
+  it("keeps the previous window's figures while the new one is read", () => {
+    render(
+      <Screen
+        {...props}
+        screen={windowChangeFixtureScreen({
+          held: "partial",
+          heldSessions: 5,
+          askedSessions: 21,
+        })}
+      />,
+    );
+
+    // The whole point, asserted as what did *not* happen: the figures are still
+    // there, at full ink, unblanked.
+    expect(screen.getByText(/Holding 60 bars/, VISIBLE)).toBeTruthy();
+    expect(screen.getByText("Open", VISIBLE)).toBeTruthy();
+  });
+
+  it("names both windows, so the old one cannot be mistaken for the new", () => {
+    render(
+      <Screen
+        {...props}
+        screen={windowChangeFixtureScreen({
+          held: "partial",
+          heldSessions: 5,
+          askedSessions: 21,
+        })}
+      />,
+    );
+
+    // `VOLUME-AND-WINDOW.md` §6.3's tension resolved: the previous window's
+    // series is a true picture of the previous window, and stays true only
+    // because the label above says which window it is of.
+    expect(
+      screen.getByText(
+        /Still showing the 5-session window while the 21-session window is read/,
+        VISIBLE,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("keeps them and says what happened when the new window is refused", () => {
+    render(
+      <Screen
+        {...props}
+        screen={windowChangeFixtureScreen({
+          held: "partial",
+          heldSessions: 5,
+          askedSessions: 1000,
+          asked: "refusedCalendar",
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        /Still showing the 5-session window\. The 1,000-session window was not answered/,
+        VISIBLE,
+      ),
+    ).toBeTruthy();
+
+    // The server's own sentence, verbatim, beside a chart of a different
+    // window — and no control, because waiting never helps.
+    expect(screen.getByText(/trading calendar/, VISIBLE)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(screen.getByText(/Holding 60 bars/, VISIBLE)).toBeTruthy();
+  });
+
+  it("keeps them and offers exactly one retry when the new window fails", () => {
+    render(
+      <Screen
+        {...props}
+        screen={windowChangeFixtureScreen({
+          held: "partial",
+          heldSessions: 5,
+          askedSessions: 21,
+          asked: "unavailable",
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        /Still showing the 5-session window\. The 21-session window could not be read/,
+        VISIBLE,
+      ),
+    ).toBeTruthy();
+
+    // **Exactly one.** The rail carries it; the body below it is a correct
+    // answer to a window that did not fail, so a second control there would
+    // offer to re-read something that worked.
+    expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(
+      1,
+    );
+    expect(screen.getByText(/Holding 60 bars/, VISIBLE)).toBeTruthy();
+  });
+
+  it("drops the previous security's series rather than relabelling it", () => {
+    // The fence. A held NVDA series under an AMD heading is plausible and wrong
+    // rather than visibly broken — so a change of security blanks, exactly as
+    // it did before this task, and the rail does not appear.
+    render(
+      <Screen
+        {...props}
+        symbol="AMD"
+        screen={windowChangeFixtureScreen({
+          held: "partial",
+          heldSessions: 5,
+          askedSessions: 5,
+          askedSymbol: "AMD",
+        })}
+      />,
+    );
+
+    expect(screen.queryByText(/Still showing/, VISIBLE)).toBeNull();
+    expect(screen.getByText(/Reading the series…/, VISIBLE)).toBeTruthy();
+  });
+
+  it("shows the refreshing rail and the held-window rail never together", () => {
+    // Two marks for one fact. A held answer is not about to be refreshed — the
+    // request behind it has already been superseded — so the screen says one
+    // thing or the other.
+    render(
+      <Screen
+        {...props}
+        screen={windowChangeFixtureScreen({
+          held: "partial",
+          heldSessions: 5,
+          askedSessions: 21,
+        })}
+      />,
+    );
+
+    expect(screen.getByText(/Still showing/, VISIBLE)).toBeTruthy();
+    expect(screen.queryByText(/^Refreshing/, VISIBLE)).toBeNull();
+  });
+
+  it("invents no number for a window the address did not name as a count", () => {
+    // `?sessions=abc` reaches the server as `NaN`. The rail says *the window
+    // asked for* and prints nothing, because a sentence built around a figure
+    // is wrong for every window but one.
+    render(
+      <Screen
+        {...props}
+        screen={windowChangeFixtureScreen({
+          held: "partial",
+          heldSessions: 5,
+          askedSessions: Number.NaN,
+          asked: "refusedCalendar",
+        })}
+      />,
+    );
+
+    const rail = screen.getByText(/Still showing/, VISIBLE);
+    expect(rail.textContent).toContain("The window asked for was not answered");
+    expect(rail.textContent).not.toContain("NaN");
+  });
+
+  it("keeps a cached answer on screen when the refetch behind it fails", () => {
+    // **Not a window change at all**, and the same rule covers it: an answer
+    // painted from the cache, followed by a refetch that fails, used to be
+    // replaced by a failure with no window in it.
+    render(
+      <Screen
+        {...props}
+        screen={windowChangeFixtureScreen({
+          held: "partial",
+          heldSessions: 5,
+          askedSessions: 5,
+          asked: "unavailable",
+        })}
+      />,
+    );
+
+    expect(screen.getByText(/Holding 60 bars/, VISIBLE)).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(
+      1,
+    );
   });
 });

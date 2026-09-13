@@ -462,3 +462,120 @@ Add to **Done when**:
   and the canvas — rather than re-applied
 - Test 4's latency half is answered from the **deployed** page, and the deferral
   count is stated as three
+
+---
+
+## Amended 2026-09-13 by Task 2.13.7 — ADR 0028 gains a **seventh** subject, `VOLUME-AND-WINDOW.md` has a Part six, §1.3's trigger is answered but its screenshot is still owed, and three sweep targets are already swept
+
+### ADR 0028's seventh subject: **what is on screen is not always what came back**
+
+The six already named are unchanged — the window vocabulary, the timeframe
+mapping, the shared axis as four separately-undoable mechanisms, the memoised
+calendar walk, the address rule, and the daily-axis placement rule. This one
+belongs beside them and reaches further than any of them except the address:
+
+**The last _answer_ a page painted is kept, together with the request it answers,
+until a newer answer replaces it — cleared on a change of security and never
+otherwise** ([`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §36).
+
+Three things make it ADR-worthy rather than a screen detail:
+
+- **It is the seam Epic 3 lands on.** A screen that already knows how to keep
+  showing the last true thing while it waits for the next one is a screen a socket
+  can feed. The live feed's _"displaying data through 10:42:17"_ (`PRODUCT_SPEC.md`
+  §36) is this rule with a different sentence on it.
+- **It is what makes Epic 11's `setTimeWindow` safe to hand to a model**, together
+  with the address rule. An agent changing the window with nobody touching anything
+  is precisely the case where a page that blanks, or a chart that silently relabels
+  itself, is worst.
+- **It is not a seventh member of the state union and it is not `stale`**, and the
+  ADR should say why, because both are the obvious readings and both are wrong: it
+  is a fact about **two** requests, and a union member describes one. State also
+  that `FRONTEND-STATE.md` §2's reversal trigger — _a chart that redraws a held
+  series in a second style_ — stays **unfired**, for the same reason §1's store
+  trigger has to be disclaimed for the second context: a reader meeting this will
+  otherwise conclude a trigger fired quietly.
+
+Note ADR 0023 is **not** reopened. It decided that there is no store; this decides
+what one screen shows while two requests are in play, and it is spelled as a pure
+transition beside the ones that file already argues for.
+
+### `VOLUME-AND-WINDOW.md` has a Part six, and §41 is the list to extend
+
+The Work bullet still says _"finish `VOLUME-AND-WINDOW.md`"_. It is now **six**
+parts — decisions, instrument, rendering, reading, control, and **every state of a
+window change** (§§36–41). Continue the shape rather than rewriting it, and note
+that §41 already carries the "what Part six hands on" list in the form §17.5 uses,
+which is the form this task's closing list extends.
+
+### §1.3's trigger is **answered**; what this task still owes is the photograph
+
+2.13.6's amendment says _"2.13.7 answers §1.3's trigger; this task is where the
+screenshot behind it should come from."_ Half of that is done and the other half
+moved.
+
+**Answered: 1D stays** (§39). Looked at at 1440 in a real browser: the frame is
+real, the whole plot is the same uncovered ground a partial answer uses for its
+short tail, and the sentence names the window, the fact and the schedule. That is
+a decision now, not an open trigger, and this task should record it as settled
+rather than re-take it.
+
+**What moved is the premise.** Photographed on the **deployed** store on
+2026-09-13, a **Saturday**, `?sessions=1` resolved to a completed session the
+nightly backfill holds in full: a complete intraday line at −1.38%, no uncovered
+ground anywhere. So §1.3's _"1D is **reliably** empty"_ is true only **during** a
+session, and the deployed store outside one shows the best picture the control
+offers rather than the emptiest.
+
+**This task therefore still owes the weekday photograph** — the one place 1D's
+emptiness is a fact about the free plan's fifteen-minute embargo rather than about
+an uncaught-up backfill, which is what 2.13.6's amendment was actually asking for.
+Take it on a trading day, and put it beside the weekend one; the pair is the
+honest record and either alone is misleading.
+
+### What 2.13.7 already swept, so this task checks rather than repeats
+
+- **`CLAUDE.md`** — the story's status line, the "what a user can see today"
+  paragraph (a new one for the held answer, the rail and the re-anchored
+  crosshair), and **three** new gap-list entries: the hidden-tab
+  `ResizeObserver` warning, the discharged stranded-observer defect, and the
+  held-answer style claim. Two of the three had their break performed.
+- **`FRONTEND-STATE.md`** — a new §8, a dated amendment recording that the
+  document's §1 and §4 describe a layer in which one union answered both
+  questions, and that Story 2.13's control is the first thing to separate them.
+- **`EPIC.md`** — status and exit-criterion paragraphs, which had been two tasks
+  stale. The criterion now reads **met in substance**, and what remains is named
+  as the three tasks that make it checkable.
+- **`e2e/README.md`** — sixteen spec files and 129 tests, plus a note that three
+  of the heaviest specs time out under contention at four workers and pass in
+  isolation, so a red run that goes green alone is not a flake to bisect.
+- **`STORY.md`** — status.
+
+What remains on the sweep bullet is unchanged: whatever 2.13.8 and 2.13.9
+falsify, and this story's own close.
+
+### Two things for the deployed verification specifically
+
+- **A window change is now worth photographing in three frames rather than one.**
+  The deployed store answers in full, so the transition a stranger sees is between
+  two **complete** pictures with a rail in between — which is the version test 4's
+  latency half is actually about (2.13.6's amendment asks for it from the deployed
+  page). The rail's third form, a refusal over a held answer, is reachable there
+  by a hand-typed `?sessions=1000` after an answer has landed.
+- **`pnpm e2e:deployed` does not cover any of this.** The deployed suite is three
+  specs about routing, the universe and the two halves; nothing in it drives the
+  window control or the rail. Say so in the close rather than letting a green
+  deployed run imply it.
+
+Add to **Done when**:
+
+- ADR 0028 records the held-answer rule as its seventh subject, says why it is
+  neither a seventh union member nor `stale`, and disclaims both
+  `FRONTEND-STATE.md` triggers explicitly
+- §1.3's trigger is recorded as **answered** rather than re-taken, and the
+  **weekday** 1D photograph is taken and placed beside the weekend one
+- The sweep bullet's list is checked against what 2.13.7 already amended —
+  `CLAUDE.md`, `FRONTEND-STATE.md`, `EPIC.md`, `e2e/README.md` — rather than
+  re-applied
+- The close states what `pnpm e2e:deployed` does **not** cover, the window control
+  and the rail included

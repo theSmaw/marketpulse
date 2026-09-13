@@ -4,11 +4,14 @@ import { getBarSeries } from "../api-client.js";
 import type { BarSeriesRequest } from "../bar-series-query.js";
 import { barSeriesQuery } from "../bar-series-query.js";
 import type { BarSeriesView } from "./bar-series-view.js";
+import { toStaleBarSeriesView } from "./bar-series-view.js";
+import type { BarSeriesScreen, BarSeriesState } from "./held-series.js";
 import {
-  toBarSeriesView,
-  toRetryingBarSeriesView,
-  toStaleBarSeriesView,
-} from "./bar-series-view.js";
+  barSeriesScreen,
+  toBarSeriesState,
+  toRequestedBarSeriesState,
+  toRetryingBarSeriesState,
+} from "./held-series.js";
 import { barSeriesCache, isCacheableBarSeriesView } from "./series-cache.js";
 
 // One request for one series, cancelled correctly, superseded correctly, and
@@ -136,6 +139,22 @@ export interface BarSeriesSource {
   readonly view: BarSeriesView;
 
   /**
+   * Everything one screen is showing, as one value (Task 2.13.7).
+   *
+   * `view` above is the answer to the request being made *now*; three of its
+   * six members carry no picture, and on a window change what is **drawn** is
+   * then the previous window's answer. `held-series.ts` carries the rule and
+   * the argument for why it is not a seventh union member.
+   *
+   * `screen.view` is `view`, by construction and not by coincidence — one
+   * function builds this and there is no other way to obtain one, so the two
+   * cannot drift. `view` stays on this interface because it is what a consumer
+   * that only reports on the request wants, and because every call site that
+   * predates Task 2.13.7 means exactly that.
+   */
+  readonly screen: BarSeriesScreen;
+
+  /**
    * Ask again.
    *
    * Safe to call at any time, including twice in a row while a request is in
@@ -194,13 +213,20 @@ export function useBarSeries(request: BarSeriesRequest): BarSeriesSource {
   const key = barSeriesQuery(request);
 
   const [pinned, setPinned] = useState<PinnedRequest>(() => ({ request, key }));
-  const [view, setView] = useState<BarSeriesView>(
+  // **One state object rather than two** since Task 2.13.7, and that is a shape
+  // rather than a tidy-up: the view and the answer still on screen under it
+  // move together on every transition, and two `useState`s updated in the same
+  // callback are two places for the same off-by-one. It is also what keeps the
+  // transitions pure — `held-series.ts` owns all three, none of them reads a
+  // cache or a clock, and this file still adds an effect and nothing else.
+  const [state, setState] = useState<BarSeriesState>(() => {
     // A held series paints in the **first** commit rather than one after it.
     // Reading the cache in an effect instead would render `loading` and replace
     // it a frame later, which is a flash of nothing on the way to something we
     // already had.
-    () => held(key),
-  );
+    const view = held(key);
+    return toRequestedBarSeriesState({ view, held: null }, request, view);
+  });
 
   // The inputs changed. React's own "adjusting state when a prop changes"
   // pattern: set state during render, and React re-renders this component
@@ -212,7 +238,16 @@ export function useBarSeries(request: BarSeriesRequest): BarSeriesSource {
   // about — plausible and wrong, rather than visibly broken.
   if (pinned.key !== key) {
     setPinned({ request, key });
-    setView(held(key));
+    // **The view is reset and the last answer is not**, which is the whole of
+    // Task 2.13.7 at this line. A held answer for the *new* key is the right
+    // thing to paint and becomes the held one; with nothing held for it, the
+    // previous window's answer stays on screen under a rail that names it —
+    // unless the **security** moved, in which case it is dropped, because the
+    // old symbol's series under a new heading is the failure this whole layer
+    // is careful about.
+    setState((previous) =>
+      toRequestedBarSeriesState(previous, request, held(key)),
+    );
   }
 
   // `null` between requests, and otherwise the controller of the one request
@@ -247,7 +282,9 @@ export function useBarSeries(request: BarSeriesRequest): BarSeriesSource {
       // this still the request we are waiting for* and nothing else answers it.
       if (current.current !== controller) return;
 
-      setView((previous) => toBarSeriesView(previous, result));
+      setState((previous) =>
+        toBarSeriesState(previous, pinned.request, result),
+      );
     };
 
     void read();
@@ -264,7 +301,7 @@ export function useBarSeries(request: BarSeriesRequest): BarSeriesSource {
     };
   }, [load]);
 
-  // The cache write, deliberately here rather than inside the `setView` above.
+  // The cache write, deliberately here rather than inside the `setState` above.
   //
   // A state updater must be pure — React calls it twice under `StrictMode` and
   // may call it again on a re-render it discards — so a `Map` mutation inside
@@ -278,13 +315,18 @@ export function useBarSeries(request: BarSeriesRequest): BarSeriesSource {
   // that painted it and writes it back, which promotes it. So recency-on-write
   // is recency-on-read, without a mutation during a render.
   useEffect(() => {
-    if (isCacheableBarSeriesView(view)) barSeriesCache.write(pinned.key, view);
-  }, [view, pinned.key]);
+    if (isCacheableBarSeriesView(state.view))
+      barSeriesCache.write(pinned.key, state.view);
+  }, [state.view, pinned.key]);
 
   const retry = useCallback(() => {
-    setView(toRetryingBarSeriesView);
+    setState(toRetryingBarSeriesState);
     load();
   }, [load]);
 
-  return { view, retry };
+  return {
+    view: state.view,
+    screen: barSeriesScreen(state, pinned.request),
+    retry,
+  };
 }

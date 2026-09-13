@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { Fragment } from "react";
 
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import type { BarSeriesView } from "../../market/index.js";
+import gridStyles from "../stories.module.css";
 import { ChartAxis } from "./ChartAxis.js";
 import { VolumeChart } from "./VolumeChart.js";
 import styles from "./PriceChart.stories.module.css";
@@ -158,3 +160,77 @@ export const Refused: Story = {
   args: { symbol: "NVDA", view: barSeriesFixtureView("refusedUnknownSymbol") },
   render: (args) => <Plot view={args.view} width="wide" />,
 };
+
+/**
+ * **The three causes of a volume plot with no columns, side by side** (Task
+ * 2.13.7) — the picture a reader is most likely to misread, and a window change
+ * can move between all three of them.
+ *
+ * Every one of them is a plot with nothing drawn in it, and what separates them
+ * is the **ground** and the **gutter** rather than the columns:
+ *
+ *  - **Nothing asked for yet** — `loading`. No wash, no label: nothing is known
+ *    to be missing, only unanswered.
+ *  - **Nothing held** — `empty`. The whole frame is uncovered ground, and the
+ *    gutter is blank rather than `0`, because a peak of nothing is not zero
+ *    shares traded.
+ *  - **Nothing traded** — a genuine `loaded` in which every bar's volume is
+ *    zero. No wash, a baseline with no columns on it, and a real `0` in the
+ *    gutter. `volumeDomain` answers an all-zero window with a ceiling of one
+ *    share, so the columns are zero pixels tall rather than undefined.
+ *
+ * The third has no recorded body and cannot have one: no hour in the store has
+ * 390 consecutive prints of zero volume, which is a fact about the market
+ * rather than about this directory. It is therefore built by zeroing the
+ * volumes of a **recorded** series — one field, the same single documented step
+ * `incoherent.json` and `unknown-feed.json` are derived from — so the window,
+ * the coverage and the instants are all still the server's.
+ *
+ * The three are adjacent here because that is the only place anybody can
+ * compare them; they are never adjacent in the product.
+ */
+export const ColumnlessCauses: Story = {
+  args: { symbol: "NVDA", view: { state: "loading" } },
+  parameters: { layout: "fullscreen" },
+  render: () => (
+    <div className={gridStyles.grid}>
+      {(
+        [
+          ["Nothing asked for yet — loading", { state: "loading" } as const],
+          ["Nothing held — empty", barSeriesFixtureView("empty")],
+          ["Nothing traded — loaded, and a 0", untraded()],
+        ] as const
+      ).map(([label, view]) => (
+        <Fragment key={label}>
+          <p className={gridStyles.label}>{label}</p>
+          <Plot view={view} width="wide" />
+        </Fragment>
+      ))}
+    </div>
+  ),
+};
+
+/**
+ * A recorded series with every bar's volume set to zero.
+ *
+ * The one derivation in this file, and it is the same shape the fixture module
+ * sanctions: a recorded body with **one field changed**, so that everything
+ * else about it — the window, the coverage, the instants, the provenance — is
+ * still what the server sent. A hand-written series would be free to be wrong
+ * about all four.
+ */
+function untraded(): BarSeriesView {
+  const view = barSeriesFixtureView("full");
+  if (view.state !== "loaded") throw new Error("full is not a loaded series");
+
+  return {
+    ...view,
+    series: {
+      ...view.series,
+      bars: view.series.bars.map((bar) => ({ ...bar, volume: 0 })) as [
+        (typeof view.series.bars)[number],
+        ...(typeof view.series.bars)[number][],
+      ],
+    },
+  };
+}

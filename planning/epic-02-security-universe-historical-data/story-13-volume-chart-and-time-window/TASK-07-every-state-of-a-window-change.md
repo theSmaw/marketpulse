@@ -1,6 +1,6 @@
 # Task 2.13.7 — Every state of a window change, produced rather than described
 
-**Status:** Not started
+**Status:** Complete — 2026-09-13
 **Story:** [2.13 Volume Chart & Time-Window Selection](STORY.md)
 **Depends on:** 2.13.6
 
@@ -463,3 +463,199 @@ Add to **Done when**:
   control is shown present and operable in each
 - The control's presence in every state is asserted where it actually lives — the
   region's heading row, outside the boundary — rather than re-argued
+
+---
+
+## What was built — 2026-09-13
+
+**Status: complete.** `pnpm verify` green, `pnpm e2e` green at **129 tests** —
+eight of them new.
+
+### A stakeholder's account of it, in plain English
+
+**The problem, in one sentence.** Until today, if you were looking at NVDA's last
+five trading days and you pressed the button for the last month, the chart went
+blank while the new data was fetched — and if that fetch failed, or the period
+you asked for was one the system cannot answer, it stayed blank. You pressed a
+button and the screen took away the thing you were already reading.
+
+That is a bad experience anywhere. On a market screen it is worse than bad,
+because an analyst mid-thought loses the evidence they were reasoning about, for
+no reason: the five days of data were correct, they were on the screen, and
+nothing about them stopped being true.
+
+**What happens now.** The old chart stays. Every time. While the new period
+loads, while it fails, and even when the system refuses the request outright —
+the five-day picture you were looking at remains exactly where it was, at full
+brightness, with every number under it unchanged. What appears above it is one
+short line that says, in words, _which_ period is still on screen and what
+happened to the one you asked for:
+
+> **Still showing the 5-session window. The 21-session window could not be read.**
+> This is usually temporary. Try again in a moment. **[ Try again ]**
+
+That sentence is the whole of the design decision, and it is why the picture is
+allowed to stay. A chart of one period sitting silently under a button that says
+a different period is a **lie** — plausible and wrong, which is the most
+dangerous kind of wrong in a product whose job is evidence. A chart of one period
+sitting under a line that names that period is simply a true picture with a
+caption.
+
+**Why we did it this way rather than the obvious ways.**
+
+- We did **not** add a new "sort-of loading" state to the system's vocabulary.
+  The application already describes what it knows about data in six states, and
+  every screen in the product branches on those six. Adding a seventh would have
+  put a new case into every one of those branches for ever. What we added is much
+  smaller: the application now simply remembers the last real answer it drew,
+  alongside the question that answer was to. That single memory covers the
+  loading case, the failure case and the refusal case at once.
+- We did **not** dim, blur or fade the old chart. It is tempting, and it is
+  wrong: those figures are _correct_, and dimming a price an analyst is reading
+  makes it harder to read in order to say something the caption already says in
+  words. The held chart is drawn identically to a fresh one. The only difference
+  is the line above it.
+- We did **not** animate the transition between two periods. Five trading days
+  and twenty-one trading days have no meaningful halfway picture — a chart
+  morphing between them would be drawing four charts of periods nobody asked
+  for, to soften the arrival of the one they did. What moves instead is a single
+  dashed hairline under the caption, and only while something is genuinely in
+  flight. When the answer has settled — refused, or failed — the movement stops
+  and the dashes stay.
+- We kept one hard limit: **the old data is thrown away the instant you switch
+  to a different company.** NVDA's chart under an AMD heading would be the worst
+  failure this product could have, so that case still clears the screen, exactly
+  as before.
+
+**A second, quieter fix came free.** The same rule — _keep the last real answer_
+— also covers something nobody had reported: when you returned to a page the
+application had cached and the background refresh failed, the correct cached
+chart used to be replaced by an error message. It no longer is.
+
+**Reading a specific bar now survives a period change.** Hovering the chart, or
+arrowing across it with the keyboard, puts a crosshair on one bar and states its
+prices and volume. Previously, changing the period left that crosshair pointing
+at whatever bar happened to sit at the same _position_ in the new data — which,
+going from five days of minutes to a year of days, is a different year. It looked
+completely normal and was completely wrong. The crosshair now remembers the
+**moment in time** it was on, and finds the nearest bar to that moment in the new
+period; if the new period does not reach back that far, the reading is simply
+cleared, and your keyboard focus stays exactly where it was. This matters
+earlier than it looks: in a few epochs' time the AI agent will change the period
+by itself, with nobody's hand on the mouse, which is precisely the case where
+this silently went wrong.
+
+**We also found and fixed a real bug by looking at the running page rather than
+at a test.** If you opened a link containing a period the system cannot answer —
+say, a thousand trading days — and then pressed one of the normal buttons, the
+chart never appeared again. The numbers were all correct, the frame was drawn,
+and the drawing inside it was zero pixels wide. The cause was that the chart only
+ever measured its own size once, when it first appeared, and in that particular
+sequence it first appeared with nothing to draw. Nothing in our automated checks
+could have caught it — the test environment has no concept of screen layout at
+all — so it took a person opening the page. There is now a browser test that
+holds it, and we deliberately reintroduced the bug to confirm the test catches
+it.
+
+**One judgement was deferred to this task months ago, and it has been answered.**
+The period control offers "1D" — one trading day — knowing that during market
+hours we hold no data for it yet, because our data is topped up overnight. The
+open question was whether that empty state would read as _a broken product_ or as
+_an honest one_, and the rule was that a person had to look and decide. A person
+looked, at full desktop size, on both our development data and the live site.
+**It reads as honest, and 1D stays.** The chart still draws a real trading day's
+axis, the whole area is shaded in the same way a partly-covered period is shaded,
+and the sentence beneath says what was asked for and why nothing is in it. As a
+bonus, the live site turned out to be _better_ than the note predicted: outside
+market hours, 1D shows a complete, detailed intraday chart.
+
+### What a user can see today that they could not yesterday
+
+- Change the period and **the chart never flickers empty** on its way to the new
+  one.
+- A period that **fails** to load leaves the previous chart on screen, clearly
+  labelled, with one retry button.
+- A period the system **refuses** — pasted in a link, or sent by an agent —
+  leaves the previous chart on screen with the server's own explanation beneath
+  it, and no retry button, because waiting would not help.
+- The **period buttons remain usable in every one of those states**, which is the
+  point: someone whose chosen period was refused needs the control that picks a
+  different one.
+- A **crosshair reading survives** a period change when the new period still
+  covers that moment.
+
+### What they still cannot do
+
+Watch a price move. There is still no live market feed — that is the next epic —
+and four of the seven regions on this screen are still deliberately empty,
+each naming the epic that fills it.
+
+### How this moves the product forward
+
+This is the last substantive task in the story that adds behaviour; what remains
+is a keyboard and screen-reader walk, a performance measurement, and the story's
+close. With it, **Epic 2's exit criterion is met in substance**: a user can
+search for a company, open it, choose a period, and inspect real historical price
+and volume — and every way that can go wrong is now a designed state rather than
+an accident.
+
+It also pays forward in two specific places. Epic 11's AI agent will change the
+period by issuing a `setTimeWindow` command, and everything above — the held
+chart, the caption, the re-anchored crosshair — is exactly what makes that
+command safe to hand to a model two epics before the model exists. And Epic 3's
+live feed will land on the same seam: a screen that already knows how to keep
+showing the last true thing while it waits for the next one is a screen ready to
+be fed by a socket.
+
+### Where the record is
+
+- **The decisions, with their alternatives and reversal triggers:**
+  [`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) Part six, §§36–41.
+- **The design:** `Window change.dc.html` on the `Component library for
+MarketPulse` canvas — the four rail sentences, the three-frame sequence of a
+  press, the states at both timeframes, the four causes of a columnless volume
+  plot, and the crosshair across a change.
+- **The code:** `market/held-series.ts` is the rule and its three transitions;
+  `BarSeriesPanel.tsx`'s `HeldWindow` is the rail;
+  `chart-reading-context.ts`'s `resolveRead` is the crosshair;
+  `use-plot-box.ts` carries the measurement repair.
+- **The instruments:** `e2e/specs/security-window-change.spec.ts` (eight tests),
+  `market/held-series.test.ts`, `chart-reading-context.test.ts`, and the five new
+  `BarSeriesPanel` stories.
+
+---
+
+## Done when — how each item was met
+
+| Item                                                                     | Where                                                                                            |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Every state renders for both plots and the control, from a recorded body | `windowChangeFixtureScreen` runs two requests through the real transitions; five panel stories   |
+| A failed change leaves the charts, labelled, with exactly one retry      | `security-window-change.spec.ts`, and `BarSeriesPanel.test.tsx`'s count of one                   |
+| A rapid sequence is exercised and the stale mark recorded                | _a rapid sequence of presses settles on the last one, showing one held answer_ — **one** rail    |
+| A superseded answer observed in a real browser                           | the same test: three presses inside one answer's flight, address and rail both on the last       |
+| Both refusals render, with retry only where it helps                     | _the three refusals the address reaches are produced with no stubbing_                           |
+| The reading's behaviour across a change is decided and tested            | §38; `chart-reading-context.test.ts` (7) and `ChartReading.test.tsx` (4), all keyboard-driven    |
+| New fixtures, named in `CLAUDE.md`'s leak list                           | **none were needed** — see the note below                                                        |
+| No two surfaces describing one failure share a sentence                  | six surfaces checked; the control's readout and the server's refusal were the one near-collision |
+| Stories per state; `pnpm stories` passes                                 | 31 components, 31 stories files                                                                  |
+| `pnpm verify` and `pnpm e2e` pass                                        | green; 129 browser tests                                                                         |
+| The label names **which window** is on screen                            | §37, and three tests assert the sentence names both windows                                      |
+| §1.3's trigger answered in writing                                       | §39 — **1D stays**, with a correction to the premise from the deployed store                     |
+| A held series is drawn in exactly the same style as a fresh one          | the browser suite compares the **series path data** before and after; it is identical            |
+| Both readout strips accounted for                                        | neither changed; the volume strip's resting peak follows the window, as §23 designed             |
+| The volume plot's existing state stories reused                          | reused; the one new volume story is `ColumnlessCauses`, a state no single view shows             |
+| The three causes of a columnless volume plot distinguishable             | `VolumeChart.stories.tsx` → `ColumnlessCauses`, the three adjacent                               |
+| Every state at both timeframes; the `1m` → `1d` crossing exercised       | the crossing is exercised as a **transition** by `resolveRead`'s tests and `ChartReading`'s      |
+| The three address-reachable refusals produced without stubbing           | `security-window-change.spec.ts`, and the control asserted operable in each                      |
+| The control's presence asserted where it lives                           | asserted in the refused and failed states rather than re-argued                                  |
+
+**On fixtures, and why none was recorded.** The Work section anticipated new
+bodies; the `1d` half was paid by 2.13.6 and the rest turned out not to be
+needed, which is worth stating rather than leaving as a silence. A window change
+is a **sequence of two requests**, and every state it can reach is a _pair_ of
+bodies this directory already holds — `dense` then `refusedCalendar`, `partial`
+then `unavailable`, `dense` then `daily` for the timeframe crossing. What was
+missing was not a body but a way to collapse two of them through the real
+transitions in the real order, which is `windowChangeFixtureScreen`. Adding a
+seventeenth body would have been a second rendering of a state the sixteen
+already reach. `CLAUDE.md`'s bundle-leak list is therefore unchanged.
