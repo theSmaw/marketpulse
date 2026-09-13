@@ -640,6 +640,20 @@ was decided.
 | 10. Tabular figures           | Yes, by construction: every figure is `--font-data`                                                                                                                                                                                                          |
 | 11. Density                   | Four breakpoints on the **region's** width, 280px/220px plot heights, 5→3 gridlines, and **the axis never disappears**                                                                                                                                       |
 
+> **Amended 2026-09-13 by Task 2.13.8, recorded here by Task 2.13.10 — answer 9
+> gains its corollary.** A time tick is now **dropped** when it falls within 5%
+> of the axis of a session date (`MIN_TICK_SEPARATION` in `chart-time-axis.ts`).
+> It was found by looking at a rendering of Thanksgiving week: a session closing
+> at 13:00 puts its midday tick 60 slots of 1,770 — 3.4% of the axis, **32 px** —
+> from the next session's date, and two centred labels need about 47 px, so the
+> page read `12:00Nov 30`. The rule is the corollary of answer 9 rather than a
+> new decision: _a session boundary carries the date and everything between
+> carries the time_, and **when the two collide, the time loses**. The general
+> hazard is untouched and is on `CLAUDE.md`'s gap list — nothing anywhere
+> compares a tick's position against a neighbour's **rendered width**, at any
+> density, in any chart, and neither jsdom nor Playwright's visibility check can
+> see an overlap.
+
 ### The three places the canvas and this repository met something the other did not know
 
 ADR 0026's exception is for a canvas value that fails a measured accessibility
