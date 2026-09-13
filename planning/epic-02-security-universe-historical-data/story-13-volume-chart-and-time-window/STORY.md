@@ -1,6 +1,6 @@
 # Story 2.13 — Volume Chart & Time-Window Selection
 
-**Status:** In progress — 2.13.1 to 2.13.9 complete
+**Status:** Complete — ten tasks, closed 2026-09-13. Its record is [`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) (nine parts) and [ADR 0028](../../../docs/adr/0028-the-time-window-the-per-bar-mark-and-the-answer-that-stays-on-screen.md)
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.12
 **Epic scope covered:** Basic volume chart; time-window selection

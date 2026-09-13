@@ -596,8 +596,12 @@ In the same shape ADR 0010 states it for the tick.
 - **Not that the artefact it drove is the artefact that ships.** The dev server
   does not typecheck and does not bundle; `pnpm verify` is what covers that.
 - **Not coverage, and not that a journey exists for a behaviour.** There are
-  **sixteen** spec files and 129 tests (2026-09-13, Task 2.13.7 — fifteen and
-  122 at Task 2.13.6, thirteen and 81 at Task 2.11.9). Note the two timing
+  **seventeen** spec files and 135 tests (2026-09-13, re-counted at Story
+  2.13's close — sixteen and 129 at Task 2.13.7, fifteen and 122 at Task
+  2.13.6, thirteen and 81 at Task 2.11.9). The deployed suite is a separate
+  **three** files and **16** tests, and **none of them drives Story 2.13** —
+  no window control, no rail, neither plot, no crosshair. A green
+  `pnpm e2e:deployed` after that story means exactly what it meant before it. Note the two timing
   figures above are Task 1.13.4's, taken on ten tests, and have not been re-taken
   since.
 

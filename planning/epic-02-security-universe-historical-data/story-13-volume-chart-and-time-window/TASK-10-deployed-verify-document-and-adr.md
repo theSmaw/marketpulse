@@ -1,6 +1,6 @@
 # Task 2.13.10 — Deployed, the four tests applied, documented, and an ADR
 
-**Status:** Not started
+**Status:** Complete — 2026-09-13
 **Story:** [2.13 Volume Chart & Time-Window Selection](STORY.md)
 **Depends on:** 2.13.9
 

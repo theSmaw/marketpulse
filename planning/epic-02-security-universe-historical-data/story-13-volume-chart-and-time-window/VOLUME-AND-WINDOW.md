@@ -2571,6 +2571,15 @@ midnight, and the split this product keeps is _bar against window_.
 
 ## 45. The listener's half — what was verified here, and what a person still owes
 
+> **Amended 2026-09-13 by Task 2.13.10.** These three questions were handed to
+> Story 2.14's close, moved back to Task 2.13.10 the same day, and **2.13.10
+> could not answer the one that decides the other two.** Whether a polite region
+> changing every 477 ms queues or replaces is a property of a specific screen
+> reader on a specific platform; it is not readable from the DOM, from a timing,
+> or by an agent. §65 records what was done, what was not, and who owns the rest
+> — a person with a screen reader, before Epic 11 hands this surface to an agent.
+> The repair is designed and unshipped rather than deferred by accident.
+
 **Three of this walk's questions are about a real screen reader and nothing else
 can answer them.** What was done instead of claiming otherwise: the live regions
 were instrumented with a `MutationObserver` and the actual sequences were driven
@@ -3441,3 +3450,335 @@ confirmed:
 - **Epic 11** inherits §53.1 — a `setTimeWindow` command costs 72–130 ms of
   render and no long task, so the agent can move the window without the workspace
   stuttering.
+
+---
+
+# Part nine — the close (Task 2.13.10)
+
+Added 2026-09-13. **Everything below was taken against the deployed site**, which
+is a different store from every figure in Parts one to eight, and that difference
+is the point of the part rather than a caveat on it.
+
+## 60. The instrument, which had to be replaced before anything could be looked at
+
+The first attempt to look at the deployed page used the browser-automation tools
+this agent has to hand, and **it produced a page whose two charts were 0 × 0** —
+the exact picture a broken chart makes.
+
+It was the instrument. §47.1's warning, re-confirmed against the deployed site at
+this close:
+
+| Probe                      | Claude-in-Chrome tab | Playwright page |
+| -------------------------- | -------------------- | --------------- |
+| `document.visibilityState` | **`hidden`**         | `visible`       |
+| `requestAnimationFrame`    | never fires          | fires           |
+| Both chart `<svg>` boxes   | **0 × 0**            | real            |
+
+A tab driven over CDP reports `hidden`, which pauses `requestAnimationFrame` and
+with it `ResizeObserver` delivery; both plots return `null` before they have a
+frame, so they measure zero for ever. `CLAUDE.md` already carries this as a
+gap-list entry from 2.13.7 — it is repeated here only because **it fired again,
+immediately, on the first thing this task tried to do**, and because the failure
+presents as a product defect rather than as a tool limitation. Every figure and
+every screenshot below is Playwright's.
+
+## 61. What the deployed store actually answers, and it is not what a developer's does
+
+Both timeframes are **zero sessions behind** through the 2026-09-11 session
+(`/diagnostics/freshness`, 2026-09-13). That makes the deployed environment the
+one place this story's own coverage treatment is _not_ under observation, and it
+changes the picture in a way worth stating as a table rather than a sentence:
+
+| Deployed, `/securities/NVDA…` |          Bars | Asked for vs held                          |
+| ----------------------------- | ------------: | ------------------------------------------ |
+| default (5D)                  |     **1,950** | identical — Sep 4 09:30 → Sep 11 16:00 ET  |
+| `?sessions=21` (1M)           |     **8,190** | identical — Aug 13 09:30 → Sep 11 16:00    |
+| `?sessions=1` (1D)            |       **390** | identical — the whole of Sep 11            |
+| `?sessions=63` (3M)           |  **63** daily | short by a span the axis gives no width to |
+| `?sessions=252` (1Y)          | **252** daily | the same                                   |
+
+**The two `1m` windows are answered in full**, which a developer's store — four
+sessions behind — cannot do. **The two `1d` windows are nominally short and the
+sentence says why**, in the clause 2.13.8 added: _"the window asked for runs to
+2026-09-14 00:00:00 EDT and what is stored reaches only to 2026-09-13 00:04:11
+EDT. What is missing falls outside trading hours — a night, a weekend or a
+holiday — which this axis gives no width to."_ That is the right answer and it is
+the one §43.2 exists for: the picture is complete, the window is not, and the
+sentence is the only channel that can say both.
+
+### 61.1 The two plots, measured on the deployed page at three viewports
+
+| Viewport   | Price `x` / `w` | Volume `x` / `w` | Price `h` | Volume `h` |
+| ---------- | --------------- | ---------------- | --------: | ---------: |
+| 1440 × 900 | 41 / **832.66** | 41 / **832.66**  |       280 |         88 |
+| 1024 × 800 | 41 / **400**    | 41 / **400**     |       220 |         68 |
+| 390 × 780  | 41 / **262**    | 41 / **262**     |       220 |         68 |
+
+**Identical `x` and identical width at all three**, which is §18's shared axis
+observed on a different machine, a different store and a different build from the
+one it was built on. The heights are §9.2's 88-against-280 and 68-against-220
+unchanged.
+
+### 61.2 And the silhouette's ceiling holds against bodies nobody recorded
+
+§51 measured the path strings against fixtures. The deployed store produced them
+from real requests:
+
+| Deployed window |  Bars | Volume `d` | Price line `d` | Volume seam lines |
+| --------------- | ----: | ---------: | -------------: | ----------------: |
+| 5D              | 1,950 | **12,205** |         23,933 |         4 (= 5−1) |
+| 1M              | 8,190 | **12,203** |    **100,085** |       20 (= 21−1) |
+
+**Volume's string moved by two characters across a 4.2× change in bars while the
+price line's grew 4.2×.** That is the per-pixel rule's whole claim, taken from
+the other end of the wire, and the price figure lands within 0.35% of §51's
+100,427 on a body four days later. The seam count is §50's arithmetic confirmed:
+a second plot costs `sessions − 1` lines and nothing that scales with bars.
+
+## 62. The deep links, and which host answered them
+
+Five cold loads of `/securities/NVDA?sessions=N` against **Azure Static Web Apps**
+— which is the host whose `navigationFallback` is part of the artefact, and is
+one of the three hosts `CLAUDE.md` says behave differently for an unmatched path.
+`vite preview` and a dumb static host were not tested and would not have proved
+this.
+
+| Address          | Cold ms | What the page did                                                                       |
+| ---------------- | ------: | --------------------------------------------------------------------------------------- |
+| `?sessions=1`    |   2,680 | 1D selected, `1 SESSION`, a complete intraday line at −1.38%                            |
+| `?sessions=21`   |   4,356 | 1M selected, `21 SESSIONS`, 8,190 bars                                                  |
+| `?sessions=63`   |   2,525 | 3M selected, `63 SESSIONS`, daily bars, +6.56%                                          |
+| `?sessions=252`  |   2,654 | 1Y selected, `252 SESSIONS`, daily bars, +21.49%                                        |
+| `?sessions=1000` |   2,659 | **no radio checked**, `1,000 SESSIONS`, **no frame at all**, the calendar's own refusal |
+
+The last row is three separate decisions verified in one load, on a real host,
+from cold: **§4(b)'s no-snapping rule** (the control shows no selection rather
+than moving the reader to 1Y), **§31.1's refuse-nothing rule** (the client asked
+for it anyway and the server's sentence is what a reader sees — _"That window
+reaches 2023-12-31, outside the trading calendar this system covers"_), and
+**`CHARTING.md` §14's rule that `refused` draws no frame**, because it carries no
+series and therefore no window. The readout still says `1,000 SESSIONS`, which is
+the address being reported back rather than a number the product invented.
+
+### 62.1 The held answer, on the deployed store
+
+Pressing `1Y` from the default window and reading the price path **120 ms later**
+returns a string byte-identical to the one before the press. That is §36 on the
+deployed store, and it is the version that matters: the deployed store answers
+both windows in full, so the transition a stranger sees is between **two complete
+pictures**, not between a complete one and a four-fifths-short one.
+
+## 63. The four tests, applied to the deployed page
+
+Applied to two screenshots, both at **1440 × 900**: `?sessions=21` (the 1M
+window, 8,190 bars, the largest thing this product draws) for the price half, and
+the same page scrolled to the pair for the volume half. Naming the window is
+2.13.4's requirement and it matters — the silhouette is what the default renders
+and it is what 1M renders, but the _reason_ differs, and the end-column regime
+§19.2 accepted is not visible at either.
+
+**1. Would a stranger believe this is a real funded product?** Yes. The strongest
+evidence is not the chart, it is the row above it: `225.12 OPEN / 234.76 HIGH /
+207.25 LOW / 218.19 CLOSE`, then `Asked for` and `Held` printed as two separate
+timestamped ranges, then `Bars 8,190 × 1m`, then `MARKET FEED ● All US
+exchanges`. No demo prints the difference between what was asked for and what is
+held. That block is what a stranger reads as a system that knows where its
+numbers came from.
+
+**2. Does it look designed rather than defaulted?** Yes, and the volume plot is
+the clearest case in the product so far, because almost all of the design in it is
+**subtraction**: no gridlines, no intraday times, no wash, no reference rule, one
+label in the whole gutter (`9.22M`), columns with no direction. Beneath it,
+`PEAK 9,216,907  Aug 21 · 09:30 EDT` — the exact integer under the abbreviation
+the axis shows. A defaulted chart library gives you the opposite of every one of
+those choices.
+
+**3. Is there a moment in it worth showing somebody?** Yes, and it is a different
+one from Story 2.12's. 2.12's moment was the split wash. This story's is
+**pressing `1M` and watching 1,950 bars become 8,190 without the page moving** —
+the panel does not blank, the frame does not resize, the heading re-labels, and
+the readout underneath changes from `5 SESSIONS` to `21 SESSIONS`. The second
+candidate is the 1M silhouette itself: 8,190 minutes of traded volume rendered as
+833 stems, where the opening spike of every one of twenty-one sessions is legible
+as a separate event.
+
+**4. Does it feel alive?** **No — and this is the fourth deferral.**
+
+The count is the finding. _Does it feel alive_ has now been answered "not yet, and
+not from here" by Task 2.4.4 when the motion section was written, by Story 2.12's
+close, by Task 2.13.2 against the artboard, and by this close. Four deferrals of
+one criterion is the shape of a criterion that never gets met, and the count is
+the only thing that makes it visible as a debt rather than as a habit.
+
+The reason is unchanged and remains correct: the hard version of the question is
+what happens when a **price** changes, and there are no live prices. What would
+change it is Epic 3's motion vocabulary against real moving numbers. **Epic 3 is
+the next epic, so the trigger is the calendar rather than a condition — which is
+precisely why it needs writing down: nothing fires.** Story 2.14's close inherits
+the count.
+
+### 63.1 The latency half, answered separately, and it is a yes
+
+2.13.2's amendment asked for the half that is latency rather than motion to be
+answered on its own. It is, with figures (§53, §52, §47):
+
+| What                                       | Measured                                                       |
+| ------------------------------------------ | -------------------------------------------------------------- |
+| Press a window → the new line is on screen | **72–130 ms**, no task over 50 ms                              |
+| The crosshair, two plots, at the cap       | **16.7 ms** frame interval p50 — one frame at 60 Hz            |
+| Three presses inside one answer's flight   | Previous window drawn **throughout**; 0.3 ms in frame builders |
+| A resize tick with both plots on screen    | **0.35–1.04 ms**                                               |
+
+Observed on the deployed page rather than only inferred from those figures: the
+selection moves in the frame the press lands, because the control holds no state
+— it reads the address; the frame re-labels rather than re-lays-out; and no figure
+moves while it is being read.
+
+**Nothing here is slow, nothing stutters, nothing blanks, and if the deployed
+page reads as dead it is not because a frame was dropped.** That is the whole of
+what the latency half can claim, and it is deliberately not offered as an answer
+to test 4.
+
+## 64. §1.3's trigger is settled, and one photograph is still owed
+
+**Settled: 1D stays** (§39). That is a decision now, not an open trigger, and it
+is not re-taken here.
+
+**What is still owed is the weekday photograph, and it could not be taken
+today.** 2026-09-13 is a Saturday; the deployed store holds Friday 2026-09-11 in
+full, so `?sessions=1` renders **a complete intraday line at −1.38% with no
+uncovered ground anywhere** — the best picture the control offers rather than the
+emptiest. The weekend half of the pair is therefore taken twice and the weekday
+half is taken not at all.
+
+The honest record is that **1D's emptiness is a fact about the free plan's
+fifteen-minute embargo and is only observable during a session**, and that no
+address, no fixture and no pinned clock can produce it against the deployed store
+— unlike acceptance criterion 3, which §42 could pin because the calendar is
+checked in and the embargo is not. **Owner: the next person to open
+`/securities/NVDA?sessions=1` on the deployed site during market hours.** The
+condition is that concrete; naming a story would be naming something that has
+already happened by the time anybody reads this.
+
+## 65. The listener's half — what this task could and could not do
+
+§45's three questions were moved here by 2.13.8's amendment, correctly: whether a
+surface can be **used** is an acceptance criterion on the story that builds it.
+
+**Two of the three were answerable and are answered in §45.1–45.4** — the volume
+clause does reach the live region, the held-window clause does arrive, and both
+are last in their sentences by design. **The third is not answerable by any
+instrument in this repository, and it is the one that decides the other two.**
+
+Whether a polite live region that changes every 477 ms **queues or replaces** is a
+property of a specific screen reader on a specific platform. It cannot be
+measured from the DOM, it cannot be measured from a timing, and it cannot be
+measured by an agent: it requires a person, a pair of ears, and VoiceOver or NVDA
+running against the deployed page.
+
+**So it is raised rather than answered, and the attribution 2.13.8 corrected is
+corrected again to match what actually happened**: §45's questions were moved to
+this task, this task performed the measurement half and could not perform the
+listening half.
+
+| Question                                          | Status here                                                            |
+| ------------------------------------------------- | ---------------------------------------------------------------------- |
+| Can a listener hear a bar's traded volume?        | The clause is present and last. **Whether it survives is unanswered.** |
+| Is the held-window clause reachable in practice?  | Present and last. Same dependency.                                     |
+| Is manual activation discoverable from the radio? | The tree is correct; every cell carries the readout. **Unanswered.**   |
+
+**The repair is already decided and does not need the answer to be designed —
+only to be scheduled.** §45.1: split the sentence, so the instant, close and
+direction are spoken while stepping and the four prices and the volume arrive on
+a pause. **Not** a higher floor, which would make a fast walk silent. It is a
+change to `chart-reading.ts`'s `readingAnnouncement` and its two tests, and it is
+not taken speculatively here because it is a design change that trades a
+listener's completeness for their pace, and taking it blind could make the
+current behaviour worse if a reader turns out to replace rather than queue.
+
+**Owner: a person with a screen reader, before Epic 11 hands this surface to an
+agent.** Epic 11 is the first epic where nobody is touching the page and the
+spoken channel is the only one some readers have. Recording "nobody checked" is
+worth something; recording "it was checked and it was fine" would have been worth
+more, and this task could not produce it.
+
+## 66. What a green run certifies here, and what it does not
+
+- **`pnpm verify`, `pnpm e2e` (135 tests, 17 spec files) and `pnpm e2e:deployed`
+  (16 tests, 3 spec files) all pass**, and the third covers **none** of this
+  story. The deployed suite is routing, the tracked universe and the two halves
+  being wired together. Nothing in it drives the window control, the rail, either
+  plot or the crosshair. A green `e2e:deployed` after this story means exactly
+  what it meant before it.
+- **`pnpm test:database` was not run and is not in scope.** This story touched no
+  file in the data path.
+- **Every figure in Part nine is one machine, one store, on 2026-09-13**, taken
+  through Playwright against the deployed artefact. Nothing re-takes them, and
+  the two stores photograph differently on purpose.
+- **The count of "a green check that was checking nothing" found during this
+  story stands at one** (§28.1 — a shipped assertion with an `.or()` fallback
+  that the panel's own live sentence satisfied), against three across two stories
+  in total. That is the figure §14.2's four tests should be read against.
+- **One gap-list entry could not be made mechanical, and the reason is
+  measured.** §55.1's `marketDateAt`-per-bar rule was to become a spy asserting
+  zero calls over a recorded `1m` body. `vi.mock` does not reach
+  `@marketpulse/shared`, which the frontend consumes as **built output**: the
+  mock intercepts the test file's own import and the module under test keeps the
+  real function, so both halves of the guard read zero and the "break-verified"
+  half would have been green against the break. It was built, probed, found
+  green-against-nothing, and deleted rather than shipped — which is `CLAUDE.md`'s
+  own rule (_a break that does not go red is equally evidence the break did not
+  land_) catching a test this task nearly added. The entry stays prose.
+
+## 67. What Story 2.14 inherits, in one place
+
+The list `CHARTING.md` §17.5 gave this story at its start, in the same form.
+
+1. **The window vocabulary** (§4) — the label, the accessible name, the address,
+   the spoken sentence, the timeframe and the session count, in one table, now
+   also ADR 0028's first decision. §4(b) is the item with the longest reach:
+   the address admits any count the control does not offer.
+2. **The timeframe mapping's home** is `apps/frontend/src/market/time-window.ts`,
+   one function, and the property it buys — that no `sessions` value can produce
+   a `too-large` refusal — is a claim to re-check if the cap or the boundary
+   moves.
+3. **The feed label is 2.14's and this story did not touch it.** Both plots'
+   alternatives end _"Market feed: All US exchanges"_, which is Epic 2's wording
+   for a stored series; the asymmetry invariant 6 records — stored bars are
+   consolidated SIP, the live stream is IEX only — is 2.14's to state and Epic
+   3's to inherit. A stitched series naming two sources is likewise 2.14's.
+4. **The curated universe file's age** is untouched here and unchanged.
+5. **Five new recorded bodies** are on `CLAUDE.md`'s must-not-ship list with
+   their own greps: `dense`, `uncovered`, `holiday-week` (357 kB, the largest),
+   `daily` and `daily-year`. **All seven greps on that list were re-run at this
+   close against a freshly built `dist/` and all seven find nothing** — the two
+   from Story 2.11 and 2.12 included, because the list is one property rather
+   than five. They are still not run against the _deploy_ build, which is a
+   different invocation of the same command on a different machine; 2.13.8 asked
+   for that and it remains the thing a deploy could in principle differ on.
+6. **Test 4's deferral count is four**, and Story 2.14 inherits it in writing
+   (§63). Epic 3 owns the answer and nothing fires.
+7. **The listening pass is open** (§65), with its repair already designed and its
+   owner a person rather than a story.
+8. **The weekday 1D photograph is owed** (§64), with a condition rather than a
+   deadline.
+9. **The 518-row universe table's long task is unchanged and still raised** —
+   `SEARCH-AND-SELECTION.md` §10, twice dated, three candidate repairs, and
+   Story 2.14's close owes the disposition. It is the one published-target breach
+   this epic ships with.
+10. **`pnpm e2e:deployed` covers none of Story 2.13**, and extending it is a
+    decision 2.14 may take or decline — but should not inherit silently.
+
+## 68. The honest caveat
+
+In the shape 2.12.10 used, because it is still true.
+
+A green run here certifies the chain and not coverage. The figures are one
+machine on one day against one store, and nothing re-takes them. What is
+mechanical is said to be mechanical — the element-count guards, the
+zero-recomputation guard, the byte-identical held path, the description-on-the-
+focused-stop assertion — and everything else in this document is prose with a
+date on it. Two things this story owes are open and named with owners rather than
+closed quietly: the listening pass and the weekday 1D photograph. One thing it
+tried to make mechanical could not be made mechanical, and that is recorded with
+the reason rather than as a silent omission.

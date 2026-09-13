@@ -241,3 +241,149 @@ product misses on its two most-visited routes. Accepting it is defensible today
 harder with every column Epic 5 adds to that table, which is why the recorded
 trigger is **the first time a second surface renders per-row markup at universe
 scale** rather than a date.
+
+---
+
+## Amended 2026-09-13 by Story 2.13's close — five carries, and one of this story's own scope bullets is stale
+
+Story 2.13 closed with ten tasks, [ADR 0028](../../../docs/adr/0028-the-time-window-the-per-bar-mark-and-the-answer-that-stays-on-screen.md)
+and [`VOLUME-AND-WINDOW.md`](../story-13-volume-chart-and-time-window/VOLUME-AND-WINDOW.md)
+§67, which is the hand-on list this section is the other half of. **No task in
+this story moves, none is added and none is removed** — but one scope bullet and
+one acceptance criterion describe a world that no longer exists, and three things
+now ship with this epic that this story has to _record_ rather than _own_.
+
+### 1. The ADR bullet is stale, and reading it as written would produce six duplicates
+
+The **Epic close** scope bullet says this story writes _"ADRs for the decisions
+this epic took — the database and its irreversible choices, the migration
+mechanism, the provider abstraction and provenance, the storage model, the
+frontend state decision, and the charting choice"_, and acceptance criterion 7
+says _"The ADRs are written"_.
+
+**All six exist already**, written at each story's own close rather than
+accumulated for this one:
+
+| The bullet's subject                      | Already written     |
+| ----------------------------------------- | ------------------- |
+| the database and its irreversible choices | ADR 0014            |
+| the migration mechanism                   | ADR 0015            |
+| the provider abstraction and provenance   | ADR 0018            |
+| the storage model                         | ADR 0020            |
+| the frontend state decision               | ADR 0023            |
+| the charting choice                       | ADR 0027 (and 0028) |
+
+Plus 0016, 0017, 0019, 0021, 0024 and 0026, which the bullet does not name.
+
+**What this story actually owes on that criterion is therefore smaller and
+different**: an ADR for the decisions _this_ story takes — the feed wording for a
+series whose sources disagree being the obvious candidate — plus the sweep that
+criterion 7's second half already names, `CLAUDE.md` and `README.md` reflecting
+what landed. Read the bullet as _"write the ADR this story's own decisions need,
+and check the index is complete"_, not as a backlog. The epic wrote its record as
+it went, which is the behaviour the convention wanted.
+
+### 2. §28's breach has a second dating, and a third disposition
+
+The 2026-09-12 amendment above stands and its numbers are unchanged. Task 2.13.9
+re-measured it with **a second plot and a window control on the same page** and
+it is unchanged: ten cold loads each, 5–7 tasks of 50–107 ms at 518 rows and
+**none** at twenty rows while a 9,750-bar chart is still drawn. That run added an
+instrument the first did not have — the largest gap between consecutive
+`requestAnimationFrame` callbacks, which is continuous where `longtask` is not —
+and it says something the original could not: **every 20-row page sits at 32–34
+ms, which is two frames and is the floor, while every 518-row page sits at
+67–84 ms.** So this is not a page marginally over a line.
+
+The amendment above offers two dispositions — take a repair, or accept the breach
+in writing. **There is a third and it should be considered explicitly: hand the
+repair to Epic 14 by name.** Epic 14 is the performance epic; a virtualised or
+paginated 518-row table is exactly its kind of work; and deferring _with a named
+owner and the existing trigger_ is materially different from accepting a breach.
+What is **not** available is leaving it unstated — §28 is a published target this
+product misses on its two most-visited routes, and `CLAUDE.md`'s rule is that a
+stated invariant nothing checks quietly stops being true.
+
+### 3. Test 4's deferral count is **four**, and this is the last place it can be recorded
+
+_Does it feel alive_ has been answered "not yet, and not from here" by Task 2.4.4
+when the motion section was written, by Story 2.12's close, by Task 2.13.2 against
+the artboard, and by Story 2.13's close against the deployed page
+(`VOLUME-AND-WINDOW.md` §63). **Four deferrals of one criterion is the shape of a
+criterion that never gets met**, and the count is the only thing that makes it
+visible as a debt rather than as a habit.
+
+Each deferral was individually correct and for the same reason: the hard version
+of the question is what happens when a **price** changes, and there are no live
+prices. Epic 3 brings them, so **the trigger is the calendar rather than a
+condition — which is precisely why it needs writing down: nothing fires.**
+
+This story's own _The design bar_ section asks for the four tests again, which is
+right. **What is added is the obligation to carry the count forward in writing**,
+because this is the last story in the last epic before the one that owns the
+answer. If this story's close defers it a fifth time, the count says so.
+
+### 4. Two things ship open with owners that are **not** this story
+
+Both are Story 2.13's, both are recorded with owners, and **neither is handed
+here** — Task 2.13.8's amendment argued the general case and it applies to both:
+deferring a question about a screen across a story boundary is the same mistake
+as deferring polish across an epic one. What this story owes is the _epic close's_
+honest statement that they are open, not the work.
+
+- **The listening pass** (`VOLUME-AND-WINDOW.md` §65). Whether a polite live
+  region changing every 477 ms **queues or replaces** is a property of a specific
+  screen reader on a specific platform: not readable from the DOM, from a timing,
+  or by an agent. The repair is designed and unshipped — split the sentence, do
+  not raise the floor. **Owner: a person with a screen reader, before Epic 11
+  hands this surface to a model.**
+- **The weekday 1D photograph** (§64). 1D's emptiness is a fact about the free
+  plan's fifteen-minute embargo and is only observable **during a session**; no
+  address, fixture or pinned clock can produce it against the deployed store,
+  unlike acceptance criterion 3's holiday week, which §42 could pin because the
+  calendar is checked in and the embargo is not. **Owner: the next person to open
+  `/securities/NVDA?sessions=1` on the deployed site during market hours.**
+
+Record them in the close as open with their owners. "Nobody checked" and "it was
+checked and it was fine" are different artefacts, and only one of them is worth
+anything to Epic 11.
+
+### 5. Acceptance criteria 4 and 5 are real work rather than a re-run
+
+Criterion 4 already says the exit criterion is executed in the deployed
+environment **including _change the window_**, and criterion 5 says that journey
+is asserted by the deployed suite. Both are correct as written and **both are
+newer than they look**:
+
+- The exit criterion **was** executed deployed at Story 2.13's close — cold and
+  from five deep links, at three viewports, against a store that is zero sessions
+  behind (§61, §62). That is a one-off observation by a person.
+- **`pnpm e2e:deployed` asserts none of it.** The deployed suite is three spec
+  files and 16 tests about routing, the tracked universe and the two halves being
+  wired together. Nothing in it drives the window control, the rail, either plot
+  or the crosshair. **A green `e2e:deployed` today means exactly what it meant
+  before Story 2.13**, and criterion 5 is the thing that changes that.
+
+Two hazards that suite's own README already records and this work will meet:
+**CI's store holds 518 securities and zero bars**, so every window is a correct
+`empty` there and a `partial` locally; and a chart mark is **counted** rather
+than asserted visible, because a horizontal gridline is zero pixels tall and
+Playwright reports it `hidden`.
+
+### 6. And one small carry: the must-not-ship fixture list grew by five
+
+`CLAUDE.md`'s list of recorded bodies that must not reach the shipped bundle
+gained `dense`, `uncovered`, `holiday-week` (**357 kB**, now the largest),
+`daily` and `daily-year`, each with its own distinctive grep. All seven greps
+were re-run at Story 2.13's close against a freshly built `dist/` and all seven
+find nothing. **They have still never been run against the _deploy_ build**,
+which is a different invocation on a different machine, and this story is the
+one that touches the deploy.
+
+### What does **not** change
+
+No story is added, deleted or re-ordered. Story 2.13's own scope was delivered in
+full and its three open decisions were settled by Task 2.13.1. This story's
+dependency, position and the rest of its scope — the feed label per source, the
+curated file's age, the coverage-honesty pass, the failure-state sweep, the cost
+figure — are untouched by Story 2.13 and stand as written.
