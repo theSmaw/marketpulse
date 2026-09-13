@@ -466,3 +466,77 @@ Add to **Done when**:
   as _held frame plus n superseded fetches_ rather than as _n frame builds_
 - `resolveRead`'s fast path is confirmed on the pointer profile to be an index
   comparison and nothing else
+
+---
+
+## Amended 2026-09-13 by Task 2.13.8 — an **eighth** candidate, which this task's own predecessor introduced, and two bodies that make two existing measurements easier
+
+### The eighth candidate: the text alternative now walks the calendar too, on the resize path
+
+**New with 2.13.8 and none of the other seven would find it**, because it is not
+an element count, not a string length and not a per-bar call — it is a _second_
+call to a function this story has already made cheap.
+
+`chart-alternative.ts` gained `frameClause`, which states the window as its
+resolved session count ([`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §44.4).
+It is derived from `timeAxis` deliberately — that is the whole point of it, and
+`CLAUDE.md`'s gap list carries the derivation as a live hazard — but it is a
+**second** `timeAxis` call in a module that already made one in `axisSpan`. Both
+sentences are built in the render body of their plot, unmemoised:
+
+|               | `timeAxis` calls per render of the pair            |
+| ------------- | -------------------------------------------------- |
+| Before 2.13.8 | **2** — one per sentence, through `axisSpan`       |
+| After         | **4** — `frameClause` and `axisSpan`, per sentence |
+
+Against 2.13.3's measured 0.423 ms per warm call at 252 sessions, that is about
+**+0.85 ms per render at 1Y** — and the render it lands on is the one the
+**fifth** candidate is about, because a resize tick fans out to both frame owners
+and both sentences are rebuilt with them. A resize storm therefore pays it per
+tick.
+
+Three things bound it and should be stated **with** the figure rather than
+instead of it: the memo means every call after the first on a given date is the
+warm figure, so this is 0.42 ms and not 9.5; it is off the pointer path, because
+neither frame owner consumes the read position; and at the default window it is
+0.05 ms, which is nothing.
+
+**If it matters, the collapse is trivial and is named here so the measurement
+does not have to invent it**: build the axis once per sentence and pass it to
+both clauses. That is a smaller change than it sounds — both call sites are in
+one module, six lines apart — and it is **deliberately not done in 2.13.8**,
+because this task's own Notes fence is repairing what a measurement merely
+reveals, and a figure taken after an unmeasured optimisation is not comparable to
+the one before it.
+
+Add to **Done when**:
+
+- The alternative's `timeAxis` calls are counted in a profile at 1Y, cold and
+  under a resize storm, and either shown under budget with the figure or
+  collapsed to one call per sentence **after** the figure is recorded
+
+### One addition that is bounded and is stated so a profile is not surprised by it
+
+`timeTicks` now filters the intraday ticks against the session dates already
+placed (`MIN_TICK_SEPARATION`, §43.3). It is at most six times eight comparisons
+on a `1m` axis and zero on a `1d` one, it allocates one array of numbers, and it
+runs once per tick build rather than per bar. **It is not a candidate.** It is
+named for the reason 2.13.7's amendment named `useBarSeries`' derived screen: a
+profile showing an unfamiliar frame under `timeTicks` should find its explanation
+already written down rather than turning into a ninth candidate.
+
+### Two recorded bodies that make two existing measurements cheaper
+
+- **`holiday-week.json` — 1,770 bars, `1m`, and `loaded` rather than `partial`.**
+  It is the only recorded body between the default window's 1,950 and `1M`'s
+  8,190 that covers its window **completely**, so the path-string measurement
+  (2.13.2's amendment) can be taken on a frame with no uncovered ground in it and
+  compared against `dense`, which is the same density and the same state. It is
+  also the only body whose **sessions are not all the same width** — 210 slots
+  against 390 — which the density arithmetic has never been measured against.
+  Neither is a new candidate; both are instruments this task did not have.
+- And the reason that matters for a timing task: it is served by
+  `e2e/specs/security-holiday-week.spec.ts` through `page.route`, which is a
+  **fulfilled** response rather than a store read. A figure taken against it
+  excludes network and server time by construction, which is useful for
+  attributing render cost and misleading for anything else. Say which.

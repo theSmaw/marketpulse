@@ -557,8 +557,10 @@ list with a re-measure command.
 **Three questions need a person with a screen reader** (§45): whether the
 25-word bar sentence survives a 1,500 ms floor, whether the held-window clause
 is heard at the end of a long sentence, and whether manual activation is
-discoverable from _"not checked"_ alone. Each has its repair named. Story 2.14's
-close owns them. §45.3 — that a window change does not announce a moved
+discoverable from _"not checked"_ alone. Each has its repair named. **Task 2.13.10
+owns them** — they were handed to Story 2.14's close first and moved back the
+same day, because all three surfaces are this story's and a screen's quality is
+an acceptance criterion on the story that builds it. §45.3 — that a window change does not announce a moved
 crosshair — is recorded as built behaviour and handed to Epic 11.
 
 ---

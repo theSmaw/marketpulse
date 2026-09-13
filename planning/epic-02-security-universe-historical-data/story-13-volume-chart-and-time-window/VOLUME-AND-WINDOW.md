@@ -2599,7 +2599,10 @@ Whether that produces a **queue** or a **replacement** is reader-dependent and i
 precisely what cannot be settled from here. If it queues, the volume clause is
 the first thing lost, because it is last.
 
-**Owed to Story 2.14's close, with the repair already named**: if a listener
+**Owed to Task 2.13.10, with the repair already named** — reassigned there the
+same day, because this story built the sentence and `CLAUDE.md`'s rule is that a
+screen's quality is an acceptance criterion on the story that builds it: if a
+listener
 stepping along bars cannot get to the volume, split the sentence — instant,
 close and direction while stepping, and the four prices and the volume on a
 pause — rather than raising the floor, which would make a fast walk silent.
@@ -2650,7 +2653,7 @@ every one of them carries the readout as its description. Whether _"not checked"
 is enough for somebody arrowing across five cells to understand that nothing has
 happened yet is not answerable from here.
 
-**Owed to Story 2.14's close.** If a listener cannot tell, the repair is either
+**Owed to Task 2.13.10.** If a listener cannot tell, the repair is either
 selection-following-focus with a `replace`d address — which costs four addresses
 and four requests for one intention, which is why §32 declined it — or an
 explicit hint in the group's description.
@@ -2664,8 +2667,13 @@ explicit hint in the group's description.
 - **2.13.10** inherits four repairs to describe and one measurement (§45.1's
   sentence length against its own floor) that is a candidate for the story's
   close rather than for its own task.
-- **Story 2.14** inherits three questions that need a person and a pair of
-  headphones (§45.1, §45.2, §45.4), each with its repair already named, and the
-  one thing this task deliberately did not touch: the feed label's wording, read
-  exactly as it was found.
+- **2.13.10** also inherits the three questions that need a person and a pair of
+  headphones (§45.1, §45.2, §45.4), each with its repair already named. They were
+  handed to Story 2.14's close first and **moved back the same day**: all three
+  surfaces are this story's, and `CLAUDE.md`'s rule is that the quality of a
+  screen is an acceptance criterion on the story that builds it. Deferring an
+  accessibility question across a story boundary is the same mistake as deferring
+  polish across an epic one.
+- **Story 2.14** inherits the one thing this task deliberately did not touch: the
+  feed label's wording, read exactly as it was found.
 - **Epic 11** inherits §45.3 as a stated behaviour rather than as an omission.
