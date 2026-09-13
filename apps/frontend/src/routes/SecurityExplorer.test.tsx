@@ -497,15 +497,18 @@ describe("the Security Explorer shell", () => {
       expect(screen.getByRole("region", { name: "Price" })).toBeTruthy();
     });
 
-    // Six placeholders — the five later epics own, plus Story 2.13's volume —
-    // and each says who fills it. Story 1.5's convention, and the reason it is
-    // asserted here rather than trusted: a placeholder whose label is dropped
-    // renders a dashed box with nothing in it, which reads as broken and goes
-    // red nowhere.
-    expect(screen.getAllByText(/^Filled by /)).toHaveLength(6);
+    // **Five placeholders since Task 2.13.4**, which filled the Volume region
+    // and took the sixth away. Each says who fills it — Story 1.5's convention,
+    // and the reason it is asserted here rather than trusted: a placeholder
+    // whose label is dropped renders a dashed box with nothing in it, which
+    // reads as broken and goes red nowhere.
+    //
+    // The count going down is the thing worth asserting. A region that acquires
+    // a chart and keeps its placeholder is a screen that says it holds a plan
+    // while holding the plan's output.
+    expect(screen.getAllByText(/^Filled by /)).toHaveLength(5);
 
     for (const plan of [
-      "Filled by Story 2.13 — Volume Chart",
       "Filled by Epic 6 — Market Topology",
       "Filled by Epic 9 — Corporate Filing Evidence",
     ]) {
@@ -535,7 +538,7 @@ describe("the Security Explorer shell", () => {
     for (const opening of [
       "One security's closes over the default window",
       "How unusual this security's behaviour",
-      "Traded volume across the same window",
+      "Traded volume over the same window",
       "This security measured against",
       "Which securities move with this one",
       "Primary-source evidence from SEC EDGAR",

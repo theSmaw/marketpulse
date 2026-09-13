@@ -2156,6 +2156,29 @@ Six items. The first five were written into this document and the sixth into
    than once per region. Note the volume bars are **fills**, which is what §14.5's
    one-pixel finding was about: that measurement error was invisible for three
    tasks because every mark before it was a stroke.
+
+   > **Discharged 2026-09-13 by Task 2.13.4, and the shape of the discharge is
+   > the point.** It is not held by two components written the same way. One
+   > `timeFrame` is built in `ChartAxis` above both regions and handed down, so
+   > the seams, the ticks, the slot scale and the coverage span are the _same
+   > values_ rather than two derivations — and `priceFrame` and `volumeFrame`
+   > take a `TimeFrame` and a height, so neither can build an axis if it wanted
+   > to. `chartFrame`, the composition that could, is deleted. Each plot draws at
+   > `frame.width` rather than at its own measurement, because two equal-width
+   > elements measured a frame apart are two different numbers for one render.
+   >
+   > **The baseline in this item's list is wrong and was corrected on the way**
+   > (`VOLUME-AND-WINDOW.md` §13.1): volume's baseline _is_ its axis rule, which
+   > is derived from the window, so it runs the full frame. What stops at the
+   > coverage edge is the columns.
+   >
+   > Measured on the running page, and asserted in
+   > `e2e/specs/security-price-chart.spec.ts`: both plots at x 104 and width
+   > 928.66, both grounds at 289.8 / 742.9, every vertical mark identical, and
+   > both fills ending exactly one pixel above their own axis rule. The §14.5
+   > correction covers the second fill and the break was performed — zeroing it
+   > takes both assertions red together.
+
 5. **`chart-alternative.ts`'s `1d` branches have never been executed.**
    `intervalWord` and `slotWord` each carry one — _"trading session"_ and
    _"sessions"_ — and all fourteen recorded bodies are `1m`, so nothing in this

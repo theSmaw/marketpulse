@@ -1,11 +1,12 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId } from "react";
 
 import { cx } from "../../cx.js";
 import type { BarSeriesView } from "../../market/index.js";
-import { chartDensity } from "../../market/index.js";
+import { useChartAxis } from "./chart-axis-context.js";
 import { chartAlternative } from "./chart-alternative.js";
-import type { ChartSubject, PlotBox } from "./chart-geometry.js";
-import { chartFrame } from "./chart-geometry.js";
+import { priceFrame } from "./chart-geometry.js";
+import { chartSubject, drawsAFrame } from "./chart-subject.js";
+import { usePlotBox } from "./use-plot-box.js";
 import { ChartReading } from "./ChartReading.js";
 import styles from "./PriceChart.module.css";
 
@@ -173,7 +174,26 @@ export interface PriceChartProps {
 }
 
 export function PriceChart({ view, symbol }: PriceChartProps) {
-  const { chartRef, plotRef, regionWidth, plot } = usePlotSize();
+  // **The axis comes from above and the height from this element** (Task
+  // 2.13.4). Every mark whose x this component draws is the same value the
+  // volume plot draws its columns at, because both read one `TimeFrame` — which
+  // is `VOLUME-AND-WINDOW.md` §13.1's "two plots stop at the same pixel" made
+  // arithmetic rather than coincidence.
+  const { frame: time, report } = useChartAxis();
+  const { chartRef, plotRef, plot } = usePlotBox(report, "price");
+
+  // The box the marks are drawn in: **the shared width, this plot's own
+  // height.** Taking the width from the frame rather than from the measurement
+  // is the load-bearing half — two equal-width elements measured a frame apart
+  // are two different numbers for one render, and a chart that is one pixel out
+  // for one frame on every resize is exactly the defect nothing below a browser
+  // can see.
+  const box = { width: time.width, height: plot.height };
+  const density = time.density;
+  const frame = {
+    ...time,
+    ...priceFrame(time, plot.height, chartSubject(view)?.bars ?? []),
+  };
 
   // Four document-unique ids: the fill's definition, its two clips, and the
   // coverage clip Task 2.12.7 added.
@@ -196,9 +216,6 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
   // description the reading layer's `role="img"` points at. `chart-alternative.ts`
   // carries the argument for both halves.
   const alternativeId = `${id}-alt`;
-
-  const density = chartDensity(regionWidth);
-  const frame = chartFrame(plot, density, chartSubject(view));
 
   // **The clip that holds this task's one rule** — everything derived from bars
   // stops at the coverage edge. `undefined` rather than a clip over the whole
@@ -242,8 +259,8 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
          */}
         <svg
           className={styles.canvas}
-          width={plot.width}
-          height={plot.height}
+          width={box.width}
+          height={box.height}
           aria-hidden="true"
           focusable="false"
         >
@@ -291,7 +308,7 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
           {frame.coverage.uncovered.map((span) => (
             <rect
               className={styles.uncovered}
-              height={plot.height}
+              height={box.height}
               key={span.from}
               width={span.to - span.from}
               x={span.from}
@@ -303,7 +320,7 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
               <defs>
                 <clipPath id={coveredId}>
                   <rect
-                    height={plot.height}
+                    height={box.height}
                     width={
                       frame.coverage.covered.to - frame.coverage.covered.from
                     }
@@ -320,15 +337,15 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
                 <clipPath id={aboveId}>
                   <rect
                     height={frame.direction.reference}
-                    width={plot.width}
+                    width={box.width}
                     x={0}
                     y={0}
                   />
                 </clipPath>
                 <clipPath id={belowId}>
                   <rect
-                    height={plot.height - frame.direction.reference}
-                    width={plot.width}
+                    height={box.height - frame.direction.reference}
+                    width={box.width}
                     x={0}
                     y={frame.direction.reference}
                   />
@@ -362,7 +379,7 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
                 className={styles.gridline}
                 key={gridline.y}
                 x1={0}
-                x2={plot.width}
+                x2={box.width}
                 y1={gridline.y}
                 y2={gridline.y}
               />
@@ -374,7 +391,7 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
                 x1={x}
                 x2={x}
                 y1={0}
-                y2={plot.height}
+                y2={box.height}
               />
             ))}
             {/*
@@ -405,7 +422,7 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
                 className={styles.reference}
                 clipPath={clipToCovered}
                 x1={0}
-                x2={plot.width}
+                x2={box.width}
                 y1={frame.direction.reference}
                 y2={frame.direction.reference}
               />
@@ -426,7 +443,7 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
                 x1={x}
                 x2={x}
                 y1={0}
-                y2={plot.height}
+                y2={box.height}
               />
             ))}
           </g>
@@ -546,147 +563,11 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
        */}
       <ChartReading
         describedBy={alternative === null ? undefined : alternativeId}
-        plot={plot}
+        plot={box}
         readings={frame.readings}
         slots={frame.slots}
         symbol={symbol}
       />
     </div>
   );
-}
-
-/**
- * What the chart is about — **the window that was asked for**, and the bars
- * that came back inside it.
- *
- * `null` before there is an answer, which is the frame-first state.
- *
- * The `requested` window and never the bars' own span: derive the domain from
- * the bars and a `partial` series silently rescales to fill the frame and looks
- * complete (`CHARTING.md` §6.2). Nothing goes red, no reader can see it, and no
- * test below `pnpm e2e` can either. `loaded` is the one member where the two
- * derivations agree, which is why building against it alone would never reveal
- * the difference.
- *
- * An exhaustive `switch` rather than a property check, so a seventh union member
- * is a compile error here.
- */
-function chartSubject(view: BarSeriesView): ChartSubject | null {
-  switch (view.state) {
-    case "loaded":
-    case "partial":
-    case "empty":
-      return {
-        requested: view.series.coverage.requested,
-        covered: view.series.coverage.covered,
-        timeframe: view.series.timeframe,
-        bars: view.series.bars,
-      };
-    case "loading":
-    case "refused":
-    case "failed":
-      return null;
-  }
-}
-
-/** Is there a window for a frame to be about? */
-function drawsAFrame(view: BarSeriesView): boolean {
-  switch (view.state) {
-    case "loading":
-    case "loaded":
-    case "partial":
-    case "empty":
-      return true;
-    case "refused":
-    case "failed":
-      return false;
-  }
-}
-
-/** Nothing measured yet, which is every render in jsdom and the first in a browser. */
-const UNMEASURED = { regionWidth: 0, plot: { width: 0, height: 0 } };
-
-/**
- * The region's width, and the plot's own box, measured from the DOM.
- *
- * **A `ResizeObserver` and not a one-off read**, for `AppHeader`'s reason and
- * one more: the Price region is full width on a grid that reflows, so its width
- * changes without this component re-rendering — and `CHARTING.md` §2's table is
- * the whole argument for keying the chart's density on the *region* rather than
- * on the viewport. The region is 1,019px at a 1920 viewport and 342px at 390.
- *
- * **Feature-detected, exactly as `AppHeader` detects it**, and the fallback is
- * right rather than merely safe: jsdom has no observer *and* no layout, so the
- * honest measurement there is zero — which `chartFrame` renders as a frame with
- * no marks in it, and `chartDensity` answers for deliberately rather than
- * throwing.
- *
- * The equality guard is not defensive padding. An observer whose callback sets
- * state that changes the observed box is an infinite loop; nothing here does
- * that today — the SVG is absolutely positioned inside a plot whose height is a
- * token — but the guard is what keeps that true if a later task puts something
- * in the flow.
- */
-function usePlotSize() {
-  const chartRef = useRef<HTMLDivElement | null>(null);
-  const plotRef = useRef<HTMLDivElement | null>(null);
-  const [size, setSize] = useState(UNMEASURED);
-
-  useEffect(() => {
-    const chart = chartRef.current;
-    const plot = plotRef.current;
-    if (chart === null || plot === null) return;
-    if (typeof ResizeObserver === "undefined") return;
-
-    const observer = new ResizeObserver(() => {
-      const region = chart.getBoundingClientRect();
-      const box = plot.getBoundingClientRect();
-
-      // **The axis rule's own pixel, subtracted** (Task 2.12.7). The plot's
-      // bottom border *is* the axis, and a bounding rect includes it — so the
-      // measured height is one pixel taller than the area there is to draw in.
-      //
-      // Every mark before today tolerated that, because a stroke a pixel low
-      // lands under a near-black rule and is invisible. **A fill does not.**
-      // The uncovered ground is opaque, so a rect drawn to the measured height
-      // paints over the axis and the frame appears to stop at the coverage
-      // edge — which is the exact impression this whole treatment exists to
-      // prevent, arriving as a rendering artefact rather than as a decision.
-      //
-      // `offsetHeight - clientHeight` is the border, as integers, and it is
-      // zero in jsdom — where neither is implemented — so the measurement
-      // helpers in this component's tests are unaffected. The width needs no
-      // such correction: there are no side borders.
-      const axisRule = plot.offsetHeight - plot.clientHeight;
-      const height = box.height - axisRule;
-
-      setSize((current) =>
-        current.regionWidth === region.width &&
-        current.plot.width === box.width &&
-        current.plot.height === height
-          ? current
-          : {
-              regionWidth: region.width,
-              plot: { width: box.width, height },
-            },
-      );
-    });
-
-    // Both, and in one observer: the density keys on the region's width and the
-    // scales key on the plot's box, and the two are different numbers because
-    // the value gutter sits between them.
-    observer.observe(chart);
-    observer.observe(plot);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  return {
-    chartRef,
-    plotRef,
-    regionWidth: size.regionWidth,
-    plot: size.plot satisfies PlotBox,
-  };
 }

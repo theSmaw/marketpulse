@@ -3,8 +3,8 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import { chartDensity } from "../../market/index.js";
 import { ChartReading } from "./ChartReading.js";
-import type { ChartFrame, ChartSubject } from "./chart-geometry.js";
-import { chartFrame } from "./chart-geometry.js";
+import type { ChartSubject } from "./chart-geometry.js";
+import { priceFrame, timeFrame } from "./chart-geometry.js";
 import styles from "./ChartReading.stories.module.css";
 
 // The crosshair and the readout, reviewable without a chart under them (Task
@@ -48,7 +48,7 @@ import styles from "./ChartReading.stories.module.css";
 
 const PLOT = { width: 726, height: 280 };
 
-function frameOf(name: "full" | "dense"): ChartFrame {
+function frameOf(name: "full" | "dense") {
   const view = barSeriesFixtureView(name);
   if (view.state !== "loaded" && view.state !== "partial")
     throw new Error(`the ${name} fixture is not an answer with bars`);
@@ -60,7 +60,12 @@ function frameOf(name: "full" | "dense"): ChartFrame {
     bars: view.series.bars,
   };
 
-  return chartFrame(PLOT, chartDensity(923), subject);
+  // **Composed here rather than by the geometry**, since Task 2.13.4: one
+  // `timeFrame` serves both plots and there is no longer a function that takes a
+  // whole plot box, because a function that did could build an axis for one plot
+  // out of the other's height.
+  const time = timeFrame(PLOT.width, chartDensity(923), subject);
+  return { ...time, ...priceFrame(time, PLOT.height, subject.bars) };
 }
 
 /** The chart's own grid, with a stand-in where the plot would be. */

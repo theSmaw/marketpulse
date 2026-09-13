@@ -6,6 +6,8 @@ import {
   barSeriesFixtureView,
   staleBarSeriesFixtureView,
 } from "../../fixtures/bar-series.js";
+import { ChartAxis } from "../PriceChart/ChartAxis.js";
+import type { BarSeriesPanelProps } from "./BarSeriesPanel.js";
 import { BarSeriesPanel } from "./BarSeriesPanel.js";
 
 // What the panel says in each of its six states, asserted against **recorded**
@@ -34,6 +36,23 @@ const props = {
 };
 
 /**
+ * The panel inside the axis its chart hangs on — which is how the route renders
+ * it, since Task 2.13.4 put a second plot on that axis.
+ *
+ * `useChartAxis` throws outside a `ChartAxis` on purpose (`chart-axis-context.ts`
+ * carries why), so this is the real arrangement rather than a convenience. The
+ * `view` is handed to both because it is one answer: the axis takes the window
+ * out of it and the panel states the figures.
+ */
+function Panel(panelProps: BarSeriesPanelProps) {
+  return (
+    <ChartAxis view={panelProps.view}>
+      <BarSeriesPanel {...panelProps} />
+    </ChartAxis>
+  );
+}
+
+/**
  * Query options that exclude the sentence written for a screen reader.
  *
  * **Needed since Task 2.10.8 gave this panel a live region**, and the reason is
@@ -52,7 +71,7 @@ describe("BarSeriesPanel", () => {
   it("names the security in every state, including the ones with no series", () => {
     for (const name of ["full", "refusedCap", "unavailable"] as const) {
       const { unmount } = render(
-        <BarSeriesPanel {...props} view={barSeriesFixtureView(name)} />,
+        <Panel {...props} view={barSeriesFixtureView(name)} />,
       );
       expect(screen.getByRole("heading", { name: "NVDA" })).toBeTruthy();
       unmount();
@@ -60,7 +79,7 @@ describe("BarSeriesPanel", () => {
   });
 
   it("says it holds all of a complete window rather than saying nothing", () => {
-    render(<BarSeriesPanel {...props} view={barSeriesFixtureView("full")} />);
+    render(<Panel {...props} view={barSeriesFixtureView("full")} />);
 
     // Silence on a complete answer would make "we hold all of it" and "nobody
     // checked" look identical, which is the distinction this panel exists for.
@@ -68,9 +87,7 @@ describe("BarSeriesPanel", () => {
   });
 
   it("renders a short answer as an answer, naming where it stops", () => {
-    render(
-      <BarSeriesPanel {...props} view={barSeriesFixtureView("partial")} />,
-    );
+    render(<Panel {...props} view={barSeriesFixtureView("partial")} />);
 
     // The two facts a reader acts on: how much, and through when. Both come off
     // the response — `covered.end` — and never from a constant.
@@ -83,9 +100,7 @@ describe("BarSeriesPanel", () => {
   });
 
   it("shows both windows, so the reader can see what was asked for", () => {
-    render(
-      <BarSeriesPanel {...props} view={barSeriesFixtureView("partial")} />,
-    );
+    render(<Panel {...props} view={barSeriesFixtureView("partial")} />);
 
     // Asserted as the concatenation a screen reader is handed rather than as
     // one element's text, because the term and its definition are two nodes.
@@ -97,7 +112,7 @@ describe("BarSeriesPanel", () => {
   });
 
   it("renders market timestamps in market time, with the zone named", () => {
-    render(<BarSeriesPanel {...props} view={barSeriesFixtureView("full")} />);
+    render(<Panel {...props} view={barSeriesFixtureView("full")} />);
 
     // The 13:30Z bar is the 09:30 bar. A panel rendering it in the runner's own
     // zone is the same defect as a window resolved from the browser's clock:
@@ -108,7 +123,7 @@ describe("BarSeriesPanel", () => {
   });
 
   it("states the four prices from the bars it holds", () => {
-    render(<BarSeriesPanel {...props} view={barSeriesFixtureView("full")} />);
+    render(<Panel {...props} view={barSeriesFixtureView("full")} />);
 
     for (const label of ["Open", "High", "Low", "Close"]) {
       expect(screen.getByText(label)).toBeTruthy();
@@ -120,7 +135,7 @@ describe("BarSeriesPanel", () => {
   });
 
   it("labels the feed in the shipped vocabulary rather than a slug", () => {
-    render(<BarSeriesPanel {...props} view={barSeriesFixtureView("full")} />);
+    render(<Panel {...props} view={barSeriesFixtureView("full")} />);
 
     // `MARKET_FEED_DESCRIPTIONS`' words, and the rule that a label gets a
     // sentence only when it cannot stand alone — `All US exchanges` can, so
@@ -131,9 +146,7 @@ describe("BarSeriesPanel", () => {
   });
 
   it("names every distinct feed of a stitched series", () => {
-    render(
-      <BarSeriesPanel {...props} view={barSeriesFixtureView("stitched")} />,
-    );
+    render(<Panel {...props} view={barSeriesFixtureView("stitched")} />);
 
     // Both recorded sources are SIP, so this renders **one** label for two
     // sources — which is the correct behaviour and the reason the assertion is
@@ -143,7 +156,7 @@ describe("BarSeriesPanel", () => {
   });
 
   it("renders an empty series as an answer about a window", () => {
-    render(<BarSeriesPanel {...props} view={barSeriesFixtureView("empty")} />);
+    render(<Panel {...props} view={barSeriesFixtureView("empty")} />);
 
     expect(screen.getByText(/No bars stored for this window/)).toBeTruthy();
     // It still says what was asked for. A panel that dropped the window would
@@ -159,7 +172,7 @@ describe("BarSeriesPanel", () => {
   ] as const)(
     "shows %s's own sentence, with no retry and no reference",
     (name, fragment) => {
-      render(<BarSeriesPanel {...props} view={barSeriesFixtureView(name)} />);
+      render(<Panel {...props} view={barSeriesFixtureView(name)} />);
 
       expect(
         screen.getByText(
@@ -179,7 +192,7 @@ describe("BarSeriesPanel", () => {
   it("offers a retry only where the contract says waiting will help", () => {
     const onRetry = vi.fn();
     render(
-      <BarSeriesPanel
+      <Panel
         {...props}
         onRetry={onRetry}
         view={barSeriesFixtureView("unavailable")}
@@ -194,9 +207,7 @@ describe("BarSeriesPanel", () => {
   });
 
   it("offers no retry for a failure that will happen again, and says so", () => {
-    render(
-      <BarSeriesPanel {...props} view={barSeriesFixtureView("incoherent")} />,
-    );
+    render(<Panel {...props} view={barSeriesFixtureView("incoherent")} />);
 
     expect(screen.queryByRole("button")).toBeNull();
     expect(
@@ -206,7 +217,7 @@ describe("BarSeriesPanel", () => {
 
   it("shows the whole correlation id beside a failure, never a prefix", () => {
     const view = barSeriesFixtureView("unavailable");
-    render(<BarSeriesPanel {...props} view={view} />);
+    render(<Panel {...props} view={view} />);
 
     // The one internal identifier this product puts on screen, and it is only
     // ever whole — a prefix is unquotable, which defeats the entire purpose.
@@ -218,7 +229,7 @@ describe("BarSeriesPanel", () => {
   it("keeps the failure's sentence on screen while a retry is in flight", () => {
     const failure = barSeriesFixtureView("unavailable");
     render(
-      <BarSeriesPanel
+      <Panel
         {...props}
         view={{
           ...failure,
@@ -241,27 +252,19 @@ describe("BarSeriesPanel", () => {
 
   it("says search is a story away only when nobody named a security", () => {
     const { unmount } = render(
-      <BarSeriesPanel
-        {...props}
-        defaulted
-        view={barSeriesFixtureView("partial")}
-      />,
+      <Panel {...props} defaulted view={barSeriesFixtureView("partial")} />,
     );
     expect(screen.getByText(/Showing a default security/)).toBeTruthy();
     unmount();
 
-    render(
-      <BarSeriesPanel {...props} view={barSeriesFixtureView("partial")} />,
-    );
+    render(<Panel {...props} view={barSeriesFixtureView("partial")} />);
     expect(screen.queryByText(/Showing a default security/)).toBeNull();
   });
 
   // --- Task 2.10.8: the two marks that are not about the answer ---
 
   it("says a held answer is being refreshed, without touching a number", () => {
-    render(
-      <BarSeriesPanel {...props} view={staleBarSeriesFixtureView("partial")} />,
-    );
+    render(<Panel {...props} view={staleBarSeriesFixtureView("partial")} />);
 
     expect(screen.getByText(/Refreshing/)).toBeTruthy();
 
@@ -274,16 +277,14 @@ describe("BarSeriesPanel", () => {
   });
 
   it("shows no refreshing mark on an answer that just arrived", () => {
-    render(
-      <BarSeriesPanel {...props} view={barSeriesFixtureView("partial")} />,
-    );
+    render(<Panel {...props} view={barSeriesFixtureView("partial")} />);
 
     expect(screen.queryByText(/Refreshing/)).toBeNull();
   });
 
   it("marks an untracked security on its subject, not in its numbers", () => {
     render(
-      <BarSeriesPanel
+      <Panel
         {...props}
         symbol="AMD"
         view={barSeriesFixtureView("untracked")}
@@ -304,7 +305,7 @@ describe("BarSeriesPanel", () => {
   });
 
   it("says nothing about tracking for a security we still follow", () => {
-    render(<BarSeriesPanel {...props} view={barSeriesFixtureView("full")} />);
+    render(<Panel {...props} view={barSeriesFixtureView("full")} />);
 
     expect(screen.queryByText("Untracked")).toBeNull();
   });
@@ -319,7 +320,7 @@ describe("BarSeriesPanel", () => {
     // render failure on every route.
     for (const name of BAR_SERIES_FIXTURE_NAMES) {
       const { unmount } = render(
-        <BarSeriesPanel {...props} view={barSeriesFixtureView(name)} />,
+        <Panel {...props} view={barSeriesFixtureView(name)} />,
       );
 
       expect(screen.getAllByRole("status")).toHaveLength(1);
@@ -329,7 +330,7 @@ describe("BarSeriesPanel", () => {
   });
 
   it("is silent while the first answer is still coming", () => {
-    render(<BarSeriesPanel {...props} view={{ state: "loading" }} />);
+    render(<Panel {...props} view={{ state: "loading" }} />);
 
     // Arriving at a page is not a change. A sentence here would never be heard
     // as an announcement and would only be a second copy of the visible line.
@@ -342,7 +343,7 @@ describe("BarSeriesPanel", () => {
     // A sentence that names its own subject is complete in either order.
     for (const name of BAR_SERIES_FIXTURE_NAMES) {
       const { unmount } = render(
-        <BarSeriesPanel {...props} view={barSeriesFixtureView(name)} />,
+        <Panel {...props} view={barSeriesFixtureView(name)} />,
       );
 
       expect(
@@ -359,13 +360,11 @@ describe("BarSeriesPanel", () => {
     // rather than unmount and recreate it. The browser suite asserts the same
     // thing against the real transition; this is the cheap half.
     const { rerender } = render(
-      <BarSeriesPanel {...props} view={{ state: "loading" }} />,
+      <Panel {...props} view={{ state: "loading" }} />,
     );
     const before = screen.getByRole("status");
 
-    rerender(
-      <BarSeriesPanel {...props} view={barSeriesFixtureView("partial")} />,
-    );
+    rerender(<Panel {...props} view={barSeriesFixtureView("partial")} />);
 
     expect(screen.getByRole("status")).toBe(before);
     expect(before.textContent).toContain("holding 60 bars");
@@ -377,15 +376,13 @@ describe("BarSeriesPanel", () => {
     // bars. The stale clause is the text the region passes through and back out
     // of, which is what makes the return audible.
     const fresh = barSeriesFixtureView("partial");
-    const { rerender } = render(<BarSeriesPanel {...props} view={fresh} />);
+    const { rerender } = render(<Panel {...props} view={fresh} />);
     const settled = screen.getByRole("status").textContent;
 
-    rerender(
-      <BarSeriesPanel {...props} view={staleBarSeriesFixtureView("partial")} />,
-    );
+    rerender(<Panel {...props} view={staleBarSeriesFixtureView("partial")} />);
     const held = screen.getByRole("status").textContent;
 
-    rerender(<BarSeriesPanel {...props} view={fresh} />);
+    rerender(<Panel {...props} view={fresh} />);
 
     expect(held).not.toBe(settled);
     expect(screen.getByRole("status").textContent).toBe(settled);
@@ -395,9 +392,7 @@ describe("BarSeriesPanel", () => {
     // A 36-character UUID spoken is thirty seconds of hex a listener cannot
     // hold or transcribe — the same judgement the universe table made about a
     // magnitude. It is on screen, selectable, and that is where it is useful.
-    render(
-      <BarSeriesPanel {...props} view={barSeriesFixtureView("unavailable")} />,
-    );
+    render(<Panel {...props} view={barSeriesFixtureView("unavailable")} />);
 
     const spoken = screen.getByRole("status").textContent;
     expect(spoken).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}/u);
@@ -421,7 +416,7 @@ describe("BarSeriesPanel", () => {
   // renderer, and nothing else in this repository would notice.
   it("draws the series above the facts, and drops none of them", () => {
     const { container } = render(
-      <BarSeriesPanel {...props} view={barSeriesFixtureView("full")} />,
+      <Panel {...props} view={barSeriesFixtureView("full")} />,
     );
 
     expect(container.querySelector("canvas")).toBeNull();

@@ -1,0 +1,146 @@
+/*
+ * **The marks both plots draw, in one home** (Task 2.13.4).
+ *
+ * Price and Volume hang on one axis, and everything on this axis that is
+ * derived from the *window* rather than from the bars is therefore literally
+ * the same mark drawn twice: the session seam, the uncovered ground, the
+ * coverage edge and the tick labels. `VOLUME-AND-WINDOW.md` §13.1 states the
+ * rule — *what is derived from the window runs the full frame in both plots* —
+ * and this file is that rule's stylesheet half.
+ *
+ * ## Why a shared module rather than two copies
+ *
+ * Not to save six rules. The ink in each of these is a token and the token is
+ * already one home, but the **dash rhythms are not tokens and are load-bearing
+ * as a set**: the seam is `3 3`, the reference rule `2 4` and the coverage edge
+ * `6 3`, and the whole reason the edge is legible is that it differs from the
+ * seam it coincides with on most answers (`CHARTING.md` §14). Three rhythms
+ * that have to stay distinct, copied into two stylesheets with nothing
+ * comparing them, is `CLAUDE.md`'s two-homes trap with a spacing value in it
+ * instead of a breakpoint.
+ *
+ * ## What is *not* here, and why the line is where it is
+ *
+ * The plot's own box — its height and its axis rule — stays in each chart's own
+ * stylesheet, because the two heights are two different tokens and the axis
+ * rule means different things: on the price plot it is the frame's one rule, and
+ * on the volume plot it is a **true zero** the columns grow from (§9.4). A
+ * shared `.plot` would have made one class mean two things.
+ *
+ * The series, the washes, the reference rule and the gridlines are the price
+ * plot's alone. Volume declines all four (§9.4, §12).
+ *
+ * A `composes:` target: never import this from `main.tsx`. It is reached only
+ * through the two chart stylesheets, and it emits each rule exactly once.
+ */
+
+/*
+ * Absolutely positioned so that nothing the SVG contains can change the box
+ * that was measured to produce it — which is what makes each chart's
+ * `ResizeObserver` loop-free by construction rather than by its equality guard
+ * alone.
+ */
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+}
+
+/*
+ * Dashed rather than solid, and that is load-bearing: a solid vertical
+ * near-black rule inside a plot reads as *data* — a threshold, a marker, an
+ * event. Dashes say chrome. It is deliberately louder than a value gridline
+ * (1.70:1 against 1.27:1) because it carries more: it is the only thing on
+ * either plot that says a night passed, and it is what a reader lines the two
+ * up by across the panel boundary between them.
+ */
+.seam {
+  stroke: var(--chart-seam);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+/*
+ * **The span that was requested and is not held** (Task 2.12.7), painted once
+ * per plot rather than once per region: it is a statement about a *frame*, and
+ * since Task 2.13.4 there are two frames.
+ *
+ * The quietest mark in this language — 1.107:1 against the panel's own ground —
+ * and deliberately so: `partial` is the normal state of this screen, not a
+ * fault, so the treatment must not read as one. No hatching, no warning colour,
+ * no icon.
+ *
+ * What stops it reading as *flat data* is not this value but the clip: the line,
+ * the washes, the reference rule and the volume columns stop at the coverage
+ * edge rather than being drawn to the frame. Remove the clip and let them run,
+ * and either chart renders perfectly while saying something false.
+ *
+ * It carries no hue: every contrast pair in this treatment moves by less than a
+ * hundredth of a ratio under `grayscale(1)`.
+ */
+.uncovered {
+  fill: var(--chart-uncovered);
+}
+
+/*
+ * The dashed vertical where the data stops.
+ *
+ * **The one mark in this treatment allowed to be loud**, at 4.05:1 against the
+ * wash it bounds, and it is load-bearing rather than a nicety: the uncovered
+ * ground and the two directional washes are 1.038:1 and 1.051:1 apart, which is
+ * to say invisible. The ground changing is what a reader notices; this is what
+ * makes the boundary between two pale fills locatable.
+ *
+ * `6 3` — a longer rhythm than the seam's `3 3` and the reference rule's `2 4`,
+ * because **the coverage edge and a session seam coincide most of the time
+ * rather than rarely**: a store caught up to a previous session's close stops
+ * exactly on a session boundary, which is precisely where a seam is drawn. Ink
+ * and rhythm are what tell the two apart, and the edge is drawn last so it is
+ * the one on top.
+ */
+.coverageEdge {
+  stroke: var(--chart-coverage-edge);
+  stroke-width: 1;
+  stroke-dasharray: 6 3;
+}
+
+/*
+ * Every figure is `--font-data` and therefore tabular by construction. Story
+ * 1.4 measured a 14.3px spread on proportional numerals, and an axis that
+ * shimmers as labels change width is the cheapest way to make a live chart feel
+ * broken.
+ */
+.timeLabel {
+  position: absolute;
+  top: 0;
+  font-family: var(--font-data);
+  font-size: var(--font-size-micro);
+  line-height: 1;
+  color: var(--ink-secondary);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/*
+ * A session boundary carries the date and everything between carries a time.
+ * The date is the thing the ordinal axis took away — it draws no gap between
+ * Friday's last minute and Monday's first — so it is set in the primary ink
+ * while the times stay secondary. That is the label half of the seam; the
+ * dashed rule above it is the other half, and neither is alone.
+ */
+.sessionLabel {
+  font-weight: 500;
+  color: var(--ink-primary);
+}
+
+/*
+ * The leftmost label is aligned to the edge rather than centred on it. Centred,
+ * it hangs half its width off the left of a `Region` that declares
+ * `overflow: auto`, and a horizontal scrollbar appears under a chart at every
+ * width. There is no matching rule on the right: the value gutter is empty in
+ * this row, so a label reaching into it costs nothing.
+ */
+.firstLabel {
+  transform: none;
+}

@@ -1209,3 +1209,128 @@ _declared_. Added here.
   from `CHARTING.md` §1's element count and is unmeasured.
 - **2.13.10** applies §14.2's four tests to the deployed page and records the
   **count** of test-4 deferrals rather than only the verdict.
+
+---
+
+# Part three — the rendering, added 2026-09-13 by Task 2.13.4
+
+Part two designed the volume plot on the canvas and Task 2.13.3 built its
+arithmetic. This is what changed when it was drawn on a real page, and it is
+**four corrections and one decision** rather than a restatement.
+
+## 18. The axis is one object at run time, not only in the type system
+
+§13.1's rule — _two plots sharing one x-domain must stop at the same pixel_ — was
+half structural after 2.13.3: neither `priceFrame` nor `volumeFrame` can build an
+axis, because neither is handed a window. The other half is that **`timeFrame` is
+called once**, and that needed a place to live.
+
+It is `components/PriceChart/ChartAxis.tsx`, a component wrapping the Security
+Explorer's grid and rendering `children` through unchanged. Two things about the
+shape were forced rather than chosen:
+
+- **A context and not a common parent.** `PRODUCT_SPEC.md` §8.3's reading order
+  puts the Abnormal-move region between Price and Volume in the DOM — §9.1 already
+  records that at one column they are a screen apart — so a component rendering
+  both as siblings would reorder the page to suit itself.
+- **Only the width is shared.** Each plot measures its own box and draws at
+  `frame.width` with its own height. That is the load-bearing half: two
+  equal-width elements measured a frame apart are two different numbers for one
+  render, and a chart one pixel out for one frame on every resize is exactly the
+  defect nothing below a browser can see.
+
+`useChartAxis` **throws** outside a provider. A fallback to a private frame would
+be a second home for the composition 2.13.3 spent a task taking apart, and its
+failure mode is the quiet one.
+
+**§15.1's wrapper therefore exists now**, one task early and by design: 2.13.5
+adds the read position to this same component, and React then re-renders the two
+reading overlays and neither frame owner.
+
+## 19. Four corrections to Part two, found by drawing it
+
+### 19.1 The end columns paint outside the plot — a defect, not a trade-off
+
+§10.3's amendment described the first and last columns as rendering half-width.
+They do not, unassisted: `.canvas` declares `overflow: visible` — which the tick
+labels and the crosshair need — so the half of an end column outside the frame is
+**painted into the panel's padding**, up to 14 px of it at a thirty-bar window.
+
+The columns are clipped to the plot box, which is what produces the half-width
+rendering the amendment predicted. Two clips on two elements, because an element
+takes one `clip-path` and the path already spends its own on the coverage span.
+
+### 19.2 The half-width end columns are accepted, looked at rather than argued
+
+§10.3 handed this task the judgement and named 3M as where to look. 3M is not
+reachable until 2.13.6, so it was taken at the density §10.3 itself says the
+effect is visible at — **thirty bars**, in `Market/VolumeChart → Wide` and at the
+compact width.
+
+**Accepted.** Three reasons: the height is the datum and the height is exact; a
+column clipped by the frame it sits on the edge of is the ordinary convention for
+this chart rather than an artefact; and the only repair that keeps the shared axis
+insets **both** plots, which moves the price chart's first and last points off the
+frame's edges and makes the coverage edge stop somewhere other than where the
+window does — a real change to a shipped chart, to round two columns.
+
+**Re-look at 2.13.6's 3M and 1Y**, where the column is 12.8 px rather than 28.9
+and the proportion of it that is lost changes.
+
+### 19.3 The marks both plots draw need one home in CSS as well as one in the geometry
+
+§13.1 is a rule about arithmetic and it has a stylesheet half nobody had stated.
+The seam's `3 3`, the coverage edge's `6 3` and the reference rule's `2 4` are a
+**system that has to stay distinct**, and `CHARTING.md` §14 is explicit that the
+edge is legible because it differs from the seam it coincides with on most
+answers. Copied into two stylesheets with nothing comparing them, that is
+`CLAUDE.md`'s two-homes trap with a dash rhythm in it instead of a breakpoint.
+
+`components/PriceChart/chart-marks.module.css` holds them, and both chart
+stylesheets `composes:` from it. What is **not** shared is each plot's own box:
+the two heights are two tokens and the bottom rule means different things — the
+frame's one rule above, a **true zero** below — so a shared `.plot` would have
+been one class meaning two things.
+
+### 19.4 A workshop fixture is a live claim
+
+`RegionPlaceholder.stories.tsx` used the Volume region's `filledBy` sentence as
+fixture text **and** carried `filledBy="Story 2.13 — Volume Chart"`. Filling the
+region would have left a workshop page saying the product plans something it has
+shipped — the same live claim `CLAUDE.md` says to amend, on a screen a designer
+reads rather than a user. The Volume entry was removed rather than edited.
+
+## 20. What the running page measures
+
+2026-09-13, Chromium at 1440×1000, against a developer's store — which answers the
+default window four-fifths short, so §6.2's coverage treatment is under
+observation here in a way the deployed store does not show (§11.3: both
+photographs are correct).
+
+| Property                         | Price plot                        | Volume plot       |
+| -------------------------------- | --------------------------------- | ----------------- |
+| SVG x / width                    | 104 / 928.66                      | **104 / 928.66**  |
+| Uncovered ground x / width       | 289.8 / 742.9                     | **289.8 / 742.9** |
+| Vertical marks, x                | 185.8, 371.7, 557.5, 743.3, 185.8 | **identical**     |
+| Ground's bottom vs plot's bottom | 1 px                              | **1 px**          |
+
+**186 stems for 390 held bars**, which is the silhouette regime and is right: the
+axis carries the window's 1,950 slots, so the pitch is 0.48 px and the plot draws
+one stem per covered pixel. §10.3's table predicted 726 stems at a full five
+sessions; a four-fifths-short answer covers 186 pixels and fills 186 of them.
+**The window this product opens at is the regime that proves the rendering
+decision**, not one that avoids the question.
+
+## 21. What Part three hands on
+
+- **2.13.5** inherits the wrapper built rather than specified. The read position
+  goes into `ChartAxis`; `PriceChart.test.tsx`'s zero-recomputation counter was
+  **re-pointed at `timeFrame` and `priceFrame`** by this task rather than
+  replaced, and is ready to count the pair.
+- **2.13.6** owes **two** things now: the `1d` response body (§2.3), and
+  therefore §13.3's high–low extent-band measurement, handed to it by name rather
+  than left to fall between the two tasks. It also owes a second look at §19.2's
+  end columns at 3M.
+- **2.13.9** still owes §10.4 — the path-string cost at 1M.
+- **2.13.10** still owes §14.2's four tests against the deployed page, and the
+  **count** of test-4 deferrals.

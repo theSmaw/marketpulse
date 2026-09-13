@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { cx } from "../../cx.js";
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import type { PriceChartProps } from "./PriceChart.js";
+import { ChartAxis } from "./ChartAxis.js";
 import { PriceChart } from "./PriceChart.js";
 import styles from "./PriceChart.stories.module.css";
 
@@ -127,7 +128,9 @@ function Region({
 }) {
   return (
     <div className={cx(styles.wide, treatment)}>
-      <PriceChart symbol="NVDA" view={view} />
+      <ChartAxis view={view}>
+        <PriceChart symbol="NVDA" view={view} />
+      </ChartAxis>
     </div>
   );
 }
@@ -141,7 +144,9 @@ export const Wide: Story = {
   args: { symbol: "NVDA", view: barSeriesFixtureView("full") },
   render: (args) => (
     <div className={styles.wide}>
-      <PriceChart {...args} />
+      <ChartAxis view={args.view}>
+        <PriceChart {...args} />
+      </ChartAxis>
     </div>
   ),
 };
@@ -151,7 +156,9 @@ export const Narrow: Story = {
   args: { symbol: "NVDA", view: barSeriesFixtureView("full") },
   render: (args) => (
     <div className={styles.narrow}>
-      <PriceChart {...args} />
+      <ChartAxis view={args.view}>
+        <PriceChart {...args} />
+      </ChartAxis>
     </div>
   ),
 };
@@ -166,7 +173,9 @@ export const Waiting: Story = {
   args: { symbol: "NVDA", view: { state: "loading" } },
   render: (args) => (
     <div className={styles.wide}>
-      <PriceChart {...args} />
+      <ChartAxis view={args.view}>
+        <PriceChart {...args} />
+      </ChartAxis>
     </div>
   ),
 };
@@ -188,7 +197,9 @@ export const NoBars: Story = {
   args: { symbol: "NVDA", view: barSeriesFixtureView("empty") },
   render: (args) => (
     <div className={styles.wide}>
-      <PriceChart {...args} />
+      <ChartAxis view={args.view}>
+        <PriceChart {...args} />
+      </ChartAxis>
     </div>
   ),
 };
@@ -212,7 +223,9 @@ export const Held: Story = {
   args: { symbol: "NVDA", view: barSeriesFixtureView("partial") },
   render: (args) => (
     <div className={styles.wide}>
-      <PriceChart {...args} />
+      <ChartAxis view={args.view}>
+        <PriceChart {...args} />
+      </ChartAxis>
     </div>
   ),
 };

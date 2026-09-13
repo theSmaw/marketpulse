@@ -59,15 +59,16 @@
 }
 
 /*
- * Absolutely positioned so that nothing the SVG contains can change the box
- * that was measured to produce it. That is what makes the `ResizeObserver`
- * loop-free by construction rather than by the equality guard alone.
+ * **The marks below that both plots draw live in `chart-marks.module.css`**
+ * since Task 2.13.4 — the canvas box, the seam, the uncovered ground, the
+ * coverage edge and the tick labels. They are the marks derived from the
+ * *window* rather than from the bars, which is exactly the set the volume plot
+ * draws identically, and their dash rhythms are a system that has to stay
+ * distinct. What stays here is what only a price chart has: the series, the
+ * gridlines, the two washes and the reference rule.
  */
 .canvas {
-  position: absolute;
-  inset: 0;
-  display: block;
-  overflow: visible;
+  composes: canvas from "./chart-marks.module.css";
 }
 
 .gridline {
@@ -75,17 +76,8 @@
   stroke-width: 1;
 }
 
-/*
- * Dashed rather than solid, and that is load-bearing: a solid vertical
- * near-black rule inside a plot reads as *data* — a threshold, a marker, an
- * event. Dashes say chrome. It is deliberately louder than a value gridline
- * (1.70:1 against 1.27:1) because it carries more: it is the only thing on the
- * plot that says a night passed.
- */
 .seam {
-  stroke: var(--chart-seam);
-  stroke-width: 1;
-  stroke-dasharray: 3 3;
+  composes: seam from "./chart-marks.module.css";
 }
 
 /*
@@ -124,6 +116,10 @@
  *
  * The micro-label idiom's size and ink are adopted; its uppercase and
  * letterspacing are not — a number has no case.
+ *
+ * Not shared with the volume plot's one label: this one is centred on the
+ * gridline it belongs to and that one is top-aligned to the plot, which is a
+ * different rule for a different reason (§9.4).
  */
 .valueLabel {
   position: absolute;
@@ -154,37 +150,15 @@
 }
 
 .timeLabel {
-  position: absolute;
-  top: 0;
-  font-family: var(--font-data);
-  font-size: var(--font-size-micro);
-  line-height: 1;
-  color: var(--ink-secondary);
-  white-space: nowrap;
-  transform: translateX(-50%);
+  composes: timeLabel from "./chart-marks.module.css";
 }
 
-/*
- * A session boundary carries the date and everything between carries a time.
- * The date is the thing the ordinal axis took away — it draws no gap between
- * Friday's last minute and Monday's first — so it is set in the primary ink
- * while the times stay secondary. That is the label half of the seam; the
- * dashed rule above it is the other half, and neither is alone.
- */
 .sessionLabel {
-  font-weight: 500;
-  color: var(--ink-primary);
+  composes: sessionLabel from "./chart-marks.module.css";
 }
 
-/*
- * The leftmost label is aligned to the edge rather than centred on it. Centred,
- * it hangs half its width off the left of a `Region` that declares
- * `overflow: auto`, and a horizontal scrollbar appears under a chart at every
- * width. There is no matching rule on the right: the value gutter is empty in
- * this row, so a label reaching into it costs nothing.
- */
 .firstLabel {
-  transform: none;
+  composes: firstLabel from "./chart-marks.module.css";
 }
 
 /*
@@ -238,47 +212,12 @@
   stroke-dasharray: 2 4;
 }
 
-/*
- * **The span that was requested and is not held** (Task 2.12.7).
- *
- * The quietest mark in this language — 1.107:1 against the panel's own ground —
- * and deliberately so: `partial` is the normal state of this screen, not a
- * fault, so the treatment must not read as one. No hatching, no warning colour,
- * no icon.
- *
- * What stops it reading as *flat data* is not this value but the clip: the
- * line, the wash and the reference rule stop at the coverage edge rather than
- * being drawn to the frame. Remove the clip and let them run, and the chart
- * renders perfectly while saying something false.
- *
- * It carries no hue: every contrast pair in this treatment moves by less than a
- * hundredth of a ratio under `grayscale(1)`, so there is nothing here for a
- * colour-vision difference to take away.
- */
 .uncovered {
-  fill: var(--chart-uncovered);
+  composes: uncovered from "./chart-marks.module.css";
 }
 
-/*
- * The dashed vertical where the data stops.
- *
- * **The one mark in this treatment allowed to be loud**, at 4.05:1 against the
- * wash it bounds, and it is load-bearing rather than a nicety: the uncovered
- * ground and the two directional washes are 1.038:1 and 1.051:1 apart, which is
- * to say invisible. The ground changing is what a reader notices; this is what
- * makes the boundary between two pale fills locatable.
- *
- * `6 3` — a longer rhythm than the seam's `3 3` and the reference rule's
- * `2 4`, because **the coverage edge and a session seam coincide most of the
- * time rather than rarely**: a store caught up to a previous session's close
- * stops exactly on a session boundary, which is precisely where a seam is
- * drawn. Ink and rhythm are what tell the two apart, and the edge is drawn
- * last so it is the one on top.
- */
 .coverageEdge {
-  stroke: var(--chart-coverage-edge);
-  stroke-width: 1;
-  stroke-dasharray: 6 3;
+  composes: coverageEdge from "./chart-marks.module.css";
 }
 
 /*

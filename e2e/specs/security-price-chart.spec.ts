@@ -39,6 +39,12 @@ import { expectNothingFailedToRender } from "../support/app.js";
 //     it** (Task 2.12.7). Same reason as 4 and a worse failure: a line that
 //     stops early over nothing reads as data that went flat, and `partial` is
 //     the state this screen is in most of the time.
+//  6. **That the volume plot is in the Volume region and stops at the same
+//     pixel as the price line** (Task 2.13.4). Two plots that each built their
+//     own axis would agree at every width, until one was measured a frame later
+//     than the other — and nothing that computes no layout can see a pixel of
+//     either. This is also the second **fill** on this axis, so the axis rule's
+//     own pixel is asserted twice below.
 //
 // ## What a green run here does not certify
 //
@@ -64,6 +70,10 @@ function priceRegion(page: Page) {
   return page.getByRole("region", { name: "Price" });
 }
 
+function volumeRegion(page: Page) {
+  return page.getByRole("region", { name: "Volume" });
+}
+
 /**
  * The plot itself — the element the value gutter sits beside.
  *
@@ -75,6 +85,17 @@ function priceRegion(page: Page) {
  */
 function plot(page: Page) {
   return priceRegion(page).locator("svg:has(line)");
+}
+
+/**
+ * The volume plot, located the same way and for the same reason.
+ *
+ * `svg:has(line)` here too rather than a bare `locator("svg")`: the seams and
+ * the coverage edge are the only `<line>` elements this plot draws, and no icon
+ * in this region has one.
+ */
+function volumePlot(page: Page) {
+  return volumeRegion(page).locator("svg:has(line)");
 }
 
 /**
@@ -116,12 +137,16 @@ for (const viewport of VIEWPORTS) {
 
     // Inside, and **only** inside it. The concrete defect Story 2.12's own
     // amendment names is a chart dropped into a fresh panel beside the region
-    // that has been waiting for it — which would leave the Volume region's
-    // placeholder holding a drawing it does not own. Story 2.13 fills that one,
-    // and until it does the region says so in a sentence and draws nothing.
-    await expect(
-      page.getByRole("region", { name: "Volume" }).locator("svg"),
-    ).toHaveCount(0);
+    // that has been waiting for it.
+    //
+    // **Amended by Task 2.13.4, which filled the Volume region.** This used to
+    // assert that region held no SVG at all, and that assertion was the fence
+    // rather than the rule: what it was protecting was *one drawing per region*,
+    // which is now asserted as exactly one plot in each rather than as an
+    // absence in one of them. The same fence was changed rather than deleted
+    // when Story 2.12 took down `security-series.spec.ts`'s.
+    await expect(plot(page)).toHaveCount(1);
+    await expect(volumePlot(page)).toHaveCount(1);
 
     // The plot has real pixels in it. An unmeasured chart renders a 0×0 SVG,
     // which is visible to nobody and to no other level of testing.
@@ -640,4 +665,179 @@ test("the uncovered ground stops above the axis rule", async ({ page }) => {
   expect(gap).not.toBeNull();
   expect(gap).toBeGreaterThan(0);
   expect(gap).toBeLessThan(2);
+});
+
+// ---------------------------------------------------------------------------
+// **Volume, on the same axis** (Task 2.13.4)
+// ---------------------------------------------------------------------------
+
+for (const viewport of VIEWPORTS) {
+  test(`the volume plot is inside the Volume region at ${viewport.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({
+      width: viewport.width,
+      height: viewport.height,
+    });
+    await page.goto(EXPLORER);
+
+    await expect(volumeRegion(page)).toBeVisible();
+    await expect(volumePlot(page)).toHaveCount(1);
+
+    // Real pixels. An unmeasured chart renders a 0×0 SVG, which is visible to
+    // nobody and to no other level of testing — and this plot is deliberately a
+    // third of the height of the one above it, so the floor is lower.
+    const box = await volumePlot(page).boundingBox();
+    expect(box?.width).toBeGreaterThan(100);
+    expect(box?.height).toBeGreaterThan(40);
+
+    // **Counted rather than checked for visibility**, which is this file's own
+    // recorded finding and is a real property of SVG: Playwright's visibility
+    // check is a non-empty bounding box, and a vertical seam is zero pixels
+    // wide. Every mark on this plot except the columns reports `hidden` against
+    // a chart that is on the screen.
+    expect(await volumePlot(page).locator("line").count()).toBeGreaterThan(0);
+
+    // And **no gridlines** — every line here is a seam or a coverage edge, both
+    // vertical. A horizontal rule inside this plot would be a value scale that
+    // §9.4 declined: volume is read comparatively, this bar against its
+    // neighbours, not off a scale.
+    const horizontal = await volumePlot(page)
+      .locator("line")
+      .evaluateAll(
+        (lines) =>
+          lines.filter(
+            (line) => line.getAttribute("y1") === line.getAttribute("y2"),
+          ).length,
+      );
+    expect(horizontal).toBe(0);
+
+    await expectNothingFailedToRender(page);
+  });
+}
+
+test("the two plots hang on one axis and stop at the same pixel", async ({
+  page,
+}) => {
+  // **The property this task is built around**, and the one nothing below a
+  // browser can see: `VOLUME-AND-WINDOW.md` §13.1, and `CHARTING.md` §17.5 item
+  // 4 naming it as the thing a second plot most often gets wrong.
+  //
+  // The failure is quiet. Two components that each called `timeAxis` on the same
+  // window would produce identical numbers at every width where both had been
+  // measured — and differ for one frame on every resize, and permanently if one
+  // of them ever measured a different box. The repair is structural (one
+  // `timeFrame` above both), and this is what checks the structure held.
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(EXPLORER);
+  await expect(plot(page)).toBeVisible();
+  await expect(volumePlot(page)).toBeVisible();
+  await expect(anAnswer(page)).toBeVisible();
+
+  const edges = (locator: ReturnType<typeof plot>) =>
+    locator.locator("line").evaluateAll((lines) =>
+      lines
+        .filter((line) => line.getAttribute("x1") === line.getAttribute("x2"))
+        .map((line) => line.getAttribute("x1"))
+        .sort(),
+    );
+
+  // The frames themselves, first: two plots of different widths could not stop
+  // at the same pixel whatever their arithmetic said.
+  const priceBox = await plot(page).boundingBox();
+  const volumeBox = await volumePlot(page).boundingBox();
+  expect(volumeBox?.x).toBeCloseTo(priceBox?.x ?? -1, 1);
+  expect(volumeBox?.width).toBeCloseTo(priceBox?.width ?? -1, 1);
+
+  // Then every vertical mark on them — the session seams and the coverage edge.
+  // Identical strings, not merely a similar count: these are the same values
+  // from one `TimeFrame`, and anything else means two derivations.
+  expect(await edges(volumePlot(page))).toEqual(await edges(plot(page)));
+
+  // And the uncovered ground, where this store has one — which is the mark that
+  // says where the data stopped, painted separately in each frame.
+  const complete = await priceRegion(page)
+    .getByText(/Holding all /)
+    .isVisible();
+
+  if (!complete) {
+    const ground = (locator: ReturnType<typeof plot>) =>
+      locator.locator("> rect").evaluateAll((rects) =>
+        rects.map((rect) => {
+          const box = rect.getBoundingClientRect();
+          return [Math.round(box.x * 10), Math.round(box.width * 10)];
+        }),
+      );
+
+    expect(await ground(volumePlot(page))).toEqual(await ground(plot(page)));
+  }
+
+  await expectNothingFailedToRender(page);
+});
+
+// **The axis rule's own pixel, for the second fill on this axis** (Task
+// 2.13.4, and Task 2.12.7's finding).
+//
+// `CHARTING.md` §14.5: the plot's bottom border *is* the axis rule and
+// `getBoundingClientRect()` includes it, so the measured height is one pixel
+// taller than the drawable box. Every stroke tolerated that and the uncovered
+// ground did not — it painted over the axis and stayed invisible for three
+// tasks.
+//
+// The volume columns are the **second** fill this axis carries, and they grow
+// from the baseline, so a one-pixel error puts every column's foot on top of the
+// rule they are measured from. jsdom implements neither `offsetHeight` nor
+// `clientHeight`, so the correction is zero there and no component test is
+// different with the repair or without it.
+//
+// **Verified by restoring the break**: deleting the `offsetHeight -
+// clientHeight` subtraction in `use-plot-box.ts` takes this and its price-plot
+// twin red together.
+test("the volume columns stop above the axis rule", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(EXPLORER);
+  await expect(volumePlot(page)).toBeVisible();
+  await expect(anAnswer(page)).toBeVisible();
+  if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
+
+  const gap = await volumePlot(page).evaluate((svg) => {
+    const columns = svg.querySelector("path");
+    const box = svg.parentElement;
+    if (columns === null || box === null) return null;
+    return (
+      box.getBoundingClientRect().bottom -
+      columns.getBoundingClientRect().bottom
+    );
+  });
+
+  // Exactly the rule's own pixel: above zero, because columns flush with the
+  // plot's bottom edge have painted over the baseline they are measured from,
+  // and below two, because a larger gap is a plot measured to something other
+  // than its content box — which would float every column above its own zero.
+  expect(gap).not.toBeNull();
+  expect(gap).toBeGreaterThan(0);
+  expect(gap).toBeLessThan(2);
+});
+
+test("the volume plot says what it is, for a reader who cannot see it", async ({
+  page,
+}) => {
+  // The plot, its one value label and its two dates are all `aria-hidden`, for
+  // the price chart's reason: they are labels *on a picture*, and read aloud in
+  // document order they are an abbreviated number and two dates with no subject
+  // between them. Without the sentence this asserts, the Volume region is a
+  // heading with nothing in the accessibility tree under it.
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(EXPLORER);
+  await expect(volumePlot(page)).toBeVisible();
+  await expect(anAnswer(page)).toBeVisible();
+
+  // It names its own subject — `FRONTEND-STATE.md` §7 — so it can never be
+  // mistaken for the price chart's sentence, and a locator for one resolves to
+  // exactly one node.
+  await expect(volumeRegion(page).getByText(/NVDA volume chart/)).toHaveCount(
+    1,
+  );
+
+  await expectNoAxeViolations(page, "the security route, volume drawn");
 });

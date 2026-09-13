@@ -1,6 +1,6 @@
 # Task 2.13.4 — Volume, in the region that has been naming this story
 
-**Status:** Not started
+**Status:** Complete — 2026-09-13
 **Story:** [2.13 Volume Chart & Time-Window Selection](STORY.md)
 **Depends on:** 2.13.2, 2.13.3
 
@@ -303,3 +303,258 @@ Add to **Done when**:
   evidence the inputs differed, break-verified
 - The half-clipped end columns are looked at on screen at 3M and the answer is
   written down either way
+
+---
+
+## What was built — 2026-09-13
+
+### The shape it took, and the one decision that was open
+
+The task file left one thing genuinely open — _"decide whether volume is a sibling
+component in a new directory or a second plot inside the existing one"_ — and
+2.13.3's amendment added a second, the wrapper that owns the shared frame. They
+resolved together.
+
+**One directory, `components/PriceChart/`, and three new components in it.** The
+directory already held two components (`PriceChart` and `ChartReading`), so
+`src/components/`'s _one component per file_ rule is satisfied and its
+_one component per directory_ habit was already not a rule here. What decided it
+is that the volume plot shares four modules with the price plot —
+`chart-geometry`, `chart-alternative`, `chart-subject` and `use-plot-box` — and a
+second directory would have put two halves of one instrument in two places joined
+by an import that says nothing about why. **The directory name is now the chart
+layer's rather than one chart's**, which is a stale name; renaming it to
+`components/Chart/` was weighed and declined, because it moves six files' imports
+to buy a word, and `CLAUDE.md`'s rule about renaming — remap every reference in
+the same change — makes that a change worth doing when there is a second reason,
+not as a side effect of this one.
+
+| New file                 | What it is                                                                                               |
+| ------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `ChartAxis.tsx`          | The wrapper: one `timeFrame` call, `children` rendered through unchanged                                 |
+| `chart-axis-context.ts`  | The context, the `ChartPlotRole` type, and `useChartAxis` — which **throws** outside a provider          |
+| `VolumeChart.tsx`        | The plot                                                                                                 |
+| `chart-subject.ts`       | `chartSubject` / `drawsAFrame`, moved out of `PriceChart.tsx` so both plots read the state union one way |
+| `use-plot-box.ts`        | `usePlotSize`, extracted unchanged, because the axis-rule pixel must not exist in two versions           |
+| `chart-marks.module.css` | The marks both plots draw — canvas, seam, uncovered ground, coverage edge, tick labels                   |
+
+**`chartFrame` is gone**, as the amendment required. Its last three callers were
+tests and stories; `chart-geometry.test.ts` composes it locally instead, under a
+comment saying why the shipped version could not survive — a function taking a
+whole `PlotBox` is a function that can build an axis out of one plot's height,
+which is precisely what a second plot must not be able to do.
+
+### Why a context and not a parent component
+
+The obvious shape — one component rendering both regions — is unavailable, and
+that is a property of the page rather than a preference. `PRODUCT_SPEC.md` §8.3's
+reading order puts the **Abnormal-move** region between Price and Volume in the
+DOM, and `VOLUME-AND-WINDOW.md` §9.1 already records that at one column the two
+plots are unavoidably a screen apart. A component rendering them as siblings
+would have reordered the page to suit its own implementation.
+
+So `ChartAxis` wraps the grid in `SecurityExplorer` and renders `children`
+through. That is also §15.1's required shape for 2.13.5 arriving one task early:
+the read position goes into this same component, and React then re-renders the
+two reading overlays and **neither frame owner**.
+
+### The measurement, and the one thing that is not obvious about it
+
+Both plots measure their own box. **Only the width is shared** — each plot draws
+at `frame.width` and at its own measured height, which is what makes "two plots
+stop at the same pixel" arithmetic rather than two elements happening to be laid
+out identically. Two equal-width elements measured a frame apart are two
+different numbers for one render.
+
+`ChartAxis` keeps **two measurement slots with a stated precedence**, price
+first. Both plots report; the price plot wins where it exists. That is not
+defending against a disagreement — they are the same width by construction — it
+is avoiding two components with no ordering between them writing the same state
+on every resize. It also means a volume plot can be reviewed on its own in the
+workshop, and that Epic 11's agent, which can open a chart of its choosing, is
+not obliged to open two.
+
+`useChartAxis` **throws** outside a provider rather than falling back to a
+private frame. A fallback's failure mode is the quiet one: two plots that each
+built their own axis look right at every width where they agree. The cost is that
+`PriceChart`, `BarSeriesPanel` and `VolumeChart` are only renderable inside a
+`ChartAxis` — so their tests and stories wrap, which is the real arrangement
+rather than a convenience.
+
+### Three things found by doing it
+
+**1. The end columns paint _outside_ the plot, and that is a defect rather than
+the trade-off 2.13.3 described.** `scaleSlot` puts the first bar at x = 0 and the
+last at x = width, so a column centred on either end has half of itself outside
+the frame — and `.canvas` declares `overflow: visible`, which every other mark on
+this axis needs. At a thirty-bar window that is up to **14 px of near-grey
+painted into the panel's padding**. The columns are therefore clipped to the plot
+box, with a second `clipPath` on a wrapping `<g>` because an element takes one
+`clip-path` and the path already spends its on the coverage span.
+
+**2. The half-width end columns are accepted — looked at, not reasoned about.**
+With the clip in place they render at half width. Reviewed in the workshop at
+thirty bars (`Market/VolumeChart → Wide`) and at the compact width, which is the
+density §10.3 says it is visible at. The answer is **accept**, for three reasons:
+the height is the datum and the height is exact; a column clipped by the frame it
+sits on the edge of is the ordinary convention for this chart, not an artefact;
+and the only repair that keeps the shared axis insets **both** plots, which would
+move the price chart's first and last points off the frame's edges and make the
+coverage edge stop somewhere other than where the window does — a real change to
+a shipped chart, to round two columns. **Re-look at 2.13.6's 3M and 1Y windows**,
+where the column is 12.8 px rather than 28.9 and the proportion changes.
+
+**3. A workshop fixture is a live claim too.** The task file warned that
+`RegionPlaceholder`'s stories use the Volume region's sentence as fixture text.
+They did, and they also carried `filledBy="Story 2.13 — Volume Chart"` — so
+filling the region would have left a workshop page saying the product still plans
+something it had shipped. The Volume entry was removed from that list rather than
+edited, and the list's comment now says why it is five.
+
+### What was measured on the running page
+
+Taken 2026-09-13 in Chromium at 1440×1000, against a developer's store (which
+answers the default five-session window four-fifths short — the honest `partial`
+that the deployed store does not show):
+
+| Property                         | Price plot                        | Volume plot       |
+| -------------------------------- | --------------------------------- | ----------------- |
+| SVG x / width                    | 104 / 928.66                      | **104 / 928.66**  |
+| Uncovered ground x / width       | 289.8 / 742.9                     | **289.8 / 742.9** |
+| Vertical marks (seams + edge), x | 185.8, 371.7, 557.5, 743.3, 185.8 | **identical**     |
+| Ground's bottom vs plot's bottom | 1 px                              | **1 px**          |
+
+186 stems for 390 held bars, which is the **silhouette regime** and is correct:
+the axis is the five-session window's 1,950 slots, so the pitch is 0.48 px and the
+plot draws one stem per covered pixel. The default window this product opens at is
+therefore the regime that proves the rendering decision, not the one that avoids
+the question.
+
+### The obligations this task inherited
+
+- **`provenance.sources`, owed from 2.13.1** — done. The volume plot's text
+  alternative reuses `chart-alternative.ts`'s `feedClause`, which already reads
+  the sources array and names every distinct feed. Nothing here reads a single
+  feed label, so Story 2.14's seam does not need this plot rebuilt to tell the
+  truth about an IEX tail whose volume is a fraction of the market's rather than a
+  sample of it.
+- **The axis-pixel assertion covers the second fill** — done, as its own test,
+  and **break-verified**: setting `axisRule` to zero in `use-plot-box.ts` takes
+  _the uncovered ground stops above the axis rule_ and _the volume columns stop
+  above the axis rule_ red **together**, and leaves the other 101 green.
+- **The high–low extent band (§13.3) is handed to 2.13.6, by name.** It cannot be
+  measured here: the measurement is the band's height in pixels at 3M and 1Y
+  against a real `1d` body, no `1d` body has been recorded, and §2.3 makes
+  recording one **2.13.6's**. This is the "say which, rather than letting it fall
+  between them" the amendment asked for. `--price-unchanged-wash` still has no
+  application consumer.
+
+### What is checked, and by what
+
+| Claim                                                           | Held by                                                                                                |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Element count is flat in the bar count, inputs proved different | `VolumeChart.test.tsx` — break-verified at **1,951 against 31**                                        |
+| The columns are clipped to the plot                             | `VolumeChart.test.tsx` — break-verified                                                                |
+| No gridlines, no intraday times, one peak label                 | `VolumeChart.test.tsx`                                                                                 |
+| The chart is **inside** the Volume region, at three viewports   | `e2e/specs/security-price-chart.spec.ts`                                                               |
+| Both plots' marks stop at the same x                            | the same spec — box, every vertical mark, and both grounds                                             |
+| The volume fill does not paint over the axis rule               | the same spec — break-verified                                                                         |
+| Marks are **counted**, never `toBeVisible()`                    | the same spec; a vertical seam is zero pixels wide                                                     |
+| The frame recomputes zero times across forty arrow presses      | `PriceChart.test.tsx`, its counter **re-pointed at `timeFrame` and `priceFrame`** rather than replaced |
+
+`pnpm verify` and `pnpm e2e` both pass — 775 unit/component tests and 103 browser
+tests. One note on the browser suite rather than a clean claim: on the first full
+run after this change, `the shell has no axe violations at 640px` reported one
+`color-contrast` violation and passed on both subsequent full runs and in
+isolation. That is the shape of the pre-existing `settleAnimations` race the axe
+helper documents — the universe table's entrance read mid-fade — rather than a
+finding about this chart, and it is recorded here rather than smoothed over
+because it was seen once.
+
+---
+
+## For the stakeholder — what this actually means
+
+**The short version: the Volume panel on a security's page is no longer a promise.
+It draws.**
+
+Open `/securities/NVDA` and there are now two pictures where there was one. The
+top one is the price line that arrived last week. Directly beneath it, at the same
+width and on the same timeline, is how much of that security actually changed
+hands, minute by minute. That is the second half of what this stage of the project
+promised to deliver — _"recent historical price **and volume** data"_ — and it is
+the first thing MarketPulse has drawn that shows one mark per minute of trading
+rather than a single continuous line.
+
+**Why volume matters enough to build a whole panel for it.** MarketPulse's job is
+to spot market behaviour that is unusual and then help a person work out why.
+"Unusual" is very often a volume statement rather than a price one: a share that
+moves 2% on a normal day's trading is noise, and the same 2% on four times the
+usual volume is something happening. The headline claim in the product
+demonstration we are building towards — _"volume 3.8× normal"_ — is a claim a user
+has to be able to **check by looking**. This panel is where they look. Everything
+the anomaly scoring does later hangs off it.
+
+**Three decisions worth knowing about, and why they went the way they did.**
+
+_We made the two pictures physically share one timeline, rather than two pictures
+that agree._ This sounds like an implementation detail and is the single most
+important thing in the task. If the price chart and the volume chart each worked
+out their own timeline from the same request, they would agree almost always — and
+disagree by a few pixels whenever one of them was measured a fraction of a second
+after the other, or whenever the window changed. A volume spike sitting slightly
+to the left of the price move it caused is worse than no volume chart at all: it
+is a chart that lies quietly. So there is now exactly one timeline, computed once,
+handed to both. They cannot drift, because there is nothing to drift from. We
+measured it on the real page: every shared mark on the two charts lands on the
+identical pixel.
+
+_We kept the volume chart deliberately quiet._ No gridlines, no second row of
+clock times, no colour on the bars, and a value scale of exactly one number — the
+busiest minute in the window. Every one of those was a default we turned off. The
+volume chart is a supporting act: its job is to let you see, at a glance, where
+the trading was heavy, and then get out of the way of the price chart above it.
+A second full set of chart furniture underneath the first would double the visual
+noise for the less important of the two pictures. It is a third of the height of
+the price chart for the same reason, and that third is a calculated number rather
+than a guess — it is the height at which a normal day's bar is still clearly
+readable when there is a 3.8× spike in the same window pushing the scale up.
+
+_We did not colour the bars green and red._ This is worth flagging because it is
+the thing people expect, and it is the thing we deliberately declined. Colour on
+its own is not readable by everyone — roughly one man in twelve cannot reliably
+separate red from green — so this product's standing rule is that colour is never
+the only thing carrying a meaning. The price chart obeys that by using _position_:
+the line finishing above or below a dashed marker is what tells you the direction,
+and the colour just repeats it. A volume bar has no position left to spend — it
+starts at the bottom and its height already means "how much". So colouring it
+would have been colour carrying a meaning on its own, which is exactly what we
+don't do. Volume is a quantity, and it is drawn as one.
+
+**The performance problem underneath it, solved.** The default view holds nearly
+two thousand minutes of trading, and the widest view this story will offer holds
+over eight thousand. Drawing one shape per minute would put roughly ten thousand
+objects on the page and freeze the browser for a fifth of a second at a time —
+which we know because we measured it doing exactly that. So the chart draws the
+whole thing as **one** object, and at densities where several minutes share a
+single pixel it draws one mark per pixel carrying the busiest minute in it. The
+picture is pixel-for-pixel identical; the cost stops growing. There is an
+automated test that fails if anyone ever changes this back, and we deliberately
+broke the code to confirm the test actually catches it.
+
+**What a user still cannot do, and when they will be able to.** They cannot yet
+point at a volume bar and read its exact figure — that is the next task, which
+extends the existing crosshair to answer for both charts. And they cannot yet
+change the period: today everything shows the last five trading sessions, and the
+control that offers a day, a month, three months and a year is two tasks away. It
+is deliberately in that order. One picture on a timeline that is already correct
+is a smaller problem than a control that changes both at once, and building it
+this way round means the control arrives with something real to move.
+
+**Where the project is.** The security page now has two of its seven panels
+filled, both of them drawing real market data from the 48 million bars we hold.
+The remaining five name the later stage of work that fills them, honestly, on the
+screen. After the next three tasks this stage of the project is functionally
+complete: a person can find a company, open it, choose a period, and inspect its
+price and volume history against primary data — which is the foundation everything
+else in MarketPulse is built on top of.
