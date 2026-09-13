@@ -159,3 +159,42 @@ Add to **Done when**:
 - The label above a `refused` or `failed` chart names **which window** is on
   screen, and a test proves a reader cannot mistake the old window for the new one
 - §1.3's trigger is answered in writing, from a screenshot, either way
+
+---
+
+## Amended 2026-09-13 by Task 2.13.2 — one of this task's stated risks cannot occur, and one surface became three
+
+Two carries from [`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) Part two.
+
+**The control cannot contradict the chart, and that is structural.** The Work
+section says _"the control is the thing most likely to be left in a state that
+contradicts the chart"_. §14.1 removed the mechanism: the control follows the
+**address**, not the request, so its selection moves in the frame the press lands
+and it has **no pending, loading or disabled state at all**. The chart carries
+the stale rail; the control carries nothing. So the thing to test here is not
+that the two agree under load — they cannot disagree — but that the control is
+**present and operable** in `loading`, `failed` and `refused`, which the Work
+section already requires for the reason the search field taught: a component
+nobody renders raises nothing.
+
+**The chart adds nothing to the stale rail, and that is now a decision to hold
+rather than a question to answer.** §14.1: two windows have no interpolable
+intermediate, so there is no dim, no blur, no fade and no second style on a held
+series. A **stale** chart is identical to a fresh one. Declining it is what keeps
+`FRONTEND-STATE.md` §2's own reversal trigger — _a chart that redraws a held
+series in a second style_ — unfired, and this task is the first thing in the
+product that could fire it by accident.
+
+**And the "two surfaces, one failure" bullet is now four surfaces.** It counts a
+window control, a price chart and a volume chart. Since 2.13.5 there are **two
+readout strips** as well (§15), each a surface with its own sentence, and the
+page already carried four live regions before any of this. The rule is unchanged
+and the count is what matters: **a readout belongs to a subject and its sentences
+name it**, and nothing anywhere catches a sentence with no subject.
+
+Add to **Done when**:
+
+- A held series is drawn in **exactly the same style** as a fresh one, and a test
+  or a screenshot shows the only difference is the rail above it
+- Both readout strips are accounted for in the "no two surfaces, one sentence"
+  check

@@ -103,3 +103,42 @@ rather than improving it.
 The thing to expect: **this walk will find something.** 2.11.9 found three unchecked
 properties, 2.12.8 found a reserved height that held at exactly one viewport. Budget
 for the finding rather than for the confirmation.
+
+---
+
+## Amended 2026-09-13 by Task 2.13.2 — two of this walk's questions are narrowed, and one is answered
+
+**The greyscale bullet becomes a confirmation rather than a search.**
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §12 decided volume encodes **no**
+direction, and §8.2 gave the control's selected state three channels of which
+none is hue — a 2 px near-black bar, a weight and an ink step. So neither of the
+two things this bullet was told to look at spends hue at all.
+
+**Confirm it rather than skipping it**, and note the asymmetry that makes that
+worth doing: a simulation cannot prove a mark carries meaning without hue, but it
+can catch a mark that started spending hue after the decision said it would not.
+`CHARTING.md` §12.6 is the standing reminder in the other direction — four
+greyscale simulations passed against a chart a person could see was wrong — so
+the instruction stands unchanged: **look at the screen.**
+
+**The text alternative's open question is leaning, not decided.** The Work bullet
+asks whether the volume plot is in the price chart's sentence or has one of its
+own, and §15 decided the parallel question for the **readout** — two strips, two
+subjects, on the rule that a readout belongs to a subject and its sentences name
+it. That is the same rule and it points the same way, so a second alternative for
+the second picture is the likely answer rather than the settled one. **Decide it
+here, informed by that, and record which.** A listener has no other channel for
+the plot's shape, and the price chart's sentence is already at the length where a
+clause about a second picture stops being one sentence.
+
+**And it must stay derived.** Whatever the answer, both sentences count the same
+axis: `timeAxis` and `positionOfInstant`, never elapsed time. `CLAUDE.md`'s gap
+list carries that as a live hazard, and a second alternative is a second place it
+can be got wrong.
+
+Add to **Done when**:
+
+- The greyscale walk **confirms** that neither the volume bars nor the control's
+  selected state spends hue, rather than discovering it
+- Whether volume has its own text alternative is decided and recorded, and both
+  sentences derive from `timeAxis` and `positionOfInstant`
