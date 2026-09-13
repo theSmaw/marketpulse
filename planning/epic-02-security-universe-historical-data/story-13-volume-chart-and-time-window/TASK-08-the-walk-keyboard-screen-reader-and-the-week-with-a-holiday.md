@@ -142,3 +142,43 @@ Add to **Done when**:
   selected state spends hue, rather than discovering it
 - Whether volume has its own text alternative is decided and recorded, and both
   sentences derive from `timeAxis` and `positionOfInstant`
+
+---
+
+## Amended 2026-09-13 by Task 2.13.3 — criterion 3's unit half is done, and the spoken form is a call rather than a decision
+
+### Criterion 3: the axis half is asserted, and what it asserts is an **absence**
+
+This task's job is unchanged — **prove it through the control** — but the layer
+below it is now covered, so this task is not deriving anything for the first time
+and should not re-assert what is already held.
+
+`chart-geometry.test.ts` now holds the holiday week at the axis level, from
+`lastMarketSessions(5, 2026-11-30)`: five sessions
+(`11-23, 11-24, 11-25, 11-27, 11-30`), the half day at **210 slots**, a total of
+**1,770**, no tick labelled `Nov 26`, and Monday's first slot exactly 210 after the
+half day's.
+
+**The assertion that actually rules out an empty afternoon is about a missing
+position**, and it is the form worth copying rather than paraphrasing: 14:00 ET on
+`11-27` is a real instant inside the requested window and `positionOfInstant`
+answers `boundary` for it — the same answer it gives a night or a weekend. A
+continuous time axis would have given that instant 180 slots of empty plot and
+every state test would still have passed.
+
+So what is left here is the part only `pnpm e2e` can hold: a request naming five
+sessions, a server resolving it, and **the picture** — the seam count, the two
+date labels, and no three-hour blank between the half day's last bar and Monday's
+first.
+
+### The spoken volume form exists
+
+`spokenVolume(volume)` gives `4.06 million` to the same precision `formatVolume`
+gives `4.06M`, decided in one file so the two cannot drift. Whatever this task
+decides about **whether** volume gets its own sentence, the figure inside it is
+that call and not a second spelling.
+
+The "it must stay derived" bullet is unchanged and now has a second reason to be
+careful: `CLAUDE.md`'s gap list gained an entry from 2.13.3 about the memoised
+walk, and the sentence and the wash still agree only because both call `timeAxis`
+and `positionOfInstant`.

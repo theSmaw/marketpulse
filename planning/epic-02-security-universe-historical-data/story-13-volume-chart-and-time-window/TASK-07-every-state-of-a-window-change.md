@@ -198,3 +198,28 @@ Add to **Done when**:
   or a screenshot shows the only difference is the rail above it
 - Both readout strips are accounted for in the "no two surfaces, one sentence"
   check
+
+---
+
+## Amended 2026-09-13 by Task 2.13.3 — two small facts about what the volume plot draws in the states with no bars
+
+Nothing in this task's scope moves. Two consequences of the arithmetic are worth
+inheriting rather than finding, and both are about the states this task exists for.
+
+- **`empty` and `loading` draw a volume frame with no columns and an empty
+  gutter.** `volumeFrame` returns no path when there are no bars, and
+  `volumePeakLabel` returns `null` — so volume's single value label is **absent**
+  rather than `0`. That is deliberate: a peak of nothing is not zero shares traded,
+  it is no answer. The frame, the seams, the two date labels and the uncovered
+  ground still draw, because those come from the window. `refused` and `failed`
+  draw no frame in either plot, unchanged.
+- **A window in which nothing traded is a different state from `empty`, and it is
+  reachable.** `volumeDomain` answers an all-zero window with a ceiling of **one
+  share**, so every column is zero pixels tall and the picture is a baseline with
+  no columns on it — while the gutter reads `0` and the series is genuinely
+  `loaded`. It is not one of the six and it needs no new rendering; it is worth
+  knowing that a blank volume plot beneath a drawn price line has two possible
+  causes and only one of them is a shortfall.
+
+The "no two surfaces describe one failure in the same words" count is unchanged at
+four surfaces plus the page's live regions.

@@ -59,6 +59,7 @@
 
 import {
   assertWithinMarketCalendar,
+  MARKET_CALENDAR_RANGE,
   marketCalendarExceptionOn,
   marketEarlyCloseOn,
 } from "./market-calendar.js";
@@ -220,13 +221,114 @@ function addDays(date: MarketDate, days: number): MarketDate {
 export function marketSessionOn(date: MarketDate): MarketSession | undefined {
   // Before the weekend check, so an out-of-range Saturday refuses rather than
   // answering `undefined` — the two are indistinguishable to a caller and one of
-  // them is a lie.
+  // them is a lie. It is also **before the cache**, so a cached calendar cannot
+  // turn a refusal into an answer: only dates inside the range are ever keys.
   assertWithinMarketCalendar(date);
 
-  if (isWeekend(date)) return undefined;
+  const held = sessionRecords.get(date);
+  if (held !== undefined) return sessionFrom(held);
+
+  const record = sessionRecordOn(date);
+  sessionRecords.set(date, record);
+  return sessionFrom(record);
+}
+
+/**
+ * One market date's answer, as numbers only — **the memoised form of a session**
+ * (Task 2.13.3).
+ *
+ * `null` means the market did not open. The negative answer is remembered too:
+ * every window walks over the weekends and the holidays inside it, and a
+ * remembered "no" costs one map entry and saves the same work as a remembered
+ * "yes".
+ *
+ * ## Why epoch milliseconds rather than the `MarketSession` itself
+ *
+ * **A `Date` is mutable.** Caching a session whole would hand every caller the
+ * same two `Date` objects, so one `setUTCDate` anywhere in either application
+ * would silently move a trading day for everything downstream — a bug with no
+ * error in it, on the value every window, every axis and every coverage
+ * measurement is built from. Rebuilding the two instants per call costs two
+ * allocations and keeps the cache's contents immutable by construction, which is
+ * the only version of this repair that cannot become the thing it was warned
+ * about: *a cache makes a correct function wrong quietly.*
+ */
+interface SessionRecord {
+  /** The market date, kept on the record so a reader needs no second lookup. */
+  readonly date: MarketDate;
+  readonly openMs: number;
+  readonly closeMs: number;
+  readonly isEarlyClose: boolean;
+}
+
+/**
+ * **The memo, and it has no clock and therefore no lifetime.**
+ *
+ * A TTL would be meaningless and a `Date.now()` here is a lint error in this
+ * package besides: what this remembers is a pure function of a checked-in table
+ * (`MARKET_CALENDAR`) and a market date, neither of which changes while the
+ * process runs. Editing the table is a deploy, not an expiry.
+ *
+ * **Keyed on the market date and on nothing else**, which is what keeps it clear
+ * of invariant 4: a memo keyed on anything ambient — a clock, a replay time, a
+ * "current" window — would be a temporal-isolation hazard Epic 13 inherits,
+ * because a replay reading a key it did not state would read another clock's
+ * answer. The key here *is* the argument.
+ *
+ * ## Bounded twice, and the first bound is structural rather than enforced
+ *
+ * The series cache's precedent (`FRONTEND-STATE.md` §2) is a cache bounded twice
+ * and with no lifetime of its own. Here:
+ *
+ *  1. **In entries, by the calendar's own range.** Every key passes
+ *     {@link assertWithinMarketCalendar} first, so the key space is *closed*:
+ *     `MARKET_CALENDAR_RANGE` covers 2024-01-01 to 2028-12-31, which is
+ *     {@link MARKET_SESSION_CACHE_DATES} days, and no sequence of calls from any
+ *     caller can produce a key outside it. There is no eviction because there is
+ *     nothing to evict — a bound that cannot be reached needs no policy, and a
+ *     policy that cannot run is untested code.
+ *  2. **In size per entry**, at three numbers and a boolean. It holds no bars,
+ *     no arrays and no `Date`s, so the whole cache at its structural maximum is
+ *     on the order of a hundred kilobytes rather than a series-sized object.
+ *
+ * A test asserts both: that the stated day count is the calendar's, and that
+ * walking the entire covered range leaves the cache no larger than it.
+ */
+const sessionRecords = new Map<MarketDate, SessionRecord | null>();
+
+/**
+ * How many market dates the calendar can be asked about — the memo's entry
+ * bound, derived from the range rather than written down beside it.
+ *
+ * 1,827 days for 2024-01-01 to 2028-12-31. Computed from
+ * `MARKET_CALENDAR_RANGE` so that widening the calendar widens this in the same
+ * commit; a literal here would be a second copy of the range, which is the shape
+ * this repository keeps finding disagreements in.
+ */
+export const MARKET_SESSION_CACHE_DATES: number =
+  (Date.parse(`${MARKET_CALENDAR_RANGE.lastDate}T00:00:00Z`) -
+    Date.parse(`${MARKET_CALENDAR_RANGE.firstDate}T00:00:00Z`)) /
+    86_400_000 +
+  1;
+
+/**
+ * How many market dates the memo is currently holding.
+ *
+ * Exported for the bound's own test and for nothing else — the series cache
+ * exposes its `size` for the same reason (`FRONTEND-STATE.md` §2). A bound that
+ * nothing can read is a bound nothing can check, and this one is the whole of the
+ * argument for having no eviction policy.
+ */
+export function marketSessionCacheEntries(): number {
+  return sessionRecords.size;
+}
+
+/** The session bounds for a date, computed. `null` when the market did not open. */
+function sessionRecordOn(date: MarketDate): SessionRecord | null {
+  if (isWeekend(date)) return null;
 
   const exception = marketCalendarExceptionOn(date);
-  if (exception?.kind === "closed") return undefined;
+  if (exception?.kind === "closed") return null;
 
   const earlyClose = marketEarlyCloseOn(date);
   const open = instantFromMarketTime(date, MARKET_SESSION_OPEN);
@@ -234,12 +336,23 @@ export function marketSessionOn(date: MarketDate): MarketSession | undefined {
 
   return {
     date,
-    open,
-    close,
+    openMs: open.getTime(),
+    closeMs: close.getTime(),
     isEarlyClose: earlyClose !== undefined,
+  };
+}
+
+/** A remembered record as the session its callers expect, with fresh instants. */
+function sessionFrom(record: SessionRecord | null): MarketSession | undefined {
+  if (record === null) return undefined;
+  return {
+    date: record.date,
+    open: new Date(record.openMs),
+    close: new Date(record.closeMs),
+    isEarlyClose: record.isEarlyClose,
     // A duration between two instants, which is exactly what epoch arithmetic is
     // for. No session spans a DST transition, so this is exact.
-    minuteBars: (close.getTime() - open.getTime()) / 60_000,
+    minuteBars: (record.closeMs - record.openMs) / 60_000,
   };
 }
 

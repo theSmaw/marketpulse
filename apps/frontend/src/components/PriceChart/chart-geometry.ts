@@ -18,6 +18,8 @@ import {
   timeAxis,
   timeTicks,
   valueTicks,
+  volumeDomain,
+  volumePeakLabel,
 } from "../../market/index.js";
 
 // **What to draw, in pixels, as plain data** (Task 2.12.4).
@@ -118,12 +120,87 @@ export interface TimeLabel {
   readonly kind: "session" | "time";
 }
 
-/** Everything an SVG needs, and nothing about how it is drawn. */
-export interface ChartFrame {
-  readonly gridlines: readonly GridLine[];
+/**
+ * **The horizontal axis, in pixels — computed once and handed to every plot that
+ * hangs on it** (Task 2.13.3).
+ *
+ * `STORY.md`'s scope calls axis alignment between the price and volume plots "a
+ * structural property rather than a coincidence", and this type is that property:
+ * it is the only thing in this file that takes a window, and {@link priceFrame}
+ * and {@link volumeFrame} both take one of these instead. Neither of them can
+ * spell `timeAxis(...)`, because neither is handed a `TimeRange` or a
+ * {@link Timeframe} to call it with.
+ *
+ * ## Why one object rather than two plots calling `timeAxis` with the same arguments
+ *
+ * Because those are different guarantees. **Two plots that agree because they
+ * were given the same numbers cannot drift; two that agree because they were
+ * written the same way can** — and the specific drift is the defect
+ * `CHARTING.md` §6.2 and §17.5 item 1 name as the worst-shaped one in the chart
+ * layer: an axis derived from its own bars rather than from `coverage.requested`
+ * rescales a short answer to fill the frame and **looks complete**. It is already
+ * held for the price plot by two tests in `chart-geometry.test.ts`; a second plot
+ * deriving its own x-domain would reintroduce it somewhere those tests do not
+ * look, on a plot whose own coverage sentence sits above it in a different panel.
+ *
+ * ## What is on it, and why coverage is here rather than per plot
+ *
+ * Everything derived from the **window**: the axis, the x scale, the session
+ * seams, the tick labels and the coverage spans. Coverage is horizontal —
+ * `CHARTING.md` §14's rule is about *where along the axis* an answer stops — so
+ * two plots sharing this object stop at the same pixel by arithmetic rather than
+ * by agreement (`VOLUME-AND-WINDOW.md` §13.1, which names this as the item most
+ * likely to be got wrong). The **ground** it implies is still drawn once per plot,
+ * because it is a statement about a frame and there are two frames.
+ *
+ * `width` is on it because both plots are the same width — they declare the same
+ * span on the same grid and spend the same `--chart-gutter` — and a second plot
+ * that measured its own would be the one place the alignment could silently fail.
+ */
+export interface TimeFrame {
+  /**
+   * The session-ordinal axis, or `null` before there is a window to build one
+   * from. Kept so a plot can place its own bars without re-deriving it.
+   */
+  readonly axis: TimeAxis | null;
+  /** Pixels across, shared by every plot on this axis. */
+  readonly width: number;
+  /** What the region's width bought, decided once for the pair. */
+  readonly density: ChartDensity;
   /** Session boundaries, in pixels. The only vertical rules this chart draws. */
   readonly seams: readonly number[];
   readonly ticks: readonly TimeLabel[];
+  /**
+   * The x scale, kept so a pointer's pixel can be turned back into a slot.
+   *
+   * Plain data rather than a closure, which is `chart-scale.ts`'s rule and the
+   * reason this can sit on a frame at all. `null` before there is an axis.
+   *
+   * **This is what stops the crosshair re-deriving a mapping from an element's
+   * bounding box** — the task brief's own instruction, and the defect it names
+   * is real: a second spelling of the scale agrees with the first everywhere
+   * except the edges, which is exactly where a pointer spends its time.
+   */
+  readonly slots: SlotScale | null;
+  /**
+   * Which of the requested window this answer holds, in pixels (Task 2.12.7).
+   *
+   * Never `null`: every state that draws a frame has an answer to this, and
+   * "nothing is known to be missing" (`loading`) and "all of it is missing"
+   * (`empty`) are different values rather than the same absence.
+   */
+  readonly coverage: ChartCoverage;
+}
+
+/**
+ * What the **price** plot draws, given a {@link TimeFrame} and a height.
+ *
+ * Takes bars and no window (see {@link priceFrame}), which is the half of the
+ * one-axis property that applies to this plot: it could not build an axis if it
+ * wanted to.
+ */
+export interface PricePlot {
+  readonly gridlines: readonly GridLine[];
   /**
    * The close line as an SVG path, or `null` when there is nothing to draw.
    *
@@ -146,26 +223,6 @@ export interface ChartFrame {
    */
   readonly readings: readonly ChartPoint[];
   /**
-   * The x scale, kept so a pointer's pixel can be turned back into a slot.
-   *
-   * Plain data rather than a closure, which is `chart-scale.ts`'s rule and the
-   * reason this can sit on a frame at all. `null` before there is an axis.
-   *
-   * **This is what stops the crosshair re-deriving a mapping from an element's
-   * bounding box** — the task brief's own instruction, and the defect it names
-   * is real: a second spelling of the scale agrees with the first everywhere
-   * except the edges, which is exactly where a pointer spends its time.
-   */
-  readonly slots: SlotScale | null;
-  /**
-   * Which of the requested window this answer holds, in pixels (Task 2.12.7).
-   *
-   * Never `null`: every state that draws a frame has an answer to this, and
-   * "nothing is known to be missing" (`loading`) and "all of it is missing"
-   * (`empty`) are different values rather than the same absence.
-   */
-  readonly coverage: ChartCoverage;
-  /**
    * What this window did — the dashed rule, the area under it, and which of the
    * three directions the pair is tinted for.
    *
@@ -174,6 +231,15 @@ export interface ChartFrame {
    */
   readonly direction: DirectionalArea | null;
 }
+
+/**
+ * Everything the price chart's SVG needs, and nothing about how it is drawn.
+ *
+ * The axis and the plot as one value, which is what the single-plot renderer
+ * holds today. Task 2.13.4 splits the call: one {@link timeFrame} in the wrapper,
+ * and a {@link priceFrame} and a {@link volumeFrame} under it.
+ */
+export interface ChartFrame extends TimeFrame, PricePlot {}
 
 /** A run of pixels across the plot. `from` is always the smaller. */
 export interface PixelSpan {
@@ -340,50 +406,106 @@ export function chartFrame(
   density: ChartDensity,
   subject: ChartSubject | null,
 ): ChartFrame {
-  if (!(plot.width > 0) || !(plot.height > 0)) return EMPTY_FRAME;
+  // Both dimensions, checked here rather than inside the halves: a plot with
+  // width and no height is an element mid-layout, and drawing its seams and its
+  // tick labels would be a frame around nothing.
+  if (!(plot.width > 0) || !(plot.height > 0)) {
+    return { ...emptyTimeFrame(0, density), ...EMPTY_PRICE_PLOT };
+  }
 
-  if (subject === null) {
-    return { ...EMPTY_FRAME, gridlines: unscaledGridlines(plot, density) };
+  const time = timeFrame(plot.width, density, subject);
+  return { ...time, ...priceFrame(time, plot.height, subject?.bars ?? []) };
+}
+
+/**
+ * **The axis, once** — see {@link TimeFrame} for why this is a separate value.
+ *
+ * Takes the width alone rather than a {@link PlotBox}, because nothing derived
+ * from the window is derived from a height: two plots of different heights hang
+ * on one of these. That is also what makes the type unusable as a plot frame,
+ * which is the point.
+ *
+ * **`width` excludes the value gutter.** `CHARTING.md`'s §10 amendment is
+ * emphatic that the gutter is an input to the horizontal range rather than
+ * padding applied afterwards, because a scale built against the whole region
+ * draws a line that runs under its own labels. Here that is structural instead
+ * of remembered: the caller measures the plot element, and the gutter is a
+ * sibling column that element never contains.
+ *
+ * A zero width answers with an **empty axis rather than a throw**. An element
+ * reports zero before it has been laid out, and `slotScale` refuses a zero-width
+ * range on purpose — so the check belongs here, once, rather than at the call
+ * sites that would otherwise take the region's error boundary down on a first
+ * paint.
+ *
+ * `subject` is `null` before the first answer arrives. That is the frame-first
+ * rule (`PRODUCT_SPEC.md` §28): the scale, the gridlines and the rule are drawn
+ * from the box, and the data fills in labels and a line.
+ */
+export function timeFrame(
+  width: number,
+  density: ChartDensity,
+  subject: ChartSubject | null,
+): TimeFrame {
+  if (!(width > 0) || subject === null) {
+    return emptyTimeFrame(width > 0 ? width : 0, density);
   }
 
   const axis = timeAxis(subject.requested, subject.timeframe);
-  const x = slotScale(axis.slots, [0, plot.width]);
+  const x = slotScale(axis.slots, [0, width]);
 
-  const seams = seamSlots(axis).map((slot) => round(scaleSlot(x, slot)));
-  const ticks = timeTicks(axis, density).map((tick) => ({
-    x: round(scaleSlot(x, tick.slot)),
-    label: tick.label,
-    kind: tick.kind,
-  }));
+  return {
+    axis,
+    width,
+    density,
+    seams: seamSlots(axis).map((slot) => round(scaleSlot(x, slot))),
+    ticks: timeTicks(axis, density).map((tick) => ({
+      x: round(scaleSlot(x, tick.slot)),
+      label: tick.label,
+      kind: tick.kind,
+    })),
+    slots: x,
+    // No bars is a real answer rather than a missing one, and it is what CI's
+    // store returns for every window: `verify.yml` runs the migrations and the
+    // universe loader and never a backfill. A labelled axis with no line on it is
+    // the honest picture of *we asked for this window and hold nothing in it*.
+    coverage: coverageOf(axis, x, width, subject.covered),
+  };
+}
 
-  const [first, ...rest] = subject.bars;
+/**
+ * The price plot: its value scale, its line, its readings and its direction.
+ *
+ * **Takes a {@link TimeFrame} and bars, and no window at all.** There is nothing
+ * here to call `timeAxis` with, which is the half of the one-axis property that
+ * applies to this plot — see {@link TimeFrame}.
+ *
+ * A zero or unmeasured height answers with the empty plot, for the same reason
+ * {@link timeFrame} answers a zero width with an empty axis.
+ */
+export function priceFrame(
+  time: TimeFrame,
+  height: number,
+  bars: readonly Bar[],
+): PricePlot {
+  if (!(height > 0)) return EMPTY_PRICE_PLOT;
 
-  // No bars is a real answer rather than a missing one, and it is what CI's
-  // store returns for every window: `verify.yml` runs the migrations and the
-  // universe loader and never a backfill. A labelled axis with no line on it is
-  // the honest picture of *we asked for this window and hold nothing in it*.
-  const coverage = coverageOf(axis, x, plot, subject.covered);
+  const unscaled = {
+    ...EMPTY_PRICE_PLOT,
+    gridlines: unscaledGridlines(height, time.density),
+  };
 
-  if (first === undefined) {
-    return {
-      gridlines: unscaledGridlines(plot, density),
-      seams,
-      ticks,
-      series: null,
-      readings: [],
-      slots: x,
-      coverage,
-      direction: null,
-    };
-  }
+  const { axis, slots: x } = time;
+  const [first, ...rest] = bars;
+  if (axis === null || x === null || first === undefined) return unscaled;
 
-  const placed = placeBars(axis, subject.bars);
+  const placed = placeBars(axis, bars);
   const domain = priceDomain([first, ...rest]);
   // `[height, 0]` and not `[0, height]`: SVG's y grows downwards, so the
   // domain's high belongs at pixel zero. `chart-scale.ts` takes the inversion
   // as an input for exactly this reason, so that no renderer spells
   // `height - y` anywhere.
-  const y = linearScale(domain, [plot.height, 0]);
+  const y = linearScale(domain, [height, 0]);
 
   // **Scaled once, here, and read by everything downstream.** The line, the
   // area's two closing segments and the crosshair's disc are all the same
@@ -400,31 +522,285 @@ export function chartFrame(
   const series = linePath(points);
 
   return {
-    gridlines: valueTicks(domain, density.valueTicks).map((tick) => ({
+    gridlines: valueTicks(domain, time.density.valueTicks).map((tick) => ({
       y: round(scaleValue(y, tick.value)),
       label: tick.label,
     })),
-    seams,
-    ticks,
     series,
     readings: points,
-    slots: x,
-    coverage,
     direction: directionalArea(points, series, y),
   };
 }
 
-const EMPTY_FRAME: ChartFrame = {
+/**
+ * An axis with no window on it — an unmeasured element, or a state with no
+ * answer yet.
+ *
+ * The density is carried through rather than defaulted, because it comes from the
+ * region's width and is known before any answer is: a plot waiting for its first
+ * body still draws the right number of gridlines.
+ */
+function emptyTimeFrame(width: number, density: ChartDensity): TimeFrame {
+  return {
+    axis: null,
+    width,
+    density,
+    seams: [],
+    ticks: [],
+    slots: null,
+    // Nothing is known to be missing before anything has been answered, which is
+    // a different value from "all of it is missing" and is why `loading` draws no
+    // wash. See {@link ChartCoverage}.
+    coverage: { covered: null, uncovered: [], edges: [] },
+  };
+}
+
+/**
+ * What the **volume** plot draws, given a {@link TimeFrame} and a height.
+ *
+ * One path and one stroke width, at every window from 11.5 px per bar to
+ * 0.089 px per bar — see {@link volumeFrame} for the three regimes and
+ * `VOLUME-AND-WINDOW.md` §10 for the argument.
+ */
+export interface VolumePlot {
+  /**
+   * Every column, as one stroked SVG path — or `null` when there is nothing to
+   * draw.
+   *
+   * **Butt-capped vertical stems on a single `<path>`**, whose `stroke-width` is
+   * {@link columnWidth}. One element at every window, exactly as the price line
+   * is one element at every window: `CHARTING.md` §1 forbids the obvious
+   * implementation outright, because one `<rect>` per bar at the cap is 9,790
+   * plot elements and main-thread tasks of 137–254 ms.
+   */
+  readonly columns: string | null;
+  /**
+   * The stroke width the path is drawn with, in pixels.
+   *
+   * Never zero while {@link columns} is set. The renderer must not choose it: the
+   * gap between columns is arithmetic that produces a coordinate, and
+   * `PriceChart.module.css` already records that coordinates come from this
+   * module because **a computed pixel is data rather than design** (§10.6). That
+   * is also why there is no `--chart-volume-gap` token — one number in a
+   * stylesheet with its threshold in a module is the two-homes trap
+   * `CHARTING.md` §10.3 spent a task closing.
+   */
+  readonly columnWidth: number;
+  /** How many stems the path holds. One per bar, or one per pixel — see §10.2. */
+  readonly stems: number;
+  /**
+   * What the value gutter writes: the window's peak, abbreviated — or `null`
+   * where there are no bars.
+   *
+   * **One label and not a scale** (§9.4). Volume keeps price's full 56 px gutter
+   * for a label it does not need, because two charts that disagree about where
+   * their value scale starts cannot be stacked, and alignment outranks tightness.
+   */
+  readonly peak: string | null;
+}
+
+const EMPTY_VOLUME_PLOT: VolumePlot = {
+  columns: null,
+  columnWidth: 0,
+  stems: 0,
+  peak: null,
+};
+
+/**
+ * The widest a column can be before it earns a gap.
+ *
+ * Two pixels, and **the threshold is the device rather than a taste**: below it
+ * there is no room for a 1 px gap *and* a 1 px column, and the column wins,
+ * because a column that is not drawn says nothing at all while a missing gap only
+ * makes neighbours touch.
+ */
+const MIN_GAPPED_SLOT_PX = 2;
+
+/** The gap between columns, where there is room for one. */
+const COLUMN_GAP_PX = 1;
+
+/**
+ * The volume plot: one path of stems, its width, and the one label beside it.
+ *
+ * **Takes a {@link TimeFrame} and bars, and no window at all** — the other half
+ * of the one-axis property. This function could not build an axis if it wanted
+ * to, which is what makes `VOLUME-AND-WINDOW.md` §13.1's rule structural: the two
+ * plots stop at the same pixel because they were handed the same `coverage`,
+ * rather than because two files were written the same way.
+ *
+ * ## Three regimes from one rule — *does a bar have a pixel of its own?*
+ *
+ * | Slot        | Column              | Stems                                  |
+ * | ----------- | ------------------- | -------------------------------------- |
+ * | ≥ 2 px      | `slot − 1`, a gap   | one per bar                            |
+ * | 1 – 2 px    | `slot`, no gap      | one per bar                            |
+ * | < 1 px      | 1 px                | one per **pixel**, carrying its maximum |
+ *
+ * **The third regime is the one that needs arguing for.** Below a pixel per bar
+ * the stems overlap completely, so only the tallest in each pixel column can be
+ * seen — drawing the other ten is overdraw rather than detail. Taking the
+ * column's maximum paints the *identical picture* and bounds the cost by the
+ * plot's width instead of by the bar count: measured at 1M, 8,190 stems and a
+ * 158 kB path attribute become 726 stems and 16.8 kB, and it does not grow again
+ * (§10.3).
+ *
+ * That claim is a **property**, and `chart-geometry.test.ts` asserts it as one —
+ * every pixel column's height equals the maximum of the bars falling in it —
+ * rather than as a stem count. A reduction that dropped the wrong bar would
+ * produce a plausible chart, not a broken one.
+ *
+ * ## What the picture rounds, the reading does not
+ *
+ * The silhouette changes what is **drawn** and nothing about what is **read**: the
+ * crosshair still resolves to a bar, the readout still states that bar's exact
+ * integer, and the arrow keys still step bars (§10.5). That split already exists
+ * on the price line at 0.47 px per bar; here the drawing says so explicitly
+ * rather than relying on overdraw to hide it.
+ *
+ * ## The baseline is the axis rule, so there is no second mark to clip
+ *
+ * Volume's zero **is** the plot's bottom rule, and it is derived from the window
+ * rather than from the bars — so it runs the full frame like every other mark of
+ * that kind (§14, §13.1). What stops at the coverage edge is the columns, which
+ * the renderer clips with the shared `coverage.covered` span.
+ */
+export function volumeFrame(
+  time: TimeFrame,
+  height: number,
+  bars: readonly Bar[],
+): VolumePlot {
+  if (!(height > 0)) return EMPTY_VOLUME_PLOT;
+
+  const { axis, slots: x } = time;
+  if (axis === null || x === null || bars.length === 0) {
+    return EMPTY_VOLUME_PLOT;
+  }
+
+  // `[height, 0]` for the same reason the price scale takes it: SVG's y grows
+  // downwards, so the domain's top belongs at pixel zero and no renderer spells
+  // `height - y`. The domain runs zero to the window's peak, unpadded —
+  // `chart-volume-axis.ts` carries why, and §9.2's proportion depends on it.
+  const y = linearScale(volumeDomain(bars), [height, 0]);
+  const placed = placeBars(axis, bars);
+  const peak = volumePeakLabel(bars);
+
+  // **How far apart two stems are actually drawn**, which is `slots - 1` and not
+  // `slots`: `scaleSlot` puts the first bar at 0 and the last at the width, so the
+  // pitch is the width divided by the gaps between them.
+  //
+  // `VOLUME-AND-WINDOW.md` §10.3's table divides by `slots`, and that difference
+  // was measured rather than reasoned about: at 30 bars on an 867 px plot a column
+  // of `width / slots − 1` leaves a **2.0 px** gap and at 63 bars a 1.22 px one,
+  // where §10.2 specifies **1 px**. The gap is the load-bearing part of that
+  // decision — it is what makes columns read as columns rather than as a filled
+  // area — so it is measured against the pitch, and the table's figures stand as a
+  // description of a bar's share of the plot. Above a few hundred bars the two are
+  // the same number to three decimal places.
+  //
+  // A single-slot axis has no pitch at all — reachable only through the absolute
+  // window form at `1d` — and the bar owns the whole plot there.
+  const slotWidth = axis.slots > 1 ? time.width / (axis.slots - 1) : time.width;
+
+  if (slotWidth < 1) {
+    return {
+      ...silhouette(placed, x, y, time.width, height),
+      columnWidth: COLUMN_GAP_PX,
+      peak,
+    };
+  }
+
+  const stems = placed.map(({ bar, slot }) => ({
+    // The bar's own x, **unsnapped and identical to the price point above it**.
+    // Alignment between the two plots outranks a crisp edge on a column: a stem
+    // nudged half a pixel to a device boundary is a stem that no longer sits under
+    // the close it belongs to.
+    x: round(scaleSlot(x, slot)),
+    top: round(scaleValue(y, bar.volume)),
+  }));
+
+  return {
+    columns: stemPath(stems, height),
+    columnWidth:
+      slotWidth >= MIN_GAPPED_SLOT_PX ? slotWidth - COLUMN_GAP_PX : slotWidth,
+    stems: stems.length,
+    peak,
+  };
+}
+
+/**
+ * The sub-pixel regime: one stem per pixel column, carrying that column's tallest
+ * bar.
+ *
+ * The pixel a bar belongs to is the one its `x` falls into, and the stem is drawn
+ * at that pixel's **centre** — which is the one place snapping is right: at this
+ * density there is no price point to stay aligned with, because a dozen of them
+ * share the pixel too.
+ */
+function silhouette(
+  placed: readonly { readonly bar: Bar; readonly slot: number }[],
+  x: SlotScale,
+  y: LinearScale,
+  width: number,
+  height: number,
+): { readonly columns: string | null; readonly stems: number } {
+  const tallest = new Map<number, number>();
+
+  for (const { bar, slot } of placed) {
+    // **The pixel the bar's x falls into**, floored rather than rounded: pixel
+    // columns run `0` to `width − 1`, and flooring is what puts every stem's
+    // centre inside the plot. The last slot sits *at* the width, so it belongs to
+    // the last column rather than to one past it.
+    const lastColumn = Math.max(0, Math.ceil(width) - 1);
+    const column = Math.min(
+      // `round` first, so the column is derived from **the same x the price point
+      // above it was drawn at** rather than from a raw coordinate a tenth of a
+      // pixel away — which is one more way two plots on one axis could disagree.
+      Math.max(Math.floor(round(scaleSlot(x, slot))), 0),
+      lastColumn,
+    );
+    const held = tallest.get(column);
+    if (held === undefined || bar.volume > held)
+      tallest.set(column, bar.volume);
+  }
+
+  const stems = [...tallest]
+    .sort(([left], [right]) => left - right)
+    .map(([column, volume]) => ({
+      // The pixel's centre, so a 1 px stroke lands on one device pixel rather than
+      // across two.
+      x: column + COLUMN_GAP_PX / 2,
+      top: round(scaleValue(y, volume)),
+    }));
+
+  return { columns: stemPath(stems, height), stems: stems.length };
+}
+
+/**
+ * The stems as one path — a move to the baseline and a vertical line up, per
+ * column.
+ *
+ * `V` rather than `L`: a vertical-line command carries one coordinate instead of
+ * two, which is a third off the attribute at the densities that matter, and it
+ * cannot express a stem that is accidentally not vertical.
+ *
+ * `baseline` is the plot's own bottom, and it is passed rather than assumed
+ * because {@link silhouette} has already scaled its tops against the same height.
+ */
+function stemPath(
+  stems: readonly { readonly x: number; readonly top: number }[],
+  baseline: number,
+): string | null {
+  if (stems.length === 0) return null;
+
+  return stems
+    .map(({ x, top }) => `M${String(x)} ${String(baseline)}V${String(top)}`)
+    .join(" ");
+}
+
+const EMPTY_PRICE_PLOT: PricePlot = {
   gridlines: [],
-  seams: [],
-  ticks: [],
   series: null,
   readings: [],
-  slots: null,
-  // Nothing is known to be missing before anything has been answered, which is
-  // a different value from "all of it is missing" and is why `loading` draws no
-  // wash. See {@link ChartCoverage}.
-  coverage: { covered: null, uncovered: [], edges: [] },
   direction: null,
 };
 
@@ -453,7 +829,7 @@ const EMPTY_FRAME: ChartFrame = {
 function coverageOf(
   axis: TimeAxis,
   x: SlotScale,
-  plot: PlotBox,
+  width: number,
   covered: TimeRange | null,
 ): ChartCoverage {
   // Nothing held at all: the whole frame was asked for and none of it is
@@ -462,7 +838,7 @@ function coverageOf(
   if (covered === null) {
     return {
       covered: null,
-      uncovered: [{ from: 0, to: round(plot.width) }],
+      uncovered: [{ from: 0, to: round(width) }],
       edges: [],
     };
   }
@@ -474,10 +850,10 @@ function coverageOf(
   // range that reaches the window's end therefore overshoots by one slot, and
   // unclamped it would leave a complete answer with a negative trailing span.
   const from = round(
-    clampToPlot(pixelOfInstant(axis, x, covered.start, 0), plot),
+    clampToPlot(pixelOfInstant(axis, x, covered.start, 0), width),
   );
   const to = round(
-    clampToPlot(pixelOfInstant(axis, x, covered.end, plot.width), plot),
+    clampToPlot(pixelOfInstant(axis, x, covered.end, width), width),
   );
 
   const uncovered: PixelSpan[] = [];
@@ -493,8 +869,8 @@ function coverageOf(
 
   // Trailing, which is the ordinary one: the store is caught up to some point
   // and the window reaches past it.
-  if (round(plot.width) - to >= MIN_UNCOVERED_PX) {
-    uncovered.push({ from: to, to: round(plot.width) });
+  if (round(width) - to >= MIN_UNCOVERED_PX) {
+    uncovered.push({ from: to, to: round(width) });
     edges.push(to);
   }
 
@@ -523,8 +899,8 @@ function pixelOfInstant(
 }
 
 /** Inside the frame. See {@link coverageOf} for why an end can fall outside it. */
-function clampToPlot(pixel: number, plot: PlotBox): number {
-  return Math.min(Math.max(pixel, 0), plot.width);
+function clampToPlot(pixel: number, width: number): number {
+  return Math.min(Math.max(pixel, 0), width);
 }
 
 /**
@@ -548,14 +924,14 @@ const MIN_UNCOVERED_PX = 1;
  * refuses.
  */
 function unscaledGridlines(
-  plot: PlotBox,
+  height: number,
   density: ChartDensity,
 ): readonly GridLine[] {
   const lines: GridLine[] = [];
 
   for (let index = 1; index <= density.valueTicks; index += 1) {
     lines.push({
-      y: round((plot.height * index) / (density.valueTicks + 1)),
+      y: round((height * index) / (density.valueTicks + 1)),
       label: null,
     });
   }

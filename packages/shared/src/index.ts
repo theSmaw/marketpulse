@@ -179,8 +179,14 @@ export type {
 // interface to inject. Walking off the end of the 2024-2028 calendar PROPAGATES
 // the refusal rather than truncating — a short list of sessions is a wrong
 // answer wearing the shape of a right one.
+// `MARKET_SESSION_CACHE_DATES` and `marketSessionCacheEntries` are the memo's
+// bound and its size (Task 2.13.3). They are exported for the bound's own test
+// rather than for a consumer: the memo itself has no API — `marketSessionOn`
+// simply costs what a map lookup costs the second time it is asked.
 export {
   lastMarketSessions,
+  MARKET_SESSION_CACHE_DATES,
+  marketSessionCacheEntries,
   MARKET_SESSION_CLOSE,
   MARKET_SESSION_OPEN,
   MARKET_SESSION_STATUSES,

@@ -1805,6 +1805,55 @@ callers, including the server's, which is the argument Task 2.9.9 already made
 once and which now has a second caller behind it. The trigger is a condition:
 **the first window control offering a range wider than three months at `1d`.**
 
+> **Amended 2026-09-13 by Task 2.13.3 — the trigger fired, the repair landed in
+> `packages/shared`, and every figure in the table above is now a historical
+> record rather than a cost this product pays.**
+>
+> Two corrections before the new figures, because both change what the table
+> means. **The last row describes a window nothing can ask for**: Task 2.13.1
+> declined "max" on three grounds, so the widest window this product offers is
+> **1Y at 252 sessions** (`VOLUME-AND-WINDOW.md` §1.2). And the repair is **not**
+> memoised on a window, which is how this section framed it — it is memoised on a
+> **market date**, inside `marketSessionOn`. `MARKET-DATA-API.md` §12.4's
+> attribution is what chose the level: the cost was constructing each session's
+> two instants through the timezone conversion, not walking the days, so the
+> per-date memo pays `marketSessionsBetween`, `lastMarketSessions`,
+> `previousMarketSession`, `nextMarketSession` and therefore `timeAxis`, the
+> backfill, the freshness check and the server's cap check — rather than one
+> function's argument list.
+>
+> Re-taken in this repository's own frontend runner, 200 iterations after 50
+> warm-up calls, at the windows the control **offers**:
+>
+> | Window                            | Sessions | Before, per call | After, per call | **Per render (×2)** |
+> | --------------------------------- | -------: | ---------------- | --------------- | ------------------- |
+> | 1 day                             |        1 | 0.050 ms         | 0.019 ms        | 0.0 ms              |
+> | 5 days — the default              |        5 | 0.197 ms         | 0.026 ms        | 0.1 ms              |
+> | 1 month                           |       21 | 0.738 ms         | 0.053 ms        | 0.1 ms              |
+> | 3 months                          |       63 | 2.116 ms         | 0.120 ms        | 0.2 ms              |
+> | **1 year — the widest**           |      252 | **8.431 ms**     | **0.423 ms**    | **0.8 ms**          |
+> | whole depth — no longer reachable |      676 | 22.844 ms        | 0.986 ms        | 2.0 ms              |
+>
+> **17.0 ms per render at 1Y becomes 0.8**, and a resize tick costs 0.8 rather
+> than 17. The before column is this task's own re-take of §16.5's figures on the
+> same machine in the same runner — 0.197 against 0.202 at five sessions, 8.431
+> against 8.762 at a year — which is what makes the ratio a property of the repair
+> rather than of two laptops.
+>
+> **And the honest half: the memo does not make the first walk cheaper.** Measured
+> cold, on four years' dates none of which the process had touched, one `timeAxis`
+> call over a year of `1d` costs **9.5 ms** and the same call again costs
+> **0.44 ms** (2024 reads 21.5 ms cold because it also builds the `Intl`
+> formatters and the calendar index). So the first render of a wide window pays
+> roughly what it always paid, once, and everything after it — the second call in
+> the same render, every resize tick, every re-render, and every other window
+> overlapping those dates — is twenty times cheaper. That is the shape of the cost
+> this section was about: _per answer **and** per resize tick_.
+>
+> `PriceChart` still calls `timeAxis` twice per render and §15.3's separation is
+> still intact, which was the point of taking the repair here rather than with a
+> `useMemo`. **A second call now costs a map lookup per session.**
+
 ### 16.6 The bundle cost of the decision, in Story 1.5's shape
 
 Three builds of the real application on 2026-09-12, `vite build`, sizes in bytes,

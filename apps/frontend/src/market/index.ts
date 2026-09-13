@@ -110,6 +110,15 @@ export {
   valueTicks,
 } from "./chart-value-axis.js";
 export type { ValueTick } from "./chart-value-axis.js";
+// Volume's value domain and the one label its gutter writes (Task 2.13.3). A
+// sibling of the price axis rather than a reuse of it: a column grows from a true
+// zero, where a line needs room above and below itself.
+export {
+  FLAT_VOLUME_TOP,
+  volumeDomain,
+  volumePeak,
+  volumePeakLabel,
+} from "./chart-volume-axis.js";
 export {
   PRICE_DIRECTIONS,
   directionOf,
@@ -117,6 +126,26 @@ export {
   formatPrice,
 } from "./price-format.js";
 export type { PriceDirection } from "./price-format.js";
+// The windows this product offers, and the one home of the timeframe mapping
+// (Task 2.13.3, `VOLUME-AND-WINDOW.md` §2.2). The control that renders these
+// labels is Task 2.13.6's and reads them from here.
+export {
+  DEFAULT_WINDOW_SESSIONS,
+  MAX_MINUTE_SESSIONS,
+  SESSIONS_PARAM,
+  TIME_WINDOWS,
+  seriesWindowFor,
+  timeframeForSessions,
+  windowForSessions,
+} from "./time-window.js";
+export type { TimeWindow } from "./time-window.js";
+// How a volume is spelled, written and spoken (Task 2.13.3). The axis and any
+// summary abbreviate; the readout states the exact integer.
+export {
+  formatVolume,
+  formatVolumeExact,
+  spokenVolume,
+} from "./volume-format.js";
 export {
   BAR_SERIES_FAILURES,
   toBarSeriesView,

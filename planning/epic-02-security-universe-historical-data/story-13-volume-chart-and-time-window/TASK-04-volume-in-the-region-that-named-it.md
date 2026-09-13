@@ -202,3 +202,104 @@ Add to **Done when**:
 - The extent band is measured at `1d` and decided from the number, or explicitly
   handed to the task holding the `1d` body
 - The axis-rule-pixel assertion covers the volume plot, break-verified
+
+---
+
+## Amended 2026-09-13 by Task 2.13.3 — the arithmetic exists, so this task is a renderer; and it inherits a wrapper question one task early
+
+Everything below is a **narrowing**. Nothing was added to this task's scope and
+nothing was taken out of it, but four of its Work bullets now resolve to a named
+function rather than to a decision, and two things want stating before they are
+discovered.
+
+### What to call, and the one call this task replaces
+
+`chart-geometry.ts` now has three functions where it had one:
+
+```
+timeFrame(width, density, subject) -> TimeFrame     // the only thing that takes a window
+priceFrame(time, height, bars)     -> PricePlot
+volumeFrame(time, height, bars)    -> VolumePlot
+```
+
+**Neither plot function is handed a `TimeRange` or a `Timeframe`**, so neither can
+build an axis — which is the structural form of this task's _"two plots must stop
+at the same pixel"_ bullet. `chartFrame(plot, density, subject)` survives as the
+composition of the first two, and **this task is what replaces it**: one
+`timeFrame` call, then a plot frame per region. Delete the composition when the
+last caller goes.
+
+`VolumePlot` carries four fields and no others: `columns` (the whole plot as one
+path string, or `null`), `columnWidth` (the `stroke-width`, fractional),
+`stems` (how many, for tests) and `peak` (the gutter's one label, or `null`).
+`market/index.ts` also exports `volumeDomain`, `volumePeak`, `volumePeakLabel`,
+`formatVolume`, `formatVolumeExact` and `spokenVolume`.
+
+### The coverage clip is this task's, and the baseline is not a mark
+
+Two halves of §13.1 resolved differently, and the second is a correction to the
+canvas:
+
+- **The clip is the renderer's.** `TimeFrame.coverage` is one object shared by both
+  plots, so the two stop at the same pixel by arithmetic — but `volumeFrame` does
+  no clipping itself. Clip the columns with `coverage.covered` the way
+  `PriceChart` already clips the line and the two washes, and paint the uncovered
+  ground **in this plot** rather than inheriting the one above.
+- **There is no separate volume baseline to clip.** §13.1 lists "the volume
+  baseline" among the marks that stop at the coverage edge and §9.4 says volume's
+  axis rule **is** its true zero. Those are the same line; it is derived from the
+  window, so **it runs the full frame** like every other mark of that kind. What
+  stops at the coverage edge is the columns. Do not go looking for a second mark.
+
+### The element-count guard, now that the shape is known
+
+The geometry emits **one `<path>` whatever the window**, and the stem count is
+bounded by the plot's width rather than by the bar count. So the guard to copy
+from `PriceChart.test.tsx` asserts that the rendered element count is identical at
+30 bars and at 1,950 **and that the path strings differ**, which is the "evidence
+the inputs differed" half. `chart-geometry.test.ts` already holds the arithmetic
+half of this; what is owed here is the same claim about **rendered elements**,
+break-verified by drawing one `<rect>` per bar and watching it go red.
+
+### Two things measured while building the geometry, both of which you will see
+
+- **A 1 px gap is measured against the pitch, not against a bar's share of the
+  plot**, and §10.3's table divides by the wrong one of the two. At 30 bars on an
+  867 px plot a column of `width / slots − 1` leaves a **2.0 px** gap, and at 3M's
+  63 bars a **1.22 px** one, against §10.2's stated 1 px. The geometry now divides
+  by `slots − 1`; above a few hundred bars the two are the same number to three
+  decimal places, and the table's figures stand as a description rather than as an
+  input. No action here — recorded so the figure is not re-derived from the table.
+- **The first and last columns are half-clipped, and that is a judgement this task
+  can see and the geometry cannot.** `scaleSlot` puts the first bar at x = 0 and
+  the last at x = width, so a 27.9 px column centred on either end has half of
+  itself outside the plot. At 1,950 bars it is invisible; at a 30-bar window it is
+  two visibly narrow columns. The price line has the same property and it does not
+  show, because a line has no width. **Look at it at 3M on screen and decide**: an
+  inset x-domain for the volume plot would fix it and would break the shared-axis
+  property, so the honest options are to accept it or to inset **both** plots —
+  which is a change to the price chart and wants saying out loud. `CHARTING.md`
+  §12.6 is the precedent for a rendering a simulation cannot fault and a person
+  can.
+
+### And the wrapper arrives here rather than in 2.13.5
+
+`VOLUME-AND-WINDOW.md` §15.1 hands 2.13.5 a **wrapper that renders `children`
+through unchanged**, so the read position re-renders the two reading overlays and
+**neither frame owner**. Whatever component this task writes to call `timeFrame`
+once and hand it to both plots **is that wrapper's frame half**. Build it as a
+component that owns the shared frame and renders two regions' plots, and 2.13.5
+adds the read position to it; build it as a `useMemo` inside `SecurityExplorer`
+and 2.13.5 starts by moving it. Naming it now costs nothing and the alternative is
+a refactor inside the task that has the pointer-path regression in it.
+
+Add to **Done when**:
+
+- `chartFrame`'s last caller is gone, one `timeFrame` serves both plots, and a grep
+  finds no second `timeAxis` call in a component
+- The volume columns are clipped to the **shared** `coverage.covered`, and the
+  uncovered ground is painted in this plot rather than inherited
+- A rendered-element guard asserts the count is flat in the bar count, with
+  evidence the inputs differed, break-verified
+- The half-clipped end columns are looked at on screen at 3M and the answer is
+  written down either way

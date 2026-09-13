@@ -1,6 +1,6 @@
 # Task 2.13.3 — One axis for two plots, volume's arithmetic, and the calendar walk memoised
 
-**Status:** Not started
+**Status:** Complete — 2026-09-13
 **Story:** [2.13 Volume Chart & Time-Window Selection](STORY.md)
 **Depends on:** 2.13.1, 2.13.2
 
@@ -262,3 +262,394 @@ Add to **Done when**:
   height is the maximum of the bars falling in it — and not only as a stem count
 - The gap and the threshold live with the geometry, not in `market/` and not as a
   token; `grep -n "chart-volume-gap"` finds nothing
+
+---
+
+# Outcome — 2026-09-13
+
+**Nothing visible.** Five modules of arithmetic, one change in
+`packages/shared`, and 47 new tests. The payoff is Task 2.13.4, which now has
+one axis, a volume domain, a column geometry and a formatter waiting for it, and
+**1Y is now shippable**, which it was not this morning.
+
+What a user still cannot do: see volume, change the window, or watch a price
+move. `SecurityExplorer.tsx`'s Volume region still holds the placeholder naming
+this story, and the fence held — **no component, no route and no stylesheet was
+touched.**
+
+## 1. What was built
+
+| Piece                                                     | Where                                     |
+| --------------------------------------------------------- | ----------------------------------------- |
+| The five windows, their labels, and the timeframe mapping | `market/time-window.ts`                   |
+| Volume's value domain and the one label its gutter writes | `market/chart-volume-axis.ts`             |
+| A volume written and spoken                               | `market/volume-format.ts`                 |
+| One axis as an object, and the volume column geometry     | `components/PriceChart/chart-geometry.ts` |
+| The trading-calendar walk, memoised                       | `packages/shared/src/market-session.ts`   |
+
+Everything in `market/` leaves through `market/index.ts`, and nothing imports
+past that barrel.
+
+## 2. One axis, and the shape that makes a second derivation unspellable
+
+`chart-geometry.ts` now has **three functions where it had one**:
+
+```
+timeFrame(width, density, subject) -> TimeFrame     // the only thing that takes a window
+priceFrame(time, height, bars)     -> PricePlot
+volumeFrame(time, height, bars)    -> VolumePlot
+```
+
+**Neither plot function is handed a `TimeRange` or a `Timeframe`, so neither can
+call `timeAxis` — there is nothing to call it with.** That is the difference the
+task asked for, and it is a type rather than a discipline: _two plots that agree
+because they were given the same numbers cannot drift; two that agree because
+they were written the same way can._
+
+`TimeFrame` carries everything derived from the window — the axis, the x scale,
+the seams, the tick labels, the width, the density and **the coverage spans**.
+Coverage is on the shared object deliberately: `CHARTING.md` §14's rule is about
+_where along the axis_ an answer stops, which is horizontal, so two plots stop at
+the same pixel by arithmetic rather than by agreement. The uncovered **ground** is
+still drawn once per plot, because it is a statement about a frame and there are
+two frames.
+
+`chartFrame(plot, density, subject)` survives as the composition of the two
+halves, so `PriceChart` and its tests did not move; `ChartFrame` is now
+`TimeFrame & PricePlot`. **Task 2.13.4 replaces that one call with a `timeFrame`
+in the wrapper and a plot frame per region**, at which point the composition can
+go.
+
+**One decision that was not on the canvas.** `VOLUME-AND-WINDOW.md` §13.1 lists
+"the volume baseline" among the marks that stop at the coverage edge, and §9.4
+says volume's axis rule _is_ its true zero. Those are the same line, and it is
+derived from the window — so **it runs the full frame** like every other mark of
+that kind, and there is no second baseline mark to clip. What stops at the
+coverage edge is the columns. Recorded here rather than resolved silently.
+
+## 3. The half day, and why the assertion is about an absence
+
+`11-27` closes at 13:00 ET. Three tests hold it, and the one that actually rules
+out an empty afternoon band asserts a **missing position** rather than a drawn
+one: 14:00 ET on that date is a real instant inside the requested window and
+`positionOfInstant` answers `boundary` for it — the same answer it gives a night
+or a weekend. A continuous time axis would have given that instant 180 slots of
+empty plot and every state test would still have passed.
+
+The rest of the week comes out of the calendar unchanged: five sessions
+(`11-23, 11-24, 11-25, 11-27, 11-30`), 390 × 4 + 210 = **1,770 slots**, no tick
+labelled `Nov 26`, and Monday's first slot exactly 210 after the half day's.
+
+## 4. Volume's arithmetic
+
+**The domain is zero to the window's peak, unpadded**, in `market/` because a
+domain is a scale (§17). The floor is a literal zero — a bar chart whose baseline
+is not zero misstates every ratio a reader takes off it — and the top is the peak
+because **§9.2's proportion arithmetic depends on it**: 88 px was taken against
+_a window whose peak is 3.8× its typical bar draws that bar at 23 px_, and a test
+now asserts that figure lands at 23 px rather than trusting it.
+
+**The all-zero window was this task's to answer, and the answer is a ceiling of
+one share.** `linearScale` refuses a zero-height domain on purpose, so `[0, 0]`
+is not an option; every column is then zero pixels tall, which is the honest
+picture of a window in which nothing traded. The **peak label** is kept as a
+separate fact from the scale's ceiling, so that window's gutter reads `0` while
+its scale tops out at 1 — the pair being right rather than a disagreement.
+
+**The bar geometry is one `<path>` at every window**, three regimes from §10.2's
+one rule, and it lives with the geometry rather than in `market/` (§10.6).
+`grep -n "chart-volume-gap"` finds nothing.
+
+The silhouette's path string came out at **10.6 kB** on a 726 px plot rather than
+§10.3's predicted 16.8, because a stem is `M<x> <baseline>V<top>` and a
+vertical-line command carries one coordinate where a line-to carries two. The
+ceiling property — bounded by the plot's width rather than by the bar count — is
+what mattered and is unchanged. **And one thing no artboard could show**: a column
+centred on x = 0 or x = width has half of itself outside the plot, so the end
+columns render half-width — invisible at 1,950 bars, two visibly narrow columns at
+thirty. Handed to 2.13.4 as a judgement against a real rendering, with the note
+that the only fix keeping the shared axis insets **both** plots.
+
+Two things settled while building it:
+
+- **The pixel a bar belongs to is the pixel its `x` falls into — floored, not
+  rounded, and floored from the _rounded_ x the price point above it was drawn
+  at.** Flooring is what keeps every 1 px stem's centre inside the plot; taking
+  the column from the raw coordinate rather than from the price point's own would
+  be one more way two plots on one axis could disagree, at a tenth of a pixel.
+- **A 1 px gap is measured against the pitch, not against a bar's share of the
+  plot**, and this was a correction to the canvas rather than a reading of it.
+  §10.3's table gives `slot` as `width / bars`; `scaleSlot` puts the first bar at
+  x = 0 and the last at x = width, so the **pitch** is `width / (bars − 1)` and a
+  column of `slot − 1` leaves a **2.0 px** gap at a 30-bar window and **1.22 px** at
+  3M's 63 bars, against §10.2's stated 1 px. The gap is the load-bearing half of
+  that decision, so the geometry divides by `slots − 1`; the table has a dated
+  amendment and its figures stand as a description of density. Above a few hundred
+  bars the two agree to three decimal places, which is why 5D and 1M were never
+  affected. Found by computing it rather than by reading the table.
+- **The per-pixel reduction is tested as a property**, as the amendment asked,
+  and in a form that does not recompute the reduction: _(a)_ every bar's pixel
+  column has a stem and no bar in it reaches above that stem, and _(b)_ every
+  stem's top is the top of some bar in its own column. Together those mean the
+  maximum. **Both breaks were performed**: keeping the first bar in a column
+  instead of the tallest, and shifting the column assignment by one pixel — each
+  takes exactly that test red and leaves the other 41 green.
+
+**`volume-format.ts` holds three forms and the spoken one is decided beside the
+written one**, which is the whole reason they share a file: a written form whose
+rounding changed without the spoken one following would have a sighted reader and
+a listener quoting different figures off one bar.
+
+| Form                | `4,061,234`    | Where                             |
+| ------------------- | -------------- | --------------------------------- |
+| `formatVolume`      | `4.06M`        | the value scale, any summary      |
+| `spokenVolume`      | `4.06 million` | the text alternative              |
+| `formatVolumeExact` | `4,061,234`    | the readout, and only there (§5a) |
+
+Three significant digits, which is what keeps `9.81M`, `104M` and `1.04B` within
+a character of each other in a right-aligned column — `K`, `M` and `B` are
+letters and letters are not tabular, so a constant digit count is the alignment
+rule. **Rounding promotes the suffix**: 999,500 is `1.00M` and not `1000K`, which
+is a thousandfold error producible by rounding alone and is one of the tests.
+
+## 5. `time-window.ts`, the fourth piece
+
+The five windows, their labels, their accessible names, the `sessions` parameter's
+one spelling, and the mapping — `sessions ≤ 21 → 1m`, above → `1d` — exhaustive
+over a session count rather than keyed on the five, because an address may carry
+any count and Epic 11's `setTimeWindow` will.
+
+**The cap property is asserted rather than restated**, and over the calendar's own
+sessions rather than over 390 × n, which would be the test agreeing with the
+premise: the worst 21-session window anywhere in 2024–2028 is **8,190** minute
+bars, and the whole calendar is fewer sessions than the cap is bars. So no session
+count from any source can be refused for size.
+
+`MAX_SERIES_BARS` is **not** copied into the frontend. The cap's one home is
+`apps/backend/src/series-request.ts`; the 10,000 appears here only as a figure in a
+test, which is a check rather than a second home.
+
+## 6. The calendar walk, memoised — and it is on a date, not a window
+
+The task said _memoise the walk on its window_. It is memoised **on a market
+date**, inside `marketSessionOn`, and the reason is an attribution that was
+already in the record: `MARKET-DATA-API.md` §12.4 measured `marketSessionOn` at
+**28.25 µs** on a trading day against **6.42 µs** on a weekend day and concluded
+that _the cost is constructing each session's open and close instants through the
+timezone conversion, not walking the days._
+
+Memoising the per-date answer therefore pays **every walker in both
+applications** — `marketSessionsBetween`, `lastMarketSessions`,
+`previousMarketSession`, `nextMarketSession`, and so `timeAxis`, the chart's text
+alternative, the cap check, the backfill, `bars:check` and the freshness
+diagnostic — rather than one function's argument list. A window-keyed memo would
+have paid two of those.
+
+Four properties, each of which the task named:
+
+- **No clock and therefore no TTL.** What it remembers is a pure function of a
+  checked-in table and a market date, neither of which changes while the process
+  runs; `Date.now()` is a lint error in that package besides. Editing the
+  calendar is a deploy, not an expiry.
+- **Keyed on the market date and on nothing else**, which is what keeps it clear
+  of invariant 4: a memo keyed on anything ambient would be a temporal-isolation
+  hazard Epic 13 inherits, because a replay reading a key it did not state would
+  read another clock's answer.
+- **Bounded twice.** In entries, by the calendar's own range — every key passes
+  `assertWithinMarketCalendar` first, so the key space is _closed_ at
+  `MARKET_SESSION_CACHE_DATES` = **1,827** days, derived from
+  `MARKET_CALENDAR_RANGE` rather than written beside it. **There is no eviction,
+  because there is nothing to evict**: a bound that cannot be reached needs no
+  policy, and a policy that cannot run is untested code. And in size per entry,
+  at three numbers and a boolean — no bars, no arrays, no `Date`s.
+- **It holds epoch milliseconds and rebuilds the instants per call.** A `Date` is
+  mutable, and a cached one would hand every caller the same two objects, so a
+  single `setUTCFullYear` anywhere in either application could move a trading day
+  for every window, axis and coverage measurement built from it, with no error to
+  notice. That is the shape of _a cache makes a correct function wrong quietly_,
+  and it is the one version of this repair that cannot become it.
+
+**The key is tested, not only the speed-up**, which was the task's own
+instruction. The strongest available form: every one of the calendar's 1,827
+dates is asked, each answer's own `date` must equal the date asked for, and the
+1,255 sessions and 11 early closes are counted — any collapse of the key puts one
+date's session under another's and cannot survive that. Plus: a caller mutating a
+returned instant cannot affect the next call, and an out-of-range date still
+refuses after the memo is warm.
+
+**No timing assertion was added anywhere.** A timing gate in `pnpm test` measures
+the runner; the figures below are the record.
+
+### 6.1 The figures, re-taken after rather than before
+
+Frontend runner, 200 iterations after 50 warm-up calls, 2026-09-13. The _before_
+column is this task's own re-take of `CHARTING.md` §16.5's figures on this
+machine — 0.197 against its 0.202 at five sessions, 8.431 against 8.762 at a year,
+22.844 against 23.051 at the depth — which is what makes the ratio a property of
+the repair rather than of two laptops.
+
+| Window                          | Sessions | Before, per call | After, per call | **Per render (×2)** |
+| ------------------------------- | -------: | ---------------- | --------------- | ------------------- |
+| 1 day                           |        1 | 0.050 ms         | 0.019 ms        | 0.0 ms              |
+| 5 days — the default            |        5 | 0.197 ms         | 0.026 ms        | 0.1 ms              |
+| 1 month                         |       21 | 0.738 ms         | 0.053 ms        | 0.1 ms              |
+| 3 months                        |       63 | 2.116 ms         | 0.120 ms        | 0.2 ms              |
+| **1 year — the widest offered** |      252 | **8.431 ms**     | **0.423 ms**    | **0.8 ms**          |
+| whole depth — not reachable     |      676 | 22.844 ms        | 0.986 ms        | 2.0 ms              |
+
+`lastMarketSessions`, the same runner: **0.167 → 0.007 ms** at five sessions,
+**8.451 → 0.335 ms** at 252, **23.148 → 0.911 ms** at 676.
+
+The server's half, in the backend's own runner, same method:
+
+| Cap check over         | Sessions | Before       | Cold, once   | **Warm**     |
+| ---------------------- | -------: | ------------ | ------------ | ------------ |
+| Five sessions          |        5 | 0.165 ms     | 0.008 ms     | 0.007 ms     |
+| One year               |      252 | 7.47 ms      | 0.343 ms     | 0.342 ms     |
+| The whole stored depth |      676 | **20.62 ms** | **36.47 ms** | **0.906 ms** |
+
+**17.0 ms per render at 1Y becomes 0.8, and the server's 20.6 ms on every cache
+hit becomes 0.9.**
+
+### 6.2 The honest half: the first walk is not cheaper, and one figure got worse
+
+Measured cold, on four years of dates none of which the process had touched — one
+`timeAxis` call over a year of `1d`, then the same call again:
+
+| Year | Sessions | Cold      | Warm     |
+| ---- | -------: | --------- | -------- |
+| 2024 |      251 | 21.505 ms | 0.528 ms |
+| 2025 |      249 | 9.456 ms  | 0.436 ms |
+| 2026 |      250 | 9.568 ms  | 0.441 ms |
+| 2027 |      250 | 9.756 ms  | 0.492 ms |
+
+2024 reads high because the first call anywhere also builds the `Intl` formatters
+and the calendar index. **So the first render of a wide window pays roughly what
+it always paid, once**, and everything after it — the second call in the same
+render, every resize tick, every re-render, every overlapping window — is about
+twenty times cheaper. The depth row of the server's table is _worse_ cold for the
+same reason. What the repair removed is the **repetition**, which is exactly what
+"per answer _and_ per resize tick" and "on every cache hit" meant.
+
+Reducing the cold cost is a different repair in a different module —
+`instantFromMarketTime` probes the zone twice per call and reads the result back —
+and it is not taken here. **Trigger: the first window whose first paint is
+measurably late because of it**, which at 9.5 ms once per process is not this
+story.
+
+## 7. What nothing checks, and it is one entry
+
+**That the walk stays memoised.** No test in `pnpm verify` can see it: a timing
+gate in `pnpm test` measures the runner, and the memo is invisible to every
+behavioural test by design — a correct function that got slower is still correct.
+So an author who "simplified" the cache away, or who moved
+`assertWithinMarketCalendar` below the lookup, or who started returning the
+cached record itself instead of rebuilding its instants, would take 1Y back to
+17 ms per render and the server back to 20.6 ms per cache hit with everything
+green. Two of those three do have a test — the range refusal and the mutation —
+and the cost does not. Added to `CLAUDE.md`'s gap list with its re-measure.
+
+## 8. Verification
+
+`pnpm verify` passes. `pnpm test:database` passes (165 tests, real PostgreSQL) —
+it was not touched by any of this, and it is in scope because the memo is in the
+module the backend's session walks go through. `pnpm e2e` passes (97 tests), which
+is in scope because `chart-geometry.ts` was restructured under the price chart it
+measures. New tests: 4 in `packages/shared`, 11 in `time-window.test.ts`, 13 in
+`volume-format.test.ts`, 9 in `chart-volume-axis.test.ts`, 10 in
+`chart-geometry.test.ts`.
+
+---
+
+## For a stakeholder — what this was, in plain terms
+
+**Short version: today was plumbing, and it bought two things — the chart's
+second series now cannot drift out of line with the first, and the product can
+afford to offer a one-year view, which yesterday it could not.**
+
+### The arithmetic behind the picture, built before the picture
+
+Tomorrow's task draws traded volume as a row of columns underneath the price
+line. Today built everything that has no picture in it: how tall a column is, how
+wide it is, how a figure like 4,061,234 shares is shortened to `4.06M` without
+becoming misleading, and which five time periods the product will let you choose
+between.
+
+Doing it this way round is deliberate. None of this can be checked by looking at
+a screen — a column drawn slightly in the wrong place looks exactly like a column
+drawn correctly — so it is written as arithmetic and checked against real
+recorded market data, and only then handed to something that draws.
+
+### The bit worth understanding: one ruler, not two
+
+Volume only means something if it lines up with the price above it. If the price
+line says "this is 10:45" and the volume column below it says "this is 10:46",
+the chart is lying in a way nobody would spot.
+
+The obvious way to prevent that is to be careful — to make sure both charts
+calculate the timeline the same way. We did something stronger: **the timeline is
+calculated once and handed to both charts, and neither chart is given the
+ingredients to calculate its own.** It is not that they agree; it is that they
+cannot disagree, because there is only one of them. That took a small
+restructuring today and removes a class of bug permanently, including the worst
+one this chart layer has: a chart that only holds four days of a five-day window
+stretching its data to fill the frame, so it looks complete when it isn't.
+
+### The bit worth understanding: the week nobody remembers
+
+The product will offer "5 days", and five days means five _trading_ days. Anyone
+can remember to skip weekends. Fewer people remember that the day after
+Thanksgiving the US market closes at 1pm instead of 4pm — so a chart covering
+that week must not draw three hours of blank afternoon and imply we are missing
+data. There is now a test that proves that specific afternoon doesn't exist on
+our timeline at all.
+
+### The performance repair, and why it was a blocker rather than a nicety
+
+The product works out which days the market was open by walking a calendar day by
+day, converting each one into New York time. That conversion is expensive, and it
+was being redone from scratch every single time anything asked a question about
+dates — twice for every redraw of the chart, again every time the browser window
+was resized, and again on the server for every request.
+
+At the five-day view nobody would notice. At a **one-year** view it cost 17
+milliseconds of a 50-millisecond budget before a single pixel was drawn, and the
+server paid another 20 milliseconds on every request. That is why offering a
+one-year view was blocked on fixing this rather than the other way around.
+
+The fix is to remember each day's answer the first time it is worked out. It
+sounds trivial; the care is in where it was put and what it remembers:
+
+- **Put in the shared foundation, not in the chart.** Fixing it in the chart
+  would have fixed one of three places that pay the cost, including the server's.
+  It is now fixed everywhere at once — the chart, the spoken description for
+  screen-reader users, the nightly data loader and the server's size check all
+  got faster from one change.
+- **It remembers plain numbers, not objects.** Handing out the same shared date
+  object to everybody would let any part of the system accidentally move a
+  trading day for the entire application, with no error message anywhere. It
+  hands out a fresh copy every time instead.
+- **It has no expiry, on purpose.** The market calendar is a file we check into
+  the code; it does not change while the program is running. An expiry would be
+  pretending otherwise.
+- **It cannot grow without limit.** Our calendar covers 2024 to 2028, and the
+  system refuses to answer questions outside that range — so there are at most
+  1,827 days it can ever remember. That is a genuine ceiling rather than a
+  guess, which is why there is no need for logic to throw old entries away.
+
+**Result: the one-year view costs 0.8 milliseconds per redraw instead of 17, and
+the server's per-request check costs 0.9 instead of 20.6.**
+
+One honest caveat, recorded rather than glossed: the **first** time the product
+works out a year's worth of dates it still costs about 9 milliseconds. What was
+removed is the _repeating_ of that work, which was the actual problem — it was
+being paid over and over, including every time you resized your browser window.
+
+### Where the product stands
+
+Epic 2's finish line is "search for a security, open it, and inspect recent
+price and volume data". Price landed yesterday and draws properly. Volume is next
+and now has everything it needs. The time-window control — the first control in
+this product that changes _what the data says_ rather than how it looks — comes
+after that, and the one-year option it can now offer is the one this task
+unblocked.

@@ -244,3 +244,63 @@ Add to **Done when**:
   on a request — no pending state anywhere on the control
 - Hover and selected are different channels, and a test or a screenshot shows
   them coexisting without ambiguity
+
+---
+
+## Amended 2026-09-13 by Task 2.13.3 — the vocabulary is a module now, and the address reader is deliberately still unbuilt
+
+### `time-window.ts` exists, and what it gives this task
+
+`apps/frontend/src/market/time-window.ts`, exported through `market/index.ts`:
+
+| Export                    | What it is                                                        |
+| ------------------------- | ----------------------------------------------------------------- |
+| `TIME_WINDOWS`            | the five, in control order, each with `label`, `name`, `sessions` |
+| `DEFAULT_WINDOW_SESSIONS` | 5 — and the default writes **no** parameter                       |
+| `SESSIONS_PARAM`          | `"sessions"`, the one spelling                                    |
+| `timeframeForSessions(n)` | the mapping, exhaustive over a count                              |
+| `seriesWindowFor(n)`      | the count as the wire's own named window form                     |
+| `windowForSessions(n)`    | the offered window, or `undefined` — **no snapping**              |
+| `MAX_MINUTE_SESSIONS`     | 21, the boundary, named because it is a claim about the cap       |
+
+So this task's Done-when item _"the timeframe mapping has one home"_ is a **grep**
+rather than a build, and the label/accessible-name pair in §4(d) is read from
+`TIME_WINDOWS` rather than written in the component. `windowForSessions`
+returning `undefined` is the no-selection state as data — the control renders it,
+and the readout states the resolved count beside it.
+
+### What 2.13.3 deliberately did **not** build: reading the address
+
+`time-window.ts` has **no parser**, and that is a decision rather than an omission.
+This task's own bullet — _"one module that reads it, one that builds the address"_
+— still stands entirely, and the reason the parser is not in the vocabulary module
+is that parsing is where the open question lives: a **negative, zero or
+unparseable count** is still this task's to decide, and 2.13.1's amendment already
+points at the precedent (`use-security-symbol.ts` does not repair an input; the
+server's answer naming what was asked beats a client reporting on something else).
+
+Where it goes is this task's call and `paths.ts` is where the builder belongs.
+Note the one thing the vocabulary module cannot answer for you: `seriesWindowFor`
+takes a `number`, so whatever reads the address has to produce one or decide not
+to ask.
+
+### The cap is not in the frontend, and the mapping is why
+
+`MAX_SERIES_BARS` stays in `apps/backend/src/series-request.ts`. The 10,000 appears
+in the frontend only as a figure in `time-window.test.ts`, which asserts the
+property §2.1 is actually about — **the worst 21-session window anywhere in
+2024–2028 is 8,190 minute bars** — over the calendar's own sessions rather than
+over 390 × n. So this task writes no cap arithmetic and no pre-emptive size check.
+
+### The `1d` body and the walk
+
+Unchanged and still this task's: recording a `1d` response body, and somebody
+reading `chart-alternative.ts`'s two unverified `1d` sentences aloud. What has
+changed is that `spokenVolume` now exists, so whatever volume clause the
+alternative gains is a call rather than a decision — the decision of **whether**
+volume has its own sentence is 2.13.8's.
+
+And the performance bullet is now a fact rather than a hope: the walk is memoised,
+**1Y costs 0.8 ms per render against 17.0 before**, and the first walk of a set of
+dates still costs ~9.5 ms once per process. If a wide window feels slow here, read
+2.13.3's figures before reaching for a `useMemo`.

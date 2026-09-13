@@ -1,4 +1,8 @@
-import { toTimeRange } from "@marketpulse/shared";
+import {
+  lastMarketSessions,
+  toMarketDate,
+  toTimeRange,
+} from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
@@ -7,11 +11,20 @@ import {
   chartDensity,
   directionOf,
   formatPrice,
+  linearScale,
+  positionOfInstant,
+  scaleValue,
   timeAxis,
+  volumeDomain,
 } from "../../market/index.js";
 import { changePercent, seriesPrices } from "../BarSeriesPanel/series-facts.js";
 import type { ChartSubject } from "./chart-geometry.js";
-import { chartFrame } from "./chart-geometry.js";
+import {
+  chartFrame,
+  priceFrame,
+  timeFrame,
+  volumeFrame,
+} from "./chart-geometry.js";
 
 // **Acceptance criterion 1 is checked here and nowhere else** (Task 2.12.4).
 //
@@ -208,15 +221,22 @@ describe("the frame is never conditional on the data", () => {
     );
 
     expect(frame).toEqual({
-      gridlines: [],
-      readings: [],
+      // The axis half, empty: no window has been resolved, so there is nothing to
+      // place a bar or a seam against. The density survives, because it comes from
+      // the region's width rather than from an answer (Task 2.13.3).
+      axis: null,
+      width: 0,
+      density: DENSITY,
       slots: null,
       seams: [],
       ticks: [],
-      series: null,
       // Not one uncovered span across a zero-width plot: an unmeasured element
       // knows nothing about coverage, and washing it would be a claim.
       coverage: { covered: null, uncovered: [], edges: [] },
+      // The price half, empty.
+      gridlines: [],
+      readings: [],
+      series: null,
       direction: null,
     });
   });
@@ -578,5 +598,377 @@ describe("how much of the window is held", () => {
       uncovered: [],
       edges: [],
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// One axis for two plots, and volume's own arithmetic (Task 2.13.3).
+// ---------------------------------------------------------------------------
+
+/** The volume plot's height at 1440, from `--chart-volume-height`. */
+const VOLUME_HEIGHT = 88;
+
+/** Every stem in a volume path, as `{ x, baseline, top }`. */
+function stems(path: string): readonly {
+  readonly x: number;
+  readonly baseline: number;
+  readonly top: number;
+}[] {
+  return path.split(" M").map((piece, index) => {
+    const body = index === 0 ? piece.slice(1) : piece;
+    const [move, top] = body.split("V");
+    const [x, baseline] = (move ?? "").split(" ");
+    return { x: Number(x), baseline: Number(baseline), top: Number(top) };
+  });
+}
+
+describe("one axis, handed to both plots", () => {
+  // The shape, stated because the test cannot assert it: `timeFrame` is the only
+  // function here that takes a window, and `priceFrame` and `volumeFrame` take one
+  // of its results plus a height and some bars. Neither is handed a `TimeRange` or
+  // a `Timeframe`, so neither *can* call `timeAxis` — which is the difference
+  // between two plots that agree because they were given the same numbers and two
+  // that agree because they were written the same way. What is assertable is that
+  // they land on the same pixels, and that is below.
+
+  it("puts every volume column under the price point for the same bar", () => {
+    const subject = subjectOf("full");
+    const time = timeFrame(PLOT.width, DENSITY, subject);
+    const price = priceFrame(time, PLOT.height, subject.bars);
+    const volume = volumeFrame(time, VOLUME_HEIGHT, subject.bars);
+
+    // The `full` fixture is half an hour of minute bars on an 867 px plot, so
+    // every bar has a pixel of its own and the columns are one per bar.
+    expect(volume.stems).toBe(price.readings.length);
+
+    const columns = stems(volume.columns ?? "");
+    expect(columns.map((stem) => stem.x)).toEqual(
+      price.readings.map((reading) => reading.x),
+    );
+  });
+
+  it("ends both series at the same pixel when the answer is short", () => {
+    // `CHARTING.md` §17.5 item 4, named as the item most likely to be got wrong by
+    // a second plot: two plots sharing one x-domain must stop at the same pixel.
+    // Here that is arithmetic rather than agreement — one `coverage`, one scale.
+    const subject = subjectOf("uncovered");
+    const time = timeFrame(PLOT.width, DENSITY, subject);
+    const price = priceFrame(time, PLOT.height, subject.bars);
+    const volume = volumeFrame(time, VOLUME_HEIGHT, subject.bars);
+
+    const lastColumn = stems(volume.columns ?? "").at(-1);
+    const lastPoint = price.readings.at(-1);
+
+    // Within a pixel rather than identical: at 0.88 px per bar the columns are
+    // snapped to pixel centres and the line is not, which is §10's third regime
+    // and is stated on `silhouette`.
+    expect(Math.abs((lastColumn?.x ?? 0) - (lastPoint?.x ?? 0))).toBeLessThan(
+      1,
+    );
+
+    // And both stop inside the covered span rather than at the frame's edge.
+    const covered = time.coverage.covered;
+    expect(lastColumn?.x).toBeLessThanOrEqual(covered?.to ?? 0);
+    expect(lastPoint?.x).toBeLessThanOrEqual(covered?.to ?? 0);
+  });
+
+  it("builds the x-domain from the window, so a second plot cannot rescale a short answer", () => {
+    // The defect with the worst shape in the chart layer, asserted from the shared
+    // frame rather than from the price plot: 780 bars on an axis of 990 slots. A
+    // plot deriving its own axis from its own bars would produce 780 and look
+    // complete.
+    const subject = subjectOf("uncovered");
+    const time = timeFrame(PLOT.width, DENSITY, subject);
+
+    expect(time.axis?.slots).toBe(990);
+    expect(subject.bars).toHaveLength(780);
+  });
+
+  it("hands the same width and density to both plots", () => {
+    const subject = subjectOf("full");
+    const time = timeFrame(PLOT.width, DENSITY, subject);
+
+    // Both plots declare the same span on the same grid and spend the same
+    // gutter, so the width is one number. A second plot measuring its own is the
+    // one place the alignment could silently fail.
+    expect(time.width).toBe(PLOT.width);
+    expect(time.density).toEqual(DENSITY);
+  });
+
+  it("answers an unmeasured width with an axis carrying no window", () => {
+    const time = timeFrame(0, DENSITY, subjectOf("full"));
+
+    expect(time.axis).toBeNull();
+    expect(time.slots).toBeNull();
+    expect(time.width).toBe(0);
+    // Still the region's density: a plot waiting for its first answer draws the
+    // right number of gridlines.
+    expect(time.density).toEqual(DENSITY);
+    expect(volumeFrame(time, VOLUME_HEIGHT, subjectOf("full").bars)).toEqual({
+      columns: null,
+      columnWidth: 0,
+      stems: 0,
+      peak: null,
+    });
+  });
+});
+
+describe("the week with a holiday and a half day in it", () => {
+  // Story 2.13's acceptance criterion 3, at the level that can see an axis. The
+  // control proves it end to end in Task 2.13.8; what is asserted here is the
+  // half of it nobody remembers — **2026-11-27 closes at 13:00 ET**, so a window
+  // containing it must not draw an empty 13:00–16:00 band and call it missing
+  // data.
+  const walked = lastMarketSessions(5, toMarketDate("2026-11-30"));
+  const first = walked[0];
+  const last = walked.at(-1);
+  if (first === undefined || last === undefined) {
+    throw new Error("the calendar answered no sessions for the holiday week");
+  }
+  const requested = toTimeRange(first.open, last.close);
+  const subject: ChartSubject = {
+    requested,
+    covered: requested,
+    timeframe: "1m",
+    bars: [],
+  };
+
+  it("gives the half day 210 slots and not 390", () => {
+    const time = timeFrame(PLOT.width, DENSITY, subject);
+    const sessions = time.axis?.sessions ?? [];
+
+    expect(sessions.map((session) => session.date)).toEqual([
+      "2026-11-23",
+      "2026-11-24",
+      "2026-11-25",
+      "2026-11-27",
+      "2026-11-30",
+    ]);
+
+    const half = sessions.find((session) => session.date === "2026-11-27");
+    expect(half?.slots).toBe(210);
+    expect(time.axis?.slots).toBe(390 * 4 + 210);
+  });
+
+  it("draws no empty afternoon band, because the axis has no slot for one", () => {
+    // The assertion that actually rules the band out: 14:00 ET on the half day is
+    // a real instant inside the requested window and it has **no position** on
+    // this axis — it is a boundary, like a night or a weekend. A continuous time
+    // axis would have given it 180 slots of empty plot and every state test would
+    // still have passed.
+    const time = timeFrame(PLOT.width, DENSITY, subject);
+    const axis = time.axis;
+    if (axis === null) throw new Error("no axis for the holiday week");
+
+    const afternoon = new Date("2026-11-27T19:00:00Z"); // 14:00 ET
+    expect(positionOfInstant(axis, afternoon).kind).toBe("boundary");
+
+    // And the seam after it sits where the next session starts, which is the slot
+    // immediately after the half day's last minute — no gap.
+    const half = axis.sessions.find((session) => session.date === "2026-11-27");
+    const monday = axis.sessions.find(
+      (session) => session.date === "2026-11-30",
+    );
+    expect(monday?.firstSlot).toBe((half?.firstSlot ?? 0) + 210);
+  });
+
+  it("labels the holiday week's sessions without inventing a date for the closure", () => {
+    // Thanksgiving is not in the axis at all, so it cannot be labelled — which is
+    // the session-ordinal axis being right rather than a filter being applied.
+    const time = timeFrame(PLOT.width, DENSITY, subject);
+    const dates = time.ticks
+      .filter((tick) => tick.kind === "session")
+      .map((tick) => tick.label);
+
+    expect(dates).not.toContain("Nov 26");
+    expect(dates).toContain("Nov 27");
+  });
+});
+
+describe("the volume columns, at both ends of the density range", () => {
+  it("leaves a one-pixel gap where a column is wide enough to have one", () => {
+    // Regime one, and **the gap is measured against the pitch the stems are drawn
+    // at** rather than against a bar's share of the plot. `full` is 30 minute bars
+    // on an 867 px plot: the pitch is 867/29 and a column of pitch − 1 leaves
+    // exactly 1 px. Dividing by 30 instead leaves **2.0 px**, which is what the
+    // first version of this did — and 1.22 px at 3M's 63 bars — against §10.2's
+    // stated 1 px.
+    const subject = subjectOf("full");
+    const time = timeFrame(PLOT.width, DENSITY, subject);
+    const wide = volumeFrame(time, VOLUME_HEIGHT, subject.bars);
+    const columns = stems(wide.columns ?? "");
+
+    expect(wide.stems).toBe(30);
+
+    const pitch = (columns[1]?.x ?? 0) - (columns[0]?.x ?? 0);
+    expect(pitch - wide.columnWidth).toBeCloseTo(1, 1);
+  });
+
+  it("spends the whole slot on the column once there is no room for a gap", () => {
+    // Regime two, and the threshold is the device rather than a taste: below 2 px
+    // there is no room for a 1 px gap *and* a 1 px column, and the column wins —
+    // a column that is not drawn says nothing, where a missing gap only makes
+    // neighbours touch.
+    const subject = subjectOf("full");
+    const narrow = volumeFrame(
+      timeFrame(45, DENSITY, subject),
+      VOLUME_HEIGHT,
+      subject.bars,
+    );
+
+    // 45 px over 29 gaps is 1.552 px of pitch — inside the 1-2 px band, so the
+    // column takes the whole pitch and there is no gap to leave.
+    expect(narrow.columnWidth).toBeCloseTo(45 / 29, 5);
+    expect(narrow.stems).toBe(30);
+  });
+
+  it("draws one stem per pixel rather than one per bar below a pixel a bar", () => {
+    // Regime three, on the recorded body whose density this product opens at:
+    // 1,950 real minute bars at 0.372 px a bar. One stem per bar would be a 158 kB
+    // path attribute at 1M; this is bounded by the plot's width instead.
+    const subject = subjectOf("dense");
+    const volume = volumeFrame(
+      timeFrame(726, DENSITY, subject),
+      VOLUME_HEIGHT,
+      subject.bars,
+    );
+
+    expect(subject.bars.length).toBe(1950);
+    expect(volume.columnWidth).toBe(1);
+    expect(volume.stems).toBeLessThanOrEqual(726);
+    expect(volume.stems).toBeGreaterThan(600);
+  });
+
+  it("draws one element at every density, which is what §1's constraint is about", () => {
+    // `CHARTING.md` §1 is a count: one element per bar at the cap is 9,790 plot
+    // elements and main-thread tasks of 137-254 ms. So the assertion that matters
+    // is not how many stems there are but that they are all in **one** path, at
+    // both ends of a 78x range in bar count.
+    const sparse = subjectOf("full");
+    const dense = subjectOf("dense");
+
+    const one = volumeFrame(
+      timeFrame(726, DENSITY, sparse),
+      VOLUME_HEIGHT,
+      sparse.bars,
+    );
+    const many = volumeFrame(
+      timeFrame(726, DENSITY, dense),
+      VOLUME_HEIGHT,
+      dense.bars,
+    );
+
+    // One string, whatever the bar count — the element count does not move with
+    // the data, which is the whole property.
+    expect(typeof one.columns).toBe("string");
+    expect(typeof many.columns).toBe("string");
+
+    // And the string is bounded by the plot rather than by the series: 1,950 bars
+    // produce at most 726 stems, so the attribute cannot grow past roughly the
+    // 16.8 kB §10.3 measured however wide the window gets.
+    expect(many.stems).toBeLessThan(dense.bars.length / 2);
+    expect((many.columns ?? "").length).toBeLessThan(16_800);
+  });
+
+  it("keeps every pixel column's height at the maximum of the bars falling in it", () => {
+    // **The property the reduction rests on** (§10.2), and the reason it is a
+    // property rather than a stem count: a reduction that dropped the wrong bar
+    // would produce a plausible chart, not a broken one.
+    //
+    // Asserted as two halves that together mean "the maximum", rather than by
+    // recomputing the reduction — which would be the test agreeing with the code:
+    //
+    //   (a) every bar's pixel column has a stem, and no bar in it is taller than
+    //       that stem — SVG's y grows downwards, so taller is a smaller y; and
+    //   (b) every stem's top is the top of some bar in its own column, rather
+    //       than a number of its own.
+    const subject = subjectOf("dense");
+    const time = timeFrame(726, DENSITY, subject);
+    const volume = volumeFrame(time, VOLUME_HEIGHT, subject.bars);
+    const drawn = stems(volume.columns ?? "");
+
+    // Each bar's own x comes from the price plot — the same scale, which is the
+    // point — and its own top from volume's domain.
+    const y = linearScale(volumeDomain(subject.bars), [VOLUME_HEIGHT, 0]);
+    const tops = new Map<number, number[]>();
+
+    for (const reading of priceFrame(time, PLOT.height, subject.bars)
+      .readings) {
+      // The same column rule, from the price plot's own x: the pixel it falls
+      // into, and the last slot sits at the width so it belongs to the last
+      // column rather than to one past it.
+      const centre = Math.min(Math.floor(reading.x), Math.ceil(726) - 1) + 0.5;
+      const top = Math.round(scaleValue(y, reading.bar.volume) * 10) / 10;
+      tops.set(centre, [...(tops.get(centre) ?? []), top]);
+    }
+
+    const stemAt = new Map(drawn.map((stem) => [stem.x, stem.top]));
+    expect(stemAt.size).toBe(drawn.length);
+    expect(tops.size).toBe(drawn.length);
+
+    for (const [centre, barTops] of tops) {
+      const top = stemAt.get(centre);
+      expect(top, `column ${String(centre)}`).toBeDefined();
+      // (a) nothing in this column reaches above the stem
+      expect(top ?? Infinity).toBeLessThanOrEqual(Math.min(...barTops));
+      // (b) and the stem is one of the bars rather than an invention
+      expect(barTops).toContain(top);
+    }
+  });
+
+  it("grows every column from a true zero at the plot's own baseline", () => {
+    const subject = subjectOf("full");
+    const volume = volumeFrame(
+      timeFrame(PLOT.width, DENSITY, subject),
+      VOLUME_HEIGHT,
+      subject.bars,
+    );
+
+    // A bar chart whose baseline is not zero misstates every ratio a reader takes
+    // off it, and volume's zero is the plot's own bottom rule.
+    for (const stem of stems(volume.columns ?? "")) {
+      expect(stem.baseline).toBe(VOLUME_HEIGHT);
+      expect(stem.top).toBeGreaterThanOrEqual(0);
+      expect(stem.top).toBeLessThanOrEqual(VOLUME_HEIGHT);
+    }
+  });
+
+  it("touches the ceiling with the window's peak, which is what the proportion was sized for", () => {
+    const subject = subjectOf("full");
+    const volume = volumeFrame(
+      timeFrame(PLOT.width, DENSITY, subject),
+      VOLUME_HEIGHT,
+      subject.bars,
+    );
+
+    // Unpadded: §9.2 took 88 px against "a window whose peak is 3.8x its typical
+    // bar draws that bar at 23 px", and that is only true if the top of the domain
+    // is the peak.
+    expect(Math.min(...stems(volume.columns ?? "").map((s) => s.top))).toBe(0);
+    expect(volume.peak).toMatch(/^\d+(\.\d+)?[KMB]?$/);
+  });
+
+  it("draws nothing at all for an answer with no bars in it", () => {
+    const view = barSeriesFixtureView("empty");
+    if (view.state !== "empty")
+      throw new Error("the empty fixture is not empty");
+
+    const subject: ChartSubject = {
+      requested: view.series.coverage.requested,
+      covered: view.series.coverage.covered,
+      timeframe: view.series.timeframe,
+      bars: view.series.bars,
+    };
+    const volume = volumeFrame(
+      timeFrame(PLOT.width, DENSITY, subject),
+      VOLUME_HEIGHT,
+      subject.bars,
+    );
+
+    // No columns and no peak label — a peak of nothing is not zero shares traded,
+    // it is no answer. The frame around it still draws, because the window is
+    // still real.
+    expect(volume.columns).toBeNull();
+    expect(volume.peak).toBeNull();
   });
 });

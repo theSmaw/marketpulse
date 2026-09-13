@@ -4,6 +4,8 @@ import { MarketCalendarRangeError } from "./market-calendar.js";
 import { instantFromMarketTime, toMarketDate } from "./market-time.js";
 import {
   lastMarketSessions,
+  marketSessionCacheEntries,
+  MARKET_SESSION_CACHE_DATES,
   marketSessionOn,
   marketSessionsBetween,
   marketSessionStateAt,
@@ -410,5 +412,84 @@ describe("the shape of the answers", () => {
     const second = sessionOn("2026-09-04");
     expect(first.open.getTime()).toBe(second.open.getTime());
     expect(first.close.getTime()).toBe(second.close.getTime());
+  });
+});
+
+// The memo, added 2026-09-13 by Task 2.13.3.
+//
+// `marketSessionOn` is the day-by-day step every window walk is made of, and it
+// was the whole of the calendar's cost: two `instantFromMarketTime` calls, each
+// of which probes the zone twice and reads the result back. The repair remembers
+// the answer per market date, in `packages/shared` so that the frontend's two
+// calls per render and the server's cap check on every cache hit all read the
+// same memo.
+//
+// **These tests are about the key and about what escapes, not about the
+// speed-up.** A memo keyed imprecisely returns last window's answer for this
+// window's request, and the chart that results is plausible and shifted rather
+// than broken; a timing assertion in `pnpm test` measures the runner. The figures
+// are re-taken and recorded in the task file instead.
+describe("the session memo", () => {
+  it("answers for the date it was asked about, across the whole calendar", () => {
+    // The strongest available test of the key: any collapse — a memo keyed on a
+    // month, a year, a truncated string — puts one date's session under another
+    // date's key, and every one of the 1,827 answers below would have to survive
+    // it. Early closes are counted as well, because a half day and a regular day
+    // differ only in their `close`, which is the field a wrong key moves
+    // invisibly.
+    let answered = 0;
+    let earlyCloses = 0;
+
+    for (
+      let cursor = new Date("2024-01-01T00:00:00Z");
+      cursor <= new Date("2028-12-31T00:00:00Z");
+      cursor = new Date(cursor.getTime() + 86_400_000)
+    ) {
+      const date = toMarketDate(cursor.toISOString().slice(0, 10));
+      const session = marketSessionOn(date);
+      if (session === undefined) continue;
+      expect(session.date).toBe(date);
+      answered += 1;
+      if (session.isEarlyClose) earlyCloses += 1;
+    }
+
+    // 252 + 250 + 251 + 251 + 251, which case 15 asserts year by year.
+    expect(answered).toBe(1255);
+    expect(earlyCloses).toBe(11);
+  });
+
+  it("hands out its own instants, so a caller cannot move a trading day", () => {
+    // Why the memo holds epoch milliseconds rather than a `MarketSession`: a
+    // `Date` is mutable, and a shared one would let any caller anywhere move the
+    // open of a session every window, axis and coverage measurement is built
+    // from — with no error to notice.
+    const first = sessionOn("2026-09-04");
+    first.open.setUTCFullYear(1999);
+
+    const second = sessionOn("2026-09-04");
+    expect(second.open.toISOString()).toBe("2026-09-04T13:30:00.000Z");
+    expect(first.open).not.toBe(second.open);
+  });
+
+  it("is bounded by the calendar's own range rather than by a policy", () => {
+    // Bound one, in entries. Every key passes `assertWithinMarketCalendar`
+    // first, so the key space is closed at the number of days the calendar
+    // covers — which is why there is no eviction: a bound nothing can reach
+    // needs no policy, and a policy that cannot run is untested code.
+    expect(MARKET_SESSION_CACHE_DATES).toBe(1827);
+
+    // The test above walked every one of them, so this is the memo at its
+    // structural maximum rather than at some incidental size.
+    expect(marketSessionCacheEntries()).toBeLessThanOrEqual(
+      MARKET_SESSION_CACHE_DATES,
+    );
+  });
+
+  it("refuses a date outside the calendar even after the memo is warm", () => {
+    // The refusal is checked before the lookup, so a warm cache cannot turn one
+    // into an answer. Case 14 asserts the cold version of this.
+    expect(() => marketSessionOn(toMarketDate("2029-01-02"))).toThrow(
+      MarketCalendarRangeError,
+    );
   });
 });

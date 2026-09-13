@@ -134,6 +134,19 @@ Each is justified by the rows above rather than by taste.
   server's 20.6 ms on every cache hit, and it is explicitly not a `useMemo` in a
   component, which would fix one caller of three.
 
+  > **Landed 2026-09-13 by Task 2.13.3, and the precondition is met.** The walk
+  > is memoised in `packages/shared` — on a **market date** inside
+  > `marketSessionOn` rather than on a window, because
+  > `MARKET-DATA-API.md` §12.4 had already attributed the cost to constructing
+  > each session's two instants rather than to walking the days, and a per-date
+  > memo therefore pays every walker in both applications. **1Y is 0.8 ms per
+  > render instead of 17.0, and the server's cap check is 0.9 ms on a cache hit
+  > instead of 20.6.** The figures are re-taken in full in the task file and in
+  > `CHARTING.md` §16.5's dated amendment; the one qualification worth carrying
+  > here is that the **first** walk of a set of dates still costs what it always
+  > did (~9.5 ms for a year, once per process), so what the repair removed is the
+  > repetition rather than the walk.
+
 **"Max" is declined, and for three reasons rather than one.**
 
 1. **It has no honest label.** 672 sessions of `1d` and 251 of `1m` are
@@ -823,6 +836,32 @@ holds.
 per-pixel rule costs 16.8 kB and does not grow again — a **9.4× reduction that
 is also a ceiling**, because it is bounded by a plot that is never wider than
 about a thousand pixels.
+
+> **Amended 2026-09-13 by Task 2.13.3, which built it: the `Slot` column divides
+> by the wrong one of two numbers, and the byte figure is better than predicted.**
+>
+> **The gap.** The table's `slot` is `width / bars`, which is a bar's share of the
+> plot — but `scaleSlot` puts the first bar at x = 0 and the last at x = width, so
+> the **pitch** between drawn stems is `width / (bars − 1)`. Taking the column as
+> `slot − 1` therefore leaves a **2.0 px** gap at a 30-bar window and a **1.22 px**
+> one at 3M's 63 bars, against §10.2's stated 1 px. The gap is the load-bearing
+> half of that decision — it is what makes columns read as columns rather than as a
+> filled area — so the geometry measures it against the **pitch**, and the rows
+> above stand as a description of density rather than as an input. Above a few
+> hundred bars the two agree to three decimal places, which is why the 5D and 1M
+> rows are unaffected.
+>
+> **The bytes.** 726 stems come out at **10.6 kB** rather than 16.8, because a stem
+> is `M<x> <baseline>V<top>` — a vertical-line command carries one coordinate where
+> a line-to carries two. The 9.4× reduction is therefore about 15×, and the ceiling
+> property, which is the point, is unchanged.
+>
+> **And one thing the artboard could not show**: a column centred on x = 0 or on
+> x = width has **half of itself outside the plot**, so the first and last columns
+> render half-width. Invisible at 1,950 bars, two visibly narrow columns at thirty.
+> The price line has the same property and it does not show, because a line has no
+> width. Task 2.13.4 owns the judgement, and the only fix that keeps the shared
+> axis insets **both** plots.
 
 ### 10.4 And it raises a cost nothing has measured — handed to 2.13.9
 
