@@ -282,6 +282,38 @@
      session seam land on the same pixel most of the time — a store caught up to
      a previous session's close stops exactly on a session boundary. */
   --chart-coverage-edge: #74777f;
+
+  /* **The volume column** (Task 2.13.2), and it is the one mark in this block
+     with a measured contrast *floor* rather than a measured contrast *cost*.
+     The distinction is the whole reason this value is what it is.
+
+     Everything above is either chrome or a decorative fill. The directional
+     wash has no floor to fail — the geometry carries direction and the tint
+     repeats it, which is why ADR 0026's exception did not fire for it. Volume
+     columns are not decorative: they are the only thing on their plot carrying
+     the magnitude, so WCAG 1.4.11's 3:1 for *a graphical object required to
+     understand the content* applies squarely.
+
+     And it applies against **every ground a column can stand on**, which is
+     four rather than one, because the uncovered treatment and Epic 8's future
+     overlays put a fill behind the bars:
+
+       #ffffff  the panel               3.50:1
+       #f2f3f9  `--chart-uncovered`     3.16:1
+       #e6f2ec  `--price-positive-wash` 3.05:1
+       #fbeae9  `--price-negative-wash` 3.01:1
+
+     #848995 is the lowest-contrast value in this language's cool-grey family
+     that clears 3:1 on the worst of the four, and the bound is real in both
+     directions: lighter fails on the uncovered ground, darker starts to make a
+     filled area outweigh a 1.5px line. It reads at 3.50:1 where
+     `--chart-series` reads at 17.08:1 — which is what "supporting series"
+     means here, said as a number rather than as an adjective.
+
+     Achromatic in effect: `grayscale(1)` takes it to #898989 and nothing on the
+     plot changes. **Volume never encodes direction** — see `VISUAL-LANGUAGE.md`
+     for why a column has no geometry left to carry a second channel. */
+  --chart-volume: #848995;
 }
 
 /*
@@ -564,6 +596,36 @@
   --chart-height-compact: 220px;
   --chart-gutter: 56px;
   --chart-gutter-compact: 46px;
+
+  /*
+   * The volume plot's height (Task 2.13.2) — the supporting half of the pair.
+   *
+   * **A number with a reason rather than a proportion that looked right.** It
+   * was taken against the reading it has to support: `PRODUCT_SPEC.md` §11's
+   * volume anomaly and §38's demo line are both a *multiple* — "Volume 3.8×
+   * normal" — and Epic 5 draws that claim on this plot. With the domain running
+   * from zero to the window's peak, a window whose peak is 3.8× its typical bar
+   * draws that typical bar at one 3.8th of the height:
+   *
+   *     88px → 23px    the ordinary bar, and legible
+   *     70px → 18px    a quarter — the step from typical to slightly
+   *                    elevated stops being readable
+   *    140px → 37px    a half — no longer a supporting series
+   *
+   * 88:280 is 3.18:1 and 68:220 is 3.24:1, so **the compact pair keeps the
+   * ratio rather than keeping the height**, which is the only way the argument
+   * above survives a narrow region.
+   *
+   * There is deliberately **no `--chart-volume-gap`**, against this file's
+   * usual rule. The 1px gap between columns participates in arithmetic that
+   * produces a coordinate — `PriceChart.module.css` already records that
+   * coordinates come from the geometry module because a computed pixel is data
+   * rather than design — and a 1px value here with a `slot >= 2` threshold in a
+   * module is exactly the two-homes trap `CHARTING.md` §10.3 spent a task
+   * closing.
+   */
+  --chart-volume-height: 88px;
+  --chart-volume-height-compact: 68px;
 
   /*
    * The gap between the baseline and the time-axis labels, reserved at 14px

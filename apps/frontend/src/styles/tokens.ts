@@ -135,6 +135,22 @@ const TOKEN_NAMES = [
   "--chart-gutter-compact",
   "--chart-readout-height",
 
+  // **`--chart-filing-lane` was missing from this list and is added here
+  // 2026-09-13 by Task 2.13.2.** Task 2.12.4 declared it in `tokens.css` and
+  // Story 2.12's close recorded that "all sixteen `--chart-*` tokens have an
+  // application consumer" without checking that all sixteen were *declared* —
+  // which is the failure this list exists to make loud. A token reserving Epic
+  // 9's lane that disappeared from the stylesheet would have moved every tick
+  // label 14px and thrown nothing.
+  "--chart-filing-lane",
+
+  // The volume plot — Task 2.13.2. The ink carries the one measured contrast
+  // *floor* in the chart block (3:1 against four grounds, in `tokens.css`), and
+  // the heights are a ratio rather than a pair of values: 88:280 and 68:220.
+  "--chart-volume",
+  "--chart-volume-height",
+  "--chart-volume-height-compact",
+
   // Authorship — agent.css. Added 2026-09-11 with the third colour scope.
   // No JavaScript consumer yet, and here for the canary reason `--brand-ink`
   // is: `agent.css` is a fourth global stylesheet whose absence would render

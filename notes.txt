@@ -5,18 +5,18 @@ Do we need to amend, add, delete or re-order any stories in
 
 
 Like we did with other stories in @planning,
-let's split @planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/STORY.md
+let's split @planning/epic-02-security-universe-historical-data/story-13-volume-chart-and-time-window/STORY.md
 into small, self-contained tasks that we can implement sequentially to be able to comprehensively satisfy the story.
 Be sure to reference @planning/PRODUCT_SPEC.md so you understand the product that we are building. Remember that the
 stakeholders want to see as much incremental progress as possible on the UI.
 
 
 Using our Claude Design project, I want to create design artifacts (if we don't have them
-  already) for the work required in @planning/epic-02-security-universe-historical-data/story-12-price-chart/TASK-07-every-chart-state-drawn.md.
+  already) for the work required in @planning/epic-02-security-universe-historical-data/story-13-volume-chart-and-time-window/TASK-02-the-window-control-and-volume-on-the-canvas.md.
 Make sure you have consistent design language - prefer to reuse rather than reinvent.
   Once these are ready,
 
-let's implement @planning/epic-02-security-universe-historical-data/story-12-price-chart/TASK-09-measured-against-fifty-milliseconds.md
+let's implement @planning/epic-02-security-universe-historical-data/story-13-volume-chart-and-time-window/TASK-02-the-window-control-and-volume-on-the-canvas.md
 Be sure to reference @planning/PRODUCT_SPEC.md so you understand the product that we are building.
 When you are done with the task, add to that task's documentation a layman's, non-technical description of the work you
 did and how it contributed to the product we are building. Let that layman know why you made the decisions that you did.
@@ -25,7 +25,7 @@ unlocks progress towards a user-facing product.
 
 
 
-Let's implement @planning/epic-02-security-universe-historical-data/story-12-price-chart/TASK-09-verify-document-and-adr.md
+Let's implement @planning/epic-02-security-universe-historical-data/story-12-price-chart/TASK-10-deployed-verify-document-and-adr.md
 Be pragmatic about what you remeasure - I don't want this task to take hours.
 
 
@@ -34,9 +34,9 @@ required for @planning/epic-02-security-universe-historical-data/story-11-securi
 in a .md file in the same directory.
 
 Do we need to amend, add, delete or re-order any tasks in
-@planning/epic-02-security-universe-historical-data/story-12-price-chart
+@planning/epic-02-security-universe-historical-data/story-13-volume-chart-and-time-window
  based on our implementation of
-@planning/epic-02-security-universe-historical-data/story-12-price-chart/TASK-09-measured-against-fifty-milliseconds.md?
+@planning/epic-02-security-universe-historical-data/story-13-volume-chart-and-time-window/TASK-01-settle-the-windows-the-timeframes-and-the-vocabulary.md?
 
 
 

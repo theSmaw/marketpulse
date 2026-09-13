@@ -127,6 +127,66 @@
   stroke-dasharray: 2 3;
 }
 
+/*
+ * --- The volume column (Task 2.13.2) ---
+ *
+ * The bars are **one stroked path** of butt-capped stems whose `stroke-width`
+ * is the column width, at every window from 11.5px per bar to 0.089px per bar.
+ * So the specimen below is a stroke rather than a set of rects, exactly as the
+ * chart will be — a specimen drawn with a different mechanism from the thing it
+ * specifies is a second copy of the language rather than a reading of it.
+ *
+ * The width is set per specimen from the density it is showing, which is the
+ * one geometric value on this surface that is genuinely not a token: the column
+ * width is arithmetic over the plot's measured box and the bar count.
+ */
+.volume {
+  fill: none;
+  stroke: var(--chart-volume);
+  stroke-linecap: butt;
+}
+
+/*
+ * **Drawn at exactly 480 CSS pixels and not stretched**, which is the one
+ * specimen on this surface where that matters rather than being tidy. The whole
+ * subject here is a threshold measured in pixels — *does a bar have one of its
+ * own* — so a plot scaled to its container renders a 1.846px slot at 3px and
+ * shows a gap the regime it is labelled with does not have. The stroke scales
+ * with the geometry for the same reason: `non-scaling-stroke` holds the column
+ * width while the spacing moves, which is exactly the disagreement this
+ * specimen exists to rule out.
+ */
+.volumePlot {
+  display: block;
+  width: 480px;
+  max-width: 100%;
+  aspect-ratio: 480 / 97;
+  background: var(--surface-raised);
+  margin-bottom: var(--space-4);
+}
+
+.volumeSet {
+  display: grid;
+  gap: var(--space-24);
+  max-width: 56rem;
+}
+
+/* The four grounds a column can stand on, each drawn behind a real band of
+   columns. The padding is what keeps the ground visible around the mark — a
+   swatch the mark covers edge to edge is not a comparison. */
+.ground {
+  padding: var(--space-12);
+  border: var(--border-width) solid var(--rule-hairline);
+  border-radius: var(--radius);
+}
+
+.volumeBand {
+  display: block;
+  width: 480px;
+  max-width: 100%;
+  aspect-ratio: 480 / 49;
+}
+
 .washPositive {
   fill: var(--price-positive-wash);
 }
