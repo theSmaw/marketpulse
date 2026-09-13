@@ -33,6 +33,7 @@ import {
   backfillCommand,
   commonCoverage,
   planRequests,
+  resolveSessions,
   runBackfill,
   SESSIONS_PER_REQUEST,
   type BackfillDependencies,
@@ -846,5 +847,101 @@ describe("runBackfill — the attempt log (Task 2.8.7)", () => {
       outcome: "coverage-gap",
       detail: "missing 2026-03-03, 2026-03-04",
     });
+  });
+});
+
+// **The window the nightly catch-up asks for** (2026-09-13).
+//
+// This is the guard on a defect that was invisible from every direction at
+// once. `resolveSessions` used to ask for one session more than it wanted and
+// drop the newest, unconditionally — so on any run outside a trading session,
+// which is every scheduled run, it gave up a session the market had finished
+// hours earlier. The store sat **permanently one session behind**, and nothing
+// was red: the backfill reported `10 already held` and stored nothing,
+// correctly; `/diagnostics/freshness` reported `sessionsBehind: 1`, correctly;
+// and the deployed check's ceiling of two absorbed it by design.
+//
+// It reached a reader because `GET /market-data/bars` stitches a **live tail**
+// and `GET /securities` does not: DELL's chart was drawn through Friday beside
+// an identity block stating Thursday's close, 567.10 against 506.62 on one
+// screen.
+//
+// The clock is injected rather than stubbed globally, because what is under
+// test is a rule about an instant and the rule is the whole of the defect.
+describe("the sessions a run asks for when nobody names a range", () => {
+  function newest(now: string, sessions = 10) {
+    const outcome = resolveSessions(
+      { sessions, timeframe: "1d" },
+      Date.parse(now),
+    );
+    if (!("sessions" in outcome)) throw new Error(outcome.problem);
+    return {
+      newest: outcome.sessions[outcome.sessions.length - 1]?.date,
+      count: outcome.sessions.length,
+    };
+  }
+
+  it("reaches the session that closed yesterday, which is the whole defect", () => {
+    // The real run, at its real instant: 2026-09-12T11:58Z, a Saturday morning.
+    // Friday the 11th closed sixteen hours earlier and is as complete as a
+    // session ever gets. The old rule returned the 10th.
+    expect(newest("2026-09-12T11:58:00.000Z").newest).toBe("2026-09-11");
+  });
+
+  it("reaches it at the hour the scheduled catch-up actually runs", () => {
+    // 08:00 UTC, which is four in the morning in New York — the cron in
+    // `backfill.yml`. Every scheduled run is outside a session, which is why
+    // "always drop the newest" cost a session every single night rather than
+    // occasionally.
+    expect(newest("2026-09-12T08:00:00.000Z").newest).toBe("2026-09-11");
+  });
+
+  it("does not ask for a session that is still trading", () => {
+    // 13:00 ET on Wednesday the 9th, mid-session. The newest *complete* session
+    // is Tuesday's, and asking for a session in progress is what the old rule
+    // was written to prevent — it is still prevented, by the right test.
+    expect(newest("2026-09-09T17:00:00.000Z").newest).toBe("2026-09-08");
+  });
+
+  it("does not ask for a session that has only just closed", () => {
+    // 16:05 ET, five minutes after the bell. The provider withholds the most
+    // recent quarter of an hour and clamps rather than refusing, so asking here
+    // stores a **partial** session that the ledger then records as held and no
+    // later run re-fetches. `SESSION_SETTLE_MS` is what stops that.
+    expect(newest("2026-09-09T20:05:00.000Z").newest).toBe("2026-09-08");
+  });
+
+  it("asks for it once it has settled", () => {
+    // 17:00 ET, an hour after the close. Nothing is withheld and the session is
+    // whole, so the very next run takes it — the store is current the same day
+    // rather than the next.
+    expect(newest("2026-09-09T21:00:00.000Z").newest).toBe("2026-09-09");
+  });
+
+  it("returns the number of sessions asked for, ending at that one", () => {
+    const { count, newest: last } = newest("2026-09-12T08:00:00.000Z", 5);
+
+    expect(count).toBe(5);
+    expect(last).toBe("2026-09-11");
+  });
+
+  it("skips the weekend and the holiday rather than counting days", () => {
+    // Five sessions back from Monday 2026-11-30 is `11-23, 11-24, 11-25, 11-27,
+    // 11-30` — Thanksgiving on the 26th and the weekend contribute nothing.
+    // This is Story 2.13's acceptance criterion 3 asserted from the writer's
+    // side rather than the reader's.
+    const outcome = resolveSessions(
+      { sessions: 5, timeframe: "1d" },
+      Date.parse("2026-12-01T08:00:00.000Z"),
+    );
+    if (!("sessions" in outcome)) throw new Error(outcome.problem);
+
+    expect(outcome.sessions.map((session) => session.date)).toEqual([
+      "2026-11-23",
+      "2026-11-24",
+      "2026-11-25",
+      "2026-11-27",
+      "2026-11-30",
+    ]);
   });
 });

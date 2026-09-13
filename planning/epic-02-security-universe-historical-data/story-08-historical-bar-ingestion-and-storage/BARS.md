@@ -986,6 +986,14 @@ and drops the newest — and §8.12's catch-up runs at 08:00 UTC, before the ope
 So while a session is happening, it is not in the store, and that is a decision
 rather than an omission.
 
+> **Corrected 2026-09-13 by §8.19 — the mechanism described above was the
+> defect.** The intent is unchanged and correct: the walk takes complete
+> sessions only. _"Asks for `N + 1` and drops the newest"_ is how it used to
+> implement that intent, and it is wrong outside a trading session, which is
+> when every scheduled run happens. `resolveSessions` now ends its window at
+> `lastCompletedSession`, held back by a settle margin. Read §8.19 rather than
+> this paragraph for how it works.
+
 **The mechanism to store a partial session exists and behaves correctly**,
 measured at a simulated 12:00 ET on a real session:
 
@@ -1490,3 +1498,147 @@ Day and is `closed` in the checked-in calendar.
 between, so the expensive condition fired first — which is the ordinary outcome
 for a trigger written against a file nobody had a reason to open, and is worth
 noting before another repair is deferred behind one.
+
+---
+
+## 8.19 The store was permanently one session behind, and every instrument was green — found 2026-09-13
+
+**A user reported it from a screenshot**, which is the fourth time in this
+repository that a person looking at the screen found something no check could
+(`CHARTING.md` §12.6, §15.4, and the search screen's repeated sentences).
+
+### What they saw
+
+`/securities/DELL` on the deployed site, on Saturday 2026-09-13:
+
+| On screen                                        | Value                                |
+| ------------------------------------------------ | ------------------------------------ |
+| The chart's headline, over a five-session window | **567.10**, drawn through **Sep 11** |
+| The identity block's `LAST SESSION CLOSE`        | **506.62**, dated **Sep 10**         |
+
+Sixty dollars and one session apart, on one screen, with the older figure
+presented as the more authoritative of the two. It reads as a product that does
+not know what a price is.
+
+### Why the two disagreed, which is two facts rather than one
+
+1. **`GET /market-data/bars` stitches a live tail and `GET /securities` does
+   not.** The chart's series is stored bars plus a provider fetch for the recent
+   end — the response's own provenance shows it: two sources, the second
+   retrieved at request time with `barCount: 1`. The identity block's last close
+   is read from the **store** alone. So the chart was current and the store was
+   not.
+2. **The store was one session behind, permanently, by construction.**
+
+### The cause, and it is one expression
+
+```ts
+lastMarketSessions(wanted + 1, marketDateAt(new Date())).slice(0, wanted);
+```
+
+**Ask for one more session than you want and drop the newest.** The reasoning in
+the comment beside it was sound as far as it went — today's session may not have
+happened, may be in progress, and may fall inside the plan's withheld recent
+window (`ALPACA.md` §10) — and the rule answers all three by never taking the
+most recent session the calendar offers.
+
+The flaw is that _the most recent session the calendar offers_ is only today's
+session **during** a trading day. Outside one it is the session that closed
+hours ago, and dropping it gives away a complete session for nothing.
+
+**Every scheduled run happens outside a trading session.** The cron is
+`0 8 * * *` — four in the morning in New York. So the rule cost a session on
+every run, and the store could never catch up: each night it asked for a window
+ending one session before the last completed one, found it entirely held, and
+stored nothing.
+
+The 2026-09-12 run says so in its own log, and reads as a healthy run:
+
+```
+backfill  518 securities  1d  raw  2026-08-27 → 2026-09-10  (10 sessions)
+  0 fetches, 0 sessions fetched, 10 already held
+  0 bars stored, 0 corrected, 0 unchanged
+```
+
+It ran on **Saturday the 12th**, sixteen hours after Friday the 11th closed, and
+asked for a window ending on the **10th**.
+
+### Why nothing was red, which is the part worth keeping
+
+Four instruments could have caught it and each was correct:
+
+| Instrument               | What it said                            | Why that was right                                    |
+| ------------------------ | --------------------------------------- | ----------------------------------------------------- |
+| `pnpm backfill`          | `10 already held`, `0 bars stored`      | True. It held everything it asked for                 |
+| `pnpm bars:check`        | no gap                                  | True. There is no gap _inside_ the range it asked for |
+| `/diagnostics/freshness` | `sessionsBehind: 1` for both timeframes | True, and reported every single day                   |
+| `check-deployed.mjs`     | green                                   | `MAX_SESSIONS_BEHIND` is **2**                        |
+
+The ceiling of two is the one worth reading closely, because it was argued
+carefully and the argument contained the assumption that hid this:
+
+> _"The catch-up runs at 08:00 UTC daily, so in the steady state every timeframe
+> is zero or one behind — one on a weekday before the run."_
+
+**One behind was believed to be a phase, and it was a fixed point.** A tolerance
+sized for a transient absorbs a permanent offset of the same size completely and
+for ever, and nothing anywhere distinguishes the two. That is the transferable
+finding, and it is not about this number: a ceiling calibrated on "the steady
+state is N" is blind to a bug whose steady state is also N.
+
+### The repair
+
+**`resolveSessions` ends its window at the last session the market has
+completed**, using `lastCompletedSession` — which is the derivation
+`/diagnostics/freshness` was **already** using and getting right. The job that
+fills the store and the job that reports on it now mean the same thing by
+_behind_; before, the report was permanently green about a shortfall the filler
+was never going to reach.
+
+The instant is held back by `SESSION_SETTLE_MS` (30 minutes), which is this
+command's own policy rather than the vendor's constant — the seam in
+`PROVIDER.md` runs between them, and a second provider would withhold a
+different amount while the question stayed the same. Its floor is whatever the
+provider withholds; Alpaca's is a measured 15 minutes. It matters because asking
+inside the withheld window does **not** fail: `alpacaServableEnd` clamps and
+returns a _partial_ session, which the ledger then records as coverage and no
+later run re-fetches. **A session is worth asking for once it is whole.**
+
+In practice it never binds — the scheduled runs are hours from any close. It
+exists so a manual dispatch minutes after the bell does the right thing.
+
+### And the schedule gained an evening run, because the fix alone is not enough
+
+Fixing the off-by-one makes the store reach the last completed session. It does
+not make it reach it **soon**: with one run at 08:00 UTC, every weekday between
+the 20:00 UTC close and the next morning has a current chart beside a
+session-old identity block. That is the same defect on a twelve-hour cycle
+instead of a permanent one.
+
+So `backfill.yml` runs at **21:00 UTC as well** — an hour after the regular
+close, 17:00 ET in summer and 16:00 ET in winter, past the withheld window
+either way. The morning run stays: it is the catch-up for an evening run that
+failed, and it is what fills a store after a gap of days.
+
+**The residual is about an hour a day** — between a close and the evening run —
+and it is stated rather than claimed away. Closing it entirely means the
+universe's last close stops being a stored fact and starts being a live one,
+which is a multi-symbol latest-bars request per read and is Epic 3's subject
+rather than a bug fix's.
+
+### What holds it now
+
+`backfill.test.ts`'s _the sessions a run asks for when nobody names a range_ —
+seven assertions against an **injected clock**, because what is under test is a
+rule about an instant:
+
+- the real failing instant, Saturday 2026-09-12T11:58Z, reaches **Sep 11**
+- 08:00 UTC, the hour the cron actually fires, reaches Sep 11
+- mid-session does **not** take the session in progress
+- five minutes after a close does **not** take the session that just ended
+- an hour after a close **does**
+- the count is honoured, and the Thanksgiving week skips the holiday
+
+**Break-verified**: restoring `wanted + 1 … .slice(0, wanted)` takes **all seven**
+red. A guard for a defect this quiet is worth nothing unless the break was
+performed, and this is a defect that survived four green instruments.
