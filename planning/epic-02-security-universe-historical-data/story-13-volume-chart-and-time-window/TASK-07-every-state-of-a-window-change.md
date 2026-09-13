@@ -223,3 +223,60 @@ inheriting rather than finding, and both are about the states this task exists f
 
 The "no two surfaces describe one failure in the same words" count is unchanged at
 four surfaces plus the page's live regions.
+
+---
+
+## Amended 2026-09-13 by Task 2.13.4 — the volume half of every state is already rendered, and the surface count went up again
+
+### Six of this task's states already exist for the volume plot, as stories
+
+2.13.4 built `VolumeChart.stories.tsx` and `ChartAxis.stories.tsx` from recorded
+bodies collapsed through the real transition — `Wide`, `Narrow`, `Dense`,
+`Waiting`, `NoBars`, `Uncovered` and `Refused`, plus the **pair** at four of
+those. So this task's _"stories per state for the pair"_ item is largely paid,
+and what is left is the states only a **window change** can produce: stale, the
+rapid sequence, superseded, and both refusals **arriving after a held answer**.
+
+Reuse those stories rather than writing a second set. A second `NoBars` story
+built for this task would be a second rendering of one state with nothing
+comparing them — and the volume plot's `empty` is deliberately the uncovered
+treatment at coverage zero rather than a state of its own, which is a property
+two independent stories could quietly stop sharing.
+
+### The surface count is now **six**, not four
+
+The 2.13.2 amendment counted a window control, a price chart and a volume chart,
+then added two readout strips. 2.13.4 added a **sixth**: the volume plot's own
+text alternative, `volumeAlternative`, a hidden paragraph that describes the same
+window and the same shortfall the price chart's sentence describes.
+
+It is not a live region — deliberately, for the reason the price chart's is not —
+so it does not queue against the page's four polite regions. It **is** a surface
+with a sentence about an event three other surfaces also describe, which is the
+thing that went wrong three times in one afternoon on the search screen. The two
+alternatives are told apart by subject (`NVDA price chart:` / `NVDA volume
+chart:`) and by a shared coverage clause parameterised on which mark it is about —
+_the line runs_ against _the columns run_. **Check that a window change does not
+collapse that distinction**, which is the one way it could: a state whose sentence
+drops its own subject reads as the other plot's.
+
+### One state that is not one of the six, and it now has a second cause
+
+2.13.3's amendment recorded that an all-zero window draws a baseline with no
+columns while the gutter reads `0`. 2.13.4 adds the other half of that
+observation, and the pair is what a reader actually sees: **a volume plot with no
+columns beneath a price line that has some has three possible causes** — nothing
+was asked for yet (`loading`, no wash), nothing is held (`empty`, whole-plot
+wash), or nothing traded (`loaded`, no wash, a `0` in the gutter and a sentence
+saying so). The wash and the gutter are what separate them, and a window change
+can move between all three. Render them adjacent somewhere a person looks.
+
+Add to **Done when**:
+
+- The volume plot's existing state stories are **reused**, and any new story is a
+  state a window change produces rather than a second copy of one 2.13.4 drew
+- The "no two surfaces, one sentence" check counts **six** surfaces, the two text
+  alternatives included, and no window change makes either alternative drop its
+  subject
+- The three causes of a columnless volume plot are distinguishable on screen, and
+  somebody looked at them side by side

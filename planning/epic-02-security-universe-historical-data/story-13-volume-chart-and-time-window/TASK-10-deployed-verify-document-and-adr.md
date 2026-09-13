@@ -220,3 +220,79 @@ sharper than the phrase suggests, and there is a fourth worth its own paragraph:
   an ADR rather than only in a task file, with its reversal trigger stated: **the
   first caller that needs a session for a date outside the calendar's range**, at
   which point the bound stops being structural and the cache needs a policy.
+
+---
+
+## Amended 2026-09-13 by Task 2.13.4 — part of the sweep is done, `VOLUME-AND-WINDOW.md` has a Part three, and ADR 0028's shared-axis decision is now describable in one sentence
+
+### What 2.13.4 already swept, so this task checks rather than repeats
+
+Per `CLAUDE.md`'s rule that a falsification is swept the same day rather than at
+the story close — and its sharper corollary, that _"Task N is the deadline"_
+routinely covers the product decision and not the document that was wrong:
+
+- **`EPIC.md`'s status paragraph and exit-criterion paragraph** — amended. The
+  criterion is now "all but met", volume is named as drawn, and what remains is
+  the window control rather than "volume and the window control".
+- **`CLAUDE.md`'s "what a user can see today"** — a new paragraph for the volume
+  plot and the shared axis, and the "what they still cannot do" sentence
+  re-pointed at 2.13.5 and 2.13.6.
+- **`CLAUDE.md`'s gap list** — three entries added (the shared mark stylesheet,
+  the throwing `useChartAxis`, the columns' plot clip), each with a re-measure,
+  two of them with the break performed. The placeholder-count entry is corrected
+  from six to five **and** gained the finding that a workshop fixture is a third
+  copy nothing greps.
+- **`CHARTING.md` §17.5 item 4** — carries a dated amendment: discharged, with
+  the correction that volume's baseline is its axis rule and therefore runs the
+  full frame rather than stopping at the coverage edge.
+
+What remains on the sweep bullet is unchanged: whatever 2.13.5 to 2.13.9
+falsify, and this story's own close.
+
+### `VOLUME-AND-WINDOW.md` has a Part three
+
+The Work bullet says _"finish `VOLUME-AND-WINDOW.md`"_ as though it were one act
+at the end. It is now three parts — the decisions (2.13.1), the instrument
+(2.13.2), and **the rendering** (2.13.4, §§18–21), which records what changed when
+the design met a real page: four corrections to Part two and the measurements off
+the running plots. **Continue that shape rather than rewriting it.** §21 already
+carries the "what Part three hands on" list in the form §17.5 uses, which is the
+form this task's closing list should extend.
+
+### ADR 0028's third decision, sharpened
+
+The 2.13.3 amendment describes the shared axis as _"a type, not a discipline"_.
+That is right and incomplete now it is built: it is a type **and a single call
+site**, held by three things together, and the ADR should say all three because
+each is separately undoable —
+
+1. `timeFrame` is the only function in the chart layer that takes a window;
+   `priceFrame` and `volumeFrame` take one of its results.
+2. `chartFrame`, the composition that took a whole plot box and could therefore
+   build an axis out of one plot's height, is **deleted**.
+3. `useChartAxis` **throws** outside a provider, so a plot cannot quietly fall
+   back to building its own.
+
+And the consequence Epics 5, 8, 9 and 11 inherit is a sentence rather than a
+principle: **a second plot is handed the frame, never the window, and it draws at
+the frame's width rather than at its own measurement.** The last clause is the
+one that is not obvious and is the one a reader would drop — two equal-width
+elements measured a frame apart are two different numbers for one render.
+
+### One thing for the deployed verification specifically
+
+The deployed store answers the default window **in full**, so it is the one place
+the volume plot's coverage treatment is not under observation — and it is also the
+one place the **gapped** column regime is unlikely to appear, because a full five
+sessions at `1m` is 1,950 bars and firmly in the silhouette. `VOLUME-AND-WINDOW.md`
+§19.2's accepted half-width end columns are therefore best re-checked on a
+deployed **3M** window, which the control makes reachable. Say which window the
+screenshot is of.
+
+Add to **Done when**:
+
+- The sweep bullet's list is checked against what 2.13.4 already amended rather
+  than re-applied
+- ADR 0028 states the shared axis as three separately-undoable mechanisms and one
+  inherited sentence, not as a property
+- The four tests' screenshots say **which window** they are of

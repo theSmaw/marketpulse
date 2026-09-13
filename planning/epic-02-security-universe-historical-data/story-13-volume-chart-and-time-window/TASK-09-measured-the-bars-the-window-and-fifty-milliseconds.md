@@ -217,3 +217,60 @@ Amend **Done when** — the first item is replaced rather than added to:
   walk lands in the same frame as the universe table's task**
 - The volume silhouette's measured 10.6 kB is checked against the browser's parse
   and paint, not only re-counted
+
+---
+
+## Amended 2026-09-13 by Task 2.13.4 — candidate 1 is half-discharged, and a **fifth** candidate arrived with the shared axis
+
+### Candidate 1's shape guard exists and is break-verified; its wall-clock half does not
+
+This task's Work bullet _"add no wall-clock assertion; what goes in is a shape
+guard … break-verified by actually drawing one element per bar and watching it go
+red"_ is **done for volume**. `VolumeChart.test.tsx`'s _draws no element per bar,
+at sixty-five times the bars_ asserts identical element counts at 30 and 1,950
+bars with the path strings proved to differ, and the break was performed: one
+`<rect>` per bar takes it red at **1,951 against 31**.
+
+So candidate 1 is now the same shape as the price line's — a property held
+mechanically, with the **timings** still owed here and still only takeable in a
+browser. Do not re-derive the guard; measure what it stands in for.
+
+### The fifth candidate: **a resize tick now re-renders both plots, through a provider**
+
+This is new with 2.13.4 and none of the other four candidates would find it.
+
+The shared axis is a context. `ChartAxis` holds the measurement state, and every
+`useChartAxis()` consumer re-renders when it changes — which is **both** frame
+owners today and, after 2.13.5, both frame owners **and** two reading overlays.
+Before 2.13.4 a resize tick rebuilt one frame; it now rebuilds two, one of which
+walks the bars again to build a silhouette.
+
+That lands squarely on this task's existing _"whether a resize tick is now free"_
+bullet from the 2.13.3 amendment, which was written about the calendar memo. It is
+now two questions with one method: the memo made the **walk** cheap, and the
+provider made the **fan-out** wider. Time a resize storm at 1Y and at the default
+window, and attribute between them.
+
+Two things that bound it before anybody panics, and both should be stated with the
+figure rather than instead of it: `ChartAxis` renders `children` through
+unchanged, so `SecurityExplorer` and the 518-row table are **not** in the fan-out;
+and both plots keep an equality guard, so a resize that does not change a box sets
+no state.
+
+### And the thing that must still be zero
+
+`PriceChart.test.tsx`'s zero-recomputation guard was **re-pointed at `timeFrame`
+and `priceFrame`** by 2.13.4 and does **not** yet count `volumeFrame` or render
+the pair — 2.13.5 owes both. This task's _"confirm it still is, with two plots on
+the frame"_ bullet is therefore a real check rather than a formality: confirm the
+instrument counts all three builders and is pointed at a rendered pair, because a
+guard aimed at a component that is not on screen reports zero for the same reason
+a counter wired to nothing does.
+
+Add to **Done when**:
+
+- A resize storm is timed with the pair on screen, at the default window and at
+  1Y, and the cost is attributed between the calendar walk and the provider's
+  fan-out
+- The zero-recomputation guard is confirmed to count `timeFrame`, `priceFrame`
+  **and** `volumeFrame` against a rendered pair before it is trusted
