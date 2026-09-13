@@ -170,3 +170,71 @@ export function seriesWindowFor(sessions: number): SeriesWindow {
 export function windowForSessions(sessions: number): TimeWindow | undefined {
   return TIME_WINDOWS.find((window) => window.sessions === sessions);
 }
+
+/**
+ * A session count in words, or `null` when the number is not a count.
+ *
+ * **One spelling, three readers** (Task 2.13.7): the control's readout beside
+ * the five cells, the rail that names which window is on screen when a newer
+ * one has not answered, and whatever Epic 11's `setTimeWindow` reports back.
+ * Two of those already existed and said `21 sessions` in two places; the third
+ * is what turned a duplication into a defect waiting to happen, because a rail
+ * that said `1M` while the readout said `21 sessions` would be two vocabularies
+ * for one window on one screen.
+ *
+ * `null` rather than a sentence, so the caller says what *it* wants to say
+ * about a count that is not one — the control says the count is not a session
+ * count, and the rail names no number at all. A shared fallback string would be
+ * the two surfaces sharing a sentence, which is the defect
+ * `SEARCH-AND-SELECTION.md` paid for three times in one afternoon.
+ *
+ * The test is the same one `use-time-window.ts` applies to the address: a whole
+ * number above zero. `NaN`, `0`, `-5` and `3.5` are all real values there and
+ * none of them is a count of sessions.
+ */
+export function describeSessionCount(sessions: number): string | null {
+  if (!Number.isInteger(sessions) || sessions <= 0) return null;
+
+  return `${sessions.toLocaleString("en-US")} ${sessions === 1 ? "session" : "sessions"}`;
+}
+
+/**
+ * A window named as a noun phrase, for a sentence that has to say **which
+ * window is on screen** (Task 2.13.7).
+ *
+ * `the 21-session window`, never `1M`. Three reasons, and the first is the one
+ * that decides it: the count is the fact and the label is the approximation —
+ * §4(e) — so a sentence that has to be true about the picture says the number
+ * the axis is actually divided into. The second is that a window an address
+ * named and the control does not offer has **no** label, and a sentence built
+ * around one would have to invent it. The third is that the rail sits a few
+ * centimetres from a readout already saying `21 SESSIONS`, and two vocabularies
+ * for one window on one screen is a reader's problem rather than a writer's.
+ *
+ * **The absolute form gets no number**, deliberately. Its two instants are a
+ * range rather than a count, the panel states that range in full beneath the
+ * chart, and a phrase like *the Sep 3 – Sep 8 window* inside a sentence about a
+ * different window is two ranges in one line with nothing to tell them apart.
+ * *The window asked for* is what is left, and it is true.
+ */
+export function windowPhrase(window: SeriesWindow): string {
+  if (window.form === "absolute") return UNNAMEABLE_WINDOW;
+  if (describeSessionCount(window.sessions) === null) return UNNAMEABLE_WINDOW;
+
+  // The **singular** noun, always: `the 21-session window`, not
+  // `the 21-sessions window`. An attributive compound does not take a plural in
+  // English, which is why this is built from the number rather than from the
+  // sentence above it — a phrase assembled by editing that string would read
+  // correctly at one and wrongly at every other count.
+  return `the ${window.sessions.toLocaleString("en-US")}-session window`;
+}
+
+/**
+ * What a window is called when it cannot be called a count.
+ *
+ * Named rather than repeated, because the two branches above reach it for
+ * different reasons — an absolute range, and a count that is not one — and a
+ * reader comparing them should be able to see that the answer is deliberately
+ * the same rather than coincidentally.
+ */
+const UNNAMEABLE_WINDOW = "the window asked for";

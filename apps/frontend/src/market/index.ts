@@ -135,9 +135,11 @@ export {
   MAX_MINUTE_SESSIONS,
   SESSIONS_PARAM,
   TIME_WINDOWS,
+  describeSessionCount,
   seriesWindowFor,
   timeframeForSessions,
   windowForSessions,
+  windowPhrase,
 } from "./time-window.js";
 export type { TimeWindow } from "./time-window.js";
 // How a volume is spelled, written and spoken (Task 2.13.3). The axis and any
@@ -175,6 +177,19 @@ export type {
   SecurityMatch,
   SecurityMatches,
 } from "./security-match.js";
+// What is on screen as opposed to what came back (Task 2.13.7). The transitions
+// are exported for the fixture module, which collapses a recorded body through
+// the **real** one rather than hand-building a state a story could not reach.
+export {
+  barSeriesScreen,
+  toBarSeriesState,
+  toRequestedBarSeriesState,
+} from "./held-series.js";
+export type {
+  BarSeriesScreen,
+  BarSeriesState,
+  HeldSeries,
+} from "./held-series.js";
 export { useBarSeries } from "./use-bar-series.js";
 export type { BarSeriesSource } from "./use-bar-series.js";
 

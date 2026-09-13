@@ -2,8 +2,10 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Fragment } from "react";
 
 import {
-  barSeriesFixtureView,
+  barSeriesFixtureScreen,
+  barSeriesViewScreen,
   staleBarSeriesFixtureView,
+  windowChangeFixtureScreen,
 } from "../../fixtures/bar-series.js";
 import gridStyles from "../stories.module.css";
 import { BarSeriesPanel } from "./BarSeriesPanel.js";
@@ -20,7 +22,7 @@ import { BarSeriesPanel } from "./BarSeriesPanel.js";
 // is not this service. Producing six deliberate breakages to review six states
 // is how a reviewer stops reviewing them.
 //
-// So every story below is built by `barSeriesFixtureView`, from a body
+// So every story below is built by `barSeriesFixtureScreen`, from a body
 // **recorded off the real endpoint** and collapsed through the **real**
 // `toBarSeriesView`. Nothing here is a hand-written state, and that is a rule
 // rather than a preference: a hand-built `partial` whose `covered` disagrees
@@ -56,7 +58,7 @@ const meta = {
   component: BarSeriesPanel,
   parameters: { layout: "padded" },
   args: {
-    view: barSeriesFixtureView("partial"),
+    screen: barSeriesFixtureScreen("partial"),
     symbol: "NVDA",
     defaulted: false,
     onRetry: () => undefined,
@@ -76,14 +78,14 @@ type Story = StoryObj<typeof meta>;
  * an answer.
  */
 export const Partial: Story = {
-  args: { view: barSeriesFixtureView("partial") },
+  args: { screen: barSeriesFixtureScreen("partial") },
 };
 
 /** Every bar of the window asked for. The coverage line says so rather than
  * saying nothing — silence would make *"we hold all of it"* and *"nobody
  * checked"* look identical. */
 export const Complete: Story = {
-  args: { view: barSeriesFixtureView("full") },
+  args: { screen: barSeriesFixtureScreen("full") },
 };
 
 /**
@@ -97,19 +99,19 @@ export const Complete: Story = {
  * so this row currently shows one label and will show two without a change here.
  */
 export const Stitched: Story = {
-  args: { view: barSeriesFixtureView("stitched") },
+  args: { screen: barSeriesFixtureScreen("stitched") },
 };
 
 /** A 200 with no bars in it. The likeliest cause is the ordinary one and the
  * copy says so, because "no data" leaves a reader choosing between *this stock
  * does not exist* and *this product is broken*. */
 export const Empty: Story = {
-  args: { view: barSeriesFixtureView("empty") },
+  args: { screen: barSeriesFixtureScreen("empty") },
 };
 
 /** Before the first answer. */
 export const Loading: Story = {
-  args: { view: { state: "loading" } },
+  args: { screen: barSeriesViewScreen({ state: "loading" }) },
 };
 
 /**
@@ -121,20 +123,20 @@ export const Loading: Story = {
  * because a refusal is not a failure the reader is being told about.
  */
 export const RefusedByTheCap: Story = {
-  args: { view: barSeriesFixtureView("refusedCap") },
+  args: { screen: barSeriesFixtureScreen("refusedCap") },
 };
 
 /** A window outside the checked-in trading calendar. The second refusal, here
  * so a reviewer can see that two very different causes produce one calm shape. */
 export const RefusedByTheCalendar: Story = {
-  args: { view: barSeriesFixtureView("refusedCalendar") },
+  args: { screen: barSeriesFixtureScreen("refusedCalendar") },
 };
 
 /** A symbol the universe does not hold — a **refusal**, not a failure, which is
  * the finding Task 2.10.4 recorded. It names the symbol the reader typed. */
 export const RefusedUnknownSymbol: Story = {
   args: {
-    view: barSeriesFixtureView("refusedUnknownSymbol"),
+    screen: barSeriesFixtureScreen("refusedUnknownSymbol"),
     symbol: "ZZZZ",
   },
 };
@@ -142,7 +144,7 @@ export const RefusedUnknownSymbol: Story = {
 /** The store unreachable — the one failure this layer treats as retryable, and
  * therefore the one that carries a control. */
 export const FailedAndRetryable: Story = {
-  args: { view: barSeriesFixtureView("unavailable") },
+  args: { screen: barSeriesFixtureScreen("unavailable") },
 };
 
 /** The same control, mid-retry. The failure's sentence **stays on screen**
@@ -150,14 +152,13 @@ export const FailedAndRetryable: Story = {
  * twice. */
 export const Retrying: Story = {
   args: {
-    view: {
-      ...barSeriesFixtureView("unavailable"),
+    screen: barSeriesViewScreen({
       state: "failed",
       failure: "answered-badly",
       requestId: "00000000-0000-4000-8000-000000000000",
       retryable: true,
       retrying: true,
-    },
+    }),
   },
 };
 
@@ -165,7 +166,7 @@ export const Retrying: Story = {
  * It looks exactly like any other unreadable answer, deliberately: the
  * diagnosis differs and the reader's options do not. */
 export const FailedIncoherent: Story = {
-  args: { view: barSeriesFixtureView("incoherent") },
+  args: { screen: barSeriesFixtureScreen("incoherent") },
 };
 
 /**
@@ -183,7 +184,7 @@ export const FailedIncoherent: Story = {
  * colour, and the whole thing survives greyscale.
  */
 export const Stale: Story = {
-  args: { view: staleBarSeriesFixtureView("partial") },
+  args: { screen: barSeriesViewScreen(staleBarSeriesFixtureView("partial")) },
 };
 
 /**
@@ -200,13 +201,13 @@ export const Stale: Story = {
  * body because it qualifies the security rather than this answer.
  */
 export const Untracked: Story = {
-  args: { view: barSeriesFixtureView("untracked"), symbol: "AMD" },
+  args: { screen: barSeriesFixtureScreen("untracked"), symbol: "AMD" },
 };
 
 /** The bare `/securities`, where nobody named a security. The panel says search
  * is a story away rather than presenting a default as a choice. */
 export const DefaultedSymbol: Story = {
-  args: { view: barSeriesFixtureView("partial"), defaulted: true },
+  args: { screen: barSeriesFixtureScreen("partial"), defaulted: true },
 };
 
 /**
@@ -228,60 +229,60 @@ export const AllPermutations: Story = {
     <div className={gridStyles.grid}>
       {(
         [
-          ["Complete", barSeriesFixtureView("full"), "NVDA", false],
-          ["Partial", barSeriesFixtureView("partial"), "NVDA", false],
+          ["Complete", barSeriesFixtureScreen("full"), "NVDA", false],
+          ["Partial", barSeriesFixtureScreen("partial"), "NVDA", false],
           [
             "Stitched — two sources",
-            barSeriesFixtureView("stitched"),
+            barSeriesFixtureScreen("stitched"),
             "NVDA",
             false,
           ],
-          ["Empty", barSeriesFixtureView("empty"), "NVDA", false],
-          ["Loading", { state: "loading" } as const, "NVDA", false],
+          ["Empty", barSeriesFixtureScreen("empty"), "NVDA", false],
+          ["Loading", barSeriesViewScreen({ state: "loading" }), "NVDA", false],
           [
             "Refused — the cap",
-            barSeriesFixtureView("refusedCap"),
+            barSeriesFixtureScreen("refusedCap"),
             "NVDA",
             false,
           ],
           [
             "Refused — the calendar",
-            barSeriesFixtureView("refusedCalendar"),
+            barSeriesFixtureScreen("refusedCalendar"),
             "NVDA",
             false,
           ],
           [
             "Refused — unknown symbol",
-            barSeriesFixtureView("refusedUnknownSymbol"),
+            barSeriesFixtureScreen("refusedUnknownSymbol"),
             "ZZZZ",
             false,
           ],
           [
             "Failed — retryable",
-            barSeriesFixtureView("unavailable"),
+            barSeriesFixtureScreen("unavailable"),
             "NVDA",
             false,
           ],
           [
             "Failed — incoherent",
-            barSeriesFixtureView("incoherent"),
+            barSeriesFixtureScreen("incoherent"),
             "NVDA",
             false,
           ],
           [
             "Stale — a newer answer in flight",
-            staleBarSeriesFixtureView("partial"),
+            barSeriesViewScreen(staleBarSeriesFixtureView("partial")),
             "NVDA",
             false,
           ],
-          ["Untracked", barSeriesFixtureView("untracked"), "AMD", false],
-          ["Defaulted symbol", barSeriesFixtureView("partial"), "NVDA", true],
+          ["Untracked", barSeriesFixtureScreen("untracked"), "AMD", false],
+          ["Defaulted symbol", barSeriesFixtureScreen("partial"), "NVDA", true],
         ] as const
-      ).map(([label, view, symbol, defaulted]) => (
+      ).map(([label, screen, symbol, defaulted]) => (
         <Fragment key={label}>
           <p className={gridStyles.label}>{label}</p>
           <BarSeriesPanel
-            view={view}
+            screen={screen}
             symbol={symbol}
             defaulted={defaulted}
             onRetry={() => undefined}
@@ -290,4 +291,110 @@ export const AllPermutations: Story = {
       ))}
     </div>
   ),
+};
+
+/**
+ * **A window change, still in flight** (Task 2.13.7) — and the state this panel
+ * could not express before it.
+ *
+ * The reader has pressed `1M`. The control above has already moved, because it
+ * follows the address rather than the request; the charts and every figure below
+ * are still five sessions, because that is the last thing anybody actually
+ * answered. The rail is the only thing that changed, and it names **both**
+ * windows.
+ *
+ * Review it against `Stale` above, which occupies the same position and says a
+ * different thing: that one is *a newer answer to this question*, this one is
+ * *an answer to a different question*. The two never appear together.
+ */
+export const WindowChanging: Story = {
+  args: {
+    screen: windowChangeFixtureScreen({
+      held: "partial",
+      heldSessions: 5,
+      askedSessions: 21,
+    }),
+  },
+};
+
+/**
+ * The new window was **refused**, and the previous one is still drawn.
+ *
+ * `VOLUME-AND-WINDOW.md` §6.3's tension, resolved. `refused` draws no frame —
+ * it carries no window a frame could be built from — while acceptance criterion
+ * 4 asks that a failed window change leave the previous data visible. Both are
+ * true here, and the only thing that makes them readable together is the label
+ * saying which window the picture is of.
+ *
+ * The server's sentence is verbatim and there is **no** `Try again`: a refusal
+ * is a fact about the request rather than about the moment. Reachable in the
+ * product by typing `?sessions=1000`, with no stubbing at all.
+ */
+export const WindowRefused: Story = {
+  args: {
+    screen: windowChangeFixtureScreen({
+      held: "partial",
+      heldSessions: 5,
+      askedSessions: 1000,
+      asked: "refusedCalendar",
+    }),
+  },
+};
+
+/**
+ * The new window **failed**, and the screen's one `Try again` is on the rail.
+ *
+ * It is there rather than in the body because the body is a correct answer to a
+ * window that did not fail — a retry sitting under those figures would offer to
+ * re-read something that worked. Count the buttons: there is exactly one.
+ */
+export const WindowFailed: Story = {
+  args: {
+    screen: windowChangeFixtureScreen({
+      held: "partial",
+      heldSessions: 5,
+      askedSessions: 21,
+      asked: "unavailable",
+    }),
+  },
+};
+
+/**
+ * A window the address named as something that is not a count at all —
+ * `?sessions=abc`, which reaches the server as `NaN`.
+ *
+ * **No number is invented.** The rail says *the window asked for*, the control's
+ * readout says *not a session count*, and the sentence a reader acts on is the
+ * server's, which names exactly what was asked. Three surfaces, three different
+ * sentences about one event.
+ */
+export const WindowNotACount: Story = {
+  args: {
+    screen: windowChangeFixtureScreen({
+      held: "partial",
+      heldSessions: 5,
+      askedSessions: Number.NaN,
+      asked: "refusedCalendar",
+    }),
+  },
+};
+
+/**
+ * The **security** changed, and the held answer was dropped.
+ *
+ * The fence, as a story, because it is the one case that must come out
+ * empty-handed: a held NVDA series under an AMD heading is plausible and wrong
+ * rather than visibly broken. There is no rail here and no chart — just
+ * `loading`, exactly as before this task.
+ */
+export const SecurityChanging: Story = {
+  args: {
+    symbol: "AMD",
+    screen: windowChangeFixtureScreen({
+      held: "partial",
+      heldSessions: 5,
+      askedSessions: 5,
+      askedSymbol: "AMD",
+    }),
+  },
 };

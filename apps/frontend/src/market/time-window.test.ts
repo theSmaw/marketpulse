@@ -7,9 +7,11 @@ import {
   MAX_MINUTE_SESSIONS,
   SESSIONS_PARAM,
   TIME_WINDOWS,
+  describeSessionCount,
   seriesWindowFor,
   timeframeForSessions,
   windowForSessions,
+  windowPhrase,
 } from "./time-window.js";
 
 /**
@@ -144,5 +146,65 @@ describe("the window on the wire", () => {
 
     expect(new URLSearchParams(query).get(SESSIONS_PARAM)).toBe("21");
     expect(new URLSearchParams(query).get("timeframe")).toBe("1m");
+  });
+});
+
+// --- Task 2.13.7: one spelling of a window, for three surfaces ---
+
+describe("describeSessionCount", () => {
+  it("spells a count the way the control's readout does", () => {
+    expect(describeSessionCount(1)).toBe("1 session");
+    expect(describeSessionCount(5)).toBe("5 sessions");
+    expect(describeSessionCount(252)).toBe("252 sessions");
+  });
+
+  it("groups a count a reader would otherwise have to count digits in", () => {
+    // Reachable from the address — `?sessions=1000` is the calendar refusal —
+    // and the readout beside five empty cells is the only thing on screen
+    // saying what was asked for.
+    expect(describeSessionCount(1000)).toBe("1,000 sessions");
+  });
+
+  it("answers null for every number that is not a count of sessions", () => {
+    // Each of these is a real value the address admits, and none of them is a
+    // count. `null` rather than a sentence, so each surface says its own thing
+    // about it — a shared fallback would be two surfaces sharing a sentence.
+    for (const notACount of [0, -5, 3.5, Number.NaN, Infinity]) {
+      expect(describeSessionCount(notACount), String(notACount)).toBeNull();
+    }
+  });
+});
+
+describe("windowPhrase", () => {
+  it("names a window by its count, never by its label", () => {
+    // `the 21-session window` and not `1M`: the count is the fact and the label
+    // is the approximation, and the rail sits beside a readout already saying
+    // the count.
+    expect(windowPhrase(seriesWindowFor(21))).toBe("the 21-session window");
+    expect(windowPhrase(seriesWindowFor(1))).toBe("the 1-session window");
+  });
+
+  it("keeps the noun singular in the compound, at every count", () => {
+    // `the 252-session window`, not `the 252-sessions window`. The phrase is
+    // built from the number rather than from `describeSessionCount`'s sentence
+    // for exactly this reason: editing that string reads correctly at one and
+    // wrongly everywhere else.
+    expect(windowPhrase(seriesWindowFor(252))).toBe("the 252-session window");
+    expect(windowPhrase(seriesWindowFor(1000))).toBe(
+      "the 1,000-session window",
+    );
+  });
+
+  it("invents no number for a window that cannot be named as a count", () => {
+    expect(windowPhrase(seriesWindowFor(Number.NaN))).toBe(
+      "the window asked for",
+    );
+    expect(
+      windowPhrase({
+        form: "absolute",
+        start: "2026-09-03T13:30:00.000Z",
+        end: "2026-09-08T17:00:00.000Z",
+      }),
+    ).toBe("the window asked for");
   });
 });

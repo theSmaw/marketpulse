@@ -20,7 +20,11 @@ import {
 } from "../../market/index.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import type { ChartPoint, PlotBox } from "./chart-geometry.js";
-import { NO_READING, useChartReading } from "./chart-reading-context.js";
+import {
+  NO_READING,
+  resolveRead,
+  useChartReading,
+} from "./chart-reading-context.js";
 import styles from "./ChartReading.module.css";
 
 // **Reading a point** (Task 2.12.6) — the crosshair, the four prices of the bar
@@ -161,17 +165,20 @@ export function ChartReading({
   const { read: reading, setRead: setReading } = useChartReading();
   const hintId = useId();
 
-  // Clamped on read rather than reset on change. `readings` is rebuilt whenever
-  // the window or the box changes, and an index held across that is a stale
-  // position into a new array — the classic way to render a bar from the
-  // security somebody has just navigated away from. Reading it through a bounds
-  // check means the stale case renders *no* reading rather than a wrong one.
-  const point = reading.index === null ? undefined : readings[reading.index];
+  // **Resolved on read rather than reset on change** (Task 2.13.7). `readings`
+  // is rebuilt whenever the window or the box changes, and an index held across
+  // that is a stale position into a new array — the classic way to render a bar
+  // from the security somebody has just navigated away from, and, since the
+  // window control, a bar from a different year. `resolveRead` carries the
+  // decision: the fast path is the index still addressing its own bar, and a
+  // window change re-anchors by instant or clears.
+  const index = resolveRead(readings, reading);
+  const point = index === null ? undefined : readings[index];
 
   const spoken = useSpokenReading(
     symbol,
     reading.source === "keyboard" ? (point?.bar ?? null) : null,
-    reading.source === "keyboard" && reading.index === null,
+    reading.source === "keyboard" && index === null,
     // `1m` where there is no axis, and the branch is unreachable: this component
     // returns below when there is nothing to read, and there is nothing to read
     // without an axis. It is spelled rather than asserted because a `!` here
@@ -204,17 +211,31 @@ export function ChartReading({
     // The element's own left edge, which is the plot's, because this layer sits
     // in the same grid cell as the plot and is measured with it.
     const pixel = clientX - element.getBoundingClientRect().left;
-    const index = nearestPlaced(readings, nearestSlot(slots, pixel));
-    if (index !== null) setReading({ index, source: "pointer" });
+    const at = nearestPlaced(readings, nearestSlot(slots, pixel));
+    if (at !== null) {
+      setReading({
+        index: at,
+        at: readings[at]?.bar.startsAt.getTime() ?? null,
+        source: "pointer",
+      });
+    }
   }
 
   function step(to: number | null) {
     if (to === null) {
-      setReading({ index: null, source: "keyboard" });
+      setReading({ index: null, at: null, source: "keyboard" });
       return;
     }
+
+    const next = Math.min(readings.length - 1, Math.max(0, to));
+
+    // The instant is written with the index rather than derived from it later,
+    // which is what makes the pair describe one bar. Deriving it at the next
+    // read would be two lookups into an array that may have been rebuilt in
+    // between — which is the thing the pair exists to survive.
     setReading({
-      index: Math.min(readings.length - 1, Math.max(0, to)),
+      index: next,
+      at: readings[next]?.bar.startsAt.getTime() ?? null,
       source: "keyboard",
     });
   }
@@ -225,7 +246,10 @@ export function ChartReading({
     // The last bar on arrival, for the reason in the header: a first press
     // walks from the most recent price, which is the figure already on screen
     // above the plot.
-    const from = reading.index ?? readings.length - 1;
+    // **The resolved position and not the held one.** After a window change the
+    // held index may address a different bar or none; stepping from it would
+    // move the crosshair somewhere unrelated to where the reader can see it.
+    const from = index ?? readings.length - 1;
 
     switch (event.key) {
       case "ArrowLeft":
@@ -244,7 +268,7 @@ export function ChartReading({
         // Only when there is something to clear. An `Escape` on a chart with no
         // reading belongs to whatever is above this — a dialog, a popover — and
         // swallowing it would make this the component that broke them.
-        if (reading.index === null) return;
+        if (index === null) return;
         step(null);
         break;
       default:
@@ -288,7 +312,7 @@ export function ChartReading({
           setReading(NO_READING);
         }}
         onFocus={() => {
-          if (readings.length > 0 && reading.index === null) {
+          if (readings.length > 0 && index === null) {
             step(readings.length - 1);
           }
         }}

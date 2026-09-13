@@ -5,12 +5,17 @@ import { Badge } from "../Badge/Badge.js";
 import { Button } from "../Button/Button.js";
 import { MetricStrip } from "../MetricStrip/MetricStrip.js";
 import { cx } from "../../cx.js";
-import type { BarSeriesView, PopulatedBarSeries } from "../../market/index.js";
+import type {
+  BarSeriesScreen,
+  BarSeriesView,
+  PopulatedBarSeries,
+} from "../../market/index.js";
 import {
   directionOf,
   formatBarInstant,
   formatChangePercent,
   formatPrice,
+  windowPhrase,
 } from "../../market/index.js";
 import { Marker } from "../Marker/Marker.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
@@ -106,8 +111,23 @@ import styles from "./BarSeriesPanel.module.css";
 // take the same position.
 
 export interface BarSeriesPanelProps {
-  /** Everything this application knows about the series. Taken whole. */
-  readonly view: BarSeriesView;
+  /**
+   * Everything this screen is showing. Taken whole (Task 2.13.7).
+   *
+   * **Still one prop, and still the whole value** — `UniverseTable`'s precedent
+   * and `bar-series-view.ts`'s argument, now applied one level up. Until this
+   * task the panel took `BarSeriesView`, because what came back and what was
+   * drawn were the same thing. On a window change they are not, and the panel
+   * is genuinely about both at once: it reports on the request that was made
+   * and it draws the answer that is on screen.
+   *
+   * Taking them as **two** props would let a caller hand over a pair that
+   * disagrees — a `failed` beside a series that is actually this window's
+   * answer — which is a screen the application cannot produce and a reviewer
+   * cannot tell apart from one it can. `barSeriesScreen` is the only producer,
+   * so that combination does not exist.
+   */
+  readonly screen: BarSeriesScreen;
 
   /**
    * The security the panel is about, from the address.
@@ -135,11 +155,12 @@ export interface BarSeriesPanelProps {
 }
 
 export function BarSeriesPanel({
-  view,
+  screen,
   symbol,
   onRetry,
   defaulted,
 }: BarSeriesPanelProps) {
+  const { shown } = screen;
   return (
     <div className={styles.panel}>
       {/*
@@ -151,16 +172,32 @@ export function BarSeriesPanel({
        * suite asserts by node identity, because a text assertion cannot see it.
        */}
       <p className={styles.visuallyHidden} role="status">
-        {announceSeries(view, symbol)}
+        {announceSeries(screen, symbol)}
       </p>
 
       <Subject
         symbol={symbol}
         defaulted={defaulted}
-        untracked={isUntracked(view)}
+        untracked={isUntracked(shown)}
       />
-      {isStale(view) && <Refreshing />}
-      <Reading view={view} />
+      {/*
+       * **One rail position, two subjects** (Task 2.13.7), and they are mutually
+       * exclusive rather than stacked.
+       *
+       * `Refreshing` says *a newer answer to this question is coming*.
+       * `HeldWindow` says *this is the answer to a different question, and here
+       * is what happened to the one you asked*. A screen showing both would be
+       * telling a reader that the picture is one request old **and** about
+       * another window, which is two marks for one fact: the held answer is by
+       * definition not about to be refreshed, because the request behind it has
+       * already been superseded.
+       */}
+      {screen.previous === null ? (
+        isStale(shown) && <Refreshing />
+      ) : (
+        <HeldWindow screen={screen} onRetry={onRetry} />
+      )}
+      <Reading view={shown} />
       {/*
        * **The chart, above the facts and not instead of them** (Task 2.12.4).
        *
@@ -170,8 +207,20 @@ export function BarSeriesPanel({
        * answer, which is `PRODUCT_SPEC.md` §28's 500 ms satisfied by the frame
        * rather than by the response.
        */}
-      <PriceChart symbol={symbol} view={view} />
-      <Body view={view} onRetry={onRetry} />
+      <PriceChart symbol={symbol} view={shown} />
+      {/*
+       * **The body follows the picture, not the request** (Task 2.13.7). Where
+       * a held answer is on screen the eight stated facts beneath the chart are
+       * *its* facts — the window it covers, its bar count, its four prices, its
+       * feed — because a chart of one window over the figures of another is the
+       * defect this panel exists to make impossible. What happened to the
+       * request is on the rail above, once.
+       */}
+      <Body
+        view={shown}
+        onRetry={onRetry}
+        retryHere={screen.previous === null}
+      />
     </div>
   );
 }
@@ -306,6 +355,117 @@ function Refreshing() {
 }
 
 /**
+ * **A different window is on screen, and here is why** (Task 2.13.7).
+ *
+ * The rail `Refreshing` occupies, with a subject. It is rendered exactly when
+ * the picture below is the **previous** window's answer, which is the three
+ * ways a request can arrive carrying no picture of its own: it is still in
+ * flight, it was refused, or it failed.
+ *
+ * ## Why this is a sentence about *which window* rather than about *what went
+ * wrong*
+ *
+ * `VOLUME-AND-WINDOW.md` §6.3 named the tension and left it here. `refused` and
+ * `failed` draw **no frame at all**, deliberately — neither carries a window a
+ * frame could be built from — while acceptance criterion 4 asks that a failed
+ * window change leave the previous data visible. Those are compatible, and only
+ * one thing makes them so: **the label above the picture has to say which
+ * window the picture is of.** Without it the chart is a five-session series
+ * under a control reading `1M`, which is plausible and wrong rather than
+ * visibly broken.
+ *
+ * So the sentence leads with the picture and follows with the request. That
+ * order is the decision: a reader's first question about a screen that did not
+ * change when they pressed something is *what am I looking at*, and the answer
+ * to *what happened* is only useful once they know the first is not stale
+ * nonsense.
+ *
+ * ## No number is written around
+ *
+ * Every figure here comes from the response or from the request. The window is
+ * named by `windowPhrase`, which is `time-window.ts`' spelling and the same one
+ * the control's readout uses a few centimetres away; the refusal's sentence is
+ * the server's verbatim; and there is no bar count in the copy, because a
+ * sentence built around a figure is wrong for every window but one.
+ *
+ * ## The mark, and what it deliberately is not
+ *
+ * The same dashed silhouette `Refreshing` uses, and for the same reason: the
+ * figures below are **correct**. Nothing here is red, amber or boxed. What went
+ * wrong went wrong to a request, and the request is not what is on screen.
+ */
+function HeldWindow({
+  screen,
+  onRetry,
+}: {
+  readonly screen: BarSeriesScreen;
+  readonly onRetry: () => void;
+}) {
+  const { view } = screen;
+
+  // Non-null by construction — this component is rendered only where it is —
+  // and checked rather than asserted, because a `!` here would be a claim `tsc`
+  // cannot check and the honest fallback costs one line.
+  if (screen.previous === null) return null;
+
+  const holding = windowPhrase(screen.previous.window);
+  const asked = windowPhrase(screen.asked.window);
+
+  return (
+    <div
+      className={cx(
+        styles.heldWindow,
+        view.state === "loading" ? styles.working : undefined,
+      )}
+    >
+      <p className={cx(styles.refreshing)}>
+        <Marker shape="dashed" />
+        <span>
+          {view.state === "loading"
+            ? `Still showing ${holding} while ${asked} is read.`
+            : `Still showing ${holding}. ${outcomeSentence(view, asked)}`}
+        </span>
+      </p>
+      {view.state === "refused" && <RefusalDetail message={view.message} />}
+      {view.state === "failed" && (
+        <FailureDetail view={view} onRetry={onRetry} retry />
+      )}
+    </div>
+  );
+}
+
+/**
+ * What became of the window that *was* asked for.
+ *
+ * Reached only for the two states that settled without a picture. The `loading`
+ * case has no sentence here because the one above already carries it in its own
+ * grammar — *still showing X while Y is read* — and a second clause would be
+ * the same fact twice, which is the defect this file is otherwise careful
+ * about at page scale.
+ *
+ * Two words separate the two outcomes and they are chosen rather than
+ * synonymous: a refusal is an **answer** the server gave about the request, so
+ * it *was not answered* rather than *failed*; a failure is the absence of an
+ * answer, so it *could not be read*. The same two words distinguish the two
+ * states everywhere else on this panel.
+ */
+function outcomeSentence(view: BarSeriesView, asked: string): string {
+  const subject = asked.charAt(0).toUpperCase() + asked.slice(1);
+
+  switch (view.state) {
+    case "refused":
+      return `${subject} was not answered.`;
+    case "failed":
+      return `${subject} could not be read.`;
+    case "loading":
+    case "loaded":
+    case "partial":
+    case "empty":
+      return "";
+  }
+}
+
+/**
  * Which security this is, above everything that can change underneath it.
  *
  * Rendered in **every** state including the failures, which is the same rule
@@ -362,9 +522,26 @@ function Subject({
 function Body({
   view,
   onRetry,
+  retryHere,
 }: {
   readonly view: BarSeriesView;
   readonly onRetry: () => void;
+  /**
+   * Whether this is the screen's one `Try again`.
+   *
+   * `false` where a held answer is on screen, because there the rail above
+   * already carries the failure **and** its retry, and the body is a correct
+   * answer to a different window. Two retry controls on one screen teaches a
+   * reader that neither is the real one — the finding
+   * `SEARCH-AND-SELECTION.md` records for two surfaces sharing one fetch, here
+   * as one surface reached two ways.
+   *
+   * Note the `failed` branch is still reachable with this `false`: the body can
+   * only be `failed` when nothing is held, so in practice it is `true` there —
+   * and the prop is threaded rather than assumed, because *in practice* is how
+   * a second control gets added by accident.
+   */
+  readonly retryHere: boolean;
 }) {
   switch (view.state) {
     case "loading":
@@ -387,7 +564,7 @@ function Body({
       return <RefusedState message={view.message} />;
 
     case "failed":
-      return <FailedState view={view} onRetry={onRetry} />;
+      return <FailedState view={view} onRetry={onRetry} retry={retryHere} />;
   }
 }
 
@@ -745,9 +922,23 @@ function RefusedState({ message }: { readonly message: string }) {
         <Marker shape="ring" />
         <span>That request could not be answered.</span>
       </p>
-      <p className={styles.stateDetail}>{message}</p>
+      <RefusalDetail message={message} />
     </div>
   );
+}
+
+/**
+ * The server's own sentence, and nothing else.
+ *
+ * Extracted at Task 2.13.7 because it is now rendered under **two** different
+ * headlines — the body's *"that request could not be answered"* when nothing is
+ * held, and the rail's *"still showing the 5-session window"* when something is.
+ * The two headlines are deliberately different sentences about different
+ * subjects; the server's message is the same fact in both, and copying it would
+ * be the copy that drifts.
+ */
+function RefusalDetail({ message }: { readonly message: string }) {
+  return <p className={styles.stateDetail}>{message}</p>;
 }
 
 /**
@@ -763,9 +954,11 @@ function RefusedState({ message }: { readonly message: string }) {
 function FailedState({
   view,
   onRetry,
+  retry,
 }: {
-  readonly view: Extract<BarSeriesView, { readonly state: "failed" }>;
+  readonly view: FailedBarSeriesView;
   readonly onRetry: () => void;
+  readonly retry: boolean;
 }) {
   return (
     <div className={styles.state}>
@@ -777,12 +970,38 @@ function FailedState({
             : "The series could not be read."}
         </span>
       </p>
+      <FailureDetail view={view} onRetry={onRetry} retry={retry} />
+    </div>
+  );
+}
+
+/** The `failed` member, named once so two components can take it. */
+type FailedBarSeriesView = Extract<BarSeriesView, { readonly state: "failed" }>;
+
+/**
+ * What can be done about a failure, and the reference for it.
+ *
+ * Extracted at Task 2.13.7 for {@link RefusalDetail}'s reason, and it carries
+ * the `retry` gate rather than deciding it: *whose* control this is, is a fact
+ * about the screen rather than about the failure.
+ */
+function FailureDetail({
+  view,
+  onRetry,
+  retry,
+}: {
+  readonly view: FailedBarSeriesView;
+  readonly onRetry: () => void;
+  readonly retry: boolean;
+}) {
+  return (
+    <>
       <p className={styles.stateDetail}>
         {view.retryable
           ? "This is usually temporary. Try again in a moment."
           : "Asking again will not change this answer."}
       </p>
-      {view.retryable && (
+      {retry && view.retryable && (
         /* `Button` since the 2026 refresh — this was one of three hand-styled
            retry controls, each with its own copy of the same six declarations.
            The `disabled` while a retry is in flight is this panel's own
@@ -809,6 +1028,6 @@ function FailedState({
           Reference <code className={styles.code}>{view.requestId}</code>
         </p>
       )}
-    </div>
+    </>
   );
 }

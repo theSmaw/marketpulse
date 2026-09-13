@@ -9,7 +9,11 @@ import {
   nearestSlot,
 } from "../../market/index.js";
 import type { ChartPoint, PlotBox } from "./chart-geometry.js";
-import { NO_READING, useChartReading } from "./chart-reading-context.js";
+import {
+  NO_READING,
+  resolveRead,
+  useChartReading,
+} from "./chart-reading-context.js";
 import styles from "./VolumeReading.module.css";
 
 // **The volume plot's half of one reading** (Task 2.13.5) — the same crosshair
@@ -96,11 +100,13 @@ export function VolumeReading({
 }: VolumeReadingProps) {
   const { read, setRead } = useChartReading();
 
-  // Clamped on read rather than reset on change, for `ChartReading`'s reason:
-  // `readings` is rebuilt whenever the window or the box changes, and an index
-  // held across that is a stale position into a new array. Reading it through a
-  // bounds check renders *no* reading rather than somebody else's bar.
-  const point = read.index === null ? undefined : readings[read.index];
+  // **Resolved on read rather than reset on change** (Task 2.13.7), through the
+  // same function the price overlay calls, on the same bars in the same order —
+  // `placeBars(axis, bars)` in both — so the two crosshairs land on one bar by
+  // arithmetic rather than by two components agreeing. `resolveRead` carries
+  // the decision it encodes: a window change re-anchors by instant, or clears.
+  const index = resolveRead(readings, read);
+  const point = index === null ? undefined : readings[index];
 
   // Nothing to read means nothing to reach, and nothing to reserve. The strip
   // is absent in `loading` and `empty` exactly as the price strip is — both
@@ -114,8 +120,14 @@ export function VolumeReading({
     if (slots === null || readings.length === 0) return;
 
     const pixel = clientX - element.getBoundingClientRect().left;
-    const index = nearestPlaced(readings, nearestSlot(slots, pixel));
-    if (index !== null) setRead({ index, source: "pointer" });
+    const at = nearestPlaced(readings, nearestSlot(slots, pixel));
+    if (at !== null) {
+      setRead({
+        index: at,
+        at: readings[at]?.bar.startsAt.getTime() ?? null,
+        source: "pointer",
+      });
+    }
   }
 
   return (

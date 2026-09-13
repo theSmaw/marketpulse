@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { PlotBox } from "./chart-geometry.js";
 import type { ChartPlotRole } from "./chart-axis-context.js";
@@ -31,6 +31,28 @@ const UNMEASURED = { regionWidth: 0, plot: { width: 0, height: 0 } };
  * token — but the guard is what keeps that true if a later task puts something
  * in the flow.
  *
+ * ## The two elements are **state, not refs**, and that is a repair
+ *
+ * Found on the running page at Task 2.13.7, by looking at it. With the elements
+ * held in `useRef`, this effect ran once per mount against
+ * `[report, role]` — and both plots return `null` before they have a window to
+ * draw, so on a mount that begins in `refused` or `failed` the refs are empty
+ * when the effect runs, the observer is never created, and **nothing ever
+ * re-runs the effect to create one.** The chart then renders a frame with no
+ * measurement in it for the rest of that mount: a `<svg>` at 0 × 0 inside a
+ * plot 939px wide, the compact density class at a 985px region, and a panel of
+ * correct figures under an empty box.
+ *
+ * It was reachable before this task and is reachable now by one route each. On
+ * the current build: land cold on `/securities/NVDA?sessions=1000`, which the
+ * address makes a refusal, then press any window with bars — the navigation is
+ * client-side, so the component never remounts. A ref does not notify anything
+ * when it is filled; state does, which is the whole of the change.
+ *
+ * `e2e/specs/security-window-change.spec.ts` holds it, and it can be held
+ * nowhere else: jsdom implements no `ResizeObserver` and computes no layout, so
+ * the measurement is zero there either way.
+ *
  * @param report where the measurement goes so that both plots hang on one axis.
  *   See `chart-axis-context.ts`: this hook measures, and something else decides
  *   what the pair's shared width is.
@@ -41,13 +63,11 @@ export function usePlotBox(
   report: (role: ChartPlotRole, regionWidth: number, width: number) => void,
   role: ChartPlotRole,
 ) {
-  const chartRef = useRef<HTMLDivElement | null>(null);
-  const plotRef = useRef<HTMLDivElement | null>(null);
+  const [chart, setChart] = useState<HTMLDivElement | null>(null);
+  const [plot, setPlot] = useState<HTMLDivElement | null>(null);
   const [size, setSize] = useState(UNMEASURED);
 
   useEffect(() => {
-    const chart = chartRef.current;
-    const plot = plotRef.current;
     if (chart === null || plot === null) return;
     if (typeof ResizeObserver === "undefined") return;
 
@@ -95,11 +115,15 @@ export function usePlotBox(
     return () => {
       observer.disconnect();
     };
-  }, [report, role]);
+  }, [chart, plot, report, role]);
 
   return {
-    chartRef,
-    plotRef,
+    // Callback refs, which is what makes the two elements observable at all —
+    // see the header. React calls each with the element when it is attached and
+    // with `null` when it goes, so a plot that appears three renders after its
+    // component mounted starts being measured on the render it appears.
+    chartRef: setChart,
+    plotRef: setPlot,
     plot: size.plot satisfies PlotBox,
   };
 }

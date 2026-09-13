@@ -144,6 +144,72 @@
   animation: march calc(var(--motion-duration-settle) * 5) linear infinite;
 }
 
+/*
+ * The held-window rail (Task 2.13.7) — the same position as `.refreshing`, with
+ * a subject and, in two of its three forms, more than a sentence in it.
+ *
+ * It is a **block** rather than a paragraph because a refusal brings the
+ * server's own sentence with it and a failure brings a control and a reference.
+ * Grouping them under one rule is what stops the screen's one `Try again`
+ * reading as a control belonging to the chart below it, which is a correct
+ * answer to a different window.
+ *
+ * **The dashed rule moves down here from the sentence**, which is the correction
+ * looking at the running page forced: with the rule on the first line, the
+ * refusal's second sentence and the retry fell *below* the mark that was meant
+ * to group them, and the whole rail read as body copy between the symbol and
+ * the price. The rule belongs to the block it closes.
+ */
+.heldWindow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding-bottom: var(--space-12);
+
+  /* `.refreshing`'s rule, verbatim: 6px of ink, 6px of gap, one pixel tall,
+     pinned to the bottom edge. Drawn as a background because a border cannot be
+     moved and this one sometimes has to travel. */
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--rule-hairline) 0,
+    var(--rule-hairline) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  background-size: 200% var(--border-width);
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+}
+
+/*
+ * **Motion means work in progress and nothing else here.**
+ *
+ * Only the in-flight form marches. A refusal and a failure have both finished,
+ * and a travelling rule under either would say a newer answer is on its way when
+ * none is — which is the one thing the movement is for. What stays in all three
+ * is the **dashes**, which is where the meaning lives: these figures are correct
+ * and they are an answer to a different window. Under
+ * `prefers-reduced-motion` the token resolves to `0ms` and all three forms are
+ * the static rule, which is the point of putting the meaning in the dashes.
+ */
+.heldWindow.working {
+  animation: march calc(var(--motion-duration-settle) * 5) linear infinite;
+}
+
+/*
+ * The sentence inside the rail carries no rule of its own.
+ *
+ * It reuses `.refreshing` for the marker colour, the baseline row and the ink,
+ * and gives back the two declarations that make that class a rail on its own —
+ * because here the block above is the rail.
+ */
+.heldWindow .refreshing {
+  padding-bottom: 0;
+  background-image: none;
+  animation: none;
+}
+
 @keyframes march {
   to {
     background-position: 24px 100%;

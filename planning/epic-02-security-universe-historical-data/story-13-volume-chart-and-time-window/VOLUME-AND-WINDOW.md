@@ -1929,3 +1929,283 @@ feels slow, §16.5's figures are the place to start rather than a component.
   window — a list, a current value, a change callback — and it knows nothing about
   `useBarSeries`, the address or a security, so a comparison view drives it by
   passing a different list.
+
+---
+
+# Part six — every state of a window change, added 2026-09-13 by Task 2.13.7
+
+§§1–6 settled what the product offers, §§8–16 what it looks like, §§18–21 the
+rendering, §§22–29 the reading and §§30–35 the control. What is decided **here**
+is the thing none of them could express: **what is on screen while the answer to
+a different question is in flight, and what stays there when that question is
+refused.**
+
+Two of the four decisions below are overrides of a behaviour that already
+existed rather than choices between blank options, which is the shape this
+story's later tasks keep taking — and one of them was found by looking at the
+running page.
+
+---
+
+## 36. Decision — **the last answer stays on screen, and the rail names it**
+
+§6.3 named a tension and left it here. `refused` and `failed` draw **no frame at
+all**, deliberately, because neither carries a window a frame could be built
+from; acceptance criterion 4 asks that a failed window change leave the previous
+data visible. Both are right, and exactly one thing makes them readable
+together.
+
+**Decided: the last _answer_ this page painted stays on screen until a newer
+answer replaces it, and the label above it says which window it is of.**
+
+```
+The last answer this page painted is kept, together with the request it
+answers, until a newer answer replaces it. It is cleared when the security
+changes, and never otherwise.
+```
+
+### 36.1 It is **not** a seventh state, and the reasons are three
+
+`held-series.ts` carries them in full; in short:
+
+- **`stale` is not this.** That flag means _the same request, one request old_.
+  A held answer to a **different** window is not a stale answer to this one: the
+  numbers in it are not about to be replaced by better numbers for the same
+  question, they are about to be replaced by an answer to another question. The
+  two marks both exist and they say different sentences.
+- **A union member describes one request and this is a fact about two.** A
+  seventh member would land in every consumer's `switch` for ever and each would
+  have to re-derive which answer it was holding — which is the answer members
+  with a boolean, spelled longer.
+- **`FRONTEND-STATE.md` §2's reversal trigger stays unfired.** That trigger is
+  _a chart that redraws a held series in a second style_. Nothing here redraws
+  anything: the held series is the same series, drawn the same way, and the only
+  difference is a rail above it.
+
+### 36.2 The fence is the **security**, and it is the whole of the safety
+
+A held answer survives a change of _window_ and never a change of _security_. A
+held NVDA series under an AMD heading is plausible and wrong rather than visibly
+broken, which is the failure this layer has been careful about since Story 2.10;
+so on a symbol change the panel returns to `loading` exactly as it did before,
+and the browser suite asserts it.
+
+### 36.3 It repaired a second blanking nobody had reported
+
+The rule is about **the last answer**, not about the window, which means it also
+covers a case that is not a window change at all: a cached answer paints on
+mount and the refetch behind it fails. Before this task, a correct chart was
+replaced by a failure with no window in it. Same shape, same rule, no extra
+code.
+
+### 36.4 What it is spelled as
+
+One value, `BarSeriesScreen`, with four fields — the answer to the request being
+made, the answer being **drawn**, the request being asked, and the request the
+picture answers when it is not that one. **One producer and no other way to
+obtain one**, which is a fence rather than a convenience: a component handed _the
+answer_ and _the picture_ as two props can be handed two that disagree, and that
+is a screen the application cannot reach and a reviewer cannot tell from one it
+can.
+
+---
+
+## 37. Decision — one rail, four sentences, and only one of them is new copy
+
+The stale rail has existed since Task 2.10.8 and says _Refreshing — showing the
+held answer while a newer one is read._ That sentence is correct only when the
+held answer answers the **same** window. A window change is the first thing in
+the product that makes it false, so the rail gains a subject rather than a
+sibling.
+
+| What happened                 | The rail says                                                                    | Carries                        |
+| ----------------------------- | -------------------------------------------------------------------------------- | ------------------------------ |
+| Same window, refreshing       | _Refreshing — showing the held answer while a newer one is read._                | a travelling dashed rule       |
+| A different window, in flight | _Still showing the 5-session window while the 21-session window is read._        | a travelling dashed rule       |
+| The new window was refused    | _Still showing the 5-session window. The 1,000-session window was not answered._ | the server's sentence          |
+| The new window failed         | _Still showing the 5-session window. The 21-session window could not be read._   | one `Try again`, one reference |
+
+Four things about those are decisions rather than wording.
+
+**The marker is the same dashed silhouette in all four**, because none of them
+is a fault in the figures underneath. No red, no amber, no box.
+
+**The window is named as a session count** — `the 21-session window`, never
+`1M`. The count is the fact and the label is the approximation (§4e), an address
+may name a window the control does not offer and that window has no label at
+all, and the rail sits a few centimetres from a readout already saying
+`21 SESSIONS`. `describeSessionCount` is now the one spelling and the control's
+readout reads it too. A window that cannot be named as a count — an absolute
+range, or `?sessions=abc` — gets _the window asked for_, and **no number is
+invented**.
+
+**Only the in-flight form marches.** Motion means work in progress and nothing
+else here; a travelling rule under a refusal would say a newer answer is on its
+way when none is. The **dashes** stay in all four, which is where the meaning
+lives, and under `prefers-reduced-motion` all four are the static rule.
+
+**The screen's one `Try again` is on the rail**, not in the body. The body
+beneath is a correct answer to a window that did not fail; a retry sitting under
+those figures would offer to re-read something that worked.
+
+### 37.1 One correction, taken from the running page
+
+The rail was first drawn with the rule on its **first line**, which is where
+`.refreshing` carries it. With a refusal's second sentence and a failure's
+control below that line, the mark that was meant to group them sat in the middle
+of the group, and the whole rail read as body copy between the symbol and the
+price. **The rule belongs to the block it closes**, and it moved there.
+
+---
+
+## 38. Decision — the reading **re-anchors by instant**, and clears only outside
+
+The task brief asked whether a reading _clears or re-anchors_ across a window
+change. That was written before the read position existed. It exists, it has a
+behaviour, and the behaviour is neither of those two — so this is an **override
+of a built default**.
+
+### 38.1 The default, precisely
+
+The read position is an index into `readings`. A window change replaces the
+series, rebuilds both arrays and does not touch the index. So:
+
+| The new window is     | What the reader gets                                     |
+| --------------------- | -------------------------------------------------------- |
+| **shorter**           | no reading — the index is out of range                   |
+| **as long or longer** | a reading of a **different bar**, silently and plausibly |
+
+The second row is the one that matters. Index 900 of five sessions of minute
+bars and index 900 of a year of sessions are not adjacent facts; they are
+different years. The crosshair lands somewhere real, both strips state a real
+instant and a real volume, and nothing is wrong on screen except the answer.
+
+### 38.2 Why it has not been seen, and why that is not a reason to leave it
+
+Both input paths clear the reading on the way to the control: a pointer
+travelling upward fires `onPointerLeave`, a keyboard user tabbing to it blurs the
+plot. **That is a coincidence of layout, and a coincidence of layout is not a
+decision.** Epic 11's `setTimeWindow` changes the window with nobody touching
+anything, and a rapid sequence of presses lands a second change while the first
+answer is in flight.
+
+### 38.3 Decided: keep the instant, find the nearest placed bar, clear outside
+
+`ChartRead` gains `at` — the bar's market instant in epoch milliseconds — and
+`resolveRead` is the one function both overlays call. The fast path is the index
+still addressing its own bar, which is what runs on every pointer move; the
+search runs once, on the frame a window change lands.
+
+**Clearing on every change was the cheap alternative and was declined**, because
+four of the five windows overlap in time: the instant a reader was looking at is
+usually still in the new picture, and throwing it away answers a question nobody
+asked. Crossing from `1m` to `1d` re-anchors to the **session containing the
+minute**, which is the same day at the granularity the new window has.
+
+**Outside is `null` rather than clamped.** 1Y → 1D would otherwise answer with
+the earliest bar of a single session, presented as the one the reader was
+looking at.
+
+**And nothing here touches focus**, which is the other half of the decision: a
+reading cleared by a window change leaves focus exactly where a reading cleared
+by `Escape` does. `ChartReading.test.tsx` drives all of it from the keyboard,
+with no pointer anywhere, which is the case that is hard to reach.
+
+---
+
+## 39. §1.3's trigger, answered: **1D stays**
+
+§1.3 offered 1D knowing it would be `empty` until Epic 3, and wrote a reversal
+trigger that needs a person: _if the empty rendering at 1D reads as a broken
+product rather than as an honest one when somebody looks at the screen, 1D is
+withdrawn._ It was looked at, at 1440 in a real browser, on both stores.
+
+**The trigger did not fire. 1D stays.** Three things carry it, and none of them
+is the absence of a line:
+
+1. **The frame is real.** Gridlines and the session's own date are drawn from
+   the window that was asked for, so the axis is a picture of a real trading day
+   rather than a placeholder.
+2. **The whole plot is uncovered ground** — the same mark a partial answer uses
+   for its short tail, so a reader who has seen one has already learned this one.
+3. **The sentence names the window, the fact and the schedule**: _We asked for
+   2026-09-11 09:30 → 2026-09-11 16:00 EDT and hold nothing in it. A window
+   reaching into the current session is usually this: stored history is caught up
+   overnight._
+
+What would have made it read as broken is a bare empty box, or a frame with no
+labels on it. Neither is what it draws.
+
+### 39.1 And a correction to §1.3's premise, from the deployed store
+
+§1.3 says 1D is **reliably** empty. That is true only _during_ a session. Looked
+at on the deployed page on **2026-09-13, a Saturday**, `?sessions=1` resolved to
+Thursday's session, which the nightly backfill holds in full: a complete
+intraday line, 218.19 at −1.38%, no uncovered ground anywhere. So the honest
+statement is that **1D is empty during a session and complete outside one** —
+which is weaker than the premise the trigger was written against, and weaker in
+the direction that makes withdrawing it harder to justify rather than easier.
+
+---
+
+## 40. One defect this task found by looking, and it is older than the task
+
+**A chart whose first commit has no frame was never measured again for the life
+of that mount.**
+
+Both plots return `null` before they have a window to draw. `usePlotBox`'s effect
+ran against `[report, role]`, neither of which ever changes — so on a mount that
+begins in `refused` or `failed` the refs were empty when the effect ran, the
+`ResizeObserver` was never created, and **nothing re-ran the effect to create
+one.** Pressing a window with bars then rendered a real frame with a zero
+measurement in it: an `<svg>` at 0 × 0 inside a plot 939 px wide, the compact
+density class at a 985 px region, and a panel of correct figures under an empty
+box.
+
+**It was reachable the moment Task 2.13.6 put the window in the address**, by
+exactly one route and a short one: a cold link to `/securities/NVDA?sessions=1000`,
+then any window with bars. The navigation is client-side, so the component never
+remounts.
+
+The repair is that the two elements are **state rather than refs**. A ref does
+not notify anything when it is filled; state does, and the effect's dependencies
+then include the elements themselves.
+
+Two things about finding it are worth keeping.
+
+**Nothing below `pnpm e2e` could see it.** jsdom implements no `ResizeObserver`
+and computes no layout, so the measurement is zero there with the repair and
+without it. `e2e/specs/security-window-change.spec.ts`'s _a chart that arrives
+after a refusal is measured, and draws_ is the only instrument, and the break was
+performed: restoring the refs takes exactly that test red.
+
+**And the first attempt to verify it in a browser was measuring the wrong
+thing.** A tab driven over CDP reports `document.visibilityState === "hidden"`,
+which pauses `requestAnimationFrame` — and `ResizeObserver` delivery with it. A
+freshly constructed observer on a laid-out 939 × 221 element fired **zero times
+in 500 ms**. Every chart in that tab measured zero whether the repair was present
+or not, which looks exactly like the defect and is not it. The lesson generalises
+past this task: **an automated browser that is not painting cannot be used to
+judge anything that depends on layout delivery**, and Playwright's page — which
+is visible — can.
+
+---
+
+## 41. What Part six hands on
+
+- **2.13.8**'s walk inherits a rail with four sentences, a spoken clause that
+  names which window is still on screen, and a reading that can now survive a
+  window change — so the screen-reader walk has a state nobody has heard: a
+  crosshair re-anchored by an agent rather than by a hand.
+- **2.13.9** inherits `resolveRead`'s search, which is a binary search over
+  `readings` and runs once per window change rather than on the pointer path.
+  Nothing has measured it and nothing needs to until something calls it per
+  move.
+- **2.13.10** inherits §39's answer as a settled decision rather than an open
+  trigger, and inherits the fourth consecutive deferral of design test 4 — which
+  §14.2 already asked Story 2.14's close to record as a count.
+- **Story 2.14** inherits the one fence this task did not move: a held answer is
+  a series like any other, so a stitched series naming two feeds carries its
+  provenance line beneath the chart exactly as a fresh one does. What this task
+  owes it is only that the rail sits **above** that line rather than in its
+  place, and it does.

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   BAR_SERIES_FIXTURE_NAMES,
-  barSeriesFixtureView,
+  barSeriesFixtureScreen,
+  barSeriesViewScreen,
   staleBarSeriesFixtureView,
+  windowChangeFixtureScreen,
 } from "../../fixtures/bar-series.js";
 import { announceSeries } from "./series-announcement.js";
 
@@ -26,7 +28,7 @@ describe("announceSeries", () => {
     // subject is complete in either order; one that does not is a fact with no
     // subject sitting beside a sentence about 518 securities.
     for (const name of BAR_SERIES_FIXTURE_NAMES) {
-      const spoken = announceSeries(barSeriesFixtureView(name), "NVDA");
+      const spoken = announceSeries(barSeriesFixtureScreen(name), "NVDA");
       expect(spoken.startsWith("NVDA:"), `${name}: ${spoken}`).toBe(true);
     }
   });
@@ -35,11 +37,13 @@ describe("announceSeries", () => {
     // Arriving at a page is not a change, so a loading sentence would never be
     // heard as an announcement — it would only be a second copy of the visible
     // line for anybody browsing the page.
-    expect(announceSeries({ state: "loading" }, "NVDA")).toBe("");
+    expect(
+      announceSeries(barSeriesViewScreen({ state: "loading" }), "NVDA"),
+    ).toBe("");
   });
 
   it("gives a listener the figure, and the direction as a word", () => {
-    const spoken = announceSeries(barSeriesFixtureView("full"), "NVDA");
+    const spoken = announceSeries(barSeriesFixtureScreen("full"), "NVDA");
 
     expect(spoken).toContain("holding all 30 bars");
     expect(spoken).toMatch(/Last close \d+\.\d\d, (up|down|unchanged)/);
@@ -51,7 +55,7 @@ describe("announceSeries", () => {
   });
 
   it("says how much of the window a short answer covers, and through when", () => {
-    const spoken = announceSeries(barSeriesFixtureView("partial"), "NVDA");
+    const spoken = announceSeries(barSeriesFixtureScreen("partial"), "NVDA");
 
     expect(spoken).toContain("holding 60 bars");
     expect(spoken).toContain("of a window running to");
@@ -61,7 +65,7 @@ describe("announceSeries", () => {
   });
 
   it("reads an empty answer as an answer about a window", () => {
-    const spoken = announceSeries(barSeriesFixtureView("empty"), "NVDA");
+    const spoken = announceSeries(barSeriesFixtureScreen("empty"), "NVDA");
 
     expect(spoken).toContain("no bars are stored for the window asked for");
     expect(spoken).toMatch(/E[DS]T/);
@@ -71,7 +75,7 @@ describe("announceSeries", () => {
     // The numbers in it are the server's arithmetic. A client re-wording it
     // would be inventing a sentence about a calculation it did not do — which
     // is as true when the sentence is heard as when it is read.
-    const spoken = announceSeries(barSeriesFixtureView("refusedCap"), "NVDA");
+    const spoken = announceSeries(barSeriesFixtureScreen("refusedCap"), "NVDA");
 
     expect(spoken).toContain("that request could not be answered");
     expect(spoken).toContain("10,000");
@@ -79,11 +83,11 @@ describe("announceSeries", () => {
 
   it("says whether waiting helps, and never reads a correlation id aloud", () => {
     const retryable = announceSeries(
-      barSeriesFixtureView("unavailable"),
+      barSeriesFixtureScreen("unavailable"),
       "NVDA",
     );
     const permanent = announceSeries(
-      barSeriesFixtureView("incoherent"),
+      barSeriesFixtureScreen("incoherent"),
       "NVDA",
     );
 
@@ -110,11 +114,14 @@ describe("announceSeries", () => {
   it("announces a retry in flight, which is what makes the control audible", () => {
     // Pressing it changes nothing else a listener can hear: the headline, the
     // prospect and the reference are all still true.
-    const failure = barSeriesFixtureView("unavailable");
+    const failure = barSeriesFixtureScreen("unavailable").view;
     expect(failure.state).toBe("failed");
     if (failure.state !== "failed") return;
 
-    const spoken = announceSeries({ ...failure, retrying: true }, "NVDA");
+    const spoken = announceSeries(
+      barSeriesViewScreen({ ...failure, retrying: true }),
+      "NVDA",
+    );
     expect(spoken).toBe("NVDA: trying NVDA again.");
   });
 
@@ -123,8 +130,11 @@ describe("announceSeries", () => {
     // not change announces nothing, and a refetch landing on an identical
     // answer is the common case for a closed session's bars. The stale clause
     // is the text the region passes through and back out of.
-    const settled = announceSeries(barSeriesFixtureView("partial"), "NVDA");
-    const held = announceSeries(staleBarSeriesFixtureView("partial"), "NVDA");
+    const settled = announceSeries(barSeriesFixtureScreen("partial"), "NVDA");
+    const held = announceSeries(
+      barSeriesViewScreen(staleBarSeriesFixtureView("partial")),
+      "NVDA",
+    );
 
     expect(held).not.toBe(settled);
     expect(held).toContain(settled.replace(/^NVDA: /u, ""));
@@ -135,7 +145,10 @@ describe("announceSeries", () => {
     // They are correct and they are one request old. The words that would say
     // otherwise are the ones a reader would act on — and this panel's whole
     // argument is that a correct answer must never be dressed as a fault.
-    const held = announceSeries(staleBarSeriesFixtureView("partial"), "NVDA");
+    const held = announceSeries(
+      barSeriesViewScreen(staleBarSeriesFixtureView("partial")),
+      "NVDA",
+    );
 
     for (const word of ["out of date", "stale", "error", "failed", "wrong"]) {
       expect(held.toLowerCase()).not.toContain(word);
@@ -146,9 +159,81 @@ describe("announceSeries", () => {
     // It changes what the numbers mean — a record rather than something being
     // kept up to date — so it is spoken rather than left to a badge a listener
     // never reaches.
-    const spoken = announceSeries(barSeriesFixtureView("untracked"), "AMD");
+    const spoken = announceSeries(barSeriesFixtureScreen("untracked"), "AMD");
 
     expect(spoken).toContain("MarketPulse no longer tracks this security");
     expect(spoken).toContain("holding all 30 bars");
+  });
+});
+
+// --- Task 2.13.7: the window that is still on screen ---
+
+describe("a window change, for a listener", () => {
+  it("says which window is still on screen after a refusal", () => {
+    // A listener has one region and the screen has two facts in it: what
+    // happened to the window that was asked for, and what is consequently still
+    // drawn. Dropping the second leaves somebody who cannot see the chart
+    // unable to tell *the page went blank* from *the page kept the previous
+    // answer* — which is the distinction acceptance criterion 4 is about.
+    const spoken = announceSeries(
+      windowChangeFixtureScreen({
+        held: "partial",
+        heldSessions: 5,
+        askedSessions: 1000,
+        asked: "refusedCalendar",
+      }),
+      "NVDA",
+    );
+
+    expect(spoken).toContain("that request could not be answered");
+    expect(spoken.endsWith("The 5-session window is still on screen.")).toBe(
+      true,
+    );
+  });
+
+  it("says it after a failure too, and still offers the reference", () => {
+    const spoken = announceSeries(
+      windowChangeFixtureScreen({
+        held: "partial",
+        heldSessions: 5,
+        askedSessions: 21,
+        asked: "unavailable",
+      }),
+      "NVDA",
+    );
+
+    expect(spoken).toContain(
+      "A reference for this failure is shown beside it.",
+    );
+    expect(spoken).toContain("The 5-session window is still on screen.");
+  });
+
+  it("stays silent while the new window is merely in flight", () => {
+    // `loading` announces nothing, and a held answer does not turn it into an
+    // announcement: nothing has happened yet, and the eye already has the rail.
+    expect(
+      announceSeries(
+        windowChangeFixtureScreen({
+          held: "partial",
+          heldSessions: 5,
+          askedSessions: 21,
+        }),
+        "NVDA",
+      ),
+    ).toBe("");
+  });
+
+  it("says nothing extra once the new window has answered", () => {
+    const spoken = announceSeries(
+      windowChangeFixtureScreen({
+        held: "partial",
+        heldSessions: 5,
+        askedSessions: 63,
+        asked: "daily",
+      }),
+      "NVDA",
+    );
+
+    expect(spoken).not.toContain("still on screen");
   });
 });

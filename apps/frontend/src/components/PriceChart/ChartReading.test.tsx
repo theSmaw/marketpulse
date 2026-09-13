@@ -29,7 +29,9 @@ import { priceFrame, timeFrame } from "./chart-geometry.js";
 
 const PLOT = { width: 867, height: 280 };
 
-function frameOf(name: "full" | "partial") {
+type Recorded = "full" | "partial" | "dense" | "daily";
+
+function frameOf(name: Recorded) {
   const view = barSeriesFixtureView(name);
   if (view.state !== "loaded" && view.state !== "partial")
     throw new Error(`the ${name} fixture is not an answer with bars`);
@@ -49,7 +51,7 @@ function frameOf(name: "full" | "partial") {
   return { ...time, ...priceFrame(time, PLOT.height, subject.bars) };
 }
 
-function renderReading(name: "full" | "partial" = "full") {
+function renderReading(name: Recorded = "full") {
   const frame = frameOf(name);
 
   // **Inside a `ChartAxis`, since Task 2.13.5**, and not as ceremony: that
@@ -452,5 +454,135 @@ describe("what is announced", () => {
     settle(5_000);
 
     expect(screen.getByRole("status").textContent).toContain("reading cleared");
+  });
+});
+
+// --- Task 2.13.7: the reading across a window change ---
+
+/**
+ * The whole reading layer for one recorded window, as a component.
+ *
+ * A component rather than a call, because **the read position lives in
+ * `ChartAxis`** and what is under test is what survives a re-render of the
+ * series underneath it. Rendering the same element type at the root keeps that
+ * state, which is exactly what a window change does to the real route: the
+ * address changes, `useBarSeries` answers with different bars, and nothing
+ * unmounts.
+ */
+function ReadingFor({ name }: { readonly name: Recorded }) {
+  const frame = frameOf(name);
+
+  return (
+    <ChartAxis view={barSeriesFixtureView(name)}>
+      <ChartReading
+        plot={PLOT}
+        readings={frame.readings}
+        slots={frame.slots}
+        symbol="NVDA"
+        timeframe={frame.axis?.timeframe ?? null}
+      />
+    </ChartAxis>
+  );
+}
+
+/**
+ * The visible half of the readout strip, at **either** timeframe.
+ *
+ * `readout()` above anchors on the `1m` stamp's middle dot, which a `1d` stamp
+ * does not have — a daily bar is a session, so it prints `Sep 4` and no time of
+ * day. This one takes the paragraph and drops its `aria-hidden` children, which
+ * is the hidden sizer that reserves the strip's height.
+ */
+function strip(container: HTMLElement): string {
+  const line = container.querySelector("p");
+
+  return [...(line?.children ?? [])]
+    .filter((element) => element.getAttribute("aria-hidden") !== "true")
+    .map((element) => element.textContent)
+    .join("");
+}
+
+describe("a window change, with a reading still live", () => {
+  // **The case that is hard to reach, and the reason it has to be tested here.**
+  // Both input paths clear the reading on the way to the control — a pointer
+  // travelling upward fires `onPointerLeave`, a keyboard user tabbing to it
+  // blurs the plot — so a person cannot normally hold a reading across a
+  // change. Epic 11's `setTimeWindow` has no pointer to leave, and a rapid
+  // sequence of presses lands a second change while the first is in flight.
+  // Nothing below touches a pointer.
+
+  it("keeps the reading on the bar it was on when the new window still holds it", () => {
+    const { container, rerender } = render(<ReadingFor name="dense" />);
+
+    chart().focus();
+    fireEvent.keyDown(chart(), { key: "End" });
+    const before = strip(container);
+    expect(before).toContain("Bar");
+
+    // Five sessions of minute bars become sixty-three daily ones. The built
+    // default here is a reading of **index 1,949 of sixty-three bars**, which
+    // does not exist — so the crosshair would simply vanish, and on a longer
+    // window it would land on a different year instead.
+    rerender(<ReadingFor name="daily" />);
+
+    const after = strip(container);
+    expect(after).toContain("Bar");
+
+    // A different sentence, because it is the same day at a different
+    // granularity: `Sep 4 · 15:59 EDT` becomes `Sep 4`.
+    expect(after).not.toBe(before);
+    expect(after).toContain("Sep 4");
+  });
+
+  it("clears the reading when the new window does not reach the instant", () => {
+    const { container, rerender } = render(<ReadingFor name="daily" />);
+
+    chart().focus();
+    fireEvent.keyDown(chart(), { key: "Home" });
+    expect(strip(container)).toContain("Bar");
+
+    // The oldest session of a three-month window, against a window that is one
+    // half-hour. Clamping would answer with that half-hour's first minute,
+    // presented as the bar the reader was looking at.
+    rerender(<ReadingFor name="full" />);
+
+    expect(strip(container)).toContain("Point at the chart");
+  });
+
+  it("leaves focus exactly where Escape leaves it", () => {
+    // `Escape`'s contract is that it clears the reading and **keeps** focus, and
+    // a reading cleared by a window change has to behave identically — otherwise
+    // an agent changing the window would silently take focus off the chart a
+    // person was reading.
+    const { rerender } = render(<ReadingFor name="daily" />);
+
+    chart().focus();
+    fireEvent.keyDown(chart(), { key: "Home" });
+    rerender(<ReadingFor name="full" />);
+
+    expect(document.activeElement).toBe(chart());
+  });
+
+  it("steps from where the reading actually is, not from where it was held", () => {
+    // The half of the decision a bounds check alone would miss. After
+    // re-anchoring, the index in the context still names the old position; a
+    // key press that stepped from it would move the crosshair somewhere
+    // unrelated to what the reader can see.
+    const { container, rerender } = render(<ReadingFor name="dense" />);
+
+    chart().focus();
+    fireEvent.keyDown(chart(), { key: "End" });
+    rerender(<ReadingFor name="daily" />);
+
+    const landed = strip(container);
+    fireEvent.keyDown(chart(), { key: "ArrowLeft" });
+    const stepped = strip(container);
+
+    expect(stepped).not.toBe(landed);
+
+    // One bar back and no further: pressing right returns to exactly the bar
+    // the re-anchor found.
+    fireEvent.keyDown(chart(), { key: "ArrowRight" });
+    expect(strip(container)).toBe(landed);
   });
 });
