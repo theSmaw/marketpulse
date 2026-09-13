@@ -423,6 +423,56 @@ describe("timeTicks", () => {
     expect(slots).toEqual([...slots].sort((left, right) => left - right));
   });
 
+  // **The collision the holiday week produced** (Task 2.13.8). Found by looking
+  // at the rendered axis, not by reading this module: the picture said
+  // `12:00Nov 30`.
+  it("drops a midday that would be drawn on top of the next session's date", () => {
+    // `2026-11-27` closes at 13:00, so its midday sits 60 slots of 1,770 before
+    // `2026-11-30`'s date — 3.4% of the axis, against the 5% two centred labels
+    // need at the width this chart is drawn at.
+    const axis = timeAxis(
+      window_("2026-11-23T14:30:00Z", "2026-11-30T21:00:00Z"),
+      "1m",
+    );
+    const ticks = timeTicks(axis, ALL_LABELS);
+
+    // Every date survives. It is always the time that loses: the date is what
+    // tells a reader which night the axis did not draw.
+    expect(
+      ticks.filter((tick) => tick.kind === "session").map((tick) => tick.label),
+    ).toEqual(["Nov 23", "Nov 24", "Nov 25", "Nov 27", "Nov 30"]);
+
+    // Four middays rather than five — the half day's is the one that goes.
+    const times = ticks.filter((tick) => tick.kind === "time");
+    expect(times).toHaveLength(4);
+
+    const halfDay = axis.sessions[3];
+    expect(halfDay?.slots).toBe(210);
+    expect(
+      times.some(
+        (tick) =>
+          halfDay !== undefined &&
+          tick.slot >= halfDay.firstSlot &&
+          tick.slot < halfDay.firstSlot + halfDay.slots,
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps every midday on a week of whole sessions", () => {
+    // The other half of the rule, and the one that says the repair did not
+    // simply delete a tick: five ordinary sessions put midday 240 slots of
+    // 1,950 from the next date, which is 12% and comfortable.
+    const axis = timeAxis(
+      window_("2026-08-31T13:30:00Z", "2026-09-04T20:00:00Z"),
+      "1m",
+    );
+    const times = timeTicks(axis, ALL_LABELS).filter(
+      (tick) => tick.kind === "time",
+    );
+
+    expect(times).toHaveLength(5);
+  });
+
   it("puts no time on a session that does not contain one", () => {
     // A window clipped to the last hour of a session contains no midday, and a
     // tick pinned to an edge would be a label claiming an hour that is not on

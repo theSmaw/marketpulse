@@ -76,13 +76,33 @@ import styles from "./TimeWindowControl.module.css";
 //     `:focus-visible` rule doing its job, and `a11y.module.css`'s
 //     `focusRingHost` idiom — written with this control named as its second
 //     consumer — is **not** needed here.
-//  2. **The readout is the group's description.** It was drawn as a static
-//     micro-label beside the box, which is what it looks like; what was not
-//     decided is whether a listener gets it. They do, through
-//     `aria-describedby`, because the sentence *"nothing is selected because the
-//     address asked for seven sessions"* is exactly the fact a listener needs
-//     on arrival and the one the eye gets for free from the two sitting side by
-//     side.
+//  2. **The readout is each cell's description, and it was the group's until
+//     Task 2.13.8's walk.** It is drawn as a static micro-label beside the box,
+//     which is what it looks like; what had to be decided is whether a listener
+//     gets it. They do, through `aria-describedby`, because *"nothing is
+//     selected because the address asked for seven sessions"* is exactly the
+//     fact a listener needs on arrival and the one the eye gets for free from
+//     the two sitting side by side.
+//
+//     **What the walk found is that the group is not a tab stop.** This control
+//     is a roving-tabindex radiogroup: the stop is the *checked cell*, and the
+//     `div[role="radiogroup"]` around it has no `tabindex` and never receives
+//     focus. A description on a container is not part of a child's accessible
+//     description, and a description is read when a control is *reached* — so
+//     the readout was computed correctly, attached correctly, visible on
+//     screen, and unreachable by any key press. That is `TextField`'s defect
+//     exactly (`CLAUDE.md`: *a natively `disabled` control is not focusable, so
+//     anything `aria-describedby` hangs off it is unreachable*), arrived at by
+//     a different route, and Task 2.13.6's amendment told this walk to check it
+//     rather than assume it. It was wrong.
+//
+//     It hangs off **every cell** now, which is the shape that puts the fact
+//     where focus actually lands. A listener arriving hears *"1 month, radio
+//     button, 3 of 5, 21 sessions"*; arrowing to `3M` under manual activation
+//     they hear *"3 months, radio button, 4 of 5, 21 sessions"* — the readout
+//     still naming the window **on screen**, which is the same thing a sighted
+//     reader sees, because arrowing has not changed it. Parity between the two
+//     channels was the test applied, rather than what reads best in isolation.
 
 export interface TimeWindowControlProps {
   /**
@@ -175,18 +195,16 @@ export function TimeWindowControl({
 
   return (
     <div className={styles.control}>
-      <div
-        aria-describedby={readoutId}
-        aria-label="Time window"
-        className={styles.group}
-        role="radiogroup"
-      >
+      <div aria-label="Time window" className={styles.group} role="radiogroup">
         {windows.map((window, index) => {
           const checked = window.sessions === sessions;
 
           return (
             <button
               aria-checked={checked}
+              // **On the cell, not on the group** — see the header. The group
+              // is never focused, so a description hung there is unreachable.
+              aria-describedby={readoutId}
               className={cx(styles.cell, checked ? styles.checked : undefined)}
               key={window.label}
               onClick={() => {

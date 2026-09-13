@@ -266,7 +266,10 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
-for (const viewport of [VIEWPORTS[0], VIEWPORTS[1]] as const) {
+// **All three viewports since Task 2.13.8.** It ran at 1440 and 1024 only,
+// and 390 is the width `CLAUDE.md` measured the *worst* occlusion at — the
+// status strip wraps to three rows there, so the chrome is 208px against 132.
+for (const viewport of VIEWPORTS) {
   test(`the control is one tab stop and reachable without landing behind the chrome at ${viewport.name}`, async ({
     page,
   }) => {
@@ -323,6 +326,71 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[1]] as const) {
     expect(stillInside).toBe(false);
   });
 }
+
+// **The readout has to be reachable, not merely attached** (Task 2.13.8) — the
+// exact combination `TextField` got wrong for two tasks, found here on the walk
+// rather than by a test.
+//
+// The readout is the only thing on screen that says `1M` means twenty-one
+// trading sessions, and the only thing that explains an address naming a count
+// the control does not offer. It was wired with `aria-describedby` on the
+// **`div[role="radiogroup"]`** — which has no `tabindex`, because this is a
+// roving-tabindex group whose stop is the checked *cell*. A description is read
+// when a control is reached, and a description on a container is not part of a
+// child's, so it was computed correctly, attached correctly, on screen and
+// unreachable by any key press.
+//
+// Nothing in `pnpm verify` compares an `aria-describedby` against whether the
+// described element can be focused, and nothing in jsdom knows what `Tab` does.
+// So this walks to the stop and reads the description **off the element focus
+// actually lands on**.
+//
+// Re-measure: move `aria-describedby` from the cell back to the group in
+// `TimeWindowControl.tsx` and confirm this goes red.
+test("the window on screen is described at the stop focus lands on", async ({
+  page,
+}) => {
+  // A count the control does not offer, because that is the state the readout
+  // exists for: five cells with no bar under any of them, and a sentence
+  // saying why.
+  await page.goto(`${EXPLORER}?sessions=7`);
+  await expect(anAnswer(page).or(page.getByText(/could not be/))).toBeVisible();
+
+  let inside = false;
+  for (let press = 0; press < 30 && !inside; press += 1) {
+    await page.keyboard.press("Tab");
+    inside = await page.evaluate(
+      () => document.activeElement?.getAttribute("role") === "radio",
+    );
+  }
+  expect(inside).toBe(true);
+
+  const description = await page.evaluate(() => {
+    const active = document.activeElement;
+    const ids = (active?.getAttribute("aria-describedby") ?? "")
+      .split(/\s+/u)
+      .filter(Boolean);
+    return ids
+      .map((id) => document.getElementById(id)?.textContent ?? "")
+      .join(" ")
+      .trim();
+  });
+
+  expect(description).toBe("7 sessions");
+
+  // And it stays reachable while a listener arrows across the control under
+  // manual activation — the window on screen has not changed, so neither has
+  // what they are told about it.
+  await page.keyboard.press("ArrowRight");
+  const afterArrow = await page.evaluate(() => {
+    const active = document.activeElement;
+    const id = active?.getAttribute("aria-describedby") ?? "";
+    return document.getElementById(id)?.textContent ?? "";
+  });
+  expect(afterArrow).toBe("7 sessions");
+
+  await expectNothingFailedToRender(page);
+});
 
 test("the arrows move focus and a key press is what changes the window", async ({
   page,

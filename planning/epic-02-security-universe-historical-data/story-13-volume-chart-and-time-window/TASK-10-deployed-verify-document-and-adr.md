@@ -579,3 +579,117 @@ Add to **Done when**:
   re-applied
 - The close states what `pnpm e2e:deployed` does **not** cover, the window control
   and the rail included
+
+---
+
+## Amended 2026-09-13 by Task 2.13.8 — **the screen-reader pass belongs here, not to Story 2.14**, the sweep gains three swept targets and one new one, and ADR 0028 gains **no** subject
+
+### The correction first: 2.13.8 handed three questions to the wrong owner
+
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §45 closed with three questions
+that need a person and a screen reader, and named **Story 2.14's close** as their
+owner. **That is wrong and this amendment moves them here.**
+
+The argument is `CLAUDE.md`'s own, applied one layer over: _visual quality is an
+acceptance criterion on the story that builds the screen, not polish deferred to a
+later epic — polish deferred is polish never._ Whether a surface can be **used**
+is the same kind of claim as whether it looks right, and all three surfaces are
+this story's: the spoken bar sentence, the held-window rail's clause, and the
+window control's manual activation. Story 2.14 is the epic's close and owns the
+feed label; handing it an accessibility question about a control 2.13 shipped is
+deferring across a story boundary for work this story owes.
+
+It also fits the shape of this task rather than straining it. This is already the
+place where a **person** looks at a deployed page and answers four questions in
+writing. Listening to it is the same act with a different sense.
+
+**The three, with what is already measured and what the repair is if the answer
+is no:**
+
+1. **Can somebody stepping along bars actually hear the traded volume?**
+   The mechanism works — `Tab` to the plot, arrow, and the region says
+   _"…Open 230.40, high 230.58, low 230.25. **Volume 882 thousand.**"_ The
+   concern is arithmetic: the sentence is **25 words**, about **8 seconds** at a
+   default rate, and `READING_ANNOUNCEMENT_MIN_GAP_MS` is **1,500** — a floor
+   argued in Task 2.12.6 as _roughly how long a screen reader takes to read one of
+   these sentences_, and **not revisited when Task 2.13.5 added the volume
+   clause**. Driven and timed on 2026-09-13: two arrow presses announce at 477 ms
+   and 1,981 ms, so the region changes about four times faster than it can be
+   spoken. Whether that **queues** or **replaces** is reader-dependent and is the
+   whole question; if it queues, the volume figure is the first thing lost because
+   it is last.
+   **Repair if it is no: split the sentence** — instant, close and direction while
+   stepping, the four prices and the volume on a pause. **Not** a higher floor,
+   which would make a fast walk silent.
+2. **Is the held-window clause reachable in practice?**
+   _"NVDA: the series could not be read. This is usually temporary. Try again in a
+   moment. **The 21-session window is still on screen.**"_ Appended last, by
+   design (§37), and it is the clause that tells a listener _the page kept the
+   previous answer_ rather than _the page went blank_. Same class as (1) and the
+   same failure mode.
+3. **Is manual activation discoverable from the radio's own announcement?**
+   §32 chose `Space`-to-commit on the claim that _"1 year, radio button, not
+   checked, 5 of 5"_ tells a listener a press is pending. The tree is correct and
+   every cell now carries the readout as its description (§43.4). Whether _"not
+   checked"_ is **enough** is not answerable without listening.
+   **Repair if it is no**: an explicit hint in the description, or
+   selection-following-focus with a `replace`d address — which §32 declined
+   because it spends four addresses and four requests on one intention, and that
+   argument is unchanged.
+
+**Record the answer either way**, including "it was fine", because _nobody
+checked_ and _it was checked and it was fine_ are different artefacts and only one
+of them is worth anything to Epic 11.
+
+Add to **Done when**:
+
+- A real screen reader is used on the deployed page, and §45's three questions are
+  each answered in writing — the reader and the platform named, because the answer
+  to (1) is reader-dependent by construction
+- Anything found is repaired **here** or raised with a condition and a named
+  owner, and `VOLUME-AND-WINDOW.md` §45's attribution to Story 2.14 is corrected
+  to match what actually happened
+
+### What 2.13.8 already swept, so this task checks rather than repeats
+
+Three of this task's sweep targets are paid:
+
+- **`CHARTING.md`** carries a dated amendment at §15.3, beside the Story 2.12
+  quote of the coverage clause rather than replacing it — the clause said _the
+  bars stop at_ and was false by two sessions at `1d` (§43.2). The historical
+  quote is left standing, which is the rule.
+- **`CLAUDE.md`'s gap list** gained four entries and one **correction**: 2.13.4's
+  dash-rhythm entry was over-stated, found by running its own re-measure (§43.5).
+  Two of the three rhythms are shared and the third correctly is not.
+- **`CLAUDE.md`'s "what a user can see today"** gained the walk's paragraph, and
+  the must-not-ship fixture list gained `holiday-week.json` at **357 kB**, which
+  is now the largest thing in that directory. Its grep was performed against a
+  real `dist/` and finds nothing; **perform it again after the deploy build**,
+  because that is the artefact that ships.
+
+### And one new sweep target, which is `CHARTING.md`'s rather than this story's
+
+**§7's tick vocabulary gained a rule.** A time tick is now dropped when it falls
+within 5% of the axis from a session date (`MIN_TICK_SEPARATION`), because a half
+day puts its midday 32 px from the next date and the two were drawn on top of each
+other (§43.3). That is a fact about **how this product draws a time axis**, not
+about windows, so it belongs in `CHARTING.md` beside §7.1's answer 9 — _a session
+boundary carries the date and everything between carries the time_ — of which it
+is the corollary: when the two collide, the **time** loses.
+
+### ADR 0028 gains **no** subject from 2.13.8, and that is worth saying
+
+Seven subjects are named by the amendments above this one and the number is
+unchanged. 2.13.8 produced four repairs and a measurement, and none of them is a
+decision with reach:
+
+- The tick-separation rule is a drawing rule and goes to `CHARTING.md`, above.
+- The alternative naming the **resolved session count** is the window vocabulary —
+  ADR 0028's **first** subject — reaching one more surface, not a new decision.
+  Say it there rather than eighth.
+- _A description on a roving-tabindex group is unreachable_ is a **hazard**, not a
+  decision. It is on the gap list with a re-measure and a browser assertion, which
+  is where a hazard belongs; an ADR recording it would be recording a bug fix.
+
+A reader arriving at ADR 0028 after reading Part seven will expect an eighth
+subject, which is exactly why this paragraph exists.

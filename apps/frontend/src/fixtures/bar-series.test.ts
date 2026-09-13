@@ -226,6 +226,40 @@ describe("the recorded bar-series fixtures", () => {
     });
   });
 
+  // **Acceptance criterion 3, in the body the picture is drawn from** (Task
+  // 2.13.8). The route resolved this window — `market-data.test.ts` asserts
+  // that — and the axis divides it — `chart-geometry.test.ts` asserts that.
+  // What is only visible here is the **bars**: a holiday with nothing in it and
+  // a half day with 210 rather than 390.
+  it("holds five sessions across Thanksgiving week, the half day included", () => {
+    const view = barSeriesFixtureView("holidayWeek");
+
+    expect(view.state).toBe("loaded");
+    if (view.state !== "loaded") return;
+
+    // Market dates, through `marketWallClockAt` rather than off a UTC slice.
+    // The two agree for a 09:30 ET bar and would not for every instant, and a
+    // test that sliced the string would be asserting the browser's opinion of
+    // a market date rather than this workspace's one module for it.
+    const perSession = new Map<string, number>();
+    for (const bar of view.series.bars) {
+      const { date } = marketWallClockAt(bar.startsAt);
+      perSession.set(date, (perSession.get(date) ?? 0) + 1);
+    }
+
+    expect([...perSession]).toEqual([
+      ["2026-11-23", 390],
+      ["2026-11-24", 390],
+      ["2026-11-25", 390],
+      // Thanksgiving, 2026-11-26, is absent — and so is the weekend before the
+      // Monday this window starts on.
+      ["2026-11-27", 210],
+      ["2026-11-30", 390],
+    ]);
+
+    expect(view.series.bars).toHaveLength(1770);
+  });
+
   it("derives its two hand-made bodies from the recorded one, a field apart", () => {
     // The property that keeps the derivation honest, and the reason the
     // original is kept beside them: each differs from `full.json` in exactly

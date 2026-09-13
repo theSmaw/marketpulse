@@ -1,5 +1,5 @@
 import { MARKET_FEED_DESCRIPTIONS } from "@marketpulse/shared";
-import type { TimeRange, Timeframe } from "@marketpulse/shared";
+import type { BarSeries, TimeRange, Timeframe } from "@marketpulse/shared";
 
 import type {
   BarSeriesView,
@@ -111,6 +111,7 @@ export function chartAlternative(
     case "empty":
       return (
         `${symbol} price chart: no line is drawn. ` +
+        `${frameClause(view.series)} ` +
         `No bars are stored anywhere in the window asked for, ` +
         `${formatMarketRange(view.series.coverage.requested)}, so the whole ` +
         `frame is empty ground.`
@@ -145,6 +146,18 @@ interface Mark {
   readonly subject: string;
   readonly run: string;
   readonly cover: string;
+  /**
+   * The **second** verb of the short-answer clause, and it is here because it
+   * was missing (Task 2.13.8).
+   *
+   * `The columns cover the first 780 of 990 trading minutes in the window and
+   * stops at 16:00` shipped in Task 2.13.4 and was heard for the first time on
+   * this story's walk. The plural subject was parameterised and the verb three
+   * clauses later was not — which is the shape of defect a singular-only test
+   * suite cannot see, and `volumeAlternative` had no unit test at all until
+   * this task gave it one.
+   */
+  readonly stop: string;
   readonly behind: string;
 }
 
@@ -152,6 +165,7 @@ const LINE: Mark = {
   subject: "The line",
   run: "runs",
   cover: "covers",
+  stop: "stops",
   behind: "on it",
 };
 
@@ -159,6 +173,7 @@ const COLUMNS: Mark = {
   subject: "The columns",
   run: "run",
   cover: "cover",
+  stop: "stop",
   behind: "behind them",
 };
 
@@ -194,6 +209,7 @@ export function volumeAlternative(
     case "empty":
       return (
         `${symbol} volume chart: no columns are drawn. ` +
+        `${frameClause(view.series)} ` +
         `No bars are stored anywhere in the window asked for, ` +
         `${formatMarketRange(view.series.coverage.requested)}, so the whole ` +
         `frame is empty ground.`
@@ -215,6 +231,7 @@ function describeVolume(series: PopulatedBarSeries, symbol: string): string {
     `${symbol} volume chart: ${formatCount(series.bars.length)} columns of ` +
       `traded volume, one per ${intervalWord(series.timeframe)}, measured from ` +
       `a baseline of zero to the window's busiest ${slotUnit(series.timeframe)}.`,
+    frameClause(series),
     peakClause(series),
     coverageClause(series, COLUMNS),
     feedClause(series),
@@ -274,6 +291,7 @@ function describeSeries(series: PopulatedBarSeries, symbol: string): string {
       `closing prices, one per ${intervalWord(series.timeframe)}, ` +
       `opening at ${formatPrice(prices.open)} and ending at ` +
       `${formatPrice(prices.close)}${move(percent)}.`,
+    frameClause(series),
     `The highest price on it is ${formatPrice(prices.high)} and the lowest ` +
       `${formatPrice(prices.low)}.`,
     coverageClause(series, LINE),
@@ -308,6 +326,54 @@ function move(percent: number | null): string {
 const SIGNS = /[+\u2212]/gu;
 
 /**
+ * **Which window this is a picture of**, said as the number the reader chose
+ * (Task 2.13.8).
+ *
+ * Until Task 2.13.6 there was one window and nobody had picked it, so a
+ * sentence that named its two instants named everything there was to name. Now
+ * the window is a **choice**, made on a control whose readout says `5 SESSIONS`
+ * and reported by the held-window rail as *the 5-session window* — and this
+ * sentence was the one surface describing the picture that never said which of
+ * the five it was describing. A `1m` frame states its width in trading minutes,
+ * so a listener on the `1M` window heard *8,190 trading minutes* and had to do
+ * the division; a `1d` frame that is completely covered stated no count at all.
+ *
+ * **The count is the resolved one and it comes off the axis**, which is the
+ * half that makes it true rather than merely present: `?sessions=7` is an
+ * address this product honours (§4b), an agent's `setTimeWindow` may ask for
+ * thirty, and a window resolved across a holiday is **five sessions over seven
+ * calendar days**. `axis.sessions` is what the picture is actually divided
+ * into, so this clause and the seams a sighted reader counts are the same
+ * number by construction.
+ *
+ * It is `timeAxis` again rather than a second derivation, for the reason
+ * `CLAUDE.md`'s gap list carries: the sentence and the wash agree only because
+ * both count the same axis, and a clause computed from elapsed days would
+ * report *eight* here — one for Thanksgiving and two for the weekend, neither
+ * of which this axis gives any width to at all.
+ *
+ * One vocabulary with the control and the rail: **sessions**, never `1M`. §4(e)
+ * settled that the count is the fact and the label is the approximation.
+ *
+ * *"Drawn across"* rather than *"N sessions wide"*, which is a smaller word and
+ * a real difference: an **absolute** window can ask for one hour of one session
+ * — `flat.json` is exactly that, and Epic 13's scrubber will produce them
+ * routinely — and a frame holding sixty minutes of a session is drawn *across*
+ * one session without being one session wide. The named form the control sends
+ * is always whole sessions, so the two readings only diverge where the address
+ * cannot go today; the wording that stays true in both costs nothing.
+ */
+function frameClause(series: BarSeries): string {
+  const axis = timeAxis(series.coverage.requested, series.timeframe);
+  const sessions = axis.sessions.length;
+
+  return (
+    `The frame is drawn across ${formatCount(sessions)} trading ` +
+    `${sessions === 1 ? "session" : "sessions"}.`
+  );
+}
+
+/**
  * **How much of the frame the line actually occupies**, counted in the units
  * the axis is made of.
  *
@@ -338,12 +404,20 @@ function coverageClause(series: PopulatedBarSeries, mark: Mark): string {
     // therefore complete and the answer is not, and this is the one clause in
     // this module that exists to stop the sentence agreeing with the picture
     // when the picture cannot say the thing.
+    // **"What is stored reaches only to" and not "the bars stop at"**, which
+    // was the wording until Task 2.13.8's walk heard it at `1d`. Both instants
+    // here belong to a **window** rather than to a bar (§30.2), and at `1d` the
+    // two are genuinely different facts: `daily.json`'s last bar is Sep 11 and
+    // its ledger's covered range runs to `Sep 13 00:04:11`, the moment a
+    // backfill finished. *The bars stop at Sep 13* was therefore false by two
+    // sessions on every daily window, and true-by-coincidence on every minute
+    // one, where a covered range ends at a session close.
     return (
       `${mark.subject} ${mark.run} the full width of the frame and there is no ` +
       `empty ground ${mark.behind}, but it is not the whole window: the window ` +
       `asked for runs to ` +
-      `${formatMarketInstant(requested.end)} and the bars stop at ` +
-      `${formatMarketInstant(covered.end)}. What is missing falls outside ` +
+      `${formatMarketInstant(requested.end)} and what is stored reaches only ` +
+      `to ${formatMarketInstant(covered.end)}. What is missing falls outside ` +
       `trading hours — a night, a weekend or a holiday — which this axis gives ` +
       `no width to.`
     );
@@ -354,7 +428,7 @@ function coverageClause(series: PopulatedBarSeries, mark: Mark): string {
   if (from === 0)
     return (
       `${mark.subject} ${mark.cover} the first ${formatCount(held)} of ${formatCount(total)} ` +
-      `${unit} in the window and stops at ${formatMarketInstant(covered.end)}; ` +
+      `${unit} in the window and ${mark.stop} at ${formatMarketInstant(covered.end)}; ` +
       `the rest, running to ${formatMarketInstant(requested.end)}, has no ` +
       `stored bars and is drawn as empty ground.`
     );
