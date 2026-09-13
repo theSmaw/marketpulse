@@ -3782,3 +3782,111 @@ date on it. Two things this story owes are open and named with owners rather tha
 closed quietly: the listening pass and the weekday 1D photograph. One thing it
 tried to make mechanical could not be made mechanical, and that is recorded with
 the reason rather than as a silent omission.
+
+---
+
+# Part ten — after the close (2026-09-13)
+
+## 69. The rail took its height out of the flow, and the chart jumped 30px
+
+Reported by a person using the page: **press a window and the price chart drops
+down**, then rises again when the answer lands.
+
+The cause is §6.3's rail and nothing else. It is rendered above the picture,
+exactly and only while a request is unanswered — which is to say **at the moment
+somebody presses a window** — and it took its height out of the normal flow. So
+the sequence a reader gets for one press is: chart in place, chart 30px lower,
+chart in place. The picture is the thing they are looking at and, on a machine
+with a pointer, the thing their hand is on.
+
+Measured rather than estimated: with the repair reverted,
+`e2e/specs/security-window-change.spec.ts` reports **30** where it requires under
+
+1. That figure is one dense line of sentence plus the rail block's twelve pixels
+   of padding above its own hairline, which is the rail's whole height — the panel's
+   16px gap is spent either way.
+
+### 69.1 Why it is a reservation rather than a move
+
+Three repairs were available and two were rejected:
+
+- **Move the rail below the chart.** Rejected: §6.3 is explicit that the label
+  saying _which window the picture is of_ has to be **above** the picture,
+  because a reader's first question about a screen that did not change when they
+  pressed something is _what am I looking at_. A sentence under the chart answers
+  it after the chart has already been misread.
+- **Overlay the rail on the chart.** Rejected for the reason the stale rail was
+  put beside the numbers rather than on them in the first place: nothing in this
+  panel is allowed to make a figure harder to read while somebody is reading it.
+- **Reserve the slot.** Taken.
+
+### 69.2 The reservation is a measurement, not a length
+
+`CHARTING.md` §15.4's finding applies here unchanged, and it is the reason this
+is not a `min-height` token: **no single reserved height is correct at more than
+one width.** The rail's sentence — _Still showing the 5-session window while the
+21-session window is read._ — is one line at 1440 and **two** at 390.
+
+So the slot is one grid cell with every state of the rail placed in it, the live
+one visible and a hidden copy of the in-flight sentence laid out beside it. The
+row is therefore as tall as the tallest of them _at this width_. The hidden copy
+is `aria-hidden` and `visibility: hidden` — present in layout, absent from
+everything else — and has nothing focusable in it, so it is out of the tab order
+by construction.
+
+The phrase it is measured against is the **longest** of the five windows the
+control offers, plus the two this screen is actually holding and asking for. That
+last part matters: an address naming a count the control does not offer sizes the
+slot for itself rather than being clipped by a vocabulary that never saw it.
+
+### 69.3 What the break-verification says, and it says the expected thing twice
+
+Two substitutions were performed rather than assumed:
+
+1. **The sizer deleted.** `pressing a window does not move the chart` goes red at
+   **30** against a tolerance of 1, and the component test asserting the
+   reservation is present goes red with it. `pnpm verify` stays entirely green
+   throughout, which is this file's standing point about layout: jsdom computes
+   no layout, so the defect and the repair render identically below `pnpm e2e`.
+2. **The sizer replaced by a 30px `height`** — the obvious wrong repair, a
+   measurement of one viewport declared as a constant. **Desktop stays green and
+   tablet and phone go red.** That is §15.4's shape reproduced exactly, and it is
+   why the new test runs at three viewports rather than at the one a developer
+   is looking at.
+
+### 69.4 What is deliberately not reserved
+
+The extra content the **refused** and **failed** rails bring — the server's own
+sentence, the retry, the reference. Those are settled outcomes that no press of a
+window can produce: the control emits only the five counts and every one of them
+is answerable, so a refusal needs a hand-typed address and a failure needs a
+broken network. Reserving the tallest of them permanently would put a failure's
+worth of empty space above every chart in the product, on every screen, for ever.
+
+The residue is honest: **a window change that fails still moves the chart**, by
+whatever the failure's own rail is taller than one sentence. It moves once, to a
+settled state, rather than twice under a pointer.
+
+### 69.5 One number, and it is a fraction of a token
+
+`.rail` gives back half the panel's gap at each end (`margin-block: calc(-1 *
+var(--space-8))`). Without it the slot spends a full gap above **and** below a
+region that is empty in the steady state, and the result reads as a missing
+element between the ticker and the price rather than as breathing room around the
+display figure. Eight pixels either side is what the rail needs to sit clear of
+both when it _is_ occupied, and it already carries twelve below its sentence
+before its hairline.
+
+### 69.6 Two locators learned that a hidden copy is in the DOM
+
+Both are the same correction made twice, and both are the query telling the
+truth rather than a nuisance:
+
+- `BarSeriesPanel.test.tsx`'s `VISIBLE` now ignores `aria-hidden` subtrees, as it
+  already ignored `role="status"`. Same rule: a text query that does not say
+  which channel it means resolves to every channel.
+- `e2e/support/app.ts`'s `readable` now requires `:visible`. Note this is the one
+  exclusion that could not be written as an attribute selector — the hidden
+  element is a wrapper and the text is in a child. It covers the two
+  `chart-readout.module.css` sizers too, which were only ever missed because
+  nothing had yet queried their text.

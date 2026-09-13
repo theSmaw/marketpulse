@@ -83,8 +83,17 @@ function Panel({
  * That failure is the queries telling the truth. Every assertion about what a
  * *reader* sees says so here; the announcement has its own tests below, which
  * are the only ones that look inside `role="status"`.
+ *
+ * `aria-hidden` joined the list on 2026-09-13, for the rail's reservation: the
+ * slot above the chart lays out a hidden copy of the in-flight sentence so the
+ * picture cannot move when a real one appears, which puts a second *Still
+ * showing …* in the DOM that no reader can read. Same rule as the live region —
+ * a query that does not say which channel it means resolves to both.
  */
-const VISIBLE = { ignore: "[role='status'], script, style" } as const;
+const VISIBLE = {
+  ignore:
+    "[role='status'], [aria-hidden='true'], [aria-hidden='true'] *, script, style",
+} as const;
 
 describe("BarSeriesPanel", () => {
   it("names the security in every state, including the ones with no series", () => {
@@ -592,6 +601,32 @@ describe("a window change", () => {
 
     expect(screen.queryByText(/Still showing/, VISIBLE)).toBeNull();
     expect(screen.getByText(/Reading the series…/, VISIBLE)).toBeTruthy();
+  });
+
+  it("reserves the rail's slot in a state with no rail in it", () => {
+    // **The chart must not move when a window is pressed** (2026-09-13). The rail
+    // is rendered above the picture and only while a request is unanswered, so
+    // the slot it goes in lays out a hidden copy of its sentence in every state
+    // — which is the only reservation that is correct at more than one width,
+    // because the sentence wraps at 390px and does not at 1440.
+    //
+    // jsdom computes no layout, so this asserts the **mechanism** and not the
+    // pixels: that the hidden sentence is there, that it is out of the
+    // accessibility tree, and that it is shaped like the rail it reserves for.
+    // `e2e/specs/security-window-change.spec.ts` is the only instrument that can
+    // see the chart's position.
+    const { container } = render(
+      <Panel {...props} view={barSeriesFixtureView("partial")} />,
+    );
+
+    expect(screen.queryByText(/Still showing/, VISIBLE)).toBeNull();
+
+    const reserved = container.querySelectorAll("[aria-hidden='true']");
+    const sentence = [...reserved]
+      .map((node) => node.textContent)
+      .find((text) => text.includes("Still showing"));
+
+    expect(sentence).toMatch(/Still showing the .*-session window while/);
   });
 
   it("shows the refreshing rail and the held-window rail never together", () => {

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import type { MarketFeed, TimeRange } from "@marketpulse/shared";
 import { MARKET_FEED_DESCRIPTIONS } from "@marketpulse/shared";
 
@@ -15,6 +17,8 @@ import {
   formatBarInstant,
   formatChangePercent,
   formatPrice,
+  seriesWindowFor,
+  TIME_WINDOWS,
   windowPhrase,
 } from "../../market/index.js";
 import { Marker } from "../Marker/Marker.js";
@@ -180,23 +184,7 @@ export function BarSeriesPanel({
         defaulted={defaulted}
         untracked={isUntracked(shown)}
       />
-      {/*
-       * **One rail position, two subjects** (Task 2.13.7), and they are mutually
-       * exclusive rather than stacked.
-       *
-       * `Refreshing` says *a newer answer to this question is coming*.
-       * `HeldWindow` says *this is the answer to a different question, and here
-       * is what happened to the one you asked*. A screen showing both would be
-       * telling a reader that the picture is one request old **and** about
-       * another window, which is two marks for one fact: the held answer is by
-       * definition not about to be refreshed, because the request behind it has
-       * already been superseded.
-       */}
-      {screen.previous === null ? (
-        isStale(shown) && <Refreshing />
-      ) : (
-        <HeldWindow screen={screen} onRetry={onRetry} />
-      )}
+      <Rail screen={screen} onRetry={onRetry} />
       <Reading view={shown} />
       {/*
        * **The chart, above the facts and not instead of them** (Task 2.12.4).
@@ -311,6 +299,107 @@ function isUntracked(view: BarSeriesView): boolean {
 }
 
 /**
+ * **The rail's position, reserved** (2026-09-13).
+ *
+ * One slot above the picture, occupied by at most one of the two rails, and
+ * **always the same height whether it is occupied or not**.
+ *
+ * That last part is the whole of this component. The rail is rendered exactly
+ * when a request is in flight or has arrived carrying no picture, which is to
+ * say **at the moment somebody presses a window** — so a rail that takes its
+ * height out of the flow moves the chart down the instant it appears and back up
+ * when the answer lands. The chart is the thing the reader is looking at and the
+ * thing their pointer is on; a picture that jumps under a hand reading it is the
+ * same defect `CHARTING.md` §15.4 found in the readout strip, one level up.
+ *
+ * The mechanism is that file's answer too, because it is the only one that works
+ * at more than one width: **every state the slot can be in, laid out in one grid
+ * cell, with all but the live one hidden.** A `min-height` token cannot do it —
+ * the sentence wraps to two lines at 390px and to one at 1440, so a reservation
+ * measured anywhere is wrong everywhere else.
+ *
+ * What is deliberately *not* reserved is the extra content the refused and
+ * failed rails bring — the server's sentence, the retry, the reference. Those
+ * are settled outcomes that no press of a window can produce (the control emits
+ * only the five counts, and every one of them is answerable), and reserving the
+ * tallest of them permanently would put a failure's worth of empty space above
+ * every chart in the product.
+ */
+function Rail({
+  screen,
+  onRetry,
+}: {
+  readonly screen: BarSeriesScreen;
+  readonly onRetry: () => void;
+}) {
+  return (
+    <div className={styles.rail}>
+      {/*
+       * The reservation: the in-flight rail, at the longest window phrase this
+       * screen could name, hidden. `aria-hidden` and `visibility: hidden` — it
+       * is present in layout and absent from everything else, and it has nothing
+       * focusable in it, so it is out of the tab order by construction.
+       */}
+      <div
+        aria-hidden="true"
+        className={cx(styles.railState, styles.railSizer)}
+      >
+        <div className={styles.heldWindow}>
+          <RailSentence>
+            {inFlightSentence(reservedPhrase(screen), reservedPhrase(screen))}
+          </RailSentence>
+        </div>
+      </div>
+      <div className={styles.railState}>
+        {/*
+         * **One rail position, two subjects** (Task 2.13.7), and they are
+         * mutually exclusive rather than stacked.
+         *
+         * `Refreshing` says *a newer answer to this question is coming*.
+         * `HeldWindow` says *this is the answer to a different question, and
+         * here is what happened to the one you asked*. A screen showing both
+         * would be telling a reader that the picture is one request old **and**
+         * about another window, which is two marks for one fact: the held answer
+         * is by definition not about to be refreshed, because the request behind
+         * it has already been superseded.
+         */}
+        {screen.previous === null ? (
+          isStale(screen.shown) && <Refreshing />
+        ) : (
+          <HeldWindow screen={screen} onRetry={onRetry} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The window phrase the reservation is measured against.
+ *
+ * The longest of the five windows the control offers, and of the two this screen
+ * is actually holding and asking for — so an address naming a count the control
+ * does not offer sizes the slot for itself rather than being clipped by a
+ * vocabulary that never saw it.
+ *
+ * It is deliberately **one** phrase used in both halves of the sentence rather
+ * than a pair: the sizer is a measurement of the longest sentence the slot can
+ * be asked to hold, not a prediction of the one it will hold next.
+ */
+function reservedPhrase(screen: BarSeriesScreen): string {
+  const phrases = [
+    ...TIME_WINDOWS.map((window) =>
+      windowPhrase(seriesWindowFor(window.sessions)),
+    ),
+    windowPhrase(screen.asked.window),
+    ...(screen.previous === null ? [] : [windowPhrase(screen.previous.window)]),
+  ];
+
+  return phrases.reduce((longest, phrase) =>
+    phrase.length > longest.length ? phrase : longest,
+  );
+}
+
+/**
  * A newer answer is on its way, and the ones below are held.
  *
  * ## What it must not do, which decided nearly everything about it
@@ -345,13 +434,38 @@ function isUntracked(view: BarSeriesView): boolean {
  */
 function Refreshing() {
   return (
+    <RailSentence>
+      Refreshing — showing the held answer while a newer one is read.
+    </RailSentence>
+  );
+}
+
+/**
+ * A rail's one line: the dashed marker, and the sentence beside it.
+ *
+ * One home for the row, because three things render it — the stale rail, the
+ * held-window rail, and the hidden reservation that measures the slot they share
+ * — and a marker that differed between them would be three marks for one fact.
+ */
+function RailSentence({ children }: { readonly children: ReactNode }) {
+  return (
     <p className={styles.refreshing}>
       <Marker shape="dashed" />
-      <span>
-        Refreshing — showing the held answer while a newer one is read.
-      </span>
+      <span>{children}</span>
     </p>
   );
+}
+
+/**
+ * *Still showing X while Y is read.*
+ *
+ * The in-flight rail's copy, in one place, because the reservation above has to
+ * lay out the same sentence the rail will put in the slot — and a second copy
+ * written for the sizer would be a measurement of a sentence this panel does not
+ * say.
+ */
+function inFlightSentence(holding: string, asked: string): string {
+  return `Still showing ${holding} while ${asked} is read.`;
 }
 
 /**
@@ -418,14 +532,11 @@ function HeldWindow({
         view.state === "loading" ? styles.working : undefined,
       )}
     >
-      <p className={cx(styles.refreshing)}>
-        <Marker shape="dashed" />
-        <span>
-          {view.state === "loading"
-            ? `Still showing ${holding} while ${asked} is read.`
-            : `Still showing ${holding}. ${outcomeSentence(view, asked)}`}
-        </span>
-      </p>
+      <RailSentence>
+        {view.state === "loading"
+          ? inFlightSentence(holding, asked)
+          : `Still showing ${holding}. ${outcomeSentence(view, asked)}`}
+      </RailSentence>
       {view.state === "refused" && <RefusalDetail message={view.message} />}
       {view.state === "failed" && (
         <FailureDetail view={view} onRetry={onRetry} retry />

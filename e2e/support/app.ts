@@ -126,7 +126,20 @@ export async function expectNothingFailedToRender(page: Page): Promise<void> {
  * match, restricted to elements that are not the live region. It does not
  * exclude a live region's *descendants*, which is correct — the regions in this
  * application hold a single text node and nothing else.
+ *
+ * **`:visible` joined it on 2026-09-13**, for a second class of text that is in
+ * the DOM and not readable: a **reservation**. The rail above the price chart
+ * lays out a hidden copy of its own in-flight sentence so that the picture
+ * cannot move when a real one appears, and `chart-readout.module.css` does the
+ * same under both plots. Those copies are `visibility: hidden`, which is the
+ * whole point of them — present in layout, absent from everything else — so a
+ * reader cannot read them and this helper must not find them. Note this is the
+ * one exclusion that would be wrong as an attribute selector: the hidden element
+ * is a wrapper and the text is in a child.
  */
 export function readable(scope: Locator, text: RegExp | string): Locator {
-  return scope.getByText(text).and(scope.locator(':not([role="status"])'));
+  return scope
+    .getByText(text)
+    .and(scope.locator(':not([role="status"])'))
+    .and(scope.locator(":visible"));
 }

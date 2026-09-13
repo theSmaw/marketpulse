@@ -88,6 +88,52 @@
 /* --- A newer answer on its way --- */
 
 /*
+ * **The rail's slot, reserved** (2026-09-13).
+ *
+ * One grid cell, every state of the rail placed in it, so none of them can push
+ * the chart below down — and the row is as tall as the tallest of them **at this
+ * width**, which is the only form of reservation that survives a sentence that
+ * wraps at 390px and does not at 1440. `chart-readout.module.css` carries the
+ * whole argument; this is its second consumer and the first outside a chart.
+ *
+ * No height token, deliberately. A number here would be a measurement of one
+ * viewport declared as a constant, which is the defect `CHARTING.md` §15.4
+ * records rather than a shortcut past it.
+ */
+.rail {
+  display: grid;
+  grid-template-columns: 1fr;
+
+  /*
+   * Half the panel's gap, given back at both ends.
+   *
+   * The slot is present in every state, so its height is spent on every screen
+   * whether a rail is in it or not — and a full gap above *and* below an empty
+   * slot reads as a missing element between the ticker and the price. Eight
+   * pixels either side is what the rail needs to sit clear of both when it is
+   * occupied, and the rail carries its own twelve below the sentence before its
+   * rule. This is the one number in this file, and it is a fraction of a token
+   * rather than a length.
+   */
+  margin-block: calc(-1 * var(--space-8));
+}
+
+/* One state of the slot. They are stacked in one cell rather than in a column. */
+.railState {
+  grid-area: 1 / 1;
+}
+
+/*
+ * Present in layout and absent from everything else — `visibility: hidden`
+ * rather than `display: none`, which is the entire point, and `pointer-events:
+ * none` so a hidden sentence cannot take a click meant for the figures under it.
+ */
+.railSizer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/*
  * The stale rail: one sentence, a dashed marker, and a hairline under it that
  * travels.
  *
