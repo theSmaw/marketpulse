@@ -134,6 +134,19 @@ Each is justified by the rows above rather than by taste.
   server's 20.6 ms on every cache hit, and it is explicitly not a `useMemo` in a
   component, which would fix one caller of three.
 
+  > **Landed 2026-09-13 by Task 2.13.3, and the precondition is met.** The walk
+  > is memoised in `packages/shared` — on a **market date** inside
+  > `marketSessionOn` rather than on a window, because
+  > `MARKET-DATA-API.md` §12.4 had already attributed the cost to constructing
+  > each session's two instants rather than to walking the days, and a per-date
+  > memo therefore pays every walker in both applications. **1Y is 0.8 ms per
+  > render instead of 17.0, and the server's cap check is 0.9 ms on a cache hit
+  > instead of 20.6.** The figures are re-taken in full in the task file and in
+  > `CHARTING.md` §16.5's dated amendment; the one qualification worth carrying
+  > here is that the **first** walk of a set of dates still costs what it always
+  > did (~9.5 ms for a year, once per process), so what the repair removed is the
+  > repetition rather than the walk.
+
 **"Max" is declined, and for three reasons rather than one.**
 
 1. **It has no honest label.** 672 sessions of `1d` and 251 of `1m` are

@@ -1283,6 +1283,39 @@ depth it is the request.
 > 2.13's window control is the screen the trigger names, and its own file carries
 > a dated amendment saying so.
 
+> **Amended 2026-09-13 by Task 2.13.3 — the repair landed, and this section's
+> live claim is no longer true.** The memo is in `packages/shared`, on
+> `marketSessionOn` rather than on a window: the attribution three paragraphs
+> above is what chose the level — _the cost is constructing each session's open
+> and close instants through the timezone conversion, not walking the days_ — so
+> remembering the per-date answer pays every walker in both applications rather
+> than one function's arguments. It holds epoch milliseconds and rebuilds the two
+> `Date`s per call, because a cached `Date` is mutable and a shared one could move
+> a trading day with no error to notice. It has no clock and therefore no TTL, and
+> its entry bound is the calendar's own range.
+>
+> Re-taken 2026-09-13, same method, best of 200 after 50 warm-up calls, on the
+> same machine the table above was **not** taken on — so read the ratio rather
+> than the absolute:
+>
+> | Window                 | Sessions | Before       | Cold, once   | **Warm**     |
+> | ---------------------- | -------: | ------------ | ------------ | ------------ |
+> | Five sessions          |        5 | 0.165 ms     | 0.008 ms     | 0.007 ms     |
+> | One year               |      252 | 7.47 ms      | 0.343 ms     | 0.342 ms     |
+> | The whole stored depth |      676 | **20.62 ms** | **36.47 ms** | **0.906 ms** |
+>
+> **The cap check on a cache hit is now 0.9 ms at the full daily depth instead of
+> 20.6.** Two things in that table are worth stating rather than leaving to be
+> read: the year row is already warm on its first call because the process walked
+> those dates resolving the window, and the depth row's **cold** figure is
+> _higher_ than the old one — the first request that touches the whole calendar
+> pays the same conversions plus the memo's own bookkeeping, once per process.
+> What was removed is the repetition, which is what "on every cache hit" meant.
+>
+> The trigger above — _the first screen whose default window is a daily series over
+> more than ~200 sessions_ — is therefore discharged rather than still waiting, and
+> `CHARTING.md` §16.5's version of it with it.
+
 ### 12.5 Nothing on this path compresses
 
 **Measured both ways round.** `Accept-Encoding: gzip, deflate, br` against the
