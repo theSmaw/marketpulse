@@ -787,17 +787,21 @@ describe("the week with a holiday and a half day in it", () => {
 
 describe("the volume columns, at both ends of the density range", () => {
   it("leaves a one-pixel gap where a column is wide enough to have one", () => {
-    // Regime one. `full` is 30 minute bars, so a 60 px plot gives 2 px a bar — the
-    // threshold itself — and an 867 px plot gives 28.9.
+    // Regime one, and **the gap is measured against the pitch the stems are drawn
+    // at** rather than against a bar's share of the plot. `full` is 30 minute bars
+    // on an 867 px plot: the pitch is 867/29 and a column of pitch − 1 leaves
+    // exactly 1 px. Dividing by 30 instead leaves **2.0 px**, which is what the
+    // first version of this did — and 1.22 px at 3M's 63 bars — against §10.2's
+    // stated 1 px.
     const subject = subjectOf("full");
-    const wide = volumeFrame(
-      timeFrame(PLOT.width, DENSITY, subject),
-      VOLUME_HEIGHT,
-      subject.bars,
-    );
+    const time = timeFrame(PLOT.width, DENSITY, subject);
+    const wide = volumeFrame(time, VOLUME_HEIGHT, subject.bars);
+    const columns = stems(wide.columns ?? "");
 
-    expect(wide.columnWidth).toBeCloseTo(PLOT.width / 30 - 1, 5);
     expect(wide.stems).toBe(30);
+
+    const pitch = (columns[1]?.x ?? 0) - (columns[0]?.x ?? 0);
+    expect(pitch - wide.columnWidth).toBeCloseTo(1, 1);
   });
 
   it("spends the whole slot on the column once there is no room for a gap", () => {
@@ -812,8 +816,9 @@ describe("the volume columns, at both ends of the density range", () => {
       subject.bars,
     );
 
-    expect(45 / 30).toBe(1.5);
-    expect(narrow.columnWidth).toBe(1.5);
+    // 45 px over 29 gaps is 1.552 px of pitch — inside the 1-2 px band, so the
+    // column takes the whole pitch and there is no gap to leave.
+    expect(narrow.columnWidth).toBeCloseTo(45 / 29, 5);
     expect(narrow.stems).toBe(30);
   });
 

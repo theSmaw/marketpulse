@@ -198,3 +198,71 @@ Amend **Done when** — the first item replaces the one above it:
 - The read position lives in a wrapper that renders `children` through unchanged,
   and the zero-recomputation guard is re-pointed at the pair and still reports
   zero
+
+---
+
+## Amended 2026-09-13 by Task 2.13.3 — the two volume forms exist, and the rest state needs a fact nothing returns yet
+
+### What to call
+
+`market/index.ts` exports the two forms this task's _"volume's words, not its
+glyphs"_ bullet asked 2.13.3 to settle, and they were decided in one file so they
+cannot drift:
+
+| Need                                       | Call                        | Gives          |
+| ------------------------------------------ | --------------------------- | -------------- |
+| The strip's figure under the pointer (§5a) | `formatVolumeExact(volume)` | `4,061,234`    |
+| The same figure read aloud                 | `spokenVolume(volume)`      | `4.06 million` |
+| A summary or an axis label                 | `formatVolume(volume)`      | `4.06M`        |
+
+**`formatVolumeExact` is the readout's**, and it is the one volume string in the
+product that rounds nothing. `spokenVolume` holds the same figure to the same
+precision as `formatVolume`, which is the property that keeps a sighted reader and
+a listener quoting one number.
+
+### The rest state wants the peak **bar**, and only the peak figure exists
+
+§15 decided the volume strip's rest state is _"the window's peak and when it
+happened"_. `volumePeak(bars)` returns the figure; **nothing returns the bar it
+came from**, so the instant is not available yet. Two ways, and this task picks
+one rather than discovering the gap mid-build:
+
+- Find it in the frame's `readings`, which already carry each bar with its slot and
+  its pixels — no new arithmetic, and the strip is already holding that array.
+- Or add a `volumePeakBar(bars)` to `chart-volume-axis.ts` beside `volumePeak`, if
+  the text alternative in 2.13.8 wants the same fact, which it probably does.
+
+Whichever, the instant goes through `formatBarInstant` — the reading's existing
+spelling — and not a second one.
+
+### Two facts about the geometry that bear on the reading
+
+- **The picture is per pixel below a pixel per bar; the reading is always per
+  bar.** At the default window the volume plot draws one stem per pixel column
+  carrying that column's **maximum**, so the column under the pointer is often
+  taller than the bar the crosshair snapped to. That is §10.5 and it is correct —
+  but it means the strip's figure and the visible column height genuinely disagree
+  at 5D and wider, and the timestamp is what makes that honest. The same split
+  already exists on the price line at 0.47 px per bar.
+- **`peak` is `null` where there are no bars.** The gutter writes nothing and the
+  rest state has no figure to state, which is a state this task has to render
+  rather than a case that cannot happen: `empty` is a first-class answer and 1D is
+  reliably one until Epic 3.
+
+### The wrapper may already exist
+
+§15.1's wrapper is the component that holds the read position and renders
+`children` through unchanged. **2.13.4 now builds the frame half of exactly that
+component** — one `timeFrame` call handed to both plots — because 2.13.3 split the
+frame into `timeFrame`/`priceFrame`/`volumeFrame` and something has to own the
+shared one. If 2.13.4 named it, this task adds state to it; if 2.13.4 put the call
+in `SecurityExplorer`, moving it is this task's first step and the reason is the
+518-row table, not tidiness.
+
+Add to **Done when**:
+
+- The strip's exact figure comes from `formatVolumeExact` and its spoken form from
+  `spokenVolume`, with no second spelling of either
+- The rest state's peak instant comes from one named source, and `formatBarInstant`
+  spells it
+- The strip renders correctly where `peak` is `null`

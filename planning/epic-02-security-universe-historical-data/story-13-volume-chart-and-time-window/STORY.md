@@ -396,3 +396,42 @@ The rest, in one line each:
 labelling tension — `refused` and `failed` draw no frame, while criterion 4 asks
 that a failed change leave the previous data visible — is still 2.13.7's to
 resolve, and 2.13.2 added nothing that makes it harder.
+
+---
+
+## Amended 2026-09-13 by Task 2.13.3 — the arithmetic exists, 1Y's precondition is met, and no task moved
+
+**No task was added, deleted or re-ordered.** The dependency graph is unchanged and
+nothing 2.13.3 built or measured needs work nobody owns. Seven task files carry
+dated amendments, all of them narrowings: a decision that was open is now a named
+function, or a figure has moved.
+
+**The one thing in this story that was blocked is not any more.** §1.2 made the
+memoisation a **precondition** of offering 1Y rather than an optimisation
+following it. It landed, in `packages/shared` and on a **market date** rather than
+on a window — `MARKET-DATA-API.md` §12.4 had already attributed the cost to
+constructing each session's two instants rather than to walking the days, so a
+per-date memo pays every walker in both applications instead of one function's
+arguments. **1Y is 0.8 ms per render against 17.0 before, and the server's cap
+check is 0.9 ms on a cache hit against 20.6.** The honest half is recorded with
+it: the _first_ walk of a set of dates still costs about 9.5 ms once per process,
+so what the repair removed is the repetition.
+
+What moved, in one line each:
+
+| Task    | What moved                                                                                                                                                                       |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.13.4  | The frame API is named and this task deletes `chartFrame`; the clip is the renderer's and there is **no** separate volume baseline; §15.1's wrapper arrives here, one task early |
+| 2.13.5  | `formatVolumeExact` and `spokenVolume` exist; the rest state needs the peak **bar** and only the peak figure is returned; `peak` is `null` with no bars                          |
+| 2.13.6  | `time-window.ts` exists with the five windows and the mapping, so "one home" is a grep — and the address **parser** is deliberately still unbuilt, with its open case intact     |
+| 2.13.7  | Two facts about the states with no bars: volume's gutter writes nothing rather than `0`, and an all-zero window is a drawn `loaded` that looks blank                             |
+| 2.13.8  | Criterion 3's axis half is asserted — as an **absence**, which is the form to copy — leaving the picture to `pnpm e2e`; the spoken volume form is a call                         |
+| 2.13.9  | The calendar-walk re-take is **done** in the runner; what is left is the cold walk at first paint, a resize tick, and the rapid sequence — the halves only a browser can take    |
+| 2.13.10 | Three sweep targets are already swept; ADR 0028 gains the shared-axis type and the memo as decisions, the second with its own reversal trigger                                   |
+
+**And one correction to `VOLUME-AND-WINDOW.md` §10.3, found by building it**: its
+`Slot` column divides by the bar count where the drawn pitch divides by one less,
+so a column of `slot − 1` leaves a 2.0 px gap at thirty bars rather than §10.2's
+stated 1 px. The geometry measures the gap against the pitch; the table now carries
+a dated amendment, and the byte figure came out **better** than predicted at
+10.6 kB rather than 16.8.

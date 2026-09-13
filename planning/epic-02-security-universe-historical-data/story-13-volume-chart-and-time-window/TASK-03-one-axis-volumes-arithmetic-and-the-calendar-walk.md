@@ -360,6 +360,16 @@ its scale tops out at 1 — the pair being right rather than a disagreement.
 one rule, and it lives with the geometry rather than in `market/` (§10.6).
 `grep -n "chart-volume-gap"` finds nothing.
 
+The silhouette's path string came out at **10.6 kB** on a 726 px plot rather than
+§10.3's predicted 16.8, because a stem is `M<x> <baseline>V<top>` and a
+vertical-line command carries one coordinate where a line-to carries two. The
+ceiling property — bounded by the plot's width rather than by the bar count — is
+what mattered and is unchanged. **And one thing no artboard could show**: a column
+centred on x = 0 or x = width has half of itself outside the plot, so the end
+columns render half-width — invisible at 1,950 bars, two visibly narrow columns at
+thirty. Handed to 2.13.4 as a judgement against a real rendering, with the note
+that the only fix keeping the shared axis insets **both** plots.
+
 Two things settled while building it:
 
 - **The pixel a bar belongs to is the pixel its `x` falls into — floored, not
@@ -367,6 +377,16 @@ Two things settled while building it:
   at.** Flooring is what keeps every 1 px stem's centre inside the plot; taking
   the column from the raw coordinate rather than from the price point's own would
   be one more way two plots on one axis could disagree, at a tenth of a pixel.
+- **A 1 px gap is measured against the pitch, not against a bar's share of the
+  plot**, and this was a correction to the canvas rather than a reading of it.
+  §10.3's table gives `slot` as `width / bars`; `scaleSlot` puts the first bar at
+  x = 0 and the last at x = width, so the **pitch** is `width / (bars − 1)` and a
+  column of `slot − 1` leaves a **2.0 px** gap at a 30-bar window and **1.22 px** at
+  3M's 63 bars, against §10.2's stated 1 px. The gap is the load-bearing half of
+  that decision, so the geometry divides by `slots − 1`; the table has a dated
+  amendment and its figures stand as a description of density. Above a few hundred
+  bars the two agree to three decimal places, which is why 5D and 1M were never
+  affected. Found by computing it rather than by reading the table.
 - **The per-pixel reduction is tested as a property**, as the amendment asked,
   and in a form that does not recompute the reduction: _(a)_ every bar's pixel
   column has a stem and no bar in it reaches above that stem, and _(b)_ every

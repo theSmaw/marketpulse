@@ -162,3 +162,58 @@ Add to **Done when**:
   byte count
 - Either it is under budget with the figure stated, or it is raised with a
   condition and a named owner
+
+---
+
+## Amended 2026-09-13 by Task 2.13.3 — candidate 3 is half-discharged, and what is left of it is the half only a browser can take
+
+### The calendar-walk table is re-taken, in the runner rather than in the browser
+
+This task's first Work bullet and its first Done-when item said _re-take the
+calendar-walk table after the repair_. **2.13.3 took it, in the same method as
+2.12.9 and 2.13.1 — pure function, 200 iterations after 50 warm-up calls — and the
+figures are in its own Outcome §6.1 beside the old ones**, with `CHARTING.md`
+§16.5 and `MARKET-DATA-API.md` §12.4 carrying dated amendments. Headline: 1Y goes
+from **8.431 ms to 0.423 ms** per call, so **17.0 ms per render to 0.8**; the
+server's cap check at the full daily depth goes from **20.62 ms to 0.906 ms** warm.
+All three callers were measured and all three paid.
+
+**So candidate 3 is not a re-take any more. What is left of it is three things a
+vitest runner cannot see:**
+
+- **The cold walk, in a browser, at first paint.** The memo does **not** make the
+  first walk cheaper: measured cold on untouched dates, a year of `1d` costs
+  **9.5 ms** for one `timeAxis` call and **0.44 ms** for the next (21.5 ms on the
+  very first call anywhere, which also builds the `Intl` formatters and the calendar
+  index). That is once per process and it lands **inside a cold load of 1Y**, on the
+  same main thread as the 518-row universe table's 50–66 ms. Whether the two
+  coincide is exactly what this task's attribution method is for, and it is
+  unmeasured.
+- **Whether a resize tick is now free.** The repair's whole shape is that the
+  repetition went, and a resize storm was the second half of "per answer and per
+  resize tick". Nothing has timed one.
+- **Whether the memo changes the rapid-sequence figure.** A rapid sequence of window
+  changes walks four of the five windows' dates, so the second pass through any of
+  them is warm. That is the pattern 2.13.7 exercises and this task times.
+
+### The path-string figure moved, and in the right direction
+
+§10.4 predicted the volume silhouette's `d` attribute at **16.8 kB** on a 726 px
+plot. **Measured off the built geometry it is 10.6 kB** — 726 stems of
+`M<x> <baseline>V<top>`, because a vertical-line command carries one coordinate
+where a line-to carries two. The ceiling property is unchanged and is the point:
+it is bounded by the plot's width, so 1M is the same 10.6 kB as 5D.
+
+**The price line's figure is untouched and is still this task's** — about 103 kB at
+1M's 8,190 points against 24.5 kB at today's default — and it is still the one
+without a ceiling. Measure both; one of them has a knee inside the offered set and
+the other cannot.
+
+Amend **Done when** — the first item is replaced rather than added to:
+
+- ~~The calendar-walk table is re-taken with the method stated, beside the old
+  figures, for all three callers~~ → **done by 2.13.3; confirm the figures in a
+  browser at a cold 1Y load, time a resize tick, and say whether the ~9.5 ms cold
+  walk lands in the same frame as the universe table's task**
+- The volume silhouette's measured 10.6 kB is checked against the browser's parse
+  and paint, not only re-counted

@@ -174,3 +174,49 @@ Add to **Done when**:
 - Test 4's answer carries the **count** of deferrals and names what would change
   it, and the latency half is answered separately from the motion half
 - Story 2.14's close inherits the count in writing
+
+---
+
+## Amended 2026-09-13 by Task 2.13.3 — three of this task's sweep targets are already swept, and the ADR gains a third decision
+
+### What 2.13.3 already swept, so it is checked rather than done again
+
+This task's _"sweep upward"_ bullet names `CHARTING.md` §16.5's trigger and
+`CLAUDE.md`'s gap list. Both were swept on 2026-09-13, the same day the
+measurement landed, per `CLAUDE.md`'s own rule:
+
+- **`CHARTING.md` §16.5** carries a dated amendment: the trigger fired, the repair
+  landed, every figure in its table is now a historical record, and the framing
+  _"memoise the walk on its window"_ is corrected to a **market date**.
+- **`MARKET-DATA-API.md` §12.4** carries one too — its 20.6 ms on every cache hit
+  is no longer a live claim, and its own trigger is discharged.
+- **`VOLUME-AND-WINDOW.md` §1.2** records that 1Y's precondition is met.
+- **`CLAUDE.md`'s gap list** gained one entry: _that the trading-calendar walk
+  stays memoised_, which nothing in `verify` can see because a function that got
+  slower is still correct. Its re-measure is a timing, so it is one of the entries
+  that **cannot** be made mechanical — a timing gate in `pnpm test` measures the
+  runner. Say so when this task sorts the residue.
+
+What remains for this task on that bullet is unchanged: `EPIC.md`'s status
+paragraph, `CLAUDE.md`'s "what a user can see today" paragraphs, and whatever
+2.13.4 to 2.13.9 falsify.
+
+### ADR 0028 gains a third decision, and it is the one with the widest reach
+
+The Work bullet names two subjects — the window vocabulary and the timeframe
+mapping — plus "the shared-axis property". That third one is now built and is
+sharper than the phrase suggests, and there is a fourth worth its own paragraph:
+
+- **The shared axis is a type, not a discipline.** `timeFrame` is the only function
+  in the chart layer that takes a window; `priceFrame` and `volumeFrame` take one
+  of its results, so **neither can build an axis**. Epics 5, 8, 9 and 11 all hang
+  marks on this axis, and the rule they inherit is that a second plot is handed the
+  frame rather than the window.
+- **The trading-calendar walk is memoised in `packages/shared`, on a market date,
+  with no clock and a bound that is the calendar's own range.** That is a decision
+  about the shared package's hottest module with consequences for Epic 13's replay
+  — a memo keyed on anything ambient would be a temporal-isolation hazard — and it
+  is the kind of thing that gets quietly undone by a simplification. It belongs in
+  an ADR rather than only in a task file, with its reversal trigger stated: **the
+  first caller that needs a session for a date outside the calendar's range**, at
+  which point the bound stops being structural and the cache needs a policy.

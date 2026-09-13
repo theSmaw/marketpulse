@@ -684,10 +684,22 @@ export function volumeFrame(
   const placed = placeBars(axis, bars);
   const peak = volumePeakLabel(bars);
 
-  // How much width one bar has. `slots` rather than `slots - 1`: the question is
-  // what share of the plot a bar occupies, not how far apart two of them are
-  // drawn.
-  const slotWidth = time.width / axis.slots;
+  // **How far apart two stems are actually drawn**, which is `slots - 1` and not
+  // `slots`: `scaleSlot` puts the first bar at 0 and the last at the width, so the
+  // pitch is the width divided by the gaps between them.
+  //
+  // `VOLUME-AND-WINDOW.md` §10.3's table divides by `slots`, and that difference
+  // was measured rather than reasoned about: at 30 bars on an 867 px plot a column
+  // of `width / slots − 1` leaves a **2.0 px** gap and at 63 bars a 1.22 px one,
+  // where §10.2 specifies **1 px**. The gap is the load-bearing part of that
+  // decision — it is what makes columns read as columns rather than as a filled
+  // area — so it is measured against the pitch, and the table's figures stand as a
+  // description of a bar's share of the plot. Above a few hundred bars the two are
+  // the same number to three decimal places.
+  //
+  // A single-slot axis has no pitch at all — reachable only through the absolute
+  // window form at `1d` — and the bar owns the whole plot there.
+  const slotWidth = axis.slots > 1 ? time.width / (axis.slots - 1) : time.width;
 
   if (slotWidth < 1) {
     return {
