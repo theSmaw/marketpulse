@@ -9,6 +9,7 @@ import {
 } from "../../fixtures/bar-series.js";
 import gridStyles from "../stories.module.css";
 import { ChartAxis } from "../PriceChart/ChartAxis.js";
+import { TimeWindowControl } from "../TimeWindowControl/TimeWindowControl.js";
 import type { BarSeriesPanelProps } from "./BarSeriesPanel.js";
 import { BarSeriesPanel } from "./BarSeriesPanel.js";
 
@@ -87,6 +88,13 @@ const meta = {
   decorators: [onOneAxis],
   args: {
     screen: barSeriesFixtureScreen("partial"),
+    /*
+     * The real control, inert (2026-09-13). It shares the row above the picture
+     * with the rail, which is the whole of §71 — a story that left it out would
+     * review a row with one occupant and miss the thing that makes the rail cost
+     * nothing. `onChange` does nothing because there is no address here.
+     */
+    control: <TimeWindowControl onChange={() => undefined} sessions={5} />,
     symbol: "NVDA",
     defaulted: false,
     onRetry: () => undefined,
@@ -316,6 +324,9 @@ export const AllPermutations: Story = {
               symbol={symbol}
               defaulted={defaulted}
               onRetry={() => undefined}
+              control={
+                <TimeWindowControl onChange={() => undefined} sessions={5} />
+              }
             />
           </ChartAxis>
         </Fragment>
@@ -340,6 +351,10 @@ export const AllPermutations: Story = {
  */
 export const WindowChanging: Story = {
   args: {
+    // The control follows the **address**, so it has already moved to 1M while
+    // the picture is still the five-session answer. That disagreement is the
+    // state, and the rail beside it is what resolves it.
+    control: <TimeWindowControl onChange={() => undefined} sessions={21} />,
     screen: windowChangeFixtureScreen({
       held: "partial",
       heldSessions: 5,

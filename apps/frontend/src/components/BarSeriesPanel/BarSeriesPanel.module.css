@@ -88,37 +88,47 @@
 /* --- A newer answer on its way --- */
 
 /*
- * **The rail's slot, reserved** (2026-09-13).
+ * **The row above the picture** (2026-09-13): the rail on the left, the window
+ * control on the right.
  *
- * One grid cell, every state of the rail placed in it, so none of them can push
- * the chart below down — and the row is as tall as the tallest of them **at this
- * width**, which is the only form of reservation that survives a sentence that
- * wraps at 390px and does not at 1440. `chart-readout.module.css` carries the
- * whole argument; this is its second consumer and the first outside a chart.
+ * The control is permanent, so the row is — which is what makes the rail free.
+ * It takes the space to the control's left, which is dead at every width where
+ * the two fit on one line, and the row's height is the control's.
  *
- * No height token, deliberately. A number here would be a measurement of one
- * viewport declared as a constant, which is the defect `CHARTING.md` §15.4
- * records rather than a shortcut past it.
+ * `space-between` rather than a two-column grid: the rail's sentence is as long
+ * as it is and the control is as wide as it is, and at 390 neither is
+ * negotiable — they wrap, which is the case the reservation below exists for.
+ */
+.controls {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-16);
+}
+
+/*
+ * The rail's own cell: one grid cell with every state of the rail placed in it,
+ * so none of them can change the row's height and push the chart down.
+ *
+ * The row is as tall as the tallest of them **at this width** — the only form of
+ * reservation that survives a sentence that wraps at 390px and does not at 1440.
+ * `chart-readout.module.css` carries the whole argument; this is its second
+ * consumer and the first outside a chart. No height token, deliberately: a
+ * number here would be a measurement of one viewport declared as a constant.
+ *
+ * `flex: 1` with `min-width: 0` — it takes the room the control leaves and no
+ * more, and a long sentence wraps inside it rather than pushing the control off
+ * the row.
  */
 .rail {
   display: grid;
   grid-template-columns: 1fr;
-
-  /*
-   * Half the panel's gap, given back at both ends.
-   *
-   * The slot is present in every state, so its height is spent on every screen
-   * whether a rail is in it or not — and a full gap above *and* below an empty
-   * slot reads as a missing element between the ticker and the price. Eight
-   * pixels either side is what the rail needs to sit clear of both when it is
-   * occupied, and the rail carries its own twelve below the sentence before its
-   * rule. This is the one number in this file, and it is a fraction of a token
-   * rather than a length.
-   */
-  margin-block: calc(-1 * var(--space-8));
+  flex: 1 1 0;
+  min-width: 0;
 }
 
-/* One state of the slot. They are stacked in one cell rather than in a column. */
+/* One state of the cell. They are stacked in it rather than in a column. */
 .railState {
   grid-area: 1 / 1;
 }
@@ -126,7 +136,7 @@
 /*
  * Present in layout and absent from everything else — `visibility: hidden`
  * rather than `display: none`, which is the entire point, and `pointer-events:
- * none` so a hidden sentence cannot take a click meant for the figures under it.
+ * none` so a hidden sentence cannot take a click meant for the control beside it.
  */
 .railSizer {
   visibility: hidden;

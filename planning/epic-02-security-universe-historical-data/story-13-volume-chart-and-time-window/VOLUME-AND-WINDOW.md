@@ -699,6 +699,14 @@ At 342 px of region the control wraps to its own full-width row beneath the
 heading and the cells flex. It never truncates a label and never drops the
 readout, which is the half that explains the other five.
 
+**Amended 2026-09-13 (§71): it is no longer on the heading row.** It sits on a
+row of its own at the top of the panel, sharing that row with the held-window
+rail. The reason above still stands — this is not a page-level control bar, it
+is one row inside one panel — and what it did not weigh is that a control on a
+heading row makes _that_ region's heading taller than every other region's on the
+screen, and that the rail had nowhere to go but into the flow above the chart.
+The reversal trigger is unchanged.
+
 ---
 
 ## 9. The proportion of the pair, and it is a number with a reason
@@ -3919,3 +3927,106 @@ that story holds thirteen.
 It is worth recording as a **class** rather than as a bug: a story is reviewed by
 a person, and the gap between _builds_ and _renders_ is invisible to every gate
 this repository has. `CLAUDE.md`'s gap list carries the re-measure.
+
+## 71. The row above the picture, and the region heading given back
+
+§69 reserved a slot for the rail and paid for it in height: a band above the
+chart that is empty in the steady state. Looked at on the running page, that band
+was **the wrong shape of repair** — it bought a still picture with permanent
+white space, and it was noticed immediately.
+
+What replaced it costs nothing, and the move is three changes that only work
+together.
+
+### 71.1 The control comes off the region's heading row
+
+§8.6 put it there and gave the honest reason: this product has no page-level
+control bar, and inventing one for a single control is chrome arriving before its
+second occupant. That reason still stands — what is below is **one row inside one
+panel**, not a control bar — and two things it did not weigh are visible the
+moment the page is looked at:
+
+1. **It makes the Price region's heading taller than every other region's.** Four
+   regions on that screen have a heading of one line; one has a heading sized by
+   a 36px control. Nothing about the window is a property of _this_ region's
+   name.
+2. **It leaves the rail nowhere to go.** The rail has to sit above the picture
+   (§6.3), it exists only while a request is unanswered, and everything above the
+   picture in this panel is in the normal flow.
+
+### 71.2 The rail and the control share one row
+
+The control is permanent, so the row is permanent. The rail takes the space to
+its left, which is dead at every width where the two fit on one line. The rail
+therefore costs **nothing** at those widths: the row's height is the control's,
+and the reservation §69 built is absorbed by it.
+
+Measured on the running page at 1440: the chart's top is identical either side of
+a press, and the row above it is the same height it was with no rail in it.
+
+Where they do not fit — 768px and 390px of _region_, which is where the control
+alone already wraps — the rail takes a line of its own and §69's reservation is
+what stops that line appearing under the reader's hand. So the reservation
+survives, and it is free exactly where the space was expensive.
+
+### 71.3 The `filledBy` sentence goes
+
+_"One security's closes over the window you choose, drawn — with the exact figures
+the picture rounds stated beneath it."_
+
+It earned its place when this region held a **fence** — Story 1.5's convention was
+that a region says what it holds and what it deliberately does not, and a panel of
+numbers where a reader expects a chart looks unfinished unless it says the chart
+is a story away. Task 2.12.4 drew the chart and amended the sentence; Task 2.13.6
+shipped the control and amended it again. What was left was a caption for a
+picture immediately below it, above a control that says the same thing in less
+space, costing the drawing a paragraph of height at every width.
+
+So it is **deleted rather than amended a third time**, and `Region`'s prop is
+optional rather than this one call site passing an empty string. `SecurityExplorer
+.test.tsx`'s assertion moved with the sentence, as it did both previous times —
+the region's _name_ and its landmark are unchanged and still asserted.
+
+`Region`'s `control` prop is removed in the same change. It had one consumer, and
+an honest-but-unused slot on a shared component is the `initiallyCollapsed`
+hazard `SEARCH-AND-SELECTION.md` records: the next author to reach for it would be
+re-introducing the taller heading with nothing going red.
+
+### 71.4 The defect this uncovered, which was the same defect one layer down
+
+With the rail reserved, the tablet viewport **still moved 24px** — and the rail
+was not the cause. The control's own readout is what moved: `5 SESSIONS` fitted
+beside the five cells at 318px of region and `21 SESSIONS` did not, so pressing
+`1M` wrapped the readout onto a second line and made the control 24px taller.
+
+It is the same rule as §69 one layer down, and it had been there since Task
+2.13.6 — invisible while the control sat on a heading row with nothing under it
+that a reader was looking at. The repair is the same idiom for the third time:
+the readout is a one-cell grid holding its value and a hidden copy of the
+**widest count this control could be asked to show** — the five it offers, plus
+whatever the address named, because a `1,000-session` address is a routine input
+here. Its `aria-describedby` target moved to the value itself, so the description
+every cell points at is the sentence a reader sees rather than that sentence with
+a measurement in front of it.
+
+**Break-verified**: deleting that copy takes `pressing a window does not move the
+chart at tablet` red at **24**, and leaves desktop and phone green. Which is the
+third time in two days that the middle viewport is the instrument.
+
+### 71.5 What this cost, honestly
+
+At 768px and 390px of region the reserved rail line is still a band of white
+above the control in the steady state, and the control is now permanently two
+lines at those widths rather than sometimes one. Both are the price of a picture
+that does not move. It is strictly less than what was there before this change,
+which was a taller heading, a three-line paragraph **and** the reserved band.
+
+### 71.6 One instrument corrected
+
+`plotTop` measured the plot against the **document** and was flaky at 390px in a
+full parallel run — 82px, with nothing in the panel having changed. The cause is
+worth recording because it is not this change: the identity block above the grid
+is filled by the **universe** request, and under load that can land after the bars
+do, moving the whole region down the page. The assertion is now the plot's
+position **inside its own region**, which is the property the rail can actually
+affect.

@@ -231,59 +231,57 @@ export function SecurityExplorer() {
            * The series region, first and two columns wide, because it is what
            * this route is named for.
            *
-           * `filledBy` says what the region holds **and what it deliberately does
-           * not**, which is Story 1.5's convention taken one step further than
-           * the table needed. A panel of numbers where a reader expects a chart
-           * looks unfinished unless it says the chart is a story away; saying so
-           * is the difference between a fence and an omission.
-           *
-           * **The fence was charts, and Task 2.12.4 took it down.** Story 2.12
-           * owned the charting decision and took it against a data layer already
-           * known to be right; the sentence below was amended in the same commit
-           * as the drawing, because a region that says it holds no chart while
-           * holding one is the live claim `CLAUDE.md` says to amend rather than
-           * leave standing.
+           * **It carries no `filledBy` sentence** (2026-09-13), and it is the
+           * first region without one. That sentence earned its place while this
+           * region held a fence — *a panel of numbers where a reader expects a
+           * chart looks unfinished unless it says the chart is a story away* —
+           * and Task 2.12.4 took the fence down by drawing the chart. What was
+           * left was a caption for a picture immediately below it, above a
+           * control that says the same thing in less space, costing the drawing
+           * a paragraph of height at every width. `Region`'s prop is optional
+           * for that reason rather than for this one region's convenience.
            */}
           <div className={page.wide}>
-            <Region
-              name="Price"
-              filledBy="One security's closes over the window you choose, drawn — with the exact figures the picture rounds stated beneath it."
-              control={
-                /*
-                 * **The window control, on the Price region's heading row**
-                 * (Task 2.13.6, `VOLUME-AND-WINDOW.md` §8.6).
-                 *
-                 * The honest statement of why it is here is not that the window
-                 * belongs to price — it belongs to the **screen**, and it moves
-                 * the Volume plot in a different region — but that this product
-                 * has no page-level control bar, and inventing one for a single
-                 * control is chrome arriving before its second occupant.
-                 * Reversal trigger: the second screen-level control.
-                 *
-                 * It knows nothing about `useBarSeries`. It reports a session
-                 * count; this route turns that into an address, and the address
-                 * is what the next request is built from. So the selected cell
-                 * moves in the frame the press lands, and the control cannot end
-                 * up contradicting the chart.
-                 */
-                <TimeWindowControl
-                  onChange={(next) => {
-                    // A **push** rather than a replace, for `navigate`'s reason
-                    // above: pressing a window is a deliberate act and Back
-                    // should undo it. It is also why the control commits on a key
-                    // press rather than on an arrow — four arrow presses would
-                    // otherwise be four addresses.
-                    void navigate(securityPath(symbol, next));
-                  }}
-                  sessions={sessions}
-                />
-              }
-            >
+            <Region name="Price">
               <BarSeriesPanel
                 screen={series.screen}
                 symbol={symbol}
                 onRetry={series.retry}
                 defaulted={!fromAddress}
+                control={
+                  /*
+                   * **The window control, on the row above the picture**
+                   * (2026-09-13, moved off the region's heading row by §71).
+                   *
+                   * `VOLUME-AND-WINDOW.md` §8.6 put it on the heading row on the
+                   * argument that this product has no page-level control bar and
+                   * inventing one for a single control is chrome arriving before
+                   * its second occupant. That argument still holds — this is not
+                   * a control bar, it is one row inside one panel — and what it
+                   * did not weigh is that the control made the Price region's
+                   * heading taller than every other region's on the screen, and
+                   * that the held-window rail had nowhere to go but into the
+                   * flow above the chart. Both are answered by putting the two
+                   * on one row: see `BarSeriesPanel`'s `control`.
+                   *
+                   * It knows nothing about `useBarSeries`. It reports a session
+                   * count; this route turns that into an address, and the address
+                   * is what the next request is built from. So the selected cell
+                   * moves in the frame the press lands, and the control cannot end
+                   * up contradicting the chart.
+                   */
+                  <TimeWindowControl
+                    onChange={(next) => {
+                      // A **push** rather than a replace, for `navigate`'s reason
+                      // above: pressing a window is a deliberate act and Back
+                      // should undo it. It is also why the control commits on a key
+                      // press rather than on an arrow — four arrow presses would
+                      // otherwise be four addresses.
+                      void navigate(securityPath(symbol, next));
+                    }}
+                    sessions={sessions}
+                  />
+                }
               />
             </Region>
           </div>

@@ -26,6 +26,16 @@ function renderControl(sessions: number) {
 
 const cells = () => screen.getAllByRole("radio");
 
+/**
+ * Query options that exclude the readout's hidden reservation.
+ *
+ * The readout lays out a copy of the widest count it could show, so that the row
+ * above the chart wraps the same way in every state — so a text query that does
+ * not say it means the *visible* one resolves to two nodes wherever the widest
+ * count is the one on screen. Same rule as the panel's live region.
+ */
+const VISIBLE = { ignore: "[aria-hidden='true']" } as const;
+
 describe("TimeWindowControl", () => {
   it("offers the five windows, named for the ear rather than the eye", () => {
     renderControl(5);
@@ -76,18 +86,18 @@ describe("TimeWindowControl", () => {
     const { rerender, unmount } = render(
       <TimeWindowControl onChange={vi.fn()} sessions={21} />,
     );
-    expect(screen.getByText("21 sessions")).toBeTruthy();
+    expect(screen.getByText("21 sessions", VISIBLE)).toBeTruthy();
 
     rerender(<TimeWindowControl onChange={vi.fn()} sessions={1} />);
     // Singular, because `1 sessions` is the kind of figure that makes a reader
     // stop trusting the other five.
-    expect(screen.getByText("1 session")).toBeTruthy();
+    expect(screen.getByText("1 session", VISIBLE)).toBeTruthy();
 
     rerender(<TimeWindowControl onChange={vi.fn()} sessions={Number.NaN} />);
     // The one state the canvas's `N SESSIONS` cannot express. An address admits
     // anything, `NaN SESSIONS` is a figure this product must never print, and
     // the sentence a reader acts on is the server's refusal rather than this.
-    expect(screen.getByText("not a session count")).toBeTruthy();
+    expect(screen.getByText("not a session count", VISIBLE)).toBeTruthy();
 
     unmount();
   });

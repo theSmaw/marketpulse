@@ -134,9 +134,29 @@
  * `white-space: nowrap` because `21 SESSIONS` breaking across two lines in a
  * panel heading is the one way this can look broken, and it is the state that
  * explains the other five.
+ *
+ * **One grid cell since 2026-09-13**, holding the value and a hidden copy of the
+ * widest count this control could show. Its width is what decides whether the
+ * row above the chart is one line or two, and a width that changes with the
+ * count is a chart that moves when somebody presses a window — the component
+ * carries the measurement.
  */
 .readout {
   composes: microLabel from "../../styles/type.module.css";
   color: var(--ink-secondary);
   white-space: nowrap;
+
+  display: inline-grid;
+  grid-template-columns: 1fr;
+  justify-items: end;
+}
+
+.readoutValue,
+.readoutSizer {
+  grid-area: 1 / 1;
+}
+
+/* Present in layout, absent from everything else. */
+.readoutSizer {
+  visibility: hidden;
 }

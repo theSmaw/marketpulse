@@ -259,8 +259,36 @@ export function TimeWindowControl({
        * a sixth cell, where it read as a sixth *button* and competed with hover
        * for the one ground a cell can take.
        */}
-      <span className={styles.readout} id={readoutId}>
-        {readoutText(sessions)}
+      {/*
+       * **The readout reserves its own width** (2026-09-13).
+       *
+       * It is the second occupant of a wrapping row, so its width decides
+       * whether that row is one line or two — and its width is a function of the
+       * *count*. `5 SESSIONS` fitted beside the box at 768px and `21 SESSIONS`
+       * did not, so pressing `1M` there made this control 24px taller and pushed
+       * the chart below it down the page. The rail beside it had just been
+       * reserved against exactly that, which is what made this visible: one
+       * jump repaired, the other one still there and now the only one left.
+       *
+       * So the value sits in a one-cell grid with a hidden copy of the **widest
+       * count this control could be asked to show** — the five it offers, and
+       * whatever the address named — laid out beside it. The row's wrap decision
+       * is then the same in every state. `aria-hidden` keeps the copy out of the
+       * description every cell points at; `visibility: hidden` is what keeps it
+       * in the layout, which is the entire point.
+       */}
+      <span className={styles.readout}>
+        <span aria-hidden="true" className={styles.readoutSizer}>
+          {widestReadout(windows, sessions)}
+        </span>
+        {/*
+         * **The id is on the value, not on the cell around it**, so the
+         * description every radio points at is the sentence a reader sees and
+         * not that sentence with a hidden measurement in front of it.
+         */}
+        <span className={styles.readoutValue} id={readoutId}>
+          {readoutText(sessions)}
+        </span>
       </span>
     </div>
   );
@@ -289,4 +317,25 @@ export function readoutText(sessions: number): string {
   // sentence a surface says about a count that is not one is that surface's own,
   // and a shared one would be the two-surfaces-one-sentence defect.
   return describeSessionCount(sessions) ?? "not a session count";
+}
+
+/**
+ * The widest thing the readout could be asked to say, for the reservation above.
+ *
+ * Built from the windows this control was given plus the count on screen, rather
+ * than from a literal: a `1,000-session` address is a routine input here, and a
+ * reservation that only knew about the five would be a measurement of a state
+ * this control can leave.
+ *
+ * Compared by length rather than by rendered width, which is an approximation
+ * and is the right one: these strings differ only in digits, in a face where
+ * digits are tabular.
+ */
+function widestReadout(
+  windows: readonly TimeWindow[],
+  sessions: number,
+): string {
+  return [...windows.map((window) => window.sessions), sessions]
+    .map((count) => readoutText(count))
+    .reduce((widest, text) => (text.length > widest.length ? text : widest));
 }

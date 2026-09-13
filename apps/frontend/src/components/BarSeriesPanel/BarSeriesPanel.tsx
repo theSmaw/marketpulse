@@ -156,6 +156,28 @@ export interface BarSeriesPanelProps {
    * found one, and the sentence would be noise.
    */
   readonly defaulted: boolean;
+
+  /**
+   * What changes the window, on the row above the picture (2026-09-13).
+   *
+   * **It used to be on the region's heading row** — `VOLUME-AND-WINDOW.md` §8.6
+   * put it there, on the honest argument that this product has no page-level
+   * control bar and inventing one for a single control is chrome arriving before
+   * its second occupant. Two things it did not weigh, both visible the moment
+   * the page was looked at: the control makes the Price region's heading taller
+   * than every other region's on the screen, and a rail that appears only while
+   * a request is unanswered had nowhere to go but into the flow above the chart,
+   * where it cost a reserved slot that is empty in the steady state.
+   *
+   * Here, both go away for nothing. The row exists in every state because the
+   * control does, so it is a **shared** row rather than a reserved one: the rail
+   * takes the space to the control's left, which is dead space at every width
+   * where the two fit on one line.
+   *
+   * It is a slot rather than a component, for the reason this panel takes no
+   * router: the window lives in the address, and the address is the route's.
+   */
+  readonly control?: ReactNode;
 }
 
 export function BarSeriesPanel({
@@ -163,6 +185,7 @@ export function BarSeriesPanel({
   symbol,
   onRetry,
   defaulted,
+  control,
 }: BarSeriesPanelProps) {
   const { shown } = screen;
   return (
@@ -184,7 +207,7 @@ export function BarSeriesPanel({
         defaulted={defaulted}
         untracked={isUntracked(shown)}
       />
-      <Rail screen={screen} onRetry={onRetry} />
+      <Rail control={control} screen={screen} onRetry={onRetry} />
       <Reading view={shown} />
       {/*
        * **The chart, above the facts and not instead of them** (Task 2.12.4).
@@ -299,76 +322,96 @@ function isUntracked(view: BarSeriesView): boolean {
 }
 
 /**
- * **The rail's position, reserved** (2026-09-13).
+ * **The row above the picture: what happened to the request, and what changes it**
+ * (2026-09-13).
  *
- * One slot above the picture, occupied by at most one of the two rails, and
- * **always the same height whether it is occupied or not**.
+ * One row, two occupants, and the pairing is what makes the whole thing cost
+ * nothing. On the right, the window control — permanent, so the row is permanent.
+ * On the left, at most one of the two rails, which exist only while a request is
+ * unanswered.
  *
- * That last part is the whole of this component. The rail is rendered exactly
- * when a request is in flight or has arrived carrying no picture, which is to
- * say **at the moment somebody presses a window** — so a rail that takes its
- * height out of the flow moves the chart down the instant it appears and back up
- * when the answer lands. The chart is the thing the reader is looking at and the
- * thing their pointer is on; a picture that jumps under a hand reading it is the
- * same defect `CHARTING.md` §15.4 found in the readout strip, one level up.
+ * ## Why they share a row
  *
- * The mechanism is that file's answer too, because it is the only one that works
- * at more than one width: **every state the slot can be in, laid out in one grid
- * cell, with all but the live one hidden.** A `min-height` token cannot do it —
- * the sentence wraps to two lines at 390px and to one at 1440, so a reservation
- * measured anywhere is wrong everywhere else.
+ * The rail is rendered exactly when somebody presses a window, and it has to sit
+ * **above** the picture: §6.3 is explicit that the label saying *which window
+ * the picture is of* cannot come after the picture, because a reader's first
+ * question about a screen that did not change when they pressed something is
+ * *what am I looking at*. A rail in the flow of its own therefore pushed the
+ * chart down 30px on every press — under the pointer of the person reading it —
+ * and reserving a slot for it spent that height on every screen in the steady
+ * state, where the row is empty.
  *
- * What is deliberately *not* reserved is the extra content the refused and
- * failed rails bring — the server's sentence, the retry, the reference. Those
- * are settled outcomes that no press of a window can produce (the control emits
- * only the five counts, and every one of them is answerable), and reserving the
+ * Beside the control, both problems are gone: the space to the control's left is
+ * dead at every width where the two fit on one line, and the row's height is the
+ * control's.
+ *
+ * ## The reservation that is left, and why it is still a measurement
+ *
+ * Where they do **not** fit on one line — 390px, where the control alone wraps —
+ * the rail takes a line of its own, and a line that appears is a chart that
+ * moves again. So the left cell is one grid cell holding every state the rail can
+ * be in, with a hidden copy of the in-flight sentence laid out beside the live
+ * one: the cell is as tall as the tallest of them **at this width**, which is the
+ * only reservation that survives a sentence that wraps at 390 and does not at
+ * 1440 (`CHARTING.md` §15.4). At every width where the control is the taller of
+ * the two, it costs nothing at all.
+ *
+ * What is deliberately *not* reserved is the extra content the refused and failed
+ * rails bring — the server's sentence, the retry, the reference. Those are
+ * settled outcomes that no press of a window can produce (the control emits only
+ * the five counts, and every one of them is answerable), and reserving the
  * tallest of them permanently would put a failure's worth of empty space above
  * every chart in the product.
  */
 function Rail({
   screen,
   onRetry,
+  control,
 }: {
   readonly screen: BarSeriesScreen;
   readonly onRetry: () => void;
+  readonly control: ReactNode;
 }) {
   return (
-    <div className={styles.rail}>
-      {/*
-       * The reservation: the in-flight rail, at the longest window phrase this
-       * screen could name, hidden. `aria-hidden` and `visibility: hidden` — it
-       * is present in layout and absent from everything else, and it has nothing
-       * focusable in it, so it is out of the tab order by construction.
-       */}
-      <div
-        aria-hidden="true"
-        className={cx(styles.railState, styles.railSizer)}
-      >
-        <div className={styles.heldWindow}>
-          <RailSentence>
-            {inFlightSentence(reservedPhrase(screen), reservedPhrase(screen))}
-          </RailSentence>
+    <div className={styles.controls}>
+      <div className={styles.rail}>
+        {/*
+         * The reservation: the in-flight rail, at the longest window phrase this
+         * screen could name, hidden. `aria-hidden` and `visibility: hidden` — it
+         * is present in layout and absent from everything else, and it has
+         * nothing focusable in it, so it is out of the tab order by construction.
+         */}
+        <div
+          aria-hidden="true"
+          className={cx(styles.railState, styles.railSizer)}
+        >
+          <div className={styles.heldWindow}>
+            <RailSentence>
+              {inFlightSentence(reservedPhrase(screen), reservedPhrase(screen))}
+            </RailSentence>
+          </div>
+        </div>
+        <div className={styles.railState}>
+          {/*
+           * **One rail position, two subjects** (Task 2.13.7), and they are
+           * mutually exclusive rather than stacked.
+           *
+           * `Refreshing` says *a newer answer to this question is coming*.
+           * `HeldWindow` says *this is the answer to a different question, and
+           * here is what happened to the one you asked*. A screen showing both
+           * would be telling a reader that the picture is one request old **and**
+           * about another window, which is two marks for one fact: the held
+           * answer is by definition not about to be refreshed, because the
+           * request behind it has already been superseded.
+           */}
+          {screen.previous === null ? (
+            isStale(screen.shown) && <Refreshing />
+          ) : (
+            <HeldWindow screen={screen} onRetry={onRetry} />
+          )}
         </div>
       </div>
-      <div className={styles.railState}>
-        {/*
-         * **One rail position, two subjects** (Task 2.13.7), and they are
-         * mutually exclusive rather than stacked.
-         *
-         * `Refreshing` says *a newer answer to this question is coming*.
-         * `HeldWindow` says *this is the answer to a different question, and
-         * here is what happened to the one you asked*. A screen showing both
-         * would be telling a reader that the picture is one request old **and**
-         * about another window, which is two marks for one fact: the held answer
-         * is by definition not about to be refreshed, because the request behind
-         * it has already been superseded.
-         */}
-        {screen.previous === null ? (
-          isStale(screen.shown) && <Refreshing />
-        ) : (
-          <HeldWindow screen={screen} onRetry={onRetry} />
-        )}
-      </div>
+      {control}
     </div>
   );
 }
