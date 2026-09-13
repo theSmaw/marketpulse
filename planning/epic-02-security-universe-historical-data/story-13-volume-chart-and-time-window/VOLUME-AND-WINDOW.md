@@ -699,9 +699,9 @@ At 342 px of region the control wraps to its own full-width row beneath the
 heading and the cells flex. It never truncates a label and never drops the
 readout, which is the half that explains the other five.
 
-**Amended 2026-09-13 (§71): it is no longer on the heading row.** It sits on a
-row of its own at the top of the panel, sharing that row with the held-window
-rail. The reason above still stands — this is not a page-level control bar, it
+**Amended 2026-09-13 (§71, and again in §72): it is no longer on the heading
+row.** It sits on the panel's own header band, at the right-hand end of the line
+carrying the security's ticker. The reason above still stands — this is not a page-level control bar, it
 is one row inside one panel — and what it did not weigh is that a control on a
 heading row makes _that_ region's heading taller than every other region's on the
 screen, and that the rail had nowhere to go but into the flow above the chart.
@@ -4030,3 +4030,80 @@ is filled by the **universe** request, and under load that can land after the ba
 do, moving the whole region down the page. The assertion is now the plot's
 position **inside its own region**, which is the property the rail can actually
 affect.
+
+## 72. The header band, and the row that had one occupant
+
+§71 moved the control off the region's heading and gave it a row of its own,
+with the rail beside it. Looked at on the running page, **a row with one
+right-aligned occupant is two thirds dead space** — the same complaint §69's
+reserved slot drew, in a new place. It was noticed immediately, again, which is
+worth recording: both of these were found by a person opening the page and
+neither was visible to anything mechanical.
+
+### 72.1 The panel already had an empty line, and it was the right one
+
+`NVDA` sits on a line of its own with nothing to its right. `VISUAL-LANGUAGE.md`'s
+own reading of the control settles where it goes: a segmented control in the
+micro-label idiom is **instrument chrome**, and instrument chrome belongs on the
+instrument's name line. So the header band is one row — subject left, control
+right, `space-between` — which is what `Panel` and `PageHeader` already do one
+level up. No new idiom, and one row fewer than before.
+
+`flex-end` rather than `center`, because the subject block is one line or two (the
+`defaulted` sentence on the bare `/securities`) and a control floating against the
+middle of a two-line block reads as belonging to neither line.
+
+### 72.2 The rail moves to the headline row, where it is free
+
+The rail needs a permanent partner or it moves the chart. The headline row is the
+best one in the panel for it: **the close is set at display size**, so a line — or
+two — of secondary text beside it is inside the height that figure already spends.
+
+It is also where the sentence belongs to be read. _Still showing the 5-session
+window while the 21-session window is read_ is a statement about the window whose
+close is the figure it now sits beside, above the chart of that same window.
+
+The dashed marching rule under it lands directly above the chart, which turned out
+to be the best position it has had: it reads as a rule closing the header band
+rather than as an underline of a sentence.
+
+§69's reservation stays underneath, and is still a measurement rather than a
+length. Two states carry **no headline at all** — a held `empty`, and everything
+before the first answer — so the row cannot be relied on to be tall, and at 390
+the sentence wraps past the figure's height anyway.
+
+### 72.3 The reservation got tighter, because it was over-reserving
+
+`reservedPhrase` built the sizer from the **widest phrase in both halves**. That
+is not the worst case; it is worse than the worst case. Measured at 1024, the
+extra clause wrapped where the real sentence did not, putting an empty second line
+above the chart on every screen at that width.
+
+The exact worst case a press of the control can produce is known: the window being
+**held** is whatever is on screen now, and the window being **asked for** is one of
+the five the control offers. So the sizer is `inFlightSentence(current, widest
+offered)` — one line at 1024 where the old one was two, and still an upper bound
+rather than a guess. The current window stays in the candidate set for the second
+half because an address may name a count no member of `TIME_WINDOWS` is as long as.
+
+### 72.4 Swept at nine widths rather than three
+
+The shipped assertion runs at the suite's three viewports. This change was checked
+at **1440, 1280, 1100, 1024, 900, 768, 600, 500 and 390**, against all three of
+`1D`, `1M` and `1Y`, four repeats each — 108 runs, no movement at any of them. The
+sweep is not kept: it is nine viewports of browser for a property three already
+hold, and `CLAUDE.md`'s rule is that a check nobody runs is not a check. What it
+bought is the 1024 finding above, which the three viewports do not reach.
+
+### 72.5 The instrument, corrected a second time
+
+The sweep failed intermittently at **exactly 14 px**, at random widths, with every
+element in the panel measuring identically in both snapshots. The cause is that
+`plotTop` read two bounding boxes in **two** round trips: something on this screen
+moves the whole page 14 px shortly after load, and a measurement that straddles it
+attributes the page's movement to the chart. Both boxes are now read in one
+`evaluate`.
+
+It is the same class as §71.6 and worth stating as a rule: **a comparison of two
+positions must be taken in one round trip**, or the thing being measured is the
+interval rather than the layout.

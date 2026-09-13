@@ -158,21 +158,20 @@ export interface BarSeriesPanelProps {
   readonly defaulted: boolean;
 
   /**
-   * What changes the window, on the row above the picture (2026-09-13).
+   * What changes the window, on the security's own name line (2026-09-13).
    *
    * **It used to be on the region's heading row** — `VOLUME-AND-WINDOW.md` §8.6
    * put it there, on the honest argument that this product has no page-level
    * control bar and inventing one for a single control is chrome arriving before
-   * its second occupant. Two things it did not weigh, both visible the moment
-   * the page was looked at: the control makes the Price region's heading taller
-   * than every other region's on the screen, and a rail that appears only while
-   * a request is unanswered had nowhere to go but into the flow above the chart,
-   * where it cost a reserved slot that is empty in the steady state.
+   * its second occupant. That argument still holds, and what it did not weigh is
+   * that a control on a heading row makes *that* region's heading taller than
+   * every other region's on the screen.
    *
-   * Here, both go away for nothing. The row exists in every state because the
-   * control does, so it is a **shared** row rather than a reserved one: the rail
-   * takes the space to the control's left, which is dead space at every width
-   * where the two fit on one line.
+   * It spent half a day on a row of its own here, which was worse: a row with
+   * one right-aligned occupant is two thirds dead space. The ticker's line was
+   * empty to its right the whole time — a segmented control in the micro-label
+   * idiom is instrument chrome, and instrument chrome belongs on the
+   * instrument's name line.
    *
    * It is a slot rather than a component, for the reason this panel takes no
    * router: the window lives in the address, and the address is the route's.
@@ -202,13 +201,48 @@ export function BarSeriesPanel({
         {announceSeries(screen, symbol)}
       </p>
 
-      <Subject
-        symbol={symbol}
-        defaulted={defaulted}
-        untracked={isUntracked(shown)}
-      />
-      <Rail control={control} screen={screen} onRetry={onRetry} />
-      <Reading view={shown} />
+      {/*
+       * **The header band: the instrument on the left, what changes it on the
+       * right** (2026-09-13).
+       *
+       * The control had a row of its own for half a day and it was the wrong
+       * answer twice over — a row with one right-aligned occupant is two thirds
+       * dead space, and the row it replaced on the region's heading made *that*
+       * heading taller than every other region's on the screen. It belongs here,
+       * beside the thing it is a control for, on a line the ticker was already
+       * leaving empty.
+       *
+       * `VISUAL-LANGUAGE.md`'s own reading of the shape: a segmented control in
+       * the micro-label idiom is instrument chrome, and instrument chrome sits on
+       * the instrument's name line. Nothing new is invented here — one row,
+       * `space-between`, which is what `PageHeader` and `Panel` already do one
+       * level up.
+       */}
+      <div className={styles.header}>
+        <Subject
+          symbol={symbol}
+          defaulted={defaulted}
+          untracked={isUntracked(shown)}
+        />
+        {control}
+      </div>
+      {/*
+       * **The value, and beside it what happened to the request** (2026-09-13).
+       *
+       * The rail needs a permanent partner or it moves the chart when it
+       * appears, and this row is the best one in the panel: the close is set at
+       * display size, so a line — or two — of secondary text beside it is
+       * **inside** the height the figure already spends. §71's reservation
+       * survives underneath for the widths where it is not.
+       *
+       * It is also where the sentence belongs to be read. A reader whose screen
+       * did not change when they pressed a window asks *what am I looking at*,
+       * and the answer sits against the one number they were looking at.
+       */}
+      <div className={styles.reading}>
+        <Reading view={shown} />
+        <Rail screen={screen} onRetry={onRetry} />
+      </div>
       {/*
        * **The chart, above the facts and not instead of them** (Task 2.12.4).
        *
@@ -322,39 +356,35 @@ function isUntracked(view: BarSeriesView): boolean {
 }
 
 /**
- * **The row above the picture: what happened to the request, and what changes it**
- * (2026-09-13).
+ * **What happened to the request, beside the value it is about** (2026-09-13).
  *
- * One row, two occupants, and the pairing is what makes the whole thing cost
- * nothing. On the right, the window control — permanent, so the row is permanent.
- * On the left, at most one of the two rails, which exist only while a request is
- * unanswered.
+ * At most one of the two rails, in the right-hand half of the headline row.
  *
- * ## Why they share a row
+ * ## Why it lives on that row
  *
  * The rail is rendered exactly when somebody presses a window, and it has to sit
  * **above** the picture: §6.3 is explicit that the label saying *which window
  * the picture is of* cannot come after the picture, because a reader's first
  * question about a screen that did not change when they pressed something is
- * *what am I looking at*. A rail in the flow of its own therefore pushed the
- * chart down 30px on every press — under the pointer of the person reading it —
- * and reserving a slot for it spent that height on every screen in the steady
- * state, where the row is empty.
+ * *what am I looking at*. A rail in a row of its own therefore pushed the chart
+ * down 30px on every press — under the pointer of the person reading it — and
+ * reserving a row for it spent that height on every screen in the steady state.
  *
- * Beside the control, both problems are gone: the space to the control's left is
- * dead at every width where the two fit on one line, and the row's height is the
- * control's.
+ * The headline row is the one row in this panel that can absorb it for nothing.
+ * The close is set at display size; a line, or two, of secondary text beside it
+ * is **inside** the height that figure already spends. It is also the row the
+ * sentence is about — the held window's close, above the held window's chart.
  *
  * ## The reservation that is left, and why it is still a measurement
  *
- * Where they do **not** fit on one line — 390px, where the control alone wraps —
- * the rail takes a line of its own, and a line that appears is a chart that
- * moves again. So the left cell is one grid cell holding every state the rail can
- * be in, with a hidden copy of the in-flight sentence laid out beside the live
- * one: the cell is as tall as the tallest of them **at this width**, which is the
- * only reservation that survives a sentence that wraps at 390 and does not at
- * 1440 (`CHARTING.md` §15.4). At every width where the control is the taller of
- * the two, it costs nothing at all.
+ * Two states carry no headline at all — a held `empty`, and every state before
+ * the first answer — so the row cannot be relied on to be tall. And at 390 the
+ * sentence wraps past the figure's height. So the cell is one grid cell holding
+ * every state the rail can be in, with a hidden copy of the in-flight sentence
+ * laid out beside the live one: as tall as the tallest of them **at this width**,
+ * which is the only reservation that survives a sentence that wraps at 390 and
+ * does not at 1440 (`CHARTING.md` §15.4). Where the figure is the taller of the
+ * two, it costs nothing at all.
  *
  * What is deliberately *not* reserved is the extra content the refused and failed
  * rails bring — the server's sentence, the retry, the reference. Those are
@@ -366,80 +396,77 @@ function isUntracked(view: BarSeriesView): boolean {
 function Rail({
   screen,
   onRetry,
-  control,
 }: {
   readonly screen: BarSeriesScreen;
   readonly onRetry: () => void;
-  readonly control: ReactNode;
 }) {
   return (
-    <div className={styles.controls}>
-      <div className={styles.rail}>
-        {/*
-         * The reservation: the in-flight rail, at the longest window phrase this
-         * screen could name, hidden. `aria-hidden` and `visibility: hidden` — it
-         * is present in layout and absent from everything else, and it has
-         * nothing focusable in it, so it is out of the tab order by construction.
-         */}
-        <div
-          aria-hidden="true"
-          className={cx(styles.railState, styles.railSizer)}
-        >
-          <div className={styles.heldWindow}>
-            <RailSentence>
-              {inFlightSentence(reservedPhrase(screen), reservedPhrase(screen))}
-            </RailSentence>
-          </div>
-        </div>
-        <div className={styles.railState}>
-          {/*
-           * **One rail position, two subjects** (Task 2.13.7), and they are
-           * mutually exclusive rather than stacked.
-           *
-           * `Refreshing` says *a newer answer to this question is coming*.
-           * `HeldWindow` says *this is the answer to a different question, and
-           * here is what happened to the one you asked*. A screen showing both
-           * would be telling a reader that the picture is one request old **and**
-           * about another window, which is two marks for one fact: the held
-           * answer is by definition not about to be refreshed, because the
-           * request behind it has already been superseded.
-           */}
-          {screen.previous === null ? (
-            isStale(screen.shown) && <Refreshing />
-          ) : (
-            <HeldWindow screen={screen} onRetry={onRetry} />
-          )}
+    <div className={styles.rail}>
+      {/*
+       * The reservation: the in-flight rail, at the longest window phrase this
+       * screen could name, hidden. `aria-hidden` and `visibility: hidden` — it
+       * is present in layout and absent from everything else, and it has
+       * nothing focusable in it, so it is out of the tab order by construction.
+       */}
+      <div
+        aria-hidden="true"
+        className={cx(styles.railState, styles.railSizer)}
+      >
+        <div className={styles.heldWindow}>
+          <RailSentence>{reservedSentence(screen)}</RailSentence>
         </div>
       </div>
-      {control}
+      <div className={styles.railState}>
+        {/*
+         * **One rail position, two subjects** (Task 2.13.7), and they are
+         * mutually exclusive rather than stacked.
+         *
+         * `Refreshing` says *a newer answer to this question is coming*.
+         * `HeldWindow` says *this is the answer to a different question, and
+         * here is what happened to the one you asked*. A screen showing both
+         * would be telling a reader that the picture is one request old **and**
+         * about another window, which is two marks for one fact: the held
+         * answer is by definition not about to be refreshed, because the
+         * request behind it has already been superseded.
+         */}
+        {screen.previous === null ? (
+          isStale(screen.shown) && <Refreshing />
+        ) : (
+          <HeldWindow screen={screen} onRetry={onRetry} />
+        )}
+      </div>
     </div>
   );
 }
 
 /**
- * The window phrase the reservation is measured against.
+ * The exact sentence the reservation is measured against.
  *
- * The longest of the five windows the control offers, and of the two this screen
- * is actually holding and asking for — so an address naming a count the control
- * does not offer sizes the slot for itself rather than being clipped by a
- * vocabulary that never saw it.
+ * Not an approximation and not the longest sentence imaginable: it is **the
+ * worst case a press of the control can actually produce from here**. The window
+ * being held is whatever is on screen now, which is known; the window being
+ * asked for is one of the five the control offers, so the widest of those is the
+ * other half. A reservation built from the widest phrase in *both* halves
+ * over-reserves by a line at every width where that extra clause wraps and the
+ * real one does not — measured at 1024, where it put an empty second line above
+ * the chart on every screen.
  *
- * It is deliberately **one** phrase used in both halves of the sentence rather
- * than a pair: the sizer is a measurement of the longest sentence the slot can
- * be asked to hold, not a prediction of the one it will hold next.
+ * The current window is in the candidate set for the second half too, because an
+ * address may name a count the control does not offer — `?sessions=1000` — and
+ * pressing a window from there holds a phrase no member of `TIME_WINDOWS` is as
+ * long as.
  */
-function reservedPhrase(screen: BarSeriesScreen): string {
-  const phrases = [
-    ...TIME_WINDOWS.map((window) =>
-      windowPhrase(seriesWindowFor(window.sessions)),
-    ),
-    windowPhrase(screen.asked.window),
-    ...(screen.previous === null ? [] : [windowPhrase(screen.previous.window)]),
-  ];
-
-  return phrases.reduce((longest, phrase) =>
-    phrase.length > longest.length ? phrase : longest,
+function reservedSentence(screen: BarSeriesScreen): string {
+  const holding = windowPhrase((screen.previous ?? screen.asked).window);
+  const offered = TIME_WINDOWS.map((window) =>
+    windowPhrase(seriesWindowFor(window.sessions)),
   );
+
+  const widest = [...offered, windowPhrase(screen.asked.window)].reduce(
+    (longest, phrase) => (phrase.length > longest.length ? phrase : longest),
+  );
+
+  return inFlightSentence(holding, widest);
 }
 
 /**

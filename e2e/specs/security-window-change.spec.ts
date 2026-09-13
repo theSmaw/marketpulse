@@ -165,23 +165,24 @@ async function holdTheAnswer(page: Page) {
  * states, nothing at all.
  */
 async function plotTop(page: Page): Promise<number> {
-  const region = await priceRegion(page).boundingBox();
-  const plot = await priceRegion(page)
-    .locator("svg:has(line)")
-    .first()
-    .boundingBox();
+  // **Measured against the region rather than the document, and both boxes read
+  // in one evaluate.** Two properties, both learned by watching it fail:
+  //
+  //  - *Against the region*, because the identity block above this grid is
+  //    filled by the **universe** request and under load that can land after the
+  //    bars do, moving the whole region 82 px with nothing in this panel changed.
+  //  - *In one evaluate*, because two `boundingBox()` calls are two round trips:
+  //    anything that moves the page between them — and something on this screen
+  //    moves it by 14 px shortly after load — lands entirely in the difference.
+  //    That is a measurement straddling a reflow rather than a chart moving.
+  return priceRegion(page).evaluate((section) => {
+    const plot = section.querySelector("svg:has(line)");
+    if (plot === null) throw new Error("no plot in the Price region");
 
-  expect(region).not.toBeNull();
-  expect(plot).not.toBeNull();
-
-  // **Measured against the region rather than the document**, which is not a
-  // convenience: the identity block above this grid is filled by the *universe*
-  // request, and under load that can land after the bars do — moving the whole
-  // region 82px down the page with nothing in this panel having changed. That
-  // made the assertion flaky in exactly the direction that teaches a reader to
-  // ignore it. What the rail can move is the chart's position **inside its own
-  // panel**, and that is what this measures.
-  return (plot?.y ?? 0) - (region?.y ?? 0);
+    return (
+      plot.getBoundingClientRect().top - section.getBoundingClientRect().top
+    );
+  });
 }
 
 /**
