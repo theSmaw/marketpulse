@@ -66,6 +66,7 @@ function renderReading(name: "full" | "partial" = "full") {
         readings={frame.readings}
         slots={frame.slots}
         symbol="NVDA"
+        timeframe={frame.axis?.timeframe ?? null}
       />
     </ChartAxis>,
   );
@@ -164,7 +165,13 @@ describe("what a person reaches", () => {
     // not work. What those states *look* like is Task 2.12.7's.
     render(
       <ChartAxis view={barSeriesFixtureView("full")}>
-        <ChartReading plot={PLOT} readings={[]} slots={null} symbol="NVDA" />
+        <ChartReading
+          plot={PLOT}
+          readings={[]}
+          slots={null}
+          symbol="NVDA"
+          timeframe={null}
+        />
       </ChartAxis>,
     );
 
@@ -184,7 +191,7 @@ describe("the keyboard path", () => {
     // plot. A person arriving by Tab sees the reading agree with the headline
     // rather than a chart that has visibly changed and said nothing.
     expect(readout().textContent).toContain(
-      formatBarInstant(last?.bar.startsAt ?? new Date()),
+      formatBarInstant(last?.bar.startsAt ?? new Date(), "1m"),
     );
     expect(readout().textContent).toContain(formatPrice(last?.bar.close ?? 0));
   });
@@ -198,13 +205,14 @@ describe("the keyboard path", () => {
 
     const secondToLast = readings[readings.length - 2];
     expect(readout().textContent).toContain(
-      formatBarInstant(secondToLast?.bar.startsAt ?? new Date()),
+      formatBarInstant(secondToLast?.bar.startsAt ?? new Date(), "1m"),
     );
 
     fireEvent.keyDown(chart(), { key: "ArrowRight" });
     expect(readout().textContent).toContain(
       formatBarInstant(
         readings[readings.length - 1]?.bar.startsAt ?? new Date(),
+        "1m",
       ),
     );
   });
@@ -216,7 +224,7 @@ describe("the keyboard path", () => {
     fireEvent.focus(chart());
     fireEvent.keyDown(chart(), { key: "Home" });
     expect(readout().textContent).toContain(
-      formatBarInstant(readings[0]?.bar.startsAt ?? new Date()),
+      formatBarInstant(readings[0]?.bar.startsAt ?? new Date(), "1m"),
     );
 
     // Past the start is the start. A clamp rather than a wrap: a reading that
@@ -224,13 +232,14 @@ describe("the keyboard path", () => {
     // navigation nobody asked for.
     fireEvent.keyDown(chart(), { key: "ArrowLeft" });
     expect(readout().textContent).toContain(
-      formatBarInstant(readings[0]?.bar.startsAt ?? new Date()),
+      formatBarInstant(readings[0]?.bar.startsAt ?? new Date(), "1m"),
     );
 
     fireEvent.keyDown(chart(), { key: "End" });
     expect(readout().textContent).toContain(
       formatBarInstant(
         readings[readings.length - 1]?.bar.startsAt ?? new Date(),
+        "1m",
       ),
     );
   });

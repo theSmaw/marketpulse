@@ -49,7 +49,7 @@ import styles from "./ChartReading.stories.module.css";
 
 const PLOT = { width: 726, height: 280 };
 
-function frameOf(name: "full" | "dense") {
+function frameOf(name: FixtureName) {
   const view = barSeriesFixtureView(name);
   if (view.state !== "loaded" && view.state !== "partial")
     throw new Error(`the ${name} fixture is not an answer with bars`);
@@ -78,7 +78,7 @@ function frameOf(name: "full" | "dense") {
  * below — the readings here come from the real geometry at a fixed box, because
  * what is being reviewed is the mark and the strip rather than the layout.
  */
-function Harness({ name }: { readonly name: "full" | "dense" }) {
+function Harness({ name }: { readonly name: FixtureName }) {
   const frame = frameOf(name);
 
   return (
@@ -90,11 +90,15 @@ function Harness({ name }: { readonly name: "full" | "dense" }) {
           readings={frame.readings}
           slots={frame.slots}
           symbol="NVDA"
+          timeframe={frame.axis?.timeframe ?? null}
         />
       </div>
     </ChartAxis>
   );
 }
+
+/** The recorded bodies these stories are read against. */
+type FixtureName = "full" | "dense" | "daily";
 
 const meta = {
   title: "Market/ChartReading",
@@ -106,6 +110,19 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
+ * The args every story declares and every story's `render` ignores — the
+ * component is driven by `Harness`, which builds its props from a real frame
+ * over a recorded body. Declared because `satisfies Meta` requires them.
+ */
+const ARGS = {
+  plot: PLOT,
+  readings: [],
+  slots: null,
+  symbol: "NVDA",
+  timeframe: null,
+};
+
+/**
  * **Nobody is pointing at it.** The strip holds the invitation, at the height a
  * reading will occupy.
  *
@@ -114,7 +131,7 @@ type Story = StoryObj<typeof meta>;
  * reader no reason to believe the picture would answer a question.
  */
 export const Resting: Story = {
-  args: { plot: PLOT, readings: [], slots: null, symbol: "NVDA" },
+  args: ARGS,
   render: () => <Harness name="full" />,
 };
 
@@ -128,7 +145,7 @@ export const Resting: Story = {
  * the data face and therefore tabular.
  */
 export const Reading: Story = {
-  args: { plot: PLOT, readings: [], slots: null, symbol: "NVDA" },
+  args: ARGS,
   render: () => <Harness name="full" />,
 };
 
@@ -141,6 +158,28 @@ export const Reading: Story = {
  * of trailing it.
  */
 export const Dense: Story = {
-  args: { plot: PLOT, readings: [], slots: null, symbol: "NVDA" },
+  args: ARGS,
   render: () => <Harness name="dense" />,
+};
+
+/**
+ * **A daily window** — the `3M` body, and the first `1d` series this strip has
+ * ever been reviewed against.
+ *
+ * What to read is the leading **instant**: `Jun 12`, with no time and no zone,
+ * because at `1d` a bar *is* a session. Every surface in this product that
+ * prints a bar's instant printed one unconditionally until Task 2.13.6, and the
+ * vendor stamps a daily bar at midnight market time — so this strip said
+ * `Jun 12 · 00:00 EDT` about a session's whole trading. The repair is one
+ * argument on `formatBarInstant`, which is the one function all five surfaces
+ * already called.
+ *
+ * The four prices are the session's open, high, low and close, and the `BAR`
+ * change is the session's own — which is a more interesting figure at `1d` than
+ * at `1m`, where a minute's open and close are usually the same to three
+ * decimals.
+ */
+export const Daily: Story = {
+  args: ARGS,
+  render: () => <Harness name="daily" />,
 };

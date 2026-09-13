@@ -1,7 +1,7 @@
 import type { KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 
-import type { Bar } from "@marketpulse/shared";
+import type { Bar, Timeframe } from "@marketpulse/shared";
 
 import { cx } from "../../cx.js";
 import type { SlotScale } from "../../market/index.js";
@@ -118,6 +118,17 @@ export interface ChartReadingProps {
   readonly slots: SlotScale | null;
 
   /**
+   * What one slot is — a trading minute, or a whole session.
+   *
+   * It reaches the strip and the spoken sentence for one reason:
+   * `formatBarInstant` prints a time of day at `1m` and a session date at `1d`,
+   * and at `1d` a time of day is an hour nothing traded in. `null` where there is
+   * no axis, which is also where there is nothing to read — so it joins the
+   * guard below rather than acquiring a default that would be a guess.
+   */
+  readonly timeframe: Timeframe | null;
+
+  /**
    * The chart's text alternative, by id — what this picture *is*, as opposed to
    * how to read it (Task 2.12.8).
    *
@@ -138,6 +149,7 @@ export function ChartReading({
   readings,
   plot,
   slots,
+  timeframe,
   describedBy,
 }: ChartReadingProps) {
   // **The read position comes from the axis wrapper since Task 2.13.5**, and it
@@ -160,6 +172,11 @@ export function ChartReading({
     symbol,
     reading.source === "keyboard" ? (point?.bar ?? null) : null,
     reading.source === "keyboard" && reading.index === null,
+    // `1m` where there is no axis, and the branch is unreachable: this component
+    // returns below when there is nothing to read, and there is nothing to read
+    // without an axis. It is spelled rather than asserted because a `!` here
+    // would be a claim the compiler cannot check.
+    timeframe ?? "1m",
   );
 
   // **Nothing to read means nothing to reach**, and that is three decisions at
@@ -179,7 +196,7 @@ export function ChartReading({
   //
   // What a crosshair over a chart with no bars should *look* like is Task
   // 2.12.7's, along with every other state. This is the honest zero until then.
-  if (readings.length === 0) return null;
+  if (readings.length === 0 || timeframe === null) return null;
 
   function readAt(clientX: number, element: HTMLElement) {
     if (slots === null || readings.length === 0) return;
@@ -319,7 +336,11 @@ export function ChartReading({
         </svg>
       </div>
 
-      <Readout point={point} sizer={readings[readings.length - 1]?.bar} />
+      <Readout
+        point={point}
+        sizer={readings[readings.length - 1]?.bar}
+        timeframe={timeframe}
+      />
 
       <p className={styles.visuallyHidden} id={hintId}>
         Use the left and right arrow keys to read each bar, Home and End for the
@@ -403,9 +424,11 @@ const POINT_RADIUS = 4.5;
 function Readout({
   point,
   sizer,
+  timeframe,
 }: {
   readonly point: ChartPoint | undefined;
   readonly sizer: Bar | undefined;
+  readonly timeframe: Timeframe;
 }) {
   return (
     <p className={styles.readout}>
@@ -439,7 +462,7 @@ function Readout({
        */}
       {sizer !== undefined && (
         <span aria-hidden="true" className={cx(styles.line, styles.sizer)}>
-          <BarFigures bar={sizer} />
+          <BarFigures bar={sizer} timeframe={timeframe} />
         </span>
       )}
       {/*
@@ -464,7 +487,11 @@ function Readout({
         <Invitation />
       </span>
       <span className={styles.line}>
-        {point === undefined ? <Invitation /> : <BarFigures bar={point.bar} />}
+        {point === undefined ? (
+          <Invitation />
+        ) : (
+          <BarFigures bar={point.bar} timeframe={timeframe} />
+        )}
       </span>
     </p>
   );
@@ -487,7 +514,13 @@ function Invitation() {
 }
 
 /** One bar's instant, its four prices and its own change. */
-function BarFigures({ bar }: { readonly bar: Bar }) {
+function BarFigures({
+  bar,
+  timeframe,
+}: {
+  readonly bar: Bar;
+  readonly timeframe: Timeframe;
+}) {
   const percent = barChangePercent(bar);
 
   return (
@@ -499,7 +532,9 @@ function BarFigures({ bar }: { readonly bar: Bar }) {
        * crosshair snaps to the nearest bar that exists rather than to the pixel
        * under the pointer. Both of those are honest **because** this is here.
        */}
-      <span className={styles.stamp}>{formatBarInstant(bar.startsAt)}</span>
+      <span className={styles.stamp}>
+        {formatBarInstant(bar.startsAt, timeframe)}
+      </span>
       <Figure label="O" value={formatPrice(bar.open)} />
       <Figure label="H" value={formatPrice(bar.high)} />
       <Figure label="L" value={formatPrice(bar.low)} />
@@ -560,10 +595,15 @@ function Figure({
  * each run of the effect cancels the one before it. A floor therefore delays an
  * announcement and never queues a stale one.
  */
-function useSpokenReading(symbol: string, bar: Bar | null, cleared: boolean) {
+function useSpokenReading(
+  symbol: string,
+  bar: Bar | null,
+  cleared: boolean,
+  timeframe: Timeframe,
+) {
   const sentence = cleared
     ? clearedAnnouncement(symbol)
-    : readingAnnouncement(symbol, bar);
+    : readingAnnouncement(symbol, bar, timeframe);
   const [spoken, setSpoken] = useState("");
 
   // Written only inside the effect. A ref written during render is what the

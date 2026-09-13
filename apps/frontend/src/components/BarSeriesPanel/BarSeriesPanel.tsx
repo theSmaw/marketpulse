@@ -8,6 +8,7 @@ import { cx } from "../../cx.js";
 import type { BarSeriesView, PopulatedBarSeries } from "../../market/index.js";
 import {
   directionOf,
+  formatBarInstant,
   formatChangePercent,
   formatPrice,
 } from "../../market/index.js";
@@ -519,9 +520,22 @@ function SeriesState({
             label="Bars"
             value={`${formatCount(series.bars.length)} × ${series.timeframe}`}
           />
+          {/*
+           * **A bar's instant, in the spelling every other bar instant in this
+           * product uses** — `formatBarInstant` and not `formatMarketInstant`,
+           * since Task 2.13.6. The two rows above are *windows*, which genuinely
+           * have a second in them; this row is two **bars**, and at `1d` a bar is
+           * a session with no time of day in it.
+           *
+           * It is the sixth surface that repair reached, and the only one nobody
+           * had listed: the task named the two readout strips, the resting peak,
+           * the spoken sentence and the volume chart's peak clause. This one was
+           * found by looking at a `1d` window on the running page, which is why
+           * the fixture had to be recorded before the decision could be taken.
+           */}
           <Window
             label="First → last"
-            value={`${formatMarketInstant(first.startsAt)} → ${formatMarketInstant(last.startsAt)}`}
+            value={`${formatBarInstant(first.startsAt, series.timeframe)} → ${formatBarInstant(last.startsAt, series.timeframe)}`}
           />
         </dl>
       </div>

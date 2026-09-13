@@ -8,11 +8,17 @@ import { RegionPlaceholder } from "../components/RegionPlaceholder/RegionPlaceho
 import { SecurityIdentity } from "../components/SecurityIdentity/SecurityIdentity.js";
 import { SecuritySearch } from "../components/SecuritySearch/SecuritySearch.js";
 import { UniverseTable } from "../components/UniverseTable/UniverseTable.js";
+import { TimeWindowControl } from "../components/TimeWindowControl/TimeWindowControl.js";
 import { VolumeChart } from "../components/PriceChart/VolumeChart.js";
-import { useBarSeries } from "../market/index.js";
+import {
+  seriesWindowFor,
+  timeframeForSessions,
+  useBarSeries,
+} from "../market/index.js";
 import { useSecurities } from "../use-securities.js";
 import { securityPath } from "./paths.js";
 import { useSecuritySymbol } from "./use-security-symbol.js";
+import { useTimeWindow } from "./use-time-window.js";
 import page from "./SecurityExplorer.module.css";
 
 // PRODUCT_SPEC.md §8.3 — "What is happening with this security?".
@@ -48,17 +54,6 @@ import page from "./SecurityExplorer.module.css";
 // holds state — that is why — and a region that acquires some owes the reset
 // `useBarSeries` already does.
 
-/**
- * How many trading sessions the panel asks for by default.
- *
- * Five, and the reason is in the call site below: a named window always reaches
- * to the current session's close and the store is caught up nightly, so one or
- * two sessions is reliably an *empty* answer on a store holding 48 million
- * bars. Named rather than inlined so the story, the test and the route agree
- * about what "the default window" means.
- */
-export const DEFAULT_SESSIONS = 5;
-
 export function SecurityExplorer() {
   // The hooks are called here rather than inside the regions, so a component
   // that throws hits `Region`'s own boundary and leaves the request that
@@ -73,13 +68,17 @@ export function SecurityExplorer() {
   // rather than on object identity, precisely so a route can build one inline
   // without a `useMemo` that would be load-bearing and look decorative.
   //
-  // `sessions=5` rather than a smaller number, and it is a measured choice
-  // rather than a taste one (Task 2.10.6, recorded in TASK-07's amendment).
-  // A named window always reaches to the *current* session's close, and the
-  // store is caught up nightly — so `sessions=1` and `sessions=2` are both
-  // `empty` on the local and the deployed store alike, which is a correct 200
-  // that looks exactly like a broken data layer. Five reaches back past the
-  // backfill's edge and has bars in it.
+  // **Five is the default and it is a measured choice rather than a taste one**
+  // (Task 2.10.6, recorded in TASK-07's amendment), and it now lives in
+  // `time-window.ts` as `DEFAULT_WINDOW_SESSIONS` because three things need to
+  // agree about it: this request, the address the control writes, and the cell
+  // the control draws a bar under. A named window always reaches to the
+  // *current* session's close, and the store is caught up nightly — so
+  // `sessions=1` and `sessions=2` are both `empty` on the local and the deployed
+  // store alike, which is a correct 200 that looks exactly like a broken data
+  // layer. Five reaches back past the backfill's edge and has bars in it. `1D`
+  // is offered by the control, is never the default and is never preselected
+  // (`VOLUME-AND-WINDOW.md` §1.3).
   //
   // The window is **named and never resolved here.** A browser in Singapore at
   // 09:00 local is on the previous market date in New York, so a client that
@@ -88,10 +87,21 @@ export function SecurityExplorer() {
   // and shifted rather than an error anybody sees. The server resolves it and
   // reports back what it meant in `coverage.requested`, which is what the panel
   // renders.
+  // **The window comes from the address since Task 2.13.6**, which is what makes
+  // it shareable, survive a reload and survive the back button —
+  // `use-time-window.ts` is the one place it is decoded and `securityPath` the
+  // one place it is written.
+  const { sessions } = useTimeWindow();
+
   const series = useBarSeries({
     symbol,
-    timeframe: "1m",
-    window: { form: "named", sessions: DEFAULT_SESSIONS },
+    // **Derived, never chosen** (`VOLUME-AND-WINDOW.md` §2): the mapping lives in
+    // `time-window.ts` and is exhaustive over a *count*, so a hand-typed
+    // `?sessions=7` and an agent's `setTimeWindow` map as surely as a press of
+    // `1M` does. This is also what makes the server's 10,000-bar cap structurally
+    // unreachable through the named form, so there is no size check here.
+    timeframe: timeframeForSessions(sessions),
+    window: seriesWindowFor(sessions),
   });
 
   return (
@@ -227,7 +237,37 @@ export function SecurityExplorer() {
           <div className={page.wide}>
             <Region
               name="Price"
-              filledBy="One security's closes over the default window, drawn — with the exact figures the picture rounds stated beneath it. Changing the window arrives with Story 2.13."
+              filledBy="One security's closes over the window you choose, drawn — with the exact figures the picture rounds stated beneath it."
+              control={
+                /*
+                 * **The window control, on the Price region's heading row**
+                 * (Task 2.13.6, `VOLUME-AND-WINDOW.md` §8.6).
+                 *
+                 * The honest statement of why it is here is not that the window
+                 * belongs to price — it belongs to the **screen**, and it moves
+                 * the Volume plot in a different region — but that this product
+                 * has no page-level control bar, and inventing one for a single
+                 * control is chrome arriving before its second occupant.
+                 * Reversal trigger: the second screen-level control.
+                 *
+                 * It knows nothing about `useBarSeries`. It reports a session
+                 * count; this route turns that into an address, and the address
+                 * is what the next request is built from. So the selected cell
+                 * moves in the frame the press lands, and the control cannot end
+                 * up contradicting the chart.
+                 */
+                <TimeWindowControl
+                  onChange={(next) => {
+                    // A **push** rather than a replace, for `navigate`'s reason
+                    // above: pressing a window is a deliberate act and Back
+                    // should undo it. It is also why the control commits on a key
+                    // press rather than on an arrow — four arrow presses would
+                    // otherwise be four addresses.
+                    void navigate(securityPath(symbol, next));
+                  }}
+                  sessions={sessions}
+                />
+              }
             >
               <BarSeriesPanel
                 view={series.view}
@@ -270,7 +310,7 @@ export function SecurityExplorer() {
           <div className={page.wide}>
             <Region
               name="Volume"
-              filledBy="Traded volume over the same window as the price above it, on the same axis and stopping at the same coverage edge, which is why it sits directly beneath at the same width."
+              filledBy="Traded volume over the same window as the price above it, on the same axis and stopping at the same coverage edge, which is why it sits directly beneath at the same width. The window control above moves both."
             >
               <VolumeChart view={series.view} symbol={symbol} />
             </Region>

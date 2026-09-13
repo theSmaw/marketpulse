@@ -57,23 +57,54 @@ describe("the instant", () => {
     // All three, because the axis is ordinal: it draws no gap between Friday's
     // last minute and Monday's first, so a bare time does not say which
     // session — and that is exactly the fact the axis took away.
-    expect(formatBarInstant(new Date("2026-09-04T15:52:00.000Z"))).toBe(
+    expect(formatBarInstant(new Date("2026-09-04T15:52:00.000Z"), "1m")).toBe(
       "Sep 4 · 11:52 EDT",
     );
+  });
+
+  it("drops the time of day at 1d, because a session does not have one", () => {
+    // **The repair Task 2.13.6 owed, and the figure it is written against.** The
+    // first recorded `1d` body stamps every daily bar at midnight market time —
+    // `2026-06-12T04:00:00.000Z` is 00:00 EDT — so the unconditional spelling
+    // printed a whole session's trading as `Jun 12 · 00:00 EDT`, an hour in which
+    // nothing traded, on five surfaces at once.
+    expect(formatBarInstant(new Date("2026-06-12T04:00:00.000Z"), "1d")).toBe(
+      "Jun 12",
+    );
+  });
+
+  it("drops the zone with the time rather than keeping it on a date", () => {
+    // `Jun 12 EDT` would assert a zone about a date, which is not a thing a date
+    // has. The session date is already a market date, because the conversion
+    // resolved it in the market's own zone.
+    expect(
+      formatBarInstant(new Date("2026-06-12T04:00:00.000Z"), "1d"),
+    ).not.toMatch(/EDT|EST/);
+  });
+
+  it("is the same function both strips and the volume sentence call", () => {
+    // The point of the timeframe being an argument rather than five call sites
+    // each deciding: one fact, one spelling. A `1m` bar inside a `1d` window
+    // cannot occur — the server answers one timeframe per series — so the pair
+    // below is what the two states of the product look like, not two readings of
+    // one bar.
+    const minute = new Date("2026-09-04T15:52:00.000Z");
+    expect(formatBarInstant(minute, "1m")).toContain("·");
+    expect(formatBarInstant(minute, "1d")).not.toContain("·");
   });
 
   it("is market time and not the reader's", () => {
     // 20:00Z is 16:00 in New York, which is the close. A conversion that
     // skipped the market-time module would print an hour nobody trades in.
-    expect(formatBarInstant(new Date("2026-09-04T20:00:00.000Z"))).toContain(
-      "16:00",
-    );
+    expect(
+      formatBarInstant(new Date("2026-09-04T20:00:00.000Z"), "1m"),
+    ).toContain("16:00");
   });
 });
 
 describe("what a listener is told", () => {
   it("names the subject first and says the direction in a word", () => {
-    const sentence = readingAnnouncement("NVDA", bar(178.44, 178.86));
+    const sentence = readingAnnouncement("NVDA", bar(178.44, 178.86), "1m");
 
     // The subject leads, because this is one of four polite regions on the
     // Security Explorer and a listener is handed them in an order no component
@@ -92,7 +123,7 @@ describe("what a listener is told", () => {
     // The panel's own region announces what the **window** did in words that
     // are otherwise these. Without this clause a listener hearing two sentences
     // one after the other has no way to tell which subject either is about.
-    expect(readingAnnouncement("AMD", bar(10, 9))).toContain(
+    expect(readingAnnouncement("AMD", bar(10, 9), "1m")).toContain(
       "down 10.00% on the bar",
     );
   });
@@ -101,7 +132,8 @@ describe("what a listener is told", () => {
     // `CHARTING.md` §2 chose a line over candlesticks *on the grounds that this
     // readout exists*. A sentence naming only the close would retroactively
     // make that decision wrong.
-    const sentence = readingAnnouncement("NVDA", bar(178.44, 178.86)) ?? "";
+    const sentence =
+      readingAnnouncement("NVDA", bar(178.44, 178.86), "1m") ?? "";
 
     expect(sentence).toContain("close 178.86");
     expect(sentence).toContain("Open 178.44");
@@ -117,20 +149,36 @@ describe("what a listener is told", () => {
     const first = readingAnnouncement(
       "NVDA",
       bar(100, 100, "2026-09-04T15:52:00.000Z"),
+      "1m",
     );
     const second = readingAnnouncement(
       "NVDA",
       bar(100, 100, "2026-09-04T15:53:00.000Z"),
+      "1m",
     );
 
     expect(first).not.toBe(second);
+  });
+
+  it("speaks a daily bar as a session rather than as a minute", () => {
+    // The spoken sentence is the fourth of the five surfaces that printed an
+    // hour, and it is the one a listener cannot cross-check against a picture.
+    const sentence =
+      readingAnnouncement(
+        "NVDA",
+        bar(220, 223, "2026-06-12T04:00:00.000Z"),
+        "1d",
+      ) ?? "";
+
+    expect(sentence).toContain("NVDA chart reading: Jun 12, close 223");
+    expect(sentence).not.toContain("00:00");
   });
 
   it("is silent when there is no reading, rather than saying nothing at length", () => {
     // `null` and not `""`: arriving at a chart nobody has pointed at must
     // announce **nothing**, and keeping the distinction in the type is what
     // stops a caller speaking a sentence about no reading.
-    expect(readingAnnouncement("NVDA", null)).toBeNull();
+    expect(readingAnnouncement("NVDA", null, "1m")).toBeNull();
   });
 
   it("says so when a reading is cleared", () => {

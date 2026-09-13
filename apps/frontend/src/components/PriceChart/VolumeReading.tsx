@@ -1,5 +1,5 @@
 import { cx } from "../../cx.js";
-import type { Bar } from "@marketpulse/shared";
+import type { Bar, Timeframe } from "@marketpulse/shared";
 
 import type { SlotScale } from "../../market/index.js";
 import {
@@ -75,6 +75,16 @@ export interface VolumeReadingProps {
    * this component renders nothing at all.
    */
   readonly peakBar: Bar | null;
+
+  /**
+   * What one slot is — a trading minute, or a whole session.
+   *
+   * Here for `ChartReading`'s reason and it is the same value, from the same
+   * frame: at `1d` a bar is a session and `formatBarInstant` must not print an
+   * hour. The two strips state one instant in one spelling, which is the only
+   * thing they both say.
+   */
+  readonly timeframe: Timeframe | null;
 }
 
 export function VolumeReading({
@@ -82,6 +92,7 @@ export function VolumeReading({
   plot,
   slots,
   peakBar,
+  timeframe,
 }: VolumeReadingProps) {
   const { read, setRead } = useChartReading();
 
@@ -95,7 +106,9 @@ export function VolumeReading({
   // is absent in `loading` and `empty` exactly as the price strip is — both
   // draw a real frame with nothing in it, and a peak of a window with no bars
   // is not zero shares, it is no answer.
-  if (readings.length === 0 || peakBar === null) return null;
+  if (readings.length === 0 || peakBar === null || timeframe === null) {
+    return null;
+  }
 
   function readAt(clientX: number, element: HTMLElement) {
     if (slots === null || readings.length === 0) return;
@@ -160,7 +173,12 @@ export function VolumeReading({
         </svg>
       </div>
 
-      <Readout peakBar={peakBar} point={point} sizer={readings.at(-1)?.bar} />
+      <Readout
+        peakBar={peakBar}
+        point={point}
+        sizer={readings.at(-1)?.bar}
+        timeframe={timeframe}
+      />
     </>
   );
 }
@@ -202,26 +220,28 @@ function Readout({
   peakBar,
   point,
   sizer,
+  timeframe,
 }: {
   readonly peakBar: Bar;
   readonly point: ChartPoint | undefined;
   readonly sizer: Bar | undefined;
+  readonly timeframe: Timeframe;
 }) {
   return (
     <p aria-hidden="true" className={styles.readout}>
       {sizer !== undefined && (
         <span className={cx(styles.line, styles.sizer)}>
-          <VolumeFigures bar={sizer} />
+          <VolumeFigures bar={sizer} timeframe={timeframe} />
         </span>
       )}
       <span className={cx(styles.line, styles.sizer)}>
-        <PeakFigures bar={peakBar} />
+        <PeakFigures bar={peakBar} timeframe={timeframe} />
       </span>
       <span className={styles.line}>
         {point === undefined ? (
-          <PeakFigures bar={peakBar} />
+          <PeakFigures bar={peakBar} timeframe={timeframe} />
         ) : (
-          <VolumeFigures bar={point.bar} />
+          <VolumeFigures bar={point.bar} timeframe={timeframe} />
         )}
       </span>
     </p>
@@ -229,7 +249,13 @@ function Readout({
 }
 
 /** One bar's instant and its exact traded volume. */
-function VolumeFigures({ bar }: { readonly bar: Bar }) {
+function VolumeFigures({
+  bar,
+  timeframe,
+}: {
+  readonly bar: Bar;
+  readonly timeframe: Timeframe;
+}) {
   return (
     <>
       {/*
@@ -238,14 +264,22 @@ function VolumeFigures({ bar }: { readonly bar: Bar }) {
        * the two strips both say, and saying it two ways would make one reading
        * look like two.
        */}
-      <span className={styles.stamp}>{formatBarInstant(bar.startsAt)}</span>
+      <span className={styles.stamp}>
+        {formatBarInstant(bar.startsAt, timeframe)}
+      </span>
       <Figure emphasised label="Volume" value={formatVolumeExact(bar.volume)} />
     </>
   );
 }
 
 /** The window's peak, and the minute it happened in. */
-function PeakFigures({ bar }: { readonly bar: Bar }) {
+function PeakFigures({
+  bar,
+  timeframe,
+}: {
+  readonly bar: Bar;
+  readonly timeframe: Timeframe;
+}) {
   // **A window in which nothing traded has no peak to state**, and `Peak 0` at
   // an arbitrary minute would be a figure with a false instant attached to it.
   // It is a real answer rather than a case that cannot happen — a thin
@@ -270,7 +304,7 @@ function PeakFigures({ bar }: { readonly bar: Bar }) {
        * at rest it is a footnote on a figure.
        */}
       <span className={cx(styles.stamp, styles.quiet)}>
-        {formatBarInstant(bar.startsAt)}
+        {formatBarInstant(bar.startsAt, timeframe)}
       </span>
     </>
   );

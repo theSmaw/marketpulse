@@ -596,9 +596,9 @@ In the same shape ADR 0010 states it for the tick.
 - **Not that the artefact it drove is the artefact that ships.** The dev server
   does not typecheck and does not bundle; `pnpm verify` is what covers that.
 - **Not coverage, and not that a journey exists for a behaviour.** There are
-  **thirteen** spec files and 81 tests (2026-09-11, Task 2.11.9). Note the two
-  timing figures above are Task 1.13.4's, taken on ten tests, and have not been
-  re-taken since.
+  **fifteen** spec files and 122 tests (2026-09-13, Task 2.13.6 — thirteen and
+  81 at Task 2.11.9). Note the two timing figures above are Task 1.13.4's, taken
+  on ten tests, and have not been re-taken since.
 
 ## Why there is no render-failure journey
 

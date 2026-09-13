@@ -29,7 +29,9 @@ function window_(start: string, end: string) {
   return toTimeRange(new Date(start), new Date(end));
 }
 
-function series(name: "full" | "partial" | "stitched"): PopulatedBarSeries {
+function series(
+  name: "full" | "partial" | "stitched" | "daily",
+): PopulatedBarSeries {
   const view = barSeriesFixtureView(name);
   if (view.state !== "loaded" && view.state !== "partial") {
     throw new Error(`the ${name} fixture is not an answer with bars in it`);
@@ -262,6 +264,65 @@ describe("placeBars", () => {
     };
 
     expect(placeBars(axis, [...series("full").bars, stray])).toHaveLength(30);
+  });
+});
+
+describe("a daily axis, where a slot is a whole session", () => {
+  // **The four assertions this whole timeframe rested on and nothing held**
+  // until Task 2.13.6 made a `1d` window reachable.
+  //
+  // The defect they exist against was a blank chart, not a wrong one. The vendor
+  // stamps a daily bar at **midnight** market time, midnight is earlier than any
+  // session's open, so every bar in a `1d` window resolved to the `boundary`
+  // case, `placeBars` dropped all 63 of them, and `3M` drew a perfect empty
+  // frame with a correct axis, a correct headline and no line. Every test in
+  // this repository was green, because all fourteen recorded bodies were `1m`.
+
+  it("places every daily bar, one per session, in order", () => {
+    const daily = series("daily");
+    const axis = timeAxis(daily.coverage.requested, "1d");
+    const placed = placeBars(axis, daily.bars);
+
+    expect(placed).toHaveLength(daily.bars.length);
+    expect(placed.map((point) => point.slot)).toEqual(
+      Array.from({ length: daily.bars.length }, (_unused, index) => index),
+    );
+  });
+
+  it("puts a midnight bar at the start of its own session's slot", () => {
+    // The specific arithmetic, stated rather than implied by the count above: an
+    // instant on a session's market date belongs to that session, however far it
+    // is from the trading hours.
+    const axis = timeAxis(series("daily").coverage.requested, "1d");
+    const midnight = new Date("2026-06-12T04:00:00.000Z");
+
+    expect(positionOfInstant(axis, midnight)).toEqual({
+      kind: "inside",
+      slot: 0,
+    });
+  });
+
+  it("marks a session covered to its close rather than to its start", () => {
+    // The other consumer of this branch, and the reason the fraction is not
+    // simply zero: the coverage edge is an instant, and an answer holding a
+    // session through its close must not paint that session as missing.
+    const axis = timeAxis(series("daily").coverage.requested, "1d");
+    const close = new Date("2026-06-12T20:00:00.000Z");
+    const position = positionOfInstant(axis, close);
+
+    expect(position.kind).toBe("inside");
+    if (position.kind !== "inside") return;
+    expect(position.slot).toBeCloseTo(1);
+  });
+
+  it("still has no position for a weekend, which is what the boundary is for", () => {
+    // A Saturday is on no session's date, so it falls through to the same
+    // arithmetic a `1m` axis uses — the answer that was wrong for a bar and is
+    // right for this.
+    const axis = timeAxis(series("daily").coverage.requested, "1d");
+    const saturday = new Date("2026-06-13T16:00:00.000Z");
+
+    expect(positionOfInstant(axis, saturday).kind).toBe("boundary");
   });
 });
 

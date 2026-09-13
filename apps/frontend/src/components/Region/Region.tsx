@@ -85,10 +85,35 @@ import styles from "./Region.module.css";
 export function Region({
   name,
   filledBy,
+  control,
   children,
 }: {
   readonly name: string;
   readonly filledBy: string;
+  /**
+   * A control on the region's heading row, at its right-hand end (Task 2.13.6).
+   *
+   * **Passed straight to `Panel`'s `meta` slot**, which has always said it takes
+   * "a count, a provenance line, a control" — so this adds no layout and no
+   * rule, only a name at this level. It is called `control` rather than `meta`
+   * because at *this* level the thing is never a count: a region is one of
+   * `PRODUCT_SPEC.md` §8.3's contents, and what belongs on its heading row is
+   * something that changes what the region says.
+   *
+   * It sits **outside** the `ErrorBoundary` below, and that is the half worth
+   * knowing: a chart that throws leaves the control that changes its window
+   * exactly where it was, so the reader's way out of the failure is still on
+   * screen. The boundary wraps the content slot and nothing else, for the same
+   * reason it is inside the `<section>` rather than around it.
+   *
+   * The first one is Story 2.13's window control, on the Price region. **The
+   * reversal trigger is the second screen-level control** —
+   * `VOLUME-AND-WINDOW.md` §8.6 — almost certainly Epic 8's comparison picker,
+   * at which point both belong in a bar above the regions rather than one in
+   * each panel, and this prop is the thing to remove rather than to populate
+   * twice.
+   */
+  readonly control?: ReactNode;
   readonly children?: ReactNode;
 }) {
   return (
@@ -98,7 +123,7 @@ export function Region({
     // that no test in this repository can see. Every region gets it rather than
     // the ones currently overflowing — which of the four scrolls is a function
     // of the viewport and of what Epics 4 to 7 put in them.
-    <Panel title={name} scrollable>
+    <Panel meta={control} scrollable title={name}>
       <p className={styles.filledBy}>{filledBy}</p>
       {/*
        * The containment boundary, and it is *inside* the section on purpose —

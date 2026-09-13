@@ -67,12 +67,14 @@ function renderPair(name: "full" | "dense" = "full") {
         readings={frames.price.readings}
         slots={frames.time.slots}
         symbol="NVDA"
+        timeframe={frames.time.axis?.timeframe ?? null}
       />
       <VolumeReading
         peakBar={frames.volume.peakBar}
         plot={VOLUME}
         readings={frames.volume.readings}
         slots={frames.time.slots}
+        timeframe={frames.time.axis?.timeframe ?? null}
       />
     </ChartAxis>,
   );
@@ -122,7 +124,7 @@ describe("what the strip says", () => {
     // it a fact about a window rather than a number in a corner.
     const busiest = bars.find((bar) => bar.volume === peak);
     expect(volumeStrip(container).textContent).toContain(
-      formatBarInstant(busiest?.startsAt ?? new Date()),
+      formatBarInstant(busiest?.startsAt ?? new Date(), "1m"),
     );
   });
 
@@ -150,7 +152,7 @@ describe("what the strip says", () => {
       formatVolumeExact(first?.volume ?? 0),
     );
     expect(volumeStrip(container).textContent).toContain(
-      formatBarInstant(first?.startsAt ?? new Date()),
+      formatBarInstant(first?.startsAt ?? new Date(), "1m"),
     );
   });
 
@@ -195,6 +197,7 @@ describe("what it is not", () => {
           plot={VOLUME}
           readings={[]}
           slots={null}
+          timeframe={null}
         />
       </ChartAxis>,
     );

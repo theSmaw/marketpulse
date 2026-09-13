@@ -993,6 +993,33 @@ and when it does the band is `--price-unchanged-wash` beneath the directional
 fill — decided, so 2.13 does not re-take it. The frame already fits it: §10's
 price domain is taken over the bars' `high` and `low` rather than their closes.
 
+> **Amended 2026-09-13 by Task 2.13.6 — `1d` arrived, the band was drawn against
+> a real body, and it is declined a second time.** The paragraph above is left
+> standing because it was the right decision to defer and the wrong prediction
+> about what deferring would find. Two things changed it.
+>
+> **The stated reason does not survive the measurement.** A session's high–low
+> range against the first recorded `1d` bodies is a median of **31 px of a 280 px
+> plot at 3M** and **18 px at 1Y** — legible, and nothing like the hairline it is
+> at `1m`. So this is a real re-decision rather than an inherited one.
+>
+> **What declines it is collision rather than size.** This plot already spends
+> its area on a decided encoding — the directional wash, split at the reference
+> rule — and the band wants the same pixels. Four arrangements were drawn against
+> the real body and looked at (`Volume and window.dc.html` §13): over the wash it
+> reads as a printing misregistration, under it as a drop shadow, and _instead_
+> of it the chart stops saying which way the window went at one timeframe and not
+> the others. None is worth what it costs, and the information is not lost —
+> every session's high and low are stated exactly in the readout strip, and the
+> window's in the metric strip.
+>
+> **Reversal trigger, replacing this section's:** the first plot that stops
+> spending its area on a directional wash. Epic 8's comparison view draws several
+> series and cannot wash any of them; that is the plot where an extent band has
+> the area to itself. `--price-unchanged-wash` therefore keeps **no** future
+> consumer by name, and `chart-tokens.stories.tsx` now says so on the page where
+> the language is reviewed.
+
 ### 12.3 The wash's trap is the `--marker-color` trap upside down — it fails **loudly**
 
 `CLAUDE.md` records that `Marker` renders nothing visible unless its row sets
@@ -2097,7 +2124,10 @@ as the reason the alternative was rejected.
   ship what it said it did.
 - **`--price-unchanged-wash` still has no application consumer, and that is the
   one row where the standing rule gives the wrong answer.** It is deferred by
-  name to the high–low extent band at `1d` (§12.2), not unshipped. Both
+  name to the high–low extent band at `1d` (§12.2), not unshipped. **Amended
+  2026-09-13: that band was drawn at `1d` and declined — see §12.2's amendment.
+  The token has no future consumer by name any more, and the row is now
+  _declined_ rather than _deferred_.** Both
   `PriceChart.tsx` and `PriceChart.module.css` carry a comment saying so, which
   is the durable form of this finding.
 - **The browser boundary and the market module's pattern are both live.** The
@@ -2204,6 +2234,17 @@ Six items. The first five were written into this document and the sixth into
    `dense` and 2.12.7 recorded `uncovered`: a state a story cannot render is a
    state nobody reviews. **And the alternative says what window was asked for** —
    a control that changes the window changes that sentence.
+
+   > **Discharged 2026-09-13 by Task 2.13.6, and it found more than the two
+   > branches.** Two bodies are recorded — `daily` (63 sessions) and `dailyYear`
+   > (252) — both branches execute, and both sentences were read. What the
+   > recording found is what no amount of reading them could have: a daily bar's
+   > instant is **midnight** in market terms, so `formatBarInstant` printed
+   > `Jun 12 · 00:00 EDT` on **six** surfaces, and `placeBars` dropped every bar
+   > in a `1d` window because midnight is earlier than any session's open — a
+   > `3M` chart with a correct axis, a correct headline and **no line at all**,
+   > with nothing red anywhere. `VOLUME-AND-WINDOW.md` §30 carries both repairs.
+
 6. **The trading-calendar walk, and it is the number the window control is most
    likely to be surprised by.** `timeAxis` is **0.202 ms** at today's
    five-session default and **23.051 ms** over the whole stored depth at `1d`,

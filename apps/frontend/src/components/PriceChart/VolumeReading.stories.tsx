@@ -46,7 +46,7 @@ import styles from "./VolumeReading.stories.module.css";
 
 const PLOT = { width: 726, height: 88 };
 
-function frameOf(name: "full" | "dense") {
+function frameOf(name: FixtureName) {
   const view = barSeriesFixtureView(name);
   if (view.state !== "loaded" && view.state !== "partial")
     throw new Error(`the ${name} fixture is not an answer with bars`);
@@ -63,7 +63,7 @@ function frameOf(name: "full" | "dense") {
 }
 
 /** The volume chart's own grid, with a stand-in where the plot would be. */
-function Harness({ name }: { readonly name: "full" | "dense" }) {
+function Harness({ name }: { readonly name: FixtureName }) {
   const { time, volume } = frameOf(name);
 
   return (
@@ -75,6 +75,7 @@ function Harness({ name }: { readonly name: "full" | "dense" }) {
           plot={PLOT}
           readings={volume.readings}
           slots={time.slots}
+          timeframe={time.axis?.timeframe ?? null}
         />
       </div>
     </ChartAxis>
@@ -90,7 +91,16 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-const ARGS = { peakBar: null, plot: PLOT, readings: [], slots: null };
+/** The three recorded bodies these stories are read against. */
+type FixtureName = "full" | "dense" | "daily";
+
+const ARGS = {
+  peakBar: null,
+  plot: PLOT,
+  readings: [],
+  slots: null,
+  timeframe: null,
+};
 
 /**
  * **Nobody is pointing at it** — the window's peak, exact, and the minute it
@@ -134,4 +144,25 @@ export const Reading: Story = {
 export const Dense: Story = {
   args: ARGS,
   render: () => <Harness name="dense" />,
+};
+
+/**
+ * **A daily window** — the `3M` body, and the state this strip had never been
+ * reviewed in.
+ *
+ * The one thing to read is the **instant**: `Jun 12`, with no time of day and no
+ * zone. Until Task 2.13.6 every surface that printed a bar's instant printed one
+ * unconditionally, and a daily bar is stamped at midnight market time — so both
+ * strips, the resting peak below and the spoken sentence all said
+ * `Jun 12 · 00:00 EDT` about a session in which nothing traded at midnight.
+ * `chart-reading.ts` carries the repair and the reason it is one function rather
+ * than five.
+ *
+ * The columns are also worth a look next to `Dense`: sixty-three of them at
+ * 11px is the **gap** regime, three regimes away from the silhouette, so this is
+ * the widest a volume column gets in this product.
+ */
+export const Daily: Story = {
+  args: ARGS,
+  render: () => <Harness name="daily" />,
 };

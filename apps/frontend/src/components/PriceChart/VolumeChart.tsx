@@ -294,6 +294,7 @@ export function VolumeChart({ view, symbol }: VolumeChartProps) {
         plot={box}
         readings={volume.readings}
         slots={time.slots}
+        timeframe={time.axis?.timeframe ?? null}
       />
     </div>
   );
